@@ -1231,10 +1231,11 @@
                     actorId: state.myProfile.id,
                     createdAt: Date.now()
                 };
-                await sendSecurePayload(peerId, {
-                    type: 'CHAT_OPERATION',
-                    operation
-                });
+                sendSecurePayload(peerId, { type: 'CHAT_OPERATION', operation });
+                
+                // Garantiere, dass das Kommando gesendet wird, bevor der Channel gekillt wird
+                if (typeof flushPeerQueueToCache === 'function') await flushPeerQueueToCache(peerId);
+                await new Promise(resolve => setTimeout(resolve, 500));
 
                 await storeChatControl(peerId, 'DELETE_CHAT');
                 state.activeChatPeerId = null;
@@ -1279,12 +1280,14 @@
                         operationId: `wipe:${window.crypto.randomUUID()}`,
                         type: 'CHAT_WIPE',
                         actorId: state.myProfile.id,
+                        hidePeer: true,
                         createdAt: Date.now()
                     };
-                    await sendSecurePayload(peerId, {
-                        type: 'CHAT_OPERATION',
-                        operation
-                    });
+                    sendSecurePayload(peerId, { type: 'CHAT_OPERATION', operation });
+                    
+                    // Garantiere Zustellung ueber Cloud Cache oder P2P, bevor Block aktiv wird
+                    if (typeof flushPeerQueueToCache === 'function') await flushPeerQueueToCache(peerId);
+                    await new Promise(resolve => setTimeout(resolve, 500));
 
                     await storeChatControl(peerId, 'BLOCK');
                     showToast('Peer wurde dauerhaft blockiert.', 'success');

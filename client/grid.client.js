@@ -62,11 +62,12 @@ function renderActivePeerList() {
     const count = document.getElementById('active-peers-count');
     if (!container || !count) return;
 
+    const hiddenList = JSON.parse(localStorage.getItem('hiddenByPeers') || '[]');
     // Zeige korrekte DB-geladene Peers an.
     // Fuege den aktiven Peer temporaer hinzu, falls der Chat gerade erst ueber das Grid gestartet wurde.
     const activeSet = new Set(state.chatPeerIds);
     if (state.activeChatPeerId) activeSet.add(state.activeChatPeerId);
-    const peerIds = Array.from(activeSet).filter(peerId => !isPeerBlocked(peerId));
+    const peerIds = Array.from(activeSet).filter(peerId => !isPeerBlocked(peerId) && !hiddenList.includes(peerId));
 
     count.textContent = peerIds.length;
     container.innerHTML = '';
@@ -121,7 +122,7 @@ async function fetchPeersFromWorkerGrid() {
             );
             await Promise.all(Array.from(removedPeerIds, peerId => removeCachedPeer(peerId, state.myProfile.geohash)));
             state.peers = data.peers
-                .filter(peer => peer.id !== state.myProfile.id && !removedPeerIds.has(peer.id) && !isPeerBlocked(peer.id))
+                .filter(peer => peer.id !== state.myProfile.id && !removedPeerIds.has(peer.id))
                 .map(peer => {
                     const cachedProfile = state.cachedProfiles[peer.id];
                     return cachedProfile ? {

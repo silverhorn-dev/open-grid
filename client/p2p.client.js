@@ -594,6 +594,10 @@ async function fetchQueuedCacheMessages() {
                 if (payload.type !== 'CHAT_OPERATION') {
                     throw new Error('Unsupported cached payload type.');
                 }
+                
+                // Feature: Korrekte Herkunftsanzeige bei Pfad C (E2EE PC)
+                payload.deliveredVia = 'Pfad C (Cloud Cache)';
+
                 await handleSecurePayload(cachedMessage.senderId, payload);
                 const deleteResponse = await fetch(
                     `${API_BASE}/api/cache/${encodeURIComponent(cachedMessage.msgId)}`,

@@ -20,10 +20,20 @@
   - [x] wenn beide offline gehen und einer wieder on geht sieht er den chat nicht mehr
   - [x] delete cache! auf dem router. wenn jemand den chat l�scht oder jmd blockiert bleibt das persistent auf dem server
   - [x] jeder client pr�ft diese tabelle
-  - [] unter den nachrichten stimmt beim empfänger die herkunft nicht immer, bei path c zb steht E2E P2P und nicht E2EE PC oder so
+  - [ ] unter den nachrichten stimmt beim empfänger die herkunft nicht immer, bei path c zb steht E2E P2P und nicht E2EE PC oder so
+  - [ ] blocking und chat delete sollte den chat jeweils vollständig löschen!
+  - [ ] im chat bereich sollten nicht alle peers erscheinen, nur jene zu denen ein chat existiert
+## status
+- [ ] aktuell kann der status P2P Connected ausgelesen werden. im debug sollte das so sein. ohne würde ich da analog zu snap :eyes: platzieren
+
+## Snapping 
+- [ ] enable it
+  - [ ] use camera
+  - [ ] better gui
+  - [ ] 
 
 # Debug
-- [] wenn man nicht im debug modus ist sämtliche technischen bezeichnungen aus sein, bezieht sich nicht nur auf den chat
+- [ ] wenn man nicht im debug modus ist sämtliche technischen bezeichnungen aus sein, bezieht sich nicht nur auf den chat
 
 # Self-hosting
 - [x] migrate Cloudflare Worker, KV, Durable Objects and metadata to Fastify

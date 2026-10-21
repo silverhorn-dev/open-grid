@@ -61,10 +61,12 @@ function renderActivePeerList() {
     const count = document.getElementById('active-peers-count');
     if (!container || !count) return;
 
-    const peerIds = Array.from(new Set([
-        ...state.chatPeerIds,
-        ...state.peers.filter(peer => !isPeerBlocked(peer.id)).map(peer => peer.id)
-    ]));
+    // Zeige korrekte DB-geladene Peers an.
+    // Fuege den aktiven Peer temporaer hinzu, falls der Chat gerade erst ueber das Grid gestartet wurde.
+    const activeSet = new Set(state.chatPeerIds);
+    if (state.activeChatPeerId) activeSet.add(state.activeChatPeerId);
+    const peerIds = Array.from(activeSet).filter(peerId => !isPeerBlocked(peerId));
+
     count.textContent = peerIds.length;
     container.innerHTML = '';
     peerIds.forEach(peerId => {

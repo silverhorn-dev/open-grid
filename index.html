@@ -374,7 +374,8 @@
             peerIdentityKeys: {},
             cacheFetchInFlight: false,
             chatPeerIds: [],
-            chatControls: {}
+            chatControls: {},
+            mediaStream: null
         };
 
         let db = null;
@@ -684,9 +685,12 @@
                 getAllDatabaseRecords('messages'),
                 getAllDatabaseRecords('chatOperations')
             ]);
+
+            // Filtere geloeschte Nachrichten heraus, damit leere Chats nicht in der Liste auftauchen
+            const activeMessages = messages.filter(m => !m.deleted);
+
             state.chatPeerIds = Array.from(new Set([
-                ...messages.map(message => message.peerId),
-                ...operations.map(operation => operation.peerId),
+                ...activeMessages.map(message => message.peerId),
                 ...Object.values(state.chatControls)
                     .filter(control => control.blockedAt)
                     .map(control => control.peerId)
@@ -810,6 +814,7 @@
                     id: message.id,
                     senderId: message.senderId,
                     text: message.text,
+                    snapData: message.snapData,
                     timestamp: message.timestamp,
                     createdAt: message.createdAt
                 }
@@ -873,6 +878,18 @@
                 const index = state.chats[peerId].findIndex(item => item.id === localOperation.messageId);
                 if (index >= 0) state.chats[peerId][index] = deletedMessage;
                 else state.chats[peerId].push(deletedMessage);
+            } else if (localOperation.type === 'CHAT_WIPE') {
+                if (localOperation.actorId !== peerId) return false;
+                await storeChatControl(peerId, 'DELETE_CHAT');
+                if (state.activeChatPeerId === peerId) {
+                    state.activeChatPeerId = null;
+                    document.getElementById('chat-peer-name').textContent = 'No Peer Selected';
+                    document.getElementById('chat-connection-type').textContent = 'Select a conversation';
+                    document.getElementById('chat-messages').innerHTML = '<div class="text-center text-xs text-slate-500 my-8">Der Chat wurde vom Chat-Partner geloescht.</div>';
+                    updateChatActionButtons();
+                }
+                showToast('Ein Chat-Partner hat den Chat-Verlauf geloescht.', 'info');
+                return true; // Return true, um den Wipe nicht als dauerhafte Sync-Operation in die DB zu legen
             } else {
                 return false;
             }
@@ -1179,6 +1196,18 @@
             const peerId = state.activeChatPeerId;
             if (!peerId || !window.confirm('Diesen Chat lokal und aus dem Router-Cache loeschen?')) return;
             try {
+                // Sende den Wipe-Befehl an den Peer, bevor wir den Chat lokal schliessen
+                const operation = {
+                    operationId: `wipe:${window.crypto.randomUUID()}`,
+                    type: 'CHAT_WIPE',
+                    actorId: state.myProfile.id,
+                    createdAt: Date.now()
+                };
+                await sendSecurePayload(peerId, {
+                    type: 'CHAT_OPERATION',
+                    operation
+                });
+
                 await storeChatControl(peerId, 'DELETE_CHAT');
                 state.activeChatPeerId = null;
                 document.getElementById('chat-peer-name').textContent = 'No Peer Selected';
@@ -1206,6 +1235,19 @@
                     showToast('Peer wurde entblockt.', 'success');
                 } else {
                     if (!window.confirm('Diesen Peer blockieren und den Chat loeschen?')) return;
+                    
+                    // Sende Wipe-Befehl an den Peer, bevor die lokale Blockierung weitere P2P-Payloads verhindert
+                    const operation = {
+                        operationId: `wipe:${window.crypto.randomUUID()}`,
+                        type: 'CHAT_WIPE',
+                        actorId: state.myProfile.id,
+                        createdAt: Date.now()
+                    };
+                    await sendSecurePayload(peerId, {
+                        type: 'CHAT_OPERATION',
+                        operation
+                    });
+
                     await storeChatControl(peerId, 'BLOCK');
                     showToast('Peer wurde dauerhaft blockiert.', 'success');
                 }
@@ -1215,16 +1257,17 @@
             }
         }
 
-        async function sendChatMessage() {
+        async function sendChatMessage(snapData = null) {
             const input = document.getElementById('chat-input');
-            const text = input.value.trim();
-            if (!text || !state.activeChatPeerId || isPeerBlocked(state.activeChatPeerId)) return;
+            const text = input.value.trim() || (snapData ? '? Snap' : '');
+            if ((!text && !snapData) || !state.activeChatPeerId || isPeerBlocked(state.activeChatPeerId)) return;
 
             const peerId = state.activeChatPeerId;
             const message = {
                 id: window.crypto.randomUUID(),
                 senderId: state.myProfile.id,
                 text,
+                snapData,
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                 createdAt: Date.now(),
                 deliveredVia: 'Establishing secure channel...'
@@ -1267,6 +1310,7 @@
                     id: payload.id,
                     senderId: peerId,
                     text: payload.text,
+                    snapData: payload.snapData,
                     timestamp: payload.timestamp,
                     createdAt: payload.createdAt || Date.now()
                 }
@@ -1315,8 +1359,15 @@
                 const row = document.createElement('div');
                 row.className = `flex flex-col ${isMine ? 'items-end' : 'items-start'}`;
                 const bubble = document.createElement('div');
-                bubble.className = `max-w-[80%] rounded-2xl px-4 py-2 text-xs ${message.deleted ? 'bg-slate-900 text-slate-500 border border-slate-800 italic' : isMine ? 'bg-brand-600 text-white rounded-br-none' : 'bg-slate-800 text-slate-100 rounded-bl-none'}`;
-                bubble.textContent = message.deleted ? 'Nachricht geloescht' : message.text;
+                bubble.className = `max-w-[80%] rounded-2xl px-4 py-2 text-xs overflow-hidden ${message.deleted ? 'bg-slate-900 text-slate-500 border border-slate-800 italic' : isMine ? 'bg-brand-600 text-white rounded-br-none' : 'bg-slate-800 text-slate-100 rounded-bl-none'}`;
+                
+                if (message.deleted) {
+                    bubble.textContent = 'Nachricht geloescht';
+                } else if (message.snapData) {
+                    bubble.innerHTML = `<img src="${message.snapData}" class="w-48 sm:w-64 rounded-xl mb-1.5 border border-slate-900/50"><div class="opacity-90">${message.text}</div>`;
+                } else {
+                    bubble.textContent = message.text;
+                }
                 const meta = document.createElement('div');
                 meta.className = 'text-[9px] text-slate-500 mt-0.5 flex items-center gap-2';
                 const status = document.createElement('span');
@@ -1343,7 +1394,45 @@
             pill.className = `text-xs px-2.5 py-1 rounded-full border font-mono ${classes}`;
         }
 
-        function openSnapUploadModal() { showToast('Snap-Funktion aktiv.', 'info'); }
+        async function openSnapUploadModal() {
+            if (!state.activeChatPeerId || isPeerBlocked(state.activeChatPeerId)) {
+                showToast('Bitte waehle zuerst einen aktiven Chat aus.', 'warning');
+                return;
+            }
+            try {
+                state.mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+                const video = document.getElementById('snap-video-preview');
+                video.srcObject = state.mediaStream;
+                document.getElementById('snap-capture-modal').classList.remove('hidden');
+            } catch (error) {
+                showToast('Kamera-Zugriff verweigert oder nicht verfuegbar.', 'error');
+                logDebug(`Camera error: ${error.message}`);
+            }
+        }
+
+        function closeSnapModal() {
+            if (state.mediaStream) {
+                state.mediaStream.getTracks().forEach(track => track.stop());
+                state.mediaStream = null;
+            }
+            document.getElementById('snap-video-preview').srcObject = null;
+            document.getElementById('snap-capture-modal').classList.add('hidden');
+        }
+
+        async function captureAndSendSnap() {
+            const video = document.getElementById('snap-video-preview');
+            const canvas = document.getElementById('snap-canvas-capture');
+            if (!video.videoWidth) return;
+
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            const imageData = canvas.toDataURL('image/jpeg', 0.8);
+            closeSnapModal();
+            await sendChatMessage(imageData);
+        }
+
         function clearDebugLogs() {
             const output = document.getElementById('debug-log-output');
             if (output) output.innerHTML = '<div>[System] Log cleared.</div>';

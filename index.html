@@ -307,6 +307,7 @@
         const state = {
             nodeId: getOrCreateNodeId(),
             registrationId: window.crypto.randomUUID(),
+            tabStartedAt: Date.now(),
             myProfile: {
                 id: null,
                 geohash: CONFIG.DEFAULT_GEOHASH,
@@ -374,11 +375,21 @@
 
         function getOrCreateNodeId() {
             const storageKey = 'opengrid-node-id';
-            const storedId = window.sessionStorage.getItem(storageKey);
-            if (storedId) return storedId;
+            const sessionId = window.sessionStorage.getItem(storageKey);
+            if (sessionId) {
+                if (!window.localStorage.getItem(storageKey)) window.localStorage.setItem(storageKey, sessionId);
+                return sessionId;
+            }
+
+            const persistentId = window.localStorage.getItem(storageKey);
+            if (persistentId) {
+                window.sessionStorage.setItem(storageKey, persistentId);
+                return persistentId;
+            }
 
             const nodeId = `node_${window.crypto.randomUUID()}`;
             window.sessionStorage.setItem(storageKey, nodeId);
+            window.localStorage.setItem(storageKey, nodeId);
             return nodeId;
         }
 
@@ -399,20 +410,29 @@
                     if (!message || message.registrationId === state.registrationId) return;
 
                     if (message.type === 'CLAIM_NODE_ID' && message.nodeId === state.nodeId) {
-                        state.tabChannel.postMessage({
-                            type: 'NODE_ID_COLLISION',
-                            targetRegistrationId: message.registrationId,
-                            registrationId: state.registrationId
-                        });
+                        const ownClaimWins = state.tabStartedAt < message.startedAt
+                            || (state.tabStartedAt === message.startedAt && state.registrationId < message.registrationId);
+                        if (ownClaimWins) {
+                            state.tabChannel.postMessage({
+                                type: 'NODE_ID_COLLISION',
+                                nodeId: state.nodeId,
+                                targetRegistrationId: message.registrationId,
+                                registrationId: state.registrationId
+                            });
+                        }
                     }
 
-                    if (message.type === 'NODE_ID_COLLISION' && message.targetRegistrationId === state.registrationId) {
+                    if (message.type === 'NODE_ID_COLLISION'
+                        && message.targetRegistrationId === state.registrationId
+                        && message.nodeId === state.nodeId) {
                         state.nodeId = `node_${window.crypto.randomUUID()}`;
                         state.myProfile.id = state.nodeId;
+                        // A secondary tab gets an ephemeral identity without replacing the device identity.
                         window.sessionStorage.setItem('opengrid-node-id', state.nodeId);
                         state.tabChannel.postMessage({
                             type: 'CLAIM_NODE_ID',
                             nodeId: state.nodeId,
+                            startedAt: state.tabStartedAt,
                             registrationId: state.registrationId
                         });
                     }
@@ -421,6 +441,7 @@
                 state.tabChannel.postMessage({
                     type: 'CLAIM_NODE_ID',
                     nodeId: state.nodeId,
+                    startedAt: state.tabStartedAt,
                     registrationId: state.registrationId
                 });
                 setTimeout(finish, 150);
@@ -430,19 +451,133 @@
         // ================= INDEXEDDB =================
         function initDatabase() {
             return new Promise((resolve) => {
-                const req = indexedDB.open('OpenGridDB_Live', 1);
+                const req = indexedDB.open('OpenGridDB_Live', 2);
+                let settled = false;
+                const finish = (database = null) => {
+                    if (settled) return;
+                    settled = true;
+                    resolve(database);
+                };
                 req.onupgradeneeded = (e) => {
                     const database = e.target.result;
                     if (!database.objectStoreNames.contains('profiles')) database.createObjectStore('profiles', { keyPath: 'id' });
+                    const gridStore = database.objectStoreNames.contains('gridPeers')
+                        ? e.target.transaction.objectStore('gridPeers')
+                        : database.createObjectStore('gridPeers', { keyPath: 'cacheKey' });
+                    if (!gridStore.indexNames.contains('geohash')) gridStore.createIndex('geohash', 'geohash', { unique: false });
+
+                    const messageStore = database.objectStoreNames.contains('messages')
+                        ? e.target.transaction.objectStore('messages')
+                        : database.createObjectStore('messages', { keyPath: 'id' });
+                    if (!messageStore.indexNames.contains('peerId')) messageStore.createIndex('peerId', 'peerId', { unique: false });
                 };
-                req.onsuccess = (e) => { db = e.target.result; resolve(db); };
-                req.onerror = () => resolve();
+                req.onsuccess = (e) => {
+                    db = e.target.result;
+                    db.onversionchange = () => {
+                        db.close();
+                        db = null;
+                    };
+                    finish(db);
+                };
+                req.onerror = () => {
+                    console.error('IndexedDB initialization failed.', req.error);
+                    finish();
+                };
+                req.onblocked = () => {
+                    showToast('Local cache upgrade is blocked by another open tab.', 'warning');
+                    setTimeout(() => finish(), 3000);
+                };
             });
+        }
+
+        function databaseRequest(storeName, mode, operation) {
+            if (!db) return Promise.reject(new Error('Local database is unavailable.'));
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction(storeName, mode);
+                const request = operation(transaction.objectStore(storeName));
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        function putDatabaseRecord(storeName, value) {
+            if (!db) return Promise.resolve();
+            return databaseRequest(storeName, 'readwrite', store => store.put(value));
+        }
+
+        function deleteDatabaseRecord(storeName, key) {
+            if (!db) return Promise.resolve();
+            return databaseRequest(storeName, 'readwrite', store => store.delete(key));
+        }
+
+        function getDatabaseRecordsByIndex(storeName, indexName, value) {
+            if (!db) return Promise.resolve([]);
+            return databaseRequest(storeName, 'readonly', store => store.index(indexName).getAll(value));
         }
 
         async function loadMyLocalProfile() {
             state.myProfile.id = state.nodeId;
             renderProfileForm();
+        }
+
+        async function loadCachedGridPeers() {
+            if (!db) {
+                renderDiscoveryGrid();
+                return;
+            }
+            const geohash = state.myProfile.geohash;
+            const [cachedPeers, cachedProfiles] = await Promise.all([
+                getDatabaseRecordsByIndex('gridPeers', 'geohash', geohash),
+                databaseRequest('profiles', 'readonly', store => store.getAll())
+            ]);
+            const profilesById = new Map(cachedProfiles.map(record => [record.id, record.profile]));
+            state.peers = cachedPeers
+                .filter(peer => peer.id !== state.myProfile.id)
+                .map(peer => ({
+                    id: peer.id,
+                    geohash: peer.geohash,
+                    name: peer.name,
+                    avatar: peer.avatar,
+                    online: false,
+                    fullProfile: profilesById.get(peer.id)
+                }));
+            renderDiscoveryGrid();
+        }
+
+        async function cacheGridPeer(peer) {
+            await putDatabaseRecord('gridPeers', {
+                cacheKey: `${peer.geohash}:${peer.id}`,
+                id: peer.id,
+                geohash: peer.geohash,
+                name: peer.name,
+                avatar: peer.avatar,
+                cachedAt: Date.now()
+            });
+        }
+
+        async function removeCachedPeer(peerId, geohash) {
+            await Promise.all([
+                deleteDatabaseRecord('gridPeers', `${geohash}:${peerId}`),
+                deleteDatabaseRecord('profiles', peerId)
+            ]);
+        }
+
+        async function cachePeerProfile(peerId, profile) {
+            await putDatabaseRecord('profiles', {
+                id: peerId,
+                geohash: state.myProfile.geohash,
+                profile,
+                cachedAt: Date.now()
+            });
+        }
+
+        async function loadChatHistory(peerId) {
+            const messages = await getDatabaseRecordsByIndex('messages', 'peerId', peerId);
+            state.chats[peerId] = messages.sort((left, right) => left.createdAt - right.createdAt);
+        }
+
+        function persistChatMessage(peerId, message) {
+            return putDatabaseRecord('messages', { ...message, peerId });
         }
 
         // ================= DYNAMIC FORM =================
@@ -564,8 +699,8 @@
                 imageWrapper.appendChild(image);
 
                 const onlineBadge = document.createElement('span');
-                onlineBadge.className = 'absolute top-3 right-3 flex items-center gap-1.5 rounded-full bg-slate-950/80 border border-emerald-500/30 px-2 py-1 text-[10px] font-mono text-emerald-300 backdrop-blur';
-                onlineBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>Online';
+                onlineBadge.className = `absolute top-3 right-3 flex items-center gap-1.5 rounded-full bg-slate-950/80 border px-2 py-1 text-[10px] font-mono backdrop-blur ${peer.online ? 'border-emerald-500/30 text-emerald-300' : 'border-amber-500/30 text-amber-300'}`;
+                onlineBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full ${peer.online ? 'bg-emerald-400' : 'bg-amber-400'}"></span>${peer.online ? 'Online' : 'Abwesend'}`;
                 imageWrapper.appendChild(onlineBadge);
 
                 const footer = document.createElement('div');
@@ -612,8 +747,10 @@
                 name.className = 'text-xs font-semibold text-slate-200 truncate';
                 name.textContent = peer.name || 'Peer';
                 const status = document.createElement('div');
-                status.className = 'text-[10px] text-emerald-400 font-mono';
-                status.textContent = state.dataChannels[peer.id]?.readyState === 'open' ? 'P2P connected' : 'Available';
+                status.className = `text-[10px] font-mono ${peer.online ? 'text-emerald-400' : 'text-amber-400'}`;
+                status.textContent = state.dataChannels[peer.id]?.readyState === 'open'
+                    ? 'P2P connected'
+                    : (peer.online ? 'Available' : 'Abwesend');
                 details.append(name, status);
                 button.append(image, details);
                 container.appendChild(button);
@@ -635,12 +772,22 @@
 
                 if (data.peers && Array.isArray(data.peers)) {
                     const existingPeers = new Map(state.peers.map(peer => [peer.id, peer]));
-                    state.peers = data.peers
-                        .filter(peer => peer.id !== state.myProfile.id)
+                    const removedPeerIds = new Set(data.removedPeerIds || []);
+                    await Promise.all(Array.from(removedPeerIds, peerId => removeCachedPeer(peerId, state.myProfile.geohash)));
+
+                    const serverPeers = data.peers
+                        .filter(peer => peer.id !== state.myProfile.id && !removedPeerIds.has(peer.id))
                         .map(peer => {
                             const existing = existingPeers.get(peer.id);
                             return existing?.fullProfile ? { ...peer, fullProfile: existing.fullProfile } : peer;
                         });
+                    const serverPeerIds = new Set(serverPeers.map(peer => peer.id));
+                    const absentPeers = Array.from(existingPeers.values())
+                        .filter(peer => peer.id !== state.myProfile.id && !serverPeerIds.has(peer.id) && !removedPeerIds.has(peer.id))
+                        .map(peer => ({ ...peer, online: false }));
+
+                    state.peers = [...serverPeers, ...absentPeers];
+                    await Promise.all(serverPeers.map(cacheGridPeer));
                     renderDiscoveryGrid();
                     document.getElementById('grid-last-updated').textContent = `Updated ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
                     return true;
@@ -733,19 +880,6 @@
                 showToast('Abmeldung fehlgeschlagen.', 'error');
             }
         }
-
-        // Automatische Abmeldung beim Schließen der Tab/Browser-Session
-        window.addEventListener('beforeunload', () => {
-            const payload = new Blob(
-                [JSON.stringify({
-                    peerId: state.myProfile.id,
-                    registrationId: state.registrationId,
-                    geohash: state.myProfile.geohash
-                })],
-                { type: 'application/json' }
-            );
-            navigator.sendBeacon(`${API_BASE}/api/unregister`, payload);
-        });
 
         // ================= WEBRTC & E2EE HANDSHAKE =================
         const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
@@ -1044,7 +1178,7 @@
 
         async function handleSecurePayload(peerId, payload) {
             if (payload.type === 'CHAT_MESSAGE') {
-                receiveChatMessage(peerId, payload);
+                await receiveChatMessage(peerId, payload);
             } else if (payload.type === 'PROFILE_REQUEST') {
                 await sendSecurePayload(peerId, {
                     type: 'PROFILE_RESPONSE',
@@ -1056,10 +1190,12 @@
                 });
             } else if (payload.type === 'PROFILE_RESPONSE') {
                 const peer = state.peers.find(candidate => candidate.id === peerId);
+                await cachePeerProfile(peerId, payload.profile);
                 if (peer) {
                     peer.fullProfile = payload.profile;
                     peer.name = payload.profile.fields?.displayName || peer.name;
                     peer.avatar = payload.profile.avatar || peer.avatar;
+                    await cacheGridPeer(peer);
                     renderDiscoveryGrid();
                 }
                 if (state.activeModalPeerId === peerId) renderProfileModalData(payload.profile);
@@ -1100,13 +1236,15 @@
             document.getElementById('modal-profile-img').src = peer.avatar || 'https://placehold.co/300x300/1e293b/ffffff?text=Peer';
 
             const badge = document.getElementById('modal-online-badge');
-            badge.textContent = 'Available';
-            badge.className = 'px-2.5 py-0.5 rounded-full text-xs font-mono font-semibold flex items-center gap-1.5 border bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+            badge.textContent = peer.online ? 'Available' : 'Abwesend';
+            badge.className = `px-2.5 py-0.5 rounded-full text-xs font-mono font-semibold flex items-center gap-1.5 border ${peer.online ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-amber-500/10 text-amber-400 border-amber-500/30'}`;
             const container = document.getElementById('modal-rendered-fields');
             container.innerHTML = '<div class="col-span-2 text-slate-500 text-center py-4"><i class="fa-solid fa-lock text-brand-500 mr-1"></i> Connecting securely to request full profile...</div>';
 
             if (peer.fullProfile) {
                 renderProfileModalData(peer.fullProfile);
+            } else if (!peer.online) {
+                container.innerHTML = '<div class="col-span-2 text-amber-400 text-center py-4"><i class="fa-solid fa-user-clock mr-1"></i> Peer is absent and no cached full profile is available.</div>';
             } else {
                 sendSecurePayload(peerId, { type: 'PROFILE_REQUEST' }).catch(() => {});
             }
@@ -1145,10 +1283,11 @@
             openChatWithPeer(peerId);
         }
 
-        function openChatWithPeer(peerId) {
+        async function openChatWithPeer(peerId) {
             const peer = state.peers.find(candidate => candidate.id === peerId);
             if (!peer) return;
             state.activeChatPeerId = peerId;
+            await loadChatHistory(peerId);
             switchTab('chat');
             document.getElementById('chat-peer-name').textContent = peer.name || 'Peer';
             document.getElementById('chat-connection-type').textContent = 'Encrypted WebRTC DataChannel';
@@ -1161,7 +1300,11 @@
             avatar.appendChild(image);
             renderActivePeerList();
             renderChatHistory();
-            initiateP2PConnection(peerId).catch(() => {});
+            if (peer.online) {
+                initiateP2PConnection(peerId).catch(() => {});
+            } else {
+                updateChatConnectionStatus(peerId, 'Peer absent', 'bg-amber-500/10 text-amber-400 border-amber-500/30');
+            }
         }
 
         async function sendChatMessage() {
@@ -1175,10 +1318,12 @@
                 senderId: state.myProfile.id,
                 text,
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                createdAt: Date.now(),
                 deliveredVia: 'Establishing secure channel...'
             };
             if (!state.chats[peerId]) state.chats[peerId] = [];
             state.chats[peerId].push(message);
+            await persistChatMessage(peerId, message);
             input.value = '';
             renderChatHistory();
 
@@ -1186,22 +1331,27 @@
                 type: 'CHAT_MESSAGE',
                 id: message.id,
                 text: message.text,
-                timestamp: message.timestamp
+                timestamp: message.timestamp,
+                createdAt: message.createdAt
             }, () => {
                 message.deliveredVia = 'E2EE P2P';
+                persistChatMessage(peerId, message).catch(error => logDebug(`Could not update chat message: ${error.message}`));
                 renderChatHistory();
             });
         }
 
-        function receiveChatMessage(peerId, payload) {
-            if (!state.chats[peerId]) state.chats[peerId] = [];
-            state.chats[peerId].push({
+        async function receiveChatMessage(peerId, payload) {
+            const message = {
                 id: payload.id,
                 senderId: peerId,
                 text: payload.text,
                 timestamp: payload.timestamp,
+                createdAt: payload.createdAt || Date.now(),
                 deliveredVia: 'E2EE P2P'
-            });
+            };
+            if (!state.chats[peerId]) state.chats[peerId] = [];
+            if (!state.chats[peerId].some(existing => existing.id === message.id)) state.chats[peerId].push(message);
+            await persistChatMessage(peerId, message);
             if (state.activeChatPeerId === peerId) renderChatHistory();
             showToast(`New encrypted message from ${state.peers.find(peer => peer.id === peerId)?.name || 'peer'}.`, 'info');
         }
@@ -1355,10 +1505,16 @@
             document.getElementById(`tab-btn-${tabName}`).className = "px-4 py-3 border-b-2 border-brand-500 text-brand-400 font-medium flex items-center gap-2 whitespace-nowrap";
         }
 
+        async function refreshPresenceAndGrid() {
+            await registerWithWorkerGrid();
+            await fetchPeersFromWorkerGrid();
+        }
+
         window.onload = async () => {
             await initDatabase();
             await ensureUniqueNodeId();
             await loadMyLocalProfile();
+            await loadCachedGridPeers();
             updateDebugButtonState();
             await generateUserIdentityKeys();
             connectWorkerWebSocket();
@@ -1370,13 +1526,15 @@
                 }
             });
             document.addEventListener('visibilitychange', () => {
-                if (document.visibilityState === 'visible') fetchPeersFromWorkerGrid();
+                if (document.visibilityState === 'visible') refreshPresenceAndGrid();
             });
-            window.addEventListener('focus', fetchPeersFromWorkerGrid);
+            window.addEventListener('focus', refreshPresenceAndGrid);
             setInterval(() => {
                 if (document.visibilityState === 'visible') fetchPeersFromWorkerGrid();
             }, 10000);
-            setInterval(registerWithWorkerGrid, 300000);
+            setInterval(() => {
+                if (document.visibilityState === 'visible') registerWithWorkerGrid();
+            }, 25000);
         };
     </script>
 </body>

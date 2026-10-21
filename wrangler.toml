@@ -1,0 +1,14 @@
+name = "opengrid-platform"
+main = "worker.js"
+compatibility_date = "2026-10-21"
+
+[site]
+bucket = "./"
+
+[[rules]]
+type = "Data"
+globs = ["/*.json"]
+fallbacks = []
+
+[vars]
+ENVIRONMENT = "production"

@@ -60,7 +60,7 @@
                 <div>
                     <h1 class="font-bold text-lg leading-tight tracking-wide flex items-center gap-2">
                         OpenGrid
-                        <span class="text-[10px] bg-brand-500/20 text-brand-400 border border-brand-500/30 px-2 py-0.5 rounded-full font-mono">v1.2.0</span>
+                        <span class="text-[10px] bg-brand-500/20 text-brand-400 border border-brand-500/30 px-2 py-0.5 rounded-full font-mono">{{versionTag}}</span>
                     </h1>
                     <p class="text-xs text-slate-400 hidden sm:block">Zero-Server E2EE P2P Discovery Platform</p>
                 </div>
@@ -68,6 +68,10 @@
 
             <!-- Header Actions & Status Badges -->
             <div class="flex items-center gap-2 sm:gap-3 text-xs font-mono">
+                <button id="toggle-debug-btn" onclick="toggleDebugMode()" class="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-2.5 py-1 rounded-lg transition" title="Debug-Protokollierung umschalten">
+                    <i class="fa-solid fa-bug text-amber-400"></i>
+                    <span id="debug-status-text" class="hidden md:inline">Debug: ON</span>
+                </button>
                 <button onclick="gracefulUnregister()" class="flex items-center gap-1.5 bg-red-950/60 hover:bg-red-900/80 border border-red-800 text-red-300 px-2.5 py-1 rounded-lg transition" title="Abmelden vom Routing-Server (Graceful Leave)">
                     <i class="fa-solid fa-power-off text-red-400"></i>
                     <span class="hidden md:inline">Abmelden</span>
@@ -205,17 +209,47 @@
             </div>
         </section>
 
-        <!-- ==================== TAB 5: CONFIG & DEBUG CONSOLE ==================== -->
+        <!-- ==================== TAB 5: CONFIG, KEYS & DEBUG CONSOLE ==================== -->
         <section id="view-keys" class="hidden space-y-4">
-            <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
+            <div id="debug-console-panel" class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
                 <div class="flex justify-between items-center">
                     <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
                         <i class="fa-solid fa-terminal text-amber-400"></i> Live PWA Protocol Log
                     </h3>
-                    <button onclick="clearDebugLogs()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded">Clear Logs</button>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] text-slate-500 bg-slate-950 px-2 py-1 rounded border border-slate-800">Build: {{timestamp}}</span>
+                        <button onclick="clearDebugLogs()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded">Clear Logs</button>
+                    </div>
                 </div>
                 <div id="debug-log-output" class="bg-slate-950 p-3 rounded-lg border border-slate-800 font-mono text-xs text-emerald-400 h-40 overflow-y-auto space-y-1">
                     <div>[System] Debug Console initialized.</div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
+                    <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-brand-400"></i> Dynamic Profile Schema
+                    </h3>
+                    <p class="text-xs text-slate-400">Die Profilfelder werden aus dieser JSON-Konfiguration erzeugt.</p>
+                    <textarea id="schema-json-input" rows="10" spellcheck="false" class="w-full bg-slate-950 p-2.5 rounded-lg border border-slate-800 font-mono text-xs text-slate-300 focus:outline-none focus:border-brand-500"></textarea>
+                    <button onclick="updateProfileSchemaFromJSON()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-200 px-3 py-2 rounded-lg font-semibold transition">
+                        Apply Schema
+                    </button>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
+                    <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-key text-emerald-400"></i> E2EE Identity Keys (ECDH / P-256)
+                    </h3>
+                    <p class="text-xs text-slate-400">Das Schlüsselpaar wird lokal mit Web Crypto erzeugt. Nur der öffentliche Schlüssel wird beim Routing-Server registriert.</p>
+                    <div class="space-y-2">
+                        <label class="text-xs font-mono text-slate-400">Public Key Fingerprint (SHA-256)</label>
+                        <div id="inspect-pubkey-fingerprint" class="bg-slate-950 p-2 rounded border border-slate-800 font-mono text-xs text-emerald-400 break-all">Generating...</div>
+                    </div>
+                    <button id="regenerate-key-btn" onclick="generateUserIdentityKeys(true)" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-200 px-3 py-2 rounded-lg font-semibold transition">
+                        Regenerate Keypair
+                    </button>
                 </div>
             </div>
         </section>
@@ -253,18 +287,21 @@
         </div>
     </div>
 
+    <script id="profile-schema-data" type="application/json">{{profileSchema}}</script>
     <script>
         const CONFIG = { DEBUG_MODE: true, DEFAULT_GEOHASH: 'u10j2k' };
 
-        let PROFILE_SCHEMA = [
+        const DEFAULT_PROFILE_SCHEMA = [
             { key: 'displayName', label: 'Display Name', type: 'string', required: true, default: 'Alex' },
             { key: 'age', label: 'Age', type: 'number', min: 18, max: 99, default: 26 },
             { key: 'role', label: 'Position / Role', type: 'select', options: ['Top', 'Bottom', 'Versatile', 'Side'], default: 'Versatile' },
             { key: 'bio', label: 'About Me', type: 'description', default: 'Privacy-first tech enthusiast!' }
         ];
+        let PROFILE_SCHEMA = loadInjectedProfileSchema();
 
         const state = {
             nodeId: getOrCreateNodeId(),
+            registrationId: window.crypto.randomUUID(),
             myProfile: {
                 id: null,
                 geohash: CONFIG.DEFAULT_GEOHASH,
@@ -272,11 +309,13 @@
                 fields: { displayName: 'Alex', age: 26, role: 'Versatile', bio: 'Privacy-first tech enthusiast!' },
                 isMe: true
             },
+            myKeys: null,
             peers: [],
             activeChatPeerId: null,
             activeModalPeerId: null,
             chats: {},
             ws: null,
+            shouldReconnect: true,
             webrtcConnections: {},
             dataChannels: {}
         };
@@ -286,12 +325,44 @@
         const WS_PROTOCOL = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const WS_URL = `${WS_PROTOCOL}//${window.location.host}/ws`;
 
+        function loadInjectedProfileSchema() {
+            try {
+                const rawSchema = document.getElementById('profile-schema-data')?.textContent.trim();
+                if (!rawSchema || rawSchema.startsWith('{{')) return DEFAULT_PROFILE_SCHEMA;
+                const schema = JSON.parse(rawSchema);
+                return validateProfileSchema(schema);
+            } catch (error) {
+                console.error('Could not parse injected profile schema.', error);
+                return DEFAULT_PROFILE_SCHEMA;
+            }
+        }
+
+        function validateProfileSchema(schema) {
+            if (!Array.isArray(schema) || schema.length === 0) {
+                throw new Error('Profile schema must be a non-empty array.');
+            }
+
+            const supportedTypes = new Set(['string', 'number', 'select', 'multiselect', 'description', 'tag']);
+            schema.forEach((field) => {
+                if (!field || typeof field.key !== 'string' || typeof field.label !== 'string') {
+                    throw new Error('Each schema field requires a key and label.');
+                }
+                if (field.type && !supportedTypes.has(field.type)) {
+                    throw new Error(`Unsupported field type: ${field.type}`);
+                }
+                if (['select', 'multiselect'].includes(field.type) && !Array.isArray(field.options)) {
+                    throw new Error(`Field "${field.key}" requires an options array.`);
+                }
+            });
+            return schema;
+        }
+
         function getOrCreateNodeId() {
             const storageKey = 'opengrid-node-id';
             const storedId = window.sessionStorage.getItem(storageKey);
             if (storedId) return storedId;
 
-            const nodeId = 'node_' + Math.floor(100000 + Math.random() * 900000);
+            const nodeId = `node_${window.crypto.randomUUID()}`;
             window.sessionStorage.setItem(storageKey, nodeId);
             return nodeId;
         }
@@ -320,22 +391,74 @@
             if (!container) return;
             container.innerHTML = '';
 
+            const schemaInput = document.getElementById('schema-json-input');
+            if (schemaInput) schemaInput.value = JSON.stringify(PROFILE_SCHEMA, null, 2);
+
             PROFILE_SCHEMA.forEach(field => {
                 const wrapper = document.createElement('div');
                 wrapper.className = 'space-y-1';
-                wrapper.innerHTML = `<label class="text-xs font-bold text-slate-400">${field.label}</label>`;
 
-                const input = document.createElement('input');
-                input.type = field.type === 'number' ? 'number' : 'text';
+                const label = document.createElement('label');
+                label.className = 'text-xs font-bold text-slate-400';
+                label.textContent = field.label + (field.required ? ' *' : '');
+                wrapper.appendChild(label);
+
+                const currentValue = state.myProfile.fields[field.key] ?? field.default ?? '';
+                let input;
+
+                if (field.type === 'select' || field.type === 'multiselect') {
+                    input = document.createElement('select');
+                    input.multiple = field.type === 'multiselect';
+                    if (input.multiple) input.size = Math.min(field.options.length, 4);
+                    field.options.forEach((optionValue) => {
+                        const option = document.createElement('option');
+                        option.value = optionValue;
+                        option.textContent = optionValue;
+                        option.selected = Array.isArray(currentValue)
+                            ? currentValue.includes(optionValue)
+                            : currentValue === optionValue;
+                        input.appendChild(option);
+                    });
+                } else if (field.type === 'description') {
+                    input = document.createElement('textarea');
+                    input.rows = 3;
+                    input.value = currentValue;
+                } else {
+                    input = document.createElement('input');
+                    input.type = field.type === 'number' ? 'number' : 'text';
+                    input.value = Array.isArray(currentValue) ? currentValue.join(', ') : currentValue;
+                    if (field.min !== undefined) input.min = field.min;
+                    if (field.max !== undefined) input.max = field.max;
+                }
+
                 input.className = 'w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500';
-                input.value = state.myProfile.fields[field.key] || field.default || '';
 
                 input.onchange = (e) => {
-                    state.myProfile.fields[field.key] = e.target.value;
+                    if (field.type === 'multiselect') {
+                        state.myProfile.fields[field.key] = Array.from(e.target.selectedOptions, option => option.value);
+                    } else if (field.type === 'number') {
+                        state.myProfile.fields[field.key] = e.target.value === '' ? '' : Number(e.target.value);
+                    } else if (field.type === 'tag') {
+                        state.myProfile.fields[field.key] = e.target.value.split(',').map(value => value.trim()).filter(Boolean);
+                    } else {
+                        state.myProfile.fields[field.key] = e.target.value;
+                    }
                 };
                 wrapper.appendChild(input);
                 container.appendChild(wrapper);
             });
+        }
+
+        function updateProfileSchemaFromJSON() {
+            try {
+                const schemaInput = document.getElementById('schema-json-input');
+                PROFILE_SCHEMA = validateProfileSchema(JSON.parse(schemaInput.value));
+                renderProfileForm();
+                showToast('Profile schema applied.', 'success');
+                logDebug('Dynamic profile schema updated.');
+            } catch (error) {
+                showToast(`Invalid profile schema: ${error.message}`, 'error');
+            }
         }
 
         function saveUserProfile() {
@@ -355,12 +478,9 @@
 
             container.innerHTML = '';
 
-            // Fallback: If no peers returned from worker, add mock peers so the grid is never empty for testing
             if (state.peers.length === 0) {
-                state.peers = [
-                    { id: 'peer_alpha', avatar: 'https://placehold.co/300x300/3b82f6/ffffff?text=Luca', online: true, fields: { displayName: 'Luca', age: 24, role: 'Top', bio: 'Berlin / Code & Coffee' } },
-                    { id: 'peer_beta', avatar: 'https://placehold.co/300x300/10b981/ffffff?text=Sam', online: true, fields: { displayName: 'Sam', age: 28, role: 'Bottom', bio: 'Design & OpenSource' } }
-                ];
+                container.innerHTML = `<div class="col-span-full text-center py-10 text-slate-500 text-sm border border-dashed border-slate-800 rounded-xl">Keine anderen Peers im Geohash ${state.myProfile.geohash} gefunden.</div>`;
+                return;
             }
 
             state.peers.forEach(peer => {
@@ -409,25 +529,30 @@
                     registerWithWorkerGrid();
                 };
                 state.ws.onclose = () => {
-                    setTimeout(connectWorkerWebSocket, 5000);
+                    if (state.shouldReconnect) setTimeout(connectWorkerWebSocket, 5000);
                 };
             } catch (e) {}
         }
 
         async function registerWithWorkerGrid() {
             try {
-                await fetch(`${API_BASE}/api/register`, {
+                const response = await fetch(`${API_BASE}/api/register`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         peerId: state.myProfile.id,
+                        registrationId: state.registrationId,
                         geohash: state.myProfile.geohash,
                         thumbnail: state.myProfile.avatar,
+                        publicEncKey: state.myKeys?.jwkPublic || null,
                         fields: state.myProfile.fields
                     })
                 });
+                if (!response.ok) throw new Error(`Registration failed with status ${response.status}`);
                 logDebug('Registered in Worker Spatial Grid');
-            } catch (e) {}
+            } catch (error) {
+                logDebug(`Grid registration failed: ${error.message}`);
+            }
         }
 
         /**
@@ -437,9 +562,16 @@
         async function gracefulUnregister() {
             try {
                 logDebug('Initiating graceful unregister from router...');
-                await fetch(`${API_BASE}/api/register?peerId=${state.myProfile.id}&geohash=${state.myProfile.geohash}`, {
+                state.shouldReconnect = false;
+                const query = new URLSearchParams({
+                    peerId: state.myProfile.id,
+                    registrationId: state.registrationId,
+                    geohash: state.myProfile.geohash
+                });
+                const response = await fetch(`${API_BASE}/api/register?${query}`, {
                     method: 'DELETE'
                 });
+                if (!response.ok) throw new Error(`Unregister failed with status ${response.status}`);
                 if (state.ws) state.ws.close();
                 showToast('Erfolgreich vom Routing-Server abgemeldet.', 'success');
                 document.getElementById('network-indicator').className = "w-2.5 h-2.5 rounded-full bg-red-500";
@@ -452,7 +584,11 @@
         // Automatische Abmeldung beim Schließen der Tab/Browser-Session
         window.addEventListener('beforeunload', () => {
             const payload = new Blob(
-                [JSON.stringify({ peerId: state.myProfile.id })],
+                [JSON.stringify({
+                    peerId: state.myProfile.id,
+                    registrationId: state.registrationId,
+                    geohash: state.myProfile.geohash
+                })],
                 { type: 'application/json' }
             );
             navigator.sendBeacon(`${API_BASE}/api/unregister`, payload);
@@ -519,23 +655,109 @@
         }
 
         function openSnapUploadModal() { showToast('Snap-Funktion aktiv.', 'info'); }
-        function clearDebugLogs() { document.getElementById('debug-log-output').innerHTML = '<div>[System] Log cleared.</div>'; }
+        function clearDebugLogs() {
+            const output = document.getElementById('debug-log-output');
+            if (output) output.innerHTML = '<div>[System] Log cleared.</div>';
+        }
+
+        function updateDebugButtonState() {
+            const button = document.getElementById('toggle-debug-btn');
+            const status = document.getElementById('debug-status-text');
+            if (!button || !status) return;
+
+            status.textContent = `Debug: ${CONFIG.DEBUG_MODE ? 'ON' : 'OFF'}`;
+            button.className = CONFIG.DEBUG_MODE
+                ? 'flex items-center gap-1.5 bg-amber-950/60 hover:bg-amber-900/70 border border-amber-700 text-amber-200 px-2.5 py-1 rounded-lg transition'
+                : 'flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-2.5 py-1 rounded-lg transition';
+        }
+
+        function toggleDebugMode() {
+            CONFIG.DEBUG_MODE = !CONFIG.DEBUG_MODE;
+            updateDebugButtonState();
+
+            if (CONFIG.DEBUG_MODE) {
+                switchTab('keys');
+                logDebug('Debug logging enabled.');
+            } else {
+                console.info('[OpenGrid] Debug logging disabled.');
+            }
+        }
+
+        async function generateUserIdentityKeys(showNotification = false) {
+            const fingerprintOutput = document.getElementById('inspect-pubkey-fingerprint');
+            const regenerateButton = document.getElementById('regenerate-key-btn');
+            if (regenerateButton) regenerateButton.disabled = true;
+            if (fingerprintOutput) fingerprintOutput.textContent = 'Generating...';
+
+            try {
+                const keyPair = await window.crypto.subtle.generateKey(
+                    { name: 'ECDH', namedCurve: 'P-256' },
+                    false,
+                    ['deriveKey', 'deriveBits']
+                );
+                const [publicKeySpki, jwkPublic] = await Promise.all([
+                    window.crypto.subtle.exportKey('spki', keyPair.publicKey),
+                    window.crypto.subtle.exportKey('jwk', keyPair.publicKey)
+                ]);
+                const digest = await window.crypto.subtle.digest('SHA-256', publicKeySpki);
+                const fingerprint = Array.from(
+                    new Uint8Array(digest),
+                    byte => byte.toString(16).padStart(2, '0')
+                ).join(':');
+
+                state.myKeys = { keyPair, jwkPublic, fingerprint };
+                if (fingerprintOutput) fingerprintOutput.textContent = fingerprint;
+                logDebug('New local ECDH P-256 identity keypair generated.');
+
+                if (state.ws?.readyState === WebSocket.OPEN) {
+                    await registerWithWorkerGrid();
+                }
+                if (showNotification) showToast('New E2EE identity keypair generated.', 'success');
+            } catch (error) {
+                console.error('Identity key generation failed.', error);
+                if (fingerprintOutput) fingerprintOutput.textContent = 'Key generation failed';
+                showToast('E2EE key generation failed.', 'error');
+            } finally {
+                if (regenerateButton) regenerateButton.disabled = false;
+            }
+        }
+
         function logData(msg) { console.log(msg); }
         function logDebug(msg) {
+            if (!CONFIG.DEBUG_MODE) return;
+            console.debug(`[OpenGrid] ${msg}`);
             const out = document.getElementById('debug-log-output');
             if (out) {
-                out.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${msg}</div>`;
+                const entry = document.createElement('div');
+                entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+                out.appendChild(entry);
                 out.scrollTop = out.scrollHeight;
             }
         }
         function showToast(msg, type = 'info') {
             const container = document.getElementById('toast-container');
             if (!container) return;
+
+            const styles = {
+                info: { icon: 'fa-info-circle text-sky-400', border: 'border-sky-500/40' },
+                success: { icon: 'fa-check-circle text-emerald-400', border: 'border-emerald-500/40' },
+                error: { icon: 'fa-exclamation-triangle text-red-400', border: 'border-red-500/40' },
+                warning: { icon: 'fa-exclamation-circle text-amber-400', border: 'border-amber-500/40' }
+            };
+            const style = styles[type] || styles.info;
             const toast = document.createElement('div');
-            toast.className = `bg-slate-900 border border-slate-700 text-slate-200 p-3 rounded-xl shadow-xl text-xs flex items-center gap-2`;
-            toast.innerHTML = `<i class="fa-solid fa-info-circle text-brand-400"></i><span>${msg}</span>`;
+            toast.className = `bg-slate-900 border ${style.border} text-slate-200 p-3 rounded-xl shadow-xl text-xs flex items-center gap-2 transition-opacity duration-300`;
+
+            const icon = document.createElement('i');
+            icon.className = `fa-solid ${style.icon}`;
+            const text = document.createElement('span');
+            text.textContent = msg;
+            toast.append(icon, text);
             container.appendChild(toast);
-            setTimeout(() => toast.remove(), 3000);
+            setTimeout(() => {
+                toast.classList.add('opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
         }
 
         function switchTab(tabName) {
@@ -551,9 +773,13 @@
 
         window.onload = async () => {
             await initDatabase();
-            loadMyLocalProfile();
+            await loadMyLocalProfile();
+            updateDebugButtonState();
+            await generateUserIdentityKeys();
             connectWorkerWebSocket();
             fetchPeersFromWorkerGrid();
+            setInterval(fetchPeersFromWorkerGrid, 15000);
+            setInterval(registerWithWorkerGrid, 300000);
         };
     </script>
 </body>

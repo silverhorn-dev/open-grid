@@ -48,28 +48,22 @@ export default {
         if (path === '/api/register' && request.method === 'POST') {
             try {
                 const body = await request.json();
-                const { peerId, geohash, thumbnail, publicEncKey, fields } = body;
+                const { peerId, geohash, registrationId, thumbnail, publicEncKey, fields } = body;
 
-                if (!peerId || typeof peerId !== 'string' || !geohash || typeof geohash !== 'string') {
+                if (!peerId || typeof peerId !== 'string' || !geohash || typeof geohash !== 'string' || !registrationId || typeof registrationId !== 'string') {
                     return new Response(JSON.stringify({ error: 'Invalid payload' }), { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
                 }
 
-                // A peer may move between cells or re-register after reconnecting.
-                // Remove its previous entry first so one identity has one registration.
-                removePeerFromGrid(peerId);
-
-                if (!spatialGrid.has(geohash)) {
-                    spatialGrid.set(geohash, new Map());
-                }
-
-                spatialGrid.get(geohash).set(peerId, {
+                const session = {
                     peerId,
+                    registrationId,
                     geohash: geohash.substring(0, 10),
                     thumbnail: thumbnail ? String(thumbnail).substring(0, 50000) : null,
                     publicEncKey: publicEncKey || null,
                     fields: fields || {},
                     lastSeen: Date.now()
-                });
+                };
+                await storePeerRegistration(env, session);
 
                 return new Response(JSON.stringify({ status: 'registered', geohash, peerId }), {
                     headers: { 'Content-Type': 'application/json', ...corsHeaders }
@@ -81,15 +75,16 @@ export default {
 
         if ((path === '/api/register' && request.method === 'DELETE') || (path === '/api/unregister' && request.method === 'POST')) {
             try {
-                const peerId = path === '/api/register'
-                    ? url.searchParams.get('peerId')
-                    : (await request.json()).peerId;
+                const body = path === '/api/register' ? null : await request.json();
+                const peerId = path === '/api/register' ? url.searchParams.get('peerId') : body.peerId;
+                const registrationId = path === '/api/register' ? url.searchParams.get('registrationId') : body.registrationId;
+                const geohash = path === '/api/register' ? url.searchParams.get('geohash') : body.geohash;
 
-                if (!peerId || typeof peerId !== 'string') {
-                    return new Response(JSON.stringify({ error: 'Missing peerId' }), { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+                if (!peerId || typeof peerId !== 'string' || !registrationId || typeof registrationId !== 'string') {
+                    return new Response(JSON.stringify({ error: 'Missing peerId or registrationId' }), { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
                 }
 
-                const removed = removePeerFromGrid(peerId, url.searchParams.get('geohash'));
+                const removed = await removePeerRegistration(env, peerId, registrationId, geohash);
                 return new Response(JSON.stringify({ status: 'unregistered', peerId, removed }), {
                     headers: { 'Content-Type': 'application/json', ...corsHeaders }
                 });
@@ -104,26 +99,15 @@ export default {
                 return new Response(JSON.stringify({ error: 'Missing geohash param' }), { status: 400, headers: corsHeaders });
             }
 
-            const cellMap = spatialGrid.get(geohash);
-            const peers = [];
-
-            if (cellMap) {
-                const now = Date.now();
-                for (const [peerId, session] of cellMap.entries()) {
-                    if (now - session.lastSeen < 600000) {
-                        peers.push({
-                            id: session.peerId,
-                            geohash: session.geohash,
-                            avatar: session.thumbnail,
-                            publicEncKey: session.publicEncKey,
-                            fields: session.fields,
-                            online: activeSockets.has(session.peerId)
-                        });
-                    } else {
-                        cellMap.delete(peerId);
-                    }
-                }
-            }
+            const sessions = await getPeerRegistrations(env, geohash);
+            const peers = sessions.map(session => ({
+                id: session.peerId,
+                geohash: session.geohash,
+                avatar: session.thumbnail,
+                publicEncKey: session.publicEncKey,
+                fields: session.fields,
+                online: true
+            }));
 
             return new Response(JSON.stringify({ geohash, count: peers.length, peers }), {
                 headers: { 'Content-Type': 'application/json', ...corsHeaders }
@@ -192,7 +176,10 @@ export default {
 
             // Fallback for schema just in case the env var isn't bound properly yet
             const defaultSchema = [
-                { key: 'displayName', label: 'Display Name', type: 'string', required: true, default: 'Local User' }
+                { key: 'displayName', label: 'Display Name', type: 'string', required: true, default: 'Alex' },
+                { key: 'age', label: 'Age', type: 'number', min: 18, max: 99, default: 26 },
+                { key: 'role', label: 'Position / Role', type: 'select', options: ['Top', 'Bottom', 'Versatile', 'Side'], default: 'Versatile' },
+                { key: 'bio', label: 'About Me', type: 'description', default: 'Privacy-first tech enthusiast!' }
             ];
             const schemaToInject = env.PROFILE_SCHEMA || defaultSchema;
 
@@ -217,12 +204,68 @@ export default {
     }
 };
 
-function removePeerFromGrid(peerId, geohash = null) {
+async function storePeerRegistration(env, session) {
+    if (env.OPENGRID_KV) {
+        const previousGeohash = await env.OPENGRID_KV.get(`peer:${session.peerId}`);
+        if (previousGeohash && previousGeohash !== session.geohash) {
+            await env.OPENGRID_KV.delete(`grid:${previousGeohash}:${session.peerId}`);
+        }
+        await Promise.all([
+            env.OPENGRID_KV.put(`grid:${session.geohash}:${session.peerId}`, JSON.stringify(session), { expirationTtl: 600 }),
+            env.OPENGRID_KV.put(`peer:${session.peerId}`, session.geohash, { expirationTtl: 600 })
+        ]);
+        return;
+    }
+
+    removePeerFromMemoryGrid(session.peerId);
+    if (!spatialGrid.has(session.geohash)) spatialGrid.set(session.geohash, new Map());
+    spatialGrid.get(session.geohash).set(session.peerId, session);
+}
+
+async function getPeerRegistrations(env, geohash) {
+    if (env.OPENGRID_KV) {
+        const entries = await env.OPENGRID_KV.list({ prefix: `grid:${geohash}:`, limit: 1000 });
+        const sessions = await Promise.all(entries.keys.map(key => env.OPENGRID_KV.get(key.name, 'json')));
+        return sessions.filter(Boolean);
+    }
+
+    const now = Date.now();
+    const cellMap = spatialGrid.get(geohash);
+    if (!cellMap) return [];
+
+    for (const [peerId, session] of cellMap.entries()) {
+        if (now - session.lastSeen >= 600000) cellMap.delete(peerId);
+    }
+    return Array.from(cellMap.values());
+}
+
+async function removePeerRegistration(env, peerId, registrationId, geohash = null) {
+    if (env.OPENGRID_KV) {
+        const registeredGeohash = geohash || await env.OPENGRID_KV.get(`peer:${peerId}`);
+        if (!registeredGeohash) return 0;
+
+        const key = `grid:${registeredGeohash}:${peerId}`;
+        const session = await env.OPENGRID_KV.get(key, 'json');
+        if (!session || session.registrationId !== registrationId) return 0;
+
+        await Promise.all([
+            env.OPENGRID_KV.delete(key),
+            env.OPENGRID_KV.delete(`peer:${peerId}`)
+        ]);
+        return 1;
+    }
+
+    return removePeerFromMemoryGrid(peerId, geohash, registrationId);
+}
+
+function removePeerFromMemoryGrid(peerId, geohash = null, registrationId = null) {
     let removed = 0;
     const cells = geohash ? [[geohash, spatialGrid.get(geohash)]] : spatialGrid.entries();
 
     for (const [cellGeohash, cellMap] of cells) {
-        if (!cellMap || !cellMap.delete(peerId)) continue;
+        const session = cellMap?.get(peerId);
+        if (!session || (registrationId && session.registrationId !== registrationId)) continue;
+        cellMap.delete(peerId);
         removed += 1;
         if (cellMap.size === 0) spatialGrid.delete(cellGeohash);
     }

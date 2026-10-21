@@ -72,4 +72,93 @@ Akzeptanzkriterien:
 
 - Nachrichten werden Ende-zu-Ende-verschluesselt ueber WebRTC gesendet.
 - Sender und Empfaenger speichern ihre jeweilige Kopie lokal in IndexedDB.
-- Der Router und das Signaling-Durable-Object speichern keine Chatinhalte.
+- Der Router und das WebSocket-Signaling speichern keine Chatinhalte.
+
+## UC-07: Self-hosted Betrieb
+
+**Als Betreiber** moechte ich OpenGrid ohne Cloudflare-Abhaengigkeiten auf
+einem eigenen Host ausfuehren.
+
+Akzeptanzkriterien:
+
+- Ein Docker-Container liefert PWA, REST-API und WebSocket-Signaling aus.
+- SQLite persistiert Routing-Metadaten und verschluesselte Queue-Payloads in
+  einem Docker-Volume.
+- Der Container benoetigt weder Wrangler noch Cloudflare KV, Durable Objects
+  oder Worker Metadata.
+- TLS kann von einem vorgeschalteten Reverse Proxy terminiert werden.
+- Ein Health-Endpunkt erlaubt Container- und Proxy-Ueberwachung.
+
+## UC-08: Erstmalige Profileinrichtung
+
+**Als neuer Nutzer** moechte ich vor der ersten Grid-Registrierung mein
+lokales Profil einrichten.
+
+Akzeptanzkriterien:
+
+- Ohne Datensatz im IndexedDB-Store `localProfile` erscheint ein modaler
+  Einrichtungsdialog.
+- Der Dialog zeigt alle Felder des konfigurierten Profilschemas.
+- Pflichtfelder muessen ausgefuellt sein.
+- Der Dialog kann erst nach erfolgreicher verschluesselter Speicherung
+  geschlossen werden.
+- Grid-Registrierung und Signaling starten erst nach Abschluss des Dialogs.
+
+## UC-09: Chat nach Offline-Phasen synchronisieren
+
+**Als Nutzer** moechte ich nach einer Offline-Phase nur fehlende
+Chat-Aenderungen austauschen.
+
+Akzeptanzkriterien:
+
+- Nach Aufbau des sicheren Kanals werden die letzten 20 Operations-IDs
+  verglichen.
+- Aeltere Operationen werden in Hintergrundseiten abgeglichen.
+- Nur fehlende Put- oder Delete-Operationen werden uebertragen.
+- Das Loeschen einer eigenen Nachricht erscheint beim anderen Client ebenfalls
+  als geloeschte Nachricht.
+- Pro Chat werden hoechstens 100 Delete-Tombstones aufbewahrt.
+
+## UC-10: Verschluesselter Store-and-Forward-Pfad
+
+**Als Nutzer** moechte ich Chat-Aenderungen fuer einen voruebergehend
+unerreichbaren bekannten Peer hinterlegen.
+
+Akzeptanzkriterien:
+
+- Nur Chat-Operationen werden in Pfad C eingestellt.
+- Der Server erhaelt ausschliesslich AES-GCM-Ciphertext, IV und Routing-IDs.
+- Queue-Verschluesselung verwendet persistente lokale ECDH-Schluessel und
+  einen zuvor direkt verifizierten Peer-Public-Key.
+- Nach Reconnect werden gueltige Operationen angewendet und danach aus der
+  Server-Queue geloescht.
+- Ohne bekannten Peer-Key bleibt die Operation lokal fuer einen spaeteren
+  direkten Verbindungsversuch.
+
+## UC-11: Offline-Chat wiederfinden
+
+**Als Nutzer** moechte ich einen lokal gespeicherten Chat auch dann wieder
+oeffnen koennen, wenn der andere Client noch offline ist.
+
+Akzeptanzkriterien:
+
+- Die Chatliste wird aus lokalen Nachrichten und Operationen rekonstruiert.
+- Ein Chatkontakt benoetigt keinen aktuellen Router-Eintrag.
+- Offline-Chats erscheinen nicht faelschlich im Discovery-Grid.
+- Sobald der Peer wieder erreichbar ist, startet die normale Delta-
+  Synchronisation.
+
+## UC-12: Chat loeschen und Peer blockieren
+
+**Als Nutzer** moechte ich einen Chat dauerhaft zuruecksetzen oder einen Peer
+blockieren, ohne dass wartende oder alte Operationen den Zustand aufheben.
+
+Akzeptanzkriterien:
+
+- Der Router persistiert Chat-Loesch-Cutoffs und Blockierungen.
+- Chat-Loeschung und Blockierung entfernen wartende Queue-Nachrichten in beide
+  Richtungen.
+- Operationen vor dem Loesch-Cutoff werden lokal nicht erneut angewendet.
+- Blockierte Absender koennen keine neuen Queue-Nachrichten hinterlegen.
+- Jeder Client aktualisiert seine Regeln beim Start, Reconnect und Fokus.
+- Eine Blockierung kann explizit wieder aufgehoben werden.

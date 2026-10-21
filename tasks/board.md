@@ -17,3 +17,36 @@
   - [x] P2P got not initiated by click on chat
   - [x] handshake for messages implemented?
   - [x] der chat sollte auf beiden seiten persistent gespeichert sein
+  - [x] wenn beide offline gehen und einer wieder on geht sieht er den chat nicht mehr
+  - [x] delete cache! auf dem router. wenn jemand den chat l�scht oder jmd blockiert bleibt das persistent auf dem server
+  - [x] jeder client pr�ft diese tabelle
+  - [] unter den nachrichten stimmt beim empfänger die herkunft nicht immer, bei path c zb steht E2E P2P und nicht E2EE PC oder so
+
+# Debug
+- [] wenn man nicht im debug modus ist sämtliche technischen bezeichnungen aus sein, bezieht sich nicht nur auf den chat
+
+# Self-hosting
+- [x] migrate Cloudflare Worker, KV, Durable Objects and metadata to Fastify
+- [x] persist grid routing and encrypted message queue data in SQLite
+- [x] serve the client-only PWA and WebSocket signaling from one container
+- [x] add Docker Compose with a persistent SQLite volume
+- [x] keep TLS termination outside the container for reverse-proxy deployments
+
+# Onboarding
+- [x] show a profile setup dialog before first registration
+  - [x] render all configured profile fields
+  - [x] validate required fields
+  - [x] continue only after encrypted local persistence succeeds
+
+# Chat synchronization
+- [x] synchronize chat changes after offline periods
+  - [x] compare the latest 20 operation IDs during the secure handshake
+  - [x] reconcile older operation IDs in background pages
+  - [x] propagate message deletions to the other client
+  - [x] retain at most 100 delete tombstones per chat
+
+# Path C
+- [x] enqueue encrypted chat operations when direct P2P delivery fails
+- [x] retrieve and decrypt queued operations after reconnect
+- [x] delete server queue entries only after successful local application
+- [x] persist non-exportable ECDH identity keys for cross-session decryption

@@ -161,11 +161,14 @@ export async function buildApp(options = {}) {
         if (!isString(recipientId, 200) || !isString(ciphertextPayload, 102400)) {
             return reply.code(400).send({ error: 'Missing or invalid parameters' });
         }
-        if (senderId != null && typeof senderId !== 'string') {
-            return reply.code(400).send({ error: 'Invalid senderId' });
+        if (!isString(senderId, 200)) {
+            return reply.code(400).send({ error: 'Missing or invalid senderId' });
         }
         if (ivHex != null && typeof ivHex !== 'string') {
             return reply.code(400).send({ error: 'Invalid ivHex' });
+        }
+        if (store.isBlocked(recipientId, senderId)) {
+            return reply.code(403).send({ error: 'Recipient does not accept messages from this sender' });
         }
         const message = store.enqueueMessage({
             recipientId,
@@ -195,6 +198,36 @@ export async function buildApp(options = {}) {
         const { msgId } = request.params;
         const removed = store.deleteMessage(msgId);
         return { status: 'deleted', msgId, removed };
+    });
+
+    app.get('/api/chat-controls/:ownerId', async (request, reply) => {
+        const { ownerId } = request.params;
+        if (!isString(ownerId, 200)) {
+            return reply.code(400).send({ error: 'Invalid ownerId' });
+        }
+        const controls = store.getChatControls(ownerId);
+        return { ownerId, count: controls.length, controls };
+    });
+
+    app.post('/api/chat-controls', async (request, reply) => {
+        const { ownerId, peerId, action } = request.body || {};
+        if (!isString(ownerId, 200) || !isString(peerId, 200) || ownerId === peerId) {
+            return reply.code(400).send({ error: 'Invalid ownerId or peerId' });
+        }
+        if (!['DELETE_CHAT', 'BLOCK'].includes(action)) {
+            return reply.code(400).send({ error: 'Invalid chat control action' });
+        }
+        const control = store.setChatControl(ownerId, peerId, action);
+        return reply.code(201).send({ status: 'stored', control });
+    });
+
+    app.delete('/api/chat-controls/:ownerId/:peerId/block', async (request, reply) => {
+        const { ownerId, peerId } = request.params;
+        if (!isString(ownerId, 200) || !isString(peerId, 200)) {
+            return reply.code(400).send({ error: 'Invalid ownerId or peerId' });
+        }
+        const control = store.clearBlock(ownerId, peerId);
+        return { status: 'unblocked', ownerId, peerId, control };
     });
 
     app.setNotFoundHandler(async (_request, reply) => {

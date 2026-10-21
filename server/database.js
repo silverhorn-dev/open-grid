@@ -44,6 +44,17 @@ export function createStore(databasePath) {
         );
         CREATE INDEX IF NOT EXISTS queued_messages_recipient_expires
             ON queued_messages (recipient_id, expires_at);
+
+        CREATE TABLE IF NOT EXISTS chat_controls (
+            owner_id TEXT NOT NULL,
+            peer_id TEXT NOT NULL,
+            deleted_before INTEGER,
+            blocked_at INTEGER,
+            updated_at INTEGER NOT NULL,
+            PRIMARY KEY (owner_id, peer_id)
+        );
+        CREATE INDEX IF NOT EXISTS chat_controls_owner
+            ON chat_controls (owner_id, updated_at);
     `);
 
     const statements = {
@@ -99,7 +110,58 @@ export function createStore(databasePath) {
             ORDER BY rowid
         `),
         deleteMessage: database.prepare('DELETE FROM queued_messages WHERE msg_id = ?'),
-        deleteExpiredMessages: database.prepare('DELETE FROM queued_messages WHERE expires_at <= ?')
+        deleteExpiredMessages: database.prepare('DELETE FROM queued_messages WHERE expires_at <= ?'),
+        deleteConversationMessages: database.prepare(`
+            DELETE FROM queued_messages
+            WHERE (recipient_id = ? AND sender_id = ?)
+               OR (recipient_id = ? AND sender_id = ?)
+        `),
+        findChatControl: database.prepare(`
+            SELECT
+                owner_id AS ownerId,
+                peer_id AS peerId,
+                deleted_before AS deletedBefore,
+                blocked_at AS blockedAt,
+                updated_at AS updatedAt
+            FROM chat_controls
+            WHERE owner_id = ? AND peer_id = ?
+        `),
+        listChatControls: database.prepare(`
+            SELECT
+                owner_id AS ownerId,
+                peer_id AS peerId,
+                deleted_before AS deletedBefore,
+                blocked_at AS blockedAt,
+                updated_at AS updatedAt
+            FROM chat_controls
+            WHERE owner_id = ?
+            ORDER BY updated_at
+        `),
+        upsertDeletedBefore: database.prepare(`
+            INSERT INTO chat_controls (owner_id, peer_id, deleted_before, blocked_at, updated_at)
+            VALUES (?, ?, ?, NULL, ?)
+            ON CONFLICT(owner_id, peer_id) DO UPDATE SET
+                deleted_before = MAX(COALESCE(chat_controls.deleted_before, 0), excluded.deleted_before),
+                updated_at = excluded.updated_at
+        `),
+        upsertBlockedAt: database.prepare(`
+            INSERT INTO chat_controls (owner_id, peer_id, deleted_before, blocked_at, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(owner_id, peer_id) DO UPDATE SET
+                deleted_before = MAX(COALESCE(chat_controls.deleted_before, 0), excluded.deleted_before),
+                blocked_at = excluded.blocked_at,
+                updated_at = excluded.updated_at
+        `),
+        clearBlockedAt: database.prepare(`
+            UPDATE chat_controls
+            SET blocked_at = NULL, updated_at = ?
+            WHERE owner_id = ? AND peer_id = ?
+        `),
+        deleteEmptyChatControl: database.prepare(`
+            DELETE FROM chat_controls
+            WHERE owner_id = ? AND peer_id = ?
+              AND deleted_before IS NULL AND blocked_at IS NULL
+        `)
     };
 
     function transaction(operation) {
@@ -209,6 +271,36 @@ export function createStore(databasePath) {
 
         deleteMessage(msgId) {
             return Number(statements.deleteMessage.run(msgId).changes);
+        },
+
+        setChatControl(ownerId, peerId, action, now = Date.now()) {
+            return transaction(() => {
+                if (action === 'DELETE_CHAT') {
+                    statements.upsertDeletedBefore.run(ownerId, peerId, now, now);
+                } else if (action === 'BLOCK') {
+                    statements.upsertBlockedAt.run(ownerId, peerId, now, now, now);
+                } else {
+                    throw new Error(`Unsupported chat control action: ${action}`);
+                }
+                statements.deleteConversationMessages.run(ownerId, peerId, peerId, ownerId);
+                return statements.findChatControl.get(ownerId, peerId);
+            });
+        },
+
+        clearBlock(ownerId, peerId, now = Date.now()) {
+            return transaction(() => {
+                statements.clearBlockedAt.run(now, ownerId, peerId);
+                statements.deleteEmptyChatControl.run(ownerId, peerId);
+                return statements.findChatControl.get(ownerId, peerId) || null;
+            });
+        },
+
+        getChatControls(ownerId) {
+            return statements.listChatControls.all(ownerId);
+        },
+
+        isBlocked(ownerId, peerId) {
+            return Boolean(statements.findChatControl.get(ownerId, peerId)?.blockedAt);
         },
 
         cleanup,

@@ -79,7 +79,14 @@ function recoverPeerConnection(peerId, connection) {
         state.connectionRetryCounts[peerId] = retries + 1;
         setTimeout(() => initiateP2PConnection(peerId).catch(() => {}), 1000);
     } else if (state.secureMessageQueues[peerId]?.length) {
-        showToast('The secure P2P connection failed. Messages remain queued for retry.', 'error');
+        flushPeerQueueToCache(peerId).then(() => {
+            if (state.secureMessageQueues[peerId]?.length) {
+                showToast('The secure P2P connection failed. Messages remain queued locally for retry.', 'warning');
+            }
+        }).catch(error => {
+            logDebug(`Path C recovery failed: ${error.message}`);
+            showToast('The secure P2P connection failed. Messages remain queued locally for retry.', 'warning');
+        });
     }
 }
 
@@ -98,10 +105,20 @@ async function handleSignalingMessage(message) {
     if (message.type === 'SOCKET_REGISTERED') {
         document.getElementById('network-indicator').className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse';
         document.getElementById('network-status-text').textContent = 'Worker connected';
+        refreshChatControls()
+            .then(fetchQueuedCacheMessages)
+            .catch(error => {
+                logDebug(`Could not refresh chat controls or retrieve Path C messages: ${error.message}`);
+            });
         return;
     }
 
     if (message.type === 'PEER_OFFLINE_FALLBACK') {
+        const connection = state.webrtcConnections[message.targetPeerId];
+        if (connection) cleanupPeerConnection(message.targetPeerId, connection);
+        flushPeerQueueToCache(message.targetPeerId).catch(error => {
+            logDebug(`Path C fallback failed: ${error.message}`);
+        });
         updateChatConnectionStatus(message.targetPeerId, 'Peer unavailable', 'bg-amber-500/10 text-amber-400 border-amber-500/30');
         showToast('Peer is currently unavailable for a direct P2P connection.', 'warning');
         return;
@@ -113,6 +130,10 @@ async function handleSignalingMessage(message) {
 
     const peerId = message.senderNodeId;
     if (!peerId || peerId === state.myProfile.id) return;
+    if (isPeerBlocked(peerId)) {
+        logDebug(`Ignored signaling from blocked peer ${peerId}.`);
+        return;
+    }
     const connection = getOrCreatePeerConnection(peerId);
 
     if (message.type === 'SDP_OFFER') {
@@ -163,6 +184,23 @@ async function handleSignalingMessage(message) {
     }
 }
 
+function retryVisiblePeerConnections() {
+    state.peers.forEach(peer => {
+        const shouldReconnect = state.activeChatPeerId === peer.id
+            || Boolean(state.secureMessageQueues[peer.id]?.length);
+        if (!shouldReconnect || state.dataChannels[peer.id]?.readyState === 'open') return;
+
+        const connection = state.webrtcConnections[peer.id];
+        if (connection && ['failed', 'closed', 'disconnected'].includes(connection.connectionState)) {
+            cleanupPeerConnection(peer.id, connection);
+        }
+        state.connectionRetryCounts[peer.id] = 0;
+        initiateP2PConnection(peer.id).catch(error => {
+            logDebug(`Could not reconnect to visible peer ${peer.id}: ${error.message}`);
+        });
+    });
+}
+
 function setupDataChannel(peerId, channel) {
     state.dataChannels[peerId] = channel;
 
@@ -190,6 +228,7 @@ function setupDataChannel(peerId, channel) {
 }
 
 async function initiateP2PConnection(peerId) {
+    if (isPeerBlocked(peerId)) return;
     if (state.dataChannels[peerId]?.readyState === 'open') return;
     if (state.dataChannels[peerId]?.readyState === 'connecting') return;
     if (state.connectionAttempts[peerId]) return state.connectionAttempts[peerId];
@@ -226,6 +265,7 @@ async function initiateP2PConnection(peerId) {
 }
 
 async function deriveSessionKey(peerId, publicJwk) {
+    await persistPeerIdentityKey(peerId, publicJwk);
     const publicKey = await window.crypto.subtle.importKey(
         'jwk',
         publicJwk,
@@ -241,6 +281,7 @@ async function deriveSessionKey(peerId, publicJwk) {
         ['encrypt', 'decrypt']
     );
     updateChatConnectionStatus(peerId, 'E2EE connected', 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30');
+    await beginChatSync(peerId);
     await flushSecureMessageQueue(peerId);
 }
 
@@ -283,7 +324,22 @@ async function handleDataChannelMessage(peerId, rawMessage) {
 }
 
 async function handleSecurePayload(peerId, payload) {
-    if (payload.type === 'CHAT_MESSAGE') {
+    if (isPeerBlocked(peerId)) return;
+    if (payload.type === 'CHAT_OPERATION') {
+        await applyChatOperation(peerId, payload.operation);
+    } else if (payload.type === 'CHAT_SYNC_HELLO') {
+        await handleChatSyncHello(peerId, payload);
+    } else if (payload.type === 'CHAT_SYNC_INVENTORY_REQUEST') {
+        await sendChatSyncInventory(peerId, payload.cursor || 0);
+    } else if (payload.type === 'CHAT_SYNC_INVENTORY') {
+        await handleChatSyncInventory(peerId, payload);
+    } else if (payload.type === 'CHAT_SYNC_OPERATION_REQUEST') {
+        await sendRequestedChatOperations(peerId, payload.operationIds || []);
+    } else if (payload.type === 'CHAT_SYNC_OPERATIONS') {
+        for (const operation of payload.operations || []) {
+            await applyChatOperation(peerId, operation);
+        }
+    } else if (payload.type === 'CHAT_MESSAGE') {
         await receiveChatMessage(peerId, payload);
     } else if (payload.type === 'PRESENCE_PING') {
         await sendSecurePayload(peerId, {
@@ -322,17 +378,98 @@ async function handleSecurePayload(peerId, payload) {
     }
 }
 
+async function beginChatSync(peerId) {
+    if (state.chatSyncInProgress[peerId]) return;
+    state.chatSyncInProgress[peerId] = true;
+    try {
+        const operations = await getChatOperations(peerId);
+        await sendSecurePayload(peerId, {
+            type: 'CHAT_SYNC_HELLO',
+            recentOperationIds: operations.slice(0, 20).map(operation => operation.operationId),
+            hasMore: operations.length > 20
+        });
+    } finally {
+        delete state.chatSyncInProgress[peerId];
+    }
+}
+
+async function handleChatSyncHello(peerId, payload) {
+    const operations = await getChatOperations(peerId);
+    const localIds = new Set(operations.map(operation => operation.operationId));
+    const missingIds = (payload.recentOperationIds || []).filter(operationId => !localIds.has(operationId));
+    if (missingIds.length) {
+        await sendSecurePayload(peerId, {
+            type: 'CHAT_SYNC_OPERATION_REQUEST',
+            operationIds: missingIds
+        });
+    }
+    if (payload.hasMore) {
+        await sendSecurePayload(peerId, {
+            type: 'CHAT_SYNC_INVENTORY_REQUEST',
+            cursor: 20
+        });
+    }
+}
+
+async function sendChatSyncInventory(peerId, cursor) {
+    const operations = await getChatOperations(peerId);
+    const pageSize = 50;
+    await sendSecurePayload(peerId, {
+        type: 'CHAT_SYNC_INVENTORY',
+        operationIds: operations
+            .slice(cursor, cursor + pageSize)
+            .map(operation => operation.operationId),
+        nextCursor: cursor + pageSize < operations.length ? cursor + pageSize : null
+    });
+}
+
+async function handleChatSyncInventory(peerId, payload) {
+    const localIds = new Set(
+        (await getChatOperations(peerId)).map(operation => operation.operationId)
+    );
+    const missingIds = (payload.operationIds || []).filter(operationId => !localIds.has(operationId));
+    if (missingIds.length) {
+        await sendSecurePayload(peerId, {
+            type: 'CHAT_SYNC_OPERATION_REQUEST',
+            operationIds: missingIds
+        });
+    }
+    if (payload.nextCursor !== null && payload.nextCursor !== undefined) {
+        await sendSecurePayload(peerId, {
+            type: 'CHAT_SYNC_INVENTORY_REQUEST',
+            cursor: payload.nextCursor
+        });
+    }
+}
+
+async function sendRequestedChatOperations(peerId, operationIds) {
+    const requestedIds = new Set(operationIds.slice(0, 50));
+    const operations = (await getChatOperations(peerId))
+        .filter(operation => requestedIds.has(operation.operationId))
+        .map(({ peerId: _localPeerId, ...operation }) => operation);
+    if (!operations.length) return;
+    await sendSecurePayload(peerId, {
+        type: 'CHAT_SYNC_OPERATIONS',
+        operations
+    });
+}
+
 async function sendSecurePayload(peerId, payload, onSent = null) {
+    if (isPeerBlocked(peerId)) return false;
     const channel = state.dataChannels[peerId];
     if (channel?.readyState === 'open' && state.sessionKeys[peerId]) {
         channel.send(JSON.stringify(await encryptSecurePayload(peerId, payload)));
-        if (onSent) onSent();
+        if (onSent) onSent('p2p');
         return true;
     }
 
     if (!state.secureMessageQueues[peerId]) state.secureMessageQueues[peerId] = [];
-    state.secureMessageQueues[peerId].push({ payload, onSent });
-    initiateP2PConnection(peerId).catch(() => {});
+    state.secureMessageQueues[peerId].push({ payload, onSent, cacheQueued: false });
+    initiateP2PConnection(peerId).catch(() => {
+        flushPeerQueueToCache(peerId).catch(error => {
+            logDebug(`Path C fallback failed: ${error.message}`);
+        });
+    });
     return false;
 }
 
@@ -340,6 +477,134 @@ async function flushSecureMessageQueue(peerId) {
     const queue = state.secureMessageQueues[peerId] || [];
     state.secureMessageQueues[peerId] = [];
     for (const item of queue) {
+        if (item.cacheQueued) continue;
         await sendSecurePayload(peerId, item.payload, item.onSent);
+    }
+}
+
+async function deriveCacheEncryptionKey(publicJwk) {
+    const publicKey = await window.crypto.subtle.importKey(
+        'jwk',
+        publicJwk,
+        { name: 'ECDH', namedCurve: 'P-256' },
+        false,
+        []
+    );
+    return window.crypto.subtle.deriveKey(
+        { name: 'ECDH', public: publicKey },
+        state.myKeys.keyPair.privateKey,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['encrypt', 'decrypt']
+    );
+}
+
+async function queuePayloadInCache(peerId, item) {
+    if (item.cacheQueued || item.payload?.type !== 'CHAT_OPERATION') return false;
+    const peerPublicKey = await getPeerIdentityKey(peerId);
+    if (!peerPublicKey) {
+        logDebug(`Path C skipped for ${peerId}: no trusted peer identity key is cached.`);
+        return false;
+    }
+
+    const encryptionKey = await deriveCacheEncryptionKey(peerPublicKey);
+    const iv = window.crypto.getRandomValues(new Uint8Array(12));
+    const ciphertext = await window.crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv },
+        encryptionKey,
+        new TextEncoder().encode(JSON.stringify(item.payload))
+    );
+    const response = await fetch(`${API_BASE}/api/cache`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            recipientId: peerId,
+            senderId: state.myProfile.id,
+            ciphertextPayload: JSON.stringify({
+                version: 1,
+                senderPublicKey: state.myKeys.jwkPublic,
+                ciphertext: bytesToBase64(new Uint8Array(ciphertext))
+            }),
+            ivHex: bytesToBase64(iv),
+            ttlHours: 24
+        })
+    });
+    if (response.status === 403) {
+        item.discarded = true;
+        if (item.onSent) item.onSent('rejected');
+        logDebug(`Path C delivery to ${peerId} was rejected by the recipient.`);
+        return false;
+    }
+    if (!response.ok) throw new Error(`Cache API returned ${response.status}.`);
+    item.cacheQueued = true;
+    if (item.onSent) item.onSent('cache');
+    return true;
+}
+
+async function flushPeerQueueToCache(peerId) {
+    const queue = state.secureMessageQueues[peerId] || [];
+    try {
+        for (const item of queue) {
+            try {
+                await queuePayloadInCache(peerId, item);
+            } catch (error) {
+                logDebug(`Could not queue operation for ${peerId}: ${error.message}`);
+            }
+        }
+    } finally {
+        state.secureMessageQueues[peerId] = queue.filter(item => !item.cacheQueued && !item.discarded);
+    }
+}
+
+function publicKeysMatch(left, right) {
+    return Boolean(left && right)
+        && left.kty === right.kty
+        && left.crv === right.crv
+        && left.x === right.x
+        && left.y === right.y;
+}
+
+async function fetchQueuedCacheMessages() {
+    if (state.cacheFetchInFlight || !state.myKeys) return;
+    state.cacheFetchInFlight = true;
+    try {
+        const response = await fetch(`${API_BASE}/api/cache/${encodeURIComponent(state.myProfile.id)}`, {
+            cache: 'no-store'
+        });
+        if (!response.ok) throw new Error(`Cache API returned ${response.status}.`);
+        const { messages = [] } = await response.json();
+
+        for (const cachedMessage of messages) {
+            try {
+                if (isPeerBlocked(cachedMessage.senderId)) {
+                    throw new Error('Sender is blocked.');
+                }
+                const envelope = JSON.parse(cachedMessage.ciphertextPayload);
+                const trustedSenderKey = await getPeerIdentityKey(cachedMessage.senderId);
+                if (!trustedSenderKey || !publicKeysMatch(trustedSenderKey, envelope.senderPublicKey)) {
+                    throw new Error('Sender identity key does not match the trusted P2P key.');
+                }
+                const decryptionKey = await deriveCacheEncryptionKey(envelope.senderPublicKey);
+                const plaintext = await window.crypto.subtle.decrypt(
+                    { name: 'AES-GCM', iv: base64ToBytes(cachedMessage.ivHex) },
+                    decryptionKey,
+                    base64ToBytes(envelope.ciphertext)
+                );
+                const payload = JSON.parse(new TextDecoder().decode(plaintext));
+                if (payload.type !== 'CHAT_OPERATION') {
+                    throw new Error('Unsupported cached payload type.');
+                }
+                await handleSecurePayload(cachedMessage.senderId, payload);
+                const deleteResponse = await fetch(
+                    `${API_BASE}/api/cache/${encodeURIComponent(cachedMessage.msgId)}`,
+                    { method: 'DELETE' }
+                );
+                if (!deleteResponse.ok) throw new Error(`Cache delete returned ${deleteResponse.status}.`);
+            } catch (error) {
+                logDebug(`Rejected Path C message ${cachedMessage.msgId}: ${error.message}`);
+            }
+        }
+    } finally {
+        state.cacheFetchInFlight = false;
     }
 }

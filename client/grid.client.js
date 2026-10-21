@@ -7,11 +7,12 @@ function renderDiscoveryGrid() {
     const container = document.getElementById('grid-container');
     if (!container) return;
 
+    const visiblePeers = state.peers.filter(peer => !isPeerBlocked(peer.id));
     container.innerHTML = '';
-    document.getElementById('grid-peer-count').textContent = `${state.peers.length} ${state.peers.length === 1 ? 'peer' : 'peers'}`;
+    document.getElementById('grid-peer-count').textContent = `${visiblePeers.length} ${visiblePeers.length === 1 ? 'peer' : 'peers'}`;
     renderActivePeerList();
 
-    if (state.peers.length === 0) {
+    if (visiblePeers.length === 0) {
         const emptyState = document.createElement('div');
         emptyState.className = 'col-span-full text-center py-12 text-slate-500 text-sm border border-dashed border-slate-800 rounded-2xl bg-slate-900/40';
         emptyState.innerHTML = '<i class="fa-solid fa-satellite-dish text-2xl text-slate-600 mb-3"></i><div>No other peers are currently visible in this grid cell.</div>';
@@ -19,7 +20,7 @@ function renderDiscoveryGrid() {
         return;
     }
 
-    state.peers.forEach(peer => {
+    visiblePeers.forEach(peer => {
         const avatarSrc = peer.avatar ? peer.avatar : 'https://placehold.co/300x300/1e293b/ffffff?text=Peer';
         const card = document.createElement('button');
         card.type = 'button';
@@ -60,9 +61,15 @@ function renderActivePeerList() {
     const count = document.getElementById('active-peers-count');
     if (!container || !count) return;
 
-    count.textContent = state.peers.length;
+    const peerIds = Array.from(new Set([
+        ...state.chatPeerIds,
+        ...state.peers.filter(peer => !isPeerBlocked(peer.id)).map(peer => peer.id)
+    ]));
+    count.textContent = peerIds.length;
     container.innerHTML = '';
-    state.peers.forEach(peer => {
+    peerIds.forEach(peerId => {
+        const peer = getPeerPresentation(peerId);
+        const blocked = isPeerBlocked(peer.id);
         const button = document.createElement('button');
         button.type = 'button';
         button.className = `w-full flex items-center gap-3 rounded-xl border p-2 text-left transition ${state.activeChatPeerId === peer.id ? 'border-brand-500/60 bg-brand-500/10' : 'border-slate-800 bg-slate-950/40 hover:border-slate-700'}`;
@@ -79,9 +86,13 @@ function renderActivePeerList() {
         name.textContent = peer.name || 'Peer';
         const status = document.createElement('div');
         status.className = 'text-[10px] font-mono text-slate-400';
-        status.textContent = state.dataChannels[peer.id]?.readyState === 'open'
+        status.textContent = blocked
+            ? 'Blocked'
+            : state.dataChannels[peer.id]?.readyState === 'open'
             ? 'P2P connected'
-            : 'Router entry';
+            : state.peers.some(candidate => candidate.id === peer.id)
+                ? 'Router entry'
+                : 'Offline chat';
         details.append(name, status);
         button.append(image, details);
         container.appendChild(button);
@@ -102,10 +113,12 @@ async function fetchPeersFromWorkerGrid() {
         const data = await res.json();
 
         if (data.peers && Array.isArray(data.peers)) {
-            const removedPeerIds = new Set(data.removedPeerIds || []);
+            const removedPeerIds = new Set(
+                (data.removedPeerIds || []).filter(peerId => peerId !== state.myProfile.id)
+            );
             await Promise.all(Array.from(removedPeerIds, peerId => removeCachedPeer(peerId, state.myProfile.geohash)));
             state.peers = data.peers
-                .filter(peer => peer.id !== state.myProfile.id && !removedPeerIds.has(peer.id))
+                .filter(peer => peer.id !== state.myProfile.id && !removedPeerIds.has(peer.id) && !isPeerBlocked(peer.id))
                 .map(peer => {
                     const cachedProfile = state.cachedProfiles[peer.id];
                     return cachedProfile ? {
@@ -116,6 +129,7 @@ async function fetchPeersFromWorkerGrid() {
                     } : peer;
                 });
             await Promise.all(state.peers.map(cacheGridPeer));
+            retryVisiblePeerConnections();
             renderDiscoveryGrid();
             document.getElementById('grid-last-updated').textContent = `Updated ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
             return true;

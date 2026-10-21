@@ -158,8 +158,16 @@
                             <div id="chat-connection-type" class="text-xs font-mono text-slate-400">Select a peer from the Grid</div>
                         </div>
                     </div>
-                    <div id="connection-status-pill" class="text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-400 font-mono">
-                        Disconnected
+                    <div class="flex items-center gap-2">
+                        <button id="delete-chat-btn" onclick="deleteActiveChat()" class="hidden text-xs px-2.5 py-1 rounded-lg border border-slate-700 bg-slate-800 text-slate-300 hover:text-red-300 hover:border-red-800 transition">
+                            Chat loeschen
+                        </button>
+                        <button id="block-peer-btn" onclick="toggleActivePeerBlock()" class="hidden text-xs px-2.5 py-1 rounded-lg border border-red-800 bg-red-950/60 text-red-300 hover:bg-red-900/80 transition">
+                            Blockieren
+                        </button>
+                        <div id="connection-status-pill" class="text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-400 font-mono">
+                            Disconnected
+                        </div>
                     </div>
                 </div>
 
@@ -208,7 +216,7 @@
                     <i class="fa-solid fa-cloud text-sky-400"></i> Ephemeral Store-and-Forward Cloud Cache (Pfad C)
                 </h2>
                 <p class="text-xs text-slate-400 leading-relaxed">
-                    Messages queued for offline/sleeping peers are E2EE encrypted with AES-256-GCM. Cloudflare Worker stores them with 24h TTL.
+                    Messages queued for offline/sleeping peers are E2EE encrypted with AES-256-GCM. The self-hosted queue stores only ciphertext with a limited TTL.
                 </p>
             </div>
         </section>
@@ -260,6 +268,28 @@
 
     </main>
 
+    <!-- First-run profile onboarding -->
+    <div id="profile-onboarding-modal" class="hidden fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[60] flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-slate-900 border border-brand-500/40 rounded-2xl max-w-2xl w-full shadow-2xl my-8">
+            <div class="p-5 border-b border-slate-800">
+                <div class="w-11 h-11 rounded-xl bg-brand-500/15 border border-brand-500/30 text-brand-400 flex items-center justify-center mb-3">
+                    <i class="fa-solid fa-user-plus"></i>
+                </div>
+                <h2 class="text-xl font-bold text-slate-100">Profil einrichten</h2>
+                <p class="text-sm text-slate-400 mt-1">
+                    Deine Daten werden verschluesselt in diesem Browser gespeichert. Erst danach wirst du im Grid registriert.
+                </p>
+            </div>
+            <div class="p-5 space-y-5">
+                <div id="onboarding-profile-form" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                <div id="onboarding-profile-error" class="hidden text-xs text-red-300 bg-red-950/50 border border-red-800 rounded-lg p-3"></div>
+                <button id="complete-onboarding-btn" onclick="completeProfileOnboarding()" class="w-full bg-brand-600 hover:bg-brand-500 disabled:opacity-60 text-white font-semibold py-3 px-4 rounded-xl transition flex items-center justify-center gap-2 shadow-lg pulse-glow">
+                    <i class="fa-solid fa-shield-halved"></i> Profil verschluesselt speichern
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Detailed Profile View Modal -->
     <div id="profile-detail-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
         <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full overflow-hidden shadow-2xl space-y-0 my-8">
@@ -293,6 +323,7 @@
     </div>
 
     <script id="profile-schema-data" type="application/json">{{profileSchema}}</script>
+    <script src="/client/crypto.client.js"></script>
     <script>
         const CONFIG = { DEBUG_MODE: true, DEFAULT_GEOHASH: 'u10j2k' };
 
@@ -338,7 +369,12 @@
             connectionRetryCounts: {},
             sessionKeys: {},
             secureMessageQueues: {},
-            presenceProbes: {}
+            presenceProbes: {},
+            chatSyncInProgress: {},
+            peerIdentityKeys: {},
+            cacheFetchInFlight: false,
+            chatPeerIds: [],
+            chatControls: {}
         };
 
         let db = null;
@@ -401,7 +437,7 @@
         // ================= INDEXEDDB =================
         function initDatabase() {
             return new Promise((resolve) => {
-                const req = indexedDB.open('OpenGridDB_Live', 3);
+                const req = indexedDB.open('OpenGridDB_Live', 6);
                 let settled = false;
                 const finish = (database = null) => {
                     if (settled) return;
@@ -410,6 +446,9 @@
                 };
                 req.onupgradeneeded = (e) => {
                     const database = e.target.result;
+                    if (!database.objectStoreNames.contains('localProfile')) {
+                        database.createObjectStore('localProfile', { keyPath: 'slot' });
+                    }
                     if (!database.objectStoreNames.contains('profiles')) database.createObjectStore('profiles', { keyPath: 'id' });
                     const gridStore = database.objectStoreNames.contains('gridPeers')
                         ? e.target.transaction.objectStore('gridPeers')
@@ -420,6 +459,10 @@
                         ? e.target.transaction.objectStore('messages')
                         : database.createObjectStore('messages', { keyPath: 'id' });
                     if (!messageStore.indexNames.contains('peerId')) messageStore.createIndex('peerId', 'peerId', { unique: false });
+                    const operationStore = database.objectStoreNames.contains('chatOperations')
+                        ? e.target.transaction.objectStore('chatOperations')
+                        : database.createObjectStore('chatOperations', { keyPath: 'operationId' });
+                    if (!operationStore.indexNames.contains('peerId')) operationStore.createIndex('peerId', 'peerId', { unique: false });
                     if (!database.objectStoreNames.contains('keys')) database.createObjectStore('keys', { keyPath: 'id' });
                 };
                 req.onsuccess = (e) => {
@@ -464,6 +507,29 @@
         function getDatabaseRecordsByIndex(storeName, indexName, value) {
             if (!db) return Promise.resolve([]);
             return databaseRequest(storeName, 'readonly', store => store.index(indexName).getAll(value));
+        }
+
+        function getAllDatabaseRecords(storeName) {
+            if (!db) return Promise.resolve([]);
+            return databaseRequest(storeName, 'readonly', store => store.getAll());
+        }
+
+        function deleteDatabaseRecordsByPeerBefore(storeName, peerId, cutoff) {
+            if (!db) return Promise.resolve();
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction(storeName, 'readwrite');
+                const request = transaction.objectStore(storeName).index('peerId').openCursor(IDBKeyRange.only(peerId));
+                request.onsuccess = () => {
+                    const cursor = request.result;
+                    if (!cursor) return;
+                    if ((cursor.value.createdAt || 0) <= cutoff) cursor.delete();
+                    cursor.continue();
+                };
+                request.onerror = () => reject(request.error);
+                transaction.oncomplete = () => resolve();
+                transaction.onerror = () => reject(transaction.error);
+                transaction.onabort = () => reject(transaction.error);
+            });
         }
 
         async function initializeStorageEncryption() {
@@ -523,11 +589,23 @@
         }
 
         async function loadMyLocalProfile() {
-            const record = db ? await databaseRequest('profiles', 'readonly', store => store.get(state.nodeId)) : null;
+            let record = db
+                ? await databaseRequest('localProfile', 'readonly', store => store.get('current'))
+                : null;
+            let migratedLegacyProfile = false;
+            if (!record && db) {
+                record = await databaseRequest('profiles', 'readonly', store => store.get(state.nodeId));
+                migratedLegacyProfile = Boolean(record);
+            }
             const cached = record ? await decryptStoredProfile(record).catch(() => null) : null;
             if (cached?.isMe) state.myProfile = cached;
             state.myProfile.id = state.nodeId;
+            if (migratedLegacyProfile && cached?.isMe) {
+                const persisted = await cacheOwnProfile();
+                if (persisted) await deleteDatabaseRecord('profiles', state.nodeId);
+            }
             renderProfileForm();
+            return Boolean(cached?.isMe);
         }
 
         async function loadCachedGridPeers() {
@@ -557,11 +635,8 @@
         }
 
         async function removeCachedPeer(peerId, geohash) {
-            await Promise.all([
-                deleteDatabaseRecord('gridPeers', `${geohash}:${peerId}`),
-                deleteDatabaseRecord('profiles', peerId)
-            ]);
-            delete state.cachedProfiles[peerId];
+            if (peerId === state.myProfile.id) return;
+            await deleteDatabaseRecord('gridPeers', `${geohash}:${peerId}`);
         }
 
         async function cachePeerProfile(peerId, profile) {
@@ -584,8 +659,8 @@
         async function cacheOwnProfile() {
             if (!state.storageKey) return false;
             const encrypted = await encryptStoredProfile(state.myProfile);
-            await putDatabaseRecord('profiles', {
-                id: state.myProfile.id,
+            await putDatabaseRecord('localProfile', {
+                slot: 'current',
                 version: state.myProfile.version,
                 updatedAt: state.myProfile.updatedAt,
                 ...encrypted
@@ -596,15 +671,234 @@
         async function loadChatHistory(peerId) {
             const messages = await getDatabaseRecordsByIndex('messages', 'peerId', peerId);
             state.chats[peerId] = messages.sort((left, right) => left.createdAt - right.createdAt);
+            const operations = await getChatOperations(peerId);
+            const operationIds = new Set(operations.map(operation => operation.operationId));
+            const missingOperations = messages
+                .filter(message => !message.deleted && !operationIds.has(`put:${message.id}`))
+                .map(message => createPutOperation(peerId, message));
+            await Promise.all(missingOperations.map(persistChatOperation));
+        }
+
+        async function loadChatPeerIds() {
+            const [messages, operations] = await Promise.all([
+                getAllDatabaseRecords('messages'),
+                getAllDatabaseRecords('chatOperations')
+            ]);
+            state.chatPeerIds = Array.from(new Set([
+                ...messages.map(message => message.peerId),
+                ...operations.map(operation => operation.peerId),
+                ...Object.values(state.chatControls)
+                    .filter(control => control.blockedAt)
+                    .map(control => control.peerId)
+            ].filter(Boolean)));
+            renderActivePeerList();
+        }
+
+        function rememberChatPeer(peerId) {
+            if (!peerId || state.chatPeerIds.includes(peerId)) return;
+            state.chatPeerIds.push(peerId);
+            renderActivePeerList();
+        }
+
+        function getPeerPresentation(peerId) {
+            const activePeer = state.peers.find(peer => peer.id === peerId);
+            const profile = state.cachedProfiles[peerId];
+            return activePeer || {
+                id: peerId,
+                name: profile?.fields?.displayName || `Peer ${peerId.slice(-8)}`,
+                avatar: profile?.avatar || null,
+                fullProfile: profile,
+                offline: true
+            };
+        }
+
+        function isPeerBlocked(peerId) {
+            return Boolean(state.chatControls[peerId]?.blockedAt);
+        }
+
+        async function purgeChatBefore(peerId, cutoff) {
+            await Promise.all([
+                deleteDatabaseRecordsByPeerBefore('messages', peerId, cutoff),
+                deleteDatabaseRecordsByPeerBefore('chatOperations', peerId, cutoff)
+            ]);
+            if (state.chats[peerId]) {
+                state.chats[peerId] = state.chats[peerId].filter(message => message.createdAt > cutoff);
+            }
+        }
+
+        async function applyChatControls(controls) {
+            state.chatControls = Object.fromEntries(controls.map(control => [control.peerId, control]));
+            for (const control of controls) {
+                if (control.deletedBefore) await purgeChatBefore(control.peerId, control.deletedBefore);
+                if (control.blockedAt) {
+                    state.secureMessageQueues[control.peerId] = [];
+                    const connection = state.webrtcConnections[control.peerId];
+                    if (connection) cleanupPeerConnection(control.peerId, connection);
+                }
+            }
+            await loadChatPeerIds();
+            renderDiscoveryGrid();
+            if (state.activeChatPeerId) {
+                updateChatActionButtons();
+                renderChatHistory();
+            }
+        }
+
+        async function refreshChatControls() {
+            const response = await fetch(
+                `${API_BASE}/api/chat-controls/${encodeURIComponent(state.myProfile.id)}`,
+                { cache: 'no-store' }
+            );
+            if (!response.ok) throw new Error(`Chat control API returned ${response.status}.`);
+            const { controls = [] } = await response.json();
+            await applyChatControls(controls);
+        }
+
+        async function storeChatControl(peerId, action) {
+            const response = await fetch(`${API_BASE}/api/chat-controls`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ownerId: state.myProfile.id,
+                    peerId,
+                    action
+                })
+            });
+            if (!response.ok) throw new Error(`Chat control API returned ${response.status}.`);
+            await refreshChatControls();
         }
 
         function persistChatMessage(peerId, message) {
             return putDatabaseRecord('messages', { ...message, peerId });
         }
 
+        function getChatOperations(peerId) {
+            return getDatabaseRecordsByIndex('chatOperations', 'peerId', peerId)
+                .then(operations => operations.sort((left, right) => right.createdAt - left.createdAt));
+        }
+
+        function persistChatOperation(operation) {
+            return putDatabaseRecord('chatOperations', operation);
+        }
+
+        async function getPeerIdentityKey(peerId) {
+            if (state.peerIdentityKeys[peerId]) return state.peerIdentityKeys[peerId];
+            const record = db
+                ? await databaseRequest('keys', 'readonly', store => store.get(`peer-identity:${peerId}`))
+                : null;
+            if (record?.jwkPublic) state.peerIdentityKeys[peerId] = record.jwkPublic;
+            return record?.jwkPublic || null;
+        }
+
+        async function persistPeerIdentityKey(peerId, jwkPublic) {
+            state.peerIdentityKeys[peerId] = jwkPublic;
+            await putDatabaseRecord('keys', {
+                id: `peer-identity:${peerId}`,
+                jwkPublic
+            });
+        }
+
+        function createPutOperation(peerId, message) {
+            return {
+                operationId: `put:${message.id}`,
+                peerId,
+                type: 'MESSAGE_PUT',
+                messageId: message.id,
+                actorId: message.senderId,
+                createdAt: message.createdAt,
+                message: {
+                    id: message.id,
+                    senderId: message.senderId,
+                    text: message.text,
+                    timestamp: message.timestamp,
+                    createdAt: message.createdAt
+                }
+            };
+        }
+
+        async function applyChatOperation(peerId, operation) {
+            if (!operation?.operationId) return false;
+            const control = state.chatControls[peerId];
+            if (control?.blockedAt || (control?.deletedBefore && (operation.createdAt || 0) <= control.deletedBefore)) {
+                return false;
+            }
+            const localOperation = { ...operation, peerId };
+            const existingOperation = await databaseRequest(
+                'chatOperations',
+                'readonly',
+                store => store.get(localOperation.operationId)
+            );
+            if (existingOperation) return false;
+
+            if (localOperation.type === 'MESSAGE_PUT' && localOperation.message) {
+                if (localOperation.message.senderId !== localOperation.actorId) return false;
+                const existingMessage = await databaseRequest(
+                    'messages',
+                    'readonly',
+                    store => store.get(localOperation.messageId)
+                );
+                if (!existingMessage?.deleted) {
+                    const message = {
+                        ...localOperation.message,
+                        peerId,
+                        deliveredVia: 'E2EE P2P'
+                    };
+                    await persistChatMessage(peerId, message);
+                    if (!state.chats[peerId]) state.chats[peerId] = [];
+                    const index = state.chats[peerId].findIndex(item => item.id === message.id);
+                    if (index >= 0) state.chats[peerId][index] = message;
+                    else state.chats[peerId].push(message);
+                }
+            } else if (localOperation.type === 'MESSAGE_DELETE') {
+                const existingMessage = await databaseRequest(
+                    'messages',
+                    'readonly',
+                    store => store.get(localOperation.messageId)
+                );
+                const originalSenderId = existingMessage?.senderId || localOperation.originalSenderId;
+                if (!originalSenderId || originalSenderId !== localOperation.actorId) return false;
+                const deletedMessage = {
+                    id: localOperation.messageId,
+                    peerId,
+                    senderId: originalSenderId,
+                    text: '',
+                    timestamp: existingMessage?.timestamp || localOperation.timestamp || '',
+                    createdAt: existingMessage?.createdAt || localOperation.messageCreatedAt || localOperation.createdAt,
+                    deleted: true,
+                    deletedAt: localOperation.createdAt,
+                    deliveredVia: 'Deleted'
+                };
+                await persistChatMessage(peerId, deletedMessage);
+                if (!state.chats[peerId]) state.chats[peerId] = [];
+                const index = state.chats[peerId].findIndex(item => item.id === localOperation.messageId);
+                if (index >= 0) state.chats[peerId][index] = deletedMessage;
+                else state.chats[peerId].push(deletedMessage);
+            } else {
+                return false;
+            }
+
+            await persistChatOperation(localOperation);
+            if (localOperation.type === 'MESSAGE_DELETE') await trimChatDeleteOperations(peerId);
+            if (!state.chats[peerId]) state.chats[peerId] = [];
+            state.chats[peerId].sort((left, right) => left.createdAt - right.createdAt);
+            rememberChatPeer(peerId);
+            if (state.activeChatPeerId === peerId) renderChatHistory();
+            return true;
+        }
+
+        async function trimChatDeleteOperations(peerId) {
+            const deleteOperations = (await getChatOperations(peerId))
+                .filter(operation => operation.type === 'MESSAGE_DELETE');
+            await Promise.all(
+                deleteOperations.slice(100).map(operation => {
+                    return deleteDatabaseRecord('chatOperations', operation.operationId);
+                })
+            );
+        }
+
         // ================= DYNAMIC FORM =================
-        function renderProfileForm() {
-            const container = document.getElementById('dynamic-profile-form');
+        function renderProfileForm(containerId = 'dynamic-profile-form') {
+            const container = document.getElementById(containerId);
             if (!container) return;
             container.innerHTML = '';
 
@@ -621,6 +915,9 @@
                 wrapper.appendChild(label);
 
                 const currentValue = state.myProfile.fields[field.key] ?? field.default ?? '';
+                if (state.myProfile.fields[field.key] === undefined && field.default !== undefined) {
+                    state.myProfile.fields[field.key] = currentValue;
+                }
                 let input;
 
                 if (field.type === 'select' || field.type === 'multiselect') {
@@ -664,6 +961,52 @@
                 wrapper.appendChild(input);
                 container.appendChild(wrapper);
             });
+        }
+
+        let resolveProfileOnboarding = null;
+
+        function openProfileOnboarding() {
+            renderProfileForm('onboarding-profile-form');
+            document.getElementById('profile-onboarding-modal').classList.remove('hidden');
+            return new Promise(resolve => {
+                resolveProfileOnboarding = resolve;
+            });
+        }
+
+        async function completeProfileOnboarding() {
+            const errorOutput = document.getElementById('onboarding-profile-error');
+            const button = document.getElementById('complete-onboarding-btn');
+            const missingField = PROFILE_SCHEMA.find(field => {
+                if (!field.required) return false;
+                const value = state.myProfile.fields[field.key];
+                return value === undefined
+                    || value === null
+                    || value === ''
+                    || (Array.isArray(value) && value.length === 0);
+            });
+            if (missingField) {
+                errorOutput.textContent = `Bitte fuelle das Pflichtfeld "${missingField.label}" aus.`;
+                errorOutput.classList.remove('hidden');
+                return;
+            }
+
+            button.disabled = true;
+            errorOutput.classList.add('hidden');
+            state.myProfile.version = 1;
+            state.myProfile.updatedAt = Date.now();
+            const persisted = await cacheOwnProfile();
+            if (!persisted) {
+                errorOutput.textContent = 'Das Profil konnte nicht verschluesselt gespeichert werden. Lokaler Speicher ist nicht verfuegbar.';
+                errorOutput.classList.remove('hidden');
+                button.disabled = false;
+                return;
+            }
+
+            document.getElementById('profile-onboarding-modal').classList.add('hidden');
+            renderProfileForm();
+            const resolve = resolveProfileOnboarding;
+            resolveProfileOnboarding = null;
+            resolve?.();
         }
 
         function updateProfileSchemaFromJSON() {
@@ -789,8 +1132,7 @@
         }
 
         async function openChatWithPeer(peerId) {
-            const peer = state.peers.find(candidate => candidate.id === peerId);
-            if (!peer) return;
+            const peer = getPeerPresentation(peerId);
             state.activeChatPeerId = peerId;
             await loadChatHistory(peerId);
             switchTab('chat');
@@ -805,13 +1147,78 @@
             avatar.appendChild(image);
             renderActivePeerList();
             renderChatHistory();
-            initiateP2PConnection(peerId).catch(() => {});
+            updateChatActionButtons();
+            if (!isPeerBlocked(peerId)) initiateP2PConnection(peerId).catch(() => {});
+        }
+
+        function updateChatActionButtons() {
+            const peerId = state.activeChatPeerId;
+            const deleteButton = document.getElementById('delete-chat-btn');
+            const blockButton = document.getElementById('block-peer-btn');
+            const input = document.getElementById('chat-input');
+            const sendButton = document.getElementById('send-chat-btn');
+            if (!peerId) {
+                deleteButton.classList.add('hidden');
+                blockButton.classList.add('hidden');
+                input.disabled = true;
+                sendButton.disabled = true;
+                return;
+            }
+            const blocked = isPeerBlocked(peerId);
+            deleteButton.classList.toggle('hidden', blocked);
+            blockButton.classList.remove('hidden');
+            blockButton.textContent = blocked ? 'Entblocken' : 'Blockieren';
+            input.disabled = blocked;
+            sendButton.disabled = blocked;
+            if (blocked) {
+                updateChatConnectionStatus(peerId, 'Blocked', 'bg-red-500/10 text-red-400 border-red-500/30');
+            }
+        }
+
+        async function deleteActiveChat() {
+            const peerId = state.activeChatPeerId;
+            if (!peerId || !window.confirm('Diesen Chat lokal und aus dem Router-Cache loeschen?')) return;
+            try {
+                await storeChatControl(peerId, 'DELETE_CHAT');
+                state.activeChatPeerId = null;
+                document.getElementById('chat-peer-name').textContent = 'No Peer Selected';
+                document.getElementById('chat-connection-type').textContent = 'Select a conversation';
+                document.getElementById('chat-messages').innerHTML = '<div class="text-center text-xs text-slate-500 my-8">Chat geloescht.</div>';
+                updateChatActionButtons();
+                showToast('Chat und zwischengespeicherte Router-Nachrichten wurden geloescht.', 'success');
+            } catch (error) {
+                showToast(`Chat konnte nicht geloescht werden: ${error.message}`, 'error');
+            }
+        }
+
+        async function toggleActivePeerBlock() {
+            const peerId = state.activeChatPeerId;
+            if (!peerId) return;
+            try {
+                if (isPeerBlocked(peerId)) {
+                    const response = await fetch(
+                        `${API_BASE}/api/chat-controls/${encodeURIComponent(state.myProfile.id)}/${encodeURIComponent(peerId)}/block`,
+                        { method: 'DELETE' }
+                    );
+                    if (!response.ok) throw new Error(`Chat control API returned ${response.status}.`);
+                    await refreshChatControls();
+                    initiateP2PConnection(peerId).catch(() => {});
+                    showToast('Peer wurde entblockt.', 'success');
+                } else {
+                    if (!window.confirm('Diesen Peer blockieren und den Chat loeschen?')) return;
+                    await storeChatControl(peerId, 'BLOCK');
+                    showToast('Peer wurde dauerhaft blockiert.', 'success');
+                }
+                updateChatActionButtons();
+            } catch (error) {
+                showToast(`Blockierung konnte nicht aktualisiert werden: ${error.message}`, 'error');
+            }
         }
 
         async function sendChatMessage() {
             const input = document.getElementById('chat-input');
             const text = input.value.trim();
-            if (!text || !state.activeChatPeerId) return;
+            if (!text || !state.activeChatPeerId || isPeerBlocked(state.activeChatPeerId)) return;
 
             const peerId = state.activeChatPeerId;
             const message = {
@@ -824,37 +1231,74 @@
             };
             if (!state.chats[peerId]) state.chats[peerId] = [];
             state.chats[peerId].push(message);
+            rememberChatPeer(peerId);
             await persistChatMessage(peerId, message);
+            const operation = createPutOperation(peerId, message);
+            await persistChatOperation(operation);
             input.value = '';
             renderChatHistory();
 
+            if (state.sessionKeys[peerId]) await beginChatSync(peerId);
             await sendSecurePayload(peerId, {
-                type: 'CHAT_MESSAGE',
-                id: message.id,
-                text: message.text,
-                timestamp: message.timestamp,
-                createdAt: message.createdAt
-            }, () => {
-                message.deliveredVia = 'E2EE P2P';
+                type: 'CHAT_OPERATION',
+                operation: {
+                    ...operation,
+                    peerId: undefined
+                }
+            }, (deliveryPath) => {
+                message.deliveredVia = deliveryPath === 'cache'
+                    ? 'Encrypted Path C'
+                    : deliveryPath === 'rejected'
+                        ? 'Delivery rejected'
+                        : 'E2EE P2P';
                 persistChatMessage(peerId, message).catch(error => logDebug(`Could not update chat message: ${error.message}`));
                 renderChatHistory();
             });
         }
 
         async function receiveChatMessage(peerId, payload) {
-            const message = {
-                id: payload.id,
-                senderId: peerId,
-                text: payload.text,
-                timestamp: payload.timestamp,
+            const operation = {
+                operationId: `put:${payload.id}`,
+                type: 'MESSAGE_PUT',
+                messageId: payload.id,
+                actorId: peerId,
                 createdAt: payload.createdAt || Date.now(),
-                deliveredVia: 'E2EE P2P'
+                message: {
+                    id: payload.id,
+                    senderId: peerId,
+                    text: payload.text,
+                    timestamp: payload.timestamp,
+                    createdAt: payload.createdAt || Date.now()
+                }
             };
-            if (!state.chats[peerId]) state.chats[peerId] = [];
-            if (!state.chats[peerId].some(existing => existing.id === message.id)) state.chats[peerId].push(message);
-            await persistChatMessage(peerId, message);
-            if (state.activeChatPeerId === peerId) renderChatHistory();
-            showToast(`New encrypted message from ${state.peers.find(peer => peer.id === peerId)?.name || 'peer'}.`, 'info');
+            const applied = await applyChatOperation(peerId, operation);
+            if (applied) {
+                showToast(`New encrypted message from ${state.peers.find(peer => peer.id === peerId)?.name || 'peer'}.`, 'info');
+            }
+        }
+
+        async function deleteChatMessage(messageId) {
+            const peerId = state.activeChatPeerId;
+            const message = state.chats[peerId]?.find(item => item.id === messageId);
+            if (!peerId || !message || message.deleted || message.senderId !== state.myProfile.id) return;
+
+            const operation = {
+                operationId: `delete:${messageId}:${window.crypto.randomUUID()}`,
+                peerId,
+                type: 'MESSAGE_DELETE',
+                messageId,
+                actorId: state.myProfile.id,
+                originalSenderId: message.senderId,
+                messageCreatedAt: message.createdAt,
+                timestamp: message.timestamp,
+                createdAt: Date.now()
+            };
+            await applyChatOperation(peerId, operation);
+            const { peerId: _localPeerId, ...sharedOperation } = operation;
+            await sendSecurePayload(peerId, {
+                type: 'CHAT_OPERATION',
+                operation: sharedOperation
+            });
         }
 
         function renderChatHistory() {
@@ -871,11 +1315,21 @@
                 const row = document.createElement('div');
                 row.className = `flex flex-col ${isMine ? 'items-end' : 'items-start'}`;
                 const bubble = document.createElement('div');
-                bubble.className = `max-w-[80%] rounded-2xl px-4 py-2 text-xs ${isMine ? 'bg-brand-600 text-white rounded-br-none' : 'bg-slate-800 text-slate-100 rounded-bl-none'}`;
-                bubble.textContent = message.text;
+                bubble.className = `max-w-[80%] rounded-2xl px-4 py-2 text-xs ${message.deleted ? 'bg-slate-900 text-slate-500 border border-slate-800 italic' : isMine ? 'bg-brand-600 text-white rounded-br-none' : 'bg-slate-800 text-slate-100 rounded-bl-none'}`;
+                bubble.textContent = message.deleted ? 'Nachricht geloescht' : message.text;
                 const meta = document.createElement('div');
-                meta.className = 'text-[9px] text-slate-500 mt-0.5';
-                meta.textContent = `${message.timestamp} â€¢ ${message.deliveredVia}`;
+                meta.className = 'text-[9px] text-slate-500 mt-0.5 flex items-center gap-2';
+                const status = document.createElement('span');
+                status.textContent = `${message.timestamp} - ${message.deliveredVia}`;
+                meta.appendChild(status);
+                if (isMine && !message.deleted) {
+                    const deleteButton = document.createElement('button');
+                    deleteButton.type = 'button';
+                    deleteButton.className = 'text-red-400 hover:text-red-300 transition';
+                    deleteButton.textContent = 'Loeschen';
+                    deleteButton.onclick = () => deleteChatMessage(message.id);
+                    meta.appendChild(deleteButton);
+                }
                 row.append(bubble, meta);
                 container.appendChild(row);
             });
@@ -925,15 +1379,31 @@
             if (fingerprintOutput) fingerprintOutput.textContent = 'Generating...';
 
             try {
-                const keyPair = await window.crypto.subtle.generateKey(
-                    { name: 'ECDH', namedCurve: 'P-256' },
-                    false,
-                    ['deriveKey', 'deriveBits']
-                );
+                const storedIdentity = !showNotification && db
+                    ? await databaseRequest('keys', 'readonly', store => store.get('identity-key'))
+                    : null;
+                const keyPair = storedIdentity?.privateKey && storedIdentity?.publicKey
+                    ? {
+                        privateKey: storedIdentity.privateKey,
+                        publicKey: storedIdentity.publicKey
+                    }
+                    : await window.crypto.subtle.generateKey(
+                        { name: 'ECDH', namedCurve: 'P-256' },
+                        false,
+                        ['deriveKey', 'deriveBits']
+                    );
                 const [publicKeySpki, jwkPublic] = await Promise.all([
                     window.crypto.subtle.exportKey('spki', keyPair.publicKey),
                     window.crypto.subtle.exportKey('jwk', keyPair.publicKey)
                 ]);
+                if (!storedIdentity) {
+                    await putDatabaseRecord('keys', {
+                        id: 'identity-key',
+                        privateKey: keyPair.privateKey,
+                        publicKey: keyPair.publicKey,
+                        jwkPublic
+                    });
+                }
                 const digest = await window.crypto.subtle.digest('SHA-256', publicKeySpki);
                 const fingerprint = Array.from(
                     new Uint8Array(digest),
@@ -942,7 +1412,9 @@
 
                 state.myKeys = { keyPair, jwkPublic, fingerprint };
                 if (fingerprintOutput) fingerprintOutput.textContent = fingerprint;
-                logDebug('New local ECDH P-256 identity keypair generated.');
+                logDebug(storedIdentity
+                    ? 'Persistent ECDH P-256 identity keypair loaded.'
+                    : 'New persistent ECDH P-256 identity keypair generated.');
 
                 if (state.ws?.readyState === WebSocket.OPEN) {
                     await registerWithWorkerGrid();
@@ -1007,40 +1479,54 @@
         }
 
         async function refreshPresenceAndGrid() {
-            await registerWithWorkerGrid();
+            await Promise.all([
+                registerWithWorkerGrid(),
+                refreshChatControls().catch(error => {
+                    logDebug(`Could not refresh persistent chat controls: ${error.message}`);
+                })
+            ]);
             await fetchPeersFromWorkerGrid();
         }
 
         window.onload = async () => {
-            await initDatabase();
-            await initializeStorageEncryption();
-            await loadMyLocalProfile();
-            if (!state.myProfile.updatedAt) {
-                state.myProfile.version = 1;
-                state.myProfile.updatedAt = Date.now();
-            }
-            await cacheOwnProfile();
-            await loadCachedGridPeers();
-            updateDebugButtonState();
-            await generateUserIdentityKeys();
-            connectWorkerWebSocket();
-            fetchPeersFromWorkerGrid();
-            document.getElementById('chat-input').addEventListener('keydown', (event) => {
-                if (event.key === 'Enter' && !event.shiftKey) {
-                    event.preventDefault();
-                    sendChatMessage();
+            try {
+                await initDatabase();
+                await initializeStorageEncryption();
+                const hasLocalProfile = await loadMyLocalProfile();
+                if (!hasLocalProfile) await openProfileOnboarding();
+                if (!state.myProfile.updatedAt) {
+                    state.myProfile.version = 1;
+                    state.myProfile.updatedAt = Date.now();
                 }
-            });
-            document.addEventListener('visibilitychange', () => {
-                if (document.visibilityState === 'visible') refreshPresenceAndGrid();
-            });
-            window.addEventListener('focus', refreshPresenceAndGrid);
-            setInterval(() => {
-                if (document.visibilityState === 'visible') fetchPeersFromWorkerGrid();
-            }, 10000);
-            setInterval(() => {
-                if (document.visibilityState === 'visible') registerWithWorkerGrid();
-            }, 25000);
+                await cacheOwnProfile();
+                await loadCachedGridPeers();
+                await refreshChatControls().catch(error => {
+                    logDebug(`Could not load persistent chat controls: ${error.message}`);
+                });
+                await loadChatPeerIds();
+                updateDebugButtonState();
+                await generateUserIdentityKeys();
+                connectWorkerWebSocket();
+                document.getElementById('chat-input').addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter' && !event.shiftKey) {
+                        event.preventDefault();
+                        sendChatMessage();
+                    }
+                });
+                document.addEventListener('visibilitychange', () => {
+                    if (document.visibilityState === 'visible') refreshPresenceAndGrid();
+                });
+                window.addEventListener('focus', refreshPresenceAndGrid);
+                setInterval(() => {
+                    if (document.visibilityState === 'visible') fetchPeersFromWorkerGrid();
+                }, 10000);
+                setInterval(() => {
+                    if (document.visibilityState === 'visible') registerWithWorkerGrid();
+                }, 25000);
+            } catch (error) {
+                console.error('OpenGrid startup failed.', error);
+                showToast(`Startup failed: ${error.message}`, 'error');
+            }
         };
     </script>
 </body>

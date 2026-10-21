@@ -1,79 +1,110 @@
 # OpenGrid
 
-OpenGrid ist eine datenschutzorientierte, dezentrale Discovery- und Chat-PWA.
-Der Cloudflare Worker dient nur als Geohash-Router und WebRTC-Signaling-Relay.
-Vollstaendige Profile und Nachrichten werden direkt zwischen Clients ueber
-verschluesselte WebRTC DataChannels uebertragen.
+OpenGrid ist eine datenschutzorientierte Discovery- und Chat-PWA. Der
+self-hosted Server stellt die statische Anwendung bereit und uebernimmt nur
+Geohash-Routing, WebRTC-Signaling und eine optionale Queue fuer bereits
+verschluesselte Nachrichten. Vollstaendige Profile und Chats werden direkt
+zwischen Clients ueber verschluesselte WebRTC DataChannels uebertragen.
 
 ## Architektur
 
-- **Routing:** In Cloudflare KV stehen pro sichtbarem Peer nur Anzeigename und
-  Thumbnail. Ein Eintrag wird durch einen regelmaessigen Client-Heartbeat
-  verlaengert und laeuft ohne Heartbeat automatisch ab.
-- **Signaling:** Ein Cloudflare Durable Object vermittelt WebRTC Offer, Answer
-  und ICE Candidates. Es speichert keine Chats oder Profile.
-- **P2P:** Clients handeln per ECDH P-256 einen AES-256-GCM-Session-Key aus.
-  Profilantworten, Presence-Pings und Chats laufen verschluesselt ueber den
-  DataChannel.
-- **Lokaler Speicher:** Profile und Chats liegen in IndexedDB. Profilinhalte
-  werden vor dem Speichern mit einem nicht exportierbaren AES-GCM-Schluessel
-  verschluesselt.
-
-### Komponenten
+- **Browser:** Statische HTML-/JavaScript-PWA, persistente Client-ID,
+  IndexedDB-Caches und WebRTC.
+- **Fastify:** App-Auslieferung, REST-API und WebSocket-Signaling.
+- **SQLite:** Kurzlebige Grid-Registrierungen, Removed-Tombstones und bereits
+  clientseitig verschluesselte Queue-Payloads sowie persistente
+  Chat-Loesch-/Blockregeln.
+- **Reverse Proxy:** TLS-Terminierung und Weiterleitung von HTTP sowie
+  WebSocket-Upgrades an den Container.
 
 | Datei | Verantwortung |
 |---|---|
-| `worker.js` | HTTP-Routen, App-Shell und Auslieferung der Client-Module |
-| `server/grid-store.js` | Grid-Registrierung, KV-Zugriff, TTL und lokale Entwicklungsablage |
-| `server/signaling.js` | WebSocket-Relay und Durable Object `SignalingHub` |
-| `client/grid.client.js` | Grid-Abfrage, Darstellung, Registrierung und Signaling-Verbindung |
-| `client/p2p.client.js` | WebRTC-Verbindung, ECDH/AES-GCM und sichere P2P-Nachrichten |
-| `index.html` | UI, Profil-/Chat-Interaktionen und lokaler IndexedDB-Speicher |
+| `server/index.js` | Startet den HTTP-Server |
+| `server/app.js` | Fastify-Routen, App-Shell und REST-API |
+| `server/database.js` | SQLite-Schema, Grid-TTL und Message Queue |
+| `server/signaling.js` | WebSocket-Signaling-Relay |
+| `client/crypto.client.js` | Gemeinsame Base64-Helfer fuer Web Crypto |
+| `client/grid.client.js` | Discovery, Heartbeats, Grid und Signaling-Verbindung |
+| `client/p2p.client.js` | WebRTC, DataChannels, ECDH/AES-GCM und P2P-Protokoll |
+| `index.html` | UI, Profile, Chats und IndexedDB |
 
-Der Signaling-Server vermittelt nur Offer, Answer und ICE Candidates.
-`client/p2p.client.js` baut daraus den direkten DataChannel zwischen zwei
-Browsern auf. Grid-Discovery und P2P-Datentransport bleiben dadurch getrennte
-Subsysteme.
+Cloudflare KV, Durable Objects, Worker Metadata und Wrangler werden nicht mehr
+verwendet.
 
-## Identitaet
-
-Jede Browser-Installation erzeugt einmalig eine zufaellige `nodeId`. Sie wird
-in `localStorage` gespeichert, von allen Tabs derselben Website geteilt und
-bleibt bis zum manuellen Loeschen der Websitedaten erhalten. Eine separate
-`registrationId` schuetzt jede laufende Registrierung gegen verspätete
-Abmeldeereignisse.
-
-## Discovery und Presence
-
-Das Grid zeigt ausschliesslich Profile, die der Router fuer den aktuellen
-Geohash liefert. Ein lokal gecachtes Profil erscheint nicht automatisch im
-Grid, wenn sein Router-Eintrag fehlt.
-
-Der Presence-Status wird nicht aus KV uebernommen. Beim Oeffnen eines Profils
-sendet der aufrufende Client einen verschluesselten P2P-Ping:
-
-- **Online:** gueltiger P2P-Pong empfangen
-- **Abwesend:** Router-Eintrag vorhanden, aber kein Pong innerhalb des Timeouts
-- **Offline:** der aufrufende Client hat selbst keine nutzbare Netzwerk- oder
-  Signaling-Verbindung
-
-## Profil-Cache
-
-Vollstaendige Profile werden nur per P2P geladen. Jede Profilversion besitzt
-eine fortlaufende `version` und einen `updatedAt`-Zeitstempel. Ein Client
-ueberschreibt seinen verschluesselten lokalen Cache nur mit einer neueren
-Version. Der Cache kann nach einem Browser-Neustart wieder entschluesselt
-werden, erscheint aber nur dann im Grid, wenn der Peer weiterhin vom Router
-geliefert wird.
-
-## Entwicklung
+## Docker
 
 ```powershell
-npx.cmd wrangler dev
+docker compose up -d --build
 ```
 
-Deployment-Konfiguration pruefen:
+Standardmaessig ist OpenGrid auf `http://localhost:3000` erreichbar. SQLite
+liegt im benannten Volume `open-grid-data` unter `/app/data`.
+
+### Konfiguration
+
+| Variable | Standard | Beschreibung |
+|---|---|---|
+| `OPEN_GRID_PORT` | `3000` | Auf dem Host veroeffentlichter Port |
+| `BUILD_VERSION` | `self-hosted` | Im UI angezeigte Build-Version |
+| `BUILD_TIMESTAMP` | Startzeit | Im UI angezeigter Build-Zeitpunkt |
+| `PROFILE_SCHEMA` | eingebautes Schema | Optionales JSON-Array fuer Profilfelder |
+
+Der Reverse Proxy muss `/ws` mit WebSocket-Upgrade weiterleiten. Alle anderen
+Pfade werden als normales HTTP an denselben Container geleitet. Der Container
+terminiert selbst kein TLS.
+
+## Lokale Entwicklung
+
+Node.js 22 oder neuer wird benoetigt.
 
 ```powershell
-npx.cmd wrangler deploy --dry-run
+npm.cmd install
+npm.cmd start
 ```
+
+Tests:
+
+```powershell
+npm.cmd test
+npm.cmd run check
+```
+
+## Datenhaltung
+
+- Grid-Eintraege enthalten nur Peer-ID, Geohash, Anzeigename und Thumbnail.
+- Grid-Eintraege laufen zehn Minuten nach dem letzten Heartbeat ab.
+- Entfernte Peer-IDs bleiben als Tombstone bis zu 30 Tage erhalten, damit
+  Clients veraltete Profil-Caches loeschen koennen.
+- Queue-Nachrichten enthalten ausschliesslich Ciphertext und IV und laufen
+  nach maximal 72 Stunden ab.
+- Chat-Loeschungen speichern einen Cutoff in `chat_controls`, damit alte
+  Operationen den geloeschten Verlauf nicht wiederherstellen.
+- Blockierungen bleiben serverseitig bestehen, entfernen wartende Nachrichten
+  der Peer-Kombination und verhindern neue Queue-Zustellungen.
+- Vollstaendige Profile, Klartext-Chats und private Schluessel verbleiben im
+  Browser.
+- Das eigene Profil liegt in einem separaten IndexedDB-Singleton-Store und
+  wird nicht gemeinsam mit fremden Peer-Profilen geladen oder bereinigt.
+
+Pfad C wird automatisch verwendet, wenn eine Chat-Operation nicht direkt per
+P2P zugestellt werden kann und der Public Key des Peers aus einer vorherigen
+direkten Verbindung bekannt ist. Nach dem Reconnect entschluesselt der
+Empfaenger die Operation lokal und entfernt sie erst danach aus SQLite.
+
+Die Chat-Seitenleiste wird aus lokal vorhandenen Nachrichten und Operationen
+aufgebaut. Deshalb bleibt ein Offline-Chat sichtbar, auch wenn der Peer gerade
+keinen Grid-Eintrag besitzt. Der Grid-Bereich zeigt weiterhin nur aktive
+Router-Eintraege.
+
+## Identitaet, P2P und Presence
+
+Jede Browser-Installation besitzt eine persistente `nodeId` in `localStorage`.
+Beim Aufbau einer P2P-Verbindung handeln beide Clients per ECDH P-256 einen
+AES-256-GCM-Session-Key aus. Profilantworten, Presence-Pings und Chatnachrichten
+laufen verschluesselt ueber den DataChannel.
+
+Presence wird beim Oeffnen eines Profils auf dem anfragenden Client berechnet:
+
+- **Online:** passender verschluesselter Pong innerhalb von acht Sekunden
+- **Abwesend:** Router-Eintrag vorhanden, aber kein Pong
+- **Offline:** keine eigene Netzwerk- oder Signaling-Verbindung

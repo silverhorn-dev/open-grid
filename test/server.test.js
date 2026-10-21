@@ -25,6 +25,15 @@ test('serves the app shell and all client modules', async () => {
     assert.equal(indexResponse.statusCode, 200);
     assert.match(indexResponse.body, /test-build/);
     assert.match(indexResponse.body, /\/client\/crypto\.client\.js/);
+    assert.match(indexResponse.body, /indexedDB\.open\('OpenGridDB_Live', 6\)/);
+    assert.match(indexResponse.body, /createObjectStore\('localProfile'/);
+    assert.match(indexResponse.body, /createObjectStore\('chatOperations'/);
+    assert.match(indexResponse.body, /putDatabaseRecord\('localProfile'/);
+    assert.match(indexResponse.body, /profile-onboarding-modal/);
+    assert.match(indexResponse.body, /if \(!hasLocalProfile\) await openProfileOnboarding\(\)/);
+    assert.match(indexResponse.body, /id: 'identity-key'/);
+    assert.match(indexResponse.body, /async function refreshChatControls\(\)/);
+    assert.match(indexResponse.body, /function rememberChatPeer\(peerId\)/);
 
     for (const file of ['crypto.client.js', 'grid.client.js', 'p2p.client.js']) {
         const response = await app.inject({ method: 'GET', url: `/client/${file}` });
@@ -32,6 +41,12 @@ test('serves the app shell and all client modules', async () => {
         assert.match(response.headers['content-type'], /text\/javascript/);
         assert.ok(response.body.length > 100);
     }
+    const p2pClient = await app.inject({ method: 'GET', url: '/client/p2p.client.js' });
+    assert.match(p2pClient.body, /recentOperationIds: operations\.slice\(0, 20\)/);
+    assert.match(p2pClient.body, /CHAT_SYNC_INVENTORY/);
+    assert.match(p2pClient.body, /fetch\(`\$\{API_BASE\}\/api\/cache`/);
+    assert.match(p2pClient.body, /fetchQueuedCacheMessages/);
+    assert.match(p2pClient.body, /response\.status === 403/);
 });
 
 test('registers peers, protects newer registrations, and creates removal tombstones', async () => {
@@ -85,6 +100,16 @@ test('registers peers, protects newer registrations, and creates removal tombsto
 });
 
 test('persists and deletes encrypted queue payloads', async () => {
+    const anonymousResponse = await app.inject({
+        method: 'POST',
+        url: '/api/cache',
+        payload: {
+            recipientId: 'peer-b',
+            ciphertextPayload: 'ciphertext'
+        }
+    });
+    assert.equal(anonymousResponse.statusCode, 400);
+
     const enqueueResponse = await app.inject({
         method: 'POST',
         url: '/api/cache',
@@ -115,6 +140,64 @@ test('persists and deletes encrypted queue payloads', async () => {
         method: 'GET',
         url: '/api/cache/peer-b'
     })).json().count, 0);
+});
+
+test('persists chat deletion and blocking controls and purges queued messages', async () => {
+    const enqueue = (recipientId, senderId) => app.inject({
+        method: 'POST',
+        url: '/api/cache',
+        payload: {
+            recipientId,
+            senderId,
+            ciphertextPayload: 'ciphertext',
+            ivHex: 'abcdef',
+            ttlHours: 24
+        }
+    });
+
+    assert.equal((await enqueue('peer-a', 'peer-b')).statusCode, 201);
+    assert.equal((await enqueue('peer-b', 'peer-a')).statusCode, 201);
+
+    const deleteChat = await app.inject({
+        method: 'POST',
+        url: '/api/chat-controls',
+        payload: {
+            ownerId: 'peer-a',
+            peerId: 'peer-b',
+            action: 'DELETE_CHAT'
+        }
+    });
+    assert.equal(deleteChat.statusCode, 201);
+    assert.ok(deleteChat.json().control.deletedBefore);
+    assert.equal((await app.inject({ method: 'GET', url: '/api/cache/peer-a' })).json().count, 0);
+    assert.equal((await app.inject({ method: 'GET', url: '/api/cache/peer-b' })).json().count, 0);
+
+    const block = await app.inject({
+        method: 'POST',
+        url: '/api/chat-controls',
+        payload: {
+            ownerId: 'peer-a',
+            peerId: 'peer-b',
+            action: 'BLOCK'
+        }
+    });
+    assert.ok(block.json().control.blockedAt);
+
+    const controls = await app.inject({
+        method: 'GET',
+        url: '/api/chat-controls/peer-a'
+    });
+    assert.equal(controls.json().count, 1);
+    assert.equal(controls.json().controls[0].peerId, 'peer-b');
+    assert.equal((await enqueue('peer-a', 'peer-b')).statusCode, 403);
+
+    const unblock = await app.inject({
+        method: 'DELETE',
+        url: '/api/chat-controls/peer-a/peer-b/block'
+    });
+    assert.equal(unblock.statusCode, 200);
+    assert.equal(unblock.json().control.blockedAt, null);
+    assert.equal((await enqueue('peer-a', 'peer-b')).statusCode, 201);
 });
 
 test('relays signaling messages between two websocket clients', async () => {

@@ -11,6 +11,11 @@ globs = ["/*.json"]
 fallbacks = []
 fallthrough = true
 
+[[rules]]
+type = "Text"
+globs = ["**/*.client.js"]
+fallthrough = true
+
 [vars]
 ENVIRONMENT = "production"
 

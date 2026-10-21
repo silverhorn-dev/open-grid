@@ -1,24 +1,28 @@
 /**
- * OpenGrid Cloudflare Worker Server (Hardened for Live Scenario)
+ * OpenGrid Cloudflare Worker entry point.
  *
- * Functions:
- * 1. Serves PWA App Shell (via ES Module HTML Import & Template Injection)
- * 2. Geohash Spatial Grid Indexing (In-Memory)
- * 3. Ephemeral Store-and-Forward Cloud Send-Cache (24h TTL)
- * 4. WebSocket WebRTC Signaling Relay
+ * HTTP routing and app-shell delivery live here. Grid persistence and
+ * WebRTC signaling are implemented in dedicated server modules.
  */
-
-// In-Memory Geohash Spatial Index
-const spatialGrid = new Map();
-const removedPeers = new Map();
 
 // Ephemeral Store-and-Forward Send-Cache
 const cloudCache = new Map();
 
-// Active WebSocket Signaling Connections
-const activeSockets = new Map();
-
 import index from "./index.html";
+import gridClient from "./client/grid.client.js";
+import p2pClient from "./client/p2p.client.js";
+import {
+    getPeerRegistrations,
+    getRemovedPeerIds,
+    removePeerRegistration,
+    storePeerRegistration
+} from "./server/grid-store.js";
+import { handleWebSocketSession, SignalingHub } from "./server/signaling.js";
+
+const clientScripts = new Map([
+    ['/client/grid.client.js', gridClient],
+    ['/client/p2p.client.js', p2pClient]
+]);
 
 export default {
     async fetch(request, env, ctx) {
@@ -46,8 +50,17 @@ export default {
             }
             const pair = new WebSocketPair();
             const [client, server] = Object.values(pair);
-            handleWebSocketSession(server, url);
+            handleWebSocketSession(server);
             return new Response(null, { status: 101, webSocket: client });
+        }
+
+        if (request.method === 'GET' && clientScripts.has(path)) {
+            return new Response(clientScripts.get(path), {
+                headers: {
+                    'Content-Type': 'text/javascript;charset=UTF-8',
+                    'Cache-Control': 'no-cache'
+                }
+            });
         }
 
         if (path === '/api/register' && request.method === 'POST') {
@@ -207,202 +220,4 @@ export default {
     }
 };
 
-async function storePeerRegistration(env, session) {
-    if (env.OPENGRID_KV) {
-        const previousGeohash = await env.OPENGRID_KV.get(`peer:${session.peerId}`);
-        if (previousGeohash && previousGeohash !== session.geohash) {
-            await Promise.all([
-                env.OPENGRID_KV.delete(`grid:${previousGeohash}:${session.peerId}`),
-                env.OPENGRID_KV.put(`removed:${previousGeohash}:${session.peerId}`, String(Date.now()), { expirationTtl: 2592000 })
-            ]);
-        }
-        const gridRecord = {
-            name: session.name,
-            thumbnail: session.thumbnail
-        };
-        const presenceRecord = {
-            registrationId: session.registrationId
-        };
-        await Promise.all([
-            env.OPENGRID_KV.put(`grid:${session.geohash}:${session.peerId}`, JSON.stringify(gridRecord), { expirationTtl: 600 }),
-            env.OPENGRID_KV.put(`peer:${session.peerId}`, session.geohash, { expirationTtl: 600 }),
-            env.OPENGRID_KV.put(`presence:${session.peerId}`, JSON.stringify(presenceRecord), { expirationTtl: 600 }),
-            env.OPENGRID_KV.delete(`removed:${session.geohash}:${session.peerId}`)
-        ]);
-        return;
-    }
-
-    removePeerFromMemoryGrid(session.peerId);
-    session.lastSeen = Date.now();
-    removedPeers.get(session.geohash)?.delete(session.peerId);
-    if (!spatialGrid.has(session.geohash)) spatialGrid.set(session.geohash, new Map());
-    spatialGrid.get(session.geohash).set(session.peerId, session);
-}
-
-async function getPeerRegistrations(env, geohash) {
-    if (env.OPENGRID_KV) {
-        const entries = await env.OPENGRID_KV.list({ prefix: `grid:${geohash}:`, limit: 1000 });
-        const sessions = await Promise.all(entries.keys.map(async (key) => {
-            const record = await env.OPENGRID_KV.get(key.name, 'json');
-            if (!record) return null;
-            const peerId = key.name.substring(`grid:${geohash}:`.length);
-            return {
-                peerId,
-                geohash,
-                ...record
-            };
-        }));
-        return sessions.filter(Boolean);
-    }
-
-    const cellMap = spatialGrid.get(geohash);
-    if (!cellMap) return [];
-    const now = Date.now();
-    for (const [peerId, session] of cellMap.entries()) {
-        if (now - session.lastSeen >= 600000) cellMap.delete(peerId);
-    }
-    return Array.from(cellMap.values());
-}
-
-async function getRemovedPeerIds(env, geohash) {
-    if (!env.OPENGRID_KV) return Array.from(removedPeers.get(geohash) || []);
-    const prefix = `removed:${geohash}:`;
-    const entries = await env.OPENGRID_KV.list({ prefix, limit: 1000 });
-    return entries.keys.map(key => key.name.substring(prefix.length));
-}
-
-async function removePeerRegistration(env, peerId, registrationId, geohash = null) {
-    if (env.OPENGRID_KV) {
-        const registeredGeohash = geohash || await env.OPENGRID_KV.get(`peer:${peerId}`);
-        if (!registeredGeohash) return 0;
-
-        const key = `grid:${registeredGeohash}:${peerId}`;
-        const presence = await env.OPENGRID_KV.get(`presence:${peerId}`, 'json');
-        if (!presence || presence.registrationId !== registrationId) return 0;
-
-        await Promise.all([
-            env.OPENGRID_KV.delete(key),
-            env.OPENGRID_KV.delete(`peer:${peerId}`),
-            env.OPENGRID_KV.delete(`presence:${peerId}`),
-            env.OPENGRID_KV.put(`removed:${registeredGeohash}:${peerId}`, String(Date.now()), { expirationTtl: 2592000 })
-        ]);
-        return 1;
-    }
-
-    const removed = removePeerFromMemoryGrid(peerId, geohash, registrationId);
-    if (removed && geohash) {
-        if (!removedPeers.has(geohash)) removedPeers.set(geohash, new Set());
-        removedPeers.get(geohash).add(peerId);
-    }
-    return removed;
-}
-
-function removePeerFromMemoryGrid(peerId, geohash = null, registrationId = null) {
-    let removed = 0;
-    const cells = geohash ? [[geohash, spatialGrid.get(geohash)]] : spatialGrid.entries();
-
-    for (const [cellGeohash, cellMap] of cells) {
-        const session = cellMap?.get(peerId);
-        if (!session || (registrationId && session.registrationId !== registrationId)) continue;
-        cellMap.delete(peerId);
-        removed += 1;
-        if (cellMap.size === 0) spatialGrid.delete(cellGeohash);
-    }
-
-    return removed;
-}
-
-function handleWebSocketSession(webSocket, url) {
-    webSocket.accept();
-    let currentPeerId = null;
-
-    webSocket.addEventListener('message', async (event) => {
-        try {
-            const data = JSON.parse(event.data);
-
-            if (data.type === 'REGISTER_SOCKET') {
-                currentPeerId = data.peerId;
-                activeSockets.set(currentPeerId, webSocket);
-                webSocket.send(JSON.stringify({ type: 'SOCKET_REGISTERED', peerId: currentPeerId }));
-                return;
-            }
-
-            if (data.targetPeerId) {
-                if (activeSockets.has(data.targetPeerId)) {
-                    const targetSocket = activeSockets.get(data.targetPeerId);
-                    targetSocket.send(JSON.stringify(data));
-                } else {
-                    webSocket.send(JSON.stringify({
-                        type: 'PEER_OFFLINE_FALLBACK',
-                        targetPeerId: data.targetPeerId,
-                        originalMessageType: data.type
-                    }));
-                }
-            }
-        } catch (err) {
-            console.error('WS Payload Error', err);
-        }
-    });
-
-    webSocket.addEventListener('close', () => {
-        if (currentPeerId && activeSockets.get(currentPeerId) === webSocket) activeSockets.delete(currentPeerId);
-    });
-
-    webSocket.addEventListener('error', () => {
-        if (currentPeerId && activeSockets.get(currentPeerId) === webSocket) activeSockets.delete(currentPeerId);
-    });
-}
-
-export class SignalingHub {
-    constructor(state) {
-        this.state = state;
-    }
-
-    async fetch(request) {
-        if (request.headers.get('Upgrade') !== 'websocket') {
-            return new Response('Expected WebSocket upgrade', { status: 426 });
-        }
-
-        const pair = new WebSocketPair();
-        const [client, server] = Object.values(pair);
-        server.serializeAttachment({ peerId: null });
-        this.state.acceptWebSocket(server);
-        return new Response(null, { status: 101, webSocket: client });
-    }
-
-    webSocketMessage(webSocket, message) {
-        try {
-            const data = JSON.parse(message);
-            if (data.type === 'REGISTER_SOCKET' && typeof data.peerId === 'string') {
-                for (const socket of this.state.getWebSockets()) {
-                    if (socket !== webSocket && socket.deserializeAttachment()?.peerId === data.peerId) {
-                        socket.close(1000, 'Replaced by a newer connection');
-                    }
-                }
-                webSocket.serializeAttachment({ peerId: data.peerId });
-                webSocket.send(JSON.stringify({ type: 'SOCKET_REGISTERED', peerId: data.peerId }));
-                return;
-            }
-
-            if (!data.targetPeerId) return;
-            const targetSocket = this.state.getWebSockets().find(socket => {
-                return socket.deserializeAttachment()?.peerId === data.targetPeerId;
-            });
-            if (targetSocket) {
-                targetSocket.send(JSON.stringify(data));
-            } else {
-                webSocket.send(JSON.stringify({
-                    type: 'PEER_OFFLINE_FALLBACK',
-                    targetPeerId: data.targetPeerId,
-                    originalMessageType: data.type
-                }));
-            }
-        } catch (error) {
-            webSocket.send(JSON.stringify({ type: 'SIGNALING_ERROR', message: 'Invalid signaling payload' }));
-        }
-    }
-
-    webSocketClose() {}
-
-    webSocketError() {}
-}
+export { SignalingHub };

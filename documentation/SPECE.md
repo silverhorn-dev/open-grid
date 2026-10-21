@@ -1,5 +1,20 @@
 # Technische Spezifikation
 
+## 0. Komponentenstruktur
+
+- `worker.js` ist der HTTP-Entry-Point und enthaelt keine Grid- oder
+  Signaling-Persistenzlogik.
+- `server/grid-store.js` kapselt Cloudflare KV und den lokalen
+  In-Memory-Fallback fuer die Grid-Registrierung.
+- `server/signaling.js` kapselt das lokale WebSocket-Relay und das globale
+  Durable Object `SignalingHub`.
+- `client/grid.client.js` kapselt Discovery, Heartbeats, Grid-Darstellung und
+  die Verbindung zum Signaling-Relay.
+- `client/p2p.client.js` kapselt WebRTC, DataChannels, ECDH/AES-GCM und das
+  verschluesselte Nachrichtenprotokoll.
+- `index.html` enthaelt App-Shell, UI-Interaktionen und lokale
+  IndexedDB-Funktionen.
+
 ## 1. Identitaet
 
 - Beim ersten Start erzeugt der Client eine UUID-basierte `nodeId`.

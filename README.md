@@ -19,6 +19,22 @@ verschluesselte WebRTC DataChannels uebertragen.
   werden vor dem Speichern mit einem nicht exportierbaren AES-GCM-Schluessel
   verschluesselt.
 
+### Komponenten
+
+| Datei | Verantwortung |
+|---|---|
+| `worker.js` | HTTP-Routen, App-Shell und Auslieferung der Client-Module |
+| `server/grid-store.js` | Grid-Registrierung, KV-Zugriff, TTL und lokale Entwicklungsablage |
+| `server/signaling.js` | WebSocket-Relay und Durable Object `SignalingHub` |
+| `client/grid.client.js` | Grid-Abfrage, Darstellung, Registrierung und Signaling-Verbindung |
+| `client/p2p.client.js` | WebRTC-Verbindung, ECDH/AES-GCM und sichere P2P-Nachrichten |
+| `index.html` | UI, Profil-/Chat-Interaktionen und lokaler IndexedDB-Speicher |
+
+Der Signaling-Server vermittelt nur Offer, Answer und ICE Candidates.
+`client/p2p.client.js` baut daraus den direkten DataChannel zwischen zwei
+Browsern auf. Grid-Discovery und P2P-Datentransport bleiben dadurch getrennte
+Subsysteme.
+
 ## Identitaet
 
 Jede Browser-Installation erzeugt einmalig eine zufaellige `nodeId`. Sie wird

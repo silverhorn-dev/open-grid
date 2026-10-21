@@ -1,6 +1,10 @@
 # Routing
 - [x] in the kv database just should be the name and the thumbnail
 
+# general
+- [ ] coloring
+- [ ] general config for just chatting or smth else
+
 # Grid
 - [x] GRID layout improvement
   - [x] better popups
@@ -21,8 +25,8 @@
   - [x] delete cache! auf dem router. wenn jemand den chat l�scht oder jmd blockiert bleibt das persistent auf dem server
   - [x] jeder client pr�ft diese tabelle
   - [ ] unter den nachrichten stimmt beim empfänger die herkunft nicht immer, bei path c zb steht E2E P2P und nicht E2EE PC oder so
-  - [ ] blocking und chat delete sollte den chat jeweils vollständig löschen!
-  - [ ] im chat bereich sollten nicht alle peers erscheinen, nur jene zu denen ein chat existiert
+  - [x] blocking und chat delete sollte den chat jeweils vollständig löschen!
+  - [x] im chat bereich sollten nicht alle peers erscheinen, nur jene zu denen ein chat existiert
 ## status
 - [ ] aktuell kann der status P2P Connected ausgelesen werden. im debug sollte das so sein. ohne würde ich da analog zu snap :eyes: platzieren
 

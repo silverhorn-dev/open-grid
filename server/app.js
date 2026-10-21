@@ -112,7 +112,7 @@ export async function buildApp(options = {}) {
             peerId,
             registrationId,
             geohash: geohash.substring(0, 10),
-            thumbnail: thumbnail ? thumbnail.substring(0, 50000) : null,
+            thumbnail: thumbnail ? thumbnail.substring(0, 150000) : null,
             name: typeof name === 'string' ? name.substring(0, 100) : 'Peer'
         };
         store.registerPeer(session);

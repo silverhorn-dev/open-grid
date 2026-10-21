@@ -125,12 +125,12 @@ async function fetchPeersFromWorkerGrid() {
                 .filter(peer => peer.id !== state.myProfile.id && !removedPeerIds.has(peer.id))
                 .map(peer => {
                     const cachedProfile = state.cachedProfiles[peer.id];
-                    return cachedProfile ? {
+                    return {
                         ...peer,
-                        name: cachedProfile.fields?.displayName || peer.name,
-                        avatar: cachedProfile.avatar || peer.avatar,
-                        fullProfile: cachedProfile
-                    } : peer;
+                        name: cachedProfile?.fields?.displayName || peer.name,
+                        avatar: cachedProfile?.avatar || peer.thumbnail || peer.avatar,
+                        fullProfile: cachedProfile || null
+                    };
                 });
             await Promise.all(state.peers.map(cacheGridPeer));
             retryVisiblePeerConnections();

@@ -375,6 +375,10 @@ async function handleSecurePayload(peerId, payload) {
             renderDiscoveryGrid();
         }
         if (state.activeModalPeerId === peerId) renderProfileModalData(currentProfile);
+    } else if (payload.type === 'IMAGE_REQUEST') {
+        await window.handlePeerImageRequest(peerId, payload.imageId);
+    } else if (payload.type === 'IMAGE_RESPONSE') {
+        await window.handlePeerImageResponse(peerId, payload.imageId, payload.version, payload.data);
     }
 }
 

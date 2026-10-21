@@ -1,7 +1,7 @@
 /**
  * OpenGrid Cloudflare Worker Server (Hardened for Live Scenario)
  *
- * Functions:d
+ * Functions:
  * 1. Serves PWA App Shell (via ES Module HTML Import & Template Injection)
  * 2. Geohash Spatial Grid Indexing (In-Memory)
  * 3. Ephemeral Store-and-Forward Cloud Send-Cache (24h TTL)

@@ -1,4 +1,4 @@
-const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+const rtcConfig = {iceServers: [{urls: 'stun:stun.l.google.com:19302'}]};
 
 function sendSignalingMessage(payload) {
     if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
@@ -77,7 +77,8 @@ function recoverPeerConnection(peerId, connection) {
     const retries = state.connectionRetryCounts[peerId] || 0;
     if ((state.secureMessageQueues[peerId]?.length || state.activeChatPeerId === peerId) && retries < 1) {
         state.connectionRetryCounts[peerId] = retries + 1;
-        setTimeout(() => initiateP2PConnection(peerId).catch(() => {}), 1000);
+        setTimeout(() => initiateP2PConnection(peerId).catch(() => {
+        }), 1000);
     } else if (state.secureMessageQueues[peerId]?.length) {
         flushPeerQueueToCache(peerId).then(() => {
             if (state.secureMessageQueues[peerId]?.length) {
@@ -146,7 +147,7 @@ async function handleSignalingMessage(message) {
         }
         if (offerCollision) {
             await Promise.all([
-                connection.setLocalDescription({ type: 'rollback' }),
+                connection.setLocalDescription({type: 'rollback'}),
                 connection.setRemoteDescription(message.sdp)
             ]);
         } else {
@@ -269,14 +270,14 @@ async function deriveSessionKey(peerId, publicJwk) {
     const publicKey = await window.crypto.subtle.importKey(
         'jwk',
         publicJwk,
-        { name: 'ECDH', namedCurve: 'P-256' },
+        {name: 'ECDH', namedCurve: 'P-256'},
         false,
         []
     );
     state.sessionKeys[peerId] = await window.crypto.subtle.deriveKey(
-        { name: 'ECDH', public: publicKey },
+        {name: 'ECDH', public: publicKey},
         state.myKeys.keyPair.privateKey,
-        { name: 'AES-GCM', length: 256 },
+        {name: 'AES-GCM', length: 256},
         false,
         ['encrypt', 'decrypt']
     );
@@ -289,7 +290,7 @@ async function encryptSecurePayload(peerId, payload) {
     const iv = window.crypto.getRandomValues(new Uint8Array(12));
     const plaintext = new TextEncoder().encode(JSON.stringify(payload));
     const ciphertext = await window.crypto.subtle.encrypt(
-        { name: 'AES-GCM', iv },
+        {name: 'AES-GCM', iv},
         state.sessionKeys[peerId],
         plaintext
     );
@@ -302,7 +303,7 @@ async function encryptSecurePayload(peerId, payload) {
 
 async function decryptSecurePayload(peerId, envelope) {
     const plaintext = await window.crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv: base64ToBytes(envelope.iv) },
+        {name: 'AES-GCM', iv: base64ToBytes(envelope.iv)},
         state.sessionKeys[peerId],
         base64ToBytes(envelope.ciphertext)
     );
@@ -354,27 +355,9 @@ async function handleSecurePayload(peerId, payload) {
             updateProfilePresence(peerId, 'online');
         }
     } else if (payload.type === 'PROFILE_REQUEST') {
-        await sendSecurePayload(peerId, {
-            type: 'PROFILE_RESPONSE',
-            profile: {
-                id: state.myProfile.id,
-                avatar: state.myProfile.avatar,
-                fields: state.myProfile.fields,
-                version: state.myProfile.version,
-                updatedAt: state.myProfile.updatedAt
-            }
-        });
+        if (typeof window.handleProfileRequest === 'function') window.handleProfileRequest(peerId);
     } else if (payload.type === 'PROFILE_RESPONSE') {
-        const peer = state.peers.find(candidate => candidate.id === peerId);
-        const currentProfile = await cachePeerProfile(peerId, payload.profile);
-        if (peer) {
-            peer.fullProfile = currentProfile;
-            peer.name = currentProfile.fields?.displayName || peer.name;
-            peer.avatar = currentProfile.avatar || peer.avatar;
-            await cacheGridPeer(peer);
-            renderDiscoveryGrid();
-        }
-        if (state.activeModalPeerId === peerId) renderProfileModalData(currentProfile);
+        if (typeof window.handleProfileResponse === 'function') window.handleProfileResponse(peerId, payload.profile);
     } else if (payload.type === 'IMAGE_REQUEST') {
         await window.handlePeerImageRequest(peerId, payload.imageId);
     } else if (payload.type === 'IMAGE_RESPONSE') {
@@ -450,7 +433,7 @@ async function sendRequestedChatOperations(peerId, operationIds) {
     const requestedIds = new Set(operationIds.slice(0, 50));
     const operations = (await getChatOperations(peerId))
         .filter(operation => requestedIds.has(operation.operationId))
-        .map(({ peerId: _localPeerId, ...operation }) => operation);
+        .map(({peerId: _localPeerId, ...operation}) => operation);
     if (!operations.length) return;
     await sendSecurePayload(peerId, {
         type: 'CHAT_SYNC_OPERATIONS',
@@ -468,7 +451,7 @@ async function sendSecurePayload(peerId, payload, onSent = null) {
     }
 
     if (!state.secureMessageQueues[peerId]) state.secureMessageQueues[peerId] = [];
-    state.secureMessageQueues[peerId].push({ payload, onSent, cacheQueued: false });
+    state.secureMessageQueues[peerId].push({payload, onSent, cacheQueued: false});
     initiateP2PConnection(peerId).catch(() => {
         flushPeerQueueToCache(peerId).catch(error => {
             logDebug(`Path C fallback failed: ${error.message}`);
@@ -490,14 +473,14 @@ async function deriveCacheEncryptionKey(publicJwk) {
     const publicKey = await window.crypto.subtle.importKey(
         'jwk',
         publicJwk,
-        { name: 'ECDH', namedCurve: 'P-256' },
+        {name: 'ECDH', namedCurve: 'P-256'},
         false,
         []
     );
     return window.crypto.subtle.deriveKey(
-        { name: 'ECDH', public: publicKey },
+        {name: 'ECDH', public: publicKey},
         state.myKeys.keyPair.privateKey,
-        { name: 'AES-GCM', length: 256 },
+        {name: 'AES-GCM', length: 256},
         false,
         ['encrypt', 'decrypt']
     );
@@ -514,13 +497,13 @@ async function queuePayloadInCache(peerId, item) {
     const encryptionKey = await deriveCacheEncryptionKey(peerPublicKey);
     const iv = window.crypto.getRandomValues(new Uint8Array(12));
     const ciphertext = await window.crypto.subtle.encrypt(
-        { name: 'AES-GCM', iv },
+        {name: 'AES-GCM', iv},
         encryptionKey,
         new TextEncoder().encode(JSON.stringify(item.payload))
     );
     const response = await fetch(`${API_BASE}/api/cache`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
             recipientId: peerId,
             senderId: state.myProfile.id,
@@ -576,7 +559,7 @@ async function fetchQueuedCacheMessages() {
             cache: 'no-store'
         });
         if (!response.ok) throw new Error(`Cache API returned ${response.status}.`);
-        const { messages = [] } = await response.json();
+        const {messages = []} = await response.json();
 
         for (const cachedMessage of messages) {
             try {
@@ -590,7 +573,7 @@ async function fetchQueuedCacheMessages() {
                 }
                 const decryptionKey = await deriveCacheEncryptionKey(envelope.senderPublicKey);
                 const plaintext = await window.crypto.subtle.decrypt(
-                    { name: 'AES-GCM', iv: base64ToBytes(cachedMessage.ivHex) },
+                    {name: 'AES-GCM', iv: base64ToBytes(cachedMessage.ivHex)},
                     decryptionKey,
                     base64ToBytes(envelope.ciphertext)
                 );
@@ -598,14 +581,14 @@ async function fetchQueuedCacheMessages() {
                 if (payload.type !== 'CHAT_OPERATION') {
                     throw new Error('Unsupported cached payload type.');
                 }
-                
+
                 // Feature: Korrekte Herkunftsanzeige bei Pfad C (E2EE PC)
                 payload.deliveredVia = 'Pfad C (Cloud Cache)';
 
                 await handleSecurePayload(cachedMessage.senderId, payload);
                 const deleteResponse = await fetch(
                     `${API_BASE}/api/cache/${encodeURIComponent(cachedMessage.msgId)}`,
-                    { method: 'DELETE' }
+                    {method: 'DELETE'}
                 );
                 if (!deleteResponse.ok) throw new Error(`Cache delete returned ${deleteResponse.status}.`);
             } catch (error) {

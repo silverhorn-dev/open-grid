@@ -107,8 +107,7 @@ export default {
                 id: session.peerId,
                 geohash: session.geohash,
                 avatar: session.thumbnail,
-                name: session.name,
-                online: session.online
+                name: session.name
             }));
             const activePeerIds = new Set(peers.map(peer => peer.id));
             const removedPeerIds = (await getRemovedPeerIds(env, geohash)).filter(peerId => !activePeerIds.has(peerId));
@@ -222,11 +221,10 @@ async function storePeerRegistration(env, session) {
             thumbnail: session.thumbnail
         };
         const presenceRecord = {
-            registrationId: session.registrationId,
-            lastSeen: Date.now()
+            registrationId: session.registrationId
         };
         await Promise.all([
-            env.OPENGRID_KV.put(`grid:${session.geohash}:${session.peerId}`, JSON.stringify(gridRecord), { expirationTtl: 2592000 }),
+            env.OPENGRID_KV.put(`grid:${session.geohash}:${session.peerId}`, JSON.stringify(gridRecord), { expirationTtl: 600 }),
             env.OPENGRID_KV.put(`peer:${session.peerId}`, session.geohash, { expirationTtl: 600 }),
             env.OPENGRID_KV.put(`presence:${session.peerId}`, JSON.stringify(presenceRecord), { expirationTtl: 600 }),
             env.OPENGRID_KV.delete(`removed:${session.geohash}:${session.peerId}`)
@@ -236,7 +234,6 @@ async function storePeerRegistration(env, session) {
 
     removePeerFromMemoryGrid(session.peerId);
     session.lastSeen = Date.now();
-    session.online = true;
     removedPeers.get(session.geohash)?.delete(session.peerId);
     if (!spatialGrid.has(session.geohash)) spatialGrid.set(session.geohash, new Map());
     spatialGrid.get(session.geohash).set(session.peerId, session);
@@ -249,11 +246,9 @@ async function getPeerRegistrations(env, geohash) {
             const record = await env.OPENGRID_KV.get(key.name, 'json');
             if (!record) return null;
             const peerId = key.name.substring(`grid:${geohash}:`.length);
-            const presence = await env.OPENGRID_KV.get(`presence:${peerId}`, 'json');
             return {
                 peerId,
                 geohash,
-                online: Boolean(presence && Date.now() - presence.lastSeen < 45000),
                 ...record
             };
         }));
@@ -263,10 +258,10 @@ async function getPeerRegistrations(env, geohash) {
     const cellMap = spatialGrid.get(geohash);
     if (!cellMap) return [];
     const now = Date.now();
-    return Array.from(cellMap.values(), session => ({
-        ...session,
-        online: now - session.lastSeen < 45000
-    }));
+    for (const [peerId, session] of cellMap.entries()) {
+        if (now - session.lastSeen >= 600000) cellMap.delete(peerId);
+    }
+    return Array.from(cellMap.values());
 }
 
 async function getRemovedPeerIds(env, geohash) {

@@ -313,9 +313,13 @@
                 geohash: CONFIG.DEFAULT_GEOHASH,
                 avatar: 'https://placehold.co/300x300/f43f5e/ffffff?text=Alex',
                 fields: { displayName: 'Alex', age: 26, role: 'Versatile', bio: 'Privacy-first tech enthusiast!' },
+                version: 1,
+                updatedAt: Date.now(),
                 isMe: true
             },
             myKeys: null,
+            storageKey: null,
+            cachedProfiles: {},
             peers: [],
             activeChatPeerId: null,
             activeModalPeerId: null,
@@ -333,7 +337,8 @@
             disconnectTimers: {},
             connectionRetryCounts: {},
             sessionKeys: {},
-            secureMessageQueues: {}
+            secureMessageQueues: {},
+            presenceProbes: {}
         };
 
         let db = null;
@@ -375,16 +380,16 @@
 
         function getOrCreateNodeId() {
             const storageKey = 'opengrid-node-id';
-            const sessionId = window.sessionStorage.getItem(storageKey);
-            if (sessionId) {
-                if (!window.localStorage.getItem(storageKey)) window.localStorage.setItem(storageKey, sessionId);
-                return sessionId;
-            }
-
             const persistentId = window.localStorage.getItem(storageKey);
             if (persistentId) {
                 window.sessionStorage.setItem(storageKey, persistentId);
                 return persistentId;
+            }
+
+            const sessionId = window.sessionStorage.getItem(storageKey);
+            if (sessionId) {
+                window.localStorage.setItem(storageKey, sessionId);
+                return sessionId;
             }
 
             const nodeId = `node_${window.crypto.randomUUID()}`;
@@ -393,65 +398,10 @@
             return nodeId;
         }
 
-        function ensureUniqueNodeId() {
-            if (!('BroadcastChannel' in window)) return Promise.resolve();
-
-            state.tabChannel = new BroadcastChannel('opengrid-tab-presence');
-            return new Promise((resolve) => {
-                let settled = false;
-                const finish = () => {
-                    if (settled) return;
-                    settled = true;
-                    resolve();
-                };
-
-                state.tabChannel.onmessage = (event) => {
-                    const message = event.data;
-                    if (!message || message.registrationId === state.registrationId) return;
-
-                    if (message.type === 'CLAIM_NODE_ID' && message.nodeId === state.nodeId) {
-                        const ownClaimWins = state.tabStartedAt < message.startedAt
-                            || (state.tabStartedAt === message.startedAt && state.registrationId < message.registrationId);
-                        if (ownClaimWins) {
-                            state.tabChannel.postMessage({
-                                type: 'NODE_ID_COLLISION',
-                                nodeId: state.nodeId,
-                                targetRegistrationId: message.registrationId,
-                                registrationId: state.registrationId
-                            });
-                        }
-                    }
-
-                    if (message.type === 'NODE_ID_COLLISION'
-                        && message.targetRegistrationId === state.registrationId
-                        && message.nodeId === state.nodeId) {
-                        state.nodeId = `node_${window.crypto.randomUUID()}`;
-                        state.myProfile.id = state.nodeId;
-                        // A secondary tab gets an ephemeral identity without replacing the device identity.
-                        window.sessionStorage.setItem('opengrid-node-id', state.nodeId);
-                        state.tabChannel.postMessage({
-                            type: 'CLAIM_NODE_ID',
-                            nodeId: state.nodeId,
-                            startedAt: state.tabStartedAt,
-                            registrationId: state.registrationId
-                        });
-                    }
-                };
-
-                state.tabChannel.postMessage({
-                    type: 'CLAIM_NODE_ID',
-                    nodeId: state.nodeId,
-                    startedAt: state.tabStartedAt,
-                    registrationId: state.registrationId
-                });
-                setTimeout(finish, 150);
-            });
-        }
-
         // ================= INDEXEDDB =================
         function initDatabase() {
             return new Promise((resolve) => {
-                const req = indexedDB.open('OpenGridDB_Live', 2);
+                const req = indexedDB.open('OpenGridDB_Live', 3);
                 let settled = false;
                 const finish = (database = null) => {
                     if (settled) return;
@@ -470,6 +420,7 @@
                         ? e.target.transaction.objectStore('messages')
                         : database.createObjectStore('messages', { keyPath: 'id' });
                     if (!messageStore.indexNames.contains('peerId')) messageStore.createIndex('peerId', 'peerId', { unique: false });
+                    if (!database.objectStoreNames.contains('keys')) database.createObjectStore('keys', { keyPath: 'id' });
                 };
                 req.onsuccess = (e) => {
                     db = e.target.result;
@@ -515,7 +466,66 @@
             return databaseRequest(storeName, 'readonly', store => store.index(indexName).getAll(value));
         }
 
+        async function initializeStorageEncryption() {
+            if (!db) return;
+            try {
+                const stored = await databaseRequest('keys', 'readonly', store => store.get('profile-cache'));
+                if (stored?.key) {
+                    state.storageKey = stored.key;
+                    return;
+                }
+                const generatedKey = await window.crypto.subtle.generateKey(
+                    { name: 'AES-GCM', length: 256 },
+                    false,
+                    ['encrypt', 'decrypt']
+                );
+                try {
+                    await databaseRequest('keys', 'readwrite', store => store.add({
+                        id: 'profile-cache',
+                        key: generatedKey
+                    }));
+                    state.storageKey = generatedKey;
+                } catch (error) {
+                    if (error?.name !== 'ConstraintError') throw error;
+                    const concurrentKey = await databaseRequest('keys', 'readonly', store => store.get('profile-cache'));
+                    if (!concurrentKey?.key) throw new Error('Concurrent profile cache key creation failed.');
+                    state.storageKey = concurrentKey.key;
+                }
+            } catch (error) {
+                state.storageKey = null;
+                console.error('Encrypted profile cache initialization failed.', error);
+                showToast('Encrypted profile cache is unavailable in this browser session.', 'warning');
+            }
+        }
+
+        async function encryptStoredProfile(profile) {
+            if (!state.storageKey) throw new Error('Profile storage encryption is unavailable.');
+            const iv = window.crypto.getRandomValues(new Uint8Array(12));
+            const ciphertext = await window.crypto.subtle.encrypt(
+                { name: 'AES-GCM', iv },
+                state.storageKey,
+                new TextEncoder().encode(JSON.stringify(profile))
+            );
+            return {
+                iv: bytesToBase64(iv),
+                ciphertext: bytesToBase64(new Uint8Array(ciphertext))
+            };
+        }
+
+        async function decryptStoredProfile(record) {
+            if (!state.storageKey || !record?.ciphertext || !record?.iv) return null;
+            const plaintext = await window.crypto.subtle.decrypt(
+                { name: 'AES-GCM', iv: base64ToBytes(record.iv) },
+                state.storageKey,
+                base64ToBytes(record.ciphertext)
+            );
+            return JSON.parse(new TextDecoder().decode(plaintext));
+        }
+
         async function loadMyLocalProfile() {
+            const record = db ? await databaseRequest('profiles', 'readonly', store => store.get(state.nodeId)) : null;
+            const cached = record ? await decryptStoredProfile(record).catch(() => null) : null;
+            if (cached?.isMe) state.myProfile = cached;
             state.myProfile.id = state.nodeId;
             renderProfileForm();
         }
@@ -525,22 +535,13 @@
                 renderDiscoveryGrid();
                 return;
             }
-            const geohash = state.myProfile.geohash;
-            const [cachedPeers, cachedProfiles] = await Promise.all([
-                getDatabaseRecordsByIndex('gridPeers', 'geohash', geohash),
-                databaseRequest('profiles', 'readonly', store => store.getAll())
-            ]);
-            const profilesById = new Map(cachedProfiles.map(record => [record.id, record.profile]));
-            state.peers = cachedPeers
-                .filter(peer => peer.id !== state.myProfile.id)
-                .map(peer => ({
-                    id: peer.id,
-                    geohash: peer.geohash,
-                    name: peer.name,
-                    avatar: peer.avatar,
-                    online: false,
-                    fullProfile: profilesById.get(peer.id)
-                }));
+            const cachedProfiles = await databaseRequest('profiles', 'readonly', store => store.getAll());
+            const decrypted = await Promise.all(cachedProfiles.map(async record => {
+                const profile = await decryptStoredProfile(record).catch(() => null);
+                return profile && !profile.isMe ? [record.id, profile] : null;
+            }));
+            state.cachedProfiles = Object.fromEntries(decrypted.filter(Boolean));
+            state.peers = [];
             renderDiscoveryGrid();
         }
 
@@ -560,15 +561,36 @@
                 deleteDatabaseRecord('gridPeers', `${geohash}:${peerId}`),
                 deleteDatabaseRecord('profiles', peerId)
             ]);
+            delete state.cachedProfiles[peerId];
         }
 
         async function cachePeerProfile(peerId, profile) {
+            const current = state.cachedProfiles[peerId];
+            if (current && (current.version || 0) >= (profile.version || 0)) return current;
+            if (state.storageKey) {
+                const encrypted = await encryptStoredProfile(profile);
+                await putDatabaseRecord('profiles', {
+                    id: peerId,
+                    geohash: state.myProfile.geohash,
+                    version: profile.version || 1,
+                    updatedAt: profile.updatedAt || Date.now(),
+                    ...encrypted
+                });
+            }
+            state.cachedProfiles[peerId] = profile;
+            return profile;
+        }
+
+        async function cacheOwnProfile() {
+            if (!state.storageKey) return false;
+            const encrypted = await encryptStoredProfile(state.myProfile);
             await putDatabaseRecord('profiles', {
-                id: peerId,
-                geohash: state.myProfile.geohash,
-                profile,
-                cachedAt: Date.now()
+                id: state.myProfile.id,
+                version: state.myProfile.version,
+                updatedAt: state.myProfile.updatedAt,
+                ...encrypted
             });
+            return true;
         }
 
         async function loadChatHistory(peerId) {
@@ -656,9 +678,17 @@
             }
         }
 
-        function saveUserProfile() {
-            registerWithWorkerGrid();
-            showToast('Profile saved & broadcasted!', 'success');
+        async function saveUserProfile() {
+            state.myProfile.version = (state.myProfile.version || 0) + 1;
+            state.myProfile.updatedAt = Date.now();
+            const persisted = await cacheOwnProfile();
+            await registerWithWorkerGrid();
+            showToast(
+                persisted
+                    ? 'Profile saved & broadcasted!'
+                    : 'Profile broadcasted for this session; encrypted local storage is unavailable.',
+                persisted ? 'success' : 'warning'
+            );
         }
 
         // ================= GRID & PEER SYNC =================
@@ -697,11 +727,6 @@
                 image.alt = `${peer.name || 'Peer'} profile thumbnail`;
                 image.className = 'w-full h-full object-cover group-hover:scale-105 transition duration-500';
                 imageWrapper.appendChild(image);
-
-                const onlineBadge = document.createElement('span');
-                onlineBadge.className = `absolute top-3 right-3 flex items-center gap-1.5 rounded-full bg-slate-950/80 border px-2 py-1 text-[10px] font-mono backdrop-blur ${peer.online ? 'border-emerald-500/30 text-emerald-300' : 'border-amber-500/30 text-amber-300'}`;
-                onlineBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full ${peer.online ? 'bg-emerald-400' : 'bg-amber-400'}"></span>${peer.online ? 'Online' : 'Abwesend'}`;
-                imageWrapper.appendChild(onlineBadge);
 
                 const footer = document.createElement('div');
                 footer.className = 'p-3 flex items-center justify-between gap-2';
@@ -747,10 +772,10 @@
                 name.className = 'text-xs font-semibold text-slate-200 truncate';
                 name.textContent = peer.name || 'Peer';
                 const status = document.createElement('div');
-                status.className = `text-[10px] font-mono ${peer.online ? 'text-emerald-400' : 'text-amber-400'}`;
+                status.className = 'text-[10px] font-mono text-slate-400';
                 status.textContent = state.dataChannels[peer.id]?.readyState === 'open'
                     ? 'P2P connected'
-                    : (peer.online ? 'Available' : 'Abwesend');
+                    : 'Router entry';
                 details.append(name, status);
                 button.append(image, details);
                 container.appendChild(button);
@@ -771,23 +796,20 @@
                 const data = await res.json();
 
                 if (data.peers && Array.isArray(data.peers)) {
-                    const existingPeers = new Map(state.peers.map(peer => [peer.id, peer]));
                     const removedPeerIds = new Set(data.removedPeerIds || []);
                     await Promise.all(Array.from(removedPeerIds, peerId => removeCachedPeer(peerId, state.myProfile.geohash)));
-
-                    const serverPeers = data.peers
+                    state.peers = data.peers
                         .filter(peer => peer.id !== state.myProfile.id && !removedPeerIds.has(peer.id))
                         .map(peer => {
-                            const existing = existingPeers.get(peer.id);
-                            return existing?.fullProfile ? { ...peer, fullProfile: existing.fullProfile } : peer;
+                            const cachedProfile = state.cachedProfiles[peer.id];
+                            return cachedProfile ? {
+                                ...peer,
+                                name: cachedProfile.fields?.displayName || peer.name,
+                                avatar: cachedProfile.avatar || peer.avatar,
+                                fullProfile: cachedProfile
+                            } : peer;
                         });
-                    const serverPeerIds = new Set(serverPeers.map(peer => peer.id));
-                    const absentPeers = Array.from(existingPeers.values())
-                        .filter(peer => peer.id !== state.myProfile.id && !serverPeerIds.has(peer.id) && !removedPeerIds.has(peer.id))
-                        .map(peer => ({ ...peer, online: false }));
-
-                    state.peers = [...serverPeers, ...absentPeers];
-                    await Promise.all(serverPeers.map(cacheGridPeer));
+                    await Promise.all(state.peers.map(cacheGridPeer));
                     renderDiscoveryGrid();
                     document.getElementById('grid-last-updated').textContent = `Updated ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
                     return true;
@@ -1179,26 +1201,40 @@
         async function handleSecurePayload(peerId, payload) {
             if (payload.type === 'CHAT_MESSAGE') {
                 await receiveChatMessage(peerId, payload);
+            } else if (payload.type === 'PRESENCE_PING') {
+                await sendSecurePayload(peerId, {
+                    type: 'PRESENCE_PONG',
+                    nonce: payload.nonce
+                });
+            } else if (payload.type === 'PRESENCE_PONG') {
+                const probe = state.presenceProbes[peerId];
+                if (probe?.nonce === payload.nonce) {
+                    clearTimeout(probe.timeout);
+                    delete state.presenceProbes[peerId];
+                    updateProfilePresence(peerId, 'online');
+                }
             } else if (payload.type === 'PROFILE_REQUEST') {
                 await sendSecurePayload(peerId, {
                     type: 'PROFILE_RESPONSE',
                     profile: {
                         id: state.myProfile.id,
                         avatar: state.myProfile.avatar,
-                        fields: state.myProfile.fields
+                        fields: state.myProfile.fields,
+                        version: state.myProfile.version,
+                        updatedAt: state.myProfile.updatedAt
                     }
                 });
             } else if (payload.type === 'PROFILE_RESPONSE') {
                 const peer = state.peers.find(candidate => candidate.id === peerId);
-                await cachePeerProfile(peerId, payload.profile);
+                const currentProfile = await cachePeerProfile(peerId, payload.profile);
                 if (peer) {
-                    peer.fullProfile = payload.profile;
-                    peer.name = payload.profile.fields?.displayName || peer.name;
-                    peer.avatar = payload.profile.avatar || peer.avatar;
+                    peer.fullProfile = currentProfile;
+                    peer.name = currentProfile.fields?.displayName || peer.name;
+                    peer.avatar = currentProfile.avatar || peer.avatar;
                     await cacheGridPeer(peer);
                     renderDiscoveryGrid();
                 }
-                if (state.activeModalPeerId === peerId) renderProfileModalData(payload.profile);
+                if (state.activeModalPeerId === peerId) renderProfileModalData(currentProfile);
             }
         }
 
@@ -1225,6 +1261,38 @@
         }
 
         // ================= MODAL & CHAT =================
+        function updateProfilePresence(peerId, status) {
+            if (state.activeModalPeerId !== peerId) return;
+            const badge = document.getElementById('modal-online-badge');
+            const styles = {
+                checking: ['Checking...', 'bg-sky-500/10 text-sky-400 border-sky-500/30'],
+                online: ['Online', 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'],
+                absent: ['Abwesend', 'bg-amber-500/10 text-amber-400 border-amber-500/30'],
+                offline: ['Offline', 'bg-slate-800 text-slate-400 border-slate-700']
+            };
+            const [label, classes] = styles[status];
+            badge.textContent = label;
+            badge.className = `px-2.5 py-0.5 rounded-full text-xs font-mono font-semibold flex items-center gap-1.5 border ${classes}`;
+        }
+
+        async function probePeerPresence(peerId) {
+            const existing = state.presenceProbes[peerId];
+            if (existing) clearTimeout(existing.timeout);
+            if (!navigator.onLine || state.ws?.readyState !== WebSocket.OPEN) {
+                updateProfilePresence(peerId, 'offline');
+                return;
+            }
+
+            updateProfilePresence(peerId, 'checking');
+            const nonce = window.crypto.randomUUID();
+            const timeout = setTimeout(() => {
+                delete state.presenceProbes[peerId];
+                updateProfilePresence(peerId, 'absent');
+            }, 8000);
+            state.presenceProbes[peerId] = { nonce, timeout };
+            await sendSecurePayload(peerId, { type: 'PRESENCE_PING', nonce });
+        }
+
         function openProfileModal(peerId) {
             state.activeModalPeerId = peerId;
             const peer = state.peers.find(p => p.id === peerId);
@@ -1235,19 +1303,16 @@
             document.getElementById('modal-profile-id').textContent = peer.id;
             document.getElementById('modal-profile-img').src = peer.avatar || 'https://placehold.co/300x300/1e293b/ffffff?text=Peer';
 
-            const badge = document.getElementById('modal-online-badge');
-            badge.textContent = peer.online ? 'Available' : 'Abwesend';
-            badge.className = `px-2.5 py-0.5 rounded-full text-xs font-mono font-semibold flex items-center gap-1.5 border ${peer.online ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-amber-500/10 text-amber-400 border-amber-500/30'}`;
+            updateProfilePresence(peerId, 'checking');
             const container = document.getElementById('modal-rendered-fields');
             container.innerHTML = '<div class="col-span-2 text-slate-500 text-center py-4"><i class="fa-solid fa-lock text-brand-500 mr-1"></i> Connecting securely to request full profile...</div>';
 
             if (peer.fullProfile) {
                 renderProfileModalData(peer.fullProfile);
-            } else if (!peer.online) {
-                container.innerHTML = '<div class="col-span-2 text-amber-400 text-center py-4"><i class="fa-solid fa-user-clock mr-1"></i> Peer is absent and no cached full profile is available.</div>';
             } else {
                 sendSecurePayload(peerId, { type: 'PROFILE_REQUEST' }).catch(() => {});
             }
+            probePeerPresence(peerId).catch(error => logDebug(`Presence probe failed: ${error.message}`));
         }
 
         function renderProfileModalData(profile) {
@@ -1272,6 +1337,11 @@
         }
 
         function closeProfileModal() {
+            const probe = state.presenceProbes[state.activeModalPeerId];
+            if (probe) {
+                clearTimeout(probe.timeout);
+                delete state.presenceProbes[state.activeModalPeerId];
+            }
             document.getElementById('profile-detail-modal').classList.add('hidden');
             state.activeModalPeerId = null;
         }
@@ -1300,11 +1370,7 @@
             avatar.appendChild(image);
             renderActivePeerList();
             renderChatHistory();
-            if (peer.online) {
-                initiateP2PConnection(peerId).catch(() => {});
-            } else {
-                updateChatConnectionStatus(peerId, 'Peer absent', 'bg-amber-500/10 text-amber-400 border-amber-500/30');
-            }
+            initiateP2PConnection(peerId).catch(() => {});
         }
 
         async function sendChatMessage() {
@@ -1512,8 +1578,13 @@
 
         window.onload = async () => {
             await initDatabase();
-            await ensureUniqueNodeId();
+            await initializeStorageEncryption();
             await loadMyLocalProfile();
+            if (!state.myProfile.updatedAt) {
+                state.myProfile.version = 1;
+                state.myProfile.updatedAt = Date.now();
+            }
+            await cacheOwnProfile();
             await loadCachedGridPeers();
             updateDebugButtonState();
             await generateUserIdentityKeys();

@@ -1,38 +1,63 @@
-# OpenGrid (Arbeitstitel)
+# OpenGrid
 
-Eine kostenlose, datenschutzkonforme und dezentrale LGBTQ+ Discovery Platform.
+OpenGrid ist eine datenschutzorientierte, dezentrale Discovery- und Chat-PWA.
+Der Cloudflare Worker dient nur als Geohash-Router und WebRTC-Signaling-Relay.
+Vollstaendige Profile und Nachrichten werden direkt zwischen Clients ueber
+verschluesselte WebRTC DataChannels uebertragen.
 
-## Core Philosophy
+## Architektur
 
-- **Zero Infrastructure Cost:** Keine zentralen Server für Medienspeicher oder Nachrichtendatenbanken.
-- **Client-Driven Architecture:** Das Endgerät des Nutzers ist Datenhalter und Mini-Server zugleich.
-- **Absolute Privacy:** Ende-zu-Ende-Verschlüsselung (E2EE) für Texte und Medien. Ephemerale Medien (Snap-Prinzip) verfallen clientseitig.
+- **Routing:** In Cloudflare KV stehen pro sichtbarem Peer nur Anzeigename und
+  Thumbnail. Ein Eintrag wird durch einen regelmaessigen Client-Heartbeat
+  verlaengert und laeuft ohne Heartbeat automatisch ab.
+- **Signaling:** Ein Cloudflare Durable Object vermittelt WebRTC Offer, Answer
+  und ICE Candidates. Es speichert keine Chats oder Profile.
+- **P2P:** Clients handeln per ECDH P-256 einen AES-256-GCM-Session-Key aus.
+  Profilantworten, Presence-Pings und Chats laufen verschluesselt ueber den
+  DataChannel.
+- **Lokaler Speicher:** Profile und Chats liegen in IndexedDB. Profilinhalte
+  werden vor dem Speichern mit einem nicht exportierbaren AES-GCM-Schluessel
+  verschluesselt.
 
-## High-Level Architecture
-+-------------------------------------------------------+
-|                   Signaling Server                    |
-|       (Geohash / Routing / STUN Peer Exchange)        |
-+--------------------------+----------------------------+
-| WebSockets / WebRTC Handshake
-+---------------+---------------+
-|                               |
-+------v------+                 +------v------+
-|  Client A   |<=== WebRTC ====>|  Client B   |
-| (Peer/Node) |   P2P Data      | (Peer/Node) |
-+-------------+   Channels      +-------------+
+## Identitaet
 
-## Quickstart
+Jede Browser-Installation erzeugt einmalig eine zufaellige `nodeId`. Sie wird
+in `localStorage` gespeichert, von allen Tabs derselben Website geteilt und
+bleibt bis zum manuellen Loeschen der Websitedaten erhalten. Eine separate
+`registrationId` schuetzt jede laufende Registrierung gegen verspÃ¤tete
+Abmeldeereignisse.
 
-1. Client laden (PWA via Browser).
-2. Ephemeres Schlüsselpaar lokal generieren (Web Crypto API).
-3. Standort freigeben (oder virtuellen Geohash setzen).
-4. Peers in der Nähe direkt via WebRTC abfragen.
+## Discovery und Presence
 
-## Key Architecture Highlights
+Das Grid zeigt ausschliesslich Profile, die der Router fuer den aktuellen
+Geohash liefert. Ein lokal gecachtes Profil erscheint nicht automatisch im
+Grid, wenn sein Router-Eintrag fehlt.
 
-- **Zero Infrastructure Cost:** Keine zentralen Server für Medienspeicher oder Datenbanken.
-- **Client-Driven Architecture:** Das Endgerät ist Datenhalter und Mini-Server zugleich.
-- **Absolute Privacy:** Ende-zu-Ende-Verschlüsselung (E2EE) für Texte und Medien.
-- **Offline-First & Resilient PWA:**
-  - Volle Lauffähigkeit ohne Internetverbindung (Lesezugriff auf Kontakte, Verläufe, eigenes Profil).
-  - Atomares Update-System: Downloads erfolgen im Hintergrund bei stabiler Verbindung. Aktivierung erst nach 100% erfolgreichem Caching.
+Der Presence-Status wird nicht aus KV uebernommen. Beim Oeffnen eines Profils
+sendet der aufrufende Client einen verschluesselten P2P-Ping:
+
+- **Online:** gueltiger P2P-Pong empfangen
+- **Abwesend:** Router-Eintrag vorhanden, aber kein Pong innerhalb des Timeouts
+- **Offline:** der aufrufende Client hat selbst keine nutzbare Netzwerk- oder
+  Signaling-Verbindung
+
+## Profil-Cache
+
+Vollstaendige Profile werden nur per P2P geladen. Jede Profilversion besitzt
+eine fortlaufende `version` und einen `updatedAt`-Zeitstempel. Ein Client
+ueberschreibt seinen verschluesselten lokalen Cache nur mit einer neueren
+Version. Der Cache kann nach einem Browser-Neustart wieder entschluesselt
+werden, erscheint aber nur dann im Grid, wenn der Peer weiterhin vom Router
+geliefert wird.
+
+## Entwicklung
+
+```powershell
+npx.cmd wrangler dev
+```
+
+Deployment-Konfiguration pruefen:
+
+```powershell
+npx.cmd wrangler deploy --dry-run
+```

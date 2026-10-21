@@ -1,88 +1,100 @@
-# Technical Specification
+# Technische Spezifikation
 
-## 1. Network & Routing Protocol
+## 1. Identitaet
 
-### 1.1 Routing / Signaling Server
-- **Tech Stack:** Node.js / Go / Rust (Websockets) oder Cloudflare Workers (Serverless).
-- **Aufgabe:** Handshake-Morphismus für WebRTC (Offer/Answer/ICE Candidate Exchange).
-- **Zustand:** Stateless bzgl. Nachrichten. Hält nur volatile Sessions im Memory (PeerID -> Geohash Cell).
+- Beim ersten Start erzeugt der Client eine UUID-basierte `nodeId`.
+- Die `nodeId` liegt in `localStorage` und bleibt bis zum Loeschen der
+  Websitedaten stabil.
+- Alle Tabs derselben Browser-Installation verwenden dieselbe `nodeId`.
+- Jede Laufzeit erzeugt zusaetzlich eine ephemere `registrationId`.
+- Private kryptografische Schluessel verlassen den Client nicht.
 
-### 1.2 P2P Transport Layer
-- **Protokoll:** WebRTC `RTCDataChannel` (SCTP-basiert).
-- **Topology:** Full Mesh / Star Sub-Networks innerhalb eines Geohashes.
+## 2. Routing und Grid
 
-## 2. Cryptography & Security
+### 2.1 KV-Daten
 
-- **Identity Keypair:** ECDSA (P-256) oder Ed25519 für Identität und Signaturen.
-- **Key Exchange:** ECDH (X25519) für Session Key Derivation.
-- **Payload Encryption:** AES-GCM (256-Bit) für Nachrichten und Medien-Container.
-- **Client Storage:**
-  - Web Crypto API zur Schlüsselverwaltung.
-  - Speicherung lokaler Fragmente im OPFS (Origin Private File System).
+Ein Grid-Eintrag enthaelt nur:
 
-## 3. Data Formats
-
-### 3.1 Profil-Exchange Payload (P2P JSON)
 ```json
 {
-  "peerId": "pub_ed25519_abc123...",
-  "displayName": "Alex",
-  "age": 28,
-  "avatarChunk": "data:image/webp;base64,...",
-  "ephemeralCaps": ["SNAP_SUPPORT", "OPFS_ENABLED"]
+  "name": "Alex",
+  "thumbnail": "data:image/webp;base64,..."
 }
 ```
 
-## 3.2 Ephemeral Image Frame
-```JSON
+Peer-ID und Geohash ergeben sich aus dem KV-Key. Registrierungsmetadaten liegen
+in separaten kurzlebigen Keys. Der Client erneuert seinen Eintrag regelmaessig;
+ohne Heartbeat laeuft er automatisch ab.
+
+### 2.2 Grid-Regeln
+
+- Das Grid ist immer die aktuelle Router-Antwort fuer genau einen Geohash.
+- Lokale Cache-Eintraege werden niemals ohne Router-Eintrag ins Grid gemischt.
+- Eine explizite Abmeldung entfernt den Router-Eintrag unmittelbar.
+- Vollstaendige Profildaten werden nicht vom Router ausgeliefert.
+
+## 3. WebRTC und Presence
+
+Das Durable Object `SignalingHub` vermittelt:
+
+- SDP Offer und Answer
+- ICE Candidates
+- Offline-Fallback-Meldungen
+
+Nach Aufbau des DataChannels tauschen beide Clients oeffentliche ECDH-P-256-
+Schluessel aus und leiten einen AES-256-GCM-Session-Key ab.
+
+Beim Oeffnen eines Profils sendet der Client einen verschluesselten
+`PRESENCE_PING`. Der Zielclient antwortet mit `PRESENCE_PONG`.
+
+| Status | Berechnung auf dem aufrufenden Client |
+|---|---|
+| Online | Passender Pong innerhalb von 8 Sekunden |
+| Abwesend | Router-Eintrag vorhanden, aber kein Pong |
+| Offline | Eigene Netzwerk- oder Signaling-Verbindung fehlt |
+
+## 4. Profilprotokoll
+
+Der verschluesselte `PROFILE_RESPONSE` enthaelt:
+
+```json
 {
-  "mediaId": "uuid-v4",
-  "ttlViews": 1,
-  "payloadEncrypted": "base64_blob...",
-  "iv": "base64_iv..."
+  "id": "node_uuid",
+  "avatar": "data:image/webp;base64,...",
+  "fields": {
+    "displayName": "Alex",
+    "age": 28
+  },
+  "version": 4,
+  "updatedAt": 1792584000000
 }
 ```
 
-## 4. Service Worker & Offline-Update Strategy
+- `version` wird bei jeder lokalen Profilspeicherung erhoeht.
+- `updatedAt` dokumentiert den Aktualisierungszeitpunkt.
+- Eine empfangene Version ersetzt den Cache nur, wenn sie neuer ist.
 
-### 4.1 Caching- und Offline-Strategie
-- **App Shell:** Der HTML/JS/WASM/CSS-Core wird über Cache-First bedient.
-- **Dynamic Assets / User Data:** Verbleiben strikt im clientseitigen Speicher (IndexedDB / OPFS), nicht im Service-Worker-Cache.
-- **Signaling Reconnection:** Exponential Backoff für WebSocket-Reconnects, um Akku bei Netzverlust zu schonen.
+## 5. Lokale Verschluesselung
 
-### 4.2 Atomarer Update-Workflow (Staged Swap)
+IndexedDB Version 3 enthaelt:
 
-[Network Connected] ??> SW checks manifest.json
-?
-?
-Download Assets into Temp Cache (v_next)
-?
-?????????????????????????????
-?                           ?
-[Network Fail / Drop]       [100% Downloaded]
-?                           ?
-Purge Temp Cache            Validate Hashes
-?                           ?
-Remain on v_current                ?
-Send Message to UI:
-"UPDATE_READY"
-?
-?????????????????????????????????????????????
-?                                           ?
-User clicks "Reload"                       App Launch / SW Idle
-?                                           ?
-?????????????????????????????????????????????
-?
-Post SKIP_WAITING
-?
-?
-Swap v_next -> v_current
+| Store | Inhalt |
+|---|---|
+| `keys` | nicht exportierbarer AES-GCM-Schluessel fuer Profil-Caches |
+| `profiles` | Metadaten sowie AES-GCM-IV und Ciphertext |
+| `messages` | lokaler Chatverlauf pro Peer |
+| `gridPeers` | minimale lokale Routing-Metadaten, nicht fuer Grid-Sichtbarkeit |
 
-1. **Detection:** Der Service Worker prüft bei bestehender Verbindung periodisch das Manifest auf neue Content-Hashes.
-2. **Atomic Background Fetch:** 
-   - Downloads werden ausschließlich durchgeführt, wenn `navigator.onLine` wahr ist.
-   - Alle Versionen-Assets werden isoliert unter einem eindeutigen Cache-Namen geladen (`app-shell-v2.1.0-temp`).
-3. **Rollback-Safety:** bricht die Verbindung während des Downloads ab, wird der temporäre Cache verworfen. Die aktiven Nutzer-Sessions bleiben unberührt auf der alten Version.
-4. **Controlled Swap:**
-   - Sobald das Asset-Manifest zu 100 % geladen ist, sendet der Service Worker ein `POST_MESSAGE` event (`{ type: 'SW_UPDATE_READY' }`) an den Client.
-   - Die Aktivierung erfolgt **nicht automatisch mitten in einer laufenden WebRTC-Session**, sondern erst nach Bestätigung oder beim nächsten Kaltstart via `self.skipWaiting()` und `clients.claim()`.
+Profilfelder und Avatar werden als gemeinsamer JSON-Payload mit AES-256-GCM
+verschluesselt. In IndexedDB bleiben nur Peer-ID, Version, Zeitstempel, IV und
+Ciphertext im Klartext. Das Loeschen der Websitedaten entfernt Identitaet,
+Schluessel und Cache gemeinsam.
+
+## 6. Sicherheitsgrenzen
+
+- Der Router kennt keine vollstaendigen Profile und keine Chats.
+- Signaling-Nachrichten enthalten nur Verbindungsaufbau-Daten.
+- P2P-Nutzdaten sind AES-GCM-verschluesselt.
+- Der lokale Profil-Cache ist at-rest verschluesselt.
+- Der aktuelle Chat-Store ist lokal persistent; seine separate
+  At-rest-Verschluesselung ist nicht Bestandteil dieser Profil-Cache-Aenderung.

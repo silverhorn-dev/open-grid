@@ -316,6 +316,7 @@
             chats: {},
             ws: null,
             shouldReconnect: true,
+            tabChannel: null,
             webrtcConnections: {},
             dataChannels: {}
         };
@@ -365,6 +366,51 @@
             const nodeId = `node_${window.crypto.randomUUID()}`;
             window.sessionStorage.setItem(storageKey, nodeId);
             return nodeId;
+        }
+
+        function ensureUniqueNodeId() {
+            if (!('BroadcastChannel' in window)) return Promise.resolve();
+
+            state.tabChannel = new BroadcastChannel('opengrid-tab-presence');
+            return new Promise((resolve) => {
+                let settled = false;
+                const finish = () => {
+                    if (settled) return;
+                    settled = true;
+                    resolve();
+                };
+
+                state.tabChannel.onmessage = (event) => {
+                    const message = event.data;
+                    if (!message || message.registrationId === state.registrationId) return;
+
+                    if (message.type === 'CLAIM_NODE_ID' && message.nodeId === state.nodeId) {
+                        state.tabChannel.postMessage({
+                            type: 'NODE_ID_COLLISION',
+                            targetRegistrationId: message.registrationId,
+                            registrationId: state.registrationId
+                        });
+                    }
+
+                    if (message.type === 'NODE_ID_COLLISION' && message.targetRegistrationId === state.registrationId) {
+                        state.nodeId = `node_${window.crypto.randomUUID()}`;
+                        state.myProfile.id = state.nodeId;
+                        window.sessionStorage.setItem('opengrid-node-id', state.nodeId);
+                        state.tabChannel.postMessage({
+                            type: 'CLAIM_NODE_ID',
+                            nodeId: state.nodeId,
+                            registrationId: state.registrationId
+                        });
+                    }
+                };
+
+                state.tabChannel.postMessage({
+                    type: 'CLAIM_NODE_ID',
+                    nodeId: state.nodeId,
+                    registrationId: state.registrationId
+                });
+                setTimeout(finish, 150);
+            });
         }
 
         // ================= INDEXEDDB =================
@@ -523,10 +569,11 @@
         function connectWorkerWebSocket() {
             try {
                 state.ws = new WebSocket(WS_URL);
-                state.ws.onopen = () => {
+                state.ws.onopen = async () => {
                     logDebug('Connected to Worker Signaling');
                     state.ws.send(JSON.stringify({ type: 'REGISTER_SOCKET', peerId: state.myProfile.id }));
-                    registerWithWorkerGrid();
+                    await registerWithWorkerGrid();
+                    await fetchPeersFromWorkerGrid();
                 };
                 state.ws.onclose = () => {
                     if (state.shouldReconnect) setTimeout(connectWorkerWebSocket, 5000);
@@ -773,6 +820,7 @@
 
         window.onload = async () => {
             await initDatabase();
+            await ensureUniqueNodeId();
             await loadMyLocalProfile();
             updateDebugButtonState();
             await generateUserIdentityKeys();

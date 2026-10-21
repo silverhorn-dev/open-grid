@@ -306,10 +306,10 @@ function handleWebSocketSession(webSocket, url) {
     });
 
     webSocket.addEventListener('close', () => {
-        if (currentPeerId) activeSockets.delete(currentPeerId);
+        if (currentPeerId && activeSockets.get(currentPeerId) === webSocket) activeSockets.delete(currentPeerId);
     });
 
     webSocket.addEventListener('error', () => {
-        if (currentPeerId) activeSockets.delete(currentPeerId);
+        if (currentPeerId && activeSockets.get(currentPeerId) === webSocket) activeSockets.delete(currentPeerId);
     });
 }

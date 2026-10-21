@@ -1,0 +1,17 @@
+services:
+  open-grid:
+    build:
+      context: .
+    restart: unless-stopped
+    environment:
+      BUILD_VERSION: ${BUILD_VERSION:-self-hosted}
+      BUILD_TIMESTAMP: ${BUILD_TIMESTAMP:-}
+      DATABASE_PATH: /app/data/open-grid.sqlite
+      PORT: 3000
+    ports:
+      - "${OPEN_GRID_PORT:-3000}:3000"
+    volumes:
+      - open-grid-data:/app/data
+
+volumes:
+  open-grid-data:

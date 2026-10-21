@@ -1,0 +1,7 @@
+.git
+.idea
+.wrangler
+data
+node_modules
+*.diff.txt
+npm-debug.log*

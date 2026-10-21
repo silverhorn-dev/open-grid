@@ -116,19 +116,23 @@
                     </div>
                     <div>
                         <div class="text-sm font-semibold">Simulated Geohash Cell: <span id="current-geohash" class="font-mono text-brand-400">u10j2k</span></div>
-                        <p class="text-xs text-slate-400">Zero-Idle P2P grid. Click any user to trigger an on-demand E2EE profile/gallery handshake.</p>
+                        <p class="text-xs text-slate-400">
+                            <span id="grid-peer-count">0 peers</span>
+                            <span class="text-slate-600">•</span>
+                            <span id="grid-last-updated">Not synchronized yet</span>
+                        </p>
                     </div>
                 </div>
 
                 <div class="flex items-center gap-2">
-                    <button onclick="refreshGrid()" class="bg-brand-600 hover:bg-brand-500 text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
-                        <i class="fa-solid fa-rotate"></i> Refresh Grid
+                    <button id="refresh-grid-btn" onclick="refreshGrid()" class="bg-brand-600 hover:bg-brand-500 disabled:opacity-60 text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
+                        <i id="refresh-grid-icon" class="fa-solid fa-rotate"></i> Refresh Grid
                     </button>
                 </div>
             </div>
 
             <!-- Profile Grid Matrix -->
-            <div id="grid-container" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            <div id="grid-container" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4" aria-live="polite">
                 <!-- Dynamic cards injected via JS -->
             </div>
         </section>
@@ -169,7 +173,7 @@
                             <i class="fa-solid fa-bolt text-amber-400"></i> Snap
                         </button>
                         <input id="chat-input" type="text" placeholder="Type E2EE encrypted message..." class="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500 transition">
-                        <button onclick="sendChatMessage()" class="bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-1.5">
+                        <button id="send-chat-btn" onclick="sendChatMessage()" class="bg-brand-600 hover:bg-brand-500 disabled:bg-slate-700 disabled:text-slate-400 text-white px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-1.5">
                             <i class="fa-solid fa-paper-plane"></i> Send
                         </button>
                     </div>
@@ -272,6 +276,7 @@
 
             <div class="p-5 space-y-4">
                 <h2 id="modal-profile-name" class="text-xl font-bold text-slate-100">Loading...</h2>
+                <p id="modal-profile-id" class="text-xs font-mono text-slate-500 break-all"></p>
                 <div id="modal-rendered-fields" class="grid grid-cols-2 gap-2 text-xs">
                     <div class="col-span-2 text-slate-500 text-center py-4">
                         <i class="fa-solid fa-circle-notch fa-spin text-brand-500"></i> Requesting P2P Profile...
@@ -317,8 +322,17 @@
             ws: null,
             shouldReconnect: true,
             tabChannel: null,
+            gridFetchInFlight: false,
             webrtcConnections: {},
-            dataChannels: {}
+            dataChannels: {},
+            pendingIceCandidates: {},
+            connectionAttempts: {},
+            makingOffer: {},
+            ignoreOffer: {},
+            disconnectTimers: {},
+            connectionRetryCounts: {},
+            sessionKeys: {},
+            secureMessageQueues: {}
         };
 
         let db = null;
@@ -513,9 +527,9 @@
         }
 
         // ================= GRID & PEER SYNC =================
-        function refreshGrid() {
-            fetchPeersFromWorkerGrid();
-            showToast('Refreshing grid...', 'info');
+        async function refreshGrid() {
+            const refreshed = await fetchPeersFromWorkerGrid();
+            if (refreshed) showToast('Grid refreshed.', 'info');
         }
 
         function renderDiscoveryGrid() {
@@ -523,46 +537,124 @@
             if (!container) return;
 
             container.innerHTML = '';
+            document.getElementById('grid-peer-count').textContent = `${state.peers.length} ${state.peers.length === 1 ? 'peer' : 'peers'}`;
+            renderActivePeerList();
 
             if (state.peers.length === 0) {
-                container.innerHTML = `<div class="col-span-full text-center py-10 text-slate-500 text-sm border border-dashed border-slate-800 rounded-xl">Keine anderen Peers im Geohash ${state.myProfile.geohash} gefunden.</div>`;
+                const emptyState = document.createElement('div');
+                emptyState.className = 'col-span-full text-center py-12 text-slate-500 text-sm border border-dashed border-slate-800 rounded-2xl bg-slate-900/40';
+                emptyState.innerHTML = '<i class="fa-solid fa-satellite-dish text-2xl text-slate-600 mb-3"></i><div>No other peers are currently visible in this grid cell.</div>';
+                container.appendChild(emptyState);
                 return;
             }
 
             state.peers.forEach(peer => {
                 const avatarSrc = peer.avatar ? peer.avatar : `https://placehold.co/300x300/1e293b/ffffff?text=Peer`;
-                const card = document.createElement('div');
-                card.className = "bg-slate-900 border border-slate-800 rounded-xl overflow-hidden cursor-pointer hover:border-brand-500/50 transition group shadow-md";
+                const card = document.createElement('button');
+                card.type = 'button';
+                card.className = 'text-left bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden cursor-pointer hover:border-brand-500/60 hover:-translate-y-0.5 transition group shadow-lg focus:outline-none focus:ring-2 focus:ring-brand-500';
                 card.onclick = () => openProfileModal(peer.id);
 
-                card.innerHTML = `
-                    <div class="relative aspect-square bg-slate-950">
-                        <img src="${avatarSrc}" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
-                        <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent"></div>
-                        <div class="absolute bottom-2 left-2 flex items-center gap-1.5">
-                            <span class="w-2 h-2 rounded-full ${peer.online ? 'bg-emerald-500' : 'bg-slate-500'}"></span>
-                            <span class="text-xs font-bold text-white shadow-sm">${peer.fields?.displayName || 'Peer'}</span>
-                        </div>
-                    </div>
-                `;
+                const imageWrapper = document.createElement('div');
+                imageWrapper.className = 'relative aspect-[4/5] bg-slate-950 overflow-hidden';
+                const image = document.createElement('img');
+                image.src = avatarSrc;
+                image.alt = `${peer.name || 'Peer'} profile thumbnail`;
+                image.className = 'w-full h-full object-cover group-hover:scale-105 transition duration-500';
+                imageWrapper.appendChild(image);
+
+                const onlineBadge = document.createElement('span');
+                onlineBadge.className = 'absolute top-3 right-3 flex items-center gap-1.5 rounded-full bg-slate-950/80 border border-emerald-500/30 px-2 py-1 text-[10px] font-mono text-emerald-300 backdrop-blur';
+                onlineBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>Online';
+                imageWrapper.appendChild(onlineBadge);
+
+                const footer = document.createElement('div');
+                footer.className = 'p-3 flex items-center justify-between gap-2';
+                const identity = document.createElement('div');
+                identity.className = 'min-w-0';
+                const name = document.createElement('div');
+                name.className = 'font-semibold text-sm text-slate-100 truncate';
+                name.textContent = peer.name || 'Peer';
+                const id = document.createElement('div');
+                id.className = 'text-[10px] font-mono text-slate-500 truncate';
+                id.textContent = peer.id;
+                identity.append(name, id);
+                footer.appendChild(identity);
+
+                const arrow = document.createElement('i');
+                arrow.className = 'fa-solid fa-chevron-right text-xs text-slate-600 group-hover:text-brand-400 transition';
+                footer.appendChild(arrow);
+                card.append(imageWrapper, footer);
                 container.appendChild(card);
             });
         }
 
+        function renderActivePeerList() {
+            const container = document.getElementById('active-peers-list');
+            const count = document.getElementById('active-peers-count');
+            if (!container || !count) return;
+
+            count.textContent = state.peers.length;
+            container.innerHTML = '';
+            state.peers.forEach(peer => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = `w-full flex items-center gap-3 rounded-xl border p-2 text-left transition ${state.activeChatPeerId === peer.id ? 'border-brand-500/60 bg-brand-500/10' : 'border-slate-800 bg-slate-950/40 hover:border-slate-700'}`;
+                button.onclick = () => openChatWithPeer(peer.id);
+
+                const image = document.createElement('img');
+                image.src = peer.avatar || 'https://placehold.co/80x80/1e293b/ffffff?text=P';
+                image.alt = '';
+                image.className = 'w-10 h-10 rounded-full object-cover border border-slate-700';
+                const details = document.createElement('div');
+                details.className = 'min-w-0 flex-1';
+                const name = document.createElement('div');
+                name.className = 'text-xs font-semibold text-slate-200 truncate';
+                name.textContent = peer.name || 'Peer';
+                const status = document.createElement('div');
+                status.className = 'text-[10px] text-emerald-400 font-mono';
+                status.textContent = state.dataChannels[peer.id]?.readyState === 'open' ? 'P2P connected' : 'Available';
+                details.append(name, status);
+                button.append(image, details);
+                container.appendChild(button);
+            });
+        }
+
         async function fetchPeersFromWorkerGrid() {
+            if (state.gridFetchInFlight) return false;
+            state.gridFetchInFlight = true;
+            const refreshButton = document.getElementById('refresh-grid-btn');
+            const refreshIcon = document.getElementById('refresh-grid-icon');
+            if (refreshButton) refreshButton.disabled = true;
+            if (refreshIcon) refreshIcon.classList.add('fa-spin');
+
             try {
-                const res = await fetch(`${API_BASE}/api/grid?geohash=${state.myProfile.geohash}`);
+                const res = await fetch(`${API_BASE}/api/grid?geohash=${encodeURIComponent(state.myProfile.geohash)}`, { cache: 'no-store' });
                 if (!res.ok) throw new Error('Worker offline');
                 const data = await res.json();
 
                 if (data.peers && Array.isArray(data.peers)) {
-                    state.peers = data.peers.filter(p => p.id !== state.myProfile.id);
+                    const existingPeers = new Map(state.peers.map(peer => [peer.id, peer]));
+                    state.peers = data.peers
+                        .filter(peer => peer.id !== state.myProfile.id)
+                        .map(peer => {
+                            const existing = existingPeers.get(peer.id);
+                            return existing?.fullProfile ? { ...peer, fullProfile: existing.fullProfile } : peer;
+                        });
                     renderDiscoveryGrid();
+                    document.getElementById('grid-last-updated').textContent = `Updated ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+                    return true;
                 }
             } catch (err) {
-                // Keep mock or existing state if worker is offline in preview environment
-                renderDiscoveryGrid();
+                logDebug(`Grid sync failed: ${err.message}`);
+                document.getElementById('grid-last-updated').textContent = 'Refresh failed';
+                return false;
+            } finally {
+                state.gridFetchInFlight = false;
+                if (refreshButton) refreshButton.disabled = false;
+                if (refreshIcon) refreshIcon.classList.remove('fa-spin');
             }
+            return false;
         }
 
         // ================= WEBSOCKET & ABMELDEN VOM ROUTER =================
@@ -575,10 +667,25 @@
                     await registerWithWorkerGrid();
                     await fetchPeersFromWorkerGrid();
                 };
+                state.ws.onmessage = async (event) => {
+                    try {
+                        await handleSignalingMessage(JSON.parse(event.data));
+                    } catch (error) {
+                        logDebug(`Signaling message failed: ${error.message}`);
+                    }
+                };
+                state.ws.onerror = () => {
+                    document.getElementById('network-indicator').className = 'w-2.5 h-2.5 rounded-full bg-red-500';
+                    document.getElementById('network-status-text').textContent = 'Signaling error';
+                };
                 state.ws.onclose = () => {
+                    document.getElementById('network-indicator').className = 'w-2.5 h-2.5 rounded-full bg-red-500';
+                    document.getElementById('network-status-text').textContent = 'Reconnecting';
                     if (state.shouldReconnect) setTimeout(connectWorkerWebSocket, 5000);
                 };
-            } catch (e) {}
+            } catch (error) {
+                logDebug(`Could not initialize signaling: ${error.message}`);
+            }
         }
 
         async function registerWithWorkerGrid() {
@@ -591,8 +698,7 @@
                         registrationId: state.registrationId,
                         geohash: state.myProfile.geohash,
                         thumbnail: state.myProfile.avatar,
-                        publicEncKey: state.myKeys?.jwkPublic || null,
-                        fields: state.myProfile.fields
+                        name: state.myProfile.fields.displayName || 'Peer'
                     })
                 });
                 if (!response.ok) throw new Error(`Registration failed with status ${response.status}`);
@@ -641,6 +747,347 @@
             navigator.sendBeacon(`${API_BASE}/api/unregister`, payload);
         });
 
+        // ================= WEBRTC & E2EE HANDSHAKE =================
+        const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+        function sendSignalingMessage(payload) {
+            if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
+                throw new Error('Signaling connection is not ready.');
+            }
+            state.ws.send(JSON.stringify(payload));
+        }
+
+        function getOrCreatePeerConnection(peerId) {
+            const existing = state.webrtcConnections[peerId];
+            if (existing && !['closed', 'failed'].includes(existing.connectionState)) return existing;
+            if (existing) cleanupPeerConnection(peerId, existing);
+
+            const connection = new RTCPeerConnection(rtcConfig);
+            state.webrtcConnections[peerId] = connection;
+            state.pendingIceCandidates[peerId] = state.pendingIceCandidates[peerId] || [];
+
+            connection.onicecandidate = (event) => {
+                if (!event.candidate) return;
+                try {
+                    sendSignalingMessage({
+                        type: 'ICE_CANDIDATE',
+                        targetPeerId: peerId,
+                        senderNodeId: state.myProfile.id,
+                        candidate: event.candidate
+                    });
+                } catch (error) {
+                    logDebug(`Could not send ICE candidate: ${error.message}`);
+                }
+            };
+
+            connection.ondatachannel = (event) => setupDataChannel(peerId, event.channel);
+            connection.onconnectionstatechange = () => {
+                const status = connection.connectionState;
+                logDebug(`P2P connection with ${peerId}: ${status}`);
+                if (status === 'connected') {
+                    clearTimeout(state.disconnectTimers[peerId]);
+                    delete state.disconnectTimers[peerId];
+                    state.connectionRetryCounts[peerId] = 0;
+                    const secured = Boolean(state.sessionKeys[peerId]);
+                    updateChatConnectionStatus(
+                        peerId,
+                        secured ? 'E2EE connected' : 'Securing channel...',
+                        secured ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-sky-500/10 text-sky-400 border-sky-500/30'
+                    );
+                } else if (status === 'failed') {
+                    updateChatConnectionStatus(peerId, 'Disconnected', 'bg-red-500/10 text-red-400 border-red-500/30');
+                    recoverPeerConnection(peerId, connection);
+                } else if (status === 'disconnected') {
+                    updateChatConnectionStatus(peerId, 'Reconnecting...', 'bg-amber-500/10 text-amber-400 border-amber-500/30');
+                    clearTimeout(state.disconnectTimers[peerId]);
+                    state.disconnectTimers[peerId] = setTimeout(() => {
+                        if (connection.connectionState === 'disconnected') recoverPeerConnection(peerId, connection);
+                    }, 5000);
+                } else if (status === 'closed') {
+                    cleanupPeerConnection(peerId, connection);
+                }
+            };
+            return connection;
+        }
+
+        function cleanupPeerConnection(peerId, connection) {
+            clearTimeout(state.disconnectTimers[peerId]);
+            delete state.disconnectTimers[peerId];
+            if (state.webrtcConnections[peerId] === connection) {
+                delete state.webrtcConnections[peerId];
+                delete state.dataChannels[peerId];
+                delete state.sessionKeys[peerId];
+                delete state.pendingIceCandidates[peerId];
+            }
+            if (connection.signalingState !== 'closed') connection.close();
+        }
+
+        function recoverPeerConnection(peerId, connection) {
+            cleanupPeerConnection(peerId, connection);
+            const retries = state.connectionRetryCounts[peerId] || 0;
+            if ((state.secureMessageQueues[peerId]?.length || state.activeChatPeerId === peerId) && retries < 1) {
+                state.connectionRetryCounts[peerId] = retries + 1;
+                setTimeout(() => initiateP2PConnection(peerId).catch(() => {}), 1000);
+            } else if (state.secureMessageQueues[peerId]?.length) {
+                showToast('The secure P2P connection failed. Messages remain queued for retry.', 'error');
+            }
+        }
+
+        async function flushPendingIceCandidates(peerId) {
+            const connection = state.webrtcConnections[peerId];
+            const candidates = state.pendingIceCandidates[peerId] || [];
+            if (!connection?.remoteDescription) return;
+
+            state.pendingIceCandidates[peerId] = [];
+            for (const candidate of candidates) {
+                await connection.addIceCandidate(candidate);
+            }
+        }
+
+        async function handleSignalingMessage(message) {
+            if (message.type === 'SOCKET_REGISTERED') {
+                document.getElementById('network-indicator').className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse';
+                document.getElementById('network-status-text').textContent = 'Worker connected';
+                return;
+            }
+
+            if (message.type === 'PEER_OFFLINE_FALLBACK') {
+                updateChatConnectionStatus(message.targetPeerId, 'Peer unavailable', 'bg-amber-500/10 text-amber-400 border-amber-500/30');
+                showToast('Peer is currently unavailable for a direct P2P connection.', 'warning');
+                return;
+            }
+            if (message.type === 'SIGNALING_ERROR') {
+                logDebug(`Signaling server rejected a message: ${message.message}`);
+                return;
+            }
+
+            const peerId = message.senderNodeId;
+            if (!peerId || peerId === state.myProfile.id) return;
+            const connection = getOrCreatePeerConnection(peerId);
+
+            if (message.type === 'SDP_OFFER') {
+                const polite = state.myProfile.id.localeCompare(peerId) > 0;
+                const offerCollision = state.makingOffer[peerId] || connection.signalingState !== 'stable';
+                state.ignoreOffer[peerId] = !polite && offerCollision;
+                if (state.ignoreOffer[peerId]) {
+                    logDebug(`Ignored colliding offer from ${peerId}`);
+                    return;
+                }
+                if (offerCollision) {
+                    await Promise.all([
+                        connection.setLocalDescription({ type: 'rollback' }),
+                        connection.setRemoteDescription(message.sdp)
+                    ]);
+                } else {
+                    await connection.setRemoteDescription(message.sdp);
+                }
+                await flushPendingIceCandidates(peerId);
+                const answer = await connection.createAnswer();
+                await connection.setLocalDescription(answer);
+                sendSignalingMessage({
+                    type: 'SDP_ANSWER',
+                    targetPeerId: peerId,
+                    senderNodeId: state.myProfile.id,
+                    sdp: connection.localDescription
+                });
+            } else if (message.type === 'SDP_ANSWER') {
+                state.ignoreOffer[peerId] = false;
+                if (connection.signalingState !== 'have-local-offer') {
+                    logDebug(`Ignored stale answer from ${peerId}`);
+                    return;
+                }
+                await connection.setRemoteDescription(message.sdp);
+                await flushPendingIceCandidates(peerId);
+            } else if (message.type === 'ICE_CANDIDATE') {
+                if (state.ignoreOffer[peerId]) return;
+                const candidate = new RTCIceCandidate(message.candidate);
+                try {
+                    if (connection.remoteDescription) {
+                        await connection.addIceCandidate(candidate);
+                    } else {
+                        state.pendingIceCandidates[peerId].push(candidate);
+                    }
+                } catch (error) {
+                    if (!state.ignoreOffer[peerId]) throw error;
+                }
+            }
+        }
+
+        function setupDataChannel(peerId, channel) {
+            state.dataChannels[peerId] = channel;
+
+            channel.onopen = () => {
+                logDebug(`DataChannel opened with ${peerId}. Starting key handshake.`);
+                updateChatConnectionStatus(peerId, 'Securing channel...', 'bg-sky-500/10 text-sky-400 border-sky-500/30');
+                renderActivePeerList();
+                channel.send(JSON.stringify({
+                    type: 'KEY_HELLO',
+                    publicKey: state.myKeys.jwkPublic
+                }));
+            };
+            channel.onmessage = (event) => handleDataChannelMessage(peerId, event.data);
+            channel.onclose = () => {
+                if (state.dataChannels[peerId] === channel) {
+                    delete state.dataChannels[peerId];
+                    delete state.sessionKeys[peerId];
+                    updateChatConnectionStatus(peerId, 'Disconnected', 'bg-red-500/10 text-red-400 border-red-500/30');
+                    renderActivePeerList();
+                }
+            };
+            channel.onerror = () => {
+                updateChatConnectionStatus(peerId, 'Channel error', 'bg-red-500/10 text-red-400 border-red-500/30');
+            };
+        }
+
+        async function initiateP2PConnection(peerId) {
+            if (state.dataChannels[peerId]?.readyState === 'open') return;
+            if (state.dataChannels[peerId]?.readyState === 'connecting') return;
+            if (state.connectionAttempts[peerId]) return state.connectionAttempts[peerId];
+
+            state.connectionAttempts[peerId] = (async () => {
+                updateChatConnectionStatus(peerId, 'Connecting...', 'bg-sky-500/10 text-sky-400 border-sky-500/30');
+                const connection = getOrCreatePeerConnection(peerId);
+                const channel = connection.createDataChannel('opengrid-e2ee');
+                setupDataChannel(peerId, channel);
+                try {
+                    state.makingOffer[peerId] = true;
+                    await connection.setLocalDescription(await connection.createOffer());
+                    sendSignalingMessage({
+                        type: 'SDP_OFFER',
+                        targetPeerId: peerId,
+                        senderNodeId: state.myProfile.id,
+                        sdp: connection.localDescription
+                    });
+                    logDebug(`Sent P2P offer to ${peerId}`);
+                } finally {
+                    state.makingOffer[peerId] = false;
+                }
+            })();
+
+            try {
+                await state.connectionAttempts[peerId];
+            } catch (error) {
+                updateChatConnectionStatus(peerId, 'Connection failed', 'bg-red-500/10 text-red-400 border-red-500/30');
+                showToast(`Could not start P2P connection: ${error.message}`, 'error');
+                throw error;
+            } finally {
+                delete state.connectionAttempts[peerId];
+            }
+        }
+
+        async function deriveSessionKey(peerId, publicJwk) {
+            const publicKey = await window.crypto.subtle.importKey(
+                'jwk',
+                publicJwk,
+                { name: 'ECDH', namedCurve: 'P-256' },
+                false,
+                []
+            );
+            state.sessionKeys[peerId] = await window.crypto.subtle.deriveKey(
+                { name: 'ECDH', public: publicKey },
+                state.myKeys.keyPair.privateKey,
+                { name: 'AES-GCM', length: 256 },
+                false,
+                ['encrypt', 'decrypt']
+            );
+            updateChatConnectionStatus(peerId, 'E2EE connected', 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30');
+            await flushSecureMessageQueue(peerId);
+        }
+
+        function bytesToBase64(bytes) {
+            let binary = '';
+            bytes.forEach(byte => { binary += String.fromCharCode(byte); });
+            return window.btoa(binary);
+        }
+
+        function base64ToBytes(value) {
+            return Uint8Array.from(window.atob(value), character => character.charCodeAt(0));
+        }
+
+        async function encryptSecurePayload(peerId, payload) {
+            const iv = window.crypto.getRandomValues(new Uint8Array(12));
+            const plaintext = new TextEncoder().encode(JSON.stringify(payload));
+            const ciphertext = await window.crypto.subtle.encrypt(
+                { name: 'AES-GCM', iv },
+                state.sessionKeys[peerId],
+                plaintext
+            );
+            return {
+                type: 'SECURE_ENVELOPE',
+                iv: bytesToBase64(iv),
+                ciphertext: bytesToBase64(new Uint8Array(ciphertext))
+            };
+        }
+
+        async function decryptSecurePayload(peerId, envelope) {
+            const plaintext = await window.crypto.subtle.decrypt(
+                { name: 'AES-GCM', iv: base64ToBytes(envelope.iv) },
+                state.sessionKeys[peerId],
+                base64ToBytes(envelope.ciphertext)
+            );
+            return JSON.parse(new TextDecoder().decode(plaintext));
+        }
+
+        async function handleDataChannelMessage(peerId, rawMessage) {
+            try {
+                const message = JSON.parse(rawMessage);
+                if (message.type === 'KEY_HELLO') {
+                    await deriveSessionKey(peerId, message.publicKey);
+                    return;
+                }
+                if (message.type !== 'SECURE_ENVELOPE' || !state.sessionKeys[peerId]) return;
+                await handleSecurePayload(peerId, await decryptSecurePayload(peerId, message));
+            } catch (error) {
+                logDebug(`Rejected P2P message from ${peerId}: ${error.message}`);
+            }
+        }
+
+        async function handleSecurePayload(peerId, payload) {
+            if (payload.type === 'CHAT_MESSAGE') {
+                receiveChatMessage(peerId, payload);
+            } else if (payload.type === 'PROFILE_REQUEST') {
+                await sendSecurePayload(peerId, {
+                    type: 'PROFILE_RESPONSE',
+                    profile: {
+                        id: state.myProfile.id,
+                        avatar: state.myProfile.avatar,
+                        fields: state.myProfile.fields
+                    }
+                });
+            } else if (payload.type === 'PROFILE_RESPONSE') {
+                const peer = state.peers.find(candidate => candidate.id === peerId);
+                if (peer) {
+                    peer.fullProfile = payload.profile;
+                    peer.name = payload.profile.fields?.displayName || peer.name;
+                    peer.avatar = payload.profile.avatar || peer.avatar;
+                    renderDiscoveryGrid();
+                }
+                if (state.activeModalPeerId === peerId) renderProfileModalData(payload.profile);
+            }
+        }
+
+        async function sendSecurePayload(peerId, payload, onSent = null) {
+            const channel = state.dataChannels[peerId];
+            if (channel?.readyState === 'open' && state.sessionKeys[peerId]) {
+                channel.send(JSON.stringify(await encryptSecurePayload(peerId, payload)));
+                if (onSent) onSent();
+                return true;
+            }
+
+            if (!state.secureMessageQueues[peerId]) state.secureMessageQueues[peerId] = [];
+            state.secureMessageQueues[peerId].push({ payload, onSent });
+            initiateP2PConnection(peerId).catch(() => {});
+            return false;
+        }
+
+        async function flushSecureMessageQueue(peerId) {
+            const queue = state.secureMessageQueues[peerId] || [];
+            state.secureMessageQueues[peerId] = [];
+            for (const item of queue) {
+                await sendSecurePayload(peerId, item.payload, item.onSent);
+            }
+        }
+
         // ================= MODAL & CHAT =================
         function openProfileModal(peerId) {
             state.activeModalPeerId = peerId;
@@ -648,15 +1095,42 @@
             if (!peer) return;
 
             document.getElementById('profile-detail-modal').classList.remove('hidden');
-            document.getElementById('modal-profile-name').textContent = peer.fields?.displayName || 'Peer';
+            document.getElementById('modal-profile-name').textContent = peer.name || 'Peer';
+            document.getElementById('modal-profile-id').textContent = peer.id;
             document.getElementById('modal-profile-img').src = peer.avatar || 'https://placehold.co/300x300/1e293b/ffffff?text=Peer';
 
+            const badge = document.getElementById('modal-online-badge');
+            badge.textContent = 'Available';
+            badge.className = 'px-2.5 py-0.5 rounded-full text-xs font-mono font-semibold flex items-center gap-1.5 border bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
             const container = document.getElementById('modal-rendered-fields');
-            container.innerHTML = `
-                <div class="bg-slate-800 p-2 rounded"><div class="text-slate-400 font-bold">Alter</div><div class="text-slate-200">${peer.fields?.age || '25'}</div></div>
-                <div class="bg-slate-800 p-2 rounded"><div class="text-slate-400 font-bold">Rolle</div><div class="text-slate-200">${peer.fields?.role || 'Versatile'}</div></div>
-                <div class="col-span-2 bg-slate-800 p-2 rounded"><div class="text-slate-400 font-bold">Bio</div><div class="text-slate-200">${peer.fields?.bio || 'Keine Bio'}</div></div>
-            `;
+            container.innerHTML = '<div class="col-span-2 text-slate-500 text-center py-4"><i class="fa-solid fa-lock text-brand-500 mr-1"></i> Connecting securely to request full profile...</div>';
+
+            if (peer.fullProfile) {
+                renderProfileModalData(peer.fullProfile);
+            } else {
+                sendSecurePayload(peerId, { type: 'PROFILE_REQUEST' }).catch(() => {});
+            }
+        }
+
+        function renderProfileModalData(profile) {
+            document.getElementById('modal-profile-name').textContent = profile.fields?.displayName || 'Peer';
+            const container = document.getElementById('modal-rendered-fields');
+            container.innerHTML = '';
+
+            PROFILE_SCHEMA.forEach(field => {
+                const value = profile.fields?.[field.key];
+                if (value === undefined || value === null || value === '') return;
+                const card = document.createElement('div');
+                card.className = field.type === 'description' ? 'col-span-2 bg-slate-800 p-2 rounded' : 'bg-slate-800 p-2 rounded';
+                const label = document.createElement('div');
+                label.className = 'text-slate-400 font-bold';
+                label.textContent = field.label;
+                const content = document.createElement('div');
+                content.className = 'text-slate-200';
+                content.textContent = Array.isArray(value) ? value.join(', ') : String(value);
+                card.append(label, content);
+                container.appendChild(card);
+            });
         }
 
         function closeProfileModal() {
@@ -666,39 +1140,102 @@
 
         function launchChatFromModal() {
             if (!state.activeModalPeerId) return;
-            state.activeChatPeerId = state.activeModalPeerId;
+            const peerId = state.activeModalPeerId;
             closeProfileModal();
-            switchTab('chat');
-            document.getElementById('chat-peer-name').textContent = state.activeChatPeerId;
+            openChatWithPeer(peerId);
         }
 
-        function sendChatMessage() {
+        function openChatWithPeer(peerId) {
+            const peer = state.peers.find(candidate => candidate.id === peerId);
+            if (!peer) return;
+            state.activeChatPeerId = peerId;
+            switchTab('chat');
+            document.getElementById('chat-peer-name').textContent = peer.name || 'Peer';
+            document.getElementById('chat-connection-type').textContent = 'Encrypted WebRTC DataChannel';
+            const avatar = document.getElementById('chat-peer-avatar');
+            avatar.innerHTML = '';
+            const image = document.createElement('img');
+            image.src = peer.avatar || 'https://placehold.co/80x80/1e293b/ffffff?text=P';
+            image.alt = '';
+            image.className = 'w-full h-full object-cover';
+            avatar.appendChild(image);
+            renderActivePeerList();
+            renderChatHistory();
+            initiateP2PConnection(peerId).catch(() => {});
+        }
+
+        async function sendChatMessage() {
             const input = document.getElementById('chat-input');
             const text = input.value.trim();
             if (!text || !state.activeChatPeerId) return;
 
-            if (!state.chats[state.activeChatPeerId]) state.chats[state.activeChatPeerId] = [];
-            state.chats[state.activeChatPeerId].push({
+            const peerId = state.activeChatPeerId;
+            const message = {
+                id: window.crypto.randomUUID(),
                 senderId: state.myProfile.id,
-                text: text,
+                text,
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                deliveredVia: 'Pfad A (P2P)'
-            });
+                deliveredVia: 'Establishing secure channel...'
+            };
+            if (!state.chats[peerId]) state.chats[peerId] = [];
+            state.chats[peerId].push(message);
             input.value = '';
             renderChatHistory();
+
+            await sendSecurePayload(peerId, {
+                type: 'CHAT_MESSAGE',
+                id: message.id,
+                text: message.text,
+                timestamp: message.timestamp
+            }, () => {
+                message.deliveredVia = 'E2EE P2P';
+                renderChatHistory();
+            });
+        }
+
+        function receiveChatMessage(peerId, payload) {
+            if (!state.chats[peerId]) state.chats[peerId] = [];
+            state.chats[peerId].push({
+                id: payload.id,
+                senderId: peerId,
+                text: payload.text,
+                timestamp: payload.timestamp,
+                deliveredVia: 'E2EE P2P'
+            });
+            if (state.activeChatPeerId === peerId) renderChatHistory();
+            showToast(`New encrypted message from ${state.peers.find(peer => peer.id === peerId)?.name || 'peer'}.`, 'info');
         }
 
         function renderChatHistory() {
             const container = document.getElementById('chat-messages');
             if (!container || !state.activeChatPeerId) return;
             const msgs = state.chats[state.activeChatPeerId] || [];
-            container.innerHTML = msgs.map(m => `
-                <div class="flex flex-col items-end">
-                    <div class="max-w-[80%] bg-brand-600 text-white rounded-2xl px-4 py-2 rounded-br-none text-xs">${m.text}</div>
-                    <div class="text-[9px] text-slate-500 mt-0.5">${m.timestamp} • ${m.deliveredVia}</div>
-                </div>
-            `).join('');
+            container.innerHTML = '';
+            if (msgs.length === 0) {
+                container.innerHTML = '<div class="text-center text-xs text-slate-500 my-8">The secure channel is being prepared. Send a message when ready.</div>';
+                return;
+            }
+            msgs.forEach(message => {
+                const isMine = message.senderId === state.myProfile.id;
+                const row = document.createElement('div');
+                row.className = `flex flex-col ${isMine ? 'items-end' : 'items-start'}`;
+                const bubble = document.createElement('div');
+                bubble.className = `max-w-[80%] rounded-2xl px-4 py-2 text-xs ${isMine ? 'bg-brand-600 text-white rounded-br-none' : 'bg-slate-800 text-slate-100 rounded-bl-none'}`;
+                bubble.textContent = message.text;
+                const meta = document.createElement('div');
+                meta.className = 'text-[9px] text-slate-500 mt-0.5';
+                meta.textContent = `${message.timestamp} • ${message.deliveredVia}`;
+                row.append(bubble, meta);
+                container.appendChild(row);
+            });
             container.scrollTop = container.scrollHeight;
+        }
+
+        function updateChatConnectionStatus(peerId, text, classes) {
+            if (state.activeChatPeerId !== peerId) return;
+            const pill = document.getElementById('connection-status-pill');
+            pill.textContent = text;
+            pill.className = `text-xs px-2.5 py-1 rounded-full border font-mono ${classes}`;
         }
 
         function openSnapUploadModal() { showToast('Snap-Funktion aktiv.', 'info'); }
@@ -826,7 +1363,19 @@
             await generateUserIdentityKeys();
             connectWorkerWebSocket();
             fetchPeersFromWorkerGrid();
-            setInterval(fetchPeersFromWorkerGrid, 15000);
+            document.getElementById('chat-input').addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' && !event.shiftKey) {
+                    event.preventDefault();
+                    sendChatMessage();
+                }
+            });
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') fetchPeersFromWorkerGrid();
+            });
+            window.addEventListener('focus', fetchPeersFromWorkerGrid);
+            setInterval(() => {
+                if (document.visibilityState === 'visible') fetchPeersFromWorkerGrid();
+            }, 10000);
             setInterval(registerWithWorkerGrid, 300000);
         };
     </script>

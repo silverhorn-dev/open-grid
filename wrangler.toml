@@ -9,6 +9,7 @@ bucket = "./"
 type = "Data"
 globs = ["/*.json"]
 fallbacks = []
+fallthrough = true
 
 [vars]
 ENVIRONMENT = "production"
@@ -19,3 +20,11 @@ binding = "METADATA"
 [[kv_namespaces]]
 binding = "OPENGRID_KV"
 id = "f073a35948b94dabb61449527d495c67"
+
+[[durable_objects.bindings]]
+name = "SIGNALING_HUB"
+class_name = "SignalingHub"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["SignalingHub"]

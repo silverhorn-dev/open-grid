@@ -39,6 +39,10 @@ export default {
             if (request.headers.get('Upgrade') !== 'websocket') {
                 return new Response('Expected WebSocket upgrade', { status: 426, headers: corsHeaders });
             }
+            if (env.SIGNALING_HUB) {
+                const hubId = env.SIGNALING_HUB.idFromName('opengrid-global-signaling');
+                return env.SIGNALING_HUB.get(hubId).fetch(request);
+            }
             const pair = new WebSocketPair();
             const [client, server] = Object.values(pair);
             handleWebSocketSession(server, url);
@@ -48,7 +52,7 @@ export default {
         if (path === '/api/register' && request.method === 'POST') {
             try {
                 const body = await request.json();
-                const { peerId, geohash, registrationId, thumbnail, publicEncKey, fields } = body;
+                const { peerId, geohash, registrationId, thumbnail, name } = body;
 
                 if (!peerId || typeof peerId !== 'string' || !geohash || typeof geohash !== 'string' || !registrationId || typeof registrationId !== 'string') {
                     return new Response(JSON.stringify({ error: 'Invalid payload' }), { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
@@ -59,9 +63,7 @@ export default {
                     registrationId,
                     geohash: geohash.substring(0, 10),
                     thumbnail: thumbnail ? String(thumbnail).substring(0, 50000) : null,
-                    publicEncKey: publicEncKey || null,
-                    fields: fields || {},
-                    lastSeen: Date.now()
+                    name: typeof name === 'string' ? name.substring(0, 100) : 'Peer'
                 };
                 await storePeerRegistration(env, session);
 
@@ -104,8 +106,7 @@ export default {
                 id: session.peerId,
                 geohash: session.geohash,
                 avatar: session.thumbnail,
-                publicEncKey: session.publicEncKey,
-                fields: session.fields,
+                name: session.name,
                 online: true
             }));
 
@@ -210,9 +211,14 @@ async function storePeerRegistration(env, session) {
         if (previousGeohash && previousGeohash !== session.geohash) {
             await env.OPENGRID_KV.delete(`grid:${previousGeohash}:${session.peerId}`);
         }
+        const gridRecord = {
+            name: session.name,
+            thumbnail: session.thumbnail
+        };
         await Promise.all([
-            env.OPENGRID_KV.put(`grid:${session.geohash}:${session.peerId}`, JSON.stringify(session), { expirationTtl: 600 }),
-            env.OPENGRID_KV.put(`peer:${session.peerId}`, session.geohash, { expirationTtl: 600 })
+            env.OPENGRID_KV.put(`grid:${session.geohash}:${session.peerId}`, JSON.stringify(gridRecord), { expirationTtl: 600 }),
+            env.OPENGRID_KV.put(`peer:${session.peerId}`, session.geohash, { expirationTtl: 600 }),
+            env.OPENGRID_KV.put(`registration:${session.peerId}`, session.registrationId, { expirationTtl: 600 })
         ]);
         return;
     }
@@ -225,17 +231,20 @@ async function storePeerRegistration(env, session) {
 async function getPeerRegistrations(env, geohash) {
     if (env.OPENGRID_KV) {
         const entries = await env.OPENGRID_KV.list({ prefix: `grid:${geohash}:`, limit: 1000 });
-        const sessions = await Promise.all(entries.keys.map(key => env.OPENGRID_KV.get(key.name, 'json')));
+        const sessions = await Promise.all(entries.keys.map(async (key) => {
+            const record = await env.OPENGRID_KV.get(key.name, 'json');
+            if (!record) return null;
+            return {
+                peerId: key.name.substring(`grid:${geohash}:`.length),
+                geohash,
+                ...record
+            };
+        }));
         return sessions.filter(Boolean);
     }
 
-    const now = Date.now();
     const cellMap = spatialGrid.get(geohash);
     if (!cellMap) return [];
-
-    for (const [peerId, session] of cellMap.entries()) {
-        if (now - session.lastSeen >= 600000) cellMap.delete(peerId);
-    }
     return Array.from(cellMap.values());
 }
 
@@ -245,12 +254,13 @@ async function removePeerRegistration(env, peerId, registrationId, geohash = nul
         if (!registeredGeohash) return 0;
 
         const key = `grid:${registeredGeohash}:${peerId}`;
-        const session = await env.OPENGRID_KV.get(key, 'json');
-        if (!session || session.registrationId !== registrationId) return 0;
+        const activeRegistrationId = await env.OPENGRID_KV.get(`registration:${peerId}`);
+        if (activeRegistrationId !== registrationId) return 0;
 
         await Promise.all([
             env.OPENGRID_KV.delete(key),
-            env.OPENGRID_KV.delete(`peer:${peerId}`)
+            env.OPENGRID_KV.delete(`peer:${peerId}`),
+            env.OPENGRID_KV.delete(`registration:${peerId}`)
         ]);
         return 1;
     }
@@ -312,4 +322,58 @@ function handleWebSocketSession(webSocket, url) {
     webSocket.addEventListener('error', () => {
         if (currentPeerId && activeSockets.get(currentPeerId) === webSocket) activeSockets.delete(currentPeerId);
     });
+}
+
+export class SignalingHub {
+    constructor(state) {
+        this.state = state;
+    }
+
+    async fetch(request) {
+        if (request.headers.get('Upgrade') !== 'websocket') {
+            return new Response('Expected WebSocket upgrade', { status: 426 });
+        }
+
+        const pair = new WebSocketPair();
+        const [client, server] = Object.values(pair);
+        server.serializeAttachment({ peerId: null });
+        this.state.acceptWebSocket(server);
+        return new Response(null, { status: 101, webSocket: client });
+    }
+
+    webSocketMessage(webSocket, message) {
+        try {
+            const data = JSON.parse(message);
+            if (data.type === 'REGISTER_SOCKET' && typeof data.peerId === 'string') {
+                for (const socket of this.state.getWebSockets()) {
+                    if (socket !== webSocket && socket.deserializeAttachment()?.peerId === data.peerId) {
+                        socket.close(1000, 'Replaced by a newer connection');
+                    }
+                }
+                webSocket.serializeAttachment({ peerId: data.peerId });
+                webSocket.send(JSON.stringify({ type: 'SOCKET_REGISTERED', peerId: data.peerId }));
+                return;
+            }
+
+            if (!data.targetPeerId) return;
+            const targetSocket = this.state.getWebSockets().find(socket => {
+                return socket.deserializeAttachment()?.peerId === data.targetPeerId;
+            });
+            if (targetSocket) {
+                targetSocket.send(JSON.stringify(data));
+            } else {
+                webSocket.send(JSON.stringify({
+                    type: 'PEER_OFFLINE_FALLBACK',
+                    targetPeerId: data.targetPeerId,
+                    originalMessageType: data.type
+                }));
+            }
+        } catch (error) {
+            webSocket.send(JSON.stringify({ type: 'SIGNALING_ERROR', message: 'Invalid signaling payload' }));
+        }
+    }
+
+    webSocketClose() {}
+
+    webSocketError() {}
 }

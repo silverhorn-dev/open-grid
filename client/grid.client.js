@@ -7,7 +7,8 @@ function renderDiscoveryGrid() {
     const container = document.getElementById('grid-container');
     if (!container) return;
 
-    const visiblePeers = state.peers.filter(peer => !isPeerBlocked(peer.id));
+    const hiddenList = JSON.parse(localStorage.getItem('hiddenByPeers') || '[]');
+    const visiblePeers = state.peers.filter(peer => !isPeerBlocked(peer.id) && !hiddenList.includes(peer.id));
     container.innerHTML = '';
     document.getElementById('grid-peer-count').textContent = `${visiblePeers.length} ${visiblePeers.length === 1 ? 'peer' : 'peers'}`;
     renderActivePeerList();

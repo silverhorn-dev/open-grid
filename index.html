@@ -263,6 +263,16 @@
                         Regenerate Keypair
                     </button>
                 </div>
+
+                <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3 md:col-span-2">
+                    <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-user-slash text-red-400"></i> Blockierte Peers
+                    </h3>
+                    <p class="text-xs text-slate-400">Hier kannst du blockierte Verbindungen verwalten und wieder freigeben.</p>
+                    <div id="blocked-peers-list" class="space-y-2 mt-2 max-h-40 overflow-y-auto">
+                        <div class="text-xs text-slate-500 italic">Keine Peers blockiert.</div>
+                    </div>
+                </div>
             </div>
         </section>
 
@@ -742,6 +752,7 @@
             }
             await loadChatPeerIds();
             renderDiscoveryGrid();
+            if (typeof renderBlockedPeers === 'function') renderBlockedPeers();
             if (state.activeChatPeerId) {
                 updateChatActionButtons();
                 renderChatHistory();
@@ -881,6 +892,16 @@
             } else if (localOperation.type === 'CHAT_WIPE') {
                 if (localOperation.actorId !== peerId) return false;
                 await storeChatControl(peerId, 'DELETE_CHAT');
+
+                if (localOperation.hidePeer) {
+                    const hidden = JSON.parse(localStorage.getItem('hiddenByPeers') || '[]');
+                    if (!hidden.includes(peerId)) {
+                        hidden.push(peerId);
+                        localStorage.setItem('hiddenByPeers', JSON.stringify(hidden));
+                    }
+                    renderDiscoveryGrid();
+                }
+
                 if (state.activeChatPeerId === peerId) {
                     state.activeChatPeerId = null;
                     document.getElementById('chat-peer-name').textContent = 'No Peer Selected';
@@ -889,6 +910,13 @@
                     updateChatActionButtons();
                 }
                 showToast('Ein Chat-Partner hat den Chat-Verlauf geloescht.', 'info');
+                return true; // Return true, damit der Wipe nicht als endloser Sync gespeichert wird
+            } else if (localOperation.type === 'PEER_UNHIDE') {
+                if (localOperation.actorId !== peerId) return false;
+                const hidden = JSON.parse(localStorage.getItem('hiddenByPeers') || '[]');
+                const updated = hidden.filter(id => id !== peerId);
+                localStorage.setItem('hiddenByPeers', JSON.stringify(updated));
+                renderDiscoveryGrid();
                 return true; // Return true, um den Wipe nicht als dauerhafte Sync-Operation in die DB zu legen
             } else {
                 return false;
@@ -1231,6 +1259,16 @@
                     );
                     if (!response.ok) throw new Error(`Chat control API returned ${response.status}.`);
                     await refreshChatControls();
+
+                    // UNHIDE senden, damit du beim Peer wieder im Grid auftauchst
+                    const operation = {
+                        operationId: `unhide:${window.crypto.randomUUID()}`,
+                        type: 'PEER_UNHIDE',
+                        actorId: state.myProfile.id,
+                        createdAt: Date.now()
+                    };
+                    sendSecurePayload(peerId, { type: 'CHAT_OPERATION', operation }).catch(() => {});
+
                     initiateP2PConnection(peerId).catch(() => {});
                     showToast('Peer wurde entblockt.', 'success');
                 } else {
@@ -1447,6 +1485,43 @@
             button.className = CONFIG.DEBUG_MODE
                 ? 'flex items-center gap-1.5 bg-amber-950/60 hover:bg-amber-900/70 border border-amber-700 text-amber-200 px-2.5 py-1 rounded-lg transition'
                 : 'flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-2.5 py-1 rounded-lg transition';
+        }
+
+        function renderBlockedPeers() {
+            const container = document.getElementById('blocked-peers-list');
+            if (!container) return;
+            container.innerHTML = '';
+            const blockedIds = Object.values(state.chatControls).filter(c => c.blockedAt).map(c => c.peerId);
+
+            if (blockedIds.length === 0) {
+                container.innerHTML = '<div class="text-xs text-slate-500 italic">Keine Peers blockiert.</div>';
+                return;
+            }
+            blockedIds.forEach(peerId => {
+                const peer = getPeerPresentation(peerId);
+                const row = document.createElement('div');
+                row.className = 'flex items-center justify-between bg-slate-950 p-2 rounded border border-slate-800';
+                const nameDiv = document.createElement('div');
+                nameDiv.className = 'text-xs text-slate-300 font-semibold truncate';
+                nameDiv.textContent = peer.name || peerId;
+                const unblockBtn = document.createElement('button');
+                unblockBtn.className = 'text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded transition';
+                unblockBtn.textContent = 'Entblocken';
+                unblockBtn.onclick = () => unblockPeerFromSettings(peerId);
+                row.append(nameDiv, unblockBtn);
+                container.appendChild(row);
+            });
+        }
+
+        async function unblockPeerFromSettings(peerId) {
+            try {
+                const response = await fetch(`${API_BASE}/api/chat-controls/${encodeURIComponent(state.myProfile.id)}/${encodeURIComponent(peerId)}/block`, { method: 'DELETE' });
+                if (!response.ok) throw new Error(`API returned ${response.status}.`);
+                await refreshChatControls();
+                const operation = { operationId: `unhide:${window.crypto.randomUUID()}`, type: 'PEER_UNHIDE', actorId: state.myProfile.id, createdAt: Date.now() };
+                sendSecurePayload(peerId, { type: 'CHAT_OPERATION', operation }).catch(()=>{});
+                showToast('Peer wurde entblockt.', 'success');
+            } catch (error) { showToast(`Fehler: ${error.message}`, 'error'); }
         }
 
         function toggleDebugMode() {

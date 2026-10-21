@@ -54,6 +54,10 @@ export default {
                     return new Response(JSON.stringify({ error: 'Invalid payload' }), { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
                 }
 
+                // A peer may move between cells or re-register after reconnecting.
+                // Remove its previous entry first so one identity has one registration.
+                removePeerFromGrid(peerId);
+
                 if (!spatialGrid.has(geohash)) {
                     spatialGrid.set(geohash, new Map());
                 }
@@ -72,6 +76,25 @@ export default {
                 });
             } catch (err) {
                 return new Response(JSON.stringify({ error: 'Malformed JSON' }), { status: 400, headers: corsHeaders });
+            }
+        }
+
+        if ((path === '/api/register' && request.method === 'DELETE') || (path === '/api/unregister' && request.method === 'POST')) {
+            try {
+                const peerId = path === '/api/register'
+                    ? url.searchParams.get('peerId')
+                    : (await request.json()).peerId;
+
+                if (!peerId || typeof peerId !== 'string') {
+                    return new Response(JSON.stringify({ error: 'Missing peerId' }), { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+                }
+
+                const removed = removePeerFromGrid(peerId, url.searchParams.get('geohash'));
+                return new Response(JSON.stringify({ status: 'unregistered', peerId, removed }), {
+                    headers: { 'Content-Type': 'application/json', ...corsHeaders }
+                });
+            } catch (err) {
+                return new Response(JSON.stringify({ error: 'Malformed JSON' }), { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
             }
         }
 
@@ -193,6 +216,19 @@ export default {
         });
     }
 };
+
+function removePeerFromGrid(peerId, geohash = null) {
+    let removed = 0;
+    const cells = geohash ? [[geohash, spatialGrid.get(geohash)]] : spatialGrid.entries();
+
+    for (const [cellGeohash, cellMap] of cells) {
+        if (!cellMap || !cellMap.delete(peerId)) continue;
+        removed += 1;
+        if (cellMap.size === 0) spatialGrid.delete(cellGeohash);
+    }
+
+    return removed;
+}
 
 function handleWebSocketSession(webSocket, url) {
     webSocket.accept();

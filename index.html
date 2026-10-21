@@ -264,7 +264,7 @@
         ];
 
         const state = {
-            nodeId: 'node_' + Math.floor(100000 + Math.random() * 900000),
+            nodeId: getOrCreateNodeId(),
             myProfile: {
                 id: null,
                 geohash: CONFIG.DEFAULT_GEOHASH,
@@ -285,6 +285,16 @@
         const API_BASE = window.location.origin;
         const WS_PROTOCOL = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const WS_URL = `${WS_PROTOCOL}//${window.location.host}/ws`;
+
+        function getOrCreateNodeId() {
+            const storageKey = 'opengrid-node-id';
+            const storedId = window.sessionStorage.getItem(storageKey);
+            if (storedId) return storedId;
+
+            const nodeId = 'node_' + Math.floor(100000 + Math.random() * 900000);
+            window.sessionStorage.setItem(storageKey, nodeId);
+            return nodeId;
+        }
 
         // ================= INDEXEDDB =================
         function initDatabase() {
@@ -441,7 +451,11 @@
 
         // Automatische Abmeldung beim Schließen der Tab/Browser-Session
         window.addEventListener('beforeunload', () => {
-            navigator.sendBeacon(`${API_BASE}/api/register?peerId=${state.myProfile.id}&geohash=${state.myProfile.geohash}`);
+            const payload = new Blob(
+                [JSON.stringify({ peerId: state.myProfile.id })],
+                { type: 'application/json' }
+            );
+            navigator.sendBeacon(`${API_BASE}/api/unregister`, payload);
         });
 
         // ================= MODAL & CHAT =================

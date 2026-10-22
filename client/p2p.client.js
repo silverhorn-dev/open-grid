@@ -404,15 +404,24 @@ async function handleIncomingProfileResponse(peerId, signedEnvelopeOrProfile) {
     if (!signedEnvelopeOrProfile) return;
     if (signedEnvelopeOrProfile.signature && signedEnvelopeOrProfile.payload) {
         const identity = await getPeerIdentity(peerId);
-        const isValid = await verifySignedProfile(
+        const verdict = await verifySignedProfile(
             signedEnvelopeOrProfile,
             peerId,
             identity?.profileSigningKey
         );
-        if (!isValid) return;
+        // Auf dem direkten Weg geht dem Profil immer ein KEY_HELLO voraus, der
+        // den Signaturschluessel pinnt. Ein ungepinnter Schluessel waere hier
+        // also ein Protokollfehler und wird nicht akzeptiert.
+        if (verdict !== 'trusted') {
+            if (verdict === 'unpinned') {
+                logDebug(`Direktes Profil von ${peerId} ohne gepinnten Signaturschluessel verworfen.`);
+            }
+            return;
+        }
         profile = {
             ...signedEnvelopeOrProfile.payload,
-            signedEnvelope: signedEnvelopeOrProfile
+            signedEnvelope: signedEnvelopeOrProfile,
+            trustLevel: 'trusted'
         };
     } else if (signedEnvelopeOrProfile.fields) {
         profile = signedEnvelopeOrProfile; // Legacy Profil ohne Signatur
@@ -512,14 +521,23 @@ async function handleSecurePayload(peerId, payload) {
     } else if (payload.type === 'SWARM_PROFILE_RESPONSE') {
         const {targetNodeId, signedEnvelope} = payload;
         const identity = await getPeerIdentity(targetNodeId);
-        if (!(await verifySignedProfile(signedEnvelope, targetNodeId, identity?.profileSigningKey))) {
-            logDebug(`Gefaelschtes Schwarm-Profil von ${peerId} verworfen.`);
+        const verdict = await verifySignedProfile(signedEnvelope, targetNodeId, identity?.profileSigningKey);
+        if (!verdict) {
+            logDebug(`Gefaelschtes Schwarm-Profil fuer ${targetNodeId} von ${peerId} verworfen.`);
             return;
         }
-        logDebug(`Gueltiges Schwarm-Profil fuer ${targetNodeId} von ${peerId} erhalten!`);
+        if (verdict === 'unpinned') {
+            logDebug(`Schwarm-Profil fuer ${targetNodeId} von ${peerId} erhalten (Signatur gueltig, `
+                + 'Schluessel noch unbestaetigt - wird erst bei direkter Verbindung gepinnt).');
+        } else {
+            logDebug(`Gueltiges Schwarm-Profil fuer ${targetNodeId} von ${peerId} erhalten!`);
+        }
         const profile = {
             ...signedEnvelope.payload,
-            signedEnvelope
+            signedEnvelope,
+            // Ueber Dritte bezogene Profile sind nicht endgueltig bestaetigt.
+            // Das Flag erlaubt der UI, sie entsprechend zu kennzeichnen.
+            trustLevel: verdict
         };
         const acceptedProfile = await cachePeerProfile(targetNodeId, profile);
         if (state.activeModalPeerId === targetNodeId && typeof renderProfileModalData === 'function') {

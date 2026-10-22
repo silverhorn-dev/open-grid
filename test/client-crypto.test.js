@@ -38,8 +38,14 @@ test('verifies a profile only for its expected owner and pinned signing key', as
         gallery: []
     }, keyPair.privateKey, publicKey);
 
-    assert.equal(await verifySignedProfile(envelope, 'peer-a', publicKey), true);
+    // Gepinnter Schluessel -> voll vertrauenswuerdig.
+    assert.equal(await verifySignedProfile(envelope, 'peer-a', publicKey), 'trusted');
     assert.equal(await verifySignedProfile(envelope, 'peer-b', publicKey), false);
+
+    // Ohne gepinnten Schluessel (Swarm) bleibt die Signatur pruefbar, der
+    // Schluessel aber unbestaetigt. Das darf nicht als Faelschung gelten.
+    assert.equal(await verifySignedProfile(envelope, 'peer-a', undefined), 'unpinned');
+    assert.equal(await verifySignedProfile(envelope, 'peer-b', undefined), false);
 
     const otherKeyPair = await webcrypto.subtle.generateKey(
         { name: 'ECDSA', namedCurve: 'P-256' },
@@ -49,4 +55,8 @@ test('verifies a profile only for its expected owner and pinned signing key', as
     const otherPublicKey = await webcrypto.subtle.exportKey('jwk', otherKeyPair.publicKey);
     assert.equal(await verifySignedProfile(envelope, 'peer-a', otherPublicKey), false);
     assert.equal(await verifySignedProfile({}, 'peer-a', publicKey), false);
+
+    // Manipulierter Inhalt muss auch ohne Pinning scheitern.
+    const tampered = { ...envelope, payload: { ...envelope.payload, fields: { displayName: 'Mallory' } } };
+    assert.equal(await verifySignedProfile(tampered, 'peer-a', undefined), false);
 });

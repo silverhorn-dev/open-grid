@@ -85,10 +85,23 @@ Erreichbarkeit.
 Avatar, Profilfelder, `version` und `updatedAt`.
 
 Der bei einem direkten `KEY_HELLO` gelernte ECDSA-Schluessel wird zusammen mit
-der Peer-ID lokal gepinnt. Signierte Profile werden nur akzeptiert, wenn
-Besitzer-ID und Schluessel diesem Pin entsprechen. Deshalb kann der
-Swarm-Fallback nur Profile bereits direkt bekannter Peers liefern; unbekannte
-Swarm-Identitaeten werden bewusst nicht per TOFU ueber Dritte vertraut.
+der Peer-ID lokal gepinnt. Die Profilpruefung unterscheidet drei Ergebnisse:
+
+| Ergebnis | Bedeutung |
+|---|---|
+| `trusted` | Signatur gueltig, Schluessel entspricht dem gepinnten Pin |
+| `unpinned` | Signatur gueltig, Schluessel noch nicht direkt bestaetigt |
+| `false` | Umschlag unvollstaendig, Besitzer-ID falsch, Schluessel abweichend oder Signatur ungueltig |
+
+Direkt empfangene Profile muessen `trusted` sein. Der Swarm-Fallback akzeptiert
+zusaetzlich `unpinned`, da ein ueber Dritte bezogenes Profil zwangslaeufig noch
+keinen Pin besitzt. Ein solcher Schluessel wird **nicht** gepinnt: er gilt nur
+als Anzeigewert, bis eine direkte Verbindung ihn bestaetigt. Existiert bereits
+ein Pin, ist dieser bindend - ein abweichender Schluessel gilt als Faelschung.
+
+Damit die spaetere direkte Verbindung ein zuvor per Swarm gecachtes Profil auch
+bei identischer Version ersetzen kann, laesst `cachePeerProfile` den Uebergang
+von `unpinned` nach `trusted` als Sonderfall zu.
 
 IndexedDB Version 7 enthaelt:
 

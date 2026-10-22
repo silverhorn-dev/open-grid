@@ -41,19 +41,38 @@ function publicJwksMatch(left, right) {
         && left.y === right.y;
 }
 
+/**
+ * Prueft die Signatur eines Profilumschlags.
+ *
+ * Rueckgabe:
+ *   'trusted'  - Signatur gueltig und Schluessel entspricht dem gepinnten Key
+ *   'unpinned' - Signatur gueltig, es existiert aber noch kein gepinnter Key
+ *   false      - Umschlag unvollstaendig, Owner falsch, Key abweichend oder
+ *                Signatur ungueltig
+ *
+ * 'unpinned' tritt im Swarm auf, wenn ein Profil ueber einen Dritten kommt und
+ * noch nie ein direkter KEY_HELLO stattgefunden hat. Der Umschlag ist dann
+ * kryptografisch intakt, aber der Schluessel selbst ist unbestaetigt und darf
+ * nicht als vertrauenswuerdig gepinnt werden.
+ */
 async function verifySignedProfile(signedEnvelope, expectedOwnerId, expectedPublicKey) {
     try {
         if (!signedEnvelope?.payload || !signedEnvelope.signature || !signedEnvelope.publicKey) return false;
         const {payload, publicKey, signature} = signedEnvelope;
-        if (payload.ownerId !== expectedOwnerId || !publicJwksMatch(publicKey, expectedPublicKey)) return false;
+        if (payload.ownerId !== expectedOwnerId) return false;
+        // Ein bereits gepinnter Schluessel ist bindend: weicht er ab, ist das ein
+        // Austauschversuch und nicht bloss ein fehlendes Pinning.
+        if (expectedPublicKey && !publicJwksMatch(publicKey, expectedPublicKey)) return false;
         const importedPubKey = await window.crypto.subtle.importKey('jwk', publicKey, {
             name: 'ECDSA',
             namedCurve: 'P-256'
         }, false, ['verify']);
-        return await window.crypto.subtle.verify({
+        const valid = await window.crypto.subtle.verify({
             name: 'ECDSA',
             hash: {name: 'SHA-256'}
         }, importedPubKey, base64ToBytes(signature), new TextEncoder().encode(JSON.stringify(payload)));
+        if (!valid) return false;
+        return expectedPublicKey ? 'trusted' : 'unpinned';
     } catch (e) {
         if (typeof logDebug !== 'undefined') logDebug(`Profile signature verification failed: ${e.message}`);
         return false;

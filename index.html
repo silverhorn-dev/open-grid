@@ -731,9 +731,16 @@
 
         async function cachePeerProfile(peerId, profile) {
             const current = state.cachedProfiles[peerId];
-            // Aktualisiere, wenn die Version höher ist ODER bei gleicher Version der Zeitstempel neuer ist (z.B. Avatar-Update)
-            if (current && (current.version || 0) > (profile.version || 0)) return current;
-            if (current && (current.version || 0) === (profile.version || 0) && (current.updatedAt || 0) >= (profile.updatedAt || 0)) return current;
+            // Ein ueber den Swarm bezogenes Profil ist zwar signiert, sein
+            // Schluessel aber unbestaetigt. Trifft spaeter dasselbe Profil
+            // direkt und gepinnt ein, muss es den Eintrag auch bei gleicher
+            // Version und gleichem Zeitstempel ersetzen duerfen.
+            const isTrustUpgrade = current?.trustLevel === 'unpinned' && profile.trustLevel === 'trusted';
+            if (!isTrustUpgrade) {
+                // Aktualisiere, wenn die Version höher ist ODER bei gleicher Version der Zeitstempel neuer ist (z.B. Avatar-Update)
+                if (current && (current.version || 0) > (profile.version || 0)) return current;
+                if (current && (current.version || 0) === (profile.version || 0) && (current.updatedAt || 0) >= (profile.updatedAt || 0)) return current;
+            }
 
             if (state.storageKey) {
                 const encrypted = await encryptStoredProfile(profile);

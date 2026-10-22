@@ -5,13 +5,15 @@ services:
     restart: unless-stopped
     networks:
       - service_net
+    env_file:
+      - turn/.env
     environment:
       BUILD_VERSION: ${BUILD_VERSION:-self-hosted}
       BUILD_TIMESTAMP: ${BUILD_TIMESTAMP:-}
       DATABASE_PATH: /app/data/open-grid.sqlite
       # TURN-Server Konfiguration
       TURN_SERVER: turn.og.silverhorn.dev
-      TURN_SECRET: ${TURN_SECRET:?TURN_SECRET must be set}
+      TURN_SECRET: ${TURN_SECRET:-}
       PORT: 3000
     ports:
       - "${OPEN_GRID_PORT:-3000}:3000"

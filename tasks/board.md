@@ -30,7 +30,18 @@
 - [ ] better performance
   - [ ] er checkt sehr lange die verbindung, man sollte schneller offline sein.
   - [ ] es sollte einen silent modus geben wo man zwar im router ist und zum chat verfügbar ist aber nicht im grid ist
-  - [ ] 
+  - [ ] GEO
+	  - [ ] die geolocation sollte beim registrieren an den router übergeben werden
+		  - Der Router darf die geolocation niemals weitergeben
+	  - geolocation != echte location
+		  - am client wird zwar eine adresse angegeben, aber an den server werden die KOOrdinaten dieser gemeldet, damit dieser rechnen kann.
+		  - mann hat im profil die möglichkeit eine echte adresse einzugeben
+			  - validierung mit google oder einer open api
+			  - optional sichtbarkeit
+		  - der router gibt die profile mit der entfernung zur eigenen loc zurück
+			  - heißt, man sieht die ungefähre entfernung
+		  - ist das ne gute idee, oder sollte man die aktuelle genaue pos übergeben
+			    sollte man einstellen können!
 
 # Chat
 - [x] functional chat
@@ -50,6 +61,7 @@
 ## Snapping 
 - [ ] enable it
   - [ ] use camera
+	  - [ ] hier funkt die kameraanbindung nicht so gut
   - [ ] better gui
   - [ ] angelehnt an die snapchat GUI
 
@@ -87,4 +99,4 @@
 - [x] Web Push via VAPID, sender ciphertext travels inside the push
 - [x] service worker stores message in IndexedDB + ACKs the queue
 - [x] notification click opens the chat
-- [ ] test on real devices (Android Chrome, Firefox, iOS PWA)
+- [x] test on real devices (Android Chrome, Firefox, iOS PWA)

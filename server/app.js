@@ -113,14 +113,30 @@ export async function buildApp(options = {}) {
 
         // Temporaere Credentials (Gueltig fuer 24 Stunden)
         const unixTimeStamp = Math.floor(Date.now() / 1000) + 24 * 3600;
-        const username = `${unixTimeStamp}:${request.ip || 'guest'}`;
+        // Der Namensteil darf keine Doppelpunkte enthalten, sonst ist das
+        // coturn-Schema "<ablaufzeit>:<name>" nicht mehr eindeutig zerlegbar
+        // (IPv6-Adressen aus request.ip enthalten welche).
+        const identity = String(request.ip || 'guest').replace(/:/g, '-');
+        const username = `${unixTimeStamp}:${identity}`;
         const password = crypto.createHmac('sha1', turnSecret).update(username).digest('base64');
+
+        // Ohne expliziten transport-Parameter nutzt der Browser laut RFC 7065
+        // ausschliesslich UDP. In Netzen, die UDP blockieren, gaebe es dann
+        // keinen nutzbaren Relay-Pfad, deshalb die TCP-Variante.
+        const turnPort = process.env.TURN_PORT || '3478';
+        const turnUrls = [
+            `turn:${turnServer}:${turnPort}?transport=udp`,
+            `turn:${turnServer}:${turnPort}?transport=tcp`
+        ];
+        if (process.env.TURN_TLS_PORT) {
+            turnUrls.push(`turns:${turnServer}:${process.env.TURN_TLS_PORT}?transport=tcp`);
+        }
 
         return {
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
                 {
-                    urls: [`turn:${turnServer}:3478`, `turn:${turnServer}:443`],
+                    urls: turnUrls,
                     username: username,
                     credential: password
                 }

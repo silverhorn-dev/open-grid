@@ -48,6 +48,25 @@ liegt im benannten Volume `open-grid-data` unter `/app/data`.
 | `BUILD_VERSION` | `self-hosted` | Im UI angezeigte Build-Version |
 | `BUILD_TIMESTAMP` | Startzeit | Im UI angezeigter Build-Zeitpunkt |
 | `PROFILE_SCHEMA` | eingebautes Schema | Optionales JSON-Array fuer Profilfelder |
+| `TURN_SERVER` | `turn.deine-domain.de` | Hostname des coturn-Servers |
+| `TURN_SECRET` | – | Muss exakt dem `static-auth-secret` des coturn entsprechen |
+| `TURN_PORT` | `3478` | Port fuer die UDP- und TCP-Relays |
+| `TURN_TLS_PORT` | – | Optional, aktiviert zusaetzlich eine `turns:`-URL |
+
+Ohne gesetztes `TURN_SECRET` liefert `/api/ice-config` nur einen STUN-Server,
+es entstehen also keine Relay-Kandidaten. Stimmt das Secret nicht mit dem
+`static-auth-secret` des coturn ueberein, antwortet der TURN-Server mit `401`
+und die Verbindung faellt ebenfalls auf STUN zurueck.
+
+TURN laesst sich unabhaengig vom Browser pruefen:
+
+```powershell
+npm.cmd run turn:check -- turn.example.org 3478 <secret>
+```
+
+Das Skript fuehrt einen echten Allocate-Request ueber UDP und TCP aus und meldet
+die zugeteilte Relay-Adresse, einen Credential-Fehler (`401`/`403`) oder einen
+blockierten Transport (Timeout).
 
 Der Reverse Proxy muss `/ws` mit WebSocket-Upgrade weiterleiten. Alle anderen
 Pfade werden als normales HTTP an denselben Container geleitet. Der Container

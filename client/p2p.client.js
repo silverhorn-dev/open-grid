@@ -34,9 +34,22 @@ function getOrCreatePeerConnection(peerId) {
     const connection = new RTCPeerConnection(rtcConfig);
     state.webrtcConnections[peerId] = connection;
     state.pendingIceCandidates[peerId] = state.pendingIceCandidates[peerId] || [];
+    const seenCandidateTypes = new Set();
 
     connection.onicecandidate = (event) => {
-        if (!event.candidate) return;
+        if (!event.candidate) {
+            const summary = seenCandidateTypes.size ? [...seenCandidateTypes].join(', ') : 'keine';
+            logDebug(`ICE-Sammlung fuer ${peerId} beendet. Kandidatentypen: ${summary}`);
+            if (!seenCandidateTypes.has('relay')) {
+                logDebug(`WARNUNG: Kein relay-Kandidat fuer ${peerId}. TURN liefert keine Allocation.`);
+            }
+            return;
+        }
+        const candidateType = event.candidate.type || 'unknown';
+        if (!seenCandidateTypes.has(candidateType)) {
+            seenCandidateTypes.add(candidateType);
+            logDebug(`ICE-Kandidat (${candidateType}/${event.candidate.protocol || 'n/a'}) fuer ${peerId}`);
+        }
         try {
             sendSignalingMessage({
                 type: 'ICE_CANDIDATE',
@@ -47,6 +60,10 @@ function getOrCreatePeerConnection(peerId) {
         } catch (error) {
             logDebug(`Could not send ICE candidate: ${error.message}`);
         }
+    };
+
+    connection.oniceconnectionstatechange = () => {
+        logDebug(`ICE state fuer ${peerId}: ${connection.iceConnectionState}`);
     };
 
     connection.ondatachannel = (event) => setupDataChannel(peerId, event.channel);
@@ -65,6 +82,7 @@ function getOrCreatePeerConnection(peerId) {
             );
         } else if (status === 'failed') {
             updateChatConnectionStatus(peerId, 'Disconnected', 'bg-red-500/10 text-red-400 border-red-500/30');
+            reportConnectionFailure(peerId, connection, seenCandidateTypes);
             recoverPeerConnection(peerId, connection);
         } else if (status === 'disconnected') {
             updateChatConnectionStatus(peerId, 'Reconnecting...', 'bg-amber-500/10 text-amber-400 border-amber-500/30');
@@ -77,6 +95,28 @@ function getOrCreatePeerConnection(peerId) {
         }
     };
     return connection;
+}
+
+async function reportConnectionFailure(peerId, connection, seenCandidateTypes) {
+    const local = new Set();
+    const remote = new Set();
+    try {
+        const stats = await connection.getStats();
+        stats.forEach(report => {
+            if (report.type === 'local-candidate') local.add(report.candidateType);
+            if (report.type === 'remote-candidate') remote.add(report.candidateType);
+        });
+    } catch (error) {
+        logDebug(`Konnte ICE-Statistiken fuer ${peerId} nicht lesen: ${error.message}`);
+    }
+    const localTypes = local.size ? [...local].join(', ') : [...seenCandidateTypes].join(', ') || 'keine';
+    const remoteTypes = remote.size ? [...remote].join(', ') : 'keine';
+    logDebug(`Verbindung zu ${peerId} fehlgeschlagen. Lokale Kandidaten: ${localTypes} | Gegenstelle: ${remoteTypes}`);
+    if (!local.has('relay')) {
+        logDebug('Ursache: Es wurde lokal kein TURN-Relay-Kandidat erzeugt (TURN nicht erreichbar oder Credentials abgelehnt).');
+    } else if (!remote.has('relay') && !remote.size) {
+        logDebug('Ursache: Die Gegenstelle hat keine Kandidaten geliefert (Signaling erreicht den Peer nicht).');
+    }
 }
 
 function cleanupPeerConnection(peerId, connection) {

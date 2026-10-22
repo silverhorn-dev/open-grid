@@ -69,6 +69,32 @@ afterEach(async () => {
     store.close();
 });
 
+test('offers a TCP TURN transport so UDP-blocked networks can relay', async () => {
+    const previousSecret = process.env.TURN_SECRET;
+    const previousServer = process.env.TURN_SERVER;
+    process.env.TURN_SECRET = 'a'.repeat(40);
+    process.env.TURN_SERVER = 'turn.example.test';
+    try {
+        const response = await app.inject({ method: 'GET', url: '/api/ice-config' });
+        assert.equal(response.statusCode, 200);
+        const turn = response.json().iceServers.find(server => Array.isArray(server.urls));
+        assert.ok(turn, 'expected a TURN entry with multiple urls');
+
+        // Ohne transport=tcp gibt es in UDP-blockierten Netzen keinen Relay-Pfad.
+        assert.ok(turn.urls.some(url => url.endsWith('?transport=tcp')));
+        assert.ok(turn.urls.some(url => url.endsWith('?transport=udp')));
+        // Jede URL muss den Transport explizit benennen (RFC 7065 default waere UDP).
+        assert.ok(turn.urls.every(url => url.includes('?transport=')));
+        // Der coturn-Name darf nach der Ablaufzeit keinen weiteren Doppelpunkt enthalten.
+        assert.equal(turn.username.split(':').length, 2);
+    } finally {
+        if (previousSecret === undefined) delete process.env.TURN_SECRET;
+        else process.env.TURN_SECRET = previousSecret;
+        if (previousServer === undefined) delete process.env.TURN_SERVER;
+        else process.env.TURN_SERVER = previousServer;
+    }
+});
+
 test('serves the app shell and all client modules', async () => {
     const indexResponse = await app.inject({ method: 'GET', url: '/' });
     assert.equal(indexResponse.statusCode, 200);

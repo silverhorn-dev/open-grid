@@ -262,6 +262,12 @@
                     </h3>
                     <div class="flex items-center gap-2">
                         <span class="text-[10px] text-slate-500 bg-slate-950 px-2 py-1 rounded border border-slate-800">Build: {{timestamp}}</span>
+                        <button onclick="copyDebugLogs()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded flex items-center gap-1.5" title="Vollstaendiges Protokoll in die Zwischenablage kopieren">
+                            <i class="fa-solid fa-copy text-sky-400"></i> Copy Logs
+                        </button>
+                        <button onclick="runConnectivityDiagnostics()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded flex items-center gap-1.5" title="STUN/TURN-Erreichbarkeit pruefen">
+                            <i class="fa-solid fa-stethoscope text-emerald-400"></i> Test ICE
+                        </button>
                         <button onclick="clearDebugLogs()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded">Clear Logs</button>
                     </div>
                 </div>
@@ -425,6 +431,7 @@
             chatPeerIds: [],
             chatControls: {},
             pendingImageRequests: {},
+            debugLogBuffer: [],
             mediaStream: null
         };
 
@@ -1399,11 +1406,15 @@
                 if (state.activeModalPeerId !== peerId) return;
                 const container = document.getElementById('modal-rendered-fields');
                 if (container && container.innerHTML.includes('Connecting securely')) {
-                    logDebug(`Peer ${peerId} antwortet nicht direkt, starte Swarm-Suche...`);
-                    const activePeers = Object.keys(state.dataChannels).filter(id => state.dataChannels[id].readyState === 'open');
-                    activePeers.forEach(swarmPeerId => {
-                        sendSecurePayload(swarmPeerId, { type: 'SWARM_PROFILE_REQUEST', targetNodeId: peerId }).catch(()=>{});
-                    });
+                   const activePeers = Object.keys(state.dataChannels).filter(id => state.dataChannels[id].readyState === 'open');
+                   if (!activePeers.length) {
+                       logDebug(`Peer ${peerId} antwortet nicht und es gibt keinen offenen Kanal fuer eine Swarm-Suche.`);
+                       return;
+                   }
+                   logDebug(`Peer ${peerId} antwortet nicht direkt, starte Swarm-Suche ueber ${activePeers.length} Peer(s)...`);
+                   activePeers.forEach(swarmPeerId => {
+                       sendSecurePayload(swarmPeerId, { type: 'SWARM_PROFILE_REQUEST', targetNodeId: peerId }).catch(()=>{});
+                   });
                 }
             }, 800);
 
@@ -1819,8 +1830,102 @@
         }
 
         function clearDebugLogs() {
+            state.debugLogBuffer = [];
             const output = document.getElementById('debug-log-output');
             if (output) output.innerHTML = '<div>[System] Log cleared.</div>';
+        }
+
+        function buildDebugLogReport() {
+            const header = [
+                `OpenGrid Debug Log`,
+                `Exported: ${new Date().toISOString()}`,
+                `Node: ${state.myProfile.id || state.nodeId}`,
+                `Geohash: ${state.myProfile.geohash}`,
+                `UserAgent: ${navigator.userAgent}`,
+                `Signaling: ${describeSocketState()}`,
+                `ICE servers: ${summarizeIceServers()}`,
+                '---'
+            ];
+            return header.concat(state.debugLogBuffer).join('\n');
+        }
+
+        function describeSocketState() {
+            const states = { 0: 'connecting', 1: 'open', 2: 'closing', 3: 'closed' };
+            return state.ws ? (states[state.ws.readyState] || 'unknown') : 'not initialized';
+        }
+
+        function summarizeIceServers() {
+            const servers = (typeof rtcConfig !== 'undefined' && rtcConfig.iceServers) || [];
+            const urls = servers.flatMap(server => Array.isArray(server.urls) ? server.urls : [server.urls]);
+            return urls.length ? urls.join(', ') : 'none';
+        }
+
+        async function copyDebugLogs() {
+            const report = buildDebugLogReport();
+            try {
+                await navigator.clipboard.writeText(report);
+                showToast('Protokoll in die Zwischenablage kopiert.', 'success');
+            } catch (error) {
+                const textarea = document.createElement('textarea');
+                textarea.value = report;
+                textarea.setAttribute('readonly', '');
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.select();
+                const copied = document.execCommand('copy');
+                textarea.remove();
+                showToast(
+                    copied ? 'Protokoll in die Zwischenablage kopiert.' : 'Kopieren fehlgeschlagen.',
+                    copied ? 'success' : 'error'
+                );
+            }
+        }
+
+        async function runConnectivityDiagnostics() {
+            logDebug('--- ICE-Diagnose gestartet ---');
+            logDebug(`Konfigurierte ICE-Server: ${summarizeIceServers()}`);
+
+            const found = new Set();
+            const probe = new RTCPeerConnection(rtcConfig);
+            try {
+                probe.createDataChannel('diagnostics');
+                probe.onicecandidate = event => {
+                    if (!event.candidate) return;
+                    const type = event.candidate.type || 'unknown';
+                    if (!found.has(type)) {
+                        found.add(type);
+                        logDebug(`ICE-Kandidat verfuegbar: ${type} (${event.candidate.protocol || 'n/a'})`);
+                    }
+                };
+                await probe.setLocalDescription(await probe.createOffer());
+                await new Promise(resolve => {
+                    const timeout = setTimeout(resolve, 8000);
+                    probe.onicegatheringstatechange = () => {
+                        if (probe.iceGatheringState === 'complete') {
+                            clearTimeout(timeout);
+                            resolve();
+                        }
+                    };
+                });
+
+                if (!found.size) {
+                    logDebug('ERGEBNIS: Keine ICE-Kandidaten. Netzwerk blockiert UDP/TCP vollstaendig.');
+                    showToast('Keine ICE-Kandidaten gefunden.', 'error');
+                } else if (!found.has('relay')) {
+                    logDebug(`ERGEBNIS: Keine relay-Kandidaten. TURN liefert keine Allocation (gefunden: ${[...found].join(', ')}).`);
+                    showToast('TURN liefert keine relay-Kandidaten.', 'error');
+                } else {
+                    logDebug(`ERGEBNIS: TURN funktioniert, relay-Kandidaten vorhanden (gefunden: ${[...found].join(', ')}).`);
+                    showToast('TURN liefert relay-Kandidaten.', 'success');
+                }
+            } catch (error) {
+                logDebug(`ICE-Diagnose fehlgeschlagen: ${error.message}`);
+                showToast(`ICE-Diagnose fehlgeschlagen: ${error.message}`, 'error');
+            } finally {
+                probe.close();
+                logDebug('--- ICE-Diagnose beendet ---');
+            }
         }
 
         function updateDebugButtonState() {
@@ -1963,6 +2068,8 @@
         function logDebug(msg) {
             if (!CONFIG.DEBUG_MODE) return;
             console.debug(`[OpenGrid] ${msg}`);
+            state.debugLogBuffer.push(`[${new Date().toISOString()}] ${msg}`);
+            if (state.debugLogBuffer.length > 2000) state.debugLogBuffer.shift();
             const out = document.getElementById('debug-log-output');
             if (out) {
                 const entry = document.createElement('div');

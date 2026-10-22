@@ -230,7 +230,8 @@ function setupDataChannel(peerId, channel) {
         renderActivePeerList();
         channel.send(JSON.stringify({
             type: 'KEY_HELLO',
-            publicKey: state.myKeys.jwkPublic
+            publicKey: state.myKeys.jwkPublic,
+            profileSigningKey: state.myKeys.jwkEcdsaPublic
         }));
     };
     channel.onmessage = (event) => handleDataChannelMessage(peerId, event.data);
@@ -284,8 +285,16 @@ async function initiateP2PConnection(peerId) {
     }
 }
 
-async function deriveSessionKey(peerId, publicJwk) {
-    await persistPeerIdentityKey(peerId, publicJwk);
+async function deriveSessionKey(peerId, publicJwk, profileSigningKey) {
+    if (!profileSigningKey) throw new Error('Peer did not provide a profile signing key.');
+    const knownIdentity = await getPeerIdentity(peerId);
+    if (knownIdentity?.jwkPublic && !publicKeysMatch(knownIdentity.jwkPublic, publicJwk)) {
+        throw new Error('Peer ECDH identity key changed.');
+    }
+    if (knownIdentity?.profileSigningKey && !publicJwksMatch(knownIdentity.profileSigningKey, profileSigningKey)) {
+        throw new Error('Peer profile signing key changed.');
+    }
+    await persistPeerIdentityKey(peerId, publicJwk, profileSigningKey);
     const publicKey = await window.crypto.subtle.importKey(
         'jwk',
         publicJwk,
@@ -346,17 +355,24 @@ async function handleIncomingProfileResponse(peerId, signedEnvelopeOrProfile) {
     let profile;
     if (!signedEnvelopeOrProfile) return;
     if (signedEnvelopeOrProfile.signature && signedEnvelopeOrProfile.payload) {
-        const isValid = await verifySignedProfile(signedEnvelopeOrProfile);
+        const identity = await getPeerIdentity(peerId);
+        const isValid = await verifySignedProfile(
+            signedEnvelopeOrProfile,
+            peerId,
+            identity?.profileSigningKey
+        );
         if (!isValid) return;
-        profile = signedEnvelopeOrProfile.payload;
-        profile.signedEnvelope = signedEnvelopeOrProfile;
+        profile = {
+            ...signedEnvelopeOrProfile.payload,
+            signedEnvelope: signedEnvelopeOrProfile
+        };
     } else if (signedEnvelopeOrProfile.fields) {
         profile = signedEnvelopeOrProfile; // Legacy Profil ohne Signatur
     }
     if (!profile) return;
-    await cachePeerProfile(peerId, profile);
+    const acceptedProfile = await cachePeerProfile(peerId, profile);
     if (state.activeModalPeerId === peerId && typeof renderProfileModalData === 'function') {
-        renderProfileModalData(profile);
+        renderProfileModalData(acceptedProfile);
     }
 }
 
@@ -366,6 +382,16 @@ async function handleIncomingImageRequest(peerId, imageId) {
 }
 
 async function handleIncomingImageResponse(peerId, imageId, version, data) {
+    const requestKey = `${peerId}:${imageId}`;
+    const requestedVersion = state.pendingImageRequests[requestKey];
+    const galleryEntry = state.cachedProfiles[peerId]?.gallery?.find(item => item.id === imageId);
+    if (requestedVersion !== version || galleryEntry?.version !== version) {
+        logDebug(`Rejected unsolicited gallery image ${imageId} from ${peerId}.`);
+        return;
+    }
+    delete state.pendingImageRequests[requestKey];
+    const currentMedia = await loadMedia(imageId);
+    if (currentMedia && currentMedia.version > version) return;
     await cacheMedia(imageId, data, version);
     if (typeof renderModalGalleryImage === 'function') renderModalGalleryImage(imageId, data);
 }
@@ -374,7 +400,7 @@ async function handleDataChannelMessage(peerId, rawMessage) {
     try {
         const message = JSON.parse(rawMessage);
         if (message.type === 'KEY_HELLO') {
-            await deriveSessionKey(peerId, message.publicKey);
+            await deriveSessionKey(peerId, message.publicKey, message.profileSigningKey);
             return;
         }
         if (message.type !== 'SECURE_ENVELOPE' || !state.sessionKeys[peerId]) return;
@@ -437,20 +463,24 @@ async function handleSecurePayload(peerId, payload) {
         }
     } else if (payload.type === 'SWARM_PROFILE_RESPONSE') {
         const {targetNodeId, signedEnvelope} = payload;
-        if (!(await verifySignedProfile(signedEnvelope))) {
+        const identity = await getPeerIdentity(targetNodeId);
+        if (!(await verifySignedProfile(signedEnvelope, targetNodeId, identity?.profileSigningKey))) {
             logDebug(`Gefaelschtes Schwarm-Profil von ${peerId} verworfen.`);
             return;
         }
         logDebug(`Gueltiges Schwarm-Profil fuer ${targetNodeId} von ${peerId} erhalten!`);
-        const profile = signedEnvelope.payload;
-        profile.signedEnvelope = signedEnvelope; // Den Umschlag mit abspeichern, damit wir nun selbst Seed für das Profil sind
-        await cachePeerProfile(targetNodeId, profile);
+        const profile = {
+            ...signedEnvelope.payload,
+            signedEnvelope
+        };
+        const acceptedProfile = await cachePeerProfile(targetNodeId, profile);
         if (state.activeModalPeerId === targetNodeId && typeof renderProfileModalData === 'function') {
-            renderProfileModalData(profile);
+            renderProfileModalData(acceptedProfile);
         }
     } else if (payload.type === 'IMAGE_REQUEST') {
         await handleIncomingImageRequest(peerId, payload.imageId);
     } else if (payload.type === 'IMAGE_RESPONSE') {
+        await handleIncomingImageResponse(peerId, payload.imageId, payload.version, payload.data);
     }
 }
 
@@ -551,7 +581,7 @@ async function sendSecurePayload(peerId, payload, onSent = null) {
     }
 
     state.secureMessageQueues[peerId].push({payload, onSent, cacheQueued: false});
-    logDebug(`P2P/TURN-Kanal für ${peerId} noch nicht bereit. Nachricht in Queue eingereiht, starte Verbindung...`);
+    logDebug(`P2P/TURN-Kanal fï¿½r ${peerId} noch nicht bereit. Nachricht in Queue eingereiht, starte Verbindung...`);
 
     initiateP2PConnection(peerId).catch(error => {
         logDebug(`Could not initiate P2P connection: ${error.message}`);
@@ -603,7 +633,7 @@ async function queuePayloadInCache(peerId, item) {
     );
     const response = await fetch(`${API_BASE}/api/cache`, {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: peerAuthHeaders({'Content-Type': 'application/json'}),
         body: JSON.stringify({
             recipientId: peerId,
             senderId: state.myProfile.id,
@@ -656,8 +686,41 @@ async function fetchQueuedCacheMessages() {
     state.cacheFetchInFlight = true;
     try {
         const response = await fetch(`${API_BASE}/api/cache/${encodeURIComponent(state.myProfile.id)}`, {
-            cache: 'no-store'
+            cache: 'no-store',
+            headers: peerAuthHeaders()
         });
         if (!response.ok) throw new Error(`Cache API returned ${response.status}.`);
-    } catch (error) {}
+        const {messages = []} = await response.json();
+
+        for (const cachedMessage of messages) {
+            try {
+                if (isPeerBlocked(cachedMessage.senderId)) throw new Error('Sender is blocked.');
+                const envelope = JSON.parse(cachedMessage.ciphertextPayload);
+                const trustedSenderKey = await getPeerIdentityKey(cachedMessage.senderId);
+                if (!trustedSenderKey || !publicKeysMatch(trustedSenderKey, envelope.senderPublicKey)) {
+                    throw new Error('Sender identity key does not match the trusted P2P key.');
+                }
+                const decryptionKey = await deriveCacheEncryptionKey(envelope.senderPublicKey);
+                const plaintext = await window.crypto.subtle.decrypt(
+                    {name: 'AES-GCM', iv: base64ToBytes(cachedMessage.ivHex)},
+                    decryptionKey,
+                    base64ToBytes(envelope.ciphertext)
+                );
+                const payload = JSON.parse(new TextDecoder().decode(plaintext));
+                if (payload.type !== 'CHAT_OPERATION') throw new Error('Unsupported cached payload type.');
+                await handleSecurePayload(cachedMessage.senderId, payload);
+                const deleteResponse = await fetch(
+                    `${API_BASE}/api/cache/${encodeURIComponent(cachedMessage.msgId)}`,
+                    {method: 'DELETE', headers: peerAuthHeaders()}
+                );
+                if (!deleteResponse.ok) throw new Error(`Cache delete returned ${deleteResponse.status}.`);
+            } catch (error) {
+                logDebug(`Rejected Path C message ${cachedMessage.msgId}: ${error.message}`);
+            }
+        }
+    } catch (error) {
+        logDebug(`Path C retrieval failed: ${error.message}`);
+    } finally {
+        state.cacheFetchInFlight = false;
+    }
 }

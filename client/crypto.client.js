@@ -33,11 +33,19 @@ async function signProfileData(profileData, privateKey, jwkPublic) {
     };
 }
 
-async function verifySignedProfile(signedEnvelope) {
+function publicJwksMatch(left, right) {
+    return Boolean(left && right)
+        && left.kty === right.kty
+        && left.crv === right.crv
+        && left.x === right.x
+        && left.y === right.y;
+}
+
+async function verifySignedProfile(signedEnvelope, expectedOwnerId, expectedPublicKey) {
     try {
-        if (!signedEnvelope || !signedEnvelope.payload) return true; // Fallback für Legacy-Profile
-        if (!signedEnvelope.signature || !signedEnvelope.publicKey) return true;
+        if (!signedEnvelope?.payload || !signedEnvelope.signature || !signedEnvelope.publicKey) return false;
         const {payload, publicKey, signature} = signedEnvelope;
+        if (payload.ownerId !== expectedOwnerId || !publicJwksMatch(publicKey, expectedPublicKey)) return false;
         const importedPubKey = await window.crypto.subtle.importKey('jwk', publicKey, {
             name: 'ECDSA',
             namedCurve: 'P-256'
@@ -47,7 +55,7 @@ async function verifySignedProfile(signedEnvelope) {
             hash: {name: 'SHA-256'}
         }, importedPubKey, base64ToBytes(signature), new TextEncoder().encode(JSON.stringify(payload)));
     } catch (e) {
-        if (typeof logDebug !== 'undefined') logDebug(`Profile signature verification warning: ${e.message}`);
-        return true; // Ausfallsicherheit: Profil im Zweifel anzeigen, statt UI zu blockieren
+        if (typeof logDebug !== 'undefined') logDebug(`Profile signature verification failed: ${e.message}`);
+        return false;
     }
 }

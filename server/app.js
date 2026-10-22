@@ -3,7 +3,7 @@ import websocket from '@fastify/websocket';
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import crypto from 'node:crypto';
+import crypto, { createHash, randomBytes } from 'node:crypto';
 import { createStore } from './database.js';
 import { registerSignalingRoute } from './signaling.js';
 
@@ -57,7 +57,7 @@ export async function buildApp(options = {}) {
             maxPayload: 128 * 1024
         }
     });
-    registerSignalingRoute(app);
+    registerSignalingRoute(app, store);
 
     app.addHook('onClose', async () => {
         if (ownsStore) store.close();
@@ -125,27 +125,59 @@ export async function buildApp(options = {}) {
         };
     });
 
+    function hashAuthToken(token) {
+        return typeof token === 'string' && token.length >= 32
+            ? createHash('sha256').update(token).digest('hex')
+            : null;
+    }
+
+    function getBearerToken(request) {
+        const authorization = request.headers.authorization;
+        return typeof authorization === 'string' && authorization.startsWith('Bearer ')
+            ? authorization.slice(7)
+            : null;
+    }
+
+    function requirePeerAuth(request, reply, peerId) {
+        const authHash = hashAuthToken(getBearerToken(request));
+        if (!store.authenticatePeer(peerId, authHash)) {
+            reply.code(401).send({ error: 'Peer authentication required' });
+            return false;
+        }
+        return true;
+    }
+
     app.post('/api/register', async (request, reply) => {
-        const { peerId, geohash, registrationId, thumbnail, name } = request.body || {};
+        const { peerId, geohash, registrationId, thumbnail, name, authToken: suppliedToken } = request.body || {};
         if (!isString(peerId, 200) || !isString(geohash, 64) || !isString(registrationId, 200)) {
             return reply.code(400).send({ error: 'Invalid payload' });
         }
         if (thumbnail != null && typeof thumbnail !== 'string') {
             return reply.code(400).send({ error: 'Invalid thumbnail' });
         }
+        if (suppliedToken != null && !hashAuthToken(suppliedToken)) {
+            return reply.code(400).send({ error: 'Invalid authToken' });
+        }
 
+        const authToken = suppliedToken != null
+            ? suppliedToken
+            : randomBytes(32).toString('base64url');
         const session = {
             peerId,
             registrationId,
+            authHash: hashAuthToken(authToken),
             geohash: geohash.substring(0, 10),
             thumbnail: thumbnail ? thumbnail.substring(0, 150000) : null,
             name: typeof name === 'string' ? name.substring(0, 100) : 'Peer'
         };
-        store.registerPeer(session);
+        if (!store.registerPeer(session)) {
+            return reply.code(403).send({ error: 'Peer identity is already registered' });
+        }
         return {
             status: 'registered',
             geohash: session.geohash,
-            peerId
+            peerId,
+            authToken
         };
     });
 
@@ -155,6 +187,7 @@ export async function buildApp(options = {}) {
         if (!isString(peerId, 200) || !isString(registrationId, 200)) {
             return reply.code(400).send({ error: 'Missing peerId or registrationId' });
         }
+        if (!requirePeerAuth(request, reply, peerId)) return;
         const removed = store.unregisterPeer(peerId, registrationId, geohash || null);
         return { status: 'unregistered', peerId, removed };
     }
@@ -190,6 +223,7 @@ export async function buildApp(options = {}) {
         if (!isString(senderId, 200)) {
             return reply.code(400).send({ error: 'Missing or invalid senderId' });
         }
+        if (!requirePeerAuth(request, reply, senderId)) return;
         if (ivHex != null && typeof ivHex !== 'string') {
             return reply.code(400).send({ error: 'Invalid ivHex' });
         }
@@ -210,8 +244,9 @@ export async function buildApp(options = {}) {
         });
     });
 
-    app.get('/api/cache/:recipientId', async request => {
+    app.get('/api/cache/:recipientId', async (request, reply) => {
         const recipientId = request.params.recipientId;
+        if (!requirePeerAuth(request, reply, recipientId)) return;
         const messages = store.getMessages(recipientId);
         return {
             recipientId,
@@ -220,8 +255,11 @@ export async function buildApp(options = {}) {
         };
     });
 
-    app.delete('/api/cache/:msgId', async request => {
+    app.delete('/api/cache/:msgId', async (request, reply) => {
         const { msgId } = request.params;
+        const recipientId = store.getMessageRecipient(msgId);
+        if (!recipientId) return reply.code(404).send({ error: 'Message not found' });
+        if (!requirePeerAuth(request, reply, recipientId)) return;
         const removed = store.deleteMessage(msgId);
         return { status: 'deleted', msgId, removed };
     });
@@ -231,6 +269,7 @@ export async function buildApp(options = {}) {
         if (!isString(ownerId, 200)) {
             return reply.code(400).send({ error: 'Invalid ownerId' });
         }
+        if (!requirePeerAuth(request, reply, ownerId)) return;
         const controls = store.getChatControls(ownerId);
         return { ownerId, count: controls.length, controls };
     });
@@ -240,6 +279,7 @@ export async function buildApp(options = {}) {
         if (!isString(ownerId, 200) || !isString(peerId, 200) || ownerId === peerId) {
             return reply.code(400).send({ error: 'Invalid ownerId or peerId' });
         }
+        if (!requirePeerAuth(request, reply, ownerId)) return;
         if (!['DELETE_CHAT', 'BLOCK'].includes(action)) {
             return reply.code(400).send({ error: 'Invalid chat control action' });
         }
@@ -252,6 +292,7 @@ export async function buildApp(options = {}) {
         if (!isString(ownerId, 200) || !isString(peerId, 200)) {
             return reply.code(400).send({ error: 'Invalid ownerId or peerId' });
         }
+        if (!requirePeerAuth(request, reply, ownerId)) return;
         const control = store.clearBlock(ownerId, peerId);
         return { status: 'unblocked', ownerId, peerId, control };
     });

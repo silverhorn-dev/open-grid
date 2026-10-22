@@ -155,8 +155,12 @@ function connectWorkerWebSocket() {
         state.ws = new WebSocket(WS_URL);
         state.ws.onopen = async () => {
             logDebug('Connected to Worker Signaling');
-            state.ws.send(JSON.stringify({ type: 'REGISTER_SOCKET', peerId: state.myProfile.id }));
             await registerWithWorkerGrid();
+            state.ws.send(JSON.stringify({
+                type: 'REGISTER_SOCKET',
+                peerId: state.myProfile.id,
+                authToken: state.routerAuthToken
+            }));
             await fetchPeersFromWorkerGrid();
         };
         state.ws.onmessage = async (event) => {
@@ -190,10 +194,14 @@ async function registerWithWorkerGrid() {
                 registrationId: state.registrationId,
                 geohash: state.myProfile.geohash,
                 thumbnail: state.myProfile.avatar,
-                name: state.myProfile.fields.displayName || 'Peer'
+                name: state.myProfile.fields.displayName || 'Peer',
+                authToken: state.routerAuthToken
             })
         });
         if (!response.ok) throw new Error(`Registration failed with status ${response.status}`);
+        const registration = await response.json();
+        state.routerAuthToken = registration.authToken;
+        window.localStorage.setItem('opengrid-router-auth-token', registration.authToken);
         logDebug('Registered in Worker Spatial Grid');
     } catch (error) {
         logDebug(`Grid registration failed: ${error.message}`);
@@ -210,7 +218,8 @@ async function gracefulUnregister() {
             geohash: state.myProfile.geohash
         });
         const response = await fetch(`${API_BASE}/api/register?${query}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: peerAuthHeaders()
         });
         if (!response.ok) throw new Error(`Unregister failed with status ${response.status}`);
         if (state.ws) state.ws.close();

@@ -41,6 +41,12 @@ Der Client erneuert die Registrierung alle 25 Sekunden. Ohne Heartbeat laeuft
 sie nach zehn Minuten ab. Eine alte Registration-ID darf eine neuere
 Registrierung desselben Peers nicht entfernen.
 
+Die erste Registrierung stellt ein zufaelliges Peer-Capability-Token aus.
+Der Browser bewahrt es lokal auf; der Server speichert nur dessen SHA-256-
+Hash getrennt vom kurzlebigen Presence-Eintrag. Queue-, Chat-Control- und
+WebSocket-Zugriffe muessen dieses Token vorlegen. Signaling-Nachrichten
+erhalten serverseitig die authentifizierte Absender-ID.
+
 Das Grid entspricht immer der aktuellen Router-Antwort fuer einen Geohash.
 Lokale Cache-Eintraege werden nicht ohne aktiven Router-Eintrag angezeigt.
 Explizit entfernte Peers erhalten einen zeitlich begrenzten Tombstone.
@@ -78,7 +84,13 @@ Erreichbarkeit.
 `SECURE_ENVELOPE`-Nachrichten uebertragen. Eine Profilantwort enthaelt ID,
 Avatar, Profilfelder, `version` und `updatedAt`.
 
-IndexedDB Version 6 enthaelt:
+Der bei einem direkten `KEY_HELLO` gelernte ECDSA-Schluessel wird zusammen mit
+der Peer-ID lokal gepinnt. Signierte Profile werden nur akzeptiert, wenn
+Besitzer-ID und Schluessel diesem Pin entsprechen. Deshalb kann der
+Swarm-Fallback nur Profile bereits direkt bekannter Peers liefern; unbekannte
+Swarm-Identitaeten werden bewusst nicht per TOFU ueber Dritte vertraut.
+
+IndexedDB Version 7 enthaelt:
 
 | Store | Inhalt |
 |---|---|
@@ -126,6 +138,9 @@ clientseitig verschluesselte Payloads.
 | `POST` | `/api/cache` | Ciphertext mit einer TTL von 1 bis 72 Stunden ablegen |
 | `GET` | `/api/cache/:recipientId` | Gueltige Nachrichten eines Empfaengers lesen |
 | `DELETE` | `/api/cache/:msgId` | Verarbeitete Nachricht entfernen |
+
+Alle Queue-Routen verlangen das Capability-Token des Absenders beziehungsweise
+Empfaengers als Bearer-Token.
 
 SQLite speichert Message-ID, Empfaenger, optionalen Absender, Ciphertext, IV
 und Ablaufzeit. Klartext wird von dieser API weder erwartet noch verarbeitet.

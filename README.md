@@ -72,6 +72,8 @@ npm.cmd run check
 ## Datenhaltung
 
 - Grid-Eintraege enthalten nur Peer-ID, Geohash, Anzeigename und Thumbnail.
+- Peer-Capability-Tokens authentifizieren Queue-, Chat-Control- und
+  WebSocket-Zugriffe; serverseitig wird nur ihr SHA-256-Hash gespeichert.
 - Grid-Eintraege laufen zehn Minuten nach dem letzten Heartbeat ab.
 - Entfernte Peer-IDs bleiben als Tombstone bis zu 30 Tage erhalten, damit
   Clients veraltete Profil-Caches loeschen koennen.

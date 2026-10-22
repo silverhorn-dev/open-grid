@@ -385,6 +385,7 @@
         const state = {
             nodeId: getOrCreateNodeId(),
             registrationId: window.crypto.randomUUID(),
+            routerAuthToken: window.localStorage.getItem('opengrid-router-auth-token'),
             tabStartedAt: Date.now(),
             myProfile: {
                 id: null,
@@ -423,6 +424,7 @@
             cacheFetchInFlight: false,
             chatPeerIds: [],
             chatControls: {},
+            pendingImageRequests: {},
             mediaStream: null
         };
 
@@ -430,6 +432,12 @@
         const API_BASE = window.location.origin;
         const WS_PROTOCOL = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const WS_URL = `${WS_PROTOCOL}//${window.location.host}/ws`;
+
+        function peerAuthHeaders(headers = {}) {
+            return state.routerAuthToken
+                ? { ...headers, Authorization: `Bearer ${state.routerAuthToken}` }
+                : headers;
+        }
 
         function loadInjectedProfileSchema() {
             try {
@@ -830,7 +838,7 @@
         async function refreshChatControls() {
             const response = await fetch(
                 `${API_BASE}/api/chat-controls/${encodeURIComponent(state.myProfile.id)}`,
-                { cache: 'no-store' }
+                { cache: 'no-store', headers: peerAuthHeaders() }
             );
             if (!response.ok) throw new Error(`Chat control API returned ${response.status}.`);
             const { controls = [] } = await response.json();
@@ -840,7 +848,7 @@
         async function storeChatControl(peerId, action) {
             const response = await fetch(`${API_BASE}/api/chat-controls`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: peerAuthHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({
                     ownerId: state.myProfile.id,
                     peerId,
@@ -864,21 +872,27 @@
             return putDatabaseRecord('chatOperations', operation);
         }
 
-        async function getPeerIdentityKey(peerId) {
+        async function getPeerIdentity(peerId) {
             if (state.peerIdentityKeys[peerId]) return state.peerIdentityKeys[peerId];
             const record = db
                 ? await databaseRequest('keys', 'readonly', store => store.get(`peer-identity:${peerId}`))
                 : null;
-            if (record?.jwkPublic) state.peerIdentityKeys[peerId] = record.jwkPublic;
-            return record?.jwkPublic || null;
+            if (record?.jwkPublic) state.peerIdentityKeys[peerId] = record;
+            return record || null;
         }
 
-        async function persistPeerIdentityKey(peerId, jwkPublic) {
-            state.peerIdentityKeys[peerId] = jwkPublic;
-            await putDatabaseRecord('keys', {
+        async function getPeerIdentityKey(peerId) {
+            return (await getPeerIdentity(peerId))?.jwkPublic || null;
+        }
+
+        async function persistPeerIdentityKey(peerId, jwkPublic, profileSigningKey) {
+            const identity = {
                 id: `peer-identity:${peerId}`,
-                jwkPublic
-            });
+                jwkPublic,
+                profileSigningKey
+            };
+            state.peerIdentityKeys[peerId] = identity;
+            await putDatabaseRecord('keys', identity);
         }
 
         function createPutOperation(peerId, message) {
@@ -1371,7 +1385,6 @@
                 renderProfileModalData(peer.fullProfile);
             } else {
                 // Fordere das Profil an (wird ueber P2P oder Fallback-Cache geladen)
-                sendSecurePayload(peerId, { type: 'PROFILE_REQUEST' }).catch(() => {});
                 // Fallback: Versuche gecachte Profildaten zu laden, falls vorhanden
                 if (state.cachedProfiles[peerId]) {
                     renderProfileModalData(state.cachedProfiles[peerId]);
@@ -1462,6 +1475,7 @@
                 } else {
                     await new Promise(r => setTimeout(r, 200)); // Drosselung zum Schutz der P2P Leitung
                     if (state.activeModalPeerId !== peerId) return;
+                    state.pendingImageRequests[`${peerId}:${meta.id}`] = meta.version;
                     sendSecurePayload(peerId, { type: 'IMAGE_REQUEST', imageId: meta.id, version: meta.version }).catch(() => {});
                 }
             }
@@ -1470,9 +1484,23 @@
         function renderModalGalleryImage(imageId, base64) {
             const imgEl = document.getElementById(`modal-img-${imageId}`);
             if (!imgEl) return;
+            if (!isSafeInlineImage(base64)) {
+                imgEl.textContent = 'Invalid image';
+                return;
+            }
             imgEl.className = 'h-24 w-24 rounded-xl border border-slate-700 shrink-0 cursor-pointer hover:border-brand-500 transition overflow-hidden';
-            imgEl.innerHTML = `<img src="${base64}" class="w-full h-full object-cover">`;
+            imgEl.innerHTML = '';
+            const image = document.createElement('img');
+            image.src = base64;
+            image.className = 'w-full h-full object-cover';
+            image.alt = '';
+            imgEl.appendChild(image);
             imgEl.onclick = () => { document.getElementById('modal-profile-img').src = base64; };
+        }
+
+        function isSafeInlineImage(value) {
+            return typeof value === 'string'
+                && /^data:image\/(?:png|jpe?g|gif|webp);base64,[a-z0-9+/=\s]+$/i.test(value);
         }
 
         function launchChatFromModal() {
@@ -1562,7 +1590,7 @@
                 if (isPeerBlocked(peerId)) {
                     const response = await fetch(
                         `${API_BASE}/api/chat-controls/${encodeURIComponent(state.myProfile.id)}/${encodeURIComponent(peerId)}/block`,
-                        { method: 'DELETE' }
+                        { method: 'DELETE', headers: peerAuthHeaders() }
                     );
                     if (!response.ok) throw new Error(`Chat control API returned ${response.status}.`);
                     await refreshChatControls();
@@ -1711,7 +1739,17 @@
                 if (message.deleted) {
                     bubble.textContent = 'Nachricht geloescht';
                 } else if (message.snapData) {
-                    bubble.innerHTML = `<img src="${message.snapData}" class="w-48 sm:w-64 rounded-xl mb-1.5 border border-slate-900/50"><div class="opacity-90">${message.text}</div>`;
+                    if (isSafeInlineImage(message.snapData)) {
+                        const image = document.createElement('img');
+                        image.src = message.snapData;
+                        image.alt = '';
+                        image.className = 'w-48 sm:w-64 rounded-xl mb-1.5 border border-slate-900/50';
+                        bubble.appendChild(image);
+                    }
+                    const text = document.createElement('div');
+                    text.className = 'opacity-90';
+                    text.textContent = message.text || '';
+                    bubble.appendChild(text);
                 } else {
                     bubble.textContent = message.text;
                 }
@@ -1824,7 +1862,10 @@
 
         async function unblockPeerFromSettings(peerId) {
             try {
-                const response = await fetch(`${API_BASE}/api/chat-controls/${encodeURIComponent(state.myProfile.id)}/${encodeURIComponent(peerId)}/block`, { method: 'DELETE' });
+                const response = await fetch(`${API_BASE}/api/chat-controls/${encodeURIComponent(state.myProfile.id)}/${encodeURIComponent(peerId)}/block`, {
+                    method: 'DELETE',
+                    headers: peerAuthHeaders()
+                });
                 if (!response.ok) throw new Error(`API returned ${response.status}.`);
                 await refreshChatControls();
                 const operation = { operationId: `unhide:${window.crypto.randomUUID()}`, type: 'PEER_UNHIDE', actorId: state.myProfile.id, createdAt: Date.now() };

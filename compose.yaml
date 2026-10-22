@@ -11,7 +11,7 @@ services:
       DATABASE_PATH: /app/data/open-grid.sqlite
       # TURN-Server Konfiguration
       TURN_SERVER: turn.og.silverhorn.dev
-      TURN_SECRET: DeinSehrGeheimesSharedSecret123!
+      TURN_SECRET: ${TURN_SECRET:?TURN_SECRET must be set}
       PORT: 3000
     ports:
       - "${OPEN_GRID_PORT:-3000}:3000"

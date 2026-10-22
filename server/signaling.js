@@ -1,4 +1,6 @@
-export function registerSignalingRoute(app) {
+import { createHash } from 'node:crypto';
+
+export function registerSignalingRoute(app, store) {
     const activeSockets = new Map();
 
     app.get('/ws', { websocket: true }, (socket) => {
@@ -8,8 +10,14 @@ export function registerSignalingRoute(app) {
             try {
                 const data = JSON.parse(rawMessage.toString());
 
-                if (data.type === 'REGISTER_SOCKET' && typeof data.peerId === 'string') {
+                if (data.type === 'REGISTER_SOCKET' && typeof data.peerId === 'string' && typeof data.authToken === 'string') {
                     const peerId = data.peerId.substring(0, 200);
+                    const authHash = createHash('sha256').update(data.authToken).digest('hex');
+                    if (!store.authenticatePeer(peerId, authHash)) {
+                        socket.send(JSON.stringify({ type: 'SIGNALING_ERROR', message: 'Peer authentication failed' }));
+                        socket.close(1008, 'Peer authentication failed');
+                        return;
+                    }
                     const previousSocket = activeSockets.get(peerId);
                     if (previousSocket && previousSocket !== socket) {
                         previousSocket.close(1000, 'Replaced by a newer connection');
@@ -20,10 +28,13 @@ export function registerSignalingRoute(app) {
                     return;
                 }
 
-                if (!data.targetPeerId || typeof data.targetPeerId !== 'string') return;
+                if (!currentPeerId || !data.targetPeerId || typeof data.targetPeerId !== 'string') return;
                 const targetSocket = activeSockets.get(data.targetPeerId);
                 if (targetSocket?.readyState === 1) {
-                    targetSocket.send(JSON.stringify(data));
+                    targetSocket.send(JSON.stringify({
+                        ...data,
+                        senderNodeId: currentPeerId
+                    }));
                 } else {
                     socket.send(JSON.stringify({
                         type: 'PEER_OFFLINE_FALLBACK',

@@ -16,6 +16,7 @@ export function createStore(databasePath) {
         CREATE TABLE IF NOT EXISTS peers (
             peer_id TEXT PRIMARY KEY,
             registration_id TEXT NOT NULL,
+            auth_hash TEXT,
             geohash TEXT NOT NULL,
             thumbnail TEXT,
             name TEXT NOT NULL,
@@ -23,6 +24,12 @@ export function createStore(databasePath) {
         );
         CREATE INDEX IF NOT EXISTS peers_geohash_expires
             ON peers (geohash, expires_at);
+
+        CREATE TABLE IF NOT EXISTS peer_credentials (
+            peer_id TEXT PRIMARY KEY,
+            auth_hash TEXT NOT NULL,
+            created_at INTEGER NOT NULL
+        );
 
         CREATE TABLE IF NOT EXISTS removed_peers (
             geohash TEXT NOT NULL,
@@ -56,14 +63,32 @@ export function createStore(databasePath) {
         CREATE INDEX IF NOT EXISTS chat_controls_owner
             ON chat_controls (owner_id, updated_at);
     `);
+    const peerColumns = database.prepare('PRAGMA table_info(peers)').all();
+    if (!peerColumns.some(column => column.name === 'auth_hash')) {
+        database.exec('ALTER TABLE peers ADD COLUMN auth_hash TEXT');
+    }
 
     const statements = {
-        findPeer: database.prepare('SELECT peer_id AS peerId, registration_id AS registrationId, geohash FROM peers WHERE peer_id = ?'),
+        findPeer: database.prepare(`
+            SELECT peer_id AS peerId, registration_id AS registrationId, auth_hash AS authHash, geohash
+            FROM peers
+            WHERE peer_id = ?
+        `),
+        findPeerCredential: database.prepare(`
+            SELECT auth_hash AS authHash
+            FROM peer_credentials
+            WHERE peer_id = ?
+        `),
+        insertPeerCredential: database.prepare(`
+            INSERT INTO peer_credentials (peer_id, auth_hash, created_at)
+            VALUES (?, ?, ?)
+        `),
         upsertPeer: database.prepare(`
-            INSERT INTO peers (peer_id, registration_id, geohash, thumbnail, name, expires_at)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO peers (peer_id, registration_id, auth_hash, geohash, thumbnail, name, expires_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(peer_id) DO UPDATE SET
                 registration_id = excluded.registration_id,
+                auth_hash = excluded.auth_hash,
                 geohash = excluded.geohash,
                 thumbnail = excluded.thumbnail,
                 name = excluded.name,
@@ -110,6 +135,7 @@ export function createStore(databasePath) {
             ORDER BY rowid
         `),
         deleteMessage: database.prepare('DELETE FROM queued_messages WHERE msg_id = ?'),
+        findMessageRecipient: database.prepare('SELECT recipient_id AS recipientId FROM queued_messages WHERE msg_id = ?'),
         deleteExpiredMessages: database.prepare('DELETE FROM queued_messages WHERE expires_at <= ?'),
         deleteConversationMessages: database.prepare(`
             DELETE FROM queued_messages
@@ -179,6 +205,11 @@ export function createStore(databasePath) {
     function registerPeerTransaction(session, now) {
         return transaction(() => {
             const previous = statements.findPeer.get(session.peerId);
+            const credential = statements.findPeerCredential.get(session.peerId);
+            if (credential?.authHash && credential.authHash !== session.authHash) return false;
+            if (!credential) {
+                statements.insertPeerCredential.run(session.peerId, session.authHash, now);
+            }
             if (previous && previous.geohash !== session.geohash) {
                 statements.upsertRemoved.run(
                     previous.geohash,
@@ -190,12 +221,14 @@ export function createStore(databasePath) {
             statements.upsertPeer.run(
                 session.peerId,
                 session.registrationId,
+                session.authHash,
                 session.geohash,
                 session.thumbnail,
                 session.name,
                 now + GRID_TTL_MS
             );
             statements.deleteRemoved.run(session.geohash, session.peerId);
+            return true;
         });
     }
 
@@ -225,7 +258,12 @@ export function createStore(databasePath) {
 
     return {
         registerPeer(session, now = Date.now()) {
-            registerPeerTransaction(session, now);
+            return registerPeerTransaction(session, now);
+        },
+
+        authenticatePeer(peerId, authHash) {
+            const credential = statements.findPeerCredential.get(peerId);
+            return Boolean(credential?.authHash && authHash && credential.authHash === authHash);
         },
 
         unregisterPeer(peerId, registrationId, geohash = null, now = Date.now()) {
@@ -271,6 +309,10 @@ export function createStore(databasePath) {
 
         deleteMessage(msgId) {
             return Number(statements.deleteMessage.run(msgId).changes);
+        },
+
+        getMessageRecipient(msgId) {
+            return statements.findMessageRecipient.get(msgId)?.recipientId || null;
         },
 
         setChatControl(ownerId, peerId, action, now = Date.now()) {

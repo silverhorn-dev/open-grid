@@ -1352,6 +1352,14 @@
             document.getElementById('modal-profile-id').textContent = peer.id;
             document.getElementById('modal-profile-img').src = peer.avatar || 'https://placehold.co/300x300/1e293b/ffffff?text=Peer';
 
+            // SOFORTIGES LEEREN der alten Galerie, bevor neue Daten eintreffen
+            const galleryContainer = document.getElementById('modal-gallery-container');
+            if (galleryContainer) {
+                galleryContainer.innerHTML = '';
+                galleryContainer.classList.add('hidden');
+                galleryContainer.classList.remove('flex');
+            }
+
             updateProfilePresence(peerId, 'checking');
             const container = document.getElementById('modal-rendered-fields');
             container.innerHTML = '<div class="col-span-2 text-slate-500 text-center py-4"><i class="fa-solid fa-lock text-brand-500 mr-1"></i> Connecting securely to request full profile...</div>';
@@ -1418,6 +1426,9 @@
         async function processGalleryHandshake(peerId, remoteGalleryMeta) {
             const container = document.getElementById('modal-gallery-container');
             for (const meta of remoteGalleryMeta) {
+                // Abbruch, falls der User in der Zwischenzeit das Profil gewechselt hat!
+                if (state.activeModalPeerId !== peerId) return;
+
                 let imgEl = document.getElementById(`modal-img-${meta.id}`);
                 if (!imgEl) {
                     imgEl = document.createElement('div');
@@ -1428,10 +1439,13 @@
                 }
 
                 const localMedia = await loadMedia(meta.id);
+                if (state.activeModalPeerId !== peerId) return;
+
                 if (localMedia && localMedia.version === meta.version) {
                     renderModalGalleryImage(meta.id, localMedia.data);
                 } else {
                     await new Promise(r => setTimeout(r, 200)); // Drosselung zum Schutz der P2P Leitung
+                    if (state.activeModalPeerId !== peerId) return;
                     sendSecurePayload(peerId, { type: 'IMAGE_REQUEST', imageId: meta.id, version: meta.version }).catch(() => {});
                 }
             }

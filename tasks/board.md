@@ -33,6 +33,7 @@
   - [x] im chat bereich sollten nicht alle peers erscheinen, nur jene zu denen ein chat existiert
 ## status
 - [ ] aktuell kann der status P2P Connected ausgelesen werden. im debug sollte das so sein. ohne würde ich da analog zu snap :eyes: platzieren
+- [ ] nachrichtenstatus hnäg teilweise bei establishing secure channel
 
 ## Snapping 
 - [ ] enable it

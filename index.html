@@ -716,7 +716,10 @@
 
         async function cachePeerProfile(peerId, profile) {
             const current = state.cachedProfiles[peerId];
-            if (current && (current.version || 0) >= (profile.version || 0)) return current;
+            // Aktualisiere, wenn die Version höher ist ODER bei gleicher Version der Zeitstempel neuer ist (z.B. Avatar-Update)
+            if (current && (current.version || 0) > (profile.version || 0)) return current;
+            if (current && (current.version || 0) === (profile.version || 0) && (current.updatedAt || 0) >= (profile.updatedAt || 0)) return current;
+
             if (state.storageKey) {
                 const encrypted = await encryptStoredProfile(profile);
                 await putDatabaseRecord('profiles', {

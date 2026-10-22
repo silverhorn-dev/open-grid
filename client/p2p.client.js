@@ -329,6 +329,47 @@ async function decryptSecurePayload(peerId, envelope) {
     return JSON.parse(new TextDecoder().decode(plaintext));
 }
 
+async function handleIncomingProfileRequest(peerId) {
+    const profilePayload = {
+        id: state.myProfile.id,
+        fields: state.myProfile.fields,
+        avatar: state.myProfile.avatar,
+        gallery: state.myProfile.gallery || [],
+        version: state.myProfile.version,
+        updatedAt: state.myProfile.updatedAt
+    };
+    const signedEnvelope = await signProfileData(profilePayload, state.myKeys.ecdsaKeyPair.privateKey, state.myKeys.jwkEcdsaPublic);
+    sendSecurePayload(peerId, { type: 'PROFILE_RESPONSE', signedEnvelope }).catch(() => {});
+}
+
+async function handleIncomingProfileResponse(peerId, signedEnvelopeOrProfile) {
+    let profile;
+    if (!signedEnvelopeOrProfile) return;
+    if (signedEnvelopeOrProfile.signature && signedEnvelopeOrProfile.payload) {
+        const isValid = await verifySignedProfile(signedEnvelopeOrProfile);
+        if (!isValid) return;
+        profile = signedEnvelopeOrProfile.payload;
+        profile.signedEnvelope = signedEnvelopeOrProfile;
+    } else if (signedEnvelopeOrProfile.fields) {
+        profile = signedEnvelopeOrProfile; // Legacy Profil ohne Signatur
+    }
+    if (!profile) return;
+    await cachePeerProfile(peerId, profile);
+    if (state.activeModalPeerId === peerId && typeof renderProfileModalData === 'function') {
+        renderProfileModalData(profile);
+    }
+}
+
+async function handleIncomingImageRequest(peerId, imageId) {
+    const media = await loadMedia(imageId);
+    if (media) sendSecurePayload(peerId, { type: 'IMAGE_RESPONSE', imageId, version: media.version, data: media.data }).catch(() => {});
+}
+
+async function handleIncomingImageResponse(peerId, imageId, version, data) {
+    await cacheMedia(imageId, data, version);
+    if (typeof renderModalGalleryImage === 'function') renderModalGalleryImage(imageId, data);
+}
+
 async function handleDataChannelMessage(peerId, rawMessage) {
     try {
         const message = JSON.parse(rawMessage);
@@ -374,14 +415,14 @@ async function handleSecurePayload(peerId, payload) {
             updateProfilePresence(peerId, 'online');
         }
     } else if (payload.type === 'PROFILE_REQUEST') {
-        if (typeof window.handleProfileRequest === 'function') window.handleProfileRequest(peerId);
+        await handleIncomingProfileRequest(peerId);
     } else if (payload.type === 'PROFILE_RESPONSE') {
-        if (typeof window.handleProfileResponse === 'function') window.handleProfileResponse(peerId, payload.profile);
+        await handleIncomingProfileResponse(peerId, payload.signedEnvelope || payload.profile);
     } else if (payload.type === 'SWARM_PROFILE_REQUEST') {
         const targetId = payload.targetNodeId;
         // Wenn wir selbst das Ziel sind, senden wir normal (direkt)
         if (targetId === state.myProfile.id) {
-            if (typeof window.handleProfileRequest === 'function') window.handleProfileRequest(peerId);
+            await handleIncomingProfileRequest(peerId);
         } else {
             // Wenn wir das Profil eines Dritten haben, servieren wir es dem Schwarm
             const cachedProfile = state.cachedProfiles[targetId];
@@ -396,8 +437,7 @@ async function handleSecurePayload(peerId, payload) {
         }
     } else if (payload.type === 'SWARM_PROFILE_RESPONSE') {
         const {targetNodeId, signedEnvelope} = payload;
-        if (typeof window.verifySignedProfile !== 'function') return;
-        if (!(await window.verifySignedProfile(signedEnvelope))) {
+        if (!(await verifySignedProfile(signedEnvelope))) {
             logDebug(`Gefaelschtes Schwarm-Profil von ${peerId} verworfen.`);
             return;
         }
@@ -405,13 +445,12 @@ async function handleSecurePayload(peerId, payload) {
         const profile = signedEnvelope.payload;
         profile.signedEnvelope = signedEnvelope; // Den Umschlag mit abspeichern, damit wir nun selbst Seed für das Profil sind
         await cachePeerProfile(targetNodeId, profile);
-        if (state.activeModalPeerId === targetNodeId && typeof window.renderProfileModalData === 'function') {
-            window.renderProfileModalData(profile);
+        if (state.activeModalPeerId === targetNodeId && typeof renderProfileModalData === 'function') {
+            renderProfileModalData(profile);
         }
     } else if (payload.type === 'IMAGE_REQUEST') {
-        await window.handlePeerImageRequest(peerId, payload.imageId);
+        await handleIncomingImageRequest(peerId, payload.imageId);
     } else if (payload.type === 'IMAGE_RESPONSE') {
-        await window.handlePeerImageResponse(peerId, payload.imageId, payload.version, payload.data);
     }
 }
 

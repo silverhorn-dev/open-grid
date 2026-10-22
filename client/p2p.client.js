@@ -463,162 +463,128 @@ async function sendSecurePayload(peerId, payload, onSent = null) {
     if (isPeerBlocked(peerId)) return false;
     const channel = state.dataChannels[peerId];
 
+    // Wenn der P2P/TURN-Kanal offen und sicher ist -> Direkt senden
     if (channel?.readyState === 'open' && state.sessionKeys[peerId]) {
-        channel.send(JSON.stringify(await encryptSecurePayload(peerId, payload)));
-        if (onSent) onSent('p2p');
-        return true;
+        try {
+            channel.send(JSON.stringify(await encryptSecurePayload(peerId, payload)));
+            if (onSent) onSent('p2p');
+            return true;
+        } catch (error) {
+            logDebug(`P2P send failed: ${error.message}`);
+        }
     }
 
-    logDebug(`P2P-Kanal für ${peerId} nicht sofort bereit. Nutze Cloud-Cache (Pfad C) als Turbo-Fallback...`);
-    const item = {payload, onSent, cacheQueued: false};
-    try {
-        await queuePayloadInCache(peerId, item);
-    } catch (error) {
-        logDebug(`Turbo-Fallback in Cloud-Cache fehlgeschlagen: ${error.message}`);
-        if (!state.secureMessageQueues[peerId]) state.secureMessageQueues[peerId] = [];
-        state.secureMessageQueues[peerId].push(item);
-        initiateP2PConnection(peerId).catch(() => {
-        });
+    // Andernfalls: In die lokale Warteschlange einreihen und Verbindung aufbauen/abwarten
+    if (!state.secureMessageQueues[peerId]) {
+        state.secureMessageQueues[peerId] = [];
+    }
+    
+    state.secureMessageQueues[peerId].push({ payload, onSent, cacheQueued: false });
+    logDebug(`P2P/TURN-Kanal für ${peerId} noch nicht bereit. Nachricht in Queue eingereiht, starte Verbindung...`);
+    
+    initiateP2PConnection(peerId).catch(error => {
+        logDebug(`Could not initiate P2P connection: ${error.message}`);
+    });
+
+    return false;
+}
+
+async function flushSecureMessageQueue(peerId) {
+    const queue = state.secureMessageQueues[peerId] || [];
+    state.secureMessageQueues[peerId] = [];
+    for (const item of queue) {
+        if (item.cacheQueued) continue;
+        await sendSecurePayload(peerId, item.payload, item.onSent);
+    }
+}
+
+async function deriveCacheEncryptionKey(publicJwk) {
+    const publicKey = await window.crypto.subtle.importKey(
+        'jwk',
+        publicJwk,
+        {name: 'ECDH', namedCurve: 'P-256'},
+        false,
+        []
+    );
+    return window.crypto.subtle.deriveKey(
+        {name: 'ECDH', public: publicKey},
+        state.myKeys.keyPair.privateKey,
+        {name: 'AES-GCM', length: 256},
+        false,
+        ['encrypt', 'decrypt']
+    );
+}
+
+async function queuePayloadInCache(peerId, item) {
+    if (item.cacheQueued || item.payload?.type !== 'CHAT_OPERATION') return false;
+    const peerPublicKey = await getPeerIdentityKey(peerId);
+    if (!peerPublicKey) {
+        logDebug(`Path C skipped for ${peerId}: no trusted peer identity key is cached.`);
         return false;
     }
 
-    async function flushSecureMessageQueue(peerId) {
-        const queue = state.secureMessageQueues[peerId] || [];
-        state.secureMessageQueues[peerId] = [];
+    const encryptionKey = await deriveCacheEncryptionKey(peerPublicKey);
+    const iv = window.crypto.getRandomValues(new Uint8Array(12));
+    const ciphertext = await window.crypto.subtle.encrypt(
+        {name: 'AES-GCM', iv},
+        encryptionKey,
+        new TextEncoder().encode(JSON.stringify(item.payload))
+    );
+    const response = await fetch(`${API_BASE}/api/cache`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            recipientId: peerId,
+            senderId: state.myProfile.id,
+            ciphertextPayload: JSON.stringify({
+                version: 1,
+                senderPublicKey: state.myKeys.jwkPublic,
+                ciphertext: bytesToBase64(new Uint8Array(ciphertext))
+            }),
+            ivHex: bytesToBase64(iv),
+            ttlHours: 24
+        })
+    });
+    if (response.status === 403) {
+        item.discarded = true;
+        if (item.onSent) item.onSent('rejected');
+        logDebug(`Path C delivery to ${peerId} was rejected by the recipient.`);
+        return false;
+    }
+    if (!response.ok) throw new Error(`Cache API returned ${response.status}.`);
+    item.cacheQueued = true;
+    if (item.onSent) item.onSent('cache');
+    return true;
+}
+
+async function flushPeerQueueToCache(peerId) {
+    const queue = state.secureMessageQueues[peerId] || [];
+    try {
         for (const item of queue) {
-            if (item.cacheQueued) continue;
-            await sendSecurePayload(peerId, item.payload, item.onSent);
-        }
-    }
-
-    async function deriveCacheEncryptionKey(publicJwk) {
-        const publicKey = await window.crypto.subtle.importKey(
-            'jwk',
-            publicJwk,
-            {name: 'ECDH', namedCurve: 'P-256'},
-            false,
-            []
-        );
-        return window.crypto.subtle.deriveKey(
-            {name: 'ECDH', public: publicKey},
-            state.myKeys.keyPair.privateKey,
-            {name: 'AES-GCM', length: 256},
-            false,
-            ['encrypt', 'decrypt']
-        );
-    }
-
-    async function queuePayloadInCache(peerId, item) {
-        if (item.cacheQueued || item.payload?.type !== 'CHAT_OPERATION') return false;
-        const peerPublicKey = await getPeerIdentityKey(peerId);
-        if (!peerPublicKey) {
-            logDebug(`Path C skipped for ${peerId}: no trusted peer identity key is cached.`);
-            return false;
-        }
-
-        const encryptionKey = await deriveCacheEncryptionKey(peerPublicKey);
-        const iv = window.crypto.getRandomValues(new Uint8Array(12));
-        const ciphertext = await window.crypto.subtle.encrypt(
-            {name: 'AES-GCM', iv},
-            encryptionKey,
-            new TextEncoder().encode(JSON.stringify(item.payload))
-        );
-        const response = await fetch(`${API_BASE}/api/cache`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                recipientId: peerId,
-                senderId: state.myProfile.id,
-                ciphertextPayload: JSON.stringify({
-                    version: 1,
-                    senderPublicKey: state.myKeys.jwkPublic,
-                    ciphertext: bytesToBase64(new Uint8Array(ciphertext))
-                }),
-                ivHex: bytesToBase64(iv),
-                ttlHours: 24
-            })
-        });
-        if (response.status === 403) {
-            item.discarded = true;
-            if (item.onSent) item.onSent('rejected');
-            logDebug(`Path C delivery to ${peerId} was rejected by the recipient.`);
-            return false;
-        }
-        if (!response.ok) throw new Error(`Cache API returned ${response.status}.`);
-        item.cacheQueued = true;
-        if (item.onSent) item.onSent('cache');
-        return true;
-    }
-
-    async function flushPeerQueueToCache(peerId) {
-        const queue = state.secureMessageQueues[peerId] || [];
-        try {
-            for (const item of queue) {
-                try {
-                    await queuePayloadInCache(peerId, item);
-                } catch (error) {
-                    logDebug(`Could not queue operation for ${peerId}: ${error.message}`);
-                }
+            try {
+                await queuePayloadInCache(peerId, item);
+            } catch (error) {
+                logDebug(`Could not queue operation for ${peerId}: ${error.message}`);
             }
-        } finally {
-            state.secureMessageQueues[peerId] = queue.filter(item => !item.cacheQueued && !item.discarded);
         }
-    }
-
-    function publicKeysMatch(left, right) {
-        return Boolean(left && right)
-            && left.kty === right.kty
-            && left.crv === right.crv
-            && left.x === right.x
-            && left.y === right.y;
-    }
-
-    async function fetchQueuedCacheMessages() {
-        if (state.cacheFetchInFlight || !state.myKeys) return;
-        state.cacheFetchInFlight = true;
-        try {
-            const response = await fetch(`${API_BASE}/api/cache/${encodeURIComponent(state.myProfile.id)}`, {
-                cache: 'no-store'
-            });
-            if (!response.ok) throw new Error(`Cache API returned ${response.status}.`);
-            const {messages = []} = await response.json();
-
-            for (const cachedMessage of messages) {
-                try {
-                    if (isPeerBlocked(cachedMessage.senderId)) {
-                        throw new Error('Sender is blocked.');
-                    }
-                    const envelope = JSON.parse(cachedMessage.ciphertextPayload);
-                    const trustedSenderKey = await getPeerIdentityKey(cachedMessage.senderId);
-                    if (!trustedSenderKey || !publicKeysMatch(trustedSenderKey, envelope.senderPublicKey)) {
-                        throw new Error('Sender identity key does not match the trusted P2P key.');
-                    }
-                    const decryptionKey = await deriveCacheEncryptionKey(envelope.senderPublicKey);
-                    const plaintext = await window.crypto.subtle.decrypt(
-                        {name: 'AES-GCM', iv: base64ToBytes(cachedMessage.ivHex)},
-                        decryptionKey,
-                        base64ToBytes(envelope.ciphertext)
-                    );
-                    const payload = JSON.parse(new TextDecoder().decode(plaintext));
-                    if (payload.type !== 'CHAT_OPERATION') {
-                        throw new Error('Unsupported cached payload type.');
-                    }
-
-                    // Feature: Korrekte Herkunftsanzeige bei Pfad C (E2EE PC)
-                    payload.deliveredVia = 'Pfad C (Cloud Cache)';
-
-                    await handleSecurePayload(cachedMessage.senderId, payload);
-                    const deleteResponse = await fetch(
-                        `${API_BASE}/api/cache/${encodeURIComponent(cachedMessage.msgId)}`,
-                        {method: 'DELETE'}
-                    );
-                    if (!deleteResponse.ok) throw new Error(`Cache delete returned ${deleteResponse.status}.`);
-                } catch (error) {
-                    logDebug(`Rejected Path C message ${cachedMessage.msgId}: ${error.message}`);
-                }
-            }
-        } finally {
-            state.cacheFetchInFlight = false;
-        }
+    } finally {
+        state.secureMessageQueues[peerId] = queue.filter(item => !item.cacheQueued && !item.discarded);
     }
 }
+
+function publicKeysMatch(left, right) {
+    return Boolean(left && right)
+        && left.kty === right.kty
+        && left.crv === right.crv
+        && left.x === right.x
+        && left.y === right.y;
+}
+
+async function fetchQueuedCacheMessages() {
+    if (state.cacheFetchInFlight || !state.myKeys) return;
+    state.cacheFetchInFlight = true;
+    try {
+        const response = await fetch(`${API_BASE}/api/cache/${encodeURIComponent(state.myProfile.id)}`, {
+            cache: 'no-store'
+        });
+        if (!response.ok) throw new Error(`Cache API returned ${response.status}.`);

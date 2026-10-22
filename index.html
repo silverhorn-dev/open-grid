@@ -2009,12 +2009,11 @@
         }
 
         async function refreshPresenceAndGrid() {
-            await Promise.all([
-                registerWithWorkerGrid(),
-                refreshChatControls().catch(error => {
-                    logDebug(`Could not refresh persistent chat controls: ${error.message}`);
-                })
-            ]);
+            const registered = await registerWithWorkerGrid();
+            if (!registered) return;
+            await refreshChatControls().catch(error => {
+                logDebug(`Could not refresh persistent chat controls: ${error.message}`);
+            });
             await fetchPeersFromWorkerGrid();
         }
 
@@ -2030,9 +2029,6 @@
                 }
                 await cacheOwnProfile();
                 await loadCachedGridPeers();
-                await refreshChatControls().catch(error => {
-                    logDebug(`Could not load persistent chat controls: ${error.message}`);
-                });
                 await loadChatPeerIds();
                 updateDebugButtonState();
                 await generateUserIdentityKeys();

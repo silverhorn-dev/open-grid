@@ -28,6 +28,7 @@ export function createStore(databasePath) {
         CREATE TABLE IF NOT EXISTS peer_credentials (
             peer_id TEXT PRIMARY KEY,
             auth_hash TEXT NOT NULL,
+            identity_jwk TEXT,
             created_at INTEGER NOT NULL
         );
 
@@ -67,6 +68,10 @@ export function createStore(databasePath) {
     if (!peerColumns.some(column => column.name === 'auth_hash')) {
         database.exec('ALTER TABLE peers ADD COLUMN auth_hash TEXT');
     }
+    const credentialColumns = database.prepare('PRAGMA table_info(peer_credentials)').all();
+    if (!credentialColumns.some(column => column.name === 'identity_jwk')) {
+        database.exec('ALTER TABLE peer_credentials ADD COLUMN identity_jwk TEXT');
+    }
 
     const statements = {
         findPeer: database.prepare(`
@@ -75,13 +80,18 @@ export function createStore(databasePath) {
             WHERE peer_id = ?
         `),
         findPeerCredential: database.prepare(`
-            SELECT auth_hash AS authHash
+            SELECT auth_hash AS authHash, identity_jwk AS identityJwk
             FROM peer_credentials
             WHERE peer_id = ?
         `),
         insertPeerCredential: database.prepare(`
-            INSERT INTO peer_credentials (peer_id, auth_hash, created_at)
-            VALUES (?, ?, ?)
+            INSERT INTO peer_credentials (peer_id, auth_hash, identity_jwk, created_at)
+            VALUES (?, ?, ?, ?)
+        `),
+        updatePeerCredential: database.prepare(`
+            UPDATE peer_credentials
+            SET auth_hash = ?, identity_jwk = ?
+            WHERE peer_id = ?
         `),
         upsertPeer: database.prepare(`
             INSERT INTO peers (peer_id, registration_id, auth_hash, geohash, thumbnail, name, expires_at)
@@ -206,9 +216,23 @@ export function createStore(databasePath) {
         return transaction(() => {
             const previous = statements.findPeer.get(session.peerId);
             const credential = statements.findPeerCredential.get(session.peerId);
-            if (credential?.authHash && credential.authHash !== session.authHash) return false;
+            const credentialMatches = credential?.authHash === session.authHash;
+            const identityMatches = credential?.identityJwk
+                && credential.identityJwk === session.identityJwk;
+            if (credential?.authHash && !credentialMatches && !identityMatches) return false;
             if (!credential) {
-                statements.insertPeerCredential.run(session.peerId, session.authHash, now);
+                statements.insertPeerCredential.run(
+                    session.peerId,
+                    session.authHash,
+                    session.identityJwk,
+                    now
+                );
+            } else if (!credential.identityJwk || !credentialMatches) {
+                statements.updatePeerCredential.run(
+                    session.authHash,
+                    session.identityJwk,
+                    session.peerId
+                );
             }
             if (previous && previous.geohash !== session.geohash) {
                 statements.upsertRemoved.run(

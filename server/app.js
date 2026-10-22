@@ -147,8 +147,35 @@ export async function buildApp(options = {}) {
         return true;
     }
 
+    function verifyRegistrationProof(peerId, registrationId, authToken, proof) {
+        if (!proof?.publicKey || !isString(proof.signature, 512)) return false;
+        try {
+            const payload = JSON.stringify({ peerId, registrationId, authToken });
+            const publicKey = crypto.createPublicKey({
+                key: proof.publicKey,
+                format: 'jwk'
+            });
+            return crypto.verify(
+                'sha256',
+                Buffer.from(payload),
+                { key: publicKey, dsaEncoding: 'ieee-p1363' },
+                Buffer.from(proof.signature, 'base64')
+            );
+        } catch {
+            return false;
+        }
+    }
+
     app.post('/api/register', async (request, reply) => {
-        const { peerId, geohash, registrationId, thumbnail, name, authToken: suppliedToken } = request.body || {};
+        const {
+            peerId,
+            geohash,
+            registrationId,
+            thumbnail,
+            name,
+            authToken: suppliedToken,
+            registrationProof
+        } = request.body || {};
         if (!isString(peerId, 200) || !isString(geohash, 64) || !isString(registrationId, 200)) {
             return reply.code(400).send({ error: 'Invalid payload' });
         }
@@ -162,10 +189,14 @@ export async function buildApp(options = {}) {
         const authToken = suppliedToken != null
             ? suppliedToken
             : randomBytes(32).toString('base64url');
+        if (!verifyRegistrationProof(peerId, registrationId, authToken, registrationProof)) {
+            return reply.code(400).send({ error: 'Invalid registration proof' });
+        }
         const session = {
             peerId,
             registrationId,
             authHash: hashAuthToken(authToken),
+            identityJwk: JSON.stringify(registrationProof.publicKey),
             geohash: geohash.substring(0, 10),
             thumbnail: thumbnail ? thumbnail.substring(0, 150000) : null,
             name: typeof name === 'string' ? name.substring(0, 100) : 'Peer'

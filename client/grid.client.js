@@ -155,7 +155,12 @@ function connectWorkerWebSocket() {
         state.ws = new WebSocket(WS_URL);
         state.ws.onopen = async () => {
             logDebug('Connected to Worker Signaling');
-            await registerWithWorkerGrid();
+            const registered = await registerWithWorkerGrid();
+            if (!registered) {
+                document.getElementById('network-status-text').textContent = 'Registration failed';
+                state.ws.close();
+                return;
+            }
             state.ws.send(JSON.stringify({
                 type: 'REGISTER_SOCKET',
                 peerId: state.myProfile.id,
@@ -186,6 +191,21 @@ function connectWorkerWebSocket() {
 
 async function registerWithWorkerGrid() {
     try {
+        if (!state.myKeys) throw new Error('Identity keys are not ready');
+        if (!state.routerAuthToken) {
+            const tokenBytes = window.crypto.getRandomValues(new Uint8Array(32));
+            state.routerAuthToken = bytesToBase64(tokenBytes);
+        }
+        const proofPayload = JSON.stringify({
+            peerId: state.myProfile.id,
+            registrationId: state.registrationId,
+            authToken: state.routerAuthToken
+        });
+        const proofSignature = await window.crypto.subtle.sign(
+            {name: 'ECDSA', hash: {name: 'SHA-256'}},
+            state.myKeys.ecdsaKeyPair.privateKey,
+            new TextEncoder().encode(proofPayload)
+        );
         const response = await fetch(`${API_BASE}/api/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -195,7 +215,11 @@ async function registerWithWorkerGrid() {
                 geohash: state.myProfile.geohash,
                 thumbnail: state.myProfile.avatar,
                 name: state.myProfile.fields.displayName || 'Peer',
-                authToken: state.routerAuthToken
+                authToken: state.routerAuthToken,
+                registrationProof: {
+                    publicKey: state.myKeys.jwkEcdsaPublic,
+                    signature: bytesToBase64(new Uint8Array(proofSignature))
+                }
             })
         });
         if (!response.ok) throw new Error(`Registration failed with status ${response.status}`);
@@ -203,8 +227,10 @@ async function registerWithWorkerGrid() {
         state.routerAuthToken = registration.authToken;
         window.localStorage.setItem('opengrid-router-auth-token', registration.authToken);
         logDebug('Registered in Worker Spatial Grid');
+        return true;
     } catch (error) {
         logDebug(`Grid registration failed: ${error.message}`);
+        return false;
     }
 }
 

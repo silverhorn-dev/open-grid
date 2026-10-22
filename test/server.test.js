@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { generateKeyPairSync, randomBytes, sign } from 'node:crypto';
 import { afterEach, beforeEach, test } from 'node:test';
 import { buildApp } from '../server/app.js';
 import { createStore } from '../server/database.js';
@@ -6,17 +7,41 @@ import { createStore } from '../server/database.js';
 let app;
 let store;
 const peerTokens = new Map();
+const peerSigningKeys = new Map();
+
+function registrationPayload(peerId, registrationId, overrides = {}) {
+    let signingKeys = peerSigningKeys.get(peerId);
+    if (!signingKeys) {
+        signingKeys = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+        peerSigningKeys.set(peerId, signingKeys);
+    }
+    const authToken = overrides.authToken
+        || peerTokens.get(peerId)
+        || randomBytes(32).toString('base64url');
+    const proofPayload = JSON.stringify({ peerId, registrationId, authToken });
+    return {
+        peerId,
+        registrationId,
+        geohash: 'u10j2k',
+        ...overrides,
+        authToken,
+        registrationProof: {
+            publicKey: signingKeys.publicKey.export({ format: 'jwk' }),
+            signature: sign(
+                'sha256',
+                Buffer.from(proofPayload),
+                { key: signingKeys.privateKey, dsaEncoding: 'ieee-p1363' }
+            ).toString('base64')
+        }
+    };
+}
 
 async function registerPeer(peerId, registrationId = `registration-${peerId}`) {
+    const payload = registrationPayload(peerId, registrationId);
     const response = await app.inject({
         method: 'POST',
         url: '/api/register',
-        payload: {
-            peerId,
-            registrationId,
-            geohash: 'u10j2k',
-            authToken: peerTokens.get(peerId)
-        }
+        payload
     });
     assert.equal(response.statusCode, 200);
     const { authToken } = response.json();
@@ -30,6 +55,7 @@ function authHeaders(peerId) {
 
 beforeEach(async () => {
     peerTokens.clear();
+    peerSigningKeys.clear();
     store = createStore(':memory:');
     app = await buildApp({
         store,
@@ -77,17 +103,10 @@ test('serves the app shell and all client modules', async () => {
 });
 
 test('registers peers, protects newer registrations, and creates removal tombstones', async () => {
-    const firstRegistration = {
-        peerId: 'peer-a',
-        registrationId: 'registration-old',
-        geohash: 'u10j2k',
+    const firstRegistration = registrationPayload('peer-a', 'registration-old', {
         thumbnail: 'encrypted-thumbnail-placeholder',
         name: 'Alice'
-    };
-    const secondRegistration = {
-        ...firstRegistration,
-        registrationId: 'registration-new'
-    };
+    });
 
     const firstResponse = await app.inject({
         method: 'POST',
@@ -96,13 +115,14 @@ test('registers peers, protects newer registrations, and creates removal tombsto
     });
     assert.equal(firstResponse.statusCode, 200);
     peerTokens.set('peer-a', firstResponse.json().authToken);
+    const secondRegistration = registrationPayload('peer-a', 'registration-new', {
+        thumbnail: 'encrypted-thumbnail-placeholder',
+        name: 'Alice'
+    });
     await app.inject({
         method: 'POST',
         url: '/api/register',
-        payload: {
-            ...secondRegistration,
-            authToken: peerTokens.get('peer-a')
-        }
+        payload: secondRegistration
     });
 
     const staleUnregister = await app.inject({
@@ -354,4 +374,31 @@ test('rejects malformed caller-supplied registration tokens', async () => {
     });
     assert.equal(response.statusCode, 400);
     assert.deepEqual(response.json(), { error: 'Invalid authToken' });
+});
+
+test('recovers a stale router token with the persistent signing identity', async () => {
+    await registerPeer('peer-a', 'registration-old');
+    const previousToken = peerTokens.get('peer-a');
+    const replacementToken = randomBytes(32).toString('base64url');
+    const response = await app.inject({
+        method: 'POST',
+        url: '/api/register',
+        payload: registrationPayload('peer-a', 'registration-new', {
+            authToken: replacementToken
+        })
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.json().authToken, replacementToken);
+    assert.notEqual(replacementToken, previousToken);
+    assert.equal((await app.inject({
+        method: 'GET',
+        url: '/api/cache/peer-a',
+        headers: { authorization: `Bearer ${previousToken}` }
+    })).statusCode, 401);
+    assert.equal((await app.inject({
+        method: 'GET',
+        url: '/api/cache/peer-a',
+        headers: { authorization: `Bearer ${replacementToken}` }
+    })).statusCode, 200);
 });

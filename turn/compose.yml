@@ -1,0 +1,18 @@
+services:
+  coturn:
+    image: coturn/coturn:latest
+    network_mode: "host"
+    env_file:
+      - .env
+    command:
+      - -n
+      - --log-file=stdout
+      - --listening-port=3478
+      - --tls-listening-port=443
+      - --realm=${TURN_REALM}
+      - --use-auth-secret
+      - --static-auth-secret=${TURN_SECRET}
+      - --stale-nonce
+      - --no-multicast-peers
+      - --no-cli
+    restart: unless-stopped

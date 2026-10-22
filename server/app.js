@@ -189,14 +189,18 @@ export async function buildApp(options = {}) {
         const authToken = suppliedToken != null
             ? suppliedToken
             : randomBytes(32).toString('base64url');
-        if (!verifyRegistrationProof(peerId, registrationId, authToken, registrationProof)) {
+        const authHash = hashAuthToken(authToken);
+        const existingTokenMatches = store.authenticatePeer(peerId, authHash);
+        if (!existingTokenMatches && !verifyRegistrationProof(peerId, registrationId, authToken, registrationProof)) {
             return reply.code(400).send({ error: 'Invalid registration proof' });
         }
         const session = {
             peerId,
             registrationId,
-            authHash: hashAuthToken(authToken),
-            identityJwk: JSON.stringify(registrationProof.publicKey),
+            authHash,
+            identityJwk: registrationProof?.publicKey
+                ? JSON.stringify(registrationProof.publicKey)
+                : null,
             geohash: geohash.substring(0, 10),
             thumbnail: thumbnail ? thumbnail.substring(0, 150000) : null,
             name: typeof name === 'string' ? name.substring(0, 100) : 'Peer'

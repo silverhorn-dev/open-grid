@@ -227,7 +227,7 @@ export function createStore(databasePath) {
                     session.identityJwk,
                     now
                 );
-            } else if (!credential.identityJwk || !credentialMatches) {
+            } else if (session.identityJwk && (!credential.identityJwk || !credentialMatches)) {
                 statements.updatePeerCredential.run(
                     session.authHash,
                     session.identityJwk,

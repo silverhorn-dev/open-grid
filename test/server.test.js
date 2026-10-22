@@ -402,3 +402,19 @@ test('recovers a stale router token with the persistent signing identity', async
         headers: { authorization: `Bearer ${replacementToken}` }
     })).statusCode, 200);
 });
+
+test('accepts an existing matching token without a registration proof during migration', async () => {
+    await registerPeer('peer-a', 'registration-old');
+    const response = await app.inject({
+        method: 'POST',
+        url: '/api/register',
+        payload: {
+            peerId: 'peer-a',
+            registrationId: 'registration-new',
+            geohash: 'u10j2k',
+            authToken: peerTokens.get('peer-a')
+        }
+    });
+
+    assert.equal(response.statusCode, 200);
+});

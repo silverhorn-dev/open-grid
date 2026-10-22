@@ -222,7 +222,10 @@ async function registerWithWorkerGrid() {
                 }
             })
         });
-        if (!response.ok) throw new Error(`Registration failed with status ${response.status}`);
+        if (!response.ok) {
+            const problem = await response.json().catch(() => null);
+            throw new Error(`Registration failed with status ${response.status}: ${problem?.error || 'Unknown error'}`);
+        }
         const registration = await response.json();
         state.routerAuthToken = registration.authToken;
         window.localStorage.setItem('opengrid-router-auth-token', registration.authToken);

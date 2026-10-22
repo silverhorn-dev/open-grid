@@ -1,6 +1,6 @@
 async function refreshGrid() {
     const refreshed = await fetchPeersFromWorkerGrid();
-    if (refreshed) showToast('Grid refreshed.', 'info');
+    if (refreshed) showToast('Grid aktualisiert.', 'info');
 }
 
 function renderDiscoveryGrid() {
@@ -44,7 +44,7 @@ function renderDiscoveryGrid() {
         name.className = 'font-semibold text-sm text-slate-100 truncate';
         name.textContent = peer.name || 'Peer';
         const id = document.createElement('div');
-        id.className = 'text-[10px] font-mono text-slate-500 truncate';
+        id.className = 'debug-only text-[10px] font-mono text-slate-500 truncate';
         id.textContent = peer.id;
         identity.append(name, id);
         footer.appendChild(identity);
@@ -89,7 +89,7 @@ function renderActivePeerList() {
         name.className = 'text-xs font-semibold text-slate-200 truncate';
         name.textContent = peer.name || 'Peer';
         const status = document.createElement('div');
-        status.className = 'text-[10px] font-mono text-slate-400';
+        status.className = 'debug-only text-[10px] font-mono text-slate-400';
         status.textContent = blocked
             ? 'Blocked'
             : state.dataChannels[peer.id]?.readyState === 'open'

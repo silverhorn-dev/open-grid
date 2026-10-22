@@ -183,3 +183,23 @@ Akzeptanzkriterien:
 - Standardmaessig erscheint nur eine einzige Meldung "Neue Nachrichten" ohne
   Name und Text, auch bei mehreren Nachrichten. Vorschauen mit Name und Text
   lassen sich optional einschalten.
+
+## UC-14: Mobile Bedienung und Debug-Modus
+
+**Als Nutzer** moechte ich die App auf dem Smartphone wie eine native App
+bedienen und keine technischen Angaben sehen, solange ich sie nicht brauche.
+
+Akzeptanzkriterien:
+
+- Auf Smartphones (< 768 px) liegt eine feste Navigation unten mit Grid, Chat
+  und Profil. Auf dem Desktop liegen dieselben drei Punkte oben im Header.
+- Technisches (Einstellungen, Debug-Schalter, Cloud Cache, Abmelden) liegt im
+  Menue oben rechts.
+- Auf Smartphones zeigt der Chat-Tab zuerst die Chatliste. Ein geoeffneter
+  Chat fuellt den ganzen Bildschirm und hat einen Zurueck-Knopf.
+- Der Debug-Modus ist standardmaessig aus und wird pro Browser gemerkt.
+- Ohne Debug-Modus sind technische Angaben ausgeblendet: Node-IDs,
+  Zustellpfade unter Nachrichten, Verbindungsstatus, Geohash, Version,
+  Protokoll, Schema-Editor und Schluessel.
+- Ohne Debug-Modus erscheinen keine technischen Warnungen als Toast. Hinweise,
+  auf die der Nutzer reagieren muss, bleiben sichtbar.

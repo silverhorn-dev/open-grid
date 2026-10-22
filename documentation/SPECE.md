@@ -23,6 +23,14 @@
   und die Tailwind-Konfiguration.
 - Der Server liefert nur Dateien aus der festen Liste `clientAssetFiles` in
   `server/app.js` aus; neue Client-Dateien muessen dort eingetragen werden.
+- Debug-Modus: `CONFIG.DEBUG_MODE` kommt aus `localStorage`
+  (`opengrid-debug-mode` = `on`/`off`, Standard aus). Ist er an, traegt
+  `<html>` die Klasse `debug-on`. Elemente mit der Klasse `debug-only` sind
+  sonst per CSS ausgeblendet. Technische Toasts laufen ueber
+  `showDebugToast()` und erscheinen nur im Debug-Modus.
+- Navigation: `switchTab()` steuert die Ansichten und markiert alle Knoepfe mit
+  passendem `data-tab-btn` (Header-Navigation auf dem Desktop,
+  Bottom-Navigation auf Smartphones).
 
 Der Dienst laeuft als einzelner Docker-Container hinter einem TLS
 terminierenden Reverse Proxy.

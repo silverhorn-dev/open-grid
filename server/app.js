@@ -131,16 +131,16 @@ export async function buildApp(options = {}) {
 
     app.get('/', async (_request, reply) => {
         const html = indexTemplate
-            .replace('{{versionTag}}', buildVersion)
-            .replace('{{timestamp}}', buildTimestamp)
+            .replaceAll('{{versionTag}}', buildVersion)
+            .replaceAll('{{timestamp}}', buildTimestamp)
             .replaceAll('{{assetVersion}}', assetVersion)
             .replace('{{profileSchema}}', JSON.stringify(profileSchema));
         return reply.type('text/html; charset=utf-8').header('Cache-Control', 'no-cache').send(html);
     });
     app.get('/index.html', async (_request, reply) => {
         const html = indexTemplate
-            .replace('{{versionTag}}', buildVersion)
-            .replace('{{timestamp}}', buildTimestamp)
+            .replaceAll('{{versionTag}}', buildVersion)
+            .replaceAll('{{timestamp}}', buildTimestamp)
             .replaceAll('{{assetVersion}}', assetVersion)
             .replace('{{profileSchema}}', JSON.stringify(profileSchema));
         return reply.type('text/html; charset=utf-8').header('Cache-Control', 'no-cache').send(html);

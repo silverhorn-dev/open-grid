@@ -9,3 +9,108 @@
 .blur-overlay {
     backdrop-filter: blur(12px);
 }
+
+/* Debug-Modus: technische Angaben nur sichtbar, wenn <html> die Klasse debug-on traegt. */
+html:not(.debug-on) .debug-only {
+    display: none !important;
+}
+
+/* Navigation */
+.nav-top-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.875rem;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    color: #94a3b8;
+    transition: background-color 150ms, color 150ms;
+}
+.nav-top-btn:hover { color: #e2e8f0; background: #1e293b; }
+.nav-top-btn.is-active { color: #fb7185; background: rgba(244, 63, 94, 0.1); }
+
+.bottom-nav {
+    padding-bottom: env(safe-area-inset-bottom);
+}
+.nav-bottom-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.125rem;
+    min-height: 3.5rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: #94a3b8;
+}
+.nav-bottom-btn.is-active { color: #fb7185; }
+
+/* Platz fuer die feste Bottom-Navigation auf Smartphones */
+@media (max-width: 767px) {
+    .app-main {
+        padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+    }
+}
+
+/* Menue-Drawer */
+.menu-drawer {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    transform: translateX(100%);
+    visibility: hidden;
+    transition: transform 200ms ease-out, visibility 200ms;
+}
+.menu-drawer.is-open {
+    transform: translateX(0);
+    visibility: visible;
+}
+.menu-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border-radius: 0.75rem;
+    color: #e2e8f0;
+    text-align: left;
+    transition: background-color 150ms;
+}
+.menu-item:hover { background: #1e293b; }
+.toggle-pill {
+    font-size: 0.625rem;
+    font-family: ui-monospace, monospace;
+    padding: 0.125rem 0.5rem;
+    border-radius: 9999px;
+    border: 1px solid #334155;
+    background: #1e293b;
+    color: #94a3b8;
+}
+.toggle-pill.is-on {
+    border-color: #b45309;
+    background: rgba(120, 53, 15, 0.6);
+    color: #fde68a;
+}
+
+/* Chat auf Smartphones: Liste ODER Vollbild-Chat, wie eine native App */
+@media (max-width: 767px) {
+    #view-chat:not(.chat-open) #chat-window-panel {
+        display: none;
+    }
+    #view-chat.chat-open #chat-list-panel {
+        display: none;
+    }
+    #view-chat.chat-open #chat-window-panel {
+        position: fixed;
+        inset: 0;
+        z-index: 45;
+        height: 100dvh;
+        border: 0;
+        border-radius: 0;
+    }
+    #view-chat.chat-open .chat-header {
+        padding-top: calc(0.75rem + env(safe-area-inset-top));
+    }
+    #view-chat.chat-open .chat-input-bar {
+        padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+    }
+}

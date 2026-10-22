@@ -149,11 +149,11 @@ function recoverPeerConnection(peerId, connection) {
     } else if (state.secureMessageQueues[peerId]?.length) {
         flushPeerQueueToCache(peerId).then(() => {
             if (state.secureMessageQueues[peerId]?.length) {
-                showToast('The secure P2P connection failed. Messages remain queued locally for retry.', 'warning');
+                showToast('Nachricht konnte noch nicht zugestellt werden. Sie wird spaeter erneut gesendet.', 'warning');
             }
         }).catch(error => {
             logDebug(`Path C recovery failed: ${error.message}`);
-            showToast('The secure P2P connection failed. Messages remain queued locally for retry.', 'warning');
+            showToast('Nachricht konnte noch nicht zugestellt werden. Sie wird spaeter erneut gesendet.', 'warning');
         });
     }
 }
@@ -188,7 +188,7 @@ async function handleSignalingMessage(message) {
             logDebug(`Path C fallback failed: ${error.message}`);
         });
         updateChatConnectionStatus(message.targetPeerId, 'Peer unavailable', 'bg-amber-500/10 text-amber-400 border-amber-500/30');
-        showToast('Peer is currently unavailable for a direct P2P connection.', 'warning');
+        showDebugToast('Peer is currently unavailable for a direct P2P connection.', 'warning');
         return;
     }
     if (message.type === 'SIGNALING_ERROR') {
@@ -326,7 +326,7 @@ async function initiateP2PConnection(peerId) {
         await state.connectionAttempts[peerId];
     } catch (error) {
         updateChatConnectionStatus(peerId, 'Connection failed', 'bg-red-500/10 text-red-400 border-red-500/30');
-        showToast(`Could not start P2P connection: ${error.message}`, 'error');
+        showDebugToast(`Could not start P2P connection: ${error.message}`, 'error');
         throw error;
     } finally {
         delete state.connectionAttempts[peerId];
@@ -647,7 +647,7 @@ async function sendSecurePayload(peerId, payload, onSent = null) {
     }
 
     state.secureMessageQueues[peerId].push({payload, onSent, cacheQueued: false});
-    logDebug(`P2P/TURN-Kanal f�r ${peerId} noch nicht bereit. Nachricht in Queue eingereiht, starte Verbindung...`);
+    logDebug(`P2P/TURN-Kanal fuer ${peerId} noch nicht bereit. Nachricht in Queue eingereiht, starte Verbindung...`);
 
     initiateP2PConnection(peerId).catch(error => {
         logDebug(`Could not initiate P2P connection: ${error.message}`);

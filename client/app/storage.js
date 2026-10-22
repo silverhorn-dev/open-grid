@@ -45,7 +45,7 @@ function initDatabase() {
             finish();
         };
         req.onblocked = () => {
-            showToast('Local cache upgrade is blocked by another open tab.', 'warning');
+            showToast('Bitte schliesse andere OpenGrid-Tabs, damit die App aktualisiert werden kann.', 'warning');
             setTimeout(() => finish(), 3000);
         };
     });
@@ -127,7 +127,7 @@ async function initializeStorageEncryption() {
     } catch (error) {
         state.storageKey = null;
         console.error('Encrypted profile cache initialization failed.', error);
-        showToast('Encrypted profile cache is unavailable in this browser session.', 'warning');
+        showDebugToast('Encrypted profile cache is unavailable in this browser session.', 'warning');
     }
 }
 
@@ -499,11 +499,7 @@ async function applyChatOperation(peerId, operation) {
         }
 
         if (state.activeChatPeerId === peerId) {
-            state.activeChatPeerId = null;
-            document.getElementById('chat-peer-name').textContent = 'No Peer Selected';
-            document.getElementById('chat-connection-type').textContent = 'Select a conversation';
-            document.getElementById('chat-messages').innerHTML = '<div class="text-center text-xs text-slate-500 my-8">Der Chat wurde vom Chat-Partner geloescht.</div>';
-            updateChatActionButtons();
+            resetActiveChat('Der Chat wurde vom Chat-Partner geloescht.');
         }
         showToast('Ein Chat-Partner hat den Chat-Verlauf geloescht.', 'info');
         return true; // Return true, damit der Wipe nicht als endloser Sync gespeichert wird

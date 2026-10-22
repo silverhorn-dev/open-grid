@@ -2,7 +2,7 @@
 <html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>OpenGrid - Decentralized LGBTQ+ Discovery Platform</title>
     <meta name="theme-color" content="#0f172a">
     <meta name="description" content="Zero-Server E2EE P2P LGBTQ+ Discovery Platform">
@@ -23,61 +23,90 @@
     <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full px-4"></div>
 
     <!-- Top Global Header -->
-    <header class="bg-slate-900/90 backdrop-blur border-b border-slate-800 sticky top-0 z-40 px-4 py-3">
-        <div class="max-w-7xl mx-auto flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-600 to-purple-600 flex items-center justify-center font-black text-white shadow-lg pulse-glow">
+    <header class="app-header bg-slate-900/90 backdrop-blur border-b border-slate-800 sticky top-0 z-40 px-4 py-3">
+        <div class="max-w-7xl mx-auto flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3 min-w-0">
+                <div class="w-9 h-9 shrink-0 rounded-xl bg-gradient-to-tr from-brand-600 to-purple-600 flex items-center justify-center font-black text-white shadow-lg pulse-glow">
                     OG
                 </div>
-                <div>
+                <div class="min-w-0">
                     <h1 class="font-bold text-lg leading-tight tracking-wide flex items-center gap-2">
                         OpenGrid
-                        <span class="text-[10px] bg-brand-500/20 text-brand-400 border border-brand-500/30 px-2 py-0.5 rounded-full font-mono">{{versionTag}}</span>
+                        <span class="debug-only text-[10px] bg-brand-500/20 text-brand-400 border border-brand-500/30 px-2 py-0.5 rounded-full font-mono">{{versionTag}}</span>
                     </h1>
-                    <p class="text-xs text-slate-400 hidden sm:block">Zero-Server E2EE P2P Discovery Platform</p>
+                    <p class="debug-only text-xs text-slate-400 hidden sm:block">Zero-Server E2EE P2P Discovery Platform</p>
                 </div>
             </div>
 
-            <!-- Header Actions & Status Badges -->
-            <div class="flex items-center gap-2 sm:gap-3 text-xs font-mono">
-                <button id="toggle-debug-btn" onclick="toggleDebugMode()" class="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-2.5 py-1 rounded-lg transition" title="Debug-Protokollierung umschalten">
-                    <i class="fa-solid fa-bug text-amber-400"></i>
-                    <span id="debug-status-text" class="hidden md:inline">Debug: ON</span>
+            <!-- Desktop Navigation -->
+            <nav class="hidden md:flex items-center gap-1 text-sm" aria-label="Hauptnavigation">
+                <button data-tab-btn="grid" data-nav="top" onclick="switchTab('grid')" class="nav-top-btn">
+                    <i class="fa-solid fa-border-all"></i> Grid
                 </button>
-                <button onclick="gracefulUnregister()" class="flex items-center gap-1.5 bg-red-950/60 hover:bg-red-900/80 border border-red-800 text-red-300 px-2.5 py-1 rounded-lg transition" title="Abmelden vom Routing-Server (Graceful Leave)">
-                    <i class="fa-solid fa-power-off text-red-400"></i>
-                    <span class="hidden md:inline">Abmelden</span>
+                <button data-tab-btn="chat" data-nav="top" onclick="switchTab('chat')" class="nav-top-btn">
+                    <i class="fa-solid fa-comments"></i> Chat
                 </button>
-                <div class="flex items-center gap-1.5 bg-slate-800 border border-slate-700 px-2.5 py-1 rounded-lg">
+                <button data-tab-btn="editprofile" data-nav="top" onclick="switchTab('editprofile')" class="nav-top-btn">
+                    <i class="fa-solid fa-user"></i> Profil
+                </button>
+            </nav>
+
+            <!-- Header Actions & Status -->
+            <div class="flex items-center gap-2 text-xs font-mono shrink-0">
+                <div class="flex items-center gap-1.5 bg-slate-800 border border-slate-700 px-2.5 py-1.5 rounded-lg" title="Verbindungsstatus">
                     <span id="network-indicator" class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span id="network-status-text" class="text-slate-200">Online</span>
+                    <span id="network-status-text" class="debug-only text-slate-200">Online</span>
                 </div>
+                <button onclick="openMenu()" class="w-9 h-9 flex items-center justify-center bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-lg transition" title="Menue" aria-label="Menue oeffnen" aria-controls="app-menu">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
             </div>
         </div>
     </header>
 
-    <!-- Navigation Tabs -->
-    <nav class="bg-slate-900 border-b border-slate-800 px-4 sticky top-[61px] z-30">
-        <div class="max-w-7xl mx-auto flex gap-1 overflow-x-auto text-sm">
-            <button id="tab-btn-grid" onclick="switchTab('grid')" class="px-4 py-3 border-b-2 border-brand-500 text-brand-400 font-medium flex items-center gap-2 whitespace-nowrap">
-                <i class="fa-solid fa-border-all"></i> Discovery Grid
-            </button>
-            <button id="tab-btn-chat" onclick="switchTab('chat')" class="px-4 py-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200 font-medium flex items-center gap-2 whitespace-nowrap">
-                <i class="fa-solid fa-comments"></i> P2P Chat & Snap
-            </button>
-            <button id="tab-btn-editprofile" onclick="switchTab('editprofile')" class="px-4 py-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200 font-medium flex items-center gap-2 whitespace-nowrap">
-                <i class="fa-solid fa-user-pen"></i> My Profile & Galleries
-            </button>
-            <button id="tab-btn-cloud" onclick="switchTab('cloud')" class="px-4 py-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200 font-medium flex items-center gap-2 whitespace-nowrap">
-                <i class="fa-solid fa-cloud-arrow-up"></i> Cloud Cache
-            </button>
-            <button id="tab-btn-keys" onclick="switchTab('keys')" class="px-4 py-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200 font-medium flex items-center gap-2 whitespace-nowrap">
-                <i class="fa-solid fa-sliders"></i> Config & Keys
-            </button>
-        </div>
+    <!-- Mobile Bottom Navigation -->
+    <nav class="bottom-nav md:hidden fixed bottom-0 inset-x-0 z-40 bg-slate-900/95 backdrop-blur border-t border-slate-800 grid grid-cols-3" aria-label="Hauptnavigation">
+        <button data-tab-btn="grid" data-nav="bottom" onclick="switchTab('grid')" class="nav-bottom-btn">
+            <i class="fa-solid fa-border-all text-lg"></i><span>Grid</span>
+        </button>
+        <button data-tab-btn="chat" data-nav="bottom" onclick="switchTab('chat')" class="nav-bottom-btn">
+            <i class="fa-solid fa-comments text-lg"></i><span>Chat</span>
+        </button>
+        <button data-tab-btn="editprofile" data-nav="bottom" onclick="switchTab('editprofile')" class="nav-bottom-btn">
+            <i class="fa-solid fa-user text-lg"></i><span>Profil</span>
+        </button>
     </nav>
 
-    <main class="flex-1 max-w-7xl w-full mx-auto p-4 flex flex-col space-y-4">
+    <!-- Menu Drawer (technical settings) -->
+    <div id="app-menu-backdrop" onclick="closeMenu()" class="hidden fixed inset-0 z-[55] bg-slate-950/70 backdrop-blur-sm"></div>
+    <aside id="app-menu" class="menu-drawer fixed top-0 right-0 bottom-0 z-[56] w-72 max-w-[85vw] bg-slate-900 border-l border-slate-800 shadow-2xl flex flex-col" aria-label="Menue" aria-hidden="true">
+        <div class="flex items-center justify-between px-4 py-4 border-b border-slate-800">
+            <span class="font-bold text-slate-100">Menue</span>
+            <button onclick="closeMenu()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center" aria-label="Menue schliessen">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="flex-1 overflow-y-auto p-3 space-y-1 text-sm">
+            <button onclick="switchTab('keys'); closeMenu()" class="menu-item">
+                <i class="fa-solid fa-gear text-slate-400"></i> Einstellungen
+            </button>
+            <button onclick="switchTab('cloud'); closeMenu()" class="menu-item debug-only">
+                <i class="fa-solid fa-cloud-arrow-up text-sky-400"></i> Cloud Cache (Pfad C)
+            </button>
+            <button id="toggle-debug-btn" onclick="toggleDebugMode()" class="menu-item justify-between" role="switch" aria-checked="false">
+                <span class="flex items-center gap-3"><i class="fa-solid fa-bug text-amber-400"></i> Debug-Modus</span>
+                <span id="debug-status-text" class="toggle-pill">AUS</span>
+            </button>
+            <button onclick="closeMenu(); gracefulUnregister()" class="menu-item text-red-300" title="Abmelden vom Routing-Server (Graceful Leave)">
+                <i class="fa-solid fa-power-off text-red-400"></i> Abmelden
+            </button>
+        </div>
+        <div class="debug-only px-4 py-3 border-t border-slate-800 text-[10px] font-mono text-slate-500">
+            {{versionTag}} · Build: {{timestamp}}
+        </div>
+    </aside>
+
+    <main class="app-main flex-1 max-w-7xl w-full mx-auto p-4 flex flex-col space-y-4">
 
         <!-- ==================== TAB 1: DISCOVERY GRID ==================== -->
         <section id="view-grid" class="space-y-4">
@@ -87,7 +116,7 @@
                         <i class="fa-solid fa-location-crosshairs text-xl"></i>
                     </div>
                     <div>
-                        <div class="text-sm font-semibold">Simulated Geohash Cell: <span id="current-geohash" class="font-mono text-brand-400">u10j2k</span></div>
+                        <div class="text-sm font-semibold">In deiner Naehe <span class="debug-only">· Geohash-Zelle <span id="current-geohash" class="font-mono text-brand-400">u10j2k</span></span></div>
                         <p class="text-xs text-slate-400">
                             <span id="grid-peer-count">0 peers</span>
                             <span class="text-slate-600">•</span>
@@ -98,7 +127,7 @@
 
                 <div class="flex items-center gap-2">
                     <button id="refresh-grid-btn" onclick="refreshGrid()" class="bg-brand-600 hover:bg-brand-500 disabled:opacity-60 text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
-                        <i id="refresh-grid-icon" class="fa-solid fa-rotate"></i> Refresh Grid
+                        <i id="refresh-grid-icon" class="fa-solid fa-rotate"></i> Aktualisieren
                     </button>
                 </div>
             </div>
@@ -110,51 +139,56 @@
         </section>
 
         <!-- ==================== TAB 2: P2P CHAT & SNAP ==================== -->
-        <section id="view-chat" class="hidden flex-1 grid grid-cols-1 md:grid-cols-3 gap-4 min-h-[500px]">
-            <!-- Active Peer List -->
-            <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-col">
+        <section id="view-chat" class="hidden flex-1 grid grid-cols-1 md:grid-cols-3 gap-4 md:h-[calc(100dvh-7rem)] md:min-h-[480px]">
+            <!-- Chat List -->
+            <div id="chat-list-panel" class="bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-col min-h-0">
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 px-1 flex items-center justify-between">
-                    <span>Active Mesh Peers</span>
+                    <span>Chats</span>
                     <span id="active-peers-count" class="bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full text-xs">0</span>
                 </h3>
-                <div id="active-peers-list" class="flex-1 space-y-2 overflow-y-auto max-h-[460px]"></div>
+                <div id="active-peers-list" class="flex-1 min-h-0 space-y-2 overflow-y-auto"></div>
             </div>
 
-            <!-- Chat Window Panel -->
-            <div class="md:col-span-2 bg-slate-900 border border-slate-800 rounded-xl flex flex-col h-full">
-                <div id="chat-header" class="p-3 border-b border-slate-800 flex items-center justify-between bg-slate-900/50">
-                    <div class="flex items-center gap-3 cursor-pointer hover:opacity-80 transition" onclick="if(state.activeChatPeerId) openProfileModal(state.activeChatPeerId)" title="Profil anzeigen">
-                        <div id="chat-peer-avatar" class="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-slate-400 overflow-hidden">?</div>
-                        <div>
-                            <div id="chat-peer-name" class="font-bold text-sm text-slate-200">No Peer Selected</div>
-                            <div id="chat-connection-type" class="text-xs font-mono text-slate-400">Select a peer from the Grid</div>
+            <!-- Chat Window Panel (full screen on mobile) -->
+            <div id="chat-window-panel" class="md:col-span-2 bg-slate-900 border border-slate-800 rounded-xl flex flex-col h-full min-h-0">
+                <div id="chat-header" class="chat-header p-3 border-b border-slate-800 flex items-center justify-between gap-2 bg-slate-900/50">
+                    <div class="flex flex-1 items-center gap-2 min-w-0">
+                        <button onclick="leaveActiveChat()" class="md:hidden w-9 h-9 shrink-0 rounded-lg text-slate-300 hover:bg-slate-800 flex items-center justify-center" aria-label="Zurueck zur Chatliste">
+                            <i class="fa-solid fa-arrow-left"></i>
+                        </button>
+                        <div class="flex items-center gap-3 min-w-0 cursor-pointer hover:opacity-80 transition" onclick="if(state.activeChatPeerId) openProfileModal(state.activeChatPeerId)" title="Profil anzeigen">
+                            <div id="chat-peer-avatar" class="w-10 h-10 shrink-0 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-slate-400 overflow-hidden">?</div>
+                            <div class="min-w-0">
+                                <div id="chat-peer-name" class="font-bold text-sm text-slate-200 truncate">Kein Chat ausgewaehlt</div>
+                                <div id="chat-connection-type" class="debug-only text-xs font-mono text-slate-400 truncate">Select a peer from the Grid</div>
+                            </div>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <button id="delete-chat-btn" onclick="deleteActiveChat()" class="hidden text-xs px-2.5 py-1 rounded-lg border border-slate-700 bg-slate-800 text-slate-300 hover:text-red-300 hover:border-red-800 transition">
-                            Chat loeschen
+                    <div class="flex items-center gap-2 shrink-0">
+                        <button id="delete-chat-btn" onclick="deleteActiveChat()" class="hidden text-xs px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-800 text-slate-300 hover:text-red-300 hover:border-red-800 transition" title="Chat loeschen">
+                            <i class="fa-solid fa-trash md:hidden"></i><span class="hidden md:inline">Chat loeschen</span>
                         </button>
-                        <button id="block-peer-btn" onclick="toggleActivePeerBlock()" class="hidden text-xs px-2.5 py-1 rounded-lg border border-red-800 bg-red-950/60 text-red-300 hover:bg-red-900/80 transition">
+                        <button id="block-peer-btn" onclick="toggleActivePeerBlock()" class="hidden text-xs px-2.5 py-1.5 rounded-lg border border-red-800 bg-red-950/60 text-red-300 hover:bg-red-900/80 transition">
                             Blockieren
                         </button>
-                        <div id="connection-status-pill" class="text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-400 font-mono">
+                        <div id="connection-status-pill" class="debug-only text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-400 font-mono">
                             Disconnected
                         </div>
                     </div>
                 </div>
 
-                <div id="chat-messages" class="flex-1 p-4 overflow-y-auto space-y-3 min-h-[300px] max-h-[380px]">
-                    <div class="text-center text-xs text-slate-500 my-8">Select a peer to start E2EE conversation.</div>
+                <div id="chat-messages" class="flex-1 min-h-0 p-4 overflow-y-auto space-y-3">
+                    <div class="text-center text-xs text-slate-500 my-8">Waehle einen Chat aus oder starte einen im Grid.</div>
                 </div>
 
-                <div class="p-3 border-t border-slate-800 bg-slate-900/80 flex flex-col gap-2">
+                <div class="chat-input-bar p-3 border-t border-slate-800 bg-slate-900/80 flex flex-col gap-2">
                     <div class="flex items-center gap-2">
-                        <button onclick="openSnapUploadModal()" class="bg-slate-800 hover:bg-slate-700 text-brand-400 border border-slate-700 p-2.5 rounded-lg transition flex items-center gap-1.5 text-xs font-semibold">
-                            <i class="fa-solid fa-bolt text-amber-400"></i> Snap
+                        <button onclick="openSnapUploadModal()" class="bg-slate-800 hover:bg-slate-700 text-brand-400 border border-slate-700 p-2.5 rounded-lg transition flex items-center gap-1.5 text-xs font-semibold" title="Snap senden">
+                            <i class="fa-solid fa-bolt text-amber-400"></i><span class="hidden sm:inline">Snap</span>
                         </button>
-                        <input id="chat-input" type="text" placeholder="Type E2EE encrypted message..." class="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500 transition">
-                        <button id="send-chat-btn" onclick="sendChatMessage()" class="bg-brand-600 hover:bg-brand-500 disabled:bg-slate-700 disabled:text-slate-400 text-white px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-1.5">
-                            <i class="fa-solid fa-paper-plane"></i> Send
+                        <input id="chat-input" type="text" placeholder="Nachricht schreiben..." class="flex-1 min-w-0 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-base md:text-sm text-slate-100 focus:outline-none focus:border-brand-500 transition">
+                        <button id="send-chat-btn" onclick="sendChatMessage()" class="bg-brand-600 hover:bg-brand-500 disabled:bg-slate-700 disabled:text-slate-400 text-white px-3 sm:px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-1.5" title="Senden">
+                            <i class="fa-solid fa-paper-plane"></i><span class="hidden sm:inline">Senden</span>
                         </button>
                     </div>
                 </div>
@@ -167,15 +201,13 @@
                 <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
                     <div>
                         <h2 class="text-base font-bold text-slate-100 flex items-center gap-2">
-                            <i class="fa-solid fa-id-card text-brand-400"></i> Profile & Dynamic Schema Editor
+                            <i class="fa-solid fa-id-card text-brand-400"></i> Mein Profil
                         </h2>
-                        <p class="text-xs text-slate-400">Edit your profile and galleries. Form fields are generated dynamically via Configuration Schema API.</p>
+                        <p class="text-xs text-slate-400">Bearbeite dein Profil und deine Galerie. <span class="debug-only">Die Felder kommen aus dem Profil-Schema.</span></p>
                     </div>
                     <button onclick="saveUserProfile()" class="bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-lg pulse-glow">
-                        <i class="fa-solid fa-floppy-disk"></i> Save Profile Changes
+                        <i class="fa-solid fa-floppy-disk"></i> Speichern
                     </button>
-                </div>
-
                 </div>
 
                 <!-- Media & Gallery Editor -->
@@ -196,7 +228,7 @@
                             </div>
                         </div>
                         <div class="flex-1 space-y-2 w-full min-w-0">
-                            <label class="text-xs font-bold text-slate-400">Galerie (Unlimitiert, P2P Chunked)</label>
+                            <label class="text-xs font-bold text-slate-400">Galerie <span class="debug-only">(Unlimitiert, P2P Chunked)</span></label>
                             <div id="edit-gallery-container" class="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
                                 <!-- JS injects thumbnails here -->
                                 <label id="add-gallery-btn" class="w-20 h-20 rounded-xl bg-slate-950 border border-dashed border-slate-700 flex flex-col items-center justify-center cursor-pointer hover:border-brand-500 hover:text-brand-400 text-slate-500 transition shrink-0">
@@ -227,12 +259,15 @@
 
         <!-- ==================== TAB 5: CONFIG, KEYS & DEBUG CONSOLE ==================== -->
         <section id="view-keys" class="hidden space-y-4">
-            <div id="debug-console-panel" class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
-                <div class="flex justify-between items-center">
+            <h2 class="text-base font-bold text-slate-100 flex items-center gap-2">
+                <i class="fa-solid fa-gear text-slate-400"></i> Einstellungen
+            </h2>
+            <div id="debug-console-panel" class="debug-only bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
+                <div class="flex flex-wrap gap-2 justify-between items-center">
                     <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
                         <i class="fa-solid fa-terminal text-amber-400"></i> Live PWA Protocol Log
                     </h3>
-                    <div class="flex items-center gap-2">
+                    <div class="flex flex-wrap items-center gap-2">
                         <span class="text-[10px] text-slate-500 bg-slate-950 px-2 py-1 rounded border border-slate-800">Build: {{timestamp}}</span>
                         <button onclick="copyDebugLogs()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded flex items-center gap-1.5" title="Vollstaendiges Protokoll in die Zwischenablage kopieren">
                             <i class="fa-solid fa-copy text-sky-400"></i> Copy Logs
@@ -249,7 +284,7 @@
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
+                <div class="debug-only bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
                     <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
                         <i class="fa-solid fa-sliders text-brand-400"></i> Dynamic Profile Schema
                     </h3>
@@ -260,7 +295,7 @@
                     </button>
                 </div>
 
-                <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
+                <div class="debug-only bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
                     <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
                         <i class="fa-solid fa-key text-emerald-400"></i> E2EE Identity Keys (ECDH / P-256)
                     </h3>
@@ -279,7 +314,7 @@
                         <i class="fa-solid fa-bell text-amber-400"></i> Push-Benachrichtigungen
                     </h3>
                     <p class="text-xs text-slate-400">Weckt die App bei neuen Nachrichten, auch wenn sie geschlossen ist. Der Push enthaelt nur verschluesselte Daten.</p>
-                    <div id="push-status" class="text-xs font-mono text-slate-400">Checking...</div>
+                    <div id="push-status" class="debug-only text-xs font-mono text-slate-400">Checking...</div>
                     <button id="push-toggle-btn" onclick="togglePushNotifications()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-200 px-3 py-2 rounded-lg font-semibold transition">
                         Enable Notifications
                     </button>
@@ -341,7 +376,7 @@
 
             <div class="p-5 space-y-4">
                 <h2 id="modal-profile-name" class="text-xl font-bold text-slate-100">Loading...</h2>
-                <p id="modal-profile-id" class="text-xs font-mono text-slate-500 break-all"></p>
+                <p id="modal-profile-id" class="debug-only text-xs font-mono text-slate-500 break-all"></p>
                 
                 <div id="modal-gallery-container" class="hidden flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
                     <!-- Modal gallery images -->
@@ -349,12 +384,12 @@
 
                 <div id="modal-rendered-fields" class="grid grid-cols-2 gap-2 text-xs">
                     <div class="col-span-2 text-slate-500 text-center py-4">
-                        <i class="fa-solid fa-circle-notch fa-spin text-brand-500"></i> Requesting P2P Profile...
+                        <i class="fa-solid fa-circle-notch fa-spin text-brand-500"></i> Profil wird geladen...
                     </div>
                 </div>
                 <div class="pt-2 flex gap-2">
                     <button onclick="launchChatFromModal()" class="flex-1 bg-brand-600 hover:bg-brand-500 text-white font-semibold py-2.5 px-4 rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-lg pulse-glow">
-                        <i class="fa-solid fa-comments"></i> Start E2EE Chat
+                        <i class="fa-solid fa-comments"></i> Chat starten
                     </button>
                     <button onclick="closeProfileModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-2.5 px-4 rounded-xl text-xs transition border border-slate-700">Close</button>
                 </div>

@@ -141,8 +141,8 @@ Router-Eintraege.
 
 ## Push-Benachrichtigungen
 
-Im Tab mit den Schluesseln kann jeder Nutzer Push-Benachrichtigungen
-aktivieren. Danach gilt fuer Pfad C:
+Unter Menue (oben rechts) > Einstellungen kann jeder Nutzer
+Push-Benachrichtigungen aktivieren. Danach gilt fuer Pfad C:
 
 - Der Sender verschluesselt die Chat-Operation wie bisher und legt sie in die
   Queue. Bei neuen Nachrichten setzt er `notify: true`.
@@ -152,8 +152,8 @@ aktivieren. Danach gilt fuer Pfad C:
 - Der Service Worker des Empfaengers entschluesselt die Nachricht lokal,
   speichert sie in IndexedDB, loescht den Queue-Eintrag und zeigt eine
   Benachrichtigung. Standardmaessig ist das nur eine einzige Meldung "Neue
-  Nachrichten" ohne Name und Text. Vorschauen mit Name und Text lassen sich im
-  Schluessel-Tab einschalten.
+  Nachrichten" ohne Name und Text. Vorschauen mit Name und Text lassen sich in
+  den Einstellungen einschalten.
 - Schlaegt das fehl, bleibt die Nachricht in der Queue und die App holt sie
   beim naechsten Start.
 

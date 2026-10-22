@@ -98,14 +98,14 @@ async function runConnectivityDiagnostics() {
 }
 
 function updateDebugButtonState() {
+    document.documentElement.classList.toggle('debug-on', CONFIG.DEBUG_MODE);
     const button = document.getElementById('toggle-debug-btn');
     const status = document.getElementById('debug-status-text');
     if (!button || !status) return;
 
-    status.textContent = `Debug: ${CONFIG.DEBUG_MODE ? 'ON' : 'OFF'}`;
-    button.className = CONFIG.DEBUG_MODE
-        ? 'flex items-center gap-1.5 bg-amber-950/60 hover:bg-amber-900/70 border border-amber-700 text-amber-200 px-2.5 py-1 rounded-lg transition'
-        : 'flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-2.5 py-1 rounded-lg transition';
+    button.setAttribute('aria-checked', String(CONFIG.DEBUG_MODE));
+    status.textContent = CONFIG.DEBUG_MODE ? 'AN' : 'AUS';
+    status.classList.toggle('is-on', CONFIG.DEBUG_MODE);
 }
 
 function renderBlockedPeers() {
@@ -150,9 +150,15 @@ async function unblockPeerFromSettings(peerId) {
 
 function toggleDebugMode() {
     CONFIG.DEBUG_MODE = !CONFIG.DEBUG_MODE;
+    try {
+        window.localStorage.setItem(DEBUG_MODE_STORAGE_KEY, CONFIG.DEBUG_MODE ? 'on' : 'off');
+    } catch {
+        // Ohne localStorage gilt die Einstellung nur fuer diese Sitzung.
+    }
     updateDebugButtonState();
 
     if (CONFIG.DEBUG_MODE) {
+        closeMenu();
         switchTab('keys');
         logDebug('Debug logging enabled.');
     } else {
@@ -227,7 +233,7 @@ async function generateUserIdentityKeys(showNotification = false) {
     } catch (error) {
         console.error('Identity key generation failed.', error);
         if (fingerprintOutput) fingerprintOutput.textContent = 'Key generation failed';
-        showToast('E2EE key generation failed.', 'error');
+        showDebugToast('E2EE key generation failed.', 'error');
     } finally {
         if (regenerateButton) regenerateButton.disabled = false;
     }
@@ -273,13 +279,35 @@ function showToast(msg, type = 'info') {
     }, 3000);
 }
 
+// Technische Hinweise (Verbindung, Cache, Schluessel) nur im Debug-Modus als Toast zeigen.
+function showDebugToast(msg, type = 'info') {
+    logDebug(msg);
+    if (CONFIG.DEBUG_MODE) showToast(msg, type);
+}
+
 function switchTab(tabName) {
     ['grid', 'chat', 'editprofile', 'cloud', 'keys'].forEach(t => {
         const view = document.getElementById(`view-${t}`);
-        const btn = document.getElementById(`tab-btn-${t}`);
-        if (view) view.classList.add('hidden');
-        if (btn) btn.className = "px-4 py-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200 font-medium flex items-center gap-2 whitespace-nowrap";
+        if (view) view.classList.toggle('hidden', t !== tabName);
     });
-    document.getElementById(`view-${tabName}`).classList.remove('hidden');
-    document.getElementById(`tab-btn-${tabName}`).className = "px-4 py-3 border-b-2 border-brand-500 text-brand-400 font-medium flex items-center gap-2 whitespace-nowrap";
+    // Desktop-Navigation oben und Bottom-Navigation auf Smartphones tragen dieselben data-tab-btn-Werte.
+    document.querySelectorAll('[data-tab-btn]').forEach(button => {
+        const active = button.dataset.tabBtn === tabName;
+        button.classList.toggle('is-active', active);
+        if (active) button.setAttribute('aria-current', 'page');
+        else button.removeAttribute('aria-current');
+    });
+    window.scrollTo(0, 0);
+}
+
+function openMenu() {
+    document.getElementById('app-menu').classList.add('is-open');
+    document.getElementById('app-menu').setAttribute('aria-hidden', 'false');
+    document.getElementById('app-menu-backdrop').classList.remove('hidden');
+}
+
+function closeMenu() {
+    document.getElementById('app-menu').classList.remove('is-open');
+    document.getElementById('app-menu').setAttribute('aria-hidden', 'true');
+    document.getElementById('app-menu-backdrop').classList.add('hidden');
 }

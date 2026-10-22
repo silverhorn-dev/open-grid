@@ -203,7 +203,34 @@ async function openChatWithPeer(peerId) {
     renderActivePeerList();
     renderChatHistory();
     updateChatActionButtons();
+    updateChatLayout();
     if (!isPeerBlocked(peerId)) initiateP2PConnection(peerId).catch(() => {});
+}
+
+// Auf Smartphones zeigt der Chat-Tab entweder die Liste oder den Vollbild-Chat.
+function updateChatLayout() {
+    const view = document.getElementById('view-chat');
+    if (view) view.classList.toggle('chat-open', Boolean(state.activeChatPeerId));
+}
+
+function resetActiveChat(placeholderText) {
+    state.activeChatPeerId = null;
+    document.getElementById('chat-peer-name').textContent = 'Kein Chat ausgewaehlt';
+    document.getElementById('chat-connection-type').textContent = 'Select a conversation';
+    document.getElementById('chat-peer-avatar').textContent = '?';
+    const messages = document.getElementById('chat-messages');
+    messages.innerHTML = '';
+    const placeholder = document.createElement('div');
+    placeholder.className = 'text-center text-xs text-slate-500 my-8';
+    placeholder.textContent = placeholderText;
+    messages.appendChild(placeholder);
+    updateChatActionButtons();
+    updateChatLayout();
+    renderActivePeerList();
+}
+
+function leaveActiveChat() {
+    resetActiveChat('Waehle einen Chat aus oder starte einen im Grid.');
 }
 
 function updateChatActionButtons() {
@@ -248,11 +275,7 @@ async function deleteActiveChat() {
         await new Promise(resolve => setTimeout(resolve, 500));
 
         await storeChatControl(peerId, 'DELETE_CHAT');
-        state.activeChatPeerId = null;
-        document.getElementById('chat-peer-name').textContent = 'No Peer Selected';
-        document.getElementById('chat-connection-type').textContent = 'Select a conversation';
-        document.getElementById('chat-messages').innerHTML = '<div class="text-center text-xs text-slate-500 my-8">Chat geloescht.</div>';
-        updateChatActionButtons();
+        resetActiveChat('Chat geloescht.');
         showToast('Chat und zwischengespeicherte Router-Nachrichten wurden geloescht.', 'success');
     } catch (error) {
         showToast(`Chat konnte nicht geloescht werden: ${error.message}`, 'error');
@@ -402,7 +425,7 @@ function renderChatHistory() {
     const msgs = state.chats[state.activeChatPeerId] || [];
     container.innerHTML = '';
     if (msgs.length === 0) {
-        container.innerHTML = '<div class="text-center text-xs text-slate-500 my-8">The secure channel is being prepared. Send a message when ready.</div>';
+        container.innerHTML = '<div class="text-center text-xs text-slate-500 my-8">Noch keine Nachrichten. Sag hallo!</div>';
         return;
     }
     msgs.forEach(message => {
@@ -432,8 +455,11 @@ function renderChatHistory() {
         const meta = document.createElement('div');
         meta.className = 'text-[9px] text-slate-500 mt-0.5 flex items-center gap-2';
         const status = document.createElement('span');
-        status.textContent = `${message.timestamp} - ${message.deliveredVia}`;
-        meta.appendChild(status);
+        status.textContent = message.timestamp;
+        const deliveryPath = document.createElement('span');
+        deliveryPath.className = 'debug-only';
+        deliveryPath.textContent = message.deliveredVia;
+        meta.append(status, deliveryPath);
         if (isMine && !message.deleted) {
             const deleteButton = document.createElement('button');
             deleteButton.type = 'button';
@@ -452,7 +478,7 @@ function updateChatConnectionStatus(peerId, text, classes) {
     if (state.activeChatPeerId !== peerId) return;
     const pill = document.getElementById('connection-status-pill');
     pill.textContent = text;
-    pill.className = `text-xs px-2.5 py-1 rounded-full border font-mono ${classes}`;
+    pill.className = `debug-only text-xs px-2.5 py-1 rounded-full border font-mono whitespace-nowrap ${classes}`;
 }
 
 async function openSnapUploadModal() {

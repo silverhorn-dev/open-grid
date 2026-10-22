@@ -122,6 +122,7 @@ test('serves the app shell and all client modules', async () => {
     const indexResponse = await app.inject({ method: 'GET', url: '/' });
     assert.equal(indexResponse.statusCode, 200);
     assert.match(indexResponse.body, /test-build/);
+    assert.doesNotMatch(indexResponse.body, /\{\{(versionTag|timestamp|assetVersion)\}\}/);
     assert.match(indexResponse.body, /\/client\/crypto\.client\.js\?v=test-build-2026-10-21T00%3A00%3A00\.000Z/);
     assert.match(indexResponse.body, /\/client\/grid\.client\.js\?v=test-build-2026-10-21T00%3A00%3A00\.000Z/);
     assert.match(indexResponse.body, /\/client\/p2p\.client\.js\?v=test-build-2026-10-21T00%3A00%3A00\.000Z/);

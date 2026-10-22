@@ -4,10 +4,11 @@
 # general
 - [ ] coloring
 - [ ] general config for just chatting or smth else
-- [ ] THE GUI IMPROVEMENT
-  - [ ] mobile first
-    - [ ] responsive like a smartphone application
-    - [ ] better menu experienc
+- [x] split index.html into separate files (`client/app/*.js`, `client/styles.css`)
+- [x] THE GUI IMPROVEMENT
+  - [x] mobile first
+    - [x] responsive like a smartphone application
+    - [x] better menu experienc
       - on mobile
         - menu at the bottom 
           - menu contains grid, chat & profile
@@ -53,8 +54,8 @@
   - [ ] angelehnt an die snapchat GUI
 
 # Debug
-- [ ] wenn man nicht im debug modus ist sämtliche technischen bezeichnungen aus sein, bezieht sich nicht nur auf den chat
-- [ ] die ganzen notifications mit warnungen und technischen hinweisen und fehlern sollten nur im debugmodus erscheinen.
+- [x] wenn man nicht im debug modus ist sämtliche technischen bezeichnungen aus sein, bezieht sich nicht nur auf den chat
+- [x] die ganzen notifications mit warnungen und technischen hinweisen und fehlern sollten nur im debugmodus erscheinen.
 
 # Self-hosting
 - [x] migrate Cloudflare Worker, KV, Durable Objects and metadata to Fastify

@@ -8,6 +8,11 @@ async function refreshPresenceAndGrid() {
 }
 
 window.onload = async () => {
+    updateDebugButtonState();
+    switchTab('grid');
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape') closeMenu();
+    });
     try {
         await initDatabase();
         await initializeStorageEncryption();
@@ -20,7 +25,6 @@ window.onload = async () => {
         await cacheOwnProfile();
         await loadCachedGridPeers();
         await loadChatPeerIds();
-        updateDebugButtonState();
         await generateUserIdentityKeys();
         await registerServiceWorker();
         connectWorkerWebSocket();
@@ -54,6 +58,6 @@ window.onload = async () => {
         }
     } catch (error) {
         console.error('OpenGrid startup failed.', error);
-        showToast(`Startup failed: ${error.message}`, 'error');
+        showToast(CONFIG.DEBUG_MODE ? `Startup failed: ${error.message}` : 'Die App konnte nicht gestartet werden. Bitte neu laden.', 'error');
     }
 };

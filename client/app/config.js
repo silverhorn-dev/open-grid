@@ -1,4 +1,6 @@
-const CONFIG = { DEBUG_MODE: true, DEFAULT_GEOHASH: 'u10j2k' };
+const DEBUG_MODE_STORAGE_KEY = 'opengrid-debug-mode';
+const CONFIG = { DEBUG_MODE: loadDebugModePreference(), DEFAULT_GEOHASH: 'u10j2k' };
+document.documentElement.classList.toggle('debug-on', CONFIG.DEBUG_MODE);
 
 const DEFAULT_PROFILE_SCHEMA = [
     { key: 'displayName', label: 'Display Name', type: 'string', required: true, default: 'Alex' },
@@ -67,6 +69,15 @@ function peerAuthHeaders(headers = {}) {
     return state.routerAuthToken
         ? { ...headers, Authorization: `Bearer ${state.routerAuthToken}` }
         : headers;
+}
+
+// Debug ist standardmaessig aus und wird pro Browser in localStorage gemerkt.
+function loadDebugModePreference() {
+    try {
+        return window.localStorage.getItem(DEBUG_MODE_STORAGE_KEY) === 'on';
+    } catch {
+        return false;
+    }
 }
 
 function loadInjectedProfileSchema() {

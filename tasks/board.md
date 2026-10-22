@@ -16,6 +16,10 @@
   - [x] steady handshake. on a refresh or a new peer the existent should be persisted (just in the loaded geo chunk)
   - [x] not reachable peer should be 'abwesend' or offline
     - [x] wenn sich jmd abgemeldet hat ist er ganz weg
+- [] better performance
+  - [] er checkt sehr lange die verbindung, man sollte schneller offline sein.
+  - [] es sollte einen silent modus geben wo man zwar im router ist und zum chat verfügbar ist aber nicht im grid ist
+
 # Chat
 - [x] functional chat
   - [x] P2P got not initiated by click on chat

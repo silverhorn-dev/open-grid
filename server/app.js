@@ -3,6 +3,7 @@ import websocket from '@fastify/websocket';
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import crypto from 'node:crypto';
 import { createStore } from './database.js';
 import { registerSignalingRoute } from './signaling.js';
 
@@ -98,6 +99,31 @@ export async function buildApp(options = {}) {
                 .send(source);
         });
     }
+
+    app.get('/api/ice-config', async (request, reply) => {
+        const turnSecret = process.env.TURN_SECRET; // Muss in deiner Server .env gesetzt sein
+        const turnServer = process.env.TURN_SERVER || 'turn.deine-domain.de';
+        
+        if (!turnSecret) {
+            return { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+        }
+
+        // Temporaere Credentials (Gueltig fuer 24 Stunden)
+        const unixTimeStamp = Math.floor(Date.now() / 1000) + 24 * 3600;
+        const username = `${unixTimeStamp}:${request.ip || 'guest'}`;
+        const password = crypto.createHmac('sha1', turnSecret).update(username).digest('base64');
+
+        return {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                {
+                    urls: [`turn:${turnServer}:3478`, `turn:${turnServer}:443`],
+                    username: username,
+                    credential: password
+                }
+            ]
+        };
+    });
 
     app.post('/api/register', async (request, reply) => {
         const { peerId, geohash, registrationId, thumbnail, name } = request.body || {};

@@ -4,6 +4,16 @@
 # general
 - [ ] coloring
 - [ ] general config for just chatting or smth else
+- [ ] THE GUI IMPROVEMENT
+  - [ ] mobile first
+    - [ ] responsive like a smartphone application
+    - [ ] better menu experienc
+      - on mobile
+        - menu at the bottom 
+          - menu contains grid, chat & profile
+        - technikal stuff in the burger menu
+          - top right corner for technical burger menu
+        - Debug toggle to the technikal stuff
 
 # Grid
 - [x] GRID layout improvement
@@ -16,9 +26,10 @@
   - [x] steady handshake. on a refresh or a new peer the existent should be persisted (just in the loaded geo chunk)
   - [x] not reachable peer should be 'abwesend' or offline
     - [x] wenn sich jmd abgemeldet hat ist er ganz weg
-- [] better performance
-  - [] er checkt sehr lange die verbindung, man sollte schneller offline sein.
-  - [] es sollte einen silent modus geben wo man zwar im router ist und zum chat verfügbar ist aber nicht im grid ist
+- [ ] better performance
+  - [ ] er checkt sehr lange die verbindung, man sollte schneller offline sein.
+  - [ ] es sollte einen silent modus geben wo man zwar im router ist und zum chat verfügbar ist aber nicht im grid ist
+  - [ ] 
 
 # Chat
 - [x] functional chat
@@ -39,10 +50,11 @@
 - [ ] enable it
   - [ ] use camera
   - [ ] better gui
-  - [ ] 
+  - [ ] angelehnt an die snapchat GUI
 
 # Debug
 - [ ] wenn man nicht im debug modus ist sämtliche technischen bezeichnungen aus sein, bezieht sich nicht nur auf den chat
+- [ ] die ganzen notifications mit warnungen und technischen hinweisen und fehlern sollten nur im debugmodus erscheinen.
 
 # Self-hosting
 - [x] migrate Cloudflare Worker, KV, Durable Objects and metadata to Fastify

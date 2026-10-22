@@ -63,6 +63,19 @@ export function createStore(databasePath) {
         );
         CREATE INDEX IF NOT EXISTS chat_controls_owner
             ON chat_controls (owner_id, updated_at);
+
+        CREATE TABLE IF NOT EXISTS push_subscriptions (
+            peer_id TEXT PRIMARY KEY,
+            endpoint TEXT NOT NULL,
+            p256dh TEXT NOT NULL,
+            auth TEXT NOT NULL,
+            updated_at INTEGER NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS server_settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        );
     `);
     const peerColumns = database.prepare('PRAGMA table_info(peers)').all();
     if (!peerColumns.some(column => column.name === 'auth_hash')) {
@@ -193,6 +206,24 @@ export function createStore(databasePath) {
             SET blocked_at = NULL, updated_at = ?
             WHERE owner_id = ? AND peer_id = ?
         `),
+        upsertPushSubscription: database.prepare(`
+            INSERT INTO push_subscriptions (peer_id, endpoint, p256dh, auth, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(peer_id) DO UPDATE SET
+                endpoint = excluded.endpoint,
+                p256dh = excluded.p256dh,
+                auth = excluded.auth,
+                updated_at = excluded.updated_at
+        `),
+        findPushSubscription: database.prepare(`
+            SELECT endpoint, p256dh, auth
+            FROM push_subscriptions
+            WHERE peer_id = ?
+        `),
+        deletePushSubscription: database.prepare('DELETE FROM push_subscriptions WHERE peer_id = ?'),
+        deletePushSubscriptionEndpoint: database.prepare('DELETE FROM push_subscriptions WHERE peer_id = ? AND endpoint = ?'),
+        findSetting: database.prepare('SELECT value FROM server_settings WHERE key = ?'),
+        insertSetting: database.prepare('INSERT OR IGNORE INTO server_settings (key, value) VALUES (?, ?)'),
         deleteEmptyChatControl: database.prepare(`
             DELETE FROM chat_controls
             WHERE owner_id = ? AND peer_id = ?
@@ -367,6 +398,39 @@ export function createStore(databasePath) {
 
         isBlocked(ownerId, peerId) {
             return Boolean(statements.findChatControl.get(ownerId, peerId)?.blockedAt);
+        },
+
+        setPushSubscription(peerId, subscription, now = Date.now()) {
+            statements.upsertPushSubscription.run(
+                peerId,
+                subscription.endpoint,
+                subscription.keys.p256dh,
+                subscription.keys.auth,
+                now
+            );
+        },
+
+        getPushSubscription(peerId) {
+            const record = statements.findPushSubscription.get(peerId);
+            return record
+                ? { endpoint: record.endpoint, keys: { p256dh: record.p256dh, auth: record.auth } }
+                : null;
+        },
+
+        deletePushSubscription(peerId, endpoint = null) {
+            const result = endpoint
+                ? statements.deletePushSubscriptionEndpoint.run(peerId, endpoint)
+                : statements.deletePushSubscription.run(peerId);
+            return Number(result.changes);
+        },
+
+        // Liefert einen gespeicherten Wert oder legt ihn genau einmal an, damit
+        // generierte Server-Schluessel einen Neustart ueberleben.
+        getOrCreateSetting(key, createValue) {
+            const existing = statements.findSetting.get(key);
+            if (existing) return existing.value;
+            statements.insertSetting.run(key, createValue());
+            return statements.findSetting.get(key).value;
         },
 
         cleanup,

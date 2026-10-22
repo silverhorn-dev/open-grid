@@ -14,6 +14,10 @@ services:
       # TURN-Server Konfiguration
       TURN_SERVER: turn.og.silverhorn.dev
       TURN_SECRET: ${TURN_SECRET:-}
+      # Web Push
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       PORT: 3000
     ports:
       - "${OPEN_GRID_PORT:-3000}:3000"

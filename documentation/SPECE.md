@@ -114,6 +114,11 @@ IndexedDB Version 7 enthaelt:
 | `chatOperations` | idempotente Put-/Delete-Operationen pro Chat |
 | `gridPeers` | minimale lokale Routing-Metadaten |
 
+Der Store `keys` enthaelt zusaetzlich den Datensatz `router-auth` mit
+`nodeId` und Router-Token. Er spiegelt `localStorage` fuer den Service
+Worker, der keinen Zugriff auf `localStorage` hat. Der Datensatz
+`push-settings` speichert `compactNotifications` fuer den Service Worker.
+
 Nur eine hoehere Profilversion ersetzt einen vorhandenen Cache.
 Das eigene Profil wird nie durch Grid-Tombstones oder Peer-Cache-Bereinigung
 geloescht. Beim Upgrade von Version 3 wird ein vorhandenes eigenes Profil
@@ -195,7 +200,52 @@ Lokale Chatkontakte werden unabhaengig vom Discovery-Grid aus `messages` und
 werden, wenn beide Clients zuvor offline waren und der andere Peer noch nicht
 wieder im Router registriert ist.
 
-## 9. Betriebsgrenzen
+## 9. Web Push und Service Worker
+
+Der Server liefert `client/sw.js` unter `/sw.js` mit Scope `/` aus.
+
+| Methode | Route | Funktion |
+|---|---|---|
+| `GET` | `/api/push/vapid-public-key` | Oeffentlichen VAPID-Schluessel lesen |
+| `POST` | `/api/push/subscribe` | Push-Subscription eines Peers speichern (authentifiziert) |
+| `DELETE` | `/api/push/subscribe/:peerId` | Push-Subscription entfernen (authentifiziert) |
+
+SQLite speichert pro Peer genau eine Subscription in `push_subscriptions`.
+Generierte VAPID-Schluessel liegen in `server_settings`.
+
+Ablauf:
+
+1. `POST /api/cache` mit `notify: true` (nur `MESSAGE_PUT`) loest nach dem
+   Speichern einen Web Push an den Empfaenger aus. Der Sender wartet nicht
+   darauf.
+2. Payload: `{ type: 'PATH_C', msgId, senderId, ciphertextPayload, ivHex }`.
+   Ueber 3800 Byte entfallen `ciphertextPayload` und `ivHex`.
+3. Der Push wird nach RFC 8291 (`aes128gcm`) verschluesselt und mit einem
+   VAPID-JWT (ES256, RFC 8292) signiert.
+4. Antwortet der Push-Dienst mit 404 oder 410, wird die Subscription geloescht.
+
+Der Service Worker:
+
+- leitet den Push an ein sichtbares App-Fenster weiter (`PATH_C_AVAILABLE`),
+  das die Queue selbst abruft
+- sonst: liest Identitaetsschluessel, `router-auth` und den vertrauten
+  Peer-Key aus IndexedDB, holt den Ciphertext bei Bedarf aus der Queue,
+  prueft den Absender-Key und entschluesselt
+- uebernimmt nur gueltige `MESSAGE_PUT`-Operationen idempotent in
+  `messages` und `chatOperations` (`deliveredVia: 'E2EE Push'`)
+- loescht danach den Queue-Eintrag und zeigt eine Benachrichtigung
+- zeigt bei Fehlern eine allgemeine Benachrichtigung; die Nachricht bleibt in
+  der Queue
+- zeigt im Kompaktmodus (`compactNotifications`, Standard: an) immer nur eine Meldung
+  "Neue Nachrichten" ohne Name und Text, mit festem Tag `opengrid-messages`,
+  sodass auch mehrere Nachrichten nur eine Meldung ergeben
+- nutzt fuer Netzwerkzugriffe ein Timeout von 5 Sekunden
+- ruft `skipWaiting()` nie automatisch auf
+
+Ein Klick auf die Benachrichtigung fokussiert die App und oeffnet den Chat
+(`OPEN_CHAT`) oder startet sie mit `/?chat=<peerId>`.
+
+## 10. Betriebsgrenzen
 
 - Ein Container entspricht einer Signaling-Instanz. Fuer horizontale
   Skalierung waere ein gemeinsamer Pub/Sub-Backplane erforderlich.

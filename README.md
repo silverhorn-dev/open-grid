@@ -23,9 +23,11 @@ zwischen Clients ueber verschluesselte WebRTC DataChannels uebertragen.
 | `server/app.js` | Fastify-Routen, App-Shell und REST-API |
 | `server/database.js` | SQLite-Schema, Grid-TTL und Message Queue |
 | `server/signaling.js` | WebSocket-Signaling-Relay |
+| `server/push.js` | Web Push: VAPID-Signatur und aes128gcm-Verschluesselung |
 | `client/crypto.client.js` | Gemeinsame Base64-Helfer fuer Web Crypto |
 | `client/grid.client.js` | Discovery, Heartbeats, Grid und Signaling-Verbindung |
 | `client/p2p.client.js` | WebRTC, DataChannels, ECDH/AES-GCM und P2P-Protokoll |
+| `client/sw.js` | Service Worker fuer Push-Empfang im Hintergrund |
 | `index.html` | UI, Profile, Chats und IndexedDB |
 
 Cloudflare KV, Durable Objects, Worker Metadata und Wrangler werden nicht mehr
@@ -52,6 +54,8 @@ liegt im benannten Volume `open-grid-data` unter `/app/data`.
 | `TURN_SECRET` | – | Muss exakt dem `static-auth-secret` des coturn entsprechen |
 | `TURN_PORT` | `3478` | Port fuer die UDP- und TCP-Relays |
 | `TURN_TLS_PORT` | – | Optional, aktiviert zusaetzlich eine `turns:`-URL |
+| `VAPID_SUBJECT` | `mailto:admin@localhost` | Kontaktadresse fuer Push-Dienste (`mailto:` oder `https:`); Apple lehnt den Standardwert ab |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | generiert | Optional feste VAPID-Schluessel (base64url); sonst einmalig erzeugt und in SQLite gespeichert |
 
 Ohne gesetztes `TURN_SECRET` liefert `/api/ice-config` nur einen STUN-Server,
 es entstehen also keine Relay-Kandidaten. Stimmt das Secret nicht mit dem
@@ -132,6 +136,29 @@ Die Chat-Seitenleiste wird aus lokal vorhandenen Nachrichten und Operationen
 aufgebaut. Deshalb bleibt ein Offline-Chat sichtbar, auch wenn der Peer gerade
 keinen Grid-Eintrag besitzt. Der Grid-Bereich zeigt weiterhin nur aktive
 Router-Eintraege.
+
+## Push-Benachrichtigungen
+
+Im Tab mit den Schluesseln kann jeder Nutzer Push-Benachrichtigungen
+aktivieren. Danach gilt fuer Pfad C:
+
+- Der Sender verschluesselt die Chat-Operation wie bisher und legt sie in die
+  Queue. Bei neuen Nachrichten setzt er `notify: true`.
+- Der Server schickt den Ciphertext des Senders per Web Push an den
+  Empfaenger. Passt er nicht in einen Push (z. B. Snaps), geht nur ein
+  Hinweis mit der Message-ID raus.
+- Der Service Worker des Empfaengers entschluesselt die Nachricht lokal,
+  speichert sie in IndexedDB, loescht den Queue-Eintrag und zeigt eine
+  Benachrichtigung. Standardmaessig ist das nur eine einzige Meldung "Neue
+  Nachrichten" ohne Name und Text. Vorschauen mit Name und Text lassen sich im
+  Schluessel-Tab einschalten.
+- Schlaegt das fehl, bleibt die Nachricht in der Queue und die App holt sie
+  beim naechsten Start.
+
+Ein echter P2P-Handshake im Hintergrund ist nicht moeglich, weil Service
+Worker kein `RTCPeerConnection` besitzen. Push-Nachrichten laufen ueber den
+Push-Dienst des Browser-Herstellers, enthalten aber nur doppelt
+verschluesselte Daten. Auf iOS funktioniert Push nur fuer die installierte PWA.
 
 ## Identitaet, P2P und Presence
 

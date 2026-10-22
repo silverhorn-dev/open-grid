@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import crypto, { createHash, randomBytes } from 'node:crypto';
 import { createStore } from './database.js';
 import { registerSignalingRoute } from './signaling.js';
+import { MAX_PUSH_PLAINTEXT_BYTES, createPushSender, generateVapidKeys } from './push.js';
 
 const serverDirectory = dirname(fileURLToPath(import.meta.url));
 const projectDirectory = join(serverDirectory, '..');
@@ -29,6 +30,25 @@ function isString(value, maxLength) {
     return typeof value === 'string' && value.length > 0 && value.length <= maxLength;
 }
 
+function isPushSubscription(subscription) {
+    if (!subscription || !isString(subscription.endpoint, 2048)) return false;
+    if (!isString(subscription.keys?.p256dh, 200) || !isString(subscription.keys?.auth, 100)) return false;
+    try {
+        return new URL(subscription.endpoint).protocol === 'https:';
+    } catch {
+        return false;
+    }
+}
+
+function loadVapidKeys(store) {
+    if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+        return { publicKey: process.env.VAPID_PUBLIC_KEY, privateKey: process.env.VAPID_PRIVATE_KEY };
+    }
+    // Ohne feste Schluessel wuerden alle Browser-Subscriptions nach einem
+    // Neustart ungueltig. Deshalb einmal erzeugen und in SQLite behalten.
+    return JSON.parse(store.getOrCreateSetting('vapid-keys', () => JSON.stringify(generateVapidKeys())));
+}
+
 export async function buildApp(options = {}) {
     const app = Fastify({
         logger: options.logger ?? false,
@@ -50,12 +70,26 @@ export async function buildApp(options = {}) {
     const buildTimestamp = options.buildTimestamp || process.env.BUILD_TIMESTAMP || new Date().toISOString();
     const assetVersion = encodeURIComponent(`${buildVersion}-${buildTimestamp}`);
     const profileSchema = options.profileSchema || parseProfileSchema(process.env.PROFILE_SCHEMA);
-    const [indexTemplate, cryptoClient, gridClient, p2pClient] = await Promise.all([
+    const [indexTemplate, cryptoClient, gridClient, p2pClient, serviceWorker] = await Promise.all([
         readFile(join(projectDirectory, 'index.html'), 'utf8'),
         readFile(join(projectDirectory, 'client', 'crypto.client.js'), 'utf8'),
         readFile(join(projectDirectory, 'client', 'grid.client.js'), 'utf8'),
-        readFile(join(projectDirectory, 'client', 'p2p.client.js'), 'utf8')
+        readFile(join(projectDirectory, 'client', 'p2p.client.js'), 'utf8'),
+        readFile(join(projectDirectory, 'client', 'sw.js'), 'utf8')
     ]);
+    const vapidKeys = options.vapidKeys || loadVapidKeys(store);
+    const vapidSubject = options.vapidSubject || process.env.VAPID_SUBJECT || 'mailto:admin@localhost';
+    if (!options.pushSender && !process.env.VAPID_SUBJECT) {
+        app.log.warn(
+            'VAPID_SUBJECT ist nicht gesetzt. Einige Push-Dienste (z. B. Apple) lehnen '
+            + 'den Standardwert ab. Setze eine erreichbare mailto:- oder https:-Adresse.'
+        );
+    }
+    const sendPush = options.pushSender || createPushSender({
+        vapidKeys,
+        subject: vapidSubject,
+        logger: app.log
+    });
     const clientScripts = new Map([
         ['/client/crypto.client.js', cryptoClient],
         ['/client/grid.client.js', gridClient],
@@ -101,6 +135,16 @@ export async function buildApp(options = {}) {
             .replaceAll('{{assetVersion}}', assetVersion)
             .replace('{{profileSchema}}', JSON.stringify(profileSchema));
         return reply.type('text/html; charset=utf-8').header('Cache-Control', 'no-cache').send(html);
+    });
+
+    // Der Service Worker muss unter dem Wurzelpfad liegen, damit sein Scope
+    // die ganze App abdeckt. no-cache sorgt dafuer, dass Updates erkannt werden.
+    app.get('/sw.js', async (_request, reply) => {
+        return reply
+            .type('text/javascript; charset=utf-8')
+            .header('Cache-Control', 'no-cache')
+            .header('Service-Worker-Allowed', '/')
+            .send(serviceWorker);
     });
 
     for (const [path, source] of clientScripts) {
@@ -290,8 +334,53 @@ export async function buildApp(options = {}) {
         };
     });
 
+    async function notifyRecipient(message) {
+        const subscription = store.getPushSubscription(message.recipientId);
+        if (!subscription) return;
+        const fullPayload = {
+            type: 'PATH_C',
+            msgId: message.msgId,
+            senderId: message.senderId,
+            ciphertextPayload: message.ciphertextPayload,
+            ivHex: message.ivHex
+        };
+        // Grosse Payloads (z. B. Snaps) passen nicht in einen Push. Dann geht
+        // nur der Hinweis raus und der Service Worker holt den Rest aus der Queue.
+        const payload = Buffer.byteLength(JSON.stringify(fullPayload)) <= MAX_PUSH_PLAINTEXT_BYTES
+            ? fullPayload
+            : { type: 'PATH_C', msgId: message.msgId, senderId: message.senderId };
+        try {
+            const result = await sendPush(subscription, payload);
+            if (result.expired) store.deletePushSubscription(message.recipientId, subscription.endpoint);
+        } catch (error) {
+            app.log.warn(`Web Push delivery failed: ${error.message}`);
+        }
+    }
+
+    app.get('/api/push/vapid-public-key', async () => ({ publicKey: vapidKeys.publicKey }));
+
+    app.post('/api/push/subscribe', async (request, reply) => {
+        const { peerId, subscription } = request.body || {};
+        if (!isString(peerId, 200)) {
+            return reply.code(400).send({ error: 'Invalid peerId' });
+        }
+        if (!requirePeerAuth(request, reply, peerId)) return;
+        if (!isPushSubscription(subscription)) {
+            return reply.code(400).send({ error: 'Invalid push subscription' });
+        }
+        store.setPushSubscription(peerId, subscription);
+        return reply.code(201).send({ status: 'subscribed', peerId });
+    });
+
+    app.delete('/api/push/subscribe/:peerId', async (request, reply) => {
+        const { peerId } = request.params;
+        if (!requirePeerAuth(request, reply, peerId)) return;
+        const removed = store.deletePushSubscription(peerId);
+        return { status: 'unsubscribed', peerId, removed };
+    });
+
     app.post('/api/cache', async (request, reply) => {
-        const { recipientId, senderId, ciphertextPayload, ivHex, ttlHours } = request.body || {};
+        const { recipientId, senderId, ciphertextPayload, ivHex, ttlHours, notify } = request.body || {};
         if (!isString(recipientId, 200) || !isString(ciphertextPayload, 102400)) {
             return reply.code(400).send({ error: 'Missing or invalid parameters' });
         }
@@ -312,10 +401,15 @@ export async function buildApp(options = {}) {
             ivHex: ivHex?.substring(0, 200),
             ttlHours
         });
+        // Der Push laeuft im Hintergrund, damit der Sender nicht auf den
+        // Push-Dienst des Empfaengers warten muss.
+        const pushRequested = notify === true && Boolean(store.getPushSubscription(recipientId));
+        if (pushRequested) notifyRecipient(message);
         return reply.code(201).send({
             status: 'queued',
             msgId: message.msgId,
-            expiresAt: message.expiresAt
+            expiresAt: message.expiresAt,
+            pushRequested
         });
     });
 

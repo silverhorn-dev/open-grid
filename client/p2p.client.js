@@ -709,7 +709,9 @@ async function queuePayloadInCache(peerId, item) {
                 ciphertext: bytesToBase64(new Uint8Array(ciphertext))
             }),
             ivHex: bytesToBase64(iv),
-            ttlHours: 24
+            ttlHours: 24,
+            // Nur neue Nachrichten wecken den Empfaenger per Web Push.
+            notify: item.payload.operation?.type === 'MESSAGE_PUT'
         })
     });
     if (response.status === 403) {

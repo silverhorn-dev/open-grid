@@ -302,6 +302,21 @@
                     </button>
                 </div>
 
+                <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
+                    <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-bell text-amber-400"></i> Push-Benachrichtigungen
+                    </h3>
+                    <p class="text-xs text-slate-400">Weckt die App bei neuen Nachrichten, auch wenn sie geschlossen ist. Der Push enthaelt nur verschluesselte Daten.</p>
+                    <div id="push-status" class="text-xs font-mono text-slate-400">Checking...</div>
+                    <button id="push-toggle-btn" onclick="togglePushNotifications()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-200 px-3 py-2 rounded-lg font-semibold transition">
+                        Enable Notifications
+                    </button>
+                    <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                        <input type="checkbox" id="push-compact-toggle" checked onchange="setCompactPushNotifications(this.checked)" class="accent-brand-500">
+                        Nur eine Meldung "Neue Nachrichten" (ohne Name und Text)
+                    </label>
+                </div>
+
                 <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3 md:col-span-2">
                     <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
                         <i class="fa-solid fa-user-slash text-red-400"></i> Blockierte Peers
@@ -432,7 +447,10 @@
             chatControls: {},
             pendingImageRequests: {},
             debugLogBuffer: [],
-            mediaStream: null
+            mediaStream: null,
+            serviceWorkerRegistration: null,
+            persistedRouterAuthToken: null,
+            pushSubscriptionSynced: false
         };
 
         let db = null;
@@ -2122,6 +2140,147 @@
             document.getElementById(`tab-btn-${tabName}`).className = "px-4 py-3 border-b-2 border-brand-500 text-brand-400 font-medium flex items-center gap-2 whitespace-nowrap";
         }
 
+        // ================= PUSH NOTIFICATIONS =================
+        function isPushSupported() {
+            return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+        }
+
+        function base64UrlToBytes(value) {
+            const base64 = value.replace(/-/g, '+').replace(/_/g, '/');
+            return base64ToBytes(base64.padEnd(Math.ceil(base64.length / 4) * 4, '='));
+        }
+
+        // Der Service Worker hat keinen Zugriff auf localStorage. Er braucht
+        // Node-ID und Router-Token aber fuer Queue-Abruf und ACK.
+        function onRouterAuthUpdated() {
+            if (!db || !state.routerAuthToken || state.persistedRouterAuthToken === state.routerAuthToken) return;
+            const authToken = state.routerAuthToken;
+            putDatabaseRecord('keys', { id: 'router-auth', nodeId: state.myProfile.id, authToken })
+                .then(() => { state.persistedRouterAuthToken = authToken; })
+                .catch(error => logDebug(`Could not store router auth for the service worker: ${error.message}`));
+            if (!state.pushSubscriptionSynced) {
+                state.pushSubscriptionSynced = true;
+                syncPushSubscription().catch(error => logDebug(`Push subscription sync failed: ${error.message}`));
+            }
+        }
+
+        async function registerServiceWorker() {
+            if (!('serviceWorker' in navigator)) return;
+            navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage);
+            navigator.serviceWorker.startMessages();
+            try {
+                state.serviceWorkerRegistration = await navigator.serviceWorker.register('/sw.js');
+            } catch (error) {
+                logDebug(`Service worker registration failed: ${error.message}`);
+            }
+            updatePushStatus();
+        }
+
+        function handleServiceWorkerMessage(event) {
+            const data = event.data || {};
+            if (data.type === 'PATH_C_AVAILABLE') {
+                fetchQueuedCacheMessages();
+            } else if (data.type === 'CHAT_STORE_UPDATED' && typeof data.peerId === 'string') {
+                loadChatPeerIds().catch(() => {});
+                if (state.activeChatPeerId === data.peerId) {
+                    loadChatHistory(data.peerId).then(renderChatHistory).catch(() => {});
+                }
+            } else if (data.type === 'OPEN_CHAT' && typeof data.peerId === 'string') {
+                openChatWithPeer(data.peerId);
+            }
+        }
+
+        async function getPushSubscription() {
+            const registration = state.serviceWorkerRegistration;
+            return registration ? registration.pushManager.getSubscription() : null;
+        }
+
+        async function uploadPushSubscription(subscription) {
+            const response = await fetch(`${API_BASE}/api/push/subscribe`, {
+                method: 'POST',
+                headers: peerAuthHeaders({ 'Content-Type': 'application/json' }),
+                body: JSON.stringify({ peerId: state.myProfile.id, subscription: subscription.toJSON() })
+            });
+            if (!response.ok) throw new Error(`Push API returned ${response.status}.`);
+        }
+
+        // Haelt den Server aktuell, z. B. nach einem Server-Reset oder neuem Token.
+        async function syncPushSubscription() {
+            if (!isPushSupported() || Notification.permission !== 'granted') return;
+            const subscription = await getPushSubscription();
+            if (subscription) await uploadPushSubscription(subscription);
+        }
+
+        async function setCompactPushNotifications(enabled) {
+            try {
+                await putDatabaseRecord('keys', { id: 'push-settings', compactNotifications: enabled });
+            } catch (error) {
+                logDebug(`Could not store push settings: ${error.message}`);
+                showToast('Einstellung konnte nicht gespeichert werden.', 'error');
+            }
+        }
+
+        async function updatePushStatus() {
+            const compactToggle = document.getElementById('push-compact-toggle');
+            if (compactToggle && db) {
+                const settings = await databaseRequest('keys', 'readonly', store => store.get('push-settings')).catch(() => null);
+                compactToggle.checked = settings?.compactNotifications !== false;
+            }
+            const status = document.getElementById('push-status');
+            const button = document.getElementById('push-toggle-btn');
+            if (!status || !button) return;
+            if (!isPushSupported() || !state.serviceWorkerRegistration) {
+                status.textContent = 'Nicht unterstuetzt (auf iOS nur als installierte App).';
+                button.disabled = true;
+                return;
+            }
+            const subscription = await getPushSubscription().catch(() => null);
+            const active = Boolean(subscription) && Notification.permission === 'granted';
+            status.textContent = Notification.permission === 'denied'
+                ? 'Im Browser blockiert.'
+                : active ? 'Aktiv.' : 'Aus.';
+            button.disabled = Notification.permission === 'denied';
+            button.textContent = active ? 'Disable Notifications' : 'Enable Notifications';
+        }
+
+        async function togglePushNotifications() {
+            const button = document.getElementById('push-toggle-btn');
+            button.disabled = true;
+            try {
+                const existing = await getPushSubscription();
+                if (existing && Notification.permission === 'granted') {
+                    await existing.unsubscribe();
+                    await fetch(`${API_BASE}/api/push/subscribe/${encodeURIComponent(state.myProfile.id)}`, {
+                        method: 'DELETE',
+                        headers: peerAuthHeaders()
+                    });
+                    showToast('Push-Benachrichtigungen deaktiviert.', 'info');
+                    return;
+                }
+                const permission = await Notification.requestPermission();
+                if (permission !== 'granted') {
+                    showToast('Benachrichtigungen wurden nicht erlaubt.', 'warning');
+                    return;
+                }
+                const keyResponse = await fetch(`${API_BASE}/api/push/vapid-public-key`);
+                const { publicKey } = await keyResponse.json();
+                // subscribe() braucht einen aktiven Worker, nicht nur einen installierten.
+                const registration = await navigator.serviceWorker.ready;
+                const subscription = existing || await registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: base64UrlToBytes(publicKey)
+                });
+                await uploadPushSubscription(subscription);
+                showToast('Push-Benachrichtigungen aktiviert.', 'success');
+            } catch (error) {
+                logDebug(`Push toggle failed: ${error.message}`);
+                showToast('Push-Benachrichtigungen konnten nicht geaendert werden.', 'error');
+            } finally {
+                button.disabled = false;
+                updatePushStatus();
+            }
+        }
+
         async function refreshPresenceAndGrid() {
             const registered = await registerWithWorkerGrid();
             if (!registered) return;
@@ -2146,6 +2305,7 @@
                 await loadChatPeerIds();
                 updateDebugButtonState();
                 await generateUserIdentityKeys();
+                await registerServiceWorker();
                 connectWorkerWebSocket();
                 document.getElementById('chat-input').addEventListener('keydown', (event) => {
                     if (event.key === 'Enter' && !event.shiftKey) {
@@ -2168,6 +2328,13 @@
                 setInterval(() => {
                     if (document.visibilityState === 'visible') registerWithWorkerGrid();
                 }, 25000);
+
+                // Deep Link aus einer Push-Benachrichtigung
+                const chatPeerId = new URLSearchParams(window.location.search).get('chat');
+                if (chatPeerId) {
+                    window.history.replaceState(null, '', '/');
+                    await openChatWithPeer(chatPeerId);
+                }
             } catch (error) {
                 console.error('OpenGrid startup failed.', error);
                 showToast(`Startup failed: ${error.message}`, 'error');

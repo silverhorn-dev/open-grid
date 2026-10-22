@@ -231,6 +231,7 @@ async function registerWithWorkerGrid() {
         const registration = await response.json();
         state.routerAuthToken = registration.authToken;
         window.localStorage.setItem('opengrid-router-auth-token', registration.authToken);
+        onRouterAuthUpdated();
         logDebug('Registered in Worker Spatial Grid');
         return true;
     } catch (error) {

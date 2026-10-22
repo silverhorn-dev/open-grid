@@ -162,3 +162,24 @@ Akzeptanzkriterien:
 - Blockierte Absender koennen keine neuen Queue-Nachrichten hinterlegen.
 - Jeder Client aktualisiert seine Regeln beim Start, Reconnect und Fokus.
 - Eine Blockierung kann explizit wieder aufgehoben werden.
+
+## UC-13: Push-Benachrichtigung bei geschlossener App
+
+**Als Nutzer** moechte ich neue Nachrichten auch bei geschlossener App
+erhalten, ohne dass der Server Klartext sieht.
+
+Akzeptanzkriterien:
+
+- Push-Benachrichtigungen werden erst nach ausdruecklicher Zustimmung
+  aktiviert und koennen wieder deaktiviert werden.
+- Nur neue Nachrichten (`MESSAGE_PUT`) loesen einen Push aus.
+- Der Push enthaelt nur den Pfad-C-Ciphertext des Senders oder einen Hinweis
+  mit Message-ID.
+- Der Service Worker speichert die Nachricht lokal und entfernt sie danach aus
+  der Server-Queue.
+- Blockierte Absender loesen keinen Push aus.
+- Ist die App sichtbar geoeffnet, verarbeitet sie die Nachricht selbst.
+- Ein Klick auf die Benachrichtigung oeffnet den passenden Chat.
+- Standardmaessig erscheint nur eine einzige Meldung "Neue Nachrichten" ohne
+  Name und Text, auch bei mehreren Nachrichten. Vorschauen mit Name und Text
+  lassen sich optional einschalten.

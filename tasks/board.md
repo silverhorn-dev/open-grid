@@ -69,3 +69,9 @@
 - [x] retrieve and decrypt queued operations after reconnect
 - [x] delete server queue entries only after successful local application
 - [x] persist non-exportable ECDH identity keys for cross-session decryption
+
+# Push (feature request)
+- [x] Web Push via VAPID, sender ciphertext travels inside the push
+- [x] service worker stores message in IndexedDB + ACKs the queue
+- [x] notification click opens the chat
+- [ ] test on real devices (Android Chrome, Firefox, iOS PWA)

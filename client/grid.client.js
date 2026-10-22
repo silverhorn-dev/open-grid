@@ -192,6 +192,8 @@ function connectWorkerWebSocket() {
 async function registerWithWorkerGrid() {
     try {
         if (!state.myKeys) throw new Error('Identity keys are not ready');
+        const sharedToken = window.localStorage.getItem('opengrid-router-auth-token');
+        if (sharedToken) state.routerAuthToken = sharedToken;
         if (!state.routerAuthToken) {
             const tokenBytes = window.crypto.getRandomValues(new Uint8Array(32));
             state.routerAuthToken = bytesToBase64(tokenBytes);

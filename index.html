@@ -370,7 +370,7 @@
     </div>
 
     <script id="profile-schema-data" type="application/json">{{profileSchema}}</script>
-    <script src="/client/crypto.client.js"></script>
+    <script src="/client/crypto.client.js?v={{assetVersion}}"></script>
     <script>
         const CONFIG = { DEBUG_MODE: true, DEFAULT_GEOHASH: 'u10j2k' };
 
@@ -1323,8 +1323,8 @@
         }
 
     </script>
-    <script src="/client/grid.client.js"></script>
-    <script src="/client/p2p.client.js"></script>
+    <script src="/client/grid.client.js?v={{assetVersion}}"></script>
+    <script src="/client/p2p.client.js?v={{assetVersion}}"></script>
     <script>
         // ================= MODAL & CHAT =================
         function updateProfilePresence(peerId, status) {
@@ -2041,6 +2041,11 @@
                 });
                 document.addEventListener('visibilitychange', () => {
                     if (document.visibilityState === 'visible') refreshPresenceAndGrid();
+                });
+                window.addEventListener('storage', event => {
+                    if (event.key === 'opengrid-router-auth-token' && event.newValue) {
+                        state.routerAuthToken = event.newValue;
+                    }
                 });
                 window.addEventListener('focus', refreshPresenceAndGrid);
                 setInterval(() => {

@@ -39,6 +39,7 @@ export async function buildApp(options = {}) {
     const ownsStore = !options.store;
     const buildVersion = options.buildVersion || process.env.BUILD_VERSION || 'self-hosted';
     const buildTimestamp = options.buildTimestamp || process.env.BUILD_TIMESTAMP || new Date().toISOString();
+    const assetVersion = encodeURIComponent(`${buildVersion}-${buildTimestamp}`);
     const profileSchema = options.profileSchema || parseProfileSchema(process.env.PROFILE_SCHEMA);
     const [indexTemplate, cryptoClient, gridClient, p2pClient] = await Promise.all([
         readFile(join(projectDirectory, 'index.html'), 'utf8'),
@@ -80,6 +81,7 @@ export async function buildApp(options = {}) {
         const html = indexTemplate
             .replace('{{versionTag}}', buildVersion)
             .replace('{{timestamp}}', buildTimestamp)
+            .replaceAll('{{assetVersion}}', assetVersion)
             .replace('{{profileSchema}}', JSON.stringify(profileSchema));
         return reply.type('text/html; charset=utf-8').header('Cache-Control', 'no-cache').send(html);
     });
@@ -87,6 +89,7 @@ export async function buildApp(options = {}) {
         const html = indexTemplate
             .replace('{{versionTag}}', buildVersion)
             .replace('{{timestamp}}', buildTimestamp)
+            .replaceAll('{{assetVersion}}', assetVersion)
             .replace('{{profileSchema}}', JSON.stringify(profileSchema));
         return reply.type('text/html; charset=utf-8').header('Cache-Control', 'no-cache').send(html);
     });

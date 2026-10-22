@@ -1353,6 +1353,7 @@
 
     window.verifySignedProfile = async function(signedEnvelope) {
         try {
+            if (!signedEnvelope || !signedEnvelope.payload || !signedEnvelope.signature) return false;
             const { payload, publicKey, signature } = signedEnvelope;
             const importedPubKey = await window.crypto.subtle.importKey('jwk', publicKey, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
             return await window.crypto.subtle.verify({ name: 'ECDSA', hash: { name: 'SHA-256' } }, importedPubKey, base64ToBytes(signature), new TextEncoder().encode(JSON.stringify(payload)));
@@ -1533,11 +1534,21 @@
             sendSecurePayload(peerId, { type: 'PROFILE_RESPONSE', signedEnvelope }).catch(() => {});
         };
 
-        window.handleProfileResponse = async function(peerId, signedEnvelope) {
-            const isValid = await window.verifySignedProfile(signedEnvelope);
-            if (!isValid) return;
-            const profile = signedEnvelope.payload;
-            profile.signedEnvelope = signedEnvelope; // Für die spätere Swarm-Verteilung mit im Cache behalten
+        window.handleProfileResponse = async function(peerId, signedEnvelopeOrProfile) {
+            let profile;
+            // Prüfen ob es ein signierter Umschlag ist oder ein Legacy-Profil
+            if (signedEnvelopeOrProfile && signedEnvelopeOrProfile.signature) {
+                const isValid = await window.verifySignedProfile(signedEnvelopeOrProfile);
+                if (!isValid) {
+                    logDebug(`Signiertes Profil von ${peerId} verworfen (Ungültige Signatur).`);
+                    return;
+                }
+                profile = signedEnvelopeOrProfile.payload;
+                profile.signedEnvelope = signedEnvelopeOrProfile;
+            } else {
+                profile = signedEnvelopeOrProfile; // Fallback für ungesignete Übergangsdaten
+            }
+            if (!profile) return;
             await cachePeerProfile(peerId, profile);
             if (state.activeModalPeerId === peerId) {
                 renderProfileModalData(profile);

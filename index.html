@@ -1324,6 +1324,41 @@
             badge.className = `px-2.5 py-0.5 rounded-full text-xs font-mono font-semibold flex items-center gap-1.5 border ${classes}`;
         }
 
+    // --- SWARM / MESH SIGNATURES ---
+    window.signProfileData = async function(profileData) {
+        const encoder = new TextEncoder();
+        const payloadToSign = {
+            ownerId: state.myProfile.id,
+            version: state.myProfile.version,
+            updatedAt: state.myProfile.updatedAt,
+            fields: profileData.fields,
+            avatar: profileData.avatar,
+            gallery: profileData.gallery || []
+        };
+        const dataString = JSON.stringify(payloadToSign);
+        const signatureArrayBuffer = await window.crypto.subtle.sign(
+            { name: 'ECDSA', hash: { name: 'SHA-256' } },
+            state.myKeys.ecdsaKeyPair.privateKey,
+            encoder.encode(dataString)
+        );
+        return {
+            payload: payloadToSign,
+            publicKey: state.myKeys.jwkEcdsaPublic,
+            signature: bytesToBase64(new Uint8Array(signatureArrayBuffer))
+        };
+    };
+
+    window.verifySignedProfile = async function(signedEnvelope) {
+        try {
+            const { payload, publicKey, signature } = signedEnvelope;
+            const importedPubKey = await window.crypto.subtle.importKey('jwk', publicKey, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+            return await window.crypto.subtle.verify({ name: 'ECDSA', hash: { name: 'SHA-256' } }, importedPubKey, base64ToBytes(signature), new TextEncoder().encode(JSON.stringify(payload)));
+        } catch (e) {
+            logDebug(`Profile signature verification failed: ${e.message}`);
+            return false;
+        }
+    };
+
         async function probePeerPresence(peerId) {
             const existing = state.presenceProbes[peerId];
             if (existing) clearTimeout(existing.timeout);
@@ -1377,6 +1412,19 @@
 
             // Immer aktiv das neueste Profil anfragen (Handshake)
             sendSecurePayload(peerId, { type: 'PROFILE_REQUEST' }).catch(() => {});
+
+            // SWARM FALLBACK: Wenn nach 800ms noch keine direkte Antwort kam, das Mesh befragen
+            setTimeout(() => {
+                if (state.activeModalPeerId !== peerId) return;
+                const container = document.getElementById('modal-rendered-fields');
+                if (container && container.innerHTML.includes('Connecting securely')) {
+                    logDebug(`Peer ${peerId} antwortet nicht direkt, starte Swarm-Suche...`);
+                    const activePeers = Object.keys(state.dataChannels).filter(id => state.dataChannels[id].readyState === 'open');
+                    activePeers.forEach(swarmPeerId => {
+                        sendSecurePayload(swarmPeerId, { type: 'SWARM_PROFILE_REQUEST', targetNodeId: peerId }).catch(()=>{});
+                    });
+                }
+            }, 800);
 
             probePeerPresence(peerId).catch(error => logDebug(`Presence probe failed: ${error.message}`));
         }
@@ -1478,10 +1526,15 @@
                 gallery: state.myProfile.gallery || [],
                 version: state.myProfile.version
             };
-            sendSecurePayload(peerId, { type: 'PROFILE_RESPONSE', profile: profilePayload }).catch(() => {});
+            const signedEnvelope = await window.signProfileData(profilePayload);
+            sendSecurePayload(peerId, { type: 'PROFILE_RESPONSE', signedEnvelope }).catch(() => {});
         };
 
-        window.handleProfileResponse = async function(peerId, profile) {
+        window.handleProfileResponse = async function(peerId, signedEnvelope) {
+            const isValid = await window.verifySignedProfile(signedEnvelope);
+            if (!isValid) return;
+            const profile = signedEnvelope.payload;
+            profile.signedEnvelope = signedEnvelope; // Für die spätere Swarm-Verteilung mit im Cache behalten
             await cachePeerProfile(peerId, profile);
             if (state.activeModalPeerId === peerId) {
                 renderProfileModalData(profile);
@@ -1878,10 +1931,15 @@
                         false,
                         ['deriveKey', 'deriveBits']
                     );
+                const ecdsaKeyPair = storedIdentity?.ecdsaPrivateKey && storedIdentity?.ecdsaPublicKey
+                    ? { privateKey: storedIdentity.ecdsaPrivateKey, publicKey: storedIdentity.ecdsaPublicKey }
+                    : await window.crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign', 'verify']);
+
                 const [publicKeySpki, jwkPublic] = await Promise.all([
                     window.crypto.subtle.exportKey('spki', keyPair.publicKey),
                     window.crypto.subtle.exportKey('jwk', keyPair.publicKey)
                 ]);
+                const jwkEcdsaPublic = await window.crypto.subtle.exportKey('jwk', ecdsaKeyPair.publicKey);
                 if (!storedIdentity) {
                     await putDatabaseRecord('keys', {
                         id: 'identity-key',
@@ -1896,7 +1954,7 @@
                     byte => byte.toString(16).padStart(2, '0')
                 ).join(':');
 
-                state.myKeys = { keyPair, jwkPublic, fingerprint };
+                state.myKeys = { keyPair, jwkPublic, fingerprint, ecdsaKeyPair, jwkEcdsaPublic };
                 if (fingerprintOutput) fingerprintOutput.textContent = fingerprint;
                 logDebug(storedIdentity
                     ? 'Persistent ECDH P-256 identity keypair loaded.'

@@ -16,6 +16,7 @@ async function fetchIceConfig() {
         logDebug('Konnte TURN-Credentials nicht laden, nutze STUN-Fallback.');
     }
 }
+
 fetchIceConfig();
 
 function sendSignalingMessage(payload) {
@@ -376,6 +377,37 @@ async function handleSecurePayload(peerId, payload) {
         if (typeof window.handleProfileRequest === 'function') window.handleProfileRequest(peerId);
     } else if (payload.type === 'PROFILE_RESPONSE') {
         if (typeof window.handleProfileResponse === 'function') window.handleProfileResponse(peerId, payload.profile);
+    } else if (payload.type === 'SWARM_PROFILE_REQUEST') {
+        const targetId = payload.targetNodeId;
+        // Wenn wir selbst das Ziel sind, senden wir normal (direkt)
+        if (targetId === state.myProfile.id) {
+            if (typeof window.handleProfileRequest === 'function') window.handleProfileRequest(peerId);
+        } else {
+            // Wenn wir das Profil eines Dritten haben, servieren wir es dem Schwarm
+            const cachedProfile = state.cachedProfiles[targetId];
+            if (cachedProfile && cachedProfile.signedEnvelope) {
+                sendSecurePayload(peerId, {
+                    type: 'SWARM_PROFILE_RESPONSE',
+                    targetNodeId: targetId,
+                    signedEnvelope: cachedProfile.signedEnvelope
+                }).catch(() => {
+                });
+            }
+        }
+    } else if (payload.type === 'SWARM_PROFILE_RESPONSE') {
+        const {targetNodeId, signedEnvelope} = payload;
+        if (typeof window.verifySignedProfile !== 'function') return;
+        if (!(await window.verifySignedProfile(signedEnvelope))) {
+            logDebug(`Gefaelschtes Schwarm-Profil von ${peerId} verworfen.`);
+            return;
+        }
+        logDebug(`Gueltiges Schwarm-Profil fuer ${targetNodeId} von ${peerId} erhalten!`);
+        const profile = signedEnvelope.payload;
+        profile.signedEnvelope = signedEnvelope; // Den Umschlag mit abspeichern, damit wir nun selbst Seed für das Profil sind
+        await cachePeerProfile(targetNodeId, profile);
+        if (state.activeModalPeerId === targetNodeId && typeof window.renderProfileModalData === 'function') {
+            window.renderProfileModalData(profile);
+        }
     } else if (payload.type === 'IMAGE_REQUEST') {
         await window.handlePeerImageRequest(peerId, payload.imageId);
     } else if (payload.type === 'IMAGE_RESPONSE') {
@@ -478,10 +510,10 @@ async function sendSecurePayload(peerId, payload, onSent = null) {
     if (!state.secureMessageQueues[peerId]) {
         state.secureMessageQueues[peerId] = [];
     }
-    
-    state.secureMessageQueues[peerId].push({ payload, onSent, cacheQueued: false });
+
+    state.secureMessageQueues[peerId].push({payload, onSent, cacheQueued: false});
     logDebug(`P2P/TURN-Kanal für ${peerId} noch nicht bereit. Nachricht in Queue eingereiht, starte Verbindung...`);
-    
+
     initiateP2PConnection(peerId).catch(error => {
         logDebug(`Could not initiate P2P connection: ${error.message}`);
     });
@@ -588,3 +620,5 @@ async function fetchQueuedCacheMessages() {
             cache: 'no-store'
         });
         if (!response.ok) throw new Error(`Cache API returned ${response.status}.`);
+    } catch (error) {}
+}

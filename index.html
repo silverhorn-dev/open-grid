@@ -1945,16 +1945,24 @@
                         false,
                         ['deriveKey', 'deriveBits']
                     );
-                const ecdsaKeyPair = storedIdentity?.ecdsaPrivateKey && storedIdentity?.ecdsaPublicKey
-                    ? { privateKey: storedIdentity.ecdsaPrivateKey, publicKey: storedIdentity.ecdsaPublicKey }
-                    : await window.crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign', 'verify']);
+
+                let ecdsaKeyPair;
+                let jwkEcdsaPublic;
+                if (storedIdentity?.ecdsaPrivateKey && storedIdentity?.ecdsaPublicKey && storedIdentity?.jwkEcdsaPublic) {
+                    ecdsaKeyPair = { privateKey: storedIdentity.ecdsaPrivateKey, publicKey: storedIdentity.ecdsaPublicKey };
+                    jwkEcdsaPublic = storedIdentity.jwkEcdsaPublic;
+                } else {
+                    ecdsaKeyPair = await window.crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign', 'verify']);
+                    jwkEcdsaPublic = await window.crypto.subtle.exportKey('jwk', ecdsaKeyPair.publicKey);
+                }
 
                 const [publicKeySpki, jwkPublic] = await Promise.all([
                     window.crypto.subtle.exportKey('spki', keyPair.publicKey),
                     window.crypto.subtle.exportKey('jwk', keyPair.publicKey)
                 ]);
-                const jwkEcdsaPublic = await window.crypto.subtle.exportKey('jwk', ecdsaKeyPair.publicKey);
-                if (!storedIdentity) {
+
+                // Immer in DB sichern/aktualisieren, falls ECDSA-Schlüssel fehlten
+                if (db) {
                     await putDatabaseRecord('keys', {
                         id: 'identity-key',
                         privateKey: keyPair.privateKey,

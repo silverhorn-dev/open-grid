@@ -12,7 +12,17 @@
   P2P-Protokoll.
 - `client/crypto.client.js` stellt gemeinsame Kodierungsfunktionen fuer
   Web-Crypto-Payloads bereit.
-- `index.html` enthaelt App-Shell, UI und lokale IndexedDB-Funktionen.
+- `index.html` enthaelt nur noch das HTML-Markup der App-Shell.
+- `client/app/*.js` enthaelt die UI-Logik als klassische Skripte (globaler
+  Scope, Reihenfolge wie in `index.html`): `config.js` (Konfiguration,
+  `state`), `storage.js` (IndexedDB, Chat-Operationen), `profile.js`
+  (Profil, Medien, Onboarding), `chat.js` (Modal, Chat, Snaps),
+  `settings.js` (Debug, Schluessel, Toasts, Tabs), `push.js` (Web Push),
+  `main.js` (Start).
+- `client/styles.css` und `client/app/tailwind.config.js` enthalten Styles
+  und die Tailwind-Konfiguration.
+- Der Server liefert nur Dateien aus der festen Liste `clientAssetFiles` in
+  `server/app.js` aus; neue Client-Dateien muessen dort eingetragen werden.
 
 Der Dienst laeuft als einzelner Docker-Container hinter einem TLS
 terminierenden Reverse Proxy.

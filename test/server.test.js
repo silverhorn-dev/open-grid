@@ -125,22 +125,29 @@ test('serves the app shell and all client modules', async () => {
     assert.match(indexResponse.body, /\/client\/crypto\.client\.js\?v=test-build-2026-10-21T00%3A00%3A00\.000Z/);
     assert.match(indexResponse.body, /\/client\/grid\.client\.js\?v=test-build-2026-10-21T00%3A00%3A00\.000Z/);
     assert.match(indexResponse.body, /\/client\/p2p\.client\.js\?v=test-build-2026-10-21T00%3A00%3A00\.000Z/);
-    assert.match(indexResponse.body, /indexedDB\.open\('OpenGridDB_Live', 7\)/);
-    assert.match(indexResponse.body, /createObjectStore\('localProfile'/);
-    assert.match(indexResponse.body, /createObjectStore\('chatOperations'/);
-    assert.match(indexResponse.body, /putDatabaseRecord\('localProfile'/);
+    assert.match(indexResponse.body, /\/client\/app\/main\.js\?v=test-build-2026-10-21T00%3A00%3A00\.000Z/);
     assert.match(indexResponse.body, /profile-onboarding-modal/);
-    assert.match(indexResponse.body, /if \(!hasLocalProfile\) await openProfileOnboarding\(\)/);
-    assert.match(indexResponse.body, /id: 'identity-key'/);
-    assert.match(indexResponse.body, /async function refreshChatControls\(\)/);
-    assert.match(indexResponse.body, /function rememberChatPeer\(peerId\)/);
 
-    for (const file of ['crypto.client.js', 'grid.client.js', 'p2p.client.js']) {
-        const response = await app.inject({ method: 'GET', url: `/client/${file}` });
-        assert.equal(response.statusCode, 200);
-        assert.match(response.headers['content-type'], /text\/javascript/);
-        assert.ok(response.body.length > 100);
+    // Jede im App-Shell referenzierte Datei muss vom Server ausgeliefert werden.
+    const assetPaths = [...indexResponse.body.matchAll(/(?:src|href)="(\/client\/[^"?]+)\?v=/g)].map(match => match[1]);
+    assert.ok(assetPaths.length >= 12);
+    let appSource = '';
+    for (const path of assetPaths) {
+        const response = await app.inject({ method: 'GET', url: path });
+        assert.equal(response.statusCode, 200, path);
+        assert.match(response.headers['content-type'], path.endsWith('.css') ? /text\/css/ : /text\/javascript/);
+        assert.ok(response.body.length > 100, path);
+        appSource += response.body;
     }
+    assert.match(appSource, /indexedDB\.open\('OpenGridDB_Live', 7\)/);
+    assert.match(appSource, /createObjectStore\('localProfile'/);
+    assert.match(appSource, /createObjectStore\('chatOperations'/);
+    assert.match(appSource, /putDatabaseRecord\('localProfile'/);
+    assert.match(appSource, /if \(!hasLocalProfile\) await openProfileOnboarding\(\)/);
+    assert.match(appSource, /id: 'identity-key'/);
+    assert.match(appSource, /async function refreshChatControls\(\)/);
+    assert.match(appSource, /function rememberChatPeer\(peerId\)/);
+
     const p2pClient = await app.inject({ method: 'GET', url: '/client/p2p.client.js' });
     assert.match(p2pClient.body, /recentOperationIds: operations\.slice\(0, 20\)/);
     assert.match(p2pClient.body, /CHAT_SYNC_INVENTORY/);

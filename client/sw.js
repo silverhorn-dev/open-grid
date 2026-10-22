@@ -114,7 +114,7 @@ function isValidMessagePut(payload, senderId) {
         && operation.operationId === `put:${operation.messageId}`;
 }
 
-// Entspricht dem MESSAGE_PUT-Zweig von applyChatOperation in index.html.
+// Entspricht dem MESSAGE_PUT-Zweig von applyChatOperation in client/app/storage.js.
 async function storeMessagePut(database, peerId, operation) {
     const transaction = database.transaction(['messages', 'chatOperations'], 'readwrite');
     const done = new Promise((resolve, reject) => {

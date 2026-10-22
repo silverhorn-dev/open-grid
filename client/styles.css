@@ -1,0 +1,11 @@
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #0f172a; }
+::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+.pulse-glow {
+    box-shadow: 0 0 15px rgba(244, 63, 94, 0.4);
+}
+.blur-overlay {
+    backdrop-filter: blur(12px);
+}

@@ -28,7 +28,9 @@ zwischen Clients ueber verschluesselte WebRTC DataChannels uebertragen.
 | `client/grid.client.js` | Discovery, Heartbeats, Grid und Signaling-Verbindung |
 | `client/p2p.client.js` | WebRTC, DataChannels, ECDH/AES-GCM und P2P-Protokoll |
 | `client/sw.js` | Service Worker fuer Push-Empfang im Hintergrund |
-| `index.html` | UI, Profile, Chats und IndexedDB |
+| `index.html` | HTML-Markup der App-Shell |
+| `client/app/*.js` | UI-Logik: Konfiguration, IndexedDB, Profil, Chat, Einstellungen, Push, Start |
+| `client/styles.css` | Eigene Styles neben Tailwind |
 
 Cloudflare KV, Durable Objects, Worker Metadata und Wrangler werden nicht mehr
 verwendet.

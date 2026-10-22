@@ -10,6 +10,21 @@ import { MAX_PUSH_PLAINTEXT_BYTES, createPushSender, generateVapidKeys } from '.
 
 const serverDirectory = dirname(fileURLToPath(import.meta.url));
 const projectDirectory = join(serverDirectory, '..');
+// Feste Liste statt Verzeichnis-Scan: nur diese Dateien unter /client werden ausgeliefert.
+const clientAssetFiles = [
+    'crypto.client.js',
+    'grid.client.js',
+    'p2p.client.js',
+    'styles.css',
+    'app/tailwind.config.js',
+    'app/config.js',
+    'app/storage.js',
+    'app/profile.js',
+    'app/chat.js',
+    'app/settings.js',
+    'app/push.js',
+    'app/main.js'
+];
 const defaultSchema = [
     { key: 'displayName', label: 'Display Name', type: 'string', required: true, default: 'Alex' },
     { key: 'age', label: 'Age', type: 'number', min: 18, max: 99, default: 26 },
@@ -70,12 +85,10 @@ export async function buildApp(options = {}) {
     const buildTimestamp = options.buildTimestamp || process.env.BUILD_TIMESTAMP || new Date().toISOString();
     const assetVersion = encodeURIComponent(`${buildVersion}-${buildTimestamp}`);
     const profileSchema = options.profileSchema || parseProfileSchema(process.env.PROFILE_SCHEMA);
-    const [indexTemplate, cryptoClient, gridClient, p2pClient, serviceWorker] = await Promise.all([
+    const [indexTemplate, serviceWorker, ...clientAssetSources] = await Promise.all([
         readFile(join(projectDirectory, 'index.html'), 'utf8'),
-        readFile(join(projectDirectory, 'client', 'crypto.client.js'), 'utf8'),
-        readFile(join(projectDirectory, 'client', 'grid.client.js'), 'utf8'),
-        readFile(join(projectDirectory, 'client', 'p2p.client.js'), 'utf8'),
-        readFile(join(projectDirectory, 'client', 'sw.js'), 'utf8')
+        readFile(join(projectDirectory, 'client', 'sw.js'), 'utf8'),
+        ...clientAssetFiles.map(file => readFile(join(projectDirectory, 'client', file), 'utf8'))
     ]);
     const vapidKeys = options.vapidKeys || loadVapidKeys(store);
     const vapidSubject = options.vapidSubject || process.env.VAPID_SUBJECT || 'mailto:admin@localhost';
@@ -90,11 +103,7 @@ export async function buildApp(options = {}) {
         subject: vapidSubject,
         logger: app.log
     });
-    const clientScripts = new Map([
-        ['/client/crypto.client.js', cryptoClient],
-        ['/client/grid.client.js', gridClient],
-        ['/client/p2p.client.js', p2pClient]
-    ]);
+    const clientAssets = new Map(clientAssetFiles.map((file, index) => [`/client/${file}`, clientAssetSources[index]]));
 
     await app.register(websocket, {
         options: {
@@ -147,10 +156,11 @@ export async function buildApp(options = {}) {
             .send(serviceWorker);
     });
 
-    for (const [path, source] of clientScripts) {
+    for (const [path, source] of clientAssets) {
+        const contentType = path.endsWith('.css') ? 'text/css' : 'text/javascript';
         app.get(path, async (_request, reply) => {
             return reply
-                .type('text/javascript; charset=utf-8')
+                .type(`${contentType}; charset=utf-8`)
                 .header('Cache-Control', 'no-cache')
                 .send(source);
         });

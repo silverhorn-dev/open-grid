@@ -1,0 +1,538 @@
+// ================= INDEXEDDB =================
+function initDatabase() {
+    return new Promise((resolve) => {
+        const req = indexedDB.open('OpenGridDB_Live', 7);
+        let settled = false;
+        const finish = (database = null) => {
+            if (settled) return;
+            settled = true;
+            resolve(database);
+        };
+        req.onupgradeneeded = (e) => {
+            const database = e.target.result;
+            if (!database.objectStoreNames.contains('localProfile')) {
+                database.createObjectStore('localProfile', { keyPath: 'slot' });
+            }
+            if (!database.objectStoreNames.contains('profiles')) database.createObjectStore('profiles', { keyPath: 'id' });
+            const gridStore = database.objectStoreNames.contains('gridPeers')
+                ? e.target.transaction.objectStore('gridPeers')
+                : database.createObjectStore('gridPeers', { keyPath: 'cacheKey' });
+            if (!gridStore.indexNames.contains('geohash')) gridStore.createIndex('geohash', 'geohash', { unique: false });
+
+            const messageStore = database.objectStoreNames.contains('messages')
+                ? e.target.transaction.objectStore('messages')
+                : database.createObjectStore('messages', { keyPath: 'id' });
+            if (!messageStore.indexNames.contains('peerId')) messageStore.createIndex('peerId', 'peerId', { unique: false });
+            const operationStore = database.objectStoreNames.contains('chatOperations')
+                ? e.target.transaction.objectStore('chatOperations')
+                : database.createObjectStore('chatOperations', { keyPath: 'operationId' });
+            if (!operationStore.indexNames.contains('peerId')) operationStore.createIndex('peerId', 'peerId', { unique: false });
+            if (!database.objectStoreNames.contains('keys')) database.createObjectStore('keys', { keyPath: 'id' });
+            if (!database.objectStoreNames.contains('media')) {
+                database.createObjectStore('media', { keyPath: 'id' });
+            }
+        };
+        req.onsuccess = (e) => {
+            db = e.target.result;
+            db.onversionchange = () => {
+                db.close();
+                db = null;
+            };
+            finish(db);
+        };
+        req.onerror = () => {
+            console.error('IndexedDB initialization failed.', req.error);
+            finish();
+        };
+        req.onblocked = () => {
+            showToast('Local cache upgrade is blocked by another open tab.', 'warning');
+            setTimeout(() => finish(), 3000);
+        };
+    });
+}
+
+function databaseRequest(storeName, mode, operation) {
+    if (!db) return Promise.reject(new Error('Local database is unavailable.'));
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(storeName, mode);
+        const request = operation(transaction.objectStore(storeName));
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+}
+
+function putDatabaseRecord(storeName, value) {
+    if (!db) return Promise.resolve();
+    return databaseRequest(storeName, 'readwrite', store => store.put(value));
+}
+
+function deleteDatabaseRecord(storeName, key) {
+    if (!db) return Promise.resolve();
+    return databaseRequest(storeName, 'readwrite', store => store.delete(key));
+}
+
+function getDatabaseRecordsByIndex(storeName, indexName, value) {
+    if (!db) return Promise.resolve([]);
+    return databaseRequest(storeName, 'readonly', store => store.index(indexName).getAll(value));
+}
+
+function getAllDatabaseRecords(storeName) {
+    if (!db) return Promise.resolve([]);
+    return databaseRequest(storeName, 'readonly', store => store.getAll());
+}
+
+function deleteDatabaseRecordsByPeerBefore(storeName, peerId, cutoff) {
+    if (!db) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(storeName, 'readwrite');
+        const request = transaction.objectStore(storeName).index('peerId').openCursor(IDBKeyRange.only(peerId));
+        request.onsuccess = () => {
+            const cursor = request.result;
+            if (!cursor) return;
+            if ((cursor.value.createdAt || 0) <= cutoff) cursor.delete();
+            cursor.continue();
+        };
+        request.onerror = () => reject(request.error);
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error);
+        transaction.onabort = () => reject(transaction.error);
+    });
+}
+
+async function initializeStorageEncryption() {
+    if (!db) return;
+    try {
+        const stored = await databaseRequest('keys', 'readonly', store => store.get('profile-cache'));
+        if (stored?.key) {
+            state.storageKey = stored.key;
+            return;
+        }
+        const generatedKey = await window.crypto.subtle.generateKey(
+            { name: 'AES-GCM', length: 256 },
+            false,
+            ['encrypt', 'decrypt']
+        );
+        try {
+            await databaseRequest('keys', 'readwrite', store => store.add({
+                id: 'profile-cache',
+                key: generatedKey
+            }));
+            state.storageKey = generatedKey;
+        } catch (error) {
+            if (error?.name !== 'ConstraintError') throw error;
+            const concurrentKey = await databaseRequest('keys', 'readonly', store => store.get('profile-cache'));
+            if (!concurrentKey?.key) throw new Error('Concurrent profile cache key creation failed.');
+            state.storageKey = concurrentKey.key;
+        }
+    } catch (error) {
+        state.storageKey = null;
+        console.error('Encrypted profile cache initialization failed.', error);
+        showToast('Encrypted profile cache is unavailable in this browser session.', 'warning');
+    }
+}
+
+async function encryptStoredProfile(profile) {
+    if (!state.storageKey) throw new Error('Profile storage encryption is unavailable.');
+    const iv = window.crypto.getRandomValues(new Uint8Array(12));
+    const ciphertext = await window.crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv },
+        state.storageKey,
+        new TextEncoder().encode(JSON.stringify(profile))
+    );
+    return {
+        iv: bytesToBase64(iv),
+        ciphertext: bytesToBase64(new Uint8Array(ciphertext))
+    };
+}
+
+async function decryptStoredProfile(record) {
+    if (!state.storageKey || !record?.ciphertext || !record?.iv) return null;
+    const plaintext = await window.crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: base64ToBytes(record.iv) },
+        state.storageKey,
+        base64ToBytes(record.ciphertext)
+    );
+    return JSON.parse(new TextDecoder().decode(plaintext));
+}
+
+async function cacheMedia(id, base64, version) {
+    if (!state.storageKey) return false;
+    const payload = { data: base64, version };
+    const iv = window.crypto.getRandomValues(new Uint8Array(12));
+    const ciphertext = await window.crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv },
+        state.storageKey,
+        new TextEncoder().encode(JSON.stringify(payload))
+    );
+    await putDatabaseRecord('media', { id, iv: bytesToBase64(iv), ciphertext: bytesToBase64(new Uint8Array(ciphertext)) });
+    return true;
+}
+
+async function loadMedia(id) {
+    if (!db || !state.storageKey) return null;
+    const record = await databaseRequest('media', 'readonly', store => store.get(id));
+    if (!record?.ciphertext || !record?.iv) return null;
+    try {
+        const plaintext = await window.crypto.subtle.decrypt({ name: 'AES-GCM', iv: base64ToBytes(record.iv) }, state.storageKey, base64ToBytes(record.ciphertext));
+        return JSON.parse(new TextDecoder().decode(plaintext));
+    } catch (e) { return null; }
+}
+
+async function loadMyLocalProfile() {
+    let record = db
+        ? await databaseRequest('localProfile', 'readonly', store => store.get('current'))
+        : null;
+    let migratedLegacyProfile = false;
+    if (!record && db) {
+        record = await databaseRequest('profiles', 'readonly', store => store.get(state.nodeId));
+        migratedLegacyProfile = Boolean(record);
+    }
+    const cached = record ? await decryptStoredProfile(record).catch(() => null) : null;
+    if (cached?.isMe) state.myProfile = cached;
+    state.myProfile.id = state.nodeId;
+    if (migratedLegacyProfile && cached?.isMe) {
+        const persisted = await cacheOwnProfile();
+        if (persisted) await deleteDatabaseRecord('profiles', state.nodeId);
+    }
+    renderProfileForm();
+    return Boolean(cached?.isMe);
+}
+
+async function loadCachedGridPeers() {
+    if (!db) {
+        renderDiscoveryGrid();
+        return;
+    }
+    const cachedProfiles = await databaseRequest('profiles', 'readonly', store => store.getAll());
+    const decrypted = await Promise.all(cachedProfiles.map(async record => {
+        const profile = await decryptStoredProfile(record).catch(() => null);
+        return profile && !profile.isMe ? [record.id, profile] : null;
+    }));
+    state.cachedProfiles = Object.fromEntries(decrypted.filter(Boolean));
+    state.peers = [];
+    renderDiscoveryGrid();
+}
+
+async function cacheGridPeer(peer) {
+    await putDatabaseRecord('gridPeers', {
+        cacheKey: `${peer.geohash}:${peer.id}`,
+        id: peer.id,
+        geohash: peer.geohash,
+        name: peer.name,
+        avatar: peer.avatar,
+        cachedAt: Date.now()
+    });
+}
+
+async function removeCachedPeer(peerId, geohash) {
+    if (peerId === state.myProfile.id) return;
+    await deleteDatabaseRecord('gridPeers', `${geohash}:${peerId}`);
+}
+
+async function cachePeerProfile(peerId, profile) {
+    const current = state.cachedProfiles[peerId];
+    // Ein ueber den Swarm bezogenes Profil ist zwar signiert, sein
+    // Schluessel aber unbestaetigt. Trifft spaeter dasselbe Profil
+    // direkt und gepinnt ein, muss es den Eintrag auch bei gleicher
+    // Version und gleichem Zeitstempel ersetzen duerfen.
+    const isTrustUpgrade = current?.trustLevel === 'unpinned' && profile.trustLevel === 'trusted';
+    if (!isTrustUpgrade) {
+        // Aktualisiere, wenn die Version höher ist ODER bei gleicher Version der Zeitstempel neuer ist (z.B. Avatar-Update)
+        if (current && (current.version || 0) > (profile.version || 0)) return current;
+        if (current && (current.version || 0) === (profile.version || 0) && (current.updatedAt || 0) >= (profile.updatedAt || 0)) return current;
+    }
+
+    if (state.storageKey) {
+        const encrypted = await encryptStoredProfile(profile);
+        await putDatabaseRecord('profiles', {
+            id: peerId,
+            geohash: state.myProfile.geohash,
+            version: profile.version || 1,
+            updatedAt: profile.updatedAt || Date.now(),
+            ...encrypted
+        });
+    }
+    state.cachedProfiles[peerId] = profile;
+    return profile;
+}
+
+async function cacheOwnProfile() {
+    if (!state.storageKey) return false;
+    const encrypted = await encryptStoredProfile(state.myProfile);
+    await putDatabaseRecord('localProfile', {
+        slot: 'current',
+        version: state.myProfile.version,
+        updatedAt: state.myProfile.updatedAt,
+        ...encrypted
+    });
+    return true;
+}
+
+async function loadChatHistory(peerId) {
+    const messages = await getDatabaseRecordsByIndex('messages', 'peerId', peerId);
+    state.chats[peerId] = messages.sort((left, right) => left.createdAt - right.createdAt);
+    const operations = await getChatOperations(peerId);
+    const operationIds = new Set(operations.map(operation => operation.operationId));
+    const missingOperations = messages
+        .filter(message => !message.deleted && !operationIds.has(`put:${message.id}`))
+        .map(message => createPutOperation(peerId, message));
+    await Promise.all(missingOperations.map(persistChatOperation));
+}
+
+async function loadChatPeerIds() {
+    const [messages, operations] = await Promise.all([
+        getAllDatabaseRecords('messages'),
+        getAllDatabaseRecords('chatOperations')
+    ]);
+
+    // Filtere geloeschte Nachrichten heraus, damit leere Chats nicht in der Liste auftauchen
+    const activeMessages = messages.filter(m => !m.deleted);
+
+    state.chatPeerIds = Array.from(new Set([
+        ...activeMessages.map(message => message.peerId),
+        ...Object.values(state.chatControls)
+            .filter(control => control.blockedAt)
+
+            .map(control => control.peerId)
+    ].filter(Boolean)));
+    renderActivePeerList();
+}
+
+function rememberChatPeer(peerId) {
+    if (!peerId || state.chatPeerIds.includes(peerId)) return;
+    state.chatPeerIds.push(peerId);
+    renderActivePeerList();
+}
+
+function getPeerPresentation(peerId) {
+    const activePeer = state.peers.find(peer => peer.id === peerId);
+    const profile = state.cachedProfiles[peerId];
+    return activePeer || {
+        id: peerId,
+        name: profile?.fields?.displayName || `Peer ${peerId.slice(-8)}`,
+        avatar: profile?.avatar || null,
+        fullProfile: profile,
+        offline: true
+    };
+}
+
+function isPeerBlocked(peerId) {
+    return Boolean(state.chatControls[peerId]?.blockedAt);
+}
+
+async function purgeChatBefore(peerId, cutoff) {
+    await Promise.all([
+        deleteDatabaseRecordsByPeerBefore('messages', peerId, cutoff),
+        deleteDatabaseRecordsByPeerBefore('chatOperations', peerId, cutoff)
+    ]);
+    if (state.chats[peerId]) {
+        state.chats[peerId] = state.chats[peerId].filter(message => message.createdAt > cutoff);
+    }
+}
+
+async function applyChatControls(controls) {
+    state.chatControls = Object.fromEntries(controls.map(control => [control.peerId, control]));
+    for (const control of controls) {
+        if (control.deletedBefore) await purgeChatBefore(control.peerId, control.deletedBefore);
+        if (control.blockedAt) {
+            state.secureMessageQueues[control.peerId] = [];
+            const connection = state.webrtcConnections[control.peerId];
+            if (connection) cleanupPeerConnection(control.peerId, connection);
+        }
+    }
+    await loadChatPeerIds();
+    renderDiscoveryGrid();
+    if (typeof renderBlockedPeers === 'function') renderBlockedPeers();
+    if (state.activeChatPeerId) {
+        updateChatActionButtons();
+        renderChatHistory();
+    }
+}
+
+async function refreshChatControls() {
+    const response = await fetch(
+        `${API_BASE}/api/chat-controls/${encodeURIComponent(state.myProfile.id)}`,
+        { cache: 'no-store', headers: peerAuthHeaders() }
+    );
+    if (!response.ok) throw new Error(`Chat control API returned ${response.status}.`);
+    const { controls = [] } = await response.json();
+    await applyChatControls(controls);
+}
+
+async function storeChatControl(peerId, action) {
+    const response = await fetch(`${API_BASE}/api/chat-controls`, {
+        method: 'POST',
+        headers: peerAuthHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({
+            ownerId: state.myProfile.id,
+            peerId,
+            action
+        })
+    });
+    if (!response.ok) throw new Error(`Chat control API returned ${response.status}.`);
+    await refreshChatControls();
+}
+
+function persistChatMessage(peerId, message) {
+    return putDatabaseRecord('messages', { ...message, peerId });
+}
+
+function getChatOperations(peerId) {
+    return getDatabaseRecordsByIndex('chatOperations', 'peerId', peerId)
+        .then(operations => operations.sort((left, right) => right.createdAt - left.createdAt));
+}
+
+function persistChatOperation(operation) {
+    return putDatabaseRecord('chatOperations', operation);
+}
+
+async function getPeerIdentity(peerId) {
+    if (state.peerIdentityKeys[peerId]) return state.peerIdentityKeys[peerId];
+    const record = db
+        ? await databaseRequest('keys', 'readonly', store => store.get(`peer-identity:${peerId}`))
+        : null;
+    if (record?.jwkPublic) state.peerIdentityKeys[peerId] = record;
+    return record || null;
+}
+
+async function getPeerIdentityKey(peerId) {
+    return (await getPeerIdentity(peerId))?.jwkPublic || null;
+}
+
+async function persistPeerIdentityKey(peerId, jwkPublic, profileSigningKey) {
+    const identity = {
+        id: `peer-identity:${peerId}`,
+        jwkPublic,
+        profileSigningKey
+    };
+    state.peerIdentityKeys[peerId] = identity;
+    await putDatabaseRecord('keys', identity);
+}
+
+function createPutOperation(peerId, message) {
+    return {
+        operationId: `put:${message.id}`,
+        peerId,
+        type: 'MESSAGE_PUT',
+        messageId: message.id,
+        actorId: message.senderId,
+        createdAt: message.createdAt,
+        message: {
+            id: message.id,
+            senderId: message.senderId,
+            text: message.text,
+            snapData: message.snapData,
+            timestamp: message.timestamp,
+            createdAt: message.createdAt
+        }
+    };
+}
+
+async function applyChatOperation(peerId, operation) {
+    if (!operation?.operationId) return false;
+    const control = state.chatControls[peerId];
+    if (control?.blockedAt || (control?.deletedBefore && (operation.createdAt || 0) <= control.deletedBefore)) {
+        return false;
+    }
+    const localOperation = { ...operation, peerId };
+    const existingOperation = await databaseRequest(
+        'chatOperations',
+        'readonly',
+        store => store.get(localOperation.operationId)
+    );
+    if (existingOperation) return false;
+
+    if (localOperation.type === 'MESSAGE_PUT' && localOperation.message) {
+        if (localOperation.message.senderId !== localOperation.actorId) return false;
+        const existingMessage = await databaseRequest(
+            'messages',
+            'readonly',
+            store => store.get(localOperation.messageId)
+        );
+        if (!existingMessage?.deleted) {
+            const message = {
+                ...localOperation.message,
+                peerId,
+                deliveredVia: 'E2EE P2P'
+            };
+            await persistChatMessage(peerId, message);
+            if (!state.chats[peerId]) state.chats[peerId] = [];
+            const index = state.chats[peerId].findIndex(item => item.id === message.id);
+            if (index >= 0) state.chats[peerId][index] = message;
+            else state.chats[peerId].push(message);
+        }
+    } else if (localOperation.type === 'MESSAGE_DELETE') {
+        const existingMessage = await databaseRequest(
+            'messages',
+            'readonly',
+            store => store.get(localOperation.messageId)
+        );
+        const originalSenderId = existingMessage?.senderId || localOperation.originalSenderId;
+        if (!originalSenderId || originalSenderId !== localOperation.actorId) return false;
+        const deletedMessage = {
+            id: localOperation.messageId,
+            peerId,
+            senderId: originalSenderId,
+            text: '',
+            timestamp: existingMessage?.timestamp || localOperation.timestamp || '',
+            createdAt: existingMessage?.createdAt || localOperation.messageCreatedAt || localOperation.createdAt,
+            deleted: true,
+            deletedAt: localOperation.createdAt,
+            deliveredVia: 'Deleted'
+        };
+        await persistChatMessage(peerId, deletedMessage);
+        if (!state.chats[peerId]) state.chats[peerId] = [];
+        const index = state.chats[peerId].findIndex(item => item.id === localOperation.messageId);
+        if (index >= 0) state.chats[peerId][index] = deletedMessage;
+        else state.chats[peerId].push(deletedMessage);
+    } else if (localOperation.type === 'CHAT_WIPE') {
+        if (localOperation.actorId !== peerId) return false;
+        await storeChatControl(peerId, 'DELETE_CHAT');
+
+        if (localOperation.hidePeer) {
+            const hidden = JSON.parse(localStorage.getItem('hiddenByPeers') || '[]');
+            if (!hidden.includes(peerId)) {
+                hidden.push(peerId);
+                localStorage.setItem('hiddenByPeers', JSON.stringify(hidden));
+            }
+            renderDiscoveryGrid();
+        }
+
+        if (state.activeChatPeerId === peerId) {
+            state.activeChatPeerId = null;
+            document.getElementById('chat-peer-name').textContent = 'No Peer Selected';
+            document.getElementById('chat-connection-type').textContent = 'Select a conversation';
+            document.getElementById('chat-messages').innerHTML = '<div class="text-center text-xs text-slate-500 my-8">Der Chat wurde vom Chat-Partner geloescht.</div>';
+            updateChatActionButtons();
+        }
+        showToast('Ein Chat-Partner hat den Chat-Verlauf geloescht.', 'info');
+        return true; // Return true, damit der Wipe nicht als endloser Sync gespeichert wird
+    } else if (localOperation.type === 'PEER_UNHIDE') {
+        if (localOperation.actorId !== peerId) return false;
+        const hidden = JSON.parse(localStorage.getItem('hiddenByPeers') || '[]');
+        const updated = hidden.filter(id => id !== peerId);
+        localStorage.setItem('hiddenByPeers', JSON.stringify(updated));
+        renderDiscoveryGrid();
+        return true; // Return true, um den Wipe nicht als dauerhafte Sync-Operation in die DB zu legen
+    } else {
+        return false;
+    }
+
+    await persistChatOperation(localOperation);
+    if (localOperation.type === 'MESSAGE_DELETE') await trimChatDeleteOperations(peerId);
+    if (!state.chats[peerId]) state.chats[peerId] = [];
+    state.chats[peerId].sort((left, right) => left.createdAt - right.createdAt);
+    rememberChatPeer(peerId);
+    if (state.activeChatPeerId === peerId) renderChatHistory();
+    return true;
+}
+
+async function trimChatDeleteOperations(peerId) {
+    const deleteOperations = (await getChatOperations(peerId))
+        .filter(operation => operation.type === 'MESSAGE_DELETE');
+    await Promise.all(
+        deleteOperations.slice(100).map(operation => {
+            return deleteDatabaseRecord('chatOperations', operation.operationId);
+        })
+    );
+}

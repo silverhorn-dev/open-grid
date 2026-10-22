@@ -36,6 +36,15 @@ export async function buildApp(options = {}) {
         bodyLimit: 128 * 1024
     });
     const store = options.store || createStore(options.databasePath || process.env.DATABASE_PATH || join(projectDirectory, 'data', 'open-grid.sqlite'));
+
+    // Fehlendes TURN faellt im Browser nur als "keine relay-Kandidaten" auf.
+    // Deshalb beim Start klar benennen, dass die Variablen fehlen.
+    if (!process.env.TURN_SECRET || !process.env.TURN_SERVER) {
+        app.log.warn(
+            'TURN ist deaktiviert: TURN_SECRET und/oder TURN_SERVER sind nicht gesetzt. '
+            + 'Es werden ausschliesslich STUN-Kandidaten ausgeliefert.'
+        );
+    }
     const ownsStore = !options.store;
     const buildVersion = options.buildVersion || process.env.BUILD_VERSION || 'self-hosted';
     const buildTimestamp = options.buildTimestamp || process.env.BUILD_TIMESTAMP || new Date().toISOString();
@@ -104,11 +113,22 @@ export async function buildApp(options = {}) {
     }
 
     app.get('/api/ice-config', async (request, reply) => {
-        const turnSecret = process.env.TURN_SECRET; // Muss in deiner Server .env gesetzt sein
-        const turnServer = process.env.TURN_SERVER || 'turn.deine-domain.de';
-        
-        if (!turnSecret) {
-            return { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+        const turnSecret = process.env.TURN_SECRET;
+        const turnServer = process.env.TURN_SERVER;
+
+        // Ohne Secret oder Host kann coturn keine Allocation autorisieren. Das
+        // wird explizit gemeldet, damit der Client nicht faelschlich meldet, es
+        // seien TURN-Credentials geladen worden.
+        if (!turnSecret || !turnServer) {
+            const missing = [
+                turnSecret ? null : 'TURN_SECRET',
+                turnServer ? null : 'TURN_SERVER'
+            ].filter(Boolean);
+            return {
+                turnEnabled: false,
+                reason: `Missing server configuration: ${missing.join(', ')}`,
+                iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+            };
         }
 
         // Temporaere Credentials (Gueltig fuer 24 Stunden)
@@ -133,6 +153,7 @@ export async function buildApp(options = {}) {
         }
 
         return {
+            turnEnabled: true,
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
                 {

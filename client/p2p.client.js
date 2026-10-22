@@ -8,9 +8,17 @@ async function fetchIceConfig() {
     try {
         const res = await fetch(`${API_BASE}/api/ice-config`);
         const data = await res.json();
-        if (data.iceServers) {
-            rtcConfig.iceServers = data.iceServers;
+        if (!data.iceServers) return;
+
+        rtcConfig.iceServers = data.iceServers;
+        // Der Server liefert auch ohne TURN eine gueltige STUN-Konfiguration.
+        // Ohne diese Unterscheidung wuerde ein fehlendes TURN_SECRET faelschlich
+        // als Erfolg protokolliert und die fehlenden Relays blieben unerklaert.
+        if (data.turnEnabled) {
             logDebug('Dynamische TURN-Credentials erfolgreich geladen.');
+        } else {
+            logDebug(`WARNUNG: TURN ist serverseitig nicht aktiv (${data.reason || 'unbekannter Grund'}). `
+                + 'Es sind nur STUN-Kandidaten verfuegbar, Verbindungen hinter NAT schlagen fehl.');
         }
     } catch (e) {
         logDebug('Konnte TURN-Credentials nicht laden, nutze STUN-Fallback.');

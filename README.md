@@ -68,6 +68,18 @@ Das Skript fuehrt einen echten Allocate-Request ueber UDP und TCP aus und meldet
 die zugeteilte Relay-Adresse, einen Credential-Fehler (`401`/`403`) oder einen
 blockierten Transport (Timeout).
 
+Der Server laedt keine `.env`-Datei selbst. Die Variablen muessen als echte
+Prozessvariablen ankommen (via `compose.yaml`, das die `.env` neben der Datei
+einliest). Ob das geklappt hat, zeigt der laufende Container:
+
+```powershell
+docker compose exec open-grid printenv TURN_SERVER TURN_SECRET
+curl -s http://localhost:3000/api/ice-config
+```
+
+Enthaelt die Antwort `"turnEnabled": false`, fehlt die Konfiguration im
+Serverprozess; der Grund steht im Feld `reason`.
+
 Der Reverse Proxy muss `/ws` mit WebSocket-Upgrade weiterleiten. Alle anderen
 Pfade werden als normales HTTP an denselben Container geleitet. Der Container
 terminiert selbst kein TLS.

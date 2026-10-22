@@ -77,6 +77,7 @@ test('offers a TCP TURN transport so UDP-blocked networks can relay', async () =
     try {
         const response = await app.inject({ method: 'GET', url: '/api/ice-config' });
         assert.equal(response.statusCode, 200);
+        assert.equal(response.json().turnEnabled, true);
         const turn = response.json().iceServers.find(server => Array.isArray(server.urls));
         assert.ok(turn, 'expected a TURN entry with multiple urls');
 
@@ -87,6 +88,28 @@ test('offers a TCP TURN transport so UDP-blocked networks can relay', async () =
         assert.ok(turn.urls.every(url => url.includes('?transport=')));
         // Der coturn-Name darf nach der Ablaufzeit keinen weiteren Doppelpunkt enthalten.
         assert.equal(turn.username.split(':').length, 2);
+    } finally {
+        if (previousSecret === undefined) delete process.env.TURN_SECRET;
+        else process.env.TURN_SECRET = previousSecret;
+        if (previousServer === undefined) delete process.env.TURN_SERVER;
+        else process.env.TURN_SERVER = previousServer;
+    }
+});
+
+test('reports that TURN is disabled when the server configuration is incomplete', async () => {
+    const previousSecret = process.env.TURN_SECRET;
+    const previousServer = process.env.TURN_SERVER;
+    delete process.env.TURN_SECRET;
+    process.env.TURN_SERVER = 'turn.example.test';
+    try {
+        const response = await app.inject({ method: 'GET', url: '/api/ice-config' });
+        assert.equal(response.statusCode, 200);
+        const body = response.json();
+
+        // Der Client darf einen reinen STUN-Fallback nicht als TURN-Erfolg werten.
+        assert.equal(body.turnEnabled, false);
+        assert.match(body.reason, /TURN_SECRET/);
+        assert.ok(!body.iceServers.some(server => String(server.urls).includes('turn:')));
     } finally {
         if (previousSecret === undefined) delete process.env.TURN_SECRET;
         else process.env.TURN_SECRET = previousSecret;

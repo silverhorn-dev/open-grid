@@ -190,3 +190,26 @@ wieder im Router registriert ist.
 - Der Reverse Proxy muss WebSocket-Upgrades fuer `/ws` erlauben.
 - Vollstaendige Profile, Klartext-Chats und private Schluessel verbleiben auf
   dem Client.
+
+## 10. Migrationskonvention
+
+Aenderungen an SQLite, IndexedDB, persistenten Schluesseln, Tokens,
+Protokoll-Payloads oder Deployment-Konfigurationen muessen zusammen mit einer
+ausfuehrbaren Migrationsanweisung ausgeliefert werden. Ein Code-Update ohne
+passende Migrationsanweisung gilt bei solchen Aenderungen als unvollstaendig.
+
+Jede Migration erhaelt eine eindeutige, fortlaufende ID im Format
+`MIG-YYYYMMDD-NNN`. Sie dokumentiert mindestens:
+
+- Zielversion oder `BUILD_TIMESTAMP`, ab der die Migration erforderlich ist
+- betroffene Server-, Browser- und Deployment-Daten
+- Voraussetzungen und konkrete Upgrade-Schritte
+- automatische Migrationen im Code und verbleibende manuelle Schritte
+- Verifikation des erfolgreichen Upgrades
+- Rueckfall- oder Wiederherstellungsverfahren
+
+Migrationen muessen idempotent sein oder vor der Ausfuehrung ihren bereits
+erreichten Stand pruefen. Server und Client duerfen waehrend eines gestaffelten
+Rollouts nicht stillschweigend inkompatibel werden. Fuer eine Uebergangsphase
+ist entweder Rueckwaertskompatibilitaet bereitzustellen oder der notwendige
+Cache-, Token- beziehungsweise Datenbank-Reset deutlich auszuweisen.

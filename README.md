@@ -53,6 +53,10 @@ Der Reverse Proxy muss `/ws` mit WebSocket-Upgrade weiterleiten. Alle anderen
 Pfade werden als normales HTTP an denselben Container geleitet. Der Container
 terminiert selbst kein TLS.
 
+Bei Updates mit persistenten Daten-, Token-, Protokoll- oder
+Konfigurationsaenderungen sind die versionsgebundenen Migrationsanweisungen in
+`documentation/SPECE.md` verbindlich zu beachten.
+
 ## Lokale Entwicklung
 
 Node.js 22 oder neuer wird benoetigt.

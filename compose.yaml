@@ -3,6 +3,8 @@ services:
     build:
       context: .
     restart: unless-stopped
+    networks:
+      - service_net
     environment:
       BUILD_VERSION: ${BUILD_VERSION:-self-hosted}
       BUILD_TIMESTAMP: ${BUILD_TIMESTAMP:-}
@@ -18,3 +20,6 @@ services:
 
 volumes:
   open-grid-data:
+networks:
+  service_net:
+    external: true

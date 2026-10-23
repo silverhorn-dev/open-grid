@@ -211,6 +211,7 @@
                 </div>
 
                 <div class="chat-input-bar p-3 border-t border-slate-800 bg-slate-900/80 flex flex-col gap-2">
+                    <div id="chat-allowance-hint" class="hidden text-xs text-slate-300 bg-slate-950/60 border border-slate-800 rounded-lg px-3 py-1.5"></div>
                     <div id="chat-reply-bar" class="hidden flex items-center gap-2 border-l-2 border-brand-400 bg-slate-950/60 rounded-r-lg px-3 py-1.5">
                         <div class="min-w-0 flex-1">
                             <div id="chat-reply-author" class="text-[11px] font-semibold text-brand-400"></div>
@@ -221,10 +222,10 @@
                         </button>
                     </div>
                     <div class="flex items-center gap-2">
-                        <button onclick="openSnapUploadModal()" class="bg-slate-800 hover:bg-slate-700 text-brand-400 border border-slate-700 p-2.5 rounded-lg transition flex items-center gap-1.5 text-xs font-semibold" title="Snap senden">
+                        <button data-chat-image-action onclick="openSnapUploadModal()" class="disabled:opacity-40 bg-slate-800 hover:bg-slate-700 text-brand-400 border border-slate-700 p-2.5 rounded-lg transition flex items-center gap-1.5 text-xs font-semibold" title="Snap senden">
                             <i class="fa-solid fa-bolt text-amber-400"></i><span class="hidden sm:inline">Snap</span>
                         </button>
-                        <button onclick="openAlbumPicker()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 p-2.5 rounded-lg transition text-xs" title="Album teilen" aria-label="Album teilen">
+                        <button data-chat-image-action onclick="openAlbumPicker()" class="disabled:opacity-40 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 p-2.5 rounded-lg transition text-xs" title="Album teilen" aria-label="Album teilen">
                             <i class="fa-solid fa-images"></i>
                         </button>
                         <input id="chat-input" type="text" placeholder="Nachricht schreiben..." class="flex-1 min-w-0 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-base md:text-sm text-slate-100 focus:outline-none focus:border-brand-500 transition">
@@ -374,6 +375,44 @@
                     <button id="regenerate-key-btn" onclick="generateUserIdentityKeys(true)" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-200 px-3 py-2 rounded-lg font-semibold transition">
                         Regenerate Keypair
                     </button>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
+                    <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-fire text-orange-400"></i> Matching &amp; Privatsphaere
+                    </h3>
+                    <label class="flex flex-wrap items-center gap-2 text-xs text-slate-300">
+                        <span>Profil sichtbar:</span>
+                        <select id="profile-visibility-select" onchange="updateMatchingSetting('visibility', this.value)" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200">
+                            <option value="1">1 - Alles fuer alle</option>
+                            <option value="2">2 - Teilweise (markierte Felder + Galerie nur fuer Matches)</option>
+                            <option value="3">3 - Verborgen (alles erst nach Match)</option>
+                        </select>
+                    </label>
+                    <label class="flex flex-wrap items-center gap-2 text-xs text-slate-300">
+                        <span>Wer darf schreiben:</span>
+                        <select id="chat-mode-select" onchange="updateMatchingSetting('chatMode', this.value)" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200">
+                            <option value="A">A - Alle</option>
+                            <option value="B">B - Begrenzt bis zum Match</option>
+                            <option value="C">C - Nur Matches</option>
+                        </select>
+                    </label>
+                    <div id="chat-limit-options" class="hidden flex flex-wrap items-center gap-3 text-xs text-slate-300">
+                        <label class="flex items-center gap-2">Max.
+                            <select id="chat-limit-select" onchange="updateMatchingSetting('chatLimit', this.value)" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-slate-200">
+                                <option value="1">1</option>
+                                <option value="3">3</option>
+                                <option value="5">5</option>
+                                <option value="10">10</option>
+                            </select>
+                            Nachrichten bis zum Match
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="chat-images-toggle" onchange="updateMatchingSetting('chatImages', this.checked)" class="accent-brand-500">
+                            Bilder erlaubt
+                        </label>
+                    </div>
+                    <p class="text-[11px] text-slate-500">Ein Match entsteht, wenn ihr euch gegenseitig eine Flamme schickt. Bei Stufe 2 markierst du im Profil, welche Felder nur Matches sehen.</p>
                 </div>
 
                 <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
@@ -538,6 +577,8 @@
                     <!-- Modal gallery images -->
                 </div>
 
+                <div id="modal-match-actions" class="flex items-center justify-between gap-2"></div>
+
                 <div id="modal-rendered-fields" class="grid grid-cols-2 gap-2 text-xs">
                     <div class="col-span-2 text-slate-500 text-center py-4">
                         <i class="fa-solid fa-circle-notch fa-spin text-brand-500"></i> Profil wird geladen...
@@ -672,6 +713,7 @@
     <script src="/client/app/watermark.js?v={{assetVersion}}"></script>
     <script src="/client/app/albums.js?v={{assetVersion}}"></script>
     <script src="/client/app/secure-snaps.js?v={{assetVersion}}"></script>
+    <script src="/client/app/matching.js?v={{assetVersion}}"></script>
     <script src="/client/app/settings.js?v={{assetVersion}}"></script>
     <script src="/client/app/router.js?v={{assetVersion}}"></script>
     <script src="/client/app/push.js?v={{assetVersion}}"></script>

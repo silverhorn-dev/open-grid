@@ -241,7 +241,9 @@ async function cachePeerProfile(peerId, profile) {
     // direkt und gepinnt ein, muss es den Eintrag auch bei gleicher
     // Version und gleichem Zeitstempel ersetzen duerfen.
     const isTrustUpgrade = current?.trustLevel === 'unpinned' && profile.trustLevel === 'trusted';
-    if (!isTrustUpgrade) {
+    // Match/Entmatchen aendert, was der Besitzer zeigt, ohne neue Version.
+    const isAudienceChange = Boolean(current) && (current.audience || 'public') !== (profile.audience || 'public');
+    if (!isTrustUpgrade && !isAudienceChange) {
         // Aktualisiere, wenn die Version höher ist ODER bei gleicher Version der Zeitstempel neuer ist (z.B. Avatar-Update)
         if (current && (current.version || 0) > (profile.version || 0)) return current;
         if (current && (current.version || 0) === (profile.version || 0) && (current.updatedAt || 0) >= (profile.updatedAt || 0)) return current;
@@ -279,6 +281,7 @@ const STALE_SENDING_MS = 15000;
 
 async function loadChatHistory(peerId) {
     const messages = await getDatabaseRecordsByIndex('messages', 'peerId', peerId);
+    await resolvePendingPolicyMessages(peerId, messages);
     const staleBefore = Date.now() - STALE_SENDING_MS;
     const staleMessages = messages.filter(message => message.deliveredVia === 'Establishing secure channel...'
         && (message.createdAt || 0) < staleBefore);
@@ -527,6 +530,8 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
                 peerId,
                 deliveredVia
             };
+            // Chat-Berechtigungen: ohne Match ggf. zurueckhalten (wird beim Match freigegeben).
+            if (await shouldHoldIncomingMessage(peerId, message)) message.held = true;
             await persistChatMessage(peerId, message);
             if (!state.chats[peerId]) state.chats[peerId] = [];
             const index = state.chats[peerId].findIndex(item => item.id === message.id);
@@ -557,6 +562,8 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
         const index = state.chats[peerId].findIndex(item => item.id === localOperation.messageId);
         if (index >= 0) state.chats[peerId][index] = deletedMessage;
         else state.chats[peerId].push(deletedMessage);
+    } else if (localOperation.type === 'MATCH_PING' || localOperation.type === 'MATCH_RESET') {
+        if (!await applyMatchOperation(peerId, localOperation)) return false;
     } else if (localOperation.type === 'MESSAGE_REACT') {
         // Pro Absender gilt die neueste Reaktion; null entfernt sie.
         const emoji = localOperation.emoji === null ? null : localOperation.emoji;

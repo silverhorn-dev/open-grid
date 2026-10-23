@@ -146,7 +146,7 @@ async function shareAlbumInChat(albumId) {
 
 // ----- P2P-Protokoll -----
 function canPeerAccessImage(peerId, imageId) {
-    if ((state.myProfile.gallery || []).some(item => item.id === imageId)) return true;
+    if ((state.myProfile.gallery || []).some(item => item.id === imageId)) return isGalleryVisibleTo(peerId);
     return getOwnAlbums().some(album => album.acl.includes(peerId) && album.items.some(item => item.id === imageId));
 }
 

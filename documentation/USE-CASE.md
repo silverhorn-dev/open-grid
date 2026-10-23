@@ -393,3 +393,66 @@ Akzeptanzkriterien:
   Empfaengers.
 - Im Debug-Modus laesst sich ein Bild oder 1:1-Screenshot pruefen; ein
   Treffer nennt den Peer.
+
+## UC-26: Flamme senden und Match
+
+**Als Nutzer** moechte ich mit wenig Aufwand Interesse zeigen und erkennen,
+wenn es auf Gegenseitigkeit beruht.
+
+Akzeptanzkriterien:
+
+- Im Profil eines Peers gibt es "Flamme senden". Die Flamme ist eine kleine
+  verschluesselte Chat-Operation (`MATCH_PING`) und kommt auch offline an
+  (P2P oder Pfad C). Der Server erfaehrt nichts davon.
+- Eine Flamme pro Peer und 24 Stunden.
+- Empfangene Flammen erscheinen in der Chatliste unter "Interesse" mit
+  Knopf "Zurueck-flammen".
+- Haben beide sich gegenseitig eine Flamme geschickt, ist es ein **Match**
+  (beide Clients berechnen das lokal aus ihren Operationen).
+- Ein Match laesst sich aufheben ("Match loesen"); danach gelten wieder die
+  Regeln fuer Nicht-Matches.
+
+## UC-27: Chat-Berechtigungen
+
+**Als Nutzer** moechte ich festlegen, wer mir ohne Match schreiben darf.
+
+Akzeptanzkriterien:
+
+- Einstellung mit drei Stufen, jederzeit wechselbar:
+  - **A Alles:** jeder kann schreiben (wie bisher).
+  - **B Eingeschraenkt:** ohne Match hoechstens N Nachrichten vom anderen
+    (N waehlbar: 1, 3, 5 oder 10; Standard 5); ein Schalter erlaubt oder
+    sperrt Bilder (Snaps, Alben, Secure Snaps) in diesen Nachrichten.
+  - **C Nur Matches:** ohne Match kann niemand schreiben.
+- Die Stufe steht im signierten Profil. Der Client des Absenders zeigt sie an
+  ("Noch 3 Nachrichten bis zum Match", Eingabe gesperrt bei C oder Limit).
+- Durchgesetzt wird beim Empfaenger: Nachrichten ueber dem Limit oder bei C
+  werden nicht angezeigt und nicht gespeichert (manipulierte Sender bringen
+  nichts durch).
+- Mit dem Match fallen alle Grenzen weg. Hat man dem anderen selbst schon
+  geschrieben, gilt der Chat ebenfalls als angenommen.
+- Zurueckgehaltene Nachrichten erscheinen, sobald es ein Match gibt.
+- Bestehende Chats von vor der Einstellung bleiben erhalten.
+
+## UC-28: Profil-Sichtbarkeit
+
+**Als Nutzer** moechte ich bestimmen, wie viel Fremde von meinem Profil sehen.
+
+Akzeptanzkriterien:
+
+- Einstellung mit drei Stufen:
+  - **1 Alles:** Profil, Felder und Galerie fuer alle (wie bisher).
+  - **2 Teilsichtbar:** Profilbild und alle Felder, die nicht als "nur fuer
+    Matches" markiert sind, fuer alle; markierte Felder und die Galerie erst
+    nach einem Match. Beim Oeffnen bietet die App "Flamme senden, um mehr zu
+    sehen" an (optional).
+  - **3 Unsichtbar:** im Grid nur eine Silhouette ohne Namen ("Jemand in der
+    Naehe"); Profilbild, Name, Felder und Galerie erst nach einem Match. Das
+    Profil zeigt nur "Flamme senden".
+- Durchgesetzt wird beim Besitzer: sein Client liefert ueber P2P nur, was
+  die Stufe fuer diesen Peer erlaubt. Bei Stufe 3 bekommt der Router weder
+  Namen noch Vorschaubild.
+- Ein vollstaendiges Profil, das ein Match bekommen hat, ist nur fuer diesen
+  Empfaenger signiert und wird von anderen Clients nicht weitergegeben
+  (Swarm-Profile nur fuer oeffentliche Stufe).
+- Matches sehen immer alles.

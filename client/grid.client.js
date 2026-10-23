@@ -64,11 +64,24 @@ function renderDiscoveryGrid() {
 
         const imageWrapper = document.createElement('div');
         imageWrapper.className = 'relative aspect-[4/5] bg-slate-950 overflow-hidden';
-        const image = document.createElement('img');
-        image.src = avatarSrc;
-        image.alt = `${peer.name || 'Peer'} profile thumbnail`;
-        image.className = 'w-full h-full object-cover group-hover:scale-105 transition duration-500';
-        imageWrapper.appendChild(image);
+        if (!peer.avatar && !peer.name) {
+            // Sichtbarkeitsstufe 3: Silhouette ohne Namen.
+            imageWrapper.classList.add('flex', 'items-center', 'justify-center', 'text-slate-700');
+            imageWrapper.innerHTML = '<i class="fa-solid fa-user-secret text-6xl"></i>';
+        } else {
+            const image = document.createElement('img');
+            image.src = avatarSrc;
+            image.alt = `${peer.name || 'Peer'} profile thumbnail`;
+            image.className = 'w-full h-full object-cover group-hover:scale-105 transition duration-500';
+            imageWrapper.appendChild(image);
+        }
+        if (isMatched(peer.id) || hasReceivedFlame(peer.id)) {
+            const flame = document.createElement('span');
+            flame.className = `absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center text-sm ${isMatched(peer.id) ? 'bg-orange-500 text-white' : 'bg-black/60 text-orange-300'}`;
+            flame.title = isMatched(peer.id) ? 'Match' : 'Hat dir eine Flamme geschickt';
+            flame.innerHTML = '<i class="fa-solid fa-fire"></i>';
+            imageWrapper.appendChild(flame);
+        }
 
         const footer = document.createElement('div');
         footer.className = 'p-3 flex items-center justify-between gap-2';
@@ -76,7 +89,7 @@ function renderDiscoveryGrid() {
         identity.className = 'min-w-0';
         const name = document.createElement('div');
         name.className = 'font-semibold text-sm text-slate-100 truncate';
-        name.textContent = peer.name || 'Peer';
+        name.textContent = peer.name || HIDDEN_PEER_NAME;
         const id = document.createElement('div');
         id.className = 'debug-only text-[10px] font-mono text-slate-500 truncate';
         id.textContent = peer.id;
@@ -130,7 +143,13 @@ function renderActivePeerList() {
         details.className = 'min-w-0 flex-1';
         const name = document.createElement('div');
         name.className = 'text-xs font-semibold text-slate-200 truncate';
-        name.textContent = peer.name || 'Peer';
+        name.textContent = peer.name || HIDDEN_PEER_NAME;
+        if (isMatched(peer.id) || hasReceivedFlame(peer.id)) {
+            const flame = document.createElement('i');
+            flame.className = `fa-solid fa-fire ml-1.5 ${isMatched(peer.id) ? 'text-orange-400' : 'text-orange-300/60'}`;
+            flame.title = isMatched(peer.id) ? 'Match' : 'Hat dir eine Flamme geschickt';
+            name.appendChild(flame);
+        }
         const status = document.createElement('div');
         status.className = 'debug-only text-[10px] font-mono text-slate-400';
         status.textContent = blocked
@@ -265,8 +284,8 @@ async function registerWithWorkerGrid() {
                 peerId: state.myProfile.id,
                 registrationId: state.registrationId,
                 geohash: state.myProfile.geohash,
-                thumbnail: state.myProfile.avatar,
-                name: state.myProfile.fields.displayName || 'Peer',
+                // Sichtbarkeitsstufe 3: der Router bekommt weder Namen noch Vorschaubild.
+                ...getRegistrationIdentity(),
                 authToken: state.routerAuthToken,
                 silent: isEffectivelySilent(),
                 ttlMinutes: state.gridSettings.ttlMinutes,

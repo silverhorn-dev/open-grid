@@ -114,8 +114,15 @@ function isValidMessagePut(payload, senderId) {
         && operation.operationId === `put:${operation.messageId}`;
 }
 
+// Chat-Berechtigungen (P6): die Seite spiegelt Modus und angenommene Peers nach `keys`/`chat-gate`.
+// Nachrichten von nicht angenommenen Peers markiert der SW nur; die Seite prueft sie beim Laden.
+async function isChatGated(database, peerId) {
+    const gate = await getRecord(database, 'keys', 'chat-gate').catch(() => null);
+    return Boolean(gate && gate.mode !== 'A' && !(gate.acceptedPeerIds || []).includes(peerId));
+}
+
 // Entspricht dem MESSAGE_PUT-Zweig von applyChatOperation in client/app/storage.js.
-async function storeMessagePut(database, peerId, operation) {
+async function storeMessagePut(database, peerId, operation, gated = false) {
     const transaction = database.transaction(['messages', 'chatOperations'], 'readwrite');
     const done = new Promise((resolve, reject) => {
         transaction.oncomplete = resolve;
@@ -128,7 +135,12 @@ async function storeMessagePut(database, peerId, operation) {
     if (!existingOperation) {
         const existingMessage = await requestToPromise(messages.get(operation.messageId));
         if (!existingMessage?.deleted) {
-            messages.put({ ...operation.message, peerId, deliveredVia: 'E2EE Push' });
+            messages.put({
+                ...operation.message,
+                peerId,
+                deliveredVia: 'E2EE Push',
+                ...(gated ? { held: true, policyPending: true } : {})
+            });
         }
         operations.put({ ...operation, peerId });
     }
@@ -162,11 +174,13 @@ async function receivePathCPush(data) {
         if (!isValidMessagePut(payload, data.senderId)) {
             throw new Error('Push payload is not a valid chat message.');
         }
-        await storeMessagePut(database, data.senderId, payload.operation);
+        const gated = await isChatGated(database, data.senderId);
+        await storeMessagePut(database, data.senderId, payload.operation, gated);
         await acknowledgeQueuedMessage(routerAuth, data.msgId);
         return {
             message: payload.operation.message,
-            senderName: await findPeerName(database, data.senderId)
+            senderName: await findPeerName(database, data.senderId),
+            gated
         };
     } finally {
         database.close();
@@ -240,9 +254,10 @@ async function handlePush(event) {
     }
 
     try {
-        const { message, senderName } = await receivePathCPush(data);
+        const { message, senderName, gated } = await receivePathCPush(data);
         windows.forEach(client => client.postMessage({ type: 'CHAT_STORE_UPDATED', peerId: data.senderId }));
-        if (compact) return showCompactNotification();
+        // Moeglicherweise zurueckgehaltene Nachricht: weder Name noch Text zeigen.
+        if (compact || gated) return showCompactNotification();
         return showChatNotification(
             senderName ? `Neue Nachricht von ${senderName}` : 'Neue Nachricht',
             previewText(message),

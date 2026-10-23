@@ -33,6 +33,9 @@ window.onload = async () => {
         await loadCachedGridPeers();
         await loadChatPeerIds();
         await loadAlbums();
+        await loadMatchState();
+        renderMatchingSettings();
+        syncChatGate();
         await loadSnapSettings();
         await generateUserIdentityKeys();
         await loadGridSettings();

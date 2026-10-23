@@ -90,6 +90,18 @@ function renderProfileForm(containerId = 'dynamic-profile-form') {
         label.className = 'text-xs font-bold text-slate-400';
         label.textContent = field.label + (field.required ? ' *' : '');
         wrapper.appendChild(label);
+        // Sichtbarkeitsstufe 2: einzelne Felder nur fuer Matches.
+        if (containerId === 'dynamic-profile-form' && getMyVisibility() === 2) {
+            const privacy = document.createElement('label');
+            privacy.className = 'ml-3 inline-flex items-center gap-1 text-[11px] text-slate-400 cursor-pointer';
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'accent-brand-500';
+            checkbox.checked = (state.myProfile.privateFields || []).includes(field.key);
+            checkbox.onchange = () => togglePrivateField(field.key, checkbox.checked);
+            privacy.append(checkbox, document.createTextNode('nur fuer Matches'));
+            wrapper.appendChild(privacy);
+        }
 
         const currentValue = state.myProfile.fields[field.key] ?? field.default ?? '';
         if (state.myProfile.fields[field.key] === undefined && field.default !== undefined) {

@@ -468,14 +468,8 @@ async function decryptSecurePayload(peerId, envelope) {
 }
 
 async function handleIncomingProfileRequest(peerId) {
-    const profilePayload = {
-        id: state.myProfile.id,
-        fields: state.myProfile.fields,
-        avatar: state.myProfile.avatar,
-        gallery: state.myProfile.gallery || [],
-        version: state.myProfile.version,
-        updatedAt: state.myProfile.updatedAt
-    };
+    // Sichtbarkeit: jeder Peer bekommt nur, was seine Match-Stufe erlaubt.
+    const profilePayload = buildProfilePayloadFor(peerId);
     const signedEnvelope = await signProfileData(profilePayload, state.myKeys.ecdsaKeyPair.privateKey, state.myKeys.jwkEcdsaPublic);
     sendSecurePayload(peerId, { type: 'PROFILE_RESPONSE', signedEnvelope }).catch(() => {});
 }
@@ -507,7 +501,7 @@ async function handleIncomingProfileResponse(peerId, signedEnvelopeOrProfile) {
     } else if (signedEnvelopeOrProfile.fields) {
         profile = signedEnvelopeOrProfile; // Legacy Profil ohne Signatur
     }
-    if (!profile) return;
+    if (!profile || !isProfileAudienceAcceptable(profile)) return;
     const acceptedProfile = await cachePeerProfile(peerId, profile);
     if (state.activeModalPeerId === peerId && typeof renderProfileModalData === 'function') {
         renderProfileModalData(acceptedProfile);
@@ -602,7 +596,8 @@ async function handleSecurePayload(peerId, payload, deliveredVia = 'E2EE P2P') {
         } else {
             // Wenn wir das Profil eines Dritten haben, servieren wir es dem Schwarm
             const cachedProfile = state.cachedProfiles[targetId];
-            if (cachedProfile && cachedProfile.signedEnvelope) {
+            // Match-Profile sind an einen Empfaenger gebunden und werden nie weitergegeben.
+            if (cachedProfile && cachedProfile.signedEnvelope && isProfileShareable(cachedProfile)) {
                 sendSecurePayload(peerId, {
                     type: 'SWARM_PROFILE_RESPONSE',
                     targetNodeId: targetId,
@@ -625,6 +620,7 @@ async function handleSecurePayload(peerId, payload, deliveredVia = 'E2EE P2P') {
         } else {
             logDebug(`Gueltiges Schwarm-Profil fuer ${targetNodeId} von ${peerId} erhalten!`);
         }
+        if (!isProfileShareable(signedEnvelope.payload)) return;
         const profile = {
             ...signedEnvelope.payload,
             signedEnvelope,

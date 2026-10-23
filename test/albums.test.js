@@ -37,6 +37,7 @@ function loadAlbums() {
         loadMedia: async id => (id === 'albimg_a' ? { data: 'data:image/jpeg;base64,AAAA', version: 1 } : null),
         cacheMediaPayload: async (id, payload) => records.set(`media:${id}`, payload),
         fetchServerTime: async () => ({ now: 1000, epoch: 3, epochEndsAt: 61000 }),
+        isGalleryVisibleTo: () => true,
         logDebug: () => {},
         sendSecurePayload: async (peerId, payload) => sent.push({ peerId, payload }),
         putDatabaseRecord: async (store, value) => records.set(`${store}:${value.id}`, value),

@@ -251,7 +251,8 @@ Der Store `keys` enthaelt zusaetzlich den Datensatz `router-auth` mit
 `nodeId` und Router-Token. Er spiegelt `localStorage` fuer den Service
 Worker, der keinen Zugriff auf `localStorage` hat. Der Datensatz
 `push-settings` speichert `compactNotifications` fuer den Service Worker.
-Der Datensatz `grid-settings` speichert `silent`, `ttlMinutes`, `liveGrid`,
+Der Datensatz `chat-gate` spiegelt die Chat-Berechtigungen fuer den Service
+Worker (Abschnitt 6.0). Der Datensatz `grid-settings` speichert `silent`, `ttlMinutes`, `liveGrid`,
 `cacheEnabled` (Standard an), `useLocation`, `locationLabel` und `safeZones`
 (Liste von Geohash-Zellen). Ein fehlender Datensatz entspricht den Standardwerten.
 Safe Zones verlassen nie das Geraet: Liegt die eigene Zelle in einer Safe
@@ -376,6 +377,57 @@ Laden eines Chats werden Nachrichten, die laenger als 15 Sekunden auf
 Pro Chat bleiben maximal 100 `MESSAGE_DELETE`-Operationen erhalten. Eine
 geloeschte Nachricht bleibt lokal als Platzhalter sichtbar und wird nicht
 durch eine spaeter eintreffende alte Put-Operation wiederhergestellt.
+
+### 6.0 Matching, Chat-Berechtigungen, Profil-Sichtbarkeit
+
+Match-Operationen sind normale Chat-Operationen (P2P, Pfad C, Chat-Sync):
+
+| Operation | Bedeutung |
+|---|---|
+| `MATCH_PING { actorId, createdAt }` (`flame:<uuid>`) | Flamme; max. eine pro Peer und 24 h (Client) |
+| `MATCH_RESET { actorId, createdAt }` (`unmatch:<uuid>`) | Match loesen |
+
+Ein **Match** besteht, wenn beide Seiten nach dem letzten `MATCH_RESET` eine
+Flamme gesendet haben. Beide Clients berechnen das aus ihrem Operations-Log;
+der Server erfaehrt nichts. Flammen loesen keinen Web Push aus.
+
+**Chat-Berechtigungen** (`myProfile.chatPolicy = { mode, limit, allowImages }`,
+im signierten Profil):
+
+| Modus | Ohne Match |
+|---|---|
+| `A` | alles erlaubt |
+| `B` | max. `limit` (1/3/5/10) Nachrichten des anderen; `allowImages: false` sperrt Snaps, Alben, Secure Snaps |
+| `C` | keine Nachrichten |
+
+Durchsetzung beim Empfaenger in `applyChatOperation`: eine `MESSAGE_PUT`
+ueber den Regeln wird mit `held: true` gespeichert und nicht angezeigt. Beim
+Match werden alle `held`-Nachrichten freigegeben. Ein Chat gilt auch als
+angenommen, wenn man dem anderen selbst schon geschrieben hat. Der Client des
+Absenders liest die Regeln aus dem Profil und zeigt "Noch N Nachrichten bis
+zum Match" bzw. sperrt die Eingabe (nur Anzeige).
+
+Der Service Worker kennt die Regeln nicht. Die Seite spiegelt deshalb
+`keys`/`chat-gate = { mode, acceptedPeerIds }`. Bei Modus B/C und nicht
+angenommenem Absender speichert der SW die Nachricht mit
+`held: true, policyPending: true` und zeigt nur die kompakte Benachrichtigung;
+die Seite prueft solche Nachrichten beim Laden des Chats.
+
+**Profil-Sichtbarkeit** (`myProfile.visibility`, `myProfile.privateFields`):
+Der Besitzer baut die `PROFILE_RESPONSE` pro Betrachter
+(`buildProfilePayloadFor`):
+
+| Stufe | Ohne Match | Router |
+|---|---|---|
+| 1 | alles | Name + Vorschaubild |
+| 2 | Profilbild + nicht markierte Felder, keine Galerie (`restricted: true`) | Name + Vorschaubild |
+| 3 | nur ID, Stufe, Chat-Regeln (`restricted: true`) | kein Name, kein Bild (Silhouette "Jemand in der Naehe") |
+
+Mit Match bekommt der Betrachter das volle Profil mit `audience: <seine ID>`.
+Solche Profile werden nie per Swarm weitergegeben und nur vom adressierten
+Peer angenommen; oeffentliche Profile tragen `audience: 'public'`. Ein Wechsel
+von `audience` ersetzt den Cache auch ohne neue Version. `IMAGE_REQUEST` fuer
+Galeriebilder wird bei Stufe 2/3 ohne Match abgelehnt.
 
 ### 6.1 Secure Snaps
 

@@ -38,14 +38,15 @@ async function probePeerPresence(peerId) {
 
 function openProfileModal(peerId) {
     state.activeModalPeerId = peerId;
-    const peer = state.peers.find(p => p.id === peerId);
+    const peer = state.peers.find(p => p.id === peerId) || getPeerPresentation(peerId);
     if (!peer) return;
 
     document.getElementById('profile-detail-modal').classList.remove('hidden');
     pushModalEntry('profile', hideProfileModal);
-    document.getElementById('modal-profile-name').textContent = peer.name || 'Peer';
+    document.getElementById('modal-profile-name').textContent = peer.name || HIDDEN_PEER_NAME;
     document.getElementById('modal-profile-id').textContent = peer.id;
-    document.getElementById('modal-profile-img').src = peer.avatar || 'https://placehold.co/300x300/1e293b/ffffff?text=Peer';
+    document.getElementById('modal-profile-img').src = peer.avatar || 'https://placehold.co/300x300/1e293b/ffffff?text=%3F';
+    renderProfileMatchActions(peerId);
 
     // SOFORTIGES LEEREN der alten Galerie, bevor neue Daten eintreffen
     const galleryContainer = document.getElementById('modal-gallery-container');
@@ -93,9 +94,20 @@ function openProfileModal(peerId) {
 }
 
 function renderProfileModalData(profile) {
-    document.getElementById('modal-profile-name').textContent = profile.fields?.displayName || 'Peer';
+    document.getElementById('modal-profile-name').textContent = profile.fields?.displayName || HIDDEN_PEER_NAME;
+    if (isSafeInlineImage(profile.avatar)) document.getElementById('modal-profile-img').src = profile.avatar;
     const container = document.getElementById('modal-rendered-fields');
     container.innerHTML = '';
+    renderProfileMatchActions(state.activeModalPeerId);
+    if (profile.restricted && !isMatched(state.activeModalPeerId)) {
+        const notice = document.createElement('div');
+        notice.className = 'col-span-2 bg-slate-800/60 border border-slate-700 p-2 rounded text-slate-300 flex items-center gap-2';
+        notice.innerHTML = '<i class="fa-solid fa-lock text-orange-300"></i>';
+        notice.appendChild(document.createTextNode(profile.visibility === 3
+            ? 'Dieses Profil ist verborgen. Nach einem Match siehst du alles.'
+            : 'Weitere Angaben und Bilder siehst du nach einem Match.'));
+        container.appendChild(notice);
+    }
 
     const galleryContainer = document.getElementById('modal-gallery-container');
     if (profile.gallery && profile.gallery.length > 0) {
@@ -284,7 +296,9 @@ function updateChatActionButtons() {
     sendButton.disabled = blocked;
     if (blocked) {
         updateChatConnectionStatus(peerId, 'Blocked', 'bg-red-500/10 text-red-400 border-red-500/30');
+        return;
     }
+    renderChatAllowance();
 }
 
 async function deleteActiveChat() {
@@ -373,6 +387,12 @@ const DELIVERY_PATH_LABELS = {
 async function sendChatMessage(snapData = null, caption = '', album = null, secureSnap = null) {
     const input = document.getElementById('chat-input');
     const hasAttachment = Boolean(snapData || album || secureSnap);
+    // Chat-Berechtigungen des anderen (nur Anzeige; der Empfaenger setzt sie selbst durch).
+    const allowance = state.activeChatPeerId ? getPeerChatAllowance(state.activeChatPeerId) : null;
+    if (allowance && (!allowance.allowed || (hasAttachment && !allowance.images))) {
+        showToast(allowance.reason || 'Bilder sind erst nach einem Match erlaubt.', 'info');
+        return;
+    }
     const text = hasAttachment ? String(caption || '').trim() : input.value.trim();
     if ((!text && !hasAttachment) || !state.activeChatPeerId || isPeerBlocked(state.activeChatPeerId)) return;
 
@@ -397,6 +417,7 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
     await persistChatMessage(peerId, message);
     const operation = createPutOperation(peerId, message);
     await persistChatOperation(operation);
+    syncChatGate();
     if (!hasAttachment) input.value = '';
     state.replyToMessageId = null;
     renderReplyBar();
@@ -467,7 +488,8 @@ async function deleteChatMessage(messageId) {
 function renderChatHistory() {
     const container = document.getElementById('chat-messages');
     if (!container || !state.activeChatPeerId) return;
-    const allMessages = state.chats[state.activeChatPeerId] || [];
+    // Zurueckgehaltene Nachrichten (Chat-Berechtigungen) erscheinen erst nach einem Match.
+    const allMessages = (state.chats[state.activeChatPeerId] || []).filter(message => !message.held);
     const msgs = filterChatMessages(allMessages);
     container.innerHTML = '';
     if (allMessages.length === 0) {
@@ -555,6 +577,7 @@ function renderChatHistory() {
         container.appendChild(row);
     });
     if (!filtering) container.scrollTop = container.scrollHeight;
+    renderChatAllowance();
 }
 
 // Path C haelt Nachrichten nur bis zur Queue-TTL. Danach liefert erst der naechste direkte Chat-Sync aus.

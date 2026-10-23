@@ -214,6 +214,10 @@
 - [x] Zugriffssteuerung pro Album: teilen / nicht mehr teilen (Revoke-Management)
   - done P4: teilen = peer in `acl` + chat-nachricht; entziehen = aus `acl` + `ALBUM_REVOKED`, `IMAGE_REQUEST` prueft `acl`
   - done P5: entziehen erhoeht `keyVersion` (rolling keys)
+- [ ] der renderer sollte screenshots und aufnahmen blockieren
+  - bringt hier eine frequenz was?
+  - am schönsten wäre es die wasserzeichen nachträglich beim rendern noch durch ein negativzeichen auszublenden
+  - 
 
 # Advanced Encryption (Media & Performance)
 - [x] Rolling-Key / Double-Key Verfahren für Medien:

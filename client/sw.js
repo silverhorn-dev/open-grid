@@ -212,6 +212,7 @@ async function loadCompactSetting() {
 }
 
 function previewText(message) {
+    if (message.secureSnap) return 'Secure Snap';
     if (message.album) return 'Album';
     if (message.snapData) return 'Snap';
     const text = String(message.text || '');

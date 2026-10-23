@@ -9,7 +9,17 @@ const ALBUM_COVER_EDGE = 240;
 async function loadAlbums() {
     const records = await getAllDatabaseRecords('albums').catch(() => []);
     state.albums = Object.fromEntries(records.map(album => [album.id, album]));
+    // Alben aus der Zeit vor den rotierenden Schluesseln bekommen nachtraeglich ein Geheimnis.
+    for (const album of getOwnAlbums().filter(album => !album.secret)) {
+        album.secret = createAlbumSecret();
+        album.keyVersion = 1;
+        await putDatabaseRecord('albums', album);
+    }
     renderAlbumManager();
+}
+
+function createAlbumSecret() {
+    return bytesToBase64(window.crypto.getRandomValues(new Uint8Array(32)));
 }
 
 function getOwnAlbums() {
@@ -37,7 +47,9 @@ async function createAlbum() {
         ownerId: state.myProfile.id,
         name: name.substring(0, 80),
         items: [],
-        acl: []
+        acl: [],
+        secret: createAlbumSecret(),
+        keyVersion: 1
     });
     input.value = '';
 }
@@ -84,6 +96,8 @@ async function revokeAlbumAccess(albumId, peerId) {
     const album = state.albums[albumId];
     if (!album) return;
     album.acl = album.acl.filter(id => id !== peerId);
+    // Neue Schluesselversion: auch ein zurueckbehaltener Schluessel passt nicht mehr zu neuen Uebertragungen.
+    album.keyVersion = (album.keyVersion || 1) + 1;
     await saveAlbum(album);
     notifyAlbumRevoked(peerId, albumId);
 }
@@ -151,7 +165,12 @@ async function handleAlbumRequest(peerId, albumId) {
     }
     await sendSecurePayload(peerId, {
         type: 'ALBUM_RESPONSE',
-        album: { id: album.id, name: album.name, items: album.items.map(({ id, version }) => ({ id, version })) }
+        album: {
+            id: album.id,
+            name: album.name,
+            keyVersion: album.keyVersion || 1,
+            items: album.items.map(({ id, version }) => ({ id, version }))
+        }
     });
 }
 
@@ -164,15 +183,18 @@ async function handleAlbumResponse(peerId, payload) {
         .slice(0, 500)
         .map(item => ({ id: item.id.substring(0, 200), version: item.version }));
     const previous = state.albums[payload.album.id];
-    // Entfernte Bilder auch lokal loeschen.
-    const keptIds = new Set(items.map(item => item.id));
+    const keyVersion = Number.isInteger(payload.album.keyVersion) ? payload.album.keyVersion : 1;
+    // Entfernte Bilder loeschen; bei neuer Schluesselversion ist der ganze Ciphertext wertlos.
+    const keptIds = new Set(previous?.keyVersion === keyVersion ? items.map(item => item.id) : []);
     await Promise.all((previous?.items || [])
         .filter(item => !keptIds.has(item.id))
         .map(item => deleteDatabaseRecord('media', item.id)));
+    if (previous && previous.keyVersion !== keyVersion) delete state.albumKeys[payload.album.id];
     const album = {
         id: payload.album.id,
         ownerId: peerId,
         name: String(payload.album.name || 'Album').substring(0, 80),
+        keyVersion,
         items,
         receivedAt: Date.now()
     };
@@ -187,6 +209,7 @@ async function forgetReceivedAlbum(peerId, albumId) {
     await Promise.all(album.items.map(item => deleteDatabaseRecord('media', item.id)));
     await deleteDatabaseRecord('albums', albumId);
     delete state.albums[albumId];
+    expireAlbumKeys(albumId, false);
     if (state.albumViewer?.albumId === albumId) {
         renderMediaModalMessage('Du hast keinen Zugriff mehr auf dieses Album.');
     }
@@ -265,6 +288,7 @@ async function openAlbumViewer(albumId, reference = null) {
         if (!album) renderMediaModalMessage('Album wird geladen... Der Besitzer muss online sein.');
         state.pendingAlbumRequests[`${ownerId}:${albumId}`] = true;
         await sendSecurePayload(ownerId, { type: 'ALBUM_REQUEST', albumId });
+        await requestAlbumKeys(ownerId, albumId);
     }
 }
 
@@ -282,35 +306,48 @@ async function renderAlbumViewer(album) {
     grid.className = 'grid grid-cols-3 sm:grid-cols-4 gap-2';
     content.appendChild(grid);
     for (const item of album.items) {
+        if (!isOwn) {
+            grid.appendChild(await renderReceivedAlbumTile(album, item));
+            continue;
+        }
         const media = await loadMedia(item.id);
         const hasCurrent = media && media.version === item.version;
         const tile = createThumbnail(hasCurrent ? media.data : null, () => hasCurrent && openViewerFromTiles(media.data));
         tile.id = `album-tile-${item.id}`;
-        if (isOwn) {
-            const wrapper = document.createElement('div');
-            wrapper.className = 'relative group';
-            const remove = document.createElement('button');
-            remove.type = 'button';
-            remove.className = 'absolute top-1 right-1 w-6 h-6 bg-red-600 hover:bg-red-500 text-white rounded-full text-xs';
-            remove.innerHTML = '<i class="fa-solid fa-xmark"></i>';
-            remove.setAttribute('aria-label', 'Bild entfernen');
-            remove.onclick = () => removeAlbumImage(album.id, item.id);
-            wrapper.append(tile, remove);
-            grid.appendChild(wrapper);
-        } else {
-            grid.appendChild(tile);
-            if (!hasCurrent) {
-                state.pendingImageRequests[`${album.ownerId}:${item.id}`] = item.version;
-                sendSecurePayload(album.ownerId, { type: 'IMAGE_REQUEST', imageId: item.id, version: item.version }).catch(() => {});
-            }
-        }
+        const wrapper = document.createElement('div');
+        wrapper.className = 'relative group';
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'absolute top-1 right-1 w-6 h-6 bg-red-600 hover:bg-red-500 text-white rounded-full text-xs';
+        remove.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+        remove.setAttribute('aria-label', 'Bild entfernen');
+        remove.onclick = () => removeAlbumImage(album.id, item.id);
+        wrapper.append(tile, remove);
+        grid.appendChild(wrapper);
     }
 }
 
-function renderAlbumViewerImage(imageId, dataUrl) {
-    const tile = document.getElementById(`album-tile-${imageId}`);
-    if (!tile) return;
-    tile.replaceWith(Object.assign(createThumbnail(dataUrl, () => openViewerFromTiles(dataUrl)), { id: `album-tile-${imageId}` }));
+// Empfangene Albumbilder liegen nur als Ciphertext vor und brauchen den Schluessel der aktuellen Epoche.
+async function renderReceivedAlbumTile(album, item) {
+    const stored = await loadMedia(item.id);
+    const isCurrent = stored?.encrypted && stored.version === item.version && stored.keyVersion === album.keyVersion;
+    if (!isCurrent) {
+        state.pendingImageRequests[`${album.ownerId}:${item.id}`] = item.version;
+        sendSecurePayload(album.ownerId, { type: 'IMAGE_REQUEST', imageId: item.id, version: item.version }).catch(() => {});
+    }
+    const dataUrl = isCurrent ? await decryptAlbumImage(album.id, item.id, stored.encrypted) : null;
+    const tile = dataUrl
+        ? createThumbnail(dataUrl, () => openViewerFromTiles(dataUrl))
+        : isCurrent ? createLockedTile() : createThumbnail(null, () => {});
+    tile.id = `album-tile-${item.id}`;
+    return tile;
+}
+
+function createLockedTile() {
+    const tile = document.createElement('div');
+    tile.className = 'aspect-square rounded-xl border border-slate-800 bg-slate-900 flex flex-col items-center justify-center gap-1 text-slate-500 text-[10px] text-center p-1';
+    tile.innerHTML = '<i class="fa-solid fa-lock text-lg"></i><span>Schluessel abgelaufen</span>';
+    return tile;
 }
 
 // Medienuebersicht des aktiven Chats: alle Snaps und geteilten Alben.
@@ -467,4 +504,159 @@ function renderAlbumManager() {
         card.appendChild(access);
         container.appendChild(card);
     });
+}
+
+// ----- Rotierende Album-Schluessel -----
+// Pro Betrachter und Bild: Schluessel = HKDF(Albumgeheimnis des Besitzers, Album + Version, Bild + Betrachter).
+// Der Betrachter bekommt die Bilder nur als Ciphertext und die Schluessel nur fuer die laufende
+// Epoche (Serverzeit). Sie liegen ausschliesslich im Arbeitsspeicher und verfallen mit der Epoche.
+function findOwnAlbumForImage(imageId) {
+    return getOwnAlbums().find(album => album.items.some(item => item.id === imageId)) || null;
+}
+
+async function deriveAlbumImageKey(album, imageId, viewerId) {
+    const secret = await window.crypto.subtle.importKey('raw', base64ToBytes(album.secret), 'HKDF', false, ['deriveKey']);
+    return window.crypto.subtle.deriveKey(
+        {
+            name: 'HKDF',
+            hash: 'SHA-256',
+            salt: new TextEncoder().encode(`${album.id}:${album.keyVersion || 1}`),
+            info: new TextEncoder().encode(`${imageId}:${viewerId}`)
+        },
+        secret,
+        { name: 'AES-GCM', length: 256 },
+        true,
+        ['encrypt']
+    );
+}
+
+async function serveAlbumImage(peerId, imageId) {
+    const album = findOwnAlbumForImage(imageId);
+    const item = album?.items.find(entry => entry.id === imageId);
+    const media = item ? await loadMedia(imageId) : null;
+    if (!album || !media?.data || !album.acl.includes(peerId)) return;
+    const marked = typeof embedWatermark === 'function' ? await embedWatermark(media.data, peerId) : media.data;
+    const key = await deriveAlbumImageKey(album, imageId, peerId);
+    const iv = window.crypto.getRandomValues(new Uint8Array(12));
+    const ciphertext = await window.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(marked));
+    await sendSecurePayload(peerId, {
+        type: 'IMAGE_RESPONSE',
+        imageId,
+        version: item.version,
+        keyVersion: album.keyVersion || 1,
+        encrypted: { iv: bytesToBase64(iv), ciphertext: bytesToBase64(new Uint8Array(ciphertext)) }
+    });
+}
+
+async function handleAlbumImageResponse(peerId, payload) {
+    const requestKey = `${peerId}:${payload.imageId}`;
+    const item = findReceivedAlbumItem(peerId, payload.imageId);
+    const album = Object.values(state.albums).find(entry => entry.ownerId === peerId && entry.items.includes(item));
+    if (!item || !album || state.pendingImageRequests[requestKey] !== payload.version || item.version !== payload.version
+        || payload.keyVersion !== album.keyVersion
+        || typeof payload.encrypted?.iv !== 'string' || typeof payload.encrypted?.ciphertext !== 'string') {
+        logDebug(`Rejected unsolicited album image ${payload.imageId} from ${peerId}.`);
+        return;
+    }
+    delete state.pendingImageRequests[requestKey];
+    const encrypted = { iv: payload.encrypted.iv, ciphertext: payload.encrypted.ciphertext };
+    await cacheMediaPayload(payload.imageId, { encrypted, version: payload.version, keyVersion: payload.keyVersion });
+    if (state.albumViewer?.albumId !== album.id) return;
+    const dataUrl = await decryptAlbumImage(album.id, payload.imageId, encrypted);
+    const tile = document.getElementById(`album-tile-${payload.imageId}`);
+    if (tile) {
+        const replacement = dataUrl ? createThumbnail(dataUrl, () => openViewerFromTiles(dataUrl)) : createLockedTile();
+        replacement.id = `album-tile-${payload.imageId}`;
+        tile.replaceWith(replacement);
+    }
+}
+
+async function requestAlbumKeys(ownerId, albumId) {
+    state.pendingAlbumKeyRequests[`${ownerId}:${albumId}`] = true;
+    let epoch = null;
+    try {
+        epoch = (await fetchServerTime()).epoch;
+    } catch (error) {
+        logDebug(`Server time unavailable: ${error.message}`);
+    }
+    await sendSecurePayload(ownerId, { type: 'ALBUM_KEY_REQUEST', albumId, epoch });
+}
+
+// Der Besitzer gibt immer nur Schluessel fuer die laufende Epoche heraus.
+async function handleAlbumKeyRequest(peerId, payload) {
+    const album = state.albums[payload.albumId];
+    if (!album || album.ownerId !== state.myProfile.id || !album.acl.includes(peerId)) {
+        await sendSecurePayload(peerId, { type: 'ALBUM_DENIED', albumId: payload.albumId });
+        return;
+    }
+    const time = await fetchServerTime();
+    const keys = {};
+    for (const item of album.items) {
+        const key = await deriveAlbumImageKey(album, item.id, peerId);
+        keys[item.id] = bytesToBase64(new Uint8Array(await window.crypto.subtle.exportKey('raw', key)));
+    }
+    await sendSecurePayload(peerId, {
+        type: 'ALBUM_KEY_RESPONSE',
+        albumId: album.id,
+        keyVersion: album.keyVersion || 1,
+        epoch: time.epoch,
+        epochEndsAt: time.epochEndsAt,
+        keys
+    });
+}
+
+async function handleAlbumKeyResponse(peerId, payload) {
+    const requestKey = `${peerId}:${payload.albumId}`;
+    const album = state.albums[payload.albumId];
+    if (!state.pendingAlbumKeyRequests[requestKey] || (album && album.ownerId !== peerId)) return;
+    delete state.pendingAlbumKeyRequests[requestKey];
+    if (!payload.keys || typeof payload.keys !== 'object' || !Number.isFinite(payload.epochEndsAt)) return;
+    const keys = new Map();
+    for (const [imageId, raw] of Object.entries(payload.keys).slice(0, 500)) {
+        if (typeof raw !== 'string') continue;
+        // Nicht exportierbar: der Rohschluessel existiert danach nur noch in dieser Funktion.
+        keys.set(imageId, await window.crypto.subtle.importKey('raw', base64ToBytes(raw), { name: 'AES-GCM' }, false, ['decrypt']));
+    }
+    expireAlbumKeys(payload.albumId, false);
+    const time = await fetchServerTime().catch(() => ({ now: Date.now() }));
+    const lifetime = Math.max(0, payload.epochEndsAt - time.now);
+    state.albumKeys[payload.albumId] = {
+        ownerId: peerId,
+        keyVersion: payload.keyVersion,
+        epoch: payload.epoch,
+        keys,
+        timer: setTimeout(() => expireAlbumKeys(payload.albumId, true), Math.min(lifetime, 2147483647))
+    };
+    const current = state.albums[payload.albumId];
+    if (current && state.albumViewer?.albumId === current.id) await renderAlbumViewer(current);
+}
+
+// Laeuft die Epoche ab, werden die Schluessel verworfen. Ist das Album offen, wird sofort nachgefragt.
+function expireAlbumKeys(albumId, renew) {
+    const entry = state.albumKeys[albumId];
+    if (!entry) return;
+    clearTimeout(entry.timer);
+    delete state.albumKeys[albumId];
+    const album = state.albums[albumId];
+    if (!renew || !album || state.albumViewer?.albumId !== albumId) return;
+    renderAlbumViewer(album).catch(() => {});
+    requestAlbumKeys(album.ownerId, albumId).catch(() => {});
+}
+
+async function decryptAlbumImage(albumId, imageId, encrypted) {
+    const entry = state.albumKeys[albumId];
+    const album = state.albums[albumId];
+    const key = entry?.keyVersion === album?.keyVersion ? entry.keys.get(imageId) : null;
+    if (!key) return null;
+    try {
+        const plaintext = await window.crypto.subtle.decrypt(
+            { name: 'AES-GCM', iv: base64ToBytes(encrypted.iv) },
+            key,
+            base64ToBytes(encrypted.ciphertext)
+        );
+        const dataUrl = new TextDecoder().decode(plaintext);
+        return isSafeInlineImage(dataUrl) ? dataUrl : null;
+    } catch {
+        return null;
+    }
 }

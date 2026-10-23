@@ -75,6 +75,8 @@ function getOrCreatePeerConnection(peerId) {
     };
 
     connection.ondatachannel = (event) => setupDataChannel(peerId, event.channel);
+    // Video-Tracks kommen nur fuer Live-Secure-Snaps.
+    connection.ontrack = (event) => handleSnapStreamTrack(peerId, event);
     connection.onconnectionstatechange = () => {
         const status = connection.connectionState;
         logDebug(`P2P connection with ${peerId}: ${status}`);
@@ -310,6 +312,24 @@ function setupDataChannel(peerId, channel) {
     };
 }
 
+// Neues Offer auf einer bestehenden Verbindung (z. B. nach addTrack/removeTrack fuer Live-Snaps).
+async function renegotiatePeerConnection(peerId) {
+    const connection = state.webrtcConnections[peerId];
+    if (!connection || connection.signalingState === 'closed') return;
+    try {
+        state.makingOffer[peerId] = true;
+        await connection.setLocalDescription(await connection.createOffer());
+        sendSignalingMessage({
+            type: 'SDP_OFFER',
+            targetPeerId: peerId,
+            senderNodeId: state.myProfile.id,
+            sdp: connection.localDescription
+        });
+    } finally {
+        state.makingOffer[peerId] = false;
+    }
+}
+
 async function initiateP2PConnection(peerId) {
     if (isPeerBlocked(peerId)) return;
     if (state.dataChannels[peerId]?.readyState === 'open') return;
@@ -454,6 +474,11 @@ async function handleIncomingImageRequest(peerId, imageId) {
         logDebug(`Denied image ${imageId} for ${peerId}.`);
         return;
     }
+    // Albumbilder gehen nur verschluesselt mit dem Schluessel des Betrachters raus.
+    if (findOwnAlbumForImage(imageId)) {
+        await serveAlbumImage(peerId, imageId);
+        return;
+    }
     const media = await loadMedia(imageId);
     if (media) sendSecurePayload(peerId, { type: 'IMAGE_RESPONSE', imageId, version: media.version, data: media.data }).catch(() => {});
 }
@@ -461,8 +486,7 @@ async function handleIncomingImageRequest(peerId, imageId) {
 async function handleIncomingImageResponse(peerId, imageId, version, data) {
     const requestKey = `${peerId}:${imageId}`;
     const requestedVersion = state.pendingImageRequests[requestKey];
-    const galleryEntry = state.cachedProfiles[peerId]?.gallery?.find(item => item.id === imageId)
-        || findReceivedAlbumItem(peerId, imageId);
+    const galleryEntry = state.cachedProfiles[peerId]?.gallery?.find(item => item.id === imageId);
     if (requestedVersion !== version || galleryEntry?.version !== version || !isSafeInlineImage(data)) {
         logDebug(`Rejected unsolicited gallery image ${imageId} from ${peerId}.`);
         return;
@@ -472,7 +496,6 @@ async function handleIncomingImageResponse(peerId, imageId, version, data) {
     if (currentMedia && currentMedia.version > version) return;
     await cacheMedia(imageId, data, version);
     if (typeof renderModalGalleryImage === 'function') renderModalGalleryImage(imageId, data);
-    renderAlbumViewerImage(imageId, data);
 }
 
 async function handleDataChannelMessage(peerId, rawMessage) {
@@ -573,10 +596,30 @@ async function handleSecurePayload(peerId, payload, deliveredVia = 'E2EE P2P') {
         await handleAlbumResponse(peerId, payload);
     } else if (payload.type === 'ALBUM_DENIED') {
         await handleAlbumDenied(peerId, payload.albumId);
+    } else if (payload.type === 'SNAP_VIEW_REQUEST') {
+        await handleSnapViewRequest(peerId, payload);
+    } else if (payload.type === 'SNAP_VIEW_GRANT') {
+        await handleSnapViewGrant(peerId, payload);
+    } else if (payload.type === 'SNAP_VIEW_DENIED') {
+        await handleSnapViewDenied(peerId, payload);
+    } else if (payload.type === 'SNAP_STREAM_START') {
+        await handleSnapStreamStart(peerId, payload);
+    } else if (payload.type === 'SNAP_STREAM_PLAYING') {
+        handleSnapStreamPlaying(peerId, payload);
+    } else if (payload.type === 'SNAP_STREAM_END') {
+        handleSnapStreamEnd(peerId, payload);
+    } else if (payload.type === 'SNAP_VIEW_CLOSED') {
+        handleSnapViewClosed(peerId, payload);
+    } else if (payload.type === 'ALBUM_KEY_REQUEST') {
+        await handleAlbumKeyRequest(peerId, payload);
+    } else if (payload.type === 'ALBUM_KEY_RESPONSE') {
+        await handleAlbumKeyResponse(peerId, payload);
     } else if (payload.type === 'ALBUM_REVOKED') {
         await forgetReceivedAlbum(peerId, payload.albumId);
     } else if (payload.type === 'IMAGE_REQUEST') {
         await handleIncomingImageRequest(peerId, payload.imageId);
+    } else if (payload.type === 'IMAGE_RESPONSE' && payload.encrypted) {
+        await handleAlbumImageResponse(peerId, payload);
     } else if (payload.type === 'IMAGE_RESPONSE') {
         await handleIncomingImageResponse(peerId, payload.imageId, payload.version, payload.data);
     }

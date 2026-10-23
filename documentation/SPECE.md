@@ -250,6 +250,31 @@ P2P-Protokoll (nur ueber den verschluesselten DataChannel):
 | `ALBUM_DENIED { albumId }` | Besitzer -> Betrachter | kein Zugriff; der Betrachter loescht seine Kopie |
 | `ALBUM_REVOKED { albumId }` | Besitzer -> Betrachter | Zugriff entzogen oder Album geloescht |
 
+Rotierende Schluessel (seit P5): Jedes eigene Album hat ein Geheimnis `secret`
+(32 Byte, nur beim Besitzer) und eine `keyVersion`. Pro Betrachter und Bild gilt
+
+```
+key = HKDF-SHA256(ikm = secret, salt = "<albumId>:<keyVersion>", info = "<imageId>:<viewerId>")
+```
+
+Albumbilder gehen nur als Ciphertext unter diesem Schluessel raus
+(`IMAGE_RESPONSE { imageId, version, keyVersion, encrypted: { iv, ciphertext } }`);
+der Betrachter speichert nur den Ciphertext. Die Schluessel holt er pro
+Epoche:
+
+| Nachricht | Richtung | Bedeutung |
+|---|---|---|
+| `ALBUM_KEY_REQUEST { albumId, epoch }` | Betrachter -> Besitzer | Schluessel fuer die laufende Epoche anfragen |
+| `ALBUM_KEY_RESPONSE { albumId, keyVersion, epoch, epochEndsAt, keys }` | Besitzer -> Betrachter | Rohschluessel pro Bild, nur fuer Peers in der `acl` |
+
+Die Epoche kommt aus der Serverzeit (`GET /api/time`, Laenge per
+`MEDIA_KEY_EPOCH_MINUTES`). Der Betrachter importiert die Schluessel als nicht
+exportierbare `CryptoKey`s, haelt sie nur im Arbeitsspeicher und verwirft sie
+bei `epochEndsAt`; ist das Album offen, fragt er sofort neu an. Entzieht der
+Besitzer einem Peer den Zugriff, steigt `keyVersion`: alle Schluessel aendern
+sich, andere Betrachter laden die Bilder neu. Der Besitzer bettet vor dem
+Verschluesseln ein Wasserzeichen mit der ID des Betrachters ein (Abschnitt 6.2).
+
 `IMAGE_REQUEST` liefert nur noch Galeriebilder des eigenen Profils oder Bilder
 aus Alben, in deren `acl` der anfragende Peer steht. `IMAGE_RESPONSE` wird nur
 fuer angefragte Bilder aus dem gecachten Profil oder einem empfangenen Album
@@ -318,6 +343,45 @@ Laden eines Chats werden Nachrichten, die laenger als 15 Sekunden auf
 Pro Chat bleiben maximal 100 `MESSAGE_DELETE`-Operationen erhalten. Eine
 geloeschte Nachricht bleibt lokal als Platzhalter sichtbar und wird nicht
 durch eine spaeter eintreffende alte Put-Operation wiederhergestellt.
+
+### 6.1 Secure Snaps
+
+Opt-in pro Sender (`keys`/`snap-settings`: `secureSnaps`, Standard-`views` 1,
+Standard-`seconds` 10; pro Snap in der Vorschau aenderbar: Ansichten 1/2/3,
+Dauer 5/10/30 s oder `0` = bis zum Schliessen, max. 5 Minuten).
+
+- Der Snap wird mit einem frischen AES-GCM-Schluessel verschluesselt
+  (`message.secureSnap = { snapId, views, seconds, encrypted }`, kein
+  `snapData`) und laeuft wie jede Nachricht ueber P2P oder Pfad C. Der
+  Schluessel bleibt beim Sender (`media`/`ssnap_<snapId>`, mit `viewsLeft`).
+- Ansehen nur mit Sender online: Der Empfaenger sendet `SNAP_VIEW_REQUEST`
+  ausschliesslich ueber einen offenen Kanal (wartet max. 10 s auf den Aufbau).
+  Der Sender zaehlt die Ansicht herunter und versucht zuerst einen
+  Live-Stream: `SNAP_STREAM_START { snapId, streamId, seconds, viewsLeft }`,
+  dazu ein Video-Track aus `canvas.captureStream()` per Renegotiation auf der
+  bestehenden Verbindung. Der Empfaenger antwortet mit `SNAP_STREAM_PLAYING`.
+- Kommt binnen 6 s kein `SNAP_STREAM_PLAYING`, sendet der Sender
+  `SNAP_VIEW_GRANT { snapId, key, seconds, viewsLeft }`. Der Empfaenger
+  entschluesselt nur im Arbeitsspeicher (Blob-URL, Puffer wird ueberschrieben).
+- Nach Ablauf der Dauer: `SNAP_STREAM_END` bzw. `SNAP_VIEW_CLOSED`, Track und
+  Blob-URL werden verworfen. Wird die App verlassen, schliesst der Viewer sofort.
+- Nach der letzten Ansicht loeschen Sender (Schluessel, Ciphertext) und
+  Empfaenger (Ciphertext) ihre Daten; weitere Anfragen beantwortet der Sender
+  mit `SNAP_VIEW_DENIED`.
+- Grenzen: Screenshots und Bildschirmaufnahmen lassen sich im Browser nicht
+  verhindern; ein manipulierter Client kann Frames oder den Schluessel
+  behalten. Abschreckung ist das Wasserzeichen.
+
+### 6.2 Wasserzeichen
+
+Snaps (bei der Aufnahme) und Albumbilder (pro Betrachter beim Ausliefern)
+tragen unsichtbar ein 32-Bit-Tag = erste 32 Bit von
+`SHA-256("og-watermark:" + empfaengerId)`. Verfahren: QIM auf der mittleren
+Helligkeit von 16x16-Bloecken (Stufe 8, max. +-4 Helligkeitsstufen), Bit
+`i mod 32` pro Block, Auslesen per Mehrheitsentscheid; ab 28/32 passenden Bits
+gilt ein bekannter Peer als Treffer. Uebersteht JPEG bis Qualitaet 40 und
+1:1-Screenshots, nicht aber Skalieren oder Zuschneiden. Pruefen: Debug-Karte
+"Wasserzeichen pruefen" in den Einstellungen.
 
 ## 7. Message Queue Cache API
 

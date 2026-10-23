@@ -15,6 +15,7 @@ window.onload = async () => {
     state.applyingRoute = false;
     window.addEventListener('popstate', handlePopState);
     initImageViewer();
+    initSecureSnaps();
     document.addEventListener('keydown', event => {
         if (event.key === 'Escape') closeMenu();
     });
@@ -31,6 +32,7 @@ window.onload = async () => {
         await loadCachedGridPeers();
         await loadChatPeerIds();
         await loadAlbums();
+        await loadSnapSettings();
         await generateUserIdentityKeys();
         await loadGridSettings();
         await registerServiceWorker();

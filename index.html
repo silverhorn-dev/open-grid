@@ -352,6 +352,18 @@
 
                 <div class="debug-only bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
                     <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-fingerprint text-amber-400"></i> Wasserzeichen pruefen
+                    </h3>
+                    <p class="text-xs text-slate-400">Snaps und Albumbilder tragen unsichtbar die ID des Empfaengers. Lade einen 1:1-Screenshot oder das Bild hoch, um herauszufinden, an wen es ging.</p>
+                    <label class="inline-block bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-200 px-3 py-2 rounded-lg font-semibold cursor-pointer">
+                        Bild auswaehlen
+                        <input type="file" accept="image/*" class="hidden" onchange="checkWatermarkFile(this)">
+                    </label>
+                    <div id="watermark-check-result" class="text-xs font-mono text-slate-300"></div>
+                </div>
+
+                <div class="debug-only bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
+                    <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
                         <i class="fa-solid fa-key text-emerald-400"></i> E2EE Identity Keys (ECDH / P-256)
                     </h3>
                     <p class="text-xs text-slate-400">Das Schluesselpaar wird lokal mit Web Crypto erzeugt. Nur der oeffentliche Schluessel wird beim Routing-Server registriert.</p>
@@ -408,6 +420,34 @@
                         <input type="checkbox" id="cache-enabled-toggle" checked onchange="updateGridSetting('cacheEnabled', this.checked)" class="accent-brand-500 mt-0.5">
                         <span>Cloud-Cache: eigene Nachrichten verschluesselt auf dem Server zwischenspeichern, wenn keine direkte Verbindung besteht (eingehende Nachrichten kommen weiterhin an)</span>
                     </label>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
+                    <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-lock text-amber-400"></i> Secure Snaps
+                    </h3>
+                    <label class="flex items-start gap-2 text-xs text-slate-300 cursor-pointer">
+                        <input type="checkbox" id="secure-snaps-toggle" onchange="updateSnapSetting('secureSnaps', this.checked)" class="accent-brand-500 mt-0.5">
+                        <span>Snaps nur mit Freigabe ansehen lassen: begrenzte Ansichten und Dauer, live gestreamt, wenn moeglich. Der Empfaenger braucht dafuer deine Verbindung (du musst online sein).</span>
+                    </label>
+                    <div id="secure-snap-defaults" class="hidden flex flex-wrap items-center gap-3 text-xs text-slate-300">
+                        <label class="flex items-center gap-2">Standard:
+                            <select id="secure-snap-default-views" onchange="updateSnapSetting('views', Number(this.value))" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-slate-200">
+                                <option value="1">1x</option>
+                                <option value="2">2x</option>
+                                <option value="3">3x</option>
+                            </select>
+                        </label>
+                        <label class="flex items-center gap-2">je
+                            <select id="secure-snap-default-seconds" onchange="updateSnapSetting('seconds', Number(this.value))" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-slate-200">
+                                <option value="5">5 s</option>
+                                <option value="10">10 s</option>
+                                <option value="30">30 s</option>
+                                <option value="0">bis zum Schliessen</option>
+                            </select>
+                        </label>
+                    </div>
+                    <p class="text-[11px] text-slate-500">Screenshots lassen sich im Browser nicht verhindern. Jeder Snap traegt aber unsichtbar die ID des Empfaengers.</p>
                 </div>
 
                 <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
@@ -530,6 +570,23 @@
         </div>
     </div>
 
+    <!-- Secure-Snap-Viewer -->
+    <div id="secure-snap-viewer" class="hidden fixed inset-0 z-[85] bg-black flex items-center justify-center select-none" style="-webkit-touch-callout: none;" oncontextmenu="return false" role="dialog" aria-modal="true" aria-label="Secure Snap">
+        <video id="secure-snap-video" class="hidden max-w-full max-h-full object-contain pointer-events-none" playsinline muted disablepictureinpicture></video>
+        <img id="secure-snap-image" alt="" draggable="false" class="hidden max-w-full max-h-full object-contain pointer-events-none">
+        <div id="secure-snap-status" class="absolute inset-x-8 top-1/2 -translate-y-1/2 text-center text-sm text-slate-200"></div>
+        <div class="absolute top-0 inset-x-0 p-4 flex items-center justify-between" style="padding-top: max(1rem, env(safe-area-inset-top));">
+            <svg id="secure-snap-countdown" class="hidden w-10 h-10 -rotate-90" viewBox="0 0 40 40" aria-hidden="true">
+                <circle cx="20" cy="20" r="16" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="4"></circle>
+                <circle id="secure-snap-countdown-progress" cx="20" cy="20" r="16" fill="none" stroke="#fbbf24" stroke-width="4" stroke-linecap="round"></circle>
+            </svg>
+            <span></span>
+            <button onclick="closeSecureSnapViewer()" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Schliessen">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+    </div>
+
     <!-- Snap-Kamera (Vollbild) -->
     <div id="snap-capture-modal" class="hidden fixed inset-0 z-[70] bg-black flex flex-col" role="dialog" aria-modal="true" aria-label="Snap aufnehmen">
         <div class="relative flex-1 min-h-0 overflow-hidden">
@@ -556,6 +613,20 @@
             </div>
             <div id="snap-review-controls" class="hidden flex flex-col gap-3">
                 <input id="snap-caption-input" type="text" maxlength="200" placeholder="Bildunterschrift (optional)" class="w-full bg-white/10 border border-white/20 rounded-full px-4 py-2.5 text-base text-white placeholder:text-slate-400 focus:outline-none">
+                <div id="snap-review-secure-options" class="hidden flex items-center justify-center gap-3 text-xs text-white">
+                    <i class="fa-solid fa-lock text-amber-300"></i>
+                    <select id="snap-review-views" class="bg-white/10 border border-white/20 rounded-full px-3 py-1.5 text-white" aria-label="Ansichten">
+                        <option value="1">1x ansehen</option>
+                        <option value="2">2x ansehen</option>
+                        <option value="3">3x ansehen</option>
+                    </select>
+                    <select id="snap-review-seconds" class="bg-white/10 border border-white/20 rounded-full px-3 py-1.5 text-white" aria-label="Anzeigedauer">
+                        <option value="5">5 s</option>
+                        <option value="10">10 s</option>
+                        <option value="30">30 s</option>
+                        <option value="0">bis zum Schliessen</option>
+                    </select>
+                </div>
                 <div class="flex items-center justify-between">
                     <button onclick="retakeSnap()" class="px-4 py-2.5 rounded-full bg-white/10 text-white text-sm font-semibold">
                         <i class="fa-solid fa-rotate-left"></i> Nochmal
@@ -579,7 +650,9 @@
     <script src="/client/p2p.client.js?v={{assetVersion}}"></script>
     <script src="/client/app/chat.js?v={{assetVersion}}"></script>
     <script src="/client/app/viewer.js?v={{assetVersion}}"></script>
+    <script src="/client/app/watermark.js?v={{assetVersion}}"></script>
     <script src="/client/app/albums.js?v={{assetVersion}}"></script>
+    <script src="/client/app/secure-snaps.js?v={{assetVersion}}"></script>
     <script src="/client/app/settings.js?v={{assetVersion}}"></script>
     <script src="/client/app/router.js?v={{assetVersion}}"></script>
     <script src="/client/app/push.js?v={{assetVersion}}"></script>

@@ -17,6 +17,15 @@ import {
 } from './geohash.js';
 
 const MAX_GRID_RESULTS = 100;
+const DEFAULT_MEDIA_KEY_EPOCH_MINUTES = 5;
+const MAX_MEDIA_KEY_EPOCH_MINUTES = 7 * 24 * 60;
+
+// Laenge einer Schluessel-Epoche fuer Album- und View-once-Medien (MEDIA_KEY_EPOCH_MINUTES).
+export function parseMediaKeyEpochMinutes(value) {
+    const minutes = Number(value);
+    if (!Number.isFinite(minutes) || minutes < 1) return DEFAULT_MEDIA_KEY_EPOCH_MINUTES;
+    return Math.min(Math.floor(minutes), MAX_MEDIA_KEY_EPOCH_MINUTES);
+}
 import { MAX_PUSH_PLAINTEXT_BYTES, createPushSender, generateVapidKeys } from './push.js';
 
 const serverDirectory = dirname(fileURLToPath(import.meta.url));
@@ -34,7 +43,9 @@ const clientAssetFiles = [
     'app/profile.js',
     'app/chat.js',
     'app/viewer.js',
+    'app/watermark.js',
     'app/albums.js',
+    'app/secure-snaps.js',
     'app/settings.js',
     'app/router.js',
     'app/push.js',
@@ -138,6 +149,21 @@ export async function buildApp(options = {}) {
     });
 
     app.options('*', async (_request, reply) => reply.code(204).send());
+
+    const mediaKeyEpochMs = parseMediaKeyEpochMinutes(options.mediaKeyEpochMinutes ?? process.env.MEDIA_KEY_EPOCH_MINUTES) * 60 * 1000;
+    const now = options.now || Date.now;
+
+    // Verlaessliche Zeit fuer die Schluessel-Rotation; die Geraetezeit wird dafuer ignoriert.
+    app.get('/api/time', async (_request, reply) => {
+        const timestamp = now();
+        const epoch = Math.floor(timestamp / mediaKeyEpochMs);
+        return reply.header('Cache-Control', 'no-store').send({
+            now: timestamp,
+            epoch,
+            epochMs: mediaKeyEpochMs,
+            epochEndsAt: (epoch + 1) * mediaKeyEpochMs
+        });
+    });
 
     app.get('/health', async () => ({
         status: 'ok',

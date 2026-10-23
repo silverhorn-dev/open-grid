@@ -157,8 +157,12 @@ async function decryptStoredProfile(record) {
 }
 
 async function cacheMedia(id, base64, version) {
+    return cacheMediaPayload(id, { data: base64, version });
+}
+
+// Speichert beliebige Medien-Payloads (z. B. Album-Ciphertext) verschluesselt im Store `media`.
+async function cacheMediaPayload(id, payload) {
     if (!state.storageKey) return false;
-    const payload = { data: base64, version };
     const iv = window.crypto.getRandomValues(new Uint8Array(12));
     const ciphertext = await window.crypto.subtle.encrypt(
         { name: 'AES-GCM', iv },
@@ -446,6 +450,19 @@ function sanitizeAlbumReference(album, senderId) {
     };
 }
 
+function sanitizeSecureSnap(snap) {
+    if (!snap || typeof snap.snapId !== 'string' || snap.snapId.length > 100) return undefined;
+    const encrypted = snap.encrypted;
+    if (typeof encrypted?.iv !== 'string' || typeof encrypted?.ciphertext !== 'string'
+        || encrypted.iv.length > 40 || encrypted.ciphertext.length > 120000) return undefined;
+    return {
+        snapId: snap.snapId,
+        views: [1, 2, 3].includes(snap.views) ? snap.views : 1,
+        seconds: [5, 10, 30, 0].includes(snap.seconds) ? snap.seconds : 10,
+        encrypted: { iv: encrypted.iv, ciphertext: encrypted.ciphertext }
+    };
+}
+
 function createPutOperation(peerId, message) {
     return {
         operationId: `put:${message.id}`,
@@ -460,6 +477,12 @@ function createPutOperation(peerId, message) {
             text: message.text,
             snapData: message.snapData,
             album: message.album,
+            secureSnap: message.secureSnap ? {
+                snapId: message.secureSnap.snapId,
+                views: message.secureSnap.views,
+                seconds: message.secureSnap.seconds,
+                encrypted: message.secureSnap.encrypted
+            } : undefined,
             replyTo: message.replyTo,
             timestamp: message.timestamp,
             createdAt: message.createdAt
@@ -493,6 +516,9 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
                 ...localOperation.message,
                 replyTo: sanitizeReplyReference(localOperation.message.replyTo),
                 album: sanitizeAlbumReference(localOperation.message.album, localOperation.actorId),
+                secureSnap: sanitizeSecureSnap(localOperation.message.secureSnap),
+                // Ein Secure Snap darf nie zusaetzlich als Klartext-Snap ankommen.
+                snapData: localOperation.message.secureSnap ? undefined : localOperation.message.snapData,
                 peerId,
                 deliveredVia
             };

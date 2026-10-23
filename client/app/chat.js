@@ -364,9 +364,9 @@ const DELIVERY_PATH_LABELS = {
 };
 
 // Ohne Anhang kommt der Text aus dem Eingabefeld; Snaps und Alben bringen eine eigene Bildunterschrift mit.
-async function sendChatMessage(snapData = null, caption = '', album = null) {
+async function sendChatMessage(snapData = null, caption = '', album = null, secureSnap = null) {
     const input = document.getElementById('chat-input');
-    const hasAttachment = Boolean(snapData || album);
+    const hasAttachment = Boolean(snapData || album || secureSnap);
     const text = hasAttachment ? String(caption || '').trim() : input.value.trim();
     if ((!text && !hasAttachment) || !state.activeChatPeerId || isPeerBlocked(state.activeChatPeerId)) return;
 
@@ -377,6 +377,7 @@ async function sendChatMessage(snapData = null, caption = '', album = null) {
         text,
         snapData,
         album: album || undefined,
+        secureSnap: secureSnap || undefined,
         replyTo: buildReplyReference(peerId, state.replyToMessageId),
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         createdAt: Date.now(),
@@ -481,6 +482,14 @@ function renderChatHistory() {
 
         if (message.deleted) {
             bubble.textContent = 'Nachricht geloescht';
+        } else if (message.secureSnap) {
+            renderSecureSnapMessage(bubble, message, isMine);
+            if (message.text) {
+                const caption = document.createElement('div');
+                caption.className = 'opacity-90 mt-1';
+                caption.textContent = message.text;
+                bubble.appendChild(caption);
+            }
         } else if (message.album) {
             renderAlbumMessage(bubble, message.album);
             if (message.text) {
@@ -553,6 +562,7 @@ function describePendingDelivery(message, isMine) {
 
 // ================= CHAT-FUNKTIONEN: ANTWORTEN, REAGIEREN, MARKIEREN, SUCHEN =================
 function messagePreview(message) {
+    if (message.secureSnap) return 'Secure Snap';
     if (message.album) return `Album: ${message.album.name}`;
     if (message.snapData) return message.text ? `Snap: ${message.text}` : 'Snap';
     const text = String(message.text || '');
@@ -917,7 +927,8 @@ function resetSnapPreview() {
 }
 
 // Verkleinert und komprimiert, bis der Snap unter das Pfad-C-Limit passt.
-function encodeSnap(source, width, height, mirror = false) {
+// Mit watermarkBits wird die Empfaenger-ID unsichtbar eingebettet (vor jeder Kompression neu).
+function encodeSnap(source, width, height, mirror = false, watermarkBits = null) {
     const canvas = document.getElementById('snap-canvas-capture');
     let scale = Math.min(1, SNAP_MAX_EDGE / Math.max(width, height));
     let quality = 0.8;
@@ -932,6 +943,7 @@ function encodeSnap(source, width, height, mirror = false) {
         }
         context.drawImage(source, 0, 0, canvas.width, canvas.height);
         context.restore();
+        if (watermarkBits) embedWatermarkInCanvas(canvas, watermarkBits);
         const dataUrl = canvas.toDataURL('image/jpeg', quality);
         if (dataUrl.length <= SNAP_MAX_DATA_URL_LENGTH) return dataUrl;
         if (quality > 0.45) quality -= 0.1;
@@ -942,6 +954,7 @@ function encodeSnap(source, width, height, mirror = false) {
 
 function showSnapReview(dataUrl) {
     stopSnapCamera();
+    renderSnapSettings();
     state.snapDraft = dataUrl;
     const preview = document.getElementById('snap-review-image');
     preview.src = dataUrl;
@@ -950,10 +963,11 @@ function showSnapReview(dataUrl) {
     document.getElementById('snap-review-controls').classList.remove('hidden');
 }
 
-function captureSnap() {
+async function captureSnap() {
     const video = document.getElementById('snap-video-preview');
     if (!video.videoWidth) return;
-    const dataUrl = encodeSnap(video, video.videoWidth, video.videoHeight, state.snapFacingMode === 'user');
+    const bits = await watermarkTag(state.activeChatPeerId);
+    const dataUrl = encodeSnap(video, video.videoWidth, video.videoHeight, state.snapFacingMode === 'user', bits);
     if (!dataUrl) {
         showToast('Snap konnte nicht erstellt werden.', 'error');
         return;
@@ -967,7 +981,7 @@ async function pickSnapImage(input) {
     if (!file) return;
     try {
         const bitmap = await createImageBitmap(file);
-        const dataUrl = encodeSnap(bitmap, bitmap.width, bitmap.height);
+        const dataUrl = encodeSnap(bitmap, bitmap.width, bitmap.height, false, await watermarkTag(state.activeChatPeerId));
         bitmap.close?.();
         if (!dataUrl) throw new Error('Image too large');
         showSnapReview(dataUrl);
@@ -984,8 +998,17 @@ async function retakeSnap() {
 
 async function sendSnapDraft() {
     const snapData = state.snapDraft;
-    if (!snapData) return;
+    const peerId = state.activeChatPeerId;
+    if (!snapData || !peerId) return;
     const caption = document.getElementById('snap-caption-input').value;
+    const secure = state.snapSettings.secureSnaps;
+    const views = Number(document.getElementById('snap-review-views')?.value) || state.snapSettings.views;
+    const seconds = Number(document.getElementById('snap-review-seconds')?.value ?? state.snapSettings.seconds);
     closeSnapModal();
-    await sendChatMessage(snapData, caption);
+    if (!secure) {
+        await sendChatMessage(snapData, caption);
+        return;
+    }
+    const secureSnap = await createSecureSnap(snapData, peerId, views, Number.isFinite(seconds) ? seconds : 10);
+    await sendChatMessage(null, caption, null, secureSnap);
 }

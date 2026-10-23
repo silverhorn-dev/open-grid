@@ -1,3 +1,18 @@
+// Serverzeit und Schluessel-Epoche; kurz gecacht, die Geraetezeit dient nur zum Fortschreiben.
+async function fetchServerTime() {
+    const cached = state.serverTime;
+    if (cached && performance.now() - cached.fetchedAt < 60000) {
+        const now = cached.now + (performance.now() - cached.fetchedAt);
+        const epoch = Math.floor(now / cached.epochMs);
+        return { now, epoch, epochMs: cached.epochMs, epochEndsAt: (epoch + 1) * cached.epochMs };
+    }
+    const response = await fetch(`${API_BASE}/api/time`, { cache: 'no-store' });
+    if (!response.ok) throw new Error(`Time API returned ${response.status}`);
+    const time = await response.json();
+    state.serverTime = { ...time, fetchedAt: performance.now() };
+    return time;
+}
+
 async function loadMoreGrid() {
     if (state.gridRing >= MAX_GRID_RING) return;
     state.gridRing += 1;

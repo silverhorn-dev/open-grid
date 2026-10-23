@@ -72,6 +72,13 @@ const state = {
     albums: {},
     albumViewer: null,
     pendingAlbumRequests: {},
+    albumKeys: {},
+    pendingAlbumKeyRequests: {},
+    snapSettings: { secureSnaps: false, views: 1, seconds: 10 },
+    secureSnapViewing: null,
+    outgoingSnapStreams: {},
+    pendingSnapTracks: {},
+    serverTime: null,
     serviceWorkerRegistration: null,
     persistedRouterAuthToken: null,
     pushSubscriptionSynced: false

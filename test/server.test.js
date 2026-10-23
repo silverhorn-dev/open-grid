@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { generateKeyPairSync, randomBytes, sign } from 'node:crypto';
 import { afterEach, beforeEach, test } from 'node:test';
-import { buildApp } from '../server/app.js';
+import { buildApp, parseMediaKeyEpochMinutes } from '../server/app.js';
 import { createStore } from '../server/database.js';
 import { decodeGeohash, encodeGeohash, geohashNeighbours } from '../server/geohash.js';
 
@@ -117,6 +117,29 @@ test('reports that TURN is disabled when the server configuration is incomplete'
         if (previousServer === undefined) delete process.env.TURN_SERVER;
         else process.env.TURN_SERVER = previousServer;
     }
+});
+
+test('reports the server time and the media key epoch', async () => {
+    const timedApp = await buildApp({
+        store: createStore(':memory:'),
+        buildVersion: 'test-build',
+        buildTimestamp: '2026-10-21T00:00:00.000Z',
+        mediaKeyEpochMinutes: 5,
+        now: () => 1_000_000_000
+    });
+    const response = await timedApp.inject({ method: 'GET', url: '/api/time' });
+    assert.deepEqual(response.json(), {
+        now: 1_000_000_000,
+        epoch: 3333,
+        epochMs: 300_000,
+        epochEndsAt: 1_000_200_000
+    });
+    await timedApp.close();
+
+    assert.equal(parseMediaKeyEpochMinutes('180'), 180);
+    assert.equal(parseMediaKeyEpochMinutes(undefined), 5);
+    assert.equal(parseMediaKeyEpochMinutes('0'), 5);
+    assert.equal(parseMediaKeyEpochMinutes('999999'), 10080);
 });
 
 test('serves the app shell for client routes', async () => {

@@ -58,6 +58,7 @@ liegt im benannten Volume `open-grid-data` unter `/app/data`.
 | `TURN_TLS_PORT` | – | Optional, aktiviert zusaetzlich eine `turns:`-URL |
 | `VAPID_SUBJECT` | `mailto:admin@localhost` | Kontaktadresse fuer Push-Dienste (`mailto:` oder `https:`); Apple lehnt den Standardwert ab |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | generiert | Optional feste VAPID-Schluessel (base64url); sonst einmalig erzeugt und in SQLite gespeichert |
+| `MEDIA_KEY_EPOCH_MINUTES` | `5` | Laenge einer Schluessel-Epoche fuer Alben und View-once-Snaps (1 bis 10080). 5 ist ein Testwert, im echten Betrieb `180` (3 Stunden) |
 
 Ohne gesetztes `TURN_SECRET` liefert `/api/ice-config` nur einen STUN-Server,
 es entstehen also keine Relay-Kandidaten. Stimmt das Secret nicht mit dem

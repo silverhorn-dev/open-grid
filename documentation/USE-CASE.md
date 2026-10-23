@@ -336,6 +336,9 @@ Akzeptanzkriterien:
   Besitzer muss dafuer online sein.
 - Der Zugriff kann pro Peer entzogen werden. Danach werden neue Anfragen
   abgelehnt und der Client des Peers loescht seine Kopie.
+- Betrachter speichern Albumbilder nur verschluesselt. Die Schluessel gelten
+  nur fuer eine Epoche (Server-Einstellung, z. B. 3 Stunden) und muessen dann
+  beim Besitzer neu geholt werden.
 
 ## UC-23: Bilder ansehen
 
@@ -350,3 +353,31 @@ Akzeptanzkriterien:
 - Pinch, Doppeltipp oder Mausrad zoomen bis 5-fach; ein gezoomtes Bild laesst
   sich verschieben.
 - Nach unten wischen, "Zurueck" oder Escape schliessen den Betrachter.
+
+## UC-24: Secure Snaps
+
+**Als Nutzer** moechte ich, dass ein Snap nur begrenzt angesehen werden kann.
+
+Akzeptanzkriterien:
+
+- Secure Snaps sind eine Einstellung des Senders (Standard aus). Ansichten
+  (1x, 2x, 3x) und Dauer (5 s, 10 s, 30 s, bis zum Schliessen) sind in den
+  Einstellungen vorbelegt und pro Snap aenderbar.
+- Ein Secure Snap kommt auch offline an, laesst sich aber nur ansehen, wenn
+  der Sender online ist. Sonst erscheint ein Hinweis.
+- Wenn moeglich wird der Snap live gestreamt; sonst wird er nur im
+  Arbeitsspeicher entschluesselt.
+- Der Empfaenger sieht "noch Nx" und einen Countdown; danach "Abgelaufen".
+  Der Sender sieht, wie oft der Snap angesehen wurde.
+- Der Empfaenger-Client akzeptiert normale und sichere Snaps gleichermassen.
+
+## UC-25: Leaker erkennen
+
+**Als Nutzer** moechte ich herausfinden, wer ein Bild weitergegeben hat.
+
+Akzeptanzkriterien:
+
+- Snaps und Albumbilder tragen ein unsichtbares Wasserzeichen mit der ID des
+  Empfaengers.
+- Im Debug-Modus laesst sich ein Bild oder 1:1-Screenshot pruefen; ein
+  Treffer nennt den Peer.

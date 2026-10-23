@@ -158,8 +158,8 @@ function toggleDebugMode() {
     updateDebugButtonState();
 
     if (CONFIG.DEBUG_MODE) {
-        closeMenu();
         switchTab('keys');
+        closeMenu();
         logDebug('Debug logging enabled.');
     } else {
         console.info('[OpenGrid] Debug logging disabled.');
@@ -298,6 +298,7 @@ function switchTab(tabName) {
         else button.removeAttribute('aria-current');
     });
     window.scrollTo(0, 0);
+    syncRoute(tabName);
     syncChatFocus();
 }
 
@@ -305,9 +306,15 @@ function openMenu() {
     document.getElementById('app-menu').classList.add('is-open');
     document.getElementById('app-menu').setAttribute('aria-hidden', 'false');
     document.getElementById('app-menu-backdrop').classList.remove('hidden');
+    pushModalEntry('menu', hideMenu);
 }
 
 function closeMenu() {
+    if (!document.getElementById('app-menu').classList.contains('is-open')) return;
+    dismissModalEntry('menu', hideMenu);
+}
+
+function hideMenu() {
     document.getElementById('app-menu').classList.remove('is-open');
     document.getElementById('app-menu').setAttribute('aria-hidden', 'true');
     document.getElementById('app-menu-backdrop').classList.add('hidden');

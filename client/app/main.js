@@ -9,7 +9,11 @@ async function refreshPresenceAndGrid() {
 
 window.onload = async () => {
     updateDebugButtonState();
-    switchTab('grid');
+    const initialRoute = resolveInitialRoute();
+    state.applyingRoute = true;
+    switchTab(initialRoute.tab);
+    state.applyingRoute = false;
+    window.addEventListener('popstate', handlePopState);
     document.addEventListener('keydown', event => {
         if (event.key === 'Escape') closeMenu();
     });
@@ -52,12 +56,8 @@ window.onload = async () => {
             if (document.visibilityState === 'visible') registerWithWorkerGrid();
         }, 25000);
 
-        // Deep Link aus einer Push-Benachrichtigung
-        const chatPeerId = new URLSearchParams(window.location.search).get('chat');
-        if (chatPeerId) {
-            window.history.replaceState(null, '', '/');
-            await openChatWithPeer(chatPeerId);
-        }
+        // Deep Link (/chat/<id>, auch aus einer Push-Benachrichtigung)
+        if (initialRoute.peerId) await applyRoute(initialRoute);
     } catch (error) {
         console.error('OpenGrid startup failed.', error);
         showToast(CONFIG.DEBUG_MODE ? `Startup failed: ${error.message}` : 'Die App konnte nicht gestartet werden. Bitte neu laden.', 'error');

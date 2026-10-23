@@ -51,6 +51,12 @@ const state = {
     // Sichtbarkeit und Speicher. Fehlender Datensatz = Standardwerte.
     gridSettings: { silent: false, ttlMinutes: 10, liveGrid: false, cacheEnabled: true, useLocation: false, safeZones: [], locationLabel: null },
     gridRing: 0,
+    routePath: null,
+    applyingRoute: false,
+    openModal: null,
+    replyToMessageId: null,
+    chatSearch: '',
+    chatStarredOnly: false,
     gridHasMore: false,
     chatFocusPeerId: null,
     chatSyncInProgress: {},

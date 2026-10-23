@@ -19,6 +19,12 @@ html.debug-on .debug-off-only {
     display: none !important;
 }
 
+.chat-message-highlight > div:first-of-type {
+    outline: 2px solid rgb(244 63 94 / 0.6);
+    outline-offset: 2px;
+    transition: outline-color 0.3s;
+}
+
 /* Navigation */
 .nav-top-btn {
     display: flex;

@@ -37,6 +37,7 @@ function openProfileModal(peerId) {
     if (!peer) return;
 
     document.getElementById('profile-detail-modal').classList.remove('hidden');
+    pushModalEntry('profile', hideProfileModal);
     document.getElementById('modal-profile-name').textContent = peer.name || 'Peer';
     document.getElementById('modal-profile-id').textContent = peer.id;
     document.getElementById('modal-profile-img').src = peer.avatar || 'https://placehold.co/300x300/1e293b/ffffff?text=Peer';
@@ -119,6 +120,10 @@ function renderProfileModalData(profile) {
 }
 
 function closeProfileModal() {
+    dismissModalEntry('profile', hideProfileModal);
+}
+
+function hideProfileModal() {
     const probe = state.presenceProbes[state.activeModalPeerId];
     if (probe) {
         clearTimeout(probe.timeout);
@@ -182,12 +187,13 @@ function isSafeInlineImage(value) {
 function launchChatFromModal() {
     if (!state.activeModalPeerId) return;
     const peerId = state.activeModalPeerId;
-    closeProfileModal();
+    hideModalForNavigation('profile', hideProfileModal);
     openChatWithPeer(peerId);
 }
 
 async function openChatWithPeer(peerId) {
     const peer = getPeerPresentation(peerId);
+    if (state.activeChatPeerId !== peerId) resetChatTools();
     state.activeChatPeerId = peerId;
     await loadChatHistory(peerId);
     switchTab('chat');
@@ -216,6 +222,7 @@ function updateChatLayout() {
 
 function resetActiveChat(placeholderText) {
     state.activeChatPeerId = null;
+    resetChatTools();
     document.getElementById('chat-peer-name').textContent = 'Kein Chat ausgewaehlt';
     document.getElementById('chat-connection-type').textContent = 'Select a conversation';
     document.getElementById('chat-peer-avatar').textContent = '?';
@@ -230,9 +237,15 @@ function resetActiveChat(placeholderText) {
     renderActivePeerList();
     renderChatPeerIndicator();
     syncChatFocus();
+    if (!state.applyingRoute && window.location.pathname.startsWith('/chat/')) replaceRoute('/chat');
 }
 
+// Kam man aus der Chatliste, fuehrt "Zurueck" dorthin; sonst wird der Chat-Eintrag ersetzt.
 function leaveActiveChat() {
+    if (!state.applyingRoute && window.history.state?.from === '/chat' && window.location.pathname.startsWith('/chat/')) {
+        window.history.back();
+        return;
+    }
     resetActiveChat('Waehle einen Chat aus oder starte einen im Grid.');
 }
 
@@ -352,6 +365,7 @@ async function sendChatMessage(snapData = null) {
         senderId: state.myProfile.id,
         text,
         snapData,
+        replyTo: buildReplyReference(peerId, state.replyToMessageId),
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         createdAt: Date.now(),
         deliveredVia: 'Establishing secure channel...'
@@ -363,6 +377,8 @@ async function sendChatMessage(snapData = null) {
     const operation = createPutOperation(peerId, message);
     await persistChatOperation(operation);
     input.value = '';
+    state.replyToMessageId = null;
+    renderReplyBar();
     renderChatHistory();
 
     if (state.sessionKeys[peerId]) await beginChatSync(peerId);
@@ -428,16 +444,24 @@ async function deleteChatMessage(messageId) {
 function renderChatHistory() {
     const container = document.getElementById('chat-messages');
     if (!container || !state.activeChatPeerId) return;
-    const msgs = state.chats[state.activeChatPeerId] || [];
+    const allMessages = state.chats[state.activeChatPeerId] || [];
+    const msgs = filterChatMessages(allMessages);
     container.innerHTML = '';
-    if (msgs.length === 0) {
+    if (allMessages.length === 0) {
         container.innerHTML = '<div class="text-center text-xs text-slate-500 my-8">Noch keine Nachrichten. Sag hallo!</div>';
         return;
     }
+    if (msgs.length === 0) {
+        container.innerHTML = '<div class="text-center text-xs text-slate-500 my-8">Keine passenden Nachrichten.</div>';
+        return;
+    }
+    const filtering = Boolean(state.chatSearch) || state.chatStarredOnly;
     msgs.forEach(message => {
         const isMine = message.senderId === state.myProfile.id;
         const row = document.createElement('div');
+        row.id = `chat-message-${message.id}`;
         row.className = `flex flex-col ${isMine ? 'items-end' : 'items-start'}`;
+        if (message.replyTo && !message.deleted) row.appendChild(renderReplyQuote(message.replyTo, isMine));
         const bubble = document.createElement('div');
         bubble.className = `max-w-[80%] rounded-2xl px-4 py-2 text-xs overflow-hidden ${message.deleted ? 'bg-slate-900 text-slate-500 border border-slate-800 italic' : isMine ? 'bg-brand-600 text-white rounded-br-none' : 'bg-slate-800 text-slate-100 rounded-bl-none'}`;
 
@@ -466,18 +490,213 @@ function renderChatHistory() {
         deliveryPath.className = 'debug-only';
         deliveryPath.textContent = message.deliveredVia;
         meta.append(status, deliveryPath);
-        if (isMine && !message.deleted) {
-            const deleteButton = document.createElement('button');
-            deleteButton.type = 'button';
-            deleteButton.className = 'text-red-400 hover:text-red-300 transition';
-            deleteButton.textContent = 'Loeschen';
-            deleteButton.onclick = () => deleteChatMessage(message.id);
-            meta.appendChild(deleteButton);
-        }
-        row.append(bubble, meta);
+        if (!message.deleted) meta.appendChild(renderMessageActions(message, isMine));
+        row.append(bubble);
+        const reactions = renderReactions(message);
+        if (reactions) row.appendChild(reactions);
+        row.appendChild(meta);
         container.appendChild(row);
     });
-    container.scrollTop = container.scrollHeight;
+    if (!filtering) container.scrollTop = container.scrollHeight;
+}
+
+// ================= CHAT-FUNKTIONEN: ANTWORTEN, REAGIEREN, MARKIEREN, SUCHEN =================
+function messagePreview(message) {
+    if (message.snapData) return message.text ? `Snap: ${message.text}` : 'Snap';
+    const text = String(message.text || '');
+    return text.length > REPLY_PREVIEW_LENGTH ? `${text.slice(0, REPLY_PREVIEW_LENGTH)}...` : text;
+}
+
+function buildReplyReference(peerId, messageId) {
+    const original = messageId ? state.chats[peerId]?.find(item => item.id === messageId) : null;
+    if (!original || original.deleted) return undefined;
+    return { messageId: original.id, senderId: original.senderId, preview: messagePreview(original) };
+}
+
+function startReply(messageId) {
+    state.replyToMessageId = messageId;
+    renderReplyBar();
+    document.getElementById('chat-input')?.focus();
+}
+
+function cancelReply() {
+    state.replyToMessageId = null;
+    renderReplyBar();
+}
+
+function renderReplyBar() {
+    const bar = document.getElementById('chat-reply-bar');
+    if (!bar) return;
+    const reference = buildReplyReference(state.activeChatPeerId, state.replyToMessageId);
+    bar.classList.toggle('hidden', !reference);
+    if (!reference) return;
+    const author = reference.senderId === state.myProfile.id ? 'dir selbst' : getPeerPresentation(reference.senderId).name || 'Peer';
+    document.getElementById('chat-reply-author').textContent = `Antwort an ${author}`;
+    document.getElementById('chat-reply-preview').textContent = reference.preview;
+}
+
+function renderReplyQuote(replyTo, isMine) {
+    const quote = document.createElement('button');
+    quote.type = 'button';
+    quote.className = `max-w-[80%] mb-0.5 px-3 py-1 rounded-xl border-l-2 border-brand-400 bg-slate-800/60 text-[11px] text-slate-400 text-left truncate ${isMine ? 'self-end' : 'self-start'}`;
+    const author = replyTo.senderId === state.myProfile.id ? 'Du' : getPeerPresentation(replyTo.senderId).name || 'Peer';
+    quote.textContent = `${author}: ${replyTo.preview}`;
+    quote.onclick = () => scrollToChatMessage(replyTo.messageId);
+    return quote;
+}
+
+function scrollToChatMessage(messageId) {
+    const target = document.getElementById(`chat-message-${messageId}`);
+    if (!target) return;
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    target.classList.add('chat-message-highlight');
+    setTimeout(() => target.classList.remove('chat-message-highlight'), 1500);
+}
+
+function renderMessageActions(message, isMine) {
+    const actions = document.createElement('span');
+    actions.className = 'flex items-center gap-2';
+    const addAction = (iconClass, title, onClick, extraClass = 'hover:text-slate-200') => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `p-1 transition ${extraClass}`;
+        button.title = title;
+        button.setAttribute('aria-label', title);
+        button.onclick = onClick;
+        const icon = document.createElement('i');
+        icon.className = iconClass;
+        button.appendChild(icon);
+        actions.appendChild(button);
+    };
+    addAction('fa-solid fa-reply', 'Antworten', () => startReply(message.id));
+    addAction('fa-regular fa-face-smile', 'Reagieren', event => toggleReactionPicker(event.currentTarget, message.id));
+    addAction(message.starred ? 'fa-solid fa-star text-amber-400' : 'fa-regular fa-star', message.starred ? 'Markierung entfernen' : 'Fuer dich markieren', () => toggleMessageStar(message.id));
+    if (isMine) addAction('fa-solid fa-trash', 'Loeschen', () => deleteChatMessage(message.id), 'text-red-400 hover:text-red-300');
+    return actions;
+}
+
+function toggleReactionPicker(anchor, messageId) {
+    const existing = document.getElementById('reaction-picker');
+    if (existing) {
+        const sameMessage = existing.dataset.messageId === messageId;
+        existing.remove();
+        if (sameMessage) return;
+    }
+    const picker = document.createElement('div');
+    picker.id = 'reaction-picker';
+    picker.dataset.messageId = messageId;
+    picker.className = 'flex gap-1 bg-slate-900 border border-slate-700 rounded-full px-2 py-1 shadow-lg';
+    REACTION_EMOJIS.forEach(emoji => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'text-base leading-none hover:scale-125 transition';
+        button.textContent = emoji;
+        button.onclick = () => {
+            picker.remove();
+            reactToMessage(messageId, emoji);
+        };
+        picker.appendChild(button);
+    });
+    anchor.closest('[id^="chat-message-"]').appendChild(picker);
+}
+
+function renderReactions(message) {
+    const entries = Object.entries(message.reactions || {}).filter(([, reaction]) => reaction?.emoji);
+    if (!entries.length || message.deleted) return null;
+    const counts = new Map();
+    entries.forEach(([actorId, reaction]) => {
+        const item = counts.get(reaction.emoji) || { count: 0, mine: false };
+        item.count += 1;
+        item.mine = item.mine || actorId === state.myProfile.id;
+        counts.set(reaction.emoji, item);
+    });
+    const row = document.createElement('div');
+    row.className = 'flex gap-1 -mt-1.5 px-2';
+    counts.forEach(({ count, mine }, emoji) => {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = `text-[11px] px-1.5 py-0.5 rounded-full border ${mine ? 'bg-brand-500/20 border-brand-500/50' : 'bg-slate-900 border-slate-700'}`;
+        chip.textContent = count > 1 ? `${emoji} ${count}` : emoji;
+        chip.onclick = () => reactToMessage(message.id, emoji);
+        row.appendChild(chip);
+    });
+    return row;
+}
+
+// Gleiche Reaktion erneut = entfernen.
+async function reactToMessage(messageId, emoji) {
+    const peerId = state.activeChatPeerId;
+    const message = state.chats[peerId]?.find(item => item.id === messageId);
+    if (!peerId || !message || message.deleted || isPeerBlocked(peerId)) return;
+    const current = message.reactions?.[state.myProfile.id]?.emoji || null;
+    const operation = {
+        operationId: `react:${messageId}:${window.crypto.randomUUID()}`,
+        peerId,
+        type: 'MESSAGE_REACT',
+        messageId,
+        actorId: state.myProfile.id,
+        emoji: current === emoji ? null : emoji,
+        createdAt: Date.now()
+    };
+    await applyChatOperation(peerId, operation);
+    const { peerId: _localPeerId, ...sharedOperation } = operation;
+    await sendSecurePayload(peerId, { type: 'CHAT_OPERATION', operation: sharedOperation });
+}
+
+// Markierungen sind rein lokal und werden nicht synchronisiert.
+async function toggleMessageStar(messageId) {
+    const peerId = state.activeChatPeerId;
+    const message = state.chats[peerId]?.find(item => item.id === messageId);
+    if (!message) return;
+    message.starred = !message.starred;
+    await persistChatMessage(peerId, message);
+    renderChatHistory();
+}
+
+function filterChatMessages(messages) {
+    const query = state.chatSearch.trim().toLowerCase();
+    return messages.filter(message => {
+        if (state.chatStarredOnly && !message.starred) return false;
+        if (!query) return true;
+        return !message.deleted && String(message.text || '').toLowerCase().includes(query);
+    });
+}
+
+function toggleChatSearch() {
+    const bar = document.getElementById('chat-search-bar');
+    if (!bar) return;
+    const open = bar.classList.toggle('hidden') === false;
+    if (open) {
+        document.getElementById('chat-search-input').focus();
+        return;
+    }
+    state.chatSearch = '';
+    state.chatStarredOnly = false;
+    document.getElementById('chat-search-input').value = '';
+    document.getElementById('chat-starred-toggle').checked = false;
+    renderChatHistory();
+}
+
+function setChatSearch(value) {
+    state.chatSearch = value;
+    renderChatHistory();
+}
+
+function setChatStarredOnly(enabled) {
+    state.chatStarredOnly = enabled;
+    renderChatHistory();
+}
+
+function resetChatTools() {
+    state.replyToMessageId = null;
+    state.chatSearch = '';
+    state.chatStarredOnly = false;
+    document.getElementById('chat-search-bar')?.classList.add('hidden');
+    const input = document.getElementById('chat-search-input');
+    if (input) input.value = '';
+    const starred = document.getElementById('chat-starred-toggle');
+    if (starred) starred.checked = false;
+    renderReplyBar();
 }
 
 function updateChatConnectionStatus(peerId, text, classes) {
@@ -543,6 +762,7 @@ async function openSnapUploadModal() {
         const video = document.getElementById('snap-video-preview');
         video.srcObject = state.mediaStream;
         document.getElementById('snap-capture-modal').classList.remove('hidden');
+        pushModalEntry('snap', hideSnapModal);
     } catch (error) {
         showToast('Kamera-Zugriff verweigert oder nicht verfuegbar.', 'error');
         logDebug(`Camera error: ${error.message}`);
@@ -550,6 +770,10 @@ async function openSnapUploadModal() {
 }
 
 function closeSnapModal() {
+    dismissModalEntry('snap', hideSnapModal);
+}
+
+function hideSnapModal() {
     if (state.mediaStream) {
         state.mediaStream.getTracks().forEach(track => track.stop());
         state.mediaStream = null;

@@ -292,7 +292,7 @@ self.addEventListener('pushsubscriptionchange', event => {
 self.addEventListener('notificationclick', event => {
     event.notification.close();
     const peerId = event.notification.data?.peerId || null;
-    const targetUrl = peerId ? `/?chat=${encodeURIComponent(peerId)}` : '/';
+    const targetUrl = peerId ? `/chat/${encodeURIComponent(peerId)}` : '/grid';
 
     event.waitUntil((async () => {
         const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });

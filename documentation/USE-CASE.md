@@ -262,3 +262,31 @@ Akzeptanzkriterien:
 - Eingehende Pfad-C-Nachrichten anderer Peers kommen weiterhin an.
 - Nachrichten gehen dann ausschliesslich per P2P oder Chat-Sync; keine
   Nachricht geht verloren, sie bleibt bis zur naechsten Verbindung lokal.
+
+## UC-18: Echte Seiten und Zurueck-Navigation
+
+**Als Nutzer** moechte ich nach einem Refresh dort bleiben, wo ich war, und
+auf dem Smartphone mit der Zurueck-Geste innerhalb der App navigieren.
+
+Akzeptanzkriterien:
+
+- Jeder Tab und jeder offene Chat hat eine eigene Adresse (`/grid`, `/chat`,
+  `/chat/<id>`, `/profile`, `/settings`).
+- Ein Refresh oeffnet denselben Tab beziehungsweise denselben Chat.
+- "Zurueck" schliesst zuerst ein offenes Menue oder Modal, dann fuehrt es
+  vom Chat zur Chatliste und zwischen den Tabs zurueck.
+- Push-Benachrichtigungen oeffnen direkt `/chat/<id>`.
+
+## UC-19: Antworten, Reagieren, Markieren, Suchen
+
+**Als Nutzer** moechte ich die ueblichen Chat-Funktionen haben.
+
+Akzeptanzkriterien:
+
+- Auf jede Nachricht (auch eigene) kann geantwortet werden; die Antwort
+  zeigt ein Zitat, ein Klick darauf springt zur Originalnachricht.
+- Reaktionen mit einem von sechs Emojis; dieselbe Reaktion erneut entfernt
+  sie. Reaktionen werden synchronisiert.
+- Nachrichten lassen sich lokal markieren; die Suche kann auf markierte
+  Nachrichten beschraenkt werden.
+- Die Suche filtert den aktuellen Chat lokal nach Text.

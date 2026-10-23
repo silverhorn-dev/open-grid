@@ -17,8 +17,9 @@
   Scope, Reihenfolge wie in `index.html`): `config.js` (Konfiguration,
   `state`), `storage.js` (IndexedDB, Chat-Operationen), `profile.js`
   (Profil, Medien, Onboarding), `chat.js` (Modal, Chat, Snaps),
-  `settings.js` (Debug, Schluessel, Toasts, Tabs), `push.js` (Web Push),
-  `main.js` (Start).
+  `settings.js` (Debug, Schluessel, Toasts, Tabs, Sichtbarkeit),
+  `router.js` (Client-Routen, History), `push.js` (Web Push), `main.js`
+  (Start). `client/geohash.client.js` kodiert den eigenen Standort.
 - `client/styles.css` und `client/app/tailwind.config.js` enthalten Styles
   und die Tailwind-Konfiguration.
 - Der Server liefert nur Dateien aus der festen Liste `clientAssetFiles` in
@@ -31,6 +32,14 @@
 - Navigation: `switchTab()` steuert die Ansichten und markiert alle Knoepfe mit
   passendem `data-tab-btn` (Header-Navigation auf dem Desktop,
   Bottom-Navigation auf Smartphones).
+- Client-Routen (`client/app/router.js`): `/grid`, `/chat`, `/chat/:peerId`,
+  `/profile`, `/settings`, `/cloud`. Der Server liefert fuer alle dieselbe
+  App-Shell. `switchTab()` legt per `history.pushState` einen Eintrag an,
+  `popstate` stellt Tab und Chat wieder her. `/` und alte Deep Links
+  (`/?chat=<id>`) werden beim Start per `replaceState` umgeschrieben.
+  Menue, Profil- und Snap-Modal bekommen einen eigenen History-Eintrag
+  (`state.modal`), "Zurueck" schliesst sie. Navigiert man aus einem Modal
+  heraus, ersetzt die neue Route den Modal-Eintrag.
 
 Der Dienst laeuft als einzelner Docker-Container hinter einem TLS
 terminierenden Reverse Proxy.
@@ -229,8 +238,16 @@ Pflichtfelder und wird erst nach erfolgreicher AES-GCM-Speicherung geschlossen.
 
 Chats werden als idempotente Operationen synchronisiert:
 
-- `MESSAGE_PUT` enthaelt eine neue Nachricht.
+- `MESSAGE_PUT` enthaelt eine neue Nachricht. Eine Antwort traegt
+  `message.replyTo = { messageId, senderId, preview }` (Vorschau max. 80
+  Zeichen); der Empfaenger bereinigt das Feld.
 - `MESSAGE_DELETE` ist ein Tombstone fuer eine zuvor gesendete Nachricht.
+- `MESSAGE_REACT` setzt die Reaktion eines Absenders auf eine Nachricht
+  (`emoji` aus 👍 ❤️ 😂 😮 😢 🔥 oder `null` zum Entfernen). Pro Absender und
+  Nachricht gilt die neueste Operation (`createdAt`); aeltere werden aus
+  `chatOperations` geloescht. Reaktionen loesen keinen Web Push aus.
+- Markierungen (`message.starred`) und die Chat-Suche sind rein lokal und
+  werden nicht synchronisiert.
 - Operationen besitzen global eindeutige IDs und koennen mehrfach empfangen
   werden, ohne doppelte Nachrichten zu erzeugen.
 

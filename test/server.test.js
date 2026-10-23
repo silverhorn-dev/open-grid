@@ -119,6 +119,15 @@ test('reports that TURN is disabled when the server configuration is incomplete'
     }
 });
 
+test('serves the app shell for client routes', async () => {
+    for (const url of ['/grid', '/chat', '/chat/peer-a', '/profile', '/settings', '/cloud']) {
+        const response = await app.inject({ method: 'GET', url });
+        assert.equal(response.statusCode, 200, url);
+        assert.match(response.body, /\/client\/app\/router\.js\?v=/, url);
+    }
+    assert.equal((await app.inject({ method: 'GET', url: '/chat/peer-a/extra' })).statusCode, 404);
+});
+
 test('serves the app shell and all client modules', async () => {
     const indexResponse = await app.inject({ method: 'GET', url: '/' });
     assert.equal(indexResponse.statusCode, 200);

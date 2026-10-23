@@ -34,6 +34,7 @@ const clientAssetFiles = [
     'app/profile.js',
     'app/chat.js',
     'app/settings.js',
+    'app/router.js',
     'app/push.js',
     'app/main.js'
 ];
@@ -141,22 +142,18 @@ export async function buildApp(options = {}) {
         version: buildVersion
     }));
 
-    app.get('/', async (_request, reply) => {
+    const serveAppShell = async (_request, reply) => {
         const html = indexTemplate
             .replaceAll('{{versionTag}}', buildVersion)
             .replaceAll('{{timestamp}}', buildTimestamp)
             .replaceAll('{{assetVersion}}', assetVersion)
             .replace('{{profileSchema}}', JSON.stringify(profileSchema));
         return reply.type('text/html; charset=utf-8').header('Cache-Control', 'no-cache').send(html);
-    });
-    app.get('/index.html', async (_request, reply) => {
-        const html = indexTemplate
-            .replaceAll('{{versionTag}}', buildVersion)
-            .replaceAll('{{timestamp}}', buildTimestamp)
-            .replaceAll('{{assetVersion}}', assetVersion)
-            .replace('{{profileSchema}}', JSON.stringify(profileSchema));
-        return reply.type('text/html; charset=utf-8').header('Cache-Control', 'no-cache').send(html);
-    });
+    };
+    // Client-Routen (client/app/router.js) liefern dieselbe App-Shell.
+    for (const path of ['/', '/index.html', '/grid', '/chat', '/chat/:peerId', '/profile', '/settings', '/cloud']) {
+        app.get(path, serveAppShell);
+    }
 
     // Der Service Worker muss unter dem Wurzelpfad liegen, damit sein Scope
     // die ganze App abdeckt. no-cache sorgt dafuer, dass Updates erkannt werden.

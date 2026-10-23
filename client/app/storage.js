@@ -420,6 +420,18 @@ async function persistPeerIdentityKey(peerId, jwkPublic, profileSigningKey) {
     await putDatabaseRecord('keys', identity);
 }
 
+const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥'];
+const REPLY_PREVIEW_LENGTH = 80;
+
+function sanitizeReplyReference(replyTo) {
+    if (!replyTo || typeof replyTo.messageId !== 'string' || typeof replyTo.senderId !== 'string') return undefined;
+    return {
+        messageId: replyTo.messageId.substring(0, 200),
+        senderId: replyTo.senderId.substring(0, 200),
+        preview: String(replyTo.preview || '').substring(0, REPLY_PREVIEW_LENGTH + 3)
+    };
+}
+
 function createPutOperation(peerId, message) {
     return {
         operationId: `put:${message.id}`,
@@ -433,6 +445,7 @@ function createPutOperation(peerId, message) {
             senderId: message.senderId,
             text: message.text,
             snapData: message.snapData,
+            replyTo: message.replyTo,
             timestamp: message.timestamp,
             createdAt: message.createdAt
         }
@@ -463,6 +476,7 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
         if (!existingMessage?.deleted) {
             const message = {
                 ...localOperation.message,
+                replyTo: sanitizeReplyReference(localOperation.message.replyTo),
                 peerId,
                 deliveredVia
             };
@@ -496,6 +510,28 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
         const index = state.chats[peerId].findIndex(item => item.id === localOperation.messageId);
         if (index >= 0) state.chats[peerId][index] = deletedMessage;
         else state.chats[peerId].push(deletedMessage);
+    } else if (localOperation.type === 'MESSAGE_REACT') {
+        // Pro Absender gilt die neueste Reaktion; null entfernt sie.
+        const emoji = localOperation.emoji === null ? null : localOperation.emoji;
+        if (emoji !== null && !REACTION_EMOJIS.includes(emoji)) return false;
+        if (typeof localOperation.actorId !== 'string') return false;
+        const existingMessage = await databaseRequest(
+            'messages',
+            'readonly',
+            store => store.get(localOperation.messageId)
+        );
+        if (!existingMessage || existingMessage.deleted || existingMessage.peerId !== peerId) return false;
+        const current = existingMessage.reactions?.[localOperation.actorId];
+        if (!current || (current.at || 0) < (localOperation.createdAt || 0)) {
+            const reactions = { ...(existingMessage.reactions || {}) };
+            if (emoji) reactions[localOperation.actorId] = { emoji, at: localOperation.createdAt || 0 };
+            else delete reactions[localOperation.actorId];
+            const updated = { ...existingMessage, reactions };
+            await persistChatMessage(peerId, updated);
+            const index = (state.chats[peerId] || []).findIndex(item => item.id === updated.id);
+            // Objekt mutieren statt ersetzen: offene Sende-Callbacks halten dieselbe Referenz.
+            if (index >= 0) state.chats[peerId][index].reactions = reactions;
+        }
     } else if (localOperation.type === 'CHAT_WIPE') {
         if (localOperation.actorId !== peerId) return false;
         await storeChatControl(peerId, 'DELETE_CHAT');
@@ -527,11 +563,22 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
 
     await persistChatOperation(localOperation);
     if (localOperation.type === 'MESSAGE_DELETE') await trimChatDeleteOperations(peerId);
+    if (localOperation.type === 'MESSAGE_REACT') await trimReactionOperations(peerId, localOperation);
     if (!state.chats[peerId]) state.chats[peerId] = [];
     state.chats[peerId].sort((left, right) => left.createdAt - right.createdAt);
     rememberChatPeer(peerId);
     if (state.activeChatPeerId === peerId) renderChatHistory();
     return true;
+}
+
+// Aeltere Reaktionen desselben Absenders auf dieselbe Nachricht werden fuer den Sync nicht mehr gebraucht.
+async function trimReactionOperations(peerId, latest) {
+    const outdated = (await getChatOperations(peerId)).filter(operation => operation.type === 'MESSAGE_REACT'
+        && operation.messageId === latest.messageId
+        && operation.actorId === latest.actorId
+        && operation.operationId !== latest.operationId
+        && (operation.createdAt || 0) <= (latest.createdAt || 0));
+    await Promise.all(outdated.map(operation => deleteDatabaseRecord('chatOperations', operation.operationId)));
 }
 
 async function trimChatDeleteOperations(peerId) {

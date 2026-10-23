@@ -48,6 +48,10 @@ const state = {
     secureMessageQueues: {},
     presenceProbes: {},
     peerChatFocus: {},
+    // Sichtbarkeit und Speicher. Fehlender Datensatz = Standardwerte.
+    gridSettings: { silent: false, ttlMinutes: 10, liveGrid: false, cacheEnabled: true, useLocation: false, safeZones: [], locationLabel: null },
+    gridRing: 0,
+    gridHasMore: false,
     chatFocusPeerId: null,
     chatSyncInProgress: {},
     peerIdentityKeys: {},

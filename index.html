@@ -122,10 +122,16 @@
                             <span class="text-slate-600">•</span>
                             <span id="grid-last-updated">Not synchronized yet</span>
                         </p>
+                        <p id="silent-mode-hint" class="hidden text-xs text-sky-400 mt-0.5">
+                            <i class="fa-solid fa-eye-slash"></i> Silent-Modus aktiv: du bist fuer andere nicht im Grid sichtbar.
+                        </p>
                     </div>
                 </div>
 
                 <div class="flex items-center gap-2">
+                    <button id="use-location-btn" onclick="updateGridSetting('useLocation', true)" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
+                        <i class="fa-solid fa-location-arrow"></i> Standort verwenden
+                    </button>
                     <button id="refresh-grid-btn" onclick="refreshGrid()" class="bg-brand-600 hover:bg-brand-500 disabled:opacity-60 text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
                         <i id="refresh-grid-icon" class="fa-solid fa-rotate"></i> Aktualisieren
                     </button>
@@ -135,6 +141,11 @@
             <!-- Profile Grid Matrix -->
             <div id="grid-container" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4" aria-live="polite">
                 <!-- Dynamic cards injected via JS -->
+            </div>
+            <div class="flex justify-center">
+                <button id="grid-load-more-btn" onclick="loadMoreGrid()" class="hidden bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 px-4 py-2 rounded-lg flex items-center gap-1.5 transition">
+                    <i class="fa-solid fa-expand"></i> Mehr laden
+                </button>
             </div>
         </section>
 
@@ -315,6 +326,52 @@
 
                 <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
                     <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-eye-slash text-sky-400"></i> Sichtbarkeit &amp; Speicher
+                    </h3>
+                    <label class="flex items-start gap-2 text-xs text-slate-300 cursor-pointer">
+                        <input type="checkbox" id="silent-mode-toggle" onchange="updateGridSetting('silent', this.checked)" class="accent-brand-500 mt-0.5">
+                        <span>Silent-Modus: nicht im Grid sichtbar, aber fuer bestehende Chats erreichbar</span>
+                    </label>
+                    <label class="flex items-center gap-2 text-xs text-slate-300">
+                        <span>Im Grid sichtbar nach dem Schliessen:</span>
+                        <select id="grid-ttl-select" onchange="updateGridSetting('ttlMinutes', Number(this.value))" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200">
+                            <option value="1">1 Minute</option>
+                            <option value="10">10 Minuten</option>
+                            <option value="30">30 Minuten</option>
+                            <option value="60">60 Minuten</option>
+                        </select>
+                    </label>
+                    <label class="flex items-start gap-2 text-xs text-slate-300 cursor-pointer">
+                        <input type="checkbox" id="live-grid-toggle" onchange="updateGridSetting('liveGrid', this.checked)" class="accent-brand-500 mt-0.5">
+                        <span>Live-Grid: nur Profile zeigen, die gerade online sind</span>
+                    </label>
+                    <label class="flex items-start gap-2 text-xs text-slate-300 cursor-pointer">
+                        <input type="checkbox" id="use-location-toggle" onchange="updateGridSetting('useLocation', this.checked)" class="accent-brand-500 mt-0.5">
+                        <span>Geraetestandort verwenden (nur als Zelle von ca. 1 km an den Router)</span>
+                    </label>
+                    <div class="space-y-1.5">
+                        <div class="text-xs text-slate-300">Oder Adresse angeben (wird einmalig an OpenStreetMap Nominatim gesendet, der Router sieht nur die Zelle):</div>
+                        <div class="flex gap-2">
+                            <input id="address-input" type="text" autocomplete="street-address" placeholder="Strasse, Ort" onkeydown="if (event.key === 'Enter') searchAddressLocation()" class="flex-1 min-w-0 bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200">
+                            <button id="address-search-btn" onclick="searchAddressLocation()" class="bg-slate-800 hover:bg-slate-700 disabled:opacity-60 border border-slate-700 text-xs text-slate-200 px-3 py-1.5 rounded-lg font-semibold transition">Suchen</button>
+                        </div>
+                        <div id="location-label" class="text-[11px] text-slate-500 truncate">Aktuell: kein Standort gesetzt</div>
+                    </div>
+                    <div class="space-y-1.5">
+                        <div class="text-xs text-slate-300">Safe Zones: an diesen Orten automatisch unsichtbar</div>
+                        <ul id="safe-zone-list" class="space-y-1"></ul>
+                        <button id="add-safe-zone-btn" onclick="addCurrentSafeZone()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-200 px-3 py-1.5 rounded-lg font-semibold transition">
+                            Aktuellen Ort als Safe Zone speichern
+                        </button>
+                    </div>
+                    <label class="flex items-start gap-2 text-xs text-slate-300 cursor-pointer">
+                        <input type="checkbox" id="cache-enabled-toggle" checked onchange="updateGridSetting('cacheEnabled', this.checked)" class="accent-brand-500 mt-0.5">
+                        <span>Cloud-Cache: eigene Nachrichten verschluesselt auf dem Server zwischenspeichern, wenn keine direkte Verbindung besteht (eingehende Nachrichten kommen weiterhin an)</span>
+                    </label>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
+                    <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
                         <i class="fa-solid fa-bell text-amber-400"></i> Push-Benachrichtigungen
                     </h3>
                     <p class="text-xs text-slate-400">Weckt die App bei neuen Nachrichten, auch wenn sie geschlossen ist. Der Push enthaelt nur verschluesselte Daten.</p>
@@ -403,6 +460,7 @@
 
     <script id="profile-schema-data" type="application/json">{{profileSchema}}</script>
     <script src="/client/crypto.client.js?v={{assetVersion}}"></script>
+    <script src="/client/geohash.client.js?v={{assetVersion}}"></script>
     <script src="/client/app/config.js?v={{assetVersion}}"></script>
     <script src="/client/app/storage.js?v={{assetVersion}}"></script>
     <script src="/client/app/profile.js?v={{assetVersion}}"></script>

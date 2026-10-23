@@ -312,3 +312,196 @@ function closeMenu() {
     document.getElementById('app-menu').setAttribute('aria-hidden', 'true');
     document.getElementById('app-menu-backdrop').classList.add('hidden');
 }
+
+// ================= SICHTBARKEIT & SPEICHER =================
+const GRID_SETTINGS_RECORD_ID = 'grid-settings';
+const GRID_TTL_OPTIONS = [1, 10, 30, 60];
+
+async function loadGridSettings() {
+    try {
+        const stored = await databaseRequest('keys', 'readonly', store => store.get(GRID_SETTINGS_RECORD_ID));
+        if (stored) {
+            state.gridSettings = {
+                silent: stored.silent === true,
+                ttlMinutes: GRID_TTL_OPTIONS.includes(stored.ttlMinutes) ? stored.ttlMinutes : 10,
+                liveGrid: stored.liveGrid === true,
+                cacheEnabled: stored.cacheEnabled !== false,
+                useLocation: stored.useLocation === true,
+                safeZones: Array.isArray(stored.safeZones) ? stored.safeZones.filter(zone => typeof zone === 'string') : [],
+                locationLabel: typeof stored.locationLabel === 'string' ? stored.locationLabel : null
+            };
+        }
+    } catch (error) {
+        logDebug(`Could not load grid settings: ${error.message}`);
+    }
+    renderGridSettings();
+    if (state.gridSettings.useLocation) await updateDeviceLocation(false);
+}
+
+function isEffectivelySilent() {
+    return state.gridSettings.silent || state.gridSettings.safeZones.includes(state.myProfile.geohash);
+}
+
+function getDevicePosition() {
+    return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+            reject(new Error('Geolocation is not supported'));
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: false,
+            maximumAge: 10 * 60 * 1000,
+            timeout: 10000
+        });
+    });
+}
+
+// Der genaue Standort verlaesst das Geraet nie; gespeichert und gesendet wird nur die Zelle.
+async function updateDeviceLocation(notify = true) {
+    let geohash;
+    try {
+        const position = await getDevicePosition();
+        geohash = encodeGeohash(position.coords.latitude, position.coords.longitude, GRID_PRECISION);
+    } catch (error) {
+        logDebug(`Geolocation failed: ${error.message}`);
+        if (notify) showToast('Standort nicht verfuegbar oder nicht erlaubt.', 'warning');
+        return false;
+    }
+    await applyLocationCell(geohash);
+    return true;
+}
+
+async function applyLocationCell(geohash) {
+    if (geohash === state.myProfile.geohash) return;
+    state.myProfile.geohash = geohash;
+    state.gridRing = 0;
+    await cacheOwnProfile().catch(error => logDebug(`Could not store location cell: ${error.message}`));
+    renderGridSettings();
+}
+
+// Alternative zum Geraetestandort: Adresse wird nur auf ausdruecklichen Klick an
+// OpenStreetMap Nominatim gesendet (Entscheidung 2026-10-23). Der Router sieht weiterhin nur die Zelle.
+const GEOCODER_URL = 'https://nominatim.openstreetmap.org/search';
+
+async function searchAddressLocation() {
+    const input = document.getElementById('address-input');
+    const query = input?.value.trim();
+    if (!query) return;
+    const button = document.getElementById('address-search-btn');
+    if (button) button.disabled = true;
+    try {
+        const params = new URLSearchParams({ q: query, format: 'jsonv2', limit: '1' });
+        const response = await fetch(`${GEOCODER_URL}?${params}`, {
+            headers: { 'Accept-Language': navigator.language || 'de' },
+            referrerPolicy: 'no-referrer'
+        });
+        if (!response.ok) throw new Error(`Geocoder returned ${response.status}`);
+        const [result] = await response.json();
+        const latitude = Number(result?.lat);
+        const longitude = Number(result?.lon);
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+            showToast('Adresse nicht gefunden.', 'warning');
+            return;
+        }
+        const geohash = encodeGeohash(latitude, longitude, GRID_PRECISION);
+        input.value = '';
+        await applyLocationCell(geohash);
+        await updateGridSetting('locationLabel', result.display_name ? String(result.display_name).substring(0, 200) : query);
+        if (state.gridSettings.useLocation) await updateGridSetting('useLocation', false);
+        showToast('Standort aus Adresse uebernommen.', 'success');
+    } catch (error) {
+        logDebug(`Address lookup failed: ${error.message}`);
+        showToast('Adresssuche fehlgeschlagen.', 'error');
+    } finally {
+        if (button) button.disabled = false;
+    }
+}
+
+async function addCurrentSafeZone() {
+    if (!state.gridSettings.useLocation) {
+        showToast('Bitte zuerst den Geraetestandort aktivieren.', 'warning');
+        return;
+    }
+    if (!await updateDeviceLocation()) return;
+    if (state.gridSettings.safeZones.includes(state.myProfile.geohash)) return;
+    await updateGridSetting('safeZones', [...state.gridSettings.safeZones, state.myProfile.geohash]);
+}
+
+async function removeSafeZone(geohash) {
+    await updateGridSetting('safeZones', state.gridSettings.safeZones.filter(zone => zone !== geohash));
+}
+
+function renderSafeZones() {
+    const list = document.getElementById('safe-zone-list');
+    if (!list) return;
+    list.innerHTML = '';
+    state.gridSettings.safeZones.forEach((zone, index) => {
+        const item = document.createElement('li');
+        item.className = 'flex items-center justify-between gap-2 text-xs bg-slate-950/60 border border-slate-800 rounded-lg px-2 py-1';
+        const label = document.createElement('span');
+        label.textContent = zone === state.myProfile.geohash ? `Zone ${index + 1} (hier)` : `Zone ${index + 1}`;
+        const code = document.createElement('span');
+        code.className = 'debug-only font-mono text-slate-500';
+        code.textContent = zone;
+        label.appendChild(code);
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'text-red-400 hover:text-red-300';
+        remove.textContent = 'Entfernen';
+        remove.onclick = () => removeSafeZone(zone);
+        item.append(label, remove);
+        list.appendChild(item);
+    });
+}
+
+function renderGridSettings() {
+    const settings = state.gridSettings;
+    const silent = document.getElementById('silent-mode-toggle');
+    const ttl = document.getElementById('grid-ttl-select');
+    const live = document.getElementById('live-grid-toggle');
+    const cache = document.getElementById('cache-enabled-toggle');
+    if (silent) silent.checked = settings.silent;
+    if (ttl) ttl.value = String(settings.ttlMinutes);
+    if (live) live.checked = settings.liveGrid;
+    if (cache) cache.checked = settings.cacheEnabled;
+    const location = document.getElementById('use-location-toggle');
+    if (location) location.checked = settings.useLocation;
+    document.getElementById('use-location-btn')?.classList.toggle('hidden', settings.useLocation);
+    const locationLabel = document.getElementById('location-label');
+    if (locationLabel) {
+        locationLabel.textContent = settings.useLocation
+            ? 'Aktuell: Geraetestandort'
+            : settings.locationLabel ? `Aktuell: ${settings.locationLabel}` : 'Aktuell: kein Standort gesetzt';
+    }
+    const hint = document.getElementById('silent-mode-hint');
+    if (hint) {
+        hint.classList.toggle('hidden', !isEffectivelySilent());
+        hint.lastChild.textContent = settings.silent
+            ? ' Silent-Modus aktiv: du bist fuer andere nicht im Grid sichtbar.'
+            : ' Safe Zone: hier bist du fuer andere nicht im Grid sichtbar.';
+    }
+    renderSafeZones();
+}
+
+async function updateGridSetting(key, value) {
+    const previous = state.gridSettings;
+    state.gridSettings = { ...previous, [key]: value };
+    try {
+        await putDatabaseRecord('keys', { id: GRID_SETTINGS_RECORD_ID, ...state.gridSettings });
+    } catch (error) {
+        state.gridSettings = previous;
+        logDebug(`Could not store grid settings: ${error.message}`);
+        showToast('Einstellung konnte nicht gespeichert werden.', 'error');
+        renderGridSettings();
+        return;
+    }
+    renderGridSettings();
+    if (key === 'useLocation' && value && !await updateDeviceLocation()) {
+        await updateGridSetting('useLocation', false);
+        return;
+    }
+    // Silent-Modus, TTL, Standort und Safe Zones aendern den Router-Eintrag; Live-Modus nur die Grid-Abfrage, der Cache nur den Versand.
+    if (key === 'cacheEnabled') return;
+    if (key === 'liveGrid') await fetchPeersFromWorkerGrid();
+    else await refreshPresenceAndGrid();
+}

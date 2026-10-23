@@ -7,8 +7,19 @@ sehen, ohne vollstaendige Profile an einen zentralen Dienst zu senden.
 
 Akzeptanzkriterien:
 
-- Der Router speichert nur Name und Thumbnail.
+- Der Router speichert nur Name, Thumbnail und eine Geohash-Zelle (ca. 1 km).
 - Das Grid zeigt nur die aktuelle Router-Antwort.
+- Zuerst erscheint nur die eigene Zelle. "Mehr laden" erweitert das Grid
+  ringweise bis ueber 500 km; der Knopf erscheint nur, wenn weitere Peers
+  existieren.
+- Peers sind nach Entfernung gruppiert (Sehr nah, In der Naehe, In der Stadt,
+  20-100 km, 100-300 km, 300-500 km, > 500 km). Genaue Entfernungen oder
+  Standorte anderer Peers sind nie sichtbar.
+- Der Geraetestandort wird nur nach Zustimmung gelesen und verlaesst das
+  Geraet nur als Zelle.
+- Ohne Geraetestandort kann eine Adresse angegeben werden. Sie geht nur auf
+  Klick an einen externen Geocoder (OpenStreetMap Nominatim), der Router sieht
+  weiterhin nur die Zelle.
 - Ein nur lokal gecachtes Profil erscheint ohne Router-Eintrag nicht im Grid.
 - Eine explizite Abmeldung entfernt das Profil aus dem Grid.
 
@@ -213,3 +224,41 @@ Akzeptanzkriterien:
 - Ohne Debug-Modus zeigt der Chat-Kopf statt des Verbindungsstatus nur ein
   Symbol: gruener Punkt = verbunden, Augen = das Gegenueber hat den Chat
   gerade geoeffnet.
+
+## UC-15: Silent-Modus und Safe Zones
+
+**Als Nutzer** moechte ich fuer bestehende Chats erreichbar bleiben, ohne im
+Grid aufzutauchen.
+
+Akzeptanzkriterien:
+
+- Im Silent-Modus erscheint das eigene Profil bei niemandem im Grid; Clients,
+  die es schon zeigen, entfernen es beim naechsten Refresh.
+- Chats, Signaling und Pfad C funktionieren im Silent-Modus weiter.
+- Safe Zones (z. B. Zuhause) werden nur lokal gespeichert. Ist die aktuelle
+  Zelle eine Safe Zone, ist der Client automatisch im Silent-Modus.
+- Das Grid zeigt einen Hinweis, solange man unsichtbar ist.
+
+## UC-16: Sichtbarkeitsdauer und Live-Grid
+
+**Als Nutzer** moechte ich festlegen, wie lange ich nach dem Schliessen noch
+sichtbar bin, und nur Peers sehen, die gerade online sind.
+
+Akzeptanzkriterien:
+
+- Die Sichtbarkeit nach dem letzten Heartbeat ist waehlbar (1, 10, 30 oder
+  60 Minuten); der Router begrenzt sie auf 1 bis 60 Minuten.
+- Im Live-Grid erscheinen nur Peers mit aktiver Signaling-Verbindung.
+
+## UC-17: Cloud-Cache abschalten
+
+**Als Nutzer** moechte ich, dass meine eigenen Nachrichten nie auf dem Server
+zwischengespeichert werden.
+
+Akzeptanzkriterien:
+
+- Der Cloud-Cache ist standardmaessig an.
+- Ist er aus, sendet der Client nichts mehr ueber Pfad C.
+- Eingehende Pfad-C-Nachrichten anderer Peers kommen weiterhin an.
+- Nachrichten gehen dann ausschliesslich per P2P oder Chat-Sync; keine
+  Nachricht geht verloren, sie bleibt bis zur naechsten Verbindung lokal.

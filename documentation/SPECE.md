@@ -50,13 +50,35 @@ SQLite speichert in `peers`:
 
 - Peer-ID
 - aktuelle Registration-ID
-- Geohash
+- Geohash (maximal Praezision 6, ca. 1,2 x 0,6 km)
 - Anzeigename
 - Thumbnail
+- Silent-Flag
 - Ablaufzeit
 
+`POST /api/register` akzeptiert zusaetzlich:
+
+| Feld | Typ | Bedeutung |
+|---|---|---|
+| `silent` | boolean | Peer ist nicht im Grid sichtbar, bleibt aber per Signaling und Pfad C erreichbar |
+| `ttlMinutes` | number | Sichtbarkeit nach dem letzten Heartbeat, auf 1 bis 60 Minuten begrenzt (Standard 10) |
+
+Der Geohash muss gueltiges Base32 mit mindestens 6 Zeichen sein; der Router
+kuerzt ihn auf 6 Zeichen. Der Client sendet nie Koordinaten an den Router.
+Die Zelle stammt aus einer von zwei Quellen:
+
+- Geraetestandort (opt-in): `navigator.geolocation`, lokal zur Zelle kodiert,
+  Koordinaten werden verworfen.
+- Adresse: auf ausdruecklichen Klick fragt der Browser direkt
+  OpenStreetMap Nominatim (`/search?format=jsonv2&limit=1`, ohne Referrer)
+  und kodiert das Ergebnis lokal zur Zelle. Der Adresstext bleibt nur als
+  lokales Label in `grid-settings.locationLabel`.
+ Wechselt ein Peer die Zelle oder in den Silent-Modus, entsteht
+ein Tombstone fuer die bisherige Zelle. Ein Silent-Peer loest kein
+`PEER_OFFLINE` aus.
+
 Der Client erneuert die Registrierung alle 25 Sekunden. Ohne Heartbeat laeuft
-sie nach zehn Minuten ab. Eine alte Registration-ID darf eine neuere
+sie nach der gewaehlten TTL ab (Standard zehn Minuten). Eine alte Registration-ID darf eine neuere
 Registrierung desselben Peers nicht entfernen.
 
 Die erste Registrierung stellt ein zufaelliges Peer-Capability-Token aus.
@@ -68,6 +90,41 @@ erhalten serverseitig die authentifizierte Absender-ID.
 Das Grid entspricht immer der aktuellen Router-Antwort fuer einen Geohash.
 Lokale Cache-Eintraege werden nicht ohne aktiven Router-Eintrag angezeigt.
 Explizit entfernte Peers erhalten einen zeitlich begrenzten Tombstone.
+
+### 3.1 Grid in Ringen
+
+`GET /api/grid?geohash=<eigene Zelle>&ring=<0-5>[&live=1]` laedt das Grid
+schrittweise ("Mehr laden"). Jeder Ring enthaelt alle vorherigen:
+
+| Ring | Zellen | Abdeckung ca. |
+|---|---|---|
+| 0 | eigene Zelle (Praezision 6) | 1 km |
+| 1 | eigene Zelle + 8 Nachbarn (Praezision 6) | 3 km |
+| 2 | Elternzelle (Praezision 5) + 8 Nachbarn | 15 km |
+| 3 | Praezision 4 + 8 Nachbarn | 100 km |
+| 4 | Praezision 3 + 8 Nachbarn | 450 km |
+| 5 | Praezision 2 + 8 Nachbarn | 3000 km |
+
+Der Router berechnet die Nachbarzellen selbst und fragt jede Zelle als
+Praefix-Bereich ab (`geohash >= p AND geohash < p || '~'`). Die Antwort ist
+nach Entfernung der Zellmittelpunkte sortiert, auf 100 Peers begrenzt und
+enthaelt pro Peer nur `id`, `name`, `avatar` und `distanceBucket` - weder
+Koordinaten noch Geohash. `hasMore` zeigt an, ob der naechste Ring weitere
+Peers enthaelt. `live=1` liefert nur Peers mit aktiver WebSocket-Verbindung.
+
+| `distanceBucket` | Anzeige |
+|---|---|
+| `lt1` | Sehr nah (< 1 km) |
+| `1-5` | In der Naehe |
+| `5-20` | In der Stadt |
+| `20-100` | 20-100 km |
+| `100-300` | 100-300 km |
+| `300-500` | 300-500 km |
+| `gt500` | > 500 km |
+
+Alle Peers einer Zelle haben denselben Mittelpunkt. Mehrfache Abfragen von
+verschiedenen Orten liefern deshalb hoechstens die Zelle, keine genauere
+Position (Schutz gegen Trilateration).
 
 ## 4. WebRTC-Signaling und Presence
 
@@ -153,6 +210,11 @@ Der Store `keys` enthaelt zusaetzlich den Datensatz `router-auth` mit
 `nodeId` und Router-Token. Er spiegelt `localStorage` fuer den Service
 Worker, der keinen Zugriff auf `localStorage` hat. Der Datensatz
 `push-settings` speichert `compactNotifications` fuer den Service Worker.
+Der Datensatz `grid-settings` speichert `silent`, `ttlMinutes`, `liveGrid`,
+`cacheEnabled` (Standard an), `useLocation`, `locationLabel` und `safeZones`
+(Liste von Geohash-Zellen). Ein fehlender Datensatz entspricht den Standardwerten.
+Safe Zones verlassen nie das Geraet: Liegt die eigene Zelle in einer Safe
+Zone, registriert sich der Client als `silent`.
 
 Nur eine hoehere Profilversion ersetzt einen vorhandenen Cache.
 Das eigene Profil wird nie durch Grid-Tombstones oder Peer-Cache-Bereinigung
@@ -212,6 +274,11 @@ clientseitig verschluesselte Payloads.
 
 Alle Queue-Routen verlangen das Capability-Token des Absenders beziehungsweise
 Empfaengers als Bearer-Token.
+
+Der Cloud-Cache ist eine reine Sender-Einstellung (`grid-settings.cacheEnabled`).
+Ist er aus, stellt der Client eigene Operationen nicht in Pfad C ein; sie
+bleiben lokal und gehen per P2P oder Chat-Sync raus. Eingehende
+Pfad-C-Nachrichten anderer Peers werden weiterhin abgerufen und angewendet.
 
 SQLite speichert Message-ID, Empfaenger, optionalen Absender, Ciphertext, IV
 und Ablaufzeit. Klartext wird von dieser API weder erwartet noch verarbeitet.

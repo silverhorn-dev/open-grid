@@ -1,3 +1,10 @@
+async function loadMoreGrid() {
+    if (state.gridRing >= MAX_GRID_RING) return;
+    state.gridRing += 1;
+    const loaded = await fetchPeersFromWorkerGrid();
+    if (!loaded) state.gridRing -= 1;
+}
+
 async function refreshGrid() {
     const refreshed = await fetchPeersFromWorkerGrid();
     if (refreshed) showToast('Grid aktualisiert.', 'info');
@@ -11,6 +18,9 @@ function renderDiscoveryGrid() {
     const visiblePeers = state.peers.filter(peer => !isPeerBlocked(peer.id) && !hiddenList.includes(peer.id));
     container.innerHTML = '';
     document.getElementById('grid-peer-count').textContent = `${visiblePeers.length} ${visiblePeers.length === 1 ? 'peer' : 'peers'}`;
+    const geohashLabel = document.getElementById('current-geohash');
+    if (geohashLabel) geohashLabel.textContent = `${state.myProfile.geohash} · Ring ${state.gridRing}`;
+    document.getElementById('grid-load-more-btn')?.classList.toggle('hidden', !state.gridHasMore);
     renderActivePeerList();
 
     if (visiblePeers.length === 0) {
@@ -21,7 +31,16 @@ function renderDiscoveryGrid() {
         return;
     }
 
+    let currentBucket = null;
     visiblePeers.forEach(peer => {
+        // Der Router liefert die Peers bereits nach Entfernung sortiert.
+        if (peer.distanceBucket && peer.distanceBucket !== currentBucket) {
+            currentBucket = peer.distanceBucket;
+            const heading = document.createElement('h3');
+            heading.className = 'col-span-full text-xs font-bold uppercase tracking-wider text-slate-400 pt-2';
+            heading.textContent = DISTANCE_BUCKET_LABELS[currentBucket] || currentBucket;
+            container.appendChild(heading);
+        }
         const avatarSrc = peer.avatar ? peer.avatar : 'https://placehold.co/300x300/1e293b/ffffff?text=Peer';
         const card = document.createElement('button');
         card.type = 'button';
@@ -112,7 +131,9 @@ async function fetchPeersFromWorkerGrid() {
     if (refreshIcon) refreshIcon.classList.add('fa-spin');
 
     try {
-        const res = await fetch(`${API_BASE}/api/grid?geohash=${encodeURIComponent(state.myProfile.geohash)}`, { cache: 'no-store' });
+        const query = new URLSearchParams({ geohash: state.myProfile.geohash, ring: String(state.gridRing) });
+        if (state.gridSettings.liveGrid) query.set('live', '1');
+        const res = await fetch(`${API_BASE}/api/grid?${query}`, { cache: 'no-store' });
         if (!res.ok) throw new Error('Worker offline');
         const data = await res.json();
 
@@ -121,12 +142,15 @@ async function fetchPeersFromWorkerGrid() {
                 (data.removedPeerIds || []).filter(peerId => peerId !== state.myProfile.id)
             );
             await Promise.all(Array.from(removedPeerIds, peerId => removeCachedPeer(peerId, state.myProfile.geohash)));
+            state.gridHasMore = data.hasMore === true;
             state.peers = data.peers
                 .filter(peer => peer.id !== state.myProfile.id && !removedPeerIds.has(peer.id))
                 .map(peer => {
                     const cachedProfile = state.cachedProfiles[peer.id];
                     return {
                         ...peer,
+                        // Lokaler Cache-Schluessel ist die eigene Zelle; der Router liefert keine Peer-Standorte.
+                        geohash: state.myProfile.geohash,
                         name: cachedProfile?.fields?.displayName || peer.name,
                         avatar: cachedProfile?.avatar || peer.thumbnail || peer.avatar,
                         fullProfile: cachedProfile || null
@@ -218,6 +242,8 @@ async function registerWithWorkerGrid() {
                 thumbnail: state.myProfile.avatar,
                 name: state.myProfile.fields.displayName || 'Peer',
                 authToken: state.routerAuthToken,
+                silent: isEffectivelySilent(),
+                ttlMinutes: state.gridSettings.ttlMinutes,
                 registrationProof: {
                     publicKey: state.myKeys.jwkEcdsaPublic,
                     signature: bytesToBase64(new Uint8Array(proofSignature))

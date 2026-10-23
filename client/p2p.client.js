@@ -720,6 +720,10 @@ async function deriveCacheEncryptionKey(publicJwk) {
 
 async function queuePayloadInCache(peerId, item) {
     if (item.cacheQueued || item.payload?.type !== 'CHAT_OPERATION') return false;
+    if (!state.gridSettings.cacheEnabled) {
+        logDebug(`Path C skipped for ${peerId}: message cache is disabled locally.`);
+        return false;
+    }
     const peerPublicKey = await getPeerIdentityKey(peerId);
     if (!peerPublicKey) {
         logDebug(`Path C skipped for ${peerId}: no trusted peer identity key is cached.`);

@@ -6,6 +6,17 @@ import { fileURLToPath } from 'node:url';
 import crypto, { createHash, randomBytes } from 'node:crypto';
 import { createStore } from './database.js';
 import { registerSignalingRoute } from './signaling.js';
+import {
+    GRID_PRECISION,
+    MAX_GRID_RING,
+    decodeGeohash,
+    distanceBucket,
+    distanceKm,
+    gridRingCells,
+    isGeohash
+} from './geohash.js';
+
+const MAX_GRID_RESULTS = 100;
 import { MAX_PUSH_PLAINTEXT_BYTES, createPushSender, generateVapidKeys } from './push.js';
 
 const serverDirectory = dirname(fileURLToPath(import.meta.url));
@@ -13,6 +24,7 @@ const projectDirectory = join(serverDirectory, '..');
 // Feste Liste statt Verzeichnis-Scan: nur diese Dateien unter /client werden ausgeliefert.
 const clientAssetFiles = [
     'crypto.client.js',
+    'geohash.client.js',
     'grid.client.js',
     'p2p.client.js',
     'styles.css',
@@ -110,7 +122,7 @@ export async function buildApp(options = {}) {
             maxPayload: 128 * 1024
         }
     });
-    registerSignalingRoute(app, store);
+    const signaling = registerSignalingRoute(app, store);
 
     app.addHook('onClose', async () => {
         if (ownsStore) store.close();
@@ -268,9 +280,11 @@ export async function buildApp(options = {}) {
             thumbnail,
             name,
             authToken: suppliedToken,
-            registrationProof
+            registrationProof,
+            silent,
+            ttlMinutes
         } = request.body || {};
-        if (!isString(peerId, 200) || !isString(geohash, 64) || !isString(registrationId, 200)) {
+        if (!isString(peerId, 200) || !isGeohash(geohash, GRID_PRECISION) || !isString(registrationId, 200)) {
             return reply.code(400).send({ error: 'Invalid payload' });
         }
         if (thumbnail != null && typeof thumbnail !== 'string') {
@@ -278,6 +292,10 @@ export async function buildApp(options = {}) {
         }
         if (suppliedToken != null && !hashAuthToken(suppliedToken)) {
             return reply.code(400).send({ error: 'Invalid authToken' });
+        }
+        if ((silent != null && typeof silent !== 'boolean')
+            || (ttlMinutes != null && !Number.isFinite(ttlMinutes))) {
+            return reply.code(400).send({ error: 'Invalid visibility settings' });
         }
 
         const authToken = suppliedToken != null
@@ -295,9 +313,12 @@ export async function buildApp(options = {}) {
             identityJwk: registrationProof?.publicKey
                 ? JSON.stringify(registrationProof.publicKey)
                 : null,
-            geohash: geohash.substring(0, 10),
+            // Der Router speichert nie mehr als eine Zelle mit Praezision 6 (~1,2 x 0,6 km).
+            geohash: geohash.substring(0, GRID_PRECISION),
             thumbnail: thumbnail ? thumbnail.substring(0, 150000) : null,
-            name: typeof name === 'string' ? name.substring(0, 100) : 'Peer'
+            name: typeof name === 'string' ? name.substring(0, 100) : 'Peer',
+            silent: silent === true,
+            ttlMs: ttlMinutes != null ? ttlMinutes * 60 * 1000 : undefined
         };
         if (!store.registerPeer(session)) {
             return reply.code(403).send({ error: 'Peer identity is already registered' });
@@ -325,22 +346,40 @@ export async function buildApp(options = {}) {
     app.post('/api/unregister', unregister);
 
     app.get('/api/grid', async (request, reply) => {
-        const { geohash } = request.query || {};
-        if (!isString(geohash, 64)) {
+        const { geohash, live } = request.query || {};
+        if (!isGeohash(geohash, GRID_PRECISION)) {
             return reply.code(400).send({ error: 'Missing geohash param' });
         }
-        const normalizedGeohash = geohash.substring(0, 10);
-        const { peers, removedPeerIds } = store.getGrid(normalizedGeohash);
+        const ring = request.query.ring == null ? 0 : Number(request.query.ring);
+        if (!Number.isInteger(ring) || ring < 0 || ring > MAX_GRID_RING) {
+            return reply.code(400).send({ error: 'Invalid ring' });
+        }
+        const normalizedGeohash = geohash.substring(0, GRID_PRECISION);
+        const origin = decodeGeohash(normalizedGeohash);
+        const liveOnly = live === '1';
+        const visible = peer => !liveOnly || signaling.isPeerOnline(peer.peerId);
+
+        const grid = store.getGridArea(gridRingCells(normalizedGeohash, ring));
+        // Entfernung nur zwischen Zellmittelpunkten; die Antwort enthaelt weder Koordinaten noch Geohash.
+        const peers = grid.peers
+            .filter(visible)
+            .map(peer => ({ peer, km: distanceKm(origin, decodeGeohash(peer.geohash)) }))
+            .sort((left, right) => left.km - right.km || left.peer.peerId.localeCompare(right.peer.peerId))
+            .slice(0, MAX_GRID_RESULTS);
+        const hasMore = ring < MAX_GRID_RING
+            && store.getGridArea(gridRingCells(normalizedGeohash, ring + 1)).peers.filter(visible).length > grid.peers.filter(visible).length;
         return {
             geohash: normalizedGeohash,
+            ring,
             count: peers.length,
-            peers: peers.map(peer => ({
+            hasMore,
+            peers: peers.map(({ peer, km }) => ({
                 id: peer.peerId,
-                geohash: peer.geohash,
                 avatar: peer.thumbnail,
-                name: peer.name
+                name: peer.name,
+                distanceBucket: distanceBucket(km)
             })),
-            removedPeerIds
+            removedPeerIds: grid.removedPeerIds
         };
     });
 

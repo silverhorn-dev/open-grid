@@ -3,6 +3,7 @@ import { generateKeyPairSync, randomBytes, sign } from 'node:crypto';
 import { afterEach, beforeEach, test } from 'node:test';
 import { buildApp } from '../server/app.js';
 import { createStore } from '../server/database.js';
+import { decodeGeohash, encodeGeohash, geohashNeighbours } from '../server/geohash.js';
 
 let app;
 let store;
@@ -210,6 +211,113 @@ test('registers peers, protects newer registrations, and creates removal tombsto
     });
     assert.equal(emptyGrid.json().count, 0);
     assert.deepEqual(emptyGrid.json().removedPeerIds, ['peer-a']);
+});
+
+async function reregister(peerId, overrides) {
+    const response = await app.inject({
+        method: 'POST',
+        url: '/api/register',
+        payload: registrationPayload(peerId, `registration-${peerId}`, overrides)
+    });
+    assert.equal(response.statusCode, 200);
+    return response;
+}
+
+async function gridPeerIds(query = 'geohash=u10j2k') {
+    const response = await app.inject({ method: 'GET', url: `/api/grid?${query}` });
+    assert.equal(response.statusCode, 200);
+    return response.json();
+}
+
+test('hides silent peers from the grid and tombstones them for other clients', async () => {
+    await registerPeer('peer-a');
+    await registerPeer('peer-b');
+    assert.deepEqual((await gridPeerIds()).peers.map(peer => peer.id), ['peer-a', 'peer-b']);
+
+    await reregister('peer-a', { silent: true });
+    const silentGrid = await gridPeerIds();
+    assert.deepEqual(silentGrid.peers.map(peer => peer.id), ['peer-b']);
+    assert.deepEqual(silentGrid.removedPeerIds, ['peer-a']);
+    assert.equal(store.isPeerSilent('peer-a'), true);
+
+    await reregister('peer-a', { silent: false });
+    const visibleGrid = await gridPeerIds();
+    assert.deepEqual(visibleGrid.peers.map(peer => peer.id), ['peer-a', 'peer-b']);
+    assert.deepEqual(visibleGrid.removedPeerIds, []);
+
+    const invalid = await app.inject({
+        method: 'POST',
+        url: '/api/register',
+        payload: registrationPayload('peer-a', 'registration-peer-a', { silent: 'yes' })
+    });
+    assert.equal(invalid.statusCode, 400);
+});
+
+test('clamps the configurable grid TTL between 1 and 60 minutes', async () => {
+    await registerPeer('peer-a');
+    await registerPeer('peer-b');
+    const now = Date.now();
+    await reregister('peer-a', { ttlMinutes: 0.1 });
+    await reregister('peer-b', { ttlMinutes: 600 });
+
+    const ids = (offsetMinutes) => store.getGridArea(['u10j2k'], now + offsetMinutes * 60 * 1000)
+        .peers.map(peer => peer.peerId)
+        .sort();
+    assert.deepEqual(ids(0.5), ['peer-a', 'peer-b']);
+    assert.deepEqual(ids(2), ['peer-b']);
+    assert.deepEqual(ids(59), ['peer-b']);
+    assert.deepEqual(ids(61), []);
+});
+
+test('live grid only returns peers with an active signaling socket', async () => {
+    await registerPeer('peer-a');
+    await registerPeer('peer-b');
+    assert.equal((await gridPeerIds()).count, 2);
+    assert.equal((await gridPeerIds('geohash=u10j2k&live=1')).count, 0);
+});
+
+test('loads the grid ring by ring with distance buckets and no locations', async () => {
+    const origin = decodeGeohash('u10j2k');
+    const near = geohashNeighbours('u10j2k')[0];
+    const far = encodeGeohash(origin.latitude + 0.5, origin.longitude, 6);
+    await registerPeer('peer-a');
+    await app.inject({ method: 'POST', url: '/api/register', payload: registrationPayload('peer-b', 'registration-peer-b', { geohash: near }) });
+    await app.inject({ method: 'POST', url: '/api/register', payload: registrationPayload('peer-c', 'registration-peer-c', { geohash: far }) });
+
+    const ring0 = await gridPeerIds('geohash=u10j2k');
+    assert.deepEqual(ring0.peers.map(peer => peer.id), ['peer-a']);
+    assert.equal(ring0.hasMore, true);
+    assert.deepEqual(Object.keys(ring0.peers[0]).sort(), ['avatar', 'distanceBucket', 'id', 'name']);
+    assert.equal(ring0.peers[0].distanceBucket, 'lt1');
+
+    const ring1 = await gridPeerIds('geohash=u10j2k&ring=1');
+    assert.deepEqual(ring1.peers.map(peer => peer.id), ['peer-a', 'peer-b']);
+    assert.equal(ring1.peers[1].distanceBucket, 'lt1');
+
+    const ring4 = await gridPeerIds('geohash=u10j2k&ring=4');
+    assert.deepEqual(ring4.peers.map(peer => peer.id), ['peer-a', 'peer-b', 'peer-c']);
+    assert.equal(ring4.peers[2].distanceBucket, '20-100');
+    assert.equal(ring4.hasMore, false);
+
+    assert.equal((await app.inject({ method: 'GET', url: '/api/grid?geohash=u10j2k&ring=6' })).statusCode, 400);
+    assert.equal((await app.inject({ method: 'GET', url: '/api/grid?geohash=u10' })).statusCode, 400);
+});
+
+test('stores at most a precision-6 geohash and rejects invalid ones', async () => {
+    const response = await app.inject({
+        method: 'POST',
+        url: '/api/register',
+        payload: registrationPayload('peer-a', 'registration-peer-a', { geohash: 'u10j2kxyzb' })
+    });
+    assert.equal(response.json().geohash, 'u10j2k');
+    assert.equal(store.getPeerGeohash('peer-a'), 'u10j2k');
+
+    const invalid = await app.inject({
+        method: 'POST',
+        url: '/api/register',
+        payload: registrationPayload('peer-b', 'registration-peer-b', { geohash: 'u10j2a' })
+    });
+    assert.equal(invalid.statusCode, 400);
 });
 
 test('persists and deletes encrypted queue payloads', async () => {

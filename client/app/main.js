@@ -26,6 +26,7 @@ window.onload = async () => {
         await loadCachedGridPeers();
         await loadChatPeerIds();
         await generateUserIdentityKeys();
+        await loadGridSettings();
         await registerServiceWorker();
         connectWorkerWebSocket();
         document.getElementById('chat-input').addEventListener('keydown', (event) => {

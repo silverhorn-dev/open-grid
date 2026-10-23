@@ -4,6 +4,8 @@ import { mkdirSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 
 const GRID_TTL_MS = 10 * 60 * 1000;
+const MIN_GRID_TTL_MS = 1 * 60 * 1000;
+const MAX_GRID_TTL_MS = 60 * 60 * 1000;
 const REMOVED_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const MAX_QUEUE_TTL_HOURS = 72;
 
@@ -81,6 +83,9 @@ export function createStore(databasePath) {
     if (!peerColumns.some(column => column.name === 'auth_hash')) {
         database.exec('ALTER TABLE peers ADD COLUMN auth_hash TEXT');
     }
+    if (!peerColumns.some(column => column.name === 'silent')) {
+        database.exec('ALTER TABLE peers ADD COLUMN silent INTEGER NOT NULL DEFAULT 0');
+    }
     const credentialColumns = database.prepare('PRAGMA table_info(peer_credentials)').all();
     if (!credentialColumns.some(column => column.name === 'identity_jwk')) {
         database.exec('ALTER TABLE peer_credentials ADD COLUMN identity_jwk TEXT');
@@ -88,7 +93,7 @@ export function createStore(databasePath) {
 
     const statements = {
         findPeer: database.prepare(`
-            SELECT peer_id AS peerId, registration_id AS registrationId, auth_hash AS authHash, geohash
+            SELECT peer_id AS peerId, registration_id AS registrationId, auth_hash AS authHash, geohash, silent
             FROM peers
             WHERE peer_id = ?
         `),
@@ -107,23 +112,29 @@ export function createStore(databasePath) {
             WHERE peer_id = ?
         `),
         upsertPeer: database.prepare(`
-            INSERT INTO peers (peer_id, registration_id, auth_hash, geohash, thumbnail, name, expires_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO peers (peer_id, registration_id, auth_hash, geohash, thumbnail, name, silent, expires_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(peer_id) DO UPDATE SET
                 registration_id = excluded.registration_id,
                 auth_hash = excluded.auth_hash,
                 geohash = excluded.geohash,
                 thumbnail = excluded.thumbnail,
                 name = excluded.name,
+                silent = excluded.silent,
                 expires_at = excluded.expires_at
         `),
         deletePeer: database.prepare('DELETE FROM peers WHERE peer_id = ?'),
         deletePeerRegistration: database.prepare('DELETE FROM peers WHERE peer_id = ? AND registration_id = ?'),
-        listPeers: database.prepare(`
+        // Prefix-Abfrage ueber den (geohash, expires_at)-Index: geohash >= prefix AND geohash < prefix + '~'.
+        listPeersInCell: database.prepare(`
             SELECT peer_id AS peerId, geohash, thumbnail, name
             FROM peers
-            WHERE geohash = ? AND expires_at > ?
-            ORDER BY peer_id
+            WHERE geohash >= ? AND geohash < ? AND expires_at > ? AND silent = 0
+        `),
+        listRemovedInCell: database.prepare(`
+            SELECT peer_id AS peerId
+            FROM removed_peers
+            WHERE geohash >= ? AND geohash < ? AND expires_at > ?
         `),
         upsertRemoved: database.prepare(`
             INSERT INTO removed_peers (geohash, peer_id, removed_at, expires_at)
@@ -133,12 +144,6 @@ export function createStore(databasePath) {
                 expires_at = excluded.expires_at
         `),
         deleteRemoved: database.prepare('DELETE FROM removed_peers WHERE geohash = ? AND peer_id = ?'),
-        listRemoved: database.prepare(`
-            SELECT peer_id AS peerId
-            FROM removed_peers
-            WHERE geohash = ? AND expires_at > ?
-            ORDER BY removed_at
-        `),
         deleteExpiredPeers: database.prepare('DELETE FROM peers WHERE expires_at <= ?'),
         deleteExpiredRemoved: database.prepare('DELETE FROM removed_peers WHERE expires_at <= ?'),
         insertMessage: database.prepare(`
@@ -265,7 +270,9 @@ export function createStore(databasePath) {
                     session.peerId
                 );
             }
-            if (previous && previous.geohash !== session.geohash) {
+            const silent = session.silent ? 1 : 0;
+            if (previous && !previous.silent && (previous.geohash !== session.geohash || silent)) {
+                // Tombstone, damit andere Clients den Peer aus ihrem lokalen Grid-Cache entfernen.
                 statements.upsertRemoved.run(
                     previous.geohash,
                     session.peerId,
@@ -273,6 +280,9 @@ export function createStore(databasePath) {
                     now + REMOVED_TTL_MS
                 );
             }
+            const ttlMs = Number.isFinite(session.ttlMs)
+                ? Math.min(Math.max(session.ttlMs, MIN_GRID_TTL_MS), MAX_GRID_TTL_MS)
+                : GRID_TTL_MS;
             statements.upsertPeer.run(
                 session.peerId,
                 session.registrationId,
@@ -280,9 +290,10 @@ export function createStore(databasePath) {
                 session.geohash,
                 session.thumbnail,
                 session.name,
-                now + GRID_TTL_MS
+                silent,
+                now + ttlMs
             );
-            statements.deleteRemoved.run(session.geohash, session.peerId);
+            if (!silent) statements.deleteRemoved.run(session.geohash, session.peerId);
             return true;
         });
     }
@@ -320,6 +331,10 @@ export function createStore(databasePath) {
             return statements.findPeer.get(peerId)?.geohash || null;
         },
 
+        isPeerSilent(peerId) {
+            return Boolean(statements.findPeer.get(peerId)?.silent);
+        },
+
         authenticatePeer(peerId, authHash) {
             const credential = statements.findPeerCredential.get(peerId);
             return Boolean(credential?.authHash && authHash && credential.authHash === authHash);
@@ -329,15 +344,16 @@ export function createStore(databasePath) {
             return unregisterPeerTransaction(peerId, registrationId, geohash, now);
         },
 
-        getGrid(geohash, now = Date.now()) {
+        getGridArea(cells, now = Date.now()) {
             cleanup(now);
-            const peers = statements.listPeers.all(geohash, now);
-            const activePeerIds = new Set(peers.map(peer => peer.peerId));
-            const removedPeerIds = statements.listRemoved
-                .all(geohash, now)
-                .map(record => record.peerId)
-                .filter(peerId => !activePeerIds.has(peerId));
-            return { peers, removedPeerIds };
+            const peers = new Map();
+            const removed = new Set();
+            for (const cell of cells) {
+                for (const peer of statements.listPeersInCell.all(cell, `${cell}~`, now)) peers.set(peer.peerId, peer);
+                for (const record of statements.listRemovedInCell.all(cell, `${cell}~`, now)) removed.add(record.peerId);
+            }
+            const removedPeerIds = [...removed].filter(peerId => !peers.has(peerId));
+            return { peers: [...peers.values()], removedPeerIds };
         },
 
         enqueueMessage(message, now = Date.now()) {

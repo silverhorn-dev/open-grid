@@ -7,7 +7,7 @@ export function registerSignalingRoute(app, store) {
     const notifyPeerOffline = (peerId) => {
         try {
             const geohash = store.getPeerGeohash(peerId);
-            if (!geohash) return;
+            if (!geohash || store.isPeerSilent(peerId)) return;
             const notice = JSON.stringify({ type: 'PEER_OFFLINE', peerId });
             for (const [otherPeerId, otherSocket] of activeSockets) {
                 if (otherSocket.readyState !== 1 || store.getPeerGeohash(otherPeerId) !== geohash) continue;
@@ -73,4 +73,10 @@ export function registerSignalingRoute(app, store) {
         socket.on('close', removeSocket);
         socket.on('error', removeSocket);
     });
+
+    return {
+        isPeerOnline(peerId) {
+            return activeSockets.get(peerId)?.readyState === 1;
+        }
+    };
 }

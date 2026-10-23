@@ -112,10 +112,20 @@ npm.cmd run check
 
 ## Datenhaltung
 
-- Grid-Eintraege enthalten nur Peer-ID, Geohash, Anzeigename und Thumbnail.
+- Grid-Eintraege enthalten nur Peer-ID, eine Geohash-Zelle (Praezision 6,
+  ca. 1,2 x 0,6 km), Anzeigename, Thumbnail und das Silent-Flag. Koordinaten
+  erreichen den Server nie; Grid-Antworten enthalten nur Entfernungs-Buckets.
+- Wer den Geraetestandort nicht freigeben will, kann eine Adresse eingeben.
+  Diese fragt der Browser auf Klick direkt bei OpenStreetMap Nominatim ab
+  (einzige externe Anfrage mit Standortbezug, opt-in).
+- Silent-Modus und lokale Safe Zones blenden das eigene Profil im Grid aus,
+  ohne die Erreichbarkeit fuer bestehende Chats zu verlieren.
+- Der Cloud-Cache (Pfad C) laesst sich pro Client fuer eigene Nachrichten
+  abschalten; eingehende Queue-Nachrichten kommen weiterhin an.
 - Peer-Capability-Tokens authentifizieren Queue-, Chat-Control- und
   WebSocket-Zugriffe; serverseitig wird nur ihr SHA-256-Hash gespeichert.
-- Grid-Eintraege laufen zehn Minuten nach dem letzten Heartbeat ab.
+- Grid-Eintraege laufen nach der gewaehlten Sichtbarkeitsdauer (1 bis 60
+  Minuten, Standard zehn Minuten) nach dem letzten Heartbeat ab.
 - Entfernte Peer-IDs bleiben als Tombstone bis zu 30 Tage erhalten, damit
   Clients veraltete Profil-Caches loeschen koennen.
 - Queue-Nachrichten enthalten ausschliesslich Ciphertext und IV und laufen

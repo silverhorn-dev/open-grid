@@ -307,6 +307,9 @@ async function loadChatPeerIds() {
     // Filtere geloeschte Nachrichten heraus, damit leere Chats nicht in der Liste auftauchen
     const activeMessages = messages.filter(m => !m.deleted);
 
+    state.chatPreviews = {};
+    activeMessages.forEach(message => updateChatPreview(message.peerId, message, false));
+
     state.chatPeerIds = Array.from(new Set([
         ...activeMessages.map(message => message.peerId),
         ...Object.values(state.chatControls)
@@ -396,7 +399,23 @@ async function storeChatControl(peerId, action) {
 }
 
 function persistChatMessage(peerId, message) {
+    updateChatPreview(peerId, message);
     return putDatabaseRecord('messages', { ...message, peerId });
+}
+
+// Merkt sich die neueste sichtbare Nachricht pro Chat (zurueckgehaltene zaehlen nicht).
+function updateChatPreview(peerId, message, render = true) {
+    if (!peerId || !message || message.held) return;
+    const current = state.chatPreviews[peerId];
+    const at = message.createdAt || 0;
+    if (current && current.id !== message.id && current.at > at) return;
+    state.chatPreviews[peerId] = {
+        id: message.id,
+        at,
+        mine: message.senderId === state.myProfile.id,
+        text: message.deleted ? 'Nachricht geloescht' : messagePreview(message)
+    };
+    if (render) renderActivePeerList();
 }
 
 function getChatOperations(peerId) {
@@ -562,6 +581,20 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
         const index = state.chats[peerId].findIndex(item => item.id === localOperation.messageId);
         if (index >= 0) state.chats[peerId][index] = deletedMessage;
         else state.chats[peerId].push(deletedMessage);
+    } else if (localOperation.type === 'SNAP_CONSUMED') {
+        // Nur der Empfaenger eines eigenen Einmal-Snaps darf ihn als verbraucht melden.
+        if (localOperation.actorId !== peerId) return false;
+        const ownMessage = await databaseRequest('messages', 'readonly', store => store.get(localOperation.messageId));
+        if (!ownMessage || ownMessage.peerId !== peerId || ownMessage.senderId !== state.myProfile.id
+            || ownMessage.snapMode !== 'replay') return false;
+        const loaded = state.chats[peerId]?.find(item => item.id === ownMessage.id);
+        const target = loaded || ownMessage;
+        target.snapConsumed = true;
+        if (!target.snapSaved) {
+            target.snapData = undefined;
+            await removeSnapFromOperation(target.id);
+        }
+        await persistChatMessage(peerId, target);
     } else if (localOperation.type === 'MATCH_PING' || localOperation.type === 'MATCH_RESET') {
         if (!await applyMatchOperation(peerId, localOperation)) return false;
     } else if (localOperation.type === 'MESSAGE_REACT') {

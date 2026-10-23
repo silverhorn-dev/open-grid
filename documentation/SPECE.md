@@ -183,6 +183,11 @@ Peers enthaelt. `live=1` liefert nur Peers mit aktiver WebSocket-Verbindung.
 | `300-500` | 300-500 km |
 | `gt500` | > 500 km |
 
+Sind nach einer Antwort weniger als 6 Peers sichtbar und meldet der Router
+`hasMore`, laedt der Client automatisch den naechsten Ring, hoechstens bis Ring
+3 (manuell per "Mehr laden" bis Ring 5). Ohne weitere Peers ist `hasMore`
+falsch, es entsteht keine Schleife.
+
 Alle Peers einer Zelle haben denselben Mittelpunkt. Mehrfache Abfragen von
 verschiedenen Orten liefern deshalb hoechstens die Zelle, keine genauere
 Position (Schutz gegen Trilateration).
@@ -382,7 +387,11 @@ Chats werden als idempotente Operationen synchronisiert:
   werden nicht synchronisiert.
 - Normale Snaps tragen `snapMode: 'replay'`: der Empfaenger kann sie einmal
   ansehen und einmal wiederholen (lokal `snapViews`). Danach wird `snapData`
-  in `messages` und im Operations-Log (`put:<id>`) geloescht. Mit "Speichern"
+  in `messages` und im Operations-Log (`put:<id>`) geloescht, und der
+  Empfaenger sendet die Chat-Operation `SNAP_CONSUMED { messageId }`
+  (`consumed:<id>`, P2P oder Pfad C, kein Web Push). Der Sender loescht darauf
+  seine Kopie (`snapData` und `put:`-Operation), ausser er hat den Snap selbst
+  gespeichert. Nur der Empfaenger eines eigenen Einmal-Snaps darf das melden. Mit "Speichern"
   setzt der Empfaenger lokal `snapSaved`; dann bleibt der Snap wie ein Bild im
   Chat. Secure Snaps lassen sich nie speichern. Snaps ohne `snapMode` (vor
   dieser Aenderung) bleiben dauerhaft sichtbar.

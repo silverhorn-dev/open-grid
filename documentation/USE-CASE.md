@@ -11,7 +11,8 @@ Akzeptanzkriterien:
 - Das Grid zeigt nur die aktuelle Router-Antwort.
 - Zuerst erscheint nur die eigene Zelle. "Mehr laden" erweitert das Grid
   ringweise bis ueber 500 km; der Knopf erscheint nur, wenn weitere Peers
-  existieren.
+  existieren. Ist wenig los (weniger als 6 Peers), laedt das Grid bis zu drei
+  Ringe automatisch nach.
 - Peers sind nach Entfernung gruppiert (Sehr nah, In der Naehe, In der Stadt,
   20-100 km, 100-300 km, 300-500 km, > 500 km). Genaue Entfernungen oder
   Standorte anderer Peers sind nie sichtbar.
@@ -290,7 +291,12 @@ Akzeptanzkriterien:
 - Auf jede Nachricht (auch eigene) kann geantwortet werden; die Antwort
   zeigt ein Zitat, ein Klick darauf springt zur Originalnachricht.
 - Reaktionen mit einem von sechs Emojis; dieselbe Reaktion erneut entfernt
-  sie. Reaktionen werden synchronisiert.
+  sie. Reaktionen werden synchronisiert und sitzen gut lesbar auf der unteren
+  Kante der Nachricht.
+- Die Kontaktleiste zeigt links Avatar mit Online-Punkt, Name und Status
+  ("online", "offline", "hat den Chat offen"); rechts nur Suche und ein Menue
+  mit Medien, Profil, Chat loeschen und Blockieren.
+- Die Chatliste zeigt pro Chat die letzte Nachricht mit Uhrzeit, neueste oben.
 - Nachrichten lassen sich lokal markieren; die Suche kann auf markierte
   Nachrichten beschraenkt werden.
 - Die Aktionen (Antworten, Reagieren, Markieren, Loeschen) sitzen als Leiste
@@ -317,7 +323,8 @@ Akzeptanzkriterien:
   "Nochmal" und "Senden".
 - Die Kamera wird beim Schliessen immer freigegeben.
 - Ein normaler Snap laesst sich einmal ansehen und einmal wiederholen; danach
-  ist er weg. Mit "Speichern" bleibt er dauerhaft im Chat. Secure Snaps
+  ist er weg, auch beim Sender. Mit "Speichern" bleibt er dauerhaft im Chat;
+  das koennen Empfaenger und Sender jeweils fuer sich. Secure Snaps
   lassen sich nicht speichern.
 - Snaps passen immer in Pfad C. Laeuft die Queue-TTL ab, bevor der
   Empfaender sie abholt, sieht der Sender einen Hinweis; die Nachricht geht

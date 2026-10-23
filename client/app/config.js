@@ -105,6 +105,8 @@ const state = {
     peerIdentityKeys: {},
     cacheFetchInFlight: false,
     chatPeerIds: [],
+    // Letzte sichtbare Nachricht pro Chat fuer die Chatliste: { text, at, mine }.
+    chatPreviews: {},
     chatControls: {},
     pendingImageRequests: {},
     debugLogBuffer: [],

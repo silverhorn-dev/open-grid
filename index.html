@@ -186,32 +186,34 @@
                             <i class="fa-solid fa-arrow-left"></i>
                         </button>
                         <div class="flex items-center gap-3 min-w-0 cursor-pointer hover:opacity-80 transition" onclick="if(state.activeChatPeerId) openProfileModal(state.activeChatPeerId)" title="Profil anzeigen">
-                            <div id="chat-peer-avatar" class="w-10 h-10 shrink-0 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-slate-400 overflow-hidden">?</div>
+                            <div class="relative shrink-0">
+                                <div id="chat-peer-avatar" class="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-slate-400 overflow-hidden">?</div>
+                                <span id="chat-peer-online-dot" class="hidden absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-slate-900" title="Online"></span>
+                            </div>
                             <div class="min-w-0">
                                 <div id="chat-peer-name" class="font-bold text-sm text-slate-200 truncate">Kein Chat ausgewaehlt</div>
+                                <div id="chat-peer-status" class="debug-off-only text-xs text-slate-400 truncate" aria-live="polite"></div>
                                 <div id="chat-connection-type" class="debug-only text-xs font-mono text-slate-400 truncate">Select a peer from the Grid</div>
                             </div>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2 shrink-0">
-                        <button onclick="openChatMediaOverview()" class="w-8 h-8 rounded-lg text-slate-300 hover:bg-slate-800 flex items-center justify-center" title="Medien im Chat" aria-label="Medien im Chat">
-                            <i class="fa-regular fa-images"></i>
-                        </button>
-                        <button onclick="toggleChatSearch()" class="w-8 h-8 rounded-lg text-slate-300 hover:bg-slate-800 flex items-center justify-center" title="Im Chat suchen" aria-label="Im Chat suchen">
-                            <i class="fa-solid fa-magnifying-glass"></i>
-                        </button>
-                        <button id="delete-chat-btn" onclick="deleteActiveChat()" class="hidden text-xs px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-800 text-slate-300 hover:text-red-300 hover:border-red-800 transition" title="Chat loeschen">
-                            <i class="fa-solid fa-trash md:hidden"></i><span class="hidden md:inline">Chat loeschen</span>
-                        </button>
-                        <button id="block-peer-btn" onclick="toggleActivePeerBlock()" class="hidden text-xs px-2.5 py-1.5 rounded-lg border border-red-800 bg-red-950/60 text-red-300 hover:bg-red-900/80 transition">
-                            Blockieren
-                        </button>
-                        <div id="chat-peer-indicator" class="debug-off-only flex items-center" aria-live="polite">
-                            <span id="chat-peer-indicator-dot" class="hidden w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
-                            <span id="chat-peer-indicator-eyes" class="hidden text-base leading-none" role="img" aria-label="Hat den Chat geoeffnet">&#128064;</span>
-                        </div>
+                    <div class="flex items-center gap-1 shrink-0">
                         <div id="connection-status-pill" class="debug-only text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-400 font-mono">
                             Disconnected
+                        </div>
+                        <button onclick="toggleChatSearch()" class="w-9 h-9 rounded-lg text-slate-300 hover:bg-slate-800 flex items-center justify-center" title="Im Chat suchen" aria-label="Im Chat suchen">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                        </button>
+                        <div class="relative">
+                            <button id="chat-header-menu-btn" onclick="toggleChatHeaderMenu(event)" class="w-9 h-9 rounded-lg text-slate-300 hover:bg-slate-800 flex items-center justify-center" title="Mehr" aria-label="Weitere Aktionen" aria-haspopup="menu" aria-expanded="false">
+                                <i class="fa-solid fa-ellipsis-vertical"></i>
+                            </button>
+                            <div id="chat-header-menu" class="hidden absolute right-0 top-full mt-1 z-30 w-48 py-1 rounded-xl border border-slate-700 bg-slate-900 shadow-xl" role="menu">
+                                <button onclick="closeChatHeaderMenu(); openChatMediaOverview()" class="chat-menu-item" role="menuitem"><i class="fa-regular fa-images"></i> Medien</button>
+                                <button onclick="closeChatHeaderMenu(); if (state.activeChatPeerId) openProfileModal(state.activeChatPeerId)" class="chat-menu-item" role="menuitem"><i class="fa-regular fa-user"></i> Profil</button>
+                                <button id="delete-chat-btn" onclick="closeChatHeaderMenu(); deleteActiveChat()" class="hidden chat-menu-item text-red-300" role="menuitem"><i class="fa-solid fa-trash"></i> Chat loeschen</button>
+                                <button id="block-peer-btn" onclick="closeChatHeaderMenu(); toggleActivePeerBlock()" class="hidden chat-menu-item text-red-300" role="menuitem"><i class="fa-solid fa-ban"></i> <span id="block-peer-label">Blockieren</span></button>
+                            </div>
                         </div>
                     </div>
                 </div>

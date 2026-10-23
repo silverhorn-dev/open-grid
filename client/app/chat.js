@@ -291,7 +291,7 @@ function updateChatActionButtons() {
     const blocked = isPeerBlocked(peerId);
     deleteButton.classList.toggle('hidden', blocked);
     blockButton.classList.remove('hidden');
-    blockButton.textContent = blocked ? 'Entblocken' : 'Blockieren';
+    document.getElementById('block-peer-label').textContent = blocked ? 'Entblocken' : 'Blockieren';
     input.disabled = blocked;
     sendButton.disabled = blocked;
     if (blocked) {
@@ -571,8 +571,12 @@ function renderChatHistory() {
         bubbleWrap.appendChild(bubble);
         if (!message.deleted) bubbleWrap.appendChild(renderMessageActions(message, isMine, row));
         row.append(bubbleWrap);
-        const reactions = renderReactions(message);
-        if (reactions) row.appendChild(reactions);
+        // Reaktionen sitzen auf der unteren Kante der Nachricht.
+        const reactions = renderReactions(message, isMine);
+        if (reactions) {
+            bubbleWrap.appendChild(reactions);
+            row.classList.add('has-reactions');
+        }
         row.appendChild(meta);
         container.appendChild(row);
     });
@@ -741,7 +745,7 @@ function toggleReactionPicker(anchor, messageId) {
     anchor.closest('[id^="chat-message-"]').appendChild(picker);
 }
 
-function renderReactions(message) {
+function renderReactions(message, isMine) {
     const entries = Object.entries(message.reactions || {}).filter(([, reaction]) => reaction?.emoji);
     if (!entries.length || message.deleted) return null;
     const counts = new Map();
@@ -752,11 +756,12 @@ function renderReactions(message) {
         counts.set(reaction.emoji, item);
     });
     const row = document.createElement('div');
-    row.className = 'flex gap-1 -mt-1.5 px-2';
+    // Eigene Nachrichten: unten links, fremde: unten rechts (Richtung Bildschirmmitte).
+    row.className = `message-reactions absolute -bottom-4 ${isMine ? 'left-2' : 'right-2'} z-[5] flex gap-1`;
     counts.forEach(({ count, mine }, emoji) => {
         const chip = document.createElement('button');
         chip.type = 'button';
-        chip.className = `text-[11px] px-1.5 py-0.5 rounded-full border ${mine ? 'bg-brand-500/20 border-brand-500/50' : 'bg-slate-900 border-slate-700'}`;
+        chip.className = `text-sm leading-none px-2 py-1 rounded-full border shadow ${mine ? 'bg-brand-900 border-brand-500/60' : 'bg-slate-900 border-slate-700'}`;
         chip.textContent = count > 1 ? `${emoji} ${count}` : emoji;
         chip.onclick = () => reactToMessage(message.id, emoji);
         row.appendChild(chip);
@@ -852,20 +857,35 @@ function isSecureChannelOpen(peerId) {
     return state.dataChannels[peerId]?.readyState === 'open' && Boolean(state.sessionKeys[peerId]);
 }
 
-// Ausserhalb des Debug-Modus: gruener Punkt = E2EE-Kanal steht, Augen = Gegenueber hat den Chat offen.
+// Kontaktleiste: Online-Punkt am Avatar, darunter "online", "offline" oder "hat den Chat offen".
 function renderChatPeerIndicator() {
-    const indicator = document.getElementById('chat-peer-indicator');
-    if (!indicator) return;
+    const dot = document.getElementById('chat-peer-online-dot');
+    const status = document.getElementById('chat-peer-status');
+    if (!dot || !status) return;
     const peerId = state.activeChatPeerId;
-    const connected = Boolean(peerId) && isSecureChannelOpen(peerId);
-    const online = Boolean(peerId) && isPeerOnline(peerId);
-    const watching = connected && Boolean(state.peerChatFocus[peerId]);
-    const dot = document.getElementById('chat-peer-indicator-dot');
-    const eyes = document.getElementById('chat-peer-indicator-eyes');
-    dot.classList.toggle('hidden', !online || watching);
-    eyes.classList.toggle('hidden', !watching);
-    indicator.title = watching ? 'Hat den Chat geoeffnet' : online ? 'Online' : '';
+    const online = Boolean(peerId) && isPeerOnline(peerId) && !isPeerBlocked(peerId);
+    const watching = online && isSecureChannelOpen(peerId) && Boolean(state.peerChatFocus[peerId]);
+    dot.classList.toggle('hidden', !online);
+    status.textContent = !peerId ? '' : watching ? '\u{1F440} hat den Chat offen' : online ? 'online' : 'offline';
+    status.classList.toggle('text-emerald-400', online);
+    status.classList.toggle('text-slate-400', !online);
 }
+
+function toggleChatHeaderMenu(event) {
+    event?.stopPropagation();
+    const menu = document.getElementById('chat-header-menu');
+    const open = menu.classList.toggle('hidden') === false;
+    document.getElementById('chat-header-menu-btn').setAttribute('aria-expanded', String(open));
+}
+
+function closeChatHeaderMenu() {
+    document.getElementById('chat-header-menu')?.classList.add('hidden');
+    document.getElementById('chat-header-menu-btn')?.setAttribute('aria-expanded', 'false');
+}
+
+document.addEventListener('click', event => {
+    if (!event.target.closest?.('#chat-header-menu')) closeChatHeaderMenu();
+});
 
 function isChatVisibleFor(peerId) {
     return Boolean(peerId)
@@ -919,7 +939,7 @@ function renderReplaySnapMessage(bubble, message, isMine) {
     title.textContent = 'Snap';
     const meta = document.createElement('div');
     meta.className = 'opacity-75 text-[11px]';
-    if (isMine) meta.textContent = 'Gesendet · Tippen zum Ansehen';
+    if (isMine) meta.textContent = available ? 'Gesendet · Tippen zum Ansehen' : 'Angesehen';
     else if (!available) meta.textContent = 'Abgelaufen';
     else meta.textContent = views === 0 ? 'Tippen zum Ansehen' : 'Tippen zum Wiederholen (1x)';
     details.append(title, meta);
@@ -951,15 +971,16 @@ function openReplaySnap(messageId) {
     const image = document.getElementById('secure-snap-image');
     image.src = message.snapData;
     image.classList.remove('hidden');
+    // Auch der Sender kann seinen eigenen Snap behalten.
     const save = document.getElementById('secure-snap-save');
-    save.classList.toggle('hidden', isMine);
+    save.classList.remove('hidden');
     save.disabled = false;
     save.textContent = 'Speichern';
 }
 
 async function saveReplaySnap() {
     const viewing = state.secureSnapViewing;
-    if (viewing?.mode !== 'replay' || viewing.isMine) return;
+    if (viewing?.mode !== 'replay') return;
     const message = state.chats[viewing.peerId]?.find(item => item.id === viewing.messageId);
     if (!message) return;
     message.snapSaved = true;
@@ -977,12 +998,29 @@ async function finishReplaySnapView(viewing) {
     const message = state.chats[viewing.peerId]?.find(item => item.id === viewing.messageId);
     if (!message || message.snapSaved) return;
     message.snapViews = (message.snapViews || 0) + 1;
-    if (message.snapViews >= REPLAY_SNAP_MAX_VIEWS) {
+    const consumed = message.snapViews >= REPLAY_SNAP_MAX_VIEWS;
+    if (consumed) {
         message.snapData = undefined;
         await removeSnapFromOperation(message.id);
     }
     await persistChatMessage(viewing.peerId, message);
     if (state.activeChatPeerId === viewing.peerId) renderChatHistory();
+    // Dem Sender mitteilen, dass der Snap verbraucht ist: er loescht dann seine Kopie.
+    if (consumed) await sendSnapConsumed(viewing.peerId, message.id);
+}
+
+async function sendSnapConsumed(peerId, messageId) {
+    const operation = {
+        operationId: `consumed:${messageId}`,
+        peerId,
+        type: 'SNAP_CONSUMED',
+        messageId,
+        actorId: state.myProfile.id,
+        createdAt: Date.now()
+    };
+    await persistChatOperation(operation);
+    const { peerId: _localPeerId, ...sharedOperation } = operation;
+    await sendSecurePayload(peerId, { type: 'CHAT_OPERATION', operation: sharedOperation });
 }
 // Snaps muessen auch ueber Pfad C passen (Queue-Limit 100 KB Ciphertext), daher max. ca. 70 KB als Data-URL.
 const SNAP_MAX_EDGE = 1080;

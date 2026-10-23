@@ -39,8 +39,9 @@ html.debug-on .debug-off-only {
 @media (hover: none) {
     /* Unter #chat-messages, damit die zur Laufzeit geladenen Tailwind-Klassen nicht gewinnen. */
     /* Zu: nur der kleine Pfeil in der oberen Ecke der Nachricht (eigene rechts, fremde links). */
-    #chat-messages .message-actions,
-    #chat-messages .chat-bubble-wrap:hover .message-actions {
+    /* Ohne :hover-Variante: :hover bleibt auf Touch nach dem Tippen haengen und waere
+       spezifischer als die "offen"-Regeln (transparente Leiste). */
+    #chat-messages .message-actions {
         opacity: 1;
         pointer-events: auto;
         top: 0.25rem;
@@ -97,6 +98,11 @@ html.debug-on .debug-off-only {
 #chat-pull-refresh.is-ready { color: #fb7185; }
 #chat-pull-refresh.is-ready i { transform: rotate(180deg); }
 
+/* Platz unter Nachrichten mit Reaktionen (die Chips ueberlappen die untere Kante). */
+#chat-messages > .has-reactions .chat-bubble-wrap {
+    margin-bottom: 1.25rem;
+}
+
 #chat-messages > [id^="chat-message-"] {
     padding-top: 0.75rem;
 }
@@ -136,6 +142,29 @@ html.debug-on .debug-off-only {
     color: #94a3b8;
 }
 .nav-bottom-btn.is-active { color: #fb7185; }
+
+/* styles.css laedt nach dem Tailwind-CSS: eigene display-Regeln wuerden sonst .hidden
+   ueberschreiben (z. B. Grid-Knopf im Modus "Nur Chat"). */
+.chat-menu-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.625rem 0.875rem;
+    font-size: 0.8125rem;
+    text-align: left;
+    color: #e2e8f0;
+}
+.chat-menu-item:hover { background: #1e293b; }
+.chat-menu-item i { width: 1rem; text-align: center; }
+.chat-menu-item.text-red-300 { color: #fca5a5; }
+
+.chat-menu-item.hidden,
+.nav-top-btn.hidden,
+.nav-bottom-btn.hidden,
+.menu-item.hidden {
+    display: none;
+}
 
 /* Platz fuer die feste Bottom-Navigation auf Smartphones.
    !important, weil das zur Laufzeit eingefuegte Tailwind-CSS (p-4) sonst gewinnt. */

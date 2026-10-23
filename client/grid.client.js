@@ -16,7 +16,7 @@ async function fetchServerTime() {
 async function loadMoreGrid() {
     if (state.appMode !== 'discovery' || state.gridRing >= MAX_GRID_RING) return;
     state.gridRing += 1;
-    const loaded = await fetchPeersFromWorkerGrid();
+    const loaded = await fetchGridRing();
     if (!loaded) state.gridRing -= 1;
 }
 
@@ -109,6 +109,15 @@ function renderDiscoveryGrid() {
     });
 }
 
+// Heute: Uhrzeit, sonst Datum.
+function formatChatListTime(timestamp) {
+    const date = new Date(timestamp);
+    const today = new Date();
+    return date.toDateString() === today.toDateString()
+        ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        : date.toLocaleDateString([], { day: '2-digit', month: '2-digit' });
+}
+
 function renderActivePeerList() {
     const container = document.getElementById('active-peers-list');
     const count = document.getElementById('active-peers-count');
@@ -119,7 +128,10 @@ function renderActivePeerList() {
     // Fuege den aktiven Peer temporaer hinzu, falls der Chat gerade erst ueber das Grid gestartet wurde.
     const activeSet = new Set(state.chatPeerIds);
     if (state.activeChatPeerId) activeSet.add(state.activeChatPeerId);
-    const peerIds = Array.from(activeSet).filter(peerId => !isPeerBlocked(peerId) && !hiddenList.includes(peerId));
+    // Neueste Unterhaltung oben.
+    const peerIds = Array.from(activeSet)
+        .filter(peerId => !isPeerBlocked(peerId) && !hiddenList.includes(peerId))
+        .sort((left, right) => (state.chatPreviews[right]?.at || 0) - (state.chatPreviews[left]?.at || 0));
 
     count.textContent = peerIds.length;
     container.innerHTML = '';
@@ -166,13 +178,50 @@ function renderActivePeerList() {
                 : state.peers.some(candidate => candidate.id === peer.id)
                     ? 'Router entry'
                     : 'Offline';
-        details.append(name, status);
+        const preview = state.chatPreviews[peer.id];
+        const previewLine = document.createElement('div');
+        previewLine.className = 'flex items-center gap-2 text-[11px] text-slate-400';
+        const previewText = document.createElement('span');
+        previewText.className = 'truncate flex-1';
+        previewText.textContent = preview ? `${preview.mine ? 'Du: ' : ''}${preview.text}` : (hasReceivedFlame(peer.id) ? 'Hat dir eine Flamme geschickt' : '');
+        previewLine.appendChild(previewText);
+        if (preview?.at) {
+            const time = document.createElement('span');
+            time.className = 'shrink-0 text-slate-500';
+            time.textContent = formatChatListTime(preview.at);
+            previewLine.appendChild(time);
+        }
+        details.append(name, previewLine, status);
         button.append(avatar, details);
         container.appendChild(button);
     });
 }
 
+// Wenig los in der Naehe: naechste Ringe automatisch laden, hoechstens bis Ring 3 und nur,
+// solange der Router weitere Peers meldet (hasMore). Ohne Peers gibt es so keine Schleife.
+const GRID_AUTO_EXPAND_MIN_PEERS = 6;
+const MAX_AUTO_GRID_RING = 3;
+
+function shouldAutoExpandGrid({ appMode, hasMore, peerCount, ring }) {
+    return appMode === 'discovery' && hasMore && peerCount < GRID_AUTO_EXPAND_MIN_PEERS && ring < MAX_AUTO_GRID_RING;
+}
+
 async function fetchPeersFromWorkerGrid() {
+    let loaded = await fetchGridRing();
+    while (loaded && shouldAutoExpandGrid({
+        appMode: state.appMode,
+        hasMore: state.gridHasMore,
+        peerCount: state.peers.length,
+        ring: state.gridRing
+    })) {
+        state.gridRing += 1;
+        loaded = await fetchGridRing();
+        if (!loaded) state.gridRing -= 1;
+    }
+    return loaded;
+}
+
+async function fetchGridRing() {
     if (state.gridFetchInFlight || !isGridAvailable()) return false;
     state.gridFetchInFlight = true;
     const refreshButton = document.getElementById('refresh-grid-btn');

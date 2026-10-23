@@ -1,10 +1,27 @@
+/* Farben als Variablen ("r g b"), von Tailwind (slate, brand) und den Regeln unten genutzt.
+   Standard: dunkel + Rose. .theme-light tauscht die slate-Skala, theme.js setzt die Akzentfarbe. */
+:root {
+    --slate-50: 248 250 252; --slate-100: 241 245 249; --slate-200: 226 232 240; --slate-300: 203 213 225;
+    --slate-400: 148 163 184; --slate-500: 100 116 139; --slate-600: 71 85 105; --slate-700: 51 65 85;
+    --slate-800: 30 41 59; --slate-900: 15 23 42; --slate-950: 2 6 23;
+    --brand-50: 255 241 242; --brand-100: 255 228 230; --brand-200: 254 205 211; --brand-300: 253 164 175;
+    --brand-400: 251 113 133; --brand-500: 244 63 94; --brand-600: 225 29 72; --brand-700: 190 18 60;
+    --brand-800: 159 18 57; --brand-900: 136 19 55; --brand-950: 76 5 25;
+}
+/* Hell: Seite hellgrau, Karten weiss, Text dunkel (slate-Skala umgekehrt). */
+:root.theme-light {
+    --slate-50: 2 6 23; --slate-100: 15 23 42; --slate-200: 30 41 59; --slate-300: 51 65 85;
+    --slate-400: 71 85 105; --slate-500: 100 116 139; --slate-600: 148 163 184; --slate-700: 203 213 225;
+    --slate-800: 226 232 240; --slate-900: 255 255 255; --slate-950: 241 245 249;
+}
+
 ::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #0f172a; }
-::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #475569; }
+::-webkit-scrollbar-track { background: rgb(var(--slate-900)); }
+::-webkit-scrollbar-thumb { background: rgb(var(--slate-700)); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgb(var(--slate-600)); }
 
 .pulse-glow {
-    box-shadow: 0 0 15px rgba(244, 63, 94, 0.4);
+    box-shadow: 0 0 15px rgb(var(--brand-500) / 0.4);
 }
 .blur-overlay {
     backdrop-filter: blur(12px);
@@ -61,8 +78,8 @@ html.debug-on .debug-off-only {
     #chat-messages .actions-open .message-actions {
         top: -1.25rem;
         padding: 0.125rem 0.25rem;
-        background: rgb(15 23 42 / 0.95);
-        border-color: #334155;
+        background: rgb(var(--slate-900) / 0.95);
+        border-color: rgb(var(--slate-700));
         box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.4);
     }
     #chat-messages .actions-open .is-mine .message-actions { right: 0; }
@@ -72,7 +89,7 @@ html.debug-on .debug-off-only {
         width: 2.25rem;
         height: 2.25rem;
         font-size: 0.875rem;
-        background: #1e293b;
+        background: rgb(var(--slate-800));
     }
     #chat-messages .actions-open .message-actions-toggle i { transform: rotate(180deg); }
 }
@@ -95,7 +112,7 @@ html.debug-on .debug-off-only {
         -webkit-touch-callout: none;
     }
 }
-#chat-pull-refresh.is-ready { color: #fb7185; }
+#chat-pull-refresh.is-ready { color: rgb(var(--brand-400)); }
 #chat-pull-refresh.is-ready i { transform: rotate(180deg); }
 
 /* Platz unter Nachrichten mit Reaktionen (die Chips ueberlappen die untere Kante). */
@@ -108,7 +125,7 @@ html.debug-on .debug-off-only {
 }
 
 .chat-message-highlight > div:first-of-type {
-    outline: 2px solid rgb(244 63 94 / 0.6);
+    outline: 2px solid rgb(var(--brand-500) / 0.6);
     outline-offset: 2px;
     transition: outline-color 0.3s;
 }
@@ -121,11 +138,11 @@ html.debug-on .debug-off-only {
     padding: 0.5rem 0.875rem;
     border-radius: 0.5rem;
     font-weight: 500;
-    color: #94a3b8;
+    color: rgb(var(--slate-400));
     transition: background-color 150ms, color 150ms;
 }
-.nav-top-btn:hover { color: #e2e8f0; background: #1e293b; }
-.nav-top-btn.is-active { color: #fb7185; background: rgba(244, 63, 94, 0.1); }
+.nav-top-btn:hover { color: rgb(var(--slate-200)); background: rgb(var(--slate-800)); }
+.nav-top-btn.is-active { color: rgb(var(--brand-400)); background: rgb(var(--brand-500) / 0.1); }
 
 .bottom-nav {
     padding-bottom: env(safe-area-inset-bottom);
@@ -139,9 +156,9 @@ html.debug-on .debug-off-only {
     min-height: 3.5rem;
     font-size: 0.6875rem;
     font-weight: 600;
-    color: #94a3b8;
+    color: rgb(var(--slate-400));
 }
-.nav-bottom-btn.is-active { color: #fb7185; }
+.nav-bottom-btn.is-active { color: rgb(var(--brand-400)); }
 
 /* styles.css laedt nach dem Tailwind-CSS: eigene display-Regeln wuerden sonst .hidden
    ueberschreiben (z. B. Grid-Knopf im Modus "Nur Chat"). */
@@ -153,9 +170,9 @@ html.debug-on .debug-off-only {
     padding: 0.625rem 0.875rem;
     font-size: 0.8125rem;
     text-align: left;
-    color: #e2e8f0;
+    color: rgb(var(--slate-200));
 }
-.chat-menu-item:hover { background: #1e293b; }
+.chat-menu-item:hover { background: rgb(var(--slate-800)); }
 .chat-menu-item i { width: 1rem; text-align: center; }
 .chat-menu-item.text-red-300 { color: #fca5a5; }
 
@@ -193,19 +210,19 @@ html.debug-on .debug-off-only {
     gap: 0.75rem;
     padding: 0.75rem;
     border-radius: 0.75rem;
-    color: #e2e8f0;
+    color: rgb(var(--slate-200));
     text-align: left;
     transition: background-color 150ms;
 }
-.menu-item:hover { background: #1e293b; }
+.menu-item:hover { background: rgb(var(--slate-800)); }
 .toggle-pill {
     font-size: 0.625rem;
     font-family: ui-monospace, monospace;
     padding: 0.125rem 0.5rem;
     border-radius: 9999px;
-    border: 1px solid #334155;
-    background: #1e293b;
-    color: #94a3b8;
+    border: 1px solid rgb(var(--slate-700));
+    background: rgb(var(--slate-800));
+    color: rgb(var(--slate-400));
 }
 .toggle-pill.is-on {
     border-color: #b45309;
@@ -235,4 +252,12 @@ html.debug-on .debug-off-only {
     #view-chat.chat-open .chat-input-bar {
         padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
     }
+}
+
+/* Farbrad fuer die Akzentfarbe (Winkel = Farbton, Abstand zur Mitte = Saettigung) */
+.accent-wheel {
+    background:
+        radial-gradient(circle closest-side, rgb(255 255 255 / 0.85), rgb(255 255 255 / 0) 100%),
+        conic-gradient(hsl(0 90% 57%), hsl(60 90% 57%), hsl(120 90% 57%), hsl(180 90% 57%), hsl(240 90% 57%), hsl(300 90% 57%), hsl(360 90% 57%));
+    touch-action: none;
 }

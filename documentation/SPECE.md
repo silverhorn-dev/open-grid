@@ -25,6 +25,15 @@
   und die Tailwind-Konfiguration.
 - Der Server liefert nur Dateien aus der festen Liste `clientAssetFiles` in
   `server/app.js` aus; neue Client-Dateien muessen dort eingetragen werden.
+- Thema und Akzentfarbe (`client/app/theme.js`, im `<head>` geladen, damit
+  nichts aufflackert): `localStorage` `opengrid-theme` (`system`, `light`,
+  `dark`) und `opengrid-accent` (`{ hue, saturation }`). Tailwind bezieht
+  `slate` und `brand` aus CSS-Variablen (`rgb(var(--slate-500) / <alpha>)`,
+  `tailwind.config.cjs`); `:root` enthaelt die dunklen Standardwerte,
+  `:root.theme-light` eine angepasste helle slate-Skala (Seite hellgrau,
+  Karten weiss, Text dunkel). Die Akzentpalette 50-950 wird aus Farbton und
+  Saettigung per HSL berechnet. Einstellung: Farbrad (Winkel = Farbton,
+  Abstand zur Mitte = Saettigung) plus Vorgaben, "Standard" setzt zurueck.
 - Schriftgroesse im Chat: `localStorage` `opengrid-chat-font-size`
   (`small` 13 px, `normal` 15 px, `large` 17 px, `xlarge` 19 px) setzt die
   CSS-Variable `--chat-font-size`.

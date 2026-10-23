@@ -539,3 +539,18 @@ Akzeptanzkriterien:
 - Der Server kennt nur einen Hash des Codes.
 - Nach 12 Stunden oder per "Event verlassen" endet die Teilnahme; danach
   gilt wieder der vorherige Modus.
+
+## UC-35: Farben und Hell/Dunkel
+
+**Als Nutzer** moechte ich die App farblich an meinen Geschmack anpassen.
+
+Akzentfarbe und Thema gelten pro Geraet.
+
+Akzeptanzkriterien:
+
+- In den Einstellungen gibt es "System", "Hell" und "Dunkel"; "System" folgt
+  der Einstellung des Geraets.
+- Die Akzentfarbe wird in einem runden Farbrad gewaehlt (ziehen) oder aus
+  Vorgaben; "Standard" stellt die urspruengliche Farbe wieder her.
+- Thema und Akzentfarbe gelten sofort und auch nach einem Neustart, ohne
+  Aufflackern.

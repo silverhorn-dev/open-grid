@@ -50,6 +50,7 @@ const clientAssetFiles = [
     'styles.css',
     'tailwind.css',
     'icon.svg',
+    'app/theme.js',
     'app/config.js',
     'app/storage.js',
     'app/profile.js',

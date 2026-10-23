@@ -21,6 +21,7 @@ window.onload = async () => {
     window.addEventListener('offline', updateConnectivityBanner);
     updateConnectivityBanner();
     renderAppearanceSettings();
+    initThemeSettings();
     document.addEventListener('keydown', event => {
         if (event.key === 'Escape') closeMenu();
     });

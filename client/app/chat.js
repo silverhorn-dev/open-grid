@@ -686,7 +686,7 @@ function renderMessageActions(message, isMine, row) {
         toggleMessageActions(row);
     };
     if (!isMine) actions.appendChild(toggle);
-    const addAction = (iconClass, title, onClick, extraClass = 'hover:text-white hover:bg-slate-800') => {
+    const addAction = (iconClass, title, onClick, extraClass = 'hover:text-slate-50 hover:bg-slate-800') => {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = `message-action w-9 h-9 rounded-full flex items-center justify-center text-base transition ${extraClass}`;

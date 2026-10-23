@@ -17,6 +17,8 @@
     <link rel="apple-touch-icon" href="/client/icon-180.png">
 
     <link rel="stylesheet" href="/client/styles.css?v={{assetVersion}}">
+    <!-- Thema und Akzentfarbe vor dem ersten Rendern setzen (kein Aufflackern) -->
+    <script src="/client/app/theme.js?v={{assetVersion}}"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col antialiased select-none">
 
@@ -285,7 +287,7 @@
                             <label class="text-xs font-bold text-slate-400">Profilbild (Avatar)</label>
                             <div class="w-24 h-24 rounded-xl bg-slate-950 border border-slate-800 overflow-hidden relative group shrink-0">
                                 <img id="edit-avatar-preview" src="" class="w-full h-full object-cover">
-                                <label class="absolute inset-0 bg-slate-950/60 hidden group-hover:flex flex-col items-center justify-center cursor-pointer text-white transition">
+                                <label class="absolute inset-0 bg-black/60 hidden group-hover:flex flex-col items-center justify-center cursor-pointer text-white transition">
                                     <i class="fa-solid fa-upload text-xl mb-1"></i>
                                     <span class="text-[9px] uppercase tracking-wider font-bold">Aendern</span>
                                     <input type="file" accept="image/*" class="hidden" onchange="handleAvatarUpload(this)">
@@ -479,6 +481,24 @@
                             <option value="xlarge">Sehr gross</option>
                         </select>
                     </label>
+                    <div class="flex flex-wrap items-center gap-2 text-xs text-slate-300">
+                        <span>Thema:</span>
+                        <div class="flex gap-1 p-1 rounded-xl bg-slate-950 border border-slate-800" role="group" aria-label="Thema">
+                            <button type="button" data-theme-mode="system" onclick="setThemeMode('system')" class="px-3 py-1.5 rounded-lg font-semibold">System</button>
+                            <button type="button" data-theme-mode="light" onclick="setThemeMode('light')" class="px-3 py-1.5 rounded-lg font-semibold">Hell</button>
+                            <button type="button" data-theme-mode="dark" onclick="setThemeMode('dark')" class="px-3 py-1.5 rounded-lg font-semibold">Dunkel</button>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-4">
+                        <div id="accent-wheel" class="accent-wheel relative w-32 h-32 rounded-full cursor-crosshair shadow-inner border border-slate-700" role="slider" aria-label="Akzentfarbe waehlen">
+                            <span id="accent-wheel-handle" class="absolute w-6 h-6 -ml-3 -mt-3 rounded-full border-[3px] border-white shadow-lg pointer-events-none"></span>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="text-xs text-slate-300">Akzentfarbe: im Kreis ziehen oder waehlen</div>
+                            <div id="accent-presets" class="grid grid-cols-4 gap-2"></div>
+                            <button type="button" onclick="setAccent(null)" class="text-[11px] text-slate-400 hover:text-slate-200 underline">Standard</button>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">

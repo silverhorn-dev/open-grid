@@ -28,10 +28,37 @@ async function registerServiceWorker() {
     navigator.serviceWorker.startMessages();
     try {
         state.serviceWorkerRegistration = await navigator.serviceWorker.register('/sw.js');
+        watchServiceWorkerUpdates(state.serviceWorkerRegistration);
     } catch (error) {
         logDebug(`Service worker registration failed: ${error.message}`);
     }
     updatePushStatus();
+}
+
+// Neue Version: nie automatisch umschalten (laufende Sitzung bleibt heil), sondern anbieten.
+function watchServiceWorkerUpdates(registration) {
+    const offerUpdate = () => {
+        if (registration.waiting && navigator.serviceWorker.controller) {
+            document.getElementById('update-banner')?.classList.remove('hidden');
+        }
+    };
+    offerUpdate();
+    registration.addEventListener('updatefound', () => {
+        registration.installing?.addEventListener('statechange', offerUpdate);
+    });
+    let reloading = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!state.updateRequested || reloading) return;
+        reloading = true;
+        window.location.reload();
+    });
+}
+
+function activateServiceWorkerUpdate() {
+    const waiting = state.serviceWorkerRegistration?.waiting;
+    if (!waiting) return;
+    state.updateRequested = true;
+    waiting.postMessage({ type: 'ACTIVATE_UPDATE' });
 }
 
 function handleServiceWorkerMessage(event) {

@@ -229,7 +229,12 @@ function isProfileShareable(profile) {
 // Was der Router zu sehen bekommt.
 function getRegistrationIdentity() {
     if (getMyVisibility() === 3) return { name: '', thumbnail: null };
-    return { name: state.myProfile.fields.displayName || 'Peer', thumbnail: state.myProfile.avatar };
+    // Nur echte Bilder an den Router, keine externen Platzhalter-URLs alter Profile.
+    const avatar = state.myProfile.avatar;
+    return {
+        name: state.myProfile.fields.displayName || 'Peer',
+        thumbnail: typeof avatar === 'string' && avatar.startsWith('data:image/') ? avatar : null
+    };
 }
 
 function displayNameFor(peerId) {

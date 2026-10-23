@@ -104,6 +104,12 @@ npm.cmd install
 npm.cmd start
 ```
 
+`npm start` und `npm test` kompilieren vorher automatisch das Tailwind-CSS
+(`npm run build:css` -> `client/tailwind.css`, nicht eingecheckt). Neue
+Tailwind-Klassen in `index.html` oder `client/**/*.js` brauchen einen neuen
+Build. Die App laedt zur Laufzeit nichts von externen CDNs und funktioniert
+nach dem ersten Aufruf auch offline.
+
 Tests:
 
 ```powershell

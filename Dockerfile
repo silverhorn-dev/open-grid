@@ -1,7 +1,11 @@
 FROM node:22-bookworm-slim AS dependencies
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm ci
+# Tailwind vorab kompilieren (kein CDN zur Laufzeit), danach Dev-Abhaengigkeiten entfernen.
+COPY tailwind.config.cjs index.html ./
+COPY client ./client
+RUN npm run build:css && npm prune --omit=dev
 
 FROM node:22-bookworm-slim
 ENV NODE_ENV=production \
@@ -16,6 +20,7 @@ RUN groupadd --system --gid 10001 opengrid \
 COPY --from=dependencies --chown=opengrid:opengrid /app/node_modules ./node_modules
 COPY --chown=opengrid:opengrid package.json index.html ./
 COPY --chown=opengrid:opengrid client ./client
+COPY --from=dependencies --chown=opengrid:opengrid /app/client/tailwind.css ./client/tailwind.css
 COPY --chown=opengrid:opengrid server ./server
 USER opengrid
 EXPOSE 3000

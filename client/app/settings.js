@@ -529,3 +529,22 @@ function renderAppearanceSettings() {
     const select = document.getElementById('chat-font-size-select');
     if (select) select.value = loadChatFontSize();
 }
+
+// ================= OFFLINE-HINWEIS =================
+// Kurze Aussetzer (Reconnect nach 5 s) zeigen keinen Hinweis.
+const OFFLINE_BANNER_DELAY_MS = 4000;
+
+function updateConnectivityBanner() {
+    const banner = document.getElementById('offline-banner');
+    if (!banner) return;
+    clearTimeout(state.offlineBannerTimer);
+    const connected = navigator.onLine && state.ws?.readyState === WebSocket.OPEN;
+    if (connected) {
+        banner.classList.add('hidden');
+        return;
+    }
+    state.offlineBannerTimer = setTimeout(() => {
+        const stillOffline = !navigator.onLine || state.ws?.readyState !== WebSocket.OPEN;
+        banner.classList.toggle('hidden', !stillOffline);
+    }, navigator.onLine ? OFFLINE_BANNER_DELAY_MS : 0);
+}

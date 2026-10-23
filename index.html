@@ -8,17 +8,28 @@
     <meta name="description" content="Zero-Server E2EE P2P LGBTQ+ Discovery Platform">
 
     <!-- PWA Web App Manifest (Inline Data URI) -->
-    <link rel="manifest" href="data:application/manifest+json;utf8,%7B%22name%22%3A%22OpenGrid%22%2C%22short_name%22%3A%22OpenGrid%22%2C%22start_url%22%3A%22%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230f172a%22%2C%22theme_color%22%3A%22%230f172a%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22https%3A%2F%2Fplacehold.co%2F192x192%2Ff43f5e%2Fffffff%3Ftext%3DOG%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fpng%22%7D%5D%7D">
+    <link rel="manifest" href="data:application/manifest+json;utf8,%7B%22name%22%3A%22OpenGrid%22%2C%22short_name%22%3A%22OpenGrid%22%2C%22start_url%22%3A%22%2Fgrid%22%2C%22scope%22%3A%22%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230f172a%22%2C%22theme_color%22%3A%22%230f172a%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22%2Fclient%2Ficon.svg%22%2C%22sizes%22%3A%22any%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%2C%22purpose%22%3A%22any%20maskable%22%7D%5D%7D">
 
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="/client/app/tailwind.config.js?v={{assetVersion}}"></script>
-    <!-- FontAwesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Tailwind (vorab kompiliert, npm run build:css) und Font Awesome: lokal, offline nutzbar -->
+    <link rel="stylesheet" href="/client/tailwind.css?v={{assetVersion}}">
+    <link rel="stylesheet" href="/vendor/fontawesome/css/all.min.css">
+    <link rel="icon" href="/client/icon.svg?v={{assetVersion}}" type="image/svg+xml">
 
     <link rel="stylesheet" href="/client/styles.css?v={{assetVersion}}">
 </head>
 <body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col antialiased select-none">
+
+    <!-- Verbindungs- und Update-Hinweise -->
+    <div class="fixed top-0 inset-x-0 z-[58] flex flex-col items-center gap-2 px-4 pointer-events-none" style="padding-top: max(0.5rem, env(safe-area-inset-top));">
+        <div id="offline-banner" class="hidden pointer-events-auto max-w-md w-full bg-amber-950/95 border border-amber-800 text-amber-100 text-xs rounded-xl px-3 py-2 shadow-lg flex items-center gap-2">
+            <i class="fa-solid fa-plug-circle-xmark"></i>
+            <span>Offline. Deine Chats sind lokal verfuegbar; neue Nachrichten kommen, sobald du wieder verbunden bist.</span>
+        </div>
+        <div id="update-banner" class="hidden pointer-events-auto max-w-md w-full bg-slate-900/95 border border-brand-500/50 text-slate-100 text-xs rounded-xl px-3 py-2 shadow-lg flex items-center justify-between gap-3">
+            <span><i class="fa-solid fa-arrows-rotate text-brand-400"></i> Eine neue Version ist bereit.</span>
+            <button onclick="activateServiceWorkerUpdate()" class="bg-brand-600 hover:bg-brand-500 text-white font-semibold px-3 py-1.5 rounded-lg">Aktualisieren</button>
+        </div>
+    </div>
 
     <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full px-4"></div>
 
@@ -261,7 +272,7 @@
                         <div class="space-y-2">
                             <label class="text-xs font-bold text-slate-400">Profilbild (Avatar)</label>
                             <div class="w-24 h-24 rounded-xl bg-slate-950 border border-slate-800 overflow-hidden relative group shrink-0">
-                                <img id="edit-avatar-preview" src="https://placehold.co/300x300/f43f5e/ffffff?text=Alex" class="w-full h-full object-cover">
+                                <img id="edit-avatar-preview" src="" class="w-full h-full object-cover">
                                 <label class="absolute inset-0 bg-slate-950/60 hidden group-hover:flex flex-col items-center justify-center cursor-pointer text-white transition">
                                     <i class="fa-solid fa-upload text-xl mb-1"></i>
                                     <span class="text-[9px] uppercase tracking-wider font-bold">Aendern</span>

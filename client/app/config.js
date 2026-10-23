@@ -1,4 +1,15 @@
 const DEBUG_MODE_STORAGE_KEY = 'opengrid-debug-mode';
+
+// Lokaler Platzhalter statt externer Bild-Dienste (offline nutzbar, keine IP an Dritte).
+const AVATAR_PLACEHOLDER = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#1e293b"/>'
+    + '<circle cx="50" cy="38" r="18" fill="#475569"/><path d="M16 92c4-20 18-30 34-30s30 10 34 30z" fill="#475569"/></svg>'
+);
+
+// Alte Profile koennen noch eine externe Platzhalter-URL als Avatar haben.
+function localAvatar(avatar) {
+    return typeof avatar === 'string' && avatar.startsWith('data:image/') ? avatar : AVATAR_PLACEHOLDER;
+}
 const CONFIG = { DEBUG_MODE: loadDebugModePreference(), DEFAULT_GEOHASH: 'u10j2k' };
 document.documentElement.classList.toggle('debug-on', CONFIG.DEBUG_MODE);
 
@@ -37,7 +48,7 @@ const state = {
     myProfile: {
         id: null,
         geohash: CONFIG.DEFAULT_GEOHASH,
-        avatar: 'https://placehold.co/300x300/f43f5e/ffffff?text=Alex',
+        avatar: null,
         fields: { displayName: 'Alex', age: 26, role: 'Versatile', bio: 'Privacy-first tech enthusiast!' },
         gallery: [],
         version: 1,
@@ -94,6 +105,7 @@ const state = {
     albums: {},
     albumViewer: null,
     pendingAlbumRequests: {},
+    mediaOverviewFilter: 'all',
     albumKeys: {},
     pendingAlbumKeyRequests: {},
     snapSettings: { secureSnaps: false, views: 1, seconds: 10 },
@@ -102,6 +114,8 @@ const state = {
     pendingSnapTracks: {},
     serverTime: null,
     serviceWorkerRegistration: null,
+    updateRequested: false,
+    offlineBannerTimer: null,
     persistedRouterAuthToken: null,
     pushSubscriptionSynced: false
 };

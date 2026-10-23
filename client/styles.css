@@ -37,23 +37,43 @@ html.debug-on .debug-off-only {
 }
 .message-actions-toggle { display: none; }
 @media (hover: none) {
-    .message-actions,
-    .chat-bubble-wrap:hover .message-actions {
+    /* Unter #chat-messages, damit die zur Laufzeit geladenen Tailwind-Klassen nicht gewinnen. */
+    /* Zu: nur der kleine Pfeil in der oberen Ecke der Nachricht (eigene rechts, fremde links). */
+    #chat-messages .message-actions,
+    #chat-messages .chat-bubble-wrap:hover .message-actions {
         opacity: 1;
         pointer-events: auto;
+        top: 0.25rem;
+        padding: 0;
         background: transparent;
         border-color: transparent;
         box-shadow: none;
     }
-    .message-actions .message-action { display: none; }
-    .message-actions-toggle { display: flex; }
-    .actions-open .message-actions {
+    #chat-messages .is-mine .message-actions { right: 0.25rem; }
+    #chat-messages .is-theirs .message-actions { left: 0.25rem; }
+    #chat-messages .message-actions .message-action { display: none; }
+    #chat-messages .message-actions-toggle { display: flex; }
+    /* Platz fuer den Pfeil, damit der Text nicht darunter liegt. */
+    #chat-messages .is-mine .chat-bubble { padding-right: 2rem; }
+    #chat-messages .is-theirs .chat-bubble { padding-left: 2rem; }
+    /* Offen: die Leiste sitzt halb ueber der Nachricht, der Pfeil bleibt das aeussere Element. */
+    #chat-messages .actions-open .message-actions {
+        top: -1.25rem;
+        padding: 0.125rem 0.25rem;
         background: rgb(15 23 42 / 0.95);
         border-color: #334155;
         box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.4);
     }
-    .actions-open .message-actions .message-action { display: flex; }
-    .actions-open .message-actions-toggle i { transform: rotate(180deg); }
+    #chat-messages .actions-open .is-mine .message-actions { right: 0; }
+    #chat-messages .actions-open .is-theirs .message-actions { left: 0; }
+    #chat-messages .actions-open .message-actions .message-action { display: flex; }
+    #chat-messages .actions-open .message-actions-toggle {
+        width: 2.25rem;
+        height: 2.25rem;
+        font-size: 0.875rem;
+        background: #1e293b;
+    }
+    #chat-messages .actions-open .message-actions-toggle i { transform: rotate(180deg); }
 }
 #chat-messages > [id^="chat-message-"] {
     padding-top: 0.75rem;

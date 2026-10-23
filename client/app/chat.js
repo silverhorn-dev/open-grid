@@ -45,7 +45,7 @@ function openProfileModal(peerId) {
     pushModalEntry('profile', hideProfileModal);
     document.getElementById('modal-profile-name').textContent = peer.name || HIDDEN_PEER_NAME;
     document.getElementById('modal-profile-id').textContent = peer.id;
-    document.getElementById('modal-profile-img').src = peer.avatar || 'https://placehold.co/300x300/1e293b/ffffff?text=%3F';
+    document.getElementById('modal-profile-img').src = localAvatar(peer.avatar);
     renderProfileMatchActions(peerId);
 
     // SOFORTIGES LEEREN der alten Galerie, bevor neue Daten eintreffen
@@ -229,7 +229,7 @@ async function openChatWithPeer(peerId) {
     const avatar = document.getElementById('chat-peer-avatar');
     avatar.innerHTML = '';
     const image = document.createElement('img');
-    image.src = peer.avatar || 'https://placehold.co/80x80/1e293b/ffffff?text=P';
+    image.src = localAvatar(peer.avatar);
     image.alt = '';
     image.className = 'w-full h-full object-cover';
     avatar.appendChild(image);
@@ -566,7 +566,7 @@ function renderChatHistory() {
         }
         // Bubble + Aktionsleiste, die zur Haelfte ueber der Nachricht sitzt.
         const bubbleWrap = document.createElement('div');
-        bubbleWrap.className = `chat-bubble-wrap relative max-w-[80%] flex ${isMine ? 'justify-end' : 'justify-start'}`;
+        bubbleWrap.className = `chat-bubble-wrap ${isMine ? 'is-mine' : 'is-theirs'} relative max-w-[80%] flex ${isMine ? 'justify-end' : 'justify-start'}`;
         bubble.classList.remove('max-w-[80%]');
         bubbleWrap.appendChild(bubble);
         if (!message.deleted) bubbleWrap.appendChild(renderMessageActions(message, isMine, row));
@@ -674,7 +674,7 @@ function renderMessageActions(message, isMine, row) {
     actions.className = `message-actions absolute -top-5 ${isMine ? 'right-0' : 'left-0'} z-10 flex items-center gap-0.5 rounded-full border border-slate-700 bg-slate-900/95 px-1 py-0.5 shadow-lg text-slate-300`;
     const toggle = document.createElement('button');
     toggle.type = 'button';
-    toggle.className = 'message-actions-toggle w-9 h-9 rounded-full items-center justify-center text-sm text-slate-300 bg-slate-800 border border-slate-700';
+    toggle.className = 'message-actions-toggle w-6 h-6 rounded-full items-center justify-center text-[10px] text-slate-200 bg-black/25';
     toggle.setAttribute('aria-label', 'Aktionen ein- oder ausblenden');
     toggle.innerHTML = '<i class="fa-solid fa-chevron-down transition-transform"></i>';
     toggle.onclick = event => {

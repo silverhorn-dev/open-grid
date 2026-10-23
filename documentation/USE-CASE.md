@@ -295,9 +295,9 @@ Akzeptanzkriterien:
   Nachrichten beschraenkt werden.
 - Die Aktionen (Antworten, Reagieren, Markieren, Loeschen) sitzen als Leiste
   mit gut treffbaren Knoepfen halb ueber der Nachricht. Am Desktop erscheinen
-  sie beim Hovern. Auf Touch-Geraeten sitzt ein Pfeil an der oberen Ecke der
-  Nachricht (eigene rechts, fremde links); er ist das aeussere Element der
-  Leiste und klappt sie auf und wieder zu. Die Leiste ist bei eigenen Nachrichten rechtsbuendig, bei fremden
+  sie beim Hovern. Auf Touch-Geraeten sitzt ein kleiner Pfeil in der oberen
+  Ecke der Nachricht (eigene rechts, fremde links); der Text macht ihm Platz.
+  Er ist das aeussere Element der Leiste und klappt sie auf und wieder zu. Die Leiste ist bei eigenen Nachrichten rechtsbuendig, bei fremden
   linksbuendig, und ragt nie aus dem Bildschirm.
 - Die Schriftgroesse der Nachrichten ist in den Einstellungen waehlbar.
 - Die Suche filtert den aktuellen Chat lokal nach Text.
@@ -330,6 +330,7 @@ Akzeptanzkriterien:
 Akzeptanzkriterien:
 
 - Ein Knopf im Chat-Kopf zeigt alle Snaps und geteilten Alben des Chats.
+- Ein Umschalter filtert nach "Beide", "Eigene" oder "Andere".
 - Ein Klick oeffnet das Bild gross beziehungsweise das Album.
 
 ## UC-22: Private Alben teilen und entziehen
@@ -456,3 +457,18 @@ Akzeptanzkriterien:
   Empfaenger signiert und wird von anderen Clients nicht weitergegeben
   (Swarm-Profile nur fuer oeffentliche Stufe).
 - Matches sehen immer alles.
+
+## UC-29: App offline nutzen
+
+**Als Nutzer** moechte ich die installierte App auch ohne Netz oeffnen und
+meine Chats lesen.
+
+Akzeptanzkriterien:
+
+- Nach dem ersten Aufruf startet die App auch im Flugmodus vollstaendig
+  (Layout, Icons, alle Seiten wie `/chat/<id>`).
+- Ohne Verbindung erscheint ein Hinweis; lokale Chats, Profile und Medien
+  bleiben nutzbar. Nachrichten gehen raus, sobald wieder Verbindung besteht.
+- Eine neue Version wird nie mitten in der Sitzung aktiviert. Die App zeigt
+  "Eine neue Version ist bereit" mit Knopf "Aktualisieren".
+- Zur Laufzeit werden keine externen CDNs oder Bilddienste geladen.

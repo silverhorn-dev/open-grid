@@ -1,6 +1,6 @@
 import Fastify from 'fastify';
 import websocket from '@fastify/websocket';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import crypto, { createHash, randomBytes } from 'node:crypto';
@@ -15,6 +15,7 @@ import {
     gridRingCells,
     isGeohash
 } from './geohash.js';
+import { MAX_PUSH_PLAINTEXT_BYTES, createPushSender, generateVapidKeys } from './push.js';
 
 const MAX_GRID_RESULTS = 100;
 const DEFAULT_MEDIA_KEY_EPOCH_MINUTES = 5;
@@ -26,7 +27,6 @@ export function parseMediaKeyEpochMinutes(value) {
     if (!Number.isFinite(minutes) || minutes < 1) return DEFAULT_MEDIA_KEY_EPOCH_MINUTES;
     return Math.min(Math.floor(minutes), MAX_MEDIA_KEY_EPOCH_MINUTES);
 }
-import { MAX_PUSH_PLAINTEXT_BYTES, createPushSender, generateVapidKeys } from './push.js';
 
 const serverDirectory = dirname(fileURLToPath(import.meta.url));
 const projectDirectory = join(serverDirectory, '..');
@@ -37,7 +37,8 @@ const clientAssetFiles = [
     'grid.client.js',
     'p2p.client.js',
     'styles.css',
-    'app/tailwind.config.js',
+    'tailwind.css',
+    'icon.svg',
     'app/config.js',
     'app/storage.js',
     'app/profile.js',
@@ -91,6 +92,27 @@ function loadVapidKeys(store) {
     return JSON.parse(store.getOrCreateSetting('vapid-keys', () => JSON.stringify(generateVapidKeys())));
 }
 
+const FONT_AWESOME_DIRECTORY = join(projectDirectory, 'node_modules', '@fortawesome', 'fontawesome-free');
+const FONT_CONTENT_TYPES = { '.woff2': 'font/woff2', '.ttf': 'font/ttf' };
+
+async function loadVendorAssets() {
+    const assets = new Map();
+    assets.set('/vendor/fontawesome/css/all.min.css', {
+        contentType: 'text/css; charset=utf-8',
+        body: await readFile(join(FONT_AWESOME_DIRECTORY, 'css', 'all.min.css'))
+    });
+    for (const file of await readdir(join(FONT_AWESOME_DIRECTORY, 'webfonts'))) {
+        const extension = file.slice(file.lastIndexOf('.'));
+        // Moderne Browser laden nur woff2; ttf bleibt als Fallback der CSS-Datei erreichbar.
+        if (!FONT_CONTENT_TYPES[extension]) continue;
+        assets.set(`/vendor/fontawesome/webfonts/${file}`, {
+            contentType: FONT_CONTENT_TYPES[extension],
+            body: await readFile(join(FONT_AWESOME_DIRECTORY, 'webfonts', file))
+        });
+    }
+    return assets;
+}
+
 export async function buildApp(options = {}) {
     const app = Fastify({
         logger: options.logger ?? false,
@@ -112,11 +134,23 @@ export async function buildApp(options = {}) {
     const buildTimestamp = options.buildTimestamp || process.env.BUILD_TIMESTAMP || new Date().toISOString();
     const assetVersion = encodeURIComponent(`${buildVersion}-${buildTimestamp}`);
     const profileSchema = options.profileSchema || parseProfileSchema(process.env.PROFILE_SCHEMA);
-    const [indexTemplate, serviceWorker, ...clientAssetSources] = await Promise.all([
+    const [indexTemplate, serviceWorkerTemplate, ...clientAssetSources] = await Promise.all([
         readFile(join(projectDirectory, 'index.html'), 'utf8'),
         readFile(join(projectDirectory, 'client', 'sw.js'), 'utf8'),
         ...clientAssetFiles.map(file => readFile(join(projectDirectory, 'client', file), 'utf8'))
     ]);
+    const vendorAssets = await loadVendorAssets();
+    // Alles, was die App-Shell offline braucht. Der Service Worker laedt die Liste beim
+    // Installieren in einen eigenen Cache und prueft jede Antwort.
+    const precacheUrls = [
+        '/',
+        ...clientAssetFiles.map(file => `/client/${file}?v=${assetVersion}`),
+        // Schriften: nur woff2, die ttf-Varianten laedt kein aktueller Browser.
+        ...[...vendorAssets.keys()].filter(path => !path.endsWith('.ttf'))
+    ];
+    const serviceWorker = serviceWorkerTemplate
+        .replace('__ASSET_VERSION__', assetVersion)
+        .replace('__PRECACHE_URLS__', JSON.stringify(precacheUrls));
     const vapidKeys = options.vapidKeys || loadVapidKeys(store);
     const vapidSubject = options.vapidSubject || process.env.VAPID_SUBJECT || 'mailto:admin@localhost';
     if (!options.pushSender && !process.env.VAPID_SUBJECT) {
@@ -195,12 +229,22 @@ export async function buildApp(options = {}) {
     });
 
     for (const [path, source] of clientAssets) {
-        const contentType = path.endsWith('.css') ? 'text/css' : 'text/javascript';
+        const contentType = path.endsWith('.css') ? 'text/css' : path.endsWith('.svg') ? 'image/svg+xml' : 'text/javascript';
         app.get(path, async (_request, reply) => {
             return reply
                 .type(`${contentType}; charset=utf-8`)
                 .header('Cache-Control', 'no-cache')
                 .send(source);
+        });
+    }
+
+    // Font Awesome aus node_modules statt vom CDN (offline nutzbar, keine IP an Dritte).
+    for (const [path, asset] of vendorAssets) {
+        app.get(path, async (_request, reply) => {
+            return reply
+                .type(asset.contentType)
+                .header('Cache-Control', 'public, max-age=604800')
+                .send(asset.body);
         });
     }
 

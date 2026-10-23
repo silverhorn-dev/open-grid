@@ -142,6 +142,29 @@ test('reports the server time and the media key epoch', async () => {
     assert.equal(parseMediaKeyEpochMinutes('999999'), 10080);
 });
 
+test('serves the app offline-ready without external CDNs', async () => {
+    const index = await app.inject({ method: 'GET', url: '/' });
+    assert.doesNotMatch(index.body, /cdn\.tailwindcss\.com|cdnjs\.cloudflare\.com|placehold\.co/);
+    assert.match(index.body, /\/client\/tailwind\.css\?v=/);
+    assert.match(index.body, /\/vendor\/fontawesome\/css\/all\.min\.css/);
+
+    const worker = await app.inject({ method: 'GET', url: '/sw.js' });
+    assert.doesNotMatch(worker.body, /__ASSET_VERSION__|__PRECACHE_URLS__/);
+    const precache = JSON.parse(worker.body.match(/const PRECACHE_URLS = (\[.*?\]);/)[1]);
+    assert.ok(precache.includes('/'));
+    assert.ok(precache.some(url => url.startsWith('/client/tailwind.css?v=')));
+    assert.ok(precache.some(url => url.endsWith('.woff2')));
+    assert.ok(!precache.some(url => url.endsWith('.ttf')));
+
+    // Jede vorab gecachte Datei muss ausgeliefert werden.
+    for (const url of precache) {
+        const response = await app.inject({ method: 'GET', url });
+        assert.equal(response.statusCode, 200, url);
+    }
+    const font = await app.inject({ method: 'GET', url: precache.find(url => url.endsWith('.woff2')) });
+    assert.equal(font.headers['content-type'], 'font/woff2');
+});
+
 test('serves the app shell for client routes', async () => {
     for (const url of ['/grid', '/chat', '/chat/peer-a', '/profile', '/settings', '/cloud']) {
         const response = await app.inject({ method: 'GET', url });
@@ -169,7 +192,7 @@ test('serves the app shell and all client modules', async () => {
     for (const path of assetPaths) {
         const response = await app.inject({ method: 'GET', url: path });
         assert.equal(response.statusCode, 200, path);
-        assert.match(response.headers['content-type'], path.endsWith('.css') ? /text\/css/ : /text\/javascript/);
+        assert.match(response.headers['content-type'], path.endsWith('.css') ? /text\/css/ : path.endsWith('.svg') ? /image\/svg\+xml/ : /text\/javascript/);
         assert.ok(response.body.length > 100, path);
         appSource += response.body;
     }

@@ -16,6 +16,9 @@ window.onload = async () => {
     window.addEventListener('popstate', handlePopState);
     initImageViewer();
     initSecureSnaps();
+    window.addEventListener('online', updateConnectivityBanner);
+    window.addEventListener('offline', updateConnectivityBanner);
+    updateConnectivityBanner();
     renderAppearanceSettings();
     document.addEventListener('keydown', event => {
         if (event.key === 'Escape') closeMenu();

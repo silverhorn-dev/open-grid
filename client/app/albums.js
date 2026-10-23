@@ -351,15 +351,38 @@ function createLockedTile() {
 }
 
 // Medienuebersicht des aktiven Chats: alle Snaps und geteilten Alben.
-function openChatMediaOverview() {
+const MEDIA_FILTERS = [
+    { id: 'all', label: 'Beide' },
+    { id: 'mine', label: 'Eigene' },
+    { id: 'theirs', label: 'Andere' }
+];
+
+function openChatMediaOverview(filter = state.mediaOverviewFilter || 'all') {
     const peerId = state.activeChatPeerId;
     if (!peerId) return;
+    state.mediaOverviewFilter = filter;
     const content = openMediaModal('Medien im Chat');
-    const messages = (state.chats[peerId] || []).filter(message => !message.deleted);
+    // Filter: alle, nur eigene oder nur die des Chat-Partners.
+    const switcher = document.createElement('div');
+    switcher.className = 'flex gap-1 p-1 mb-3 rounded-xl bg-slate-950 border border-slate-800 text-xs w-fit';
+    MEDIA_FILTERS.forEach(option => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `px-3 py-1.5 rounded-lg font-semibold transition ${option.id === filter ? 'bg-brand-600 text-white' : 'text-slate-400 hover:text-slate-200'}`;
+        button.textContent = option.label;
+        button.onclick = () => openChatMediaOverview(option.id);
+        switcher.appendChild(button);
+    });
+    content.appendChild(switcher);
+    const messages = (state.chats[peerId] || []).filter(message => !message.deleted && !message.held
+        && (filter === 'all' || (filter === 'mine') === (message.senderId === state.myProfile.id)));
     const snaps = messages.filter(isInlineSnap);
     const albums = messages.filter(message => message.album);
     if (!snaps.length && !albums.length) {
-        renderMediaModalMessage('In diesem Chat wurden noch keine Bilder geteilt.');
+        const note = document.createElement('div');
+        note.className = 'text-center text-sm text-slate-400 py-10';
+        note.textContent = filter === 'all' ? 'In diesem Chat wurden noch keine Bilder geteilt.' : 'Keine Bilder in dieser Auswahl.';
+        content.appendChild(note);
         return;
     }
     const addSection = (title, build) => {

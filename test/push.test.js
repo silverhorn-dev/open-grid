@@ -283,6 +283,8 @@ test('serves the service worker from the root scope without automatic skipWaitin
     assert.match(response.body, /addEventListener\('push'/);
     assert.match(response.body, /acknowledgeQueuedMessage/);
     assert.match(response.body, /tag: 'opengrid-messages'/);
-    assert.doesNotMatch(response.body, /self\.skipWaiting\(/);
+    // skipWaiting nur auf ausdruecklichen Wunsch des Nutzers (Update-Banner), nie automatisch.
+    assert.equal(response.body.match(/self\.skipWaiting\(/g).length, 1);
+    assert.match(response.body, /if \(event\.data\?\.type === 'ACTIVATE_UPDATE'\) self\.skipWaiting\(\);/);
     assert.doesNotMatch(response.body, /\bwindow\.|\bdocument\./);
 });

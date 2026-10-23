@@ -1,6 +1,13 @@
-// OpenGrid Service Worker: empfaengt Web Pushes fuer Pfad C.
+// OpenGrid Service Worker: App-Shell offline ausliefern und Web Pushes fuer Pfad C empfangen.
 // Kein DOM, kein localStorage. Alles Noetige liegt in IndexedDB.
-// skipWaiting() wird bewusst nie automatisch aufgerufen (siehe AGENT.md).
+// skipWaiting() wird bewusst nie automatisch aufgerufen (siehe AGENT.md), nur auf Wunsch des Nutzers.
+
+// Vom Server beim Ausliefern eingesetzt (server/app.js).
+const ASSET_VERSION = '__ASSET_VERSION__';
+const PRECACHE_URLS = __PRECACHE_URLS__;
+const CACHE_PREFIX = 'opengrid-shell-';
+const SHELL_CACHE = `${CACHE_PREFIX}${ASSET_VERSION}`;
+const NAVIGATION_TIMEOUT_MS = 3000;
 
 const DB_NAME = 'OpenGridDB_Live';
 const NETWORK_TIMEOUT_MS = 5000;
@@ -295,6 +302,80 @@ async function resubscribe(event) {
         signal: AbortSignal.timeout(NETWORK_TIMEOUT_MS)
     });
 }
+
+// ================= OFFLINE (App-Shell) =================
+// Installation laedt alle Dateien in einen versionierten Cache und prueft jede Antwort.
+// Schlaegt eine fehl, scheitert die Installation und der bisherige Worker bleibt aktiv.
+async function precacheShell() {
+    const cache = await caches.open(SHELL_CACHE);
+    try {
+        await Promise.all(PRECACHE_URLS.map(async url => {
+            const response = await fetch(url, { cache: 'reload', credentials: 'same-origin' });
+            if (!response.ok || response.type !== 'basic') throw new Error(`Precache failed for ${url}: ${response.status}`);
+            await cache.put(url, response);
+        }));
+    } catch (error) {
+        await caches.delete(SHELL_CACHE);
+        throw error;
+    }
+}
+
+self.addEventListener('install', event => {
+    event.waitUntil(precacheShell());
+});
+
+// Erst nach der Aktivierung (erste Installation oder Update auf Wunsch) alte Caches entfernen.
+self.addEventListener('activate', event => {
+    event.waitUntil((async () => {
+        const names = await caches.keys();
+        await Promise.all(names
+            .filter(name => name.startsWith(CACHE_PREFIX) && name !== SHELL_CACHE)
+            .map(name => caches.delete(name)));
+        await self.clients.claim();
+    })());
+});
+
+// Der Nutzer hat "Aktualisieren" gewaehlt.
+self.addEventListener('message', event => {
+    if (event.data?.type === 'ACTIVATE_UPDATE') self.skipWaiting();
+});
+
+function withTimeout(promise, timeoutMs) {
+    return Promise.race([
+        promise,
+        new Promise((_resolve, reject) => setTimeout(() => reject(new Error('Network timeout')), timeoutMs))
+    ]);
+}
+
+// Seiten (/grid, /chat/..., ...): Netzwerk zuerst, offline die gecachte App-Shell.
+async function handleNavigation(request) {
+    try {
+        return await withTimeout(fetch(request), NAVIGATION_TIMEOUT_MS);
+    } catch {
+        const cache = await caches.open(SHELL_CACHE);
+        const shell = await cache.match('/');
+        return shell || Response.error();
+    }
+}
+
+// Versionierte Dateien: Cache zuerst, sonst Netzwerk.
+async function handleAsset(request) {
+    const cached = await caches.match(request, { cacheName: SHELL_CACHE });
+    return cached || fetch(request);
+}
+
+self.addEventListener('fetch', event => {
+    const { request } = event;
+    if (request.method !== 'GET') return;
+    const url = new URL(request.url);
+    // Nur eigene Seiten und Dateien; API, WebSocket und Fremd-URLs laufen ungecacht durch.
+    if (url.origin !== self.location.origin || url.pathname.startsWith('/api/') || url.pathname === '/ws') return;
+    if (request.mode === 'navigate') {
+        event.respondWith(handleNavigation(request));
+    } else if (url.pathname.startsWith('/client/') || url.pathname.startsWith('/vendor/')) {
+        event.respondWith(handleAsset(request));
+    }
+});
 
 self.addEventListener('push', event => {
     event.waitUntil(handlePush(event));

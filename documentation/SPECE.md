@@ -567,7 +567,34 @@ Der Service Worker:
   "Neue Nachrichten" ohne Name und Text, mit festem Tag `opengrid-messages`,
   sodass auch mehrere Nachrichten nur eine Meldung ergeben
 - nutzt fuer Netzwerkzugriffe ein Timeout von 5 Sekunden
-- ruft `skipWaiting()` nie automatisch auf
+- ruft `skipWaiting()` nie automatisch auf, nur nach `ACTIVATE_UPDATE` von der
+  Seite (Nutzer tippt im Update-Hinweis auf "Aktualisieren")
+
+### 9.1 Offline (App-Shell)
+
+Der Server setzt beim Ausliefern von `/sw.js` die Asset-Version und die
+Precache-Liste ein (`__ASSET_VERSION__`, `__PRECACHE_URLS__`): `/`, alle
+`clientAssetFiles` mit `?v=<Version>`, Font-Awesome-CSS und die woff2-Schriften.
+
+- `install`: alle URLs in den Cache `opengrid-shell-<Version>` laden; jede
+  Antwort muss `ok` und same-origin sein, sonst wird der Cache verworfen und
+  die Installation scheitert (der bisherige Worker bleibt aktiv).
+- `activate`: alte `opengrid-shell-*`-Caches loeschen, `clients.claim()`.
+- `fetch`: Seitenaufrufe (`/grid`, `/chat/<id>`, ...) zuerst ueber das Netz
+  (3 s Timeout), offline die gecachte App-Shell; `/client/*` und `/vendor/*`
+  zuerst aus dem Cache; `/api/*`, `/ws` und fremde URLs ungecacht.
+- Wartet ein neuer Worker, zeigt die Seite "Eine neue Version ist bereit"
+  mit Knopf; nach `controllerchange` laedt sie neu.
+- Ohne Verbindung (Browser offline oder WebSocket laenger als 4 s getrennt)
+  zeigt die Seite einen Offline-Hinweis; Chats, Profile und Medien kommen
+  aus IndexedDB.
+
+Externe Abhaengigkeiten zur Laufzeit gibt es keine mehr: Tailwind wird mit
+`npm run build:css` (Tailwind-CLI 3, `tailwind.config.cjs`) nach
+`client/tailwind.css` kompiliert (Docker-Build, `prestart`, `pretest`); Font
+Awesome kommt aus `node_modules/@fortawesome/fontawesome-free` unter
+`/vendor/fontawesome/*`; Platzhalterbilder und App-Icon (`client/icon.svg`)
+sind lokal.
 
 Ein Klick auf die Benachrichtigung fokussiert die App und oeffnet den Chat
 (`OPEN_CHAT`) oder startet sie mit `/?chat=<peerId>`.

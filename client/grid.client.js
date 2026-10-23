@@ -56,7 +56,7 @@ function renderDiscoveryGrid() {
             heading.textContent = DISTANCE_BUCKET_LABELS[currentBucket] || currentBucket;
             container.appendChild(heading);
         }
-        const avatarSrc = peer.avatar ? peer.avatar : 'https://placehold.co/300x300/1e293b/ffffff?text=Peer';
+        const avatarSrc = localAvatar(peer.avatar);
         const card = document.createElement('button');
         card.type = 'button';
         card.className = 'text-left bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden cursor-pointer hover:border-brand-500/60 hover:-translate-y-0.5 transition group shadow-lg focus:outline-none focus:ring-2 focus:ring-brand-500';
@@ -129,7 +129,7 @@ function renderActivePeerList() {
         const avatar = document.createElement('div');
         avatar.className = 'relative shrink-0';
         const image = document.createElement('img');
-        image.src = peer.avatar || 'https://placehold.co/80x80/1e293b/ffffff?text=P';
+        image.src = localAvatar(peer.avatar);
         image.alt = '';
         image.className = 'w-10 h-10 rounded-full object-cover border border-slate-700';
         avatar.appendChild(image);
@@ -224,6 +224,7 @@ function connectWorkerWebSocket() {
         state.ws = new WebSocket(WS_URL);
         state.ws.onopen = async () => {
             logDebug('Connected to Worker Signaling');
+            updateConnectivityBanner();
             const registered = await registerWithWorkerGrid();
             if (!registered) {
                 document.getElementById('network-status-text').textContent = 'Registration failed';
@@ -249,6 +250,7 @@ function connectWorkerWebSocket() {
             document.getElementById('network-status-text').textContent = 'Signaling error';
         };
         state.ws.onclose = () => {
+            updateConnectivityBanner();
             document.getElementById('network-indicator').className = 'w-2.5 h-2.5 rounded-full bg-red-500';
             document.getElementById('network-status-text').textContent = 'Reconnecting';
             if (state.shouldReconnect) setTimeout(connectWorkerWebSocket, 5000);

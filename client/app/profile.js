@@ -77,7 +77,7 @@ function renderProfileForm(containerId = 'dynamic-profile-form') {
     if (schemaInput) schemaInput.value = JSON.stringify(PROFILE_SCHEMA, null, 2);
 
     if (containerId === 'dynamic-profile-form') {
-        document.getElementById('edit-avatar-preview').src = state.myProfile.avatar || 'https://placehold.co/300x300/f43f5e/ffffff?text=No+Img';
+        document.getElementById('edit-avatar-preview').src = localAvatar(state.myProfile.avatar);
         renderEditGallery();
     }
 

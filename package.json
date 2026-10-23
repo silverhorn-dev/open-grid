@@ -5,7 +5,10 @@
   "type": "module",
   "description": "Self-hosted P2P discovery, profile and chat application",
   "scripts": {
+    "build:css": "tailwindcss -c tailwind.config.cjs -i client/tailwind.input.css -o client/tailwind.css --minify",
+    "prestart": "npm run build:css",
     "start": "node server/index.js",
+    "pretest": "npm run build:css",
     "test": "node --test",
     "turn:check": "node scripts/turn-check.mjs",
     "check": "node --check server/index.js && node --check server/app.js && node --check server/database.js && node --check server/signaling.js && node --check server/push.js && node --check server/geohash.js && node --check client/sw.js"
@@ -15,6 +18,10 @@
   },
   "dependencies": {
     "@fastify/websocket": "^11.2.0",
+    "@fortawesome/fontawesome-free": "^6.4.0",
     "fastify": "^5.6.1"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.17"
   }
 }

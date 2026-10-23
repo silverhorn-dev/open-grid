@@ -18,7 +18,8 @@
   `state`), `storage.js` (IndexedDB, Chat-Operationen), `profile.js`
   (Profil, Medien, Onboarding), `chat.js` (Modal, Chat, Snaps),
   `settings.js` (Debug, Schluessel, Toasts, Tabs, Sichtbarkeit),
-  `router.js` (Client-Routen, History), `push.js` (Web Push), `main.js`
+  `router.js` (Client-Routen, History), `viewer.js` (Bildbetrachter),
+  `albums.js` (Alben, Medienuebersicht), `push.js` (Web Push), `main.js`
   (Start). `client/geohash.client.js` kodiert den eigenen Standort.
 - `client/styles.css` und `client/app/tailwind.config.js` enthalten Styles
   und die Tailwind-Konfiguration.
@@ -37,8 +38,10 @@
   App-Shell. `switchTab()` legt per `history.pushState` einen Eintrag an,
   `popstate` stellt Tab und Chat wieder her. `/` und alte Deep Links
   (`/?chat=<id>`) werden beim Start per `replaceState` umgeschrieben.
-  Menue, Profil- und Snap-Modal bekommen einen eigenen History-Eintrag
-  (`state.modal`), "Zurueck" schliesst sie. Navigiert man aus einem Modal
+  Menue, Profil-, Snap-, Medien-Modal und Bildbetrachter bekommen einen
+  eigenen History-Eintrag (`state.modal`, `state.modalDepth`). Modals koennen
+  gestapelt sein (`state.modalStack`); "Zurueck" schliesst alle Modals oberhalb
+  der Tiefe des neuen Eintrags. Navigiert man aus einem Modal
   heraus, ersetzt die neue Route den Modal-Eintrag.
 
 Der Dienst laeuft als einzelner Docker-Container hinter einem TLS

@@ -41,26 +41,37 @@ function replaceRoute(path) {
 }
 
 // Modals bekommen einen eigenen History-Eintrag, damit "Zurueck" sie schliesst.
+// Sie koennen gestapelt sein (z. B. Bildbetrachter ueber einem Album).
 function pushModalEntry(name, hide) {
-    state.openModal = { name, hide };
-    window.history.pushState({ ...(window.history.state || {}), modal: name }, '', window.location.href);
+    state.modalStack.push({ name, hide });
+    window.history.pushState(
+        { ...(window.history.state || {}), modal: name, modalDepth: state.modalStack.length },
+        '',
+        window.location.href
+    );
+}
+
+function removeModalFromStack(name) {
+    const index = state.modalStack.map(modal => modal.name).lastIndexOf(name);
+    if (index >= 0) state.modalStack.splice(index, 1);
 }
 
 // Schliessen per Knopf: den Modal-Eintrag per history.back() abbauen, der
 // popstate-Handler blendet das Modal dann aus.
 function dismissModalEntry(name, hide) {
-    if (window.history.state?.modal === name && state.openModal?.name === name) {
+    const top = state.modalStack[state.modalStack.length - 1];
+    if (window.history.state?.modal === name && top?.name === name) {
         window.history.back();
         return;
     }
-    if (state.openModal?.name === name) state.openModal = null;
+    removeModalFromStack(name);
     hide();
 }
 
 // Schliessen, weil direkt danach navigiert wird: kein history.back(), der
 // naechste syncRoute ersetzt den Modal-Eintrag.
 function hideModalForNavigation(name, hide) {
-    if (state.openModal?.name === name) state.openModal = null;
+    removeModalFromStack(name);
     hide();
 }
 
@@ -80,11 +91,9 @@ async function applyRoute({ tab, peerId }) {
 }
 
 function handlePopState() {
-    const modal = state.openModal;
-    if (modal && window.history.state?.modal !== modal.name) {
-        state.openModal = null;
-        modal.hide();
-    }
+    // Alle Modals oberhalb der Tiefe des aktuellen Eintrags schliessen.
+    const depth = window.history.state?.modalDepth || 0;
+    while (state.modalStack.length > depth) state.modalStack.pop().hide();
     // Nur ein Modal wurde geschlossen: Tab und Scrollposition bleiben.
     if (window.location.pathname === state.routePath) return;
     state.routePath = window.location.pathname;

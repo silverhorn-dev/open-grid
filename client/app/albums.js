@@ -219,7 +219,6 @@ function hideMediaModal() {
     state.albumViewer = null;
     document.getElementById('media-modal').classList.add('hidden');
     document.getElementById('media-modal-content').innerHTML = '';
-    document.getElementById('media-lightbox').classList.add('hidden');
 }
 
 function renderMediaModalMessage(text) {
@@ -231,16 +230,10 @@ function renderMediaModalMessage(text) {
     content.appendChild(note);
 }
 
-function showLightbox(dataUrl) {
-    if (!isSafeInlineImage(dataUrl)) return;
-    const lightbox = document.getElementById('media-lightbox');
-    document.getElementById('media-lightbox-image').src = dataUrl;
-    lightbox.classList.remove('hidden');
-}
-
-function closeLightbox() {
-    document.getElementById('media-lightbox').classList.add('hidden');
-    document.getElementById('media-lightbox-image').src = '';
+// Alle bereits geladenen Bilder des offenen Medien-Modals, in Anzeigereihenfolge.
+function openViewerFromTiles(dataUrl) {
+    const images = [...document.querySelectorAll('#media-modal-content [data-viewer-image] img')].map(image => image.src);
+    openImageViewer(images, Math.max(0, images.indexOf(dataUrl)));
 }
 
 function createThumbnail(dataUrl, onClick) {
@@ -248,6 +241,7 @@ function createThumbnail(dataUrl, onClick) {
     tile.type = 'button';
     tile.className = 'aspect-square rounded-xl overflow-hidden border border-slate-800 bg-slate-800 hover:border-brand-500 transition';
     if (dataUrl && isSafeInlineImage(dataUrl)) {
+        tile.dataset.viewerImage = 'true';
         const image = document.createElement('img');
         image.src = dataUrl;
         image.alt = '';
@@ -290,7 +284,7 @@ async function renderAlbumViewer(album) {
     for (const item of album.items) {
         const media = await loadMedia(item.id);
         const hasCurrent = media && media.version === item.version;
-        const tile = createThumbnail(hasCurrent ? media.data : null, () => hasCurrent && showLightbox(media.data));
+        const tile = createThumbnail(hasCurrent ? media.data : null, () => hasCurrent && openViewerFromTiles(media.data));
         tile.id = `album-tile-${item.id}`;
         if (isOwn) {
             const wrapper = document.createElement('div');
@@ -316,7 +310,7 @@ async function renderAlbumViewer(album) {
 function renderAlbumViewerImage(imageId, dataUrl) {
     const tile = document.getElementById(`album-tile-${imageId}`);
     if (!tile) return;
-    tile.replaceWith(Object.assign(createThumbnail(dataUrl, () => showLightbox(dataUrl)), { id: `album-tile-${imageId}` }));
+    tile.replaceWith(Object.assign(createThumbnail(dataUrl, () => openViewerFromTiles(dataUrl)), { id: `album-tile-${imageId}` }));
 }
 
 // Medienuebersicht des aktiven Chats: alle Snaps und geteilten Alben.
@@ -342,11 +336,12 @@ function openChatMediaOverview() {
     };
     if (snaps.length) {
         addSection(`Snaps (${snaps.length})`, grid => snaps.slice().reverse()
-            .forEach(message => grid.appendChild(createThumbnail(message.snapData, () => showLightbox(message.snapData)))));
+            .forEach(message => grid.appendChild(createThumbnail(message.snapData, () => openViewerFromTiles(message.snapData)))));
     }
     if (albums.length) {
         addSection(`Alben (${albums.length})`, grid => albums.slice().reverse().forEach(message => {
             const tile = createThumbnail(message.album.cover, () => openAlbumViewer(message.album.albumId, message.album));
+            delete tile.dataset.viewerImage;
             tile.classList.add('relative');
             const label = document.createElement('span');
             label.className = 'absolute inset-x-0 bottom-0 bg-black/60 text-[10px] text-white px-1.5 py-1 truncate';
@@ -401,7 +396,10 @@ function renderAlbumMessage(bubble, album) {
     meta.className = 'opacity-75 text-[11px]';
     meta.textContent = Number.isInteger(album.count) ? `${album.count} Bilder · Antippen zum Oeffnen` : 'Antippen zum Oeffnen';
     card.append(title, meta);
-    card.onclick = () => openAlbumViewer(album.albumId, album);
+    card.onclick = event => {
+        event.stopPropagation();
+        openAlbumViewer(album.albumId, album);
+    };
     bubble.appendChild(card);
 }
 

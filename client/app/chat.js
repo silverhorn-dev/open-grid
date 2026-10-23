@@ -176,7 +176,16 @@ function renderModalGalleryImage(imageId, base64) {
     image.className = 'w-full h-full object-cover';
     image.alt = '';
     imgEl.appendChild(image);
-    imgEl.onclick = () => { document.getElementById('modal-profile-img').src = base64; };
+    imgEl.dataset.viewerImage = 'true';
+    imgEl.onclick = () => openProfileImageViewer(base64);
+}
+
+// Profilbild plus alle schon geladenen Galeriebilder des offenen Profils.
+function openProfileImageViewer(startImage) {
+    const avatar = document.getElementById('modal-profile-img').src;
+    const gallery = [...document.querySelectorAll('#modal-gallery-container [data-viewer-image] img')].map(image => image.src);
+    const images = [avatar, ...gallery].filter((image, index, all) => isSafeInlineImage(image) && all.indexOf(image) === index);
+    openImageViewer(images, Math.max(0, images.indexOf(startImage)));
 }
 
 function isSafeInlineImage(value) {
@@ -485,7 +494,11 @@ function renderChatHistory() {
                 const image = document.createElement('img');
                 image.src = message.snapData;
                 image.alt = '';
-                image.className = 'w-48 sm:w-64 rounded-xl mb-1.5 border border-slate-900/50';
+                image.className = 'w-48 sm:w-64 rounded-xl mb-1.5 border border-slate-900/50 cursor-zoom-in';
+                image.onclick = event => {
+                    event.stopPropagation();
+                    openChatImageViewer(message.id);
+                };
                 bubble.appendChild(image);
             }
             const text = document.createElement('div');
@@ -510,8 +523,16 @@ function renderChatHistory() {
             hint.textContent = deliveryHint;
             meta.appendChild(hint);
         }
-        if (!message.deleted) meta.appendChild(renderMessageActions(message, isMine));
-        row.append(bubble);
+        // Bubble + Aktionsleiste, die zur Haelfte ueber der Nachricht sitzt.
+        const bubbleWrap = document.createElement('div');
+        bubbleWrap.className = `chat-bubble-wrap relative max-w-[80%] flex ${isMine ? 'justify-end' : 'justify-start'}`;
+        bubble.classList.remove('max-w-[80%]');
+        bubbleWrap.appendChild(bubble);
+        if (!message.deleted) {
+            bubbleWrap.appendChild(renderMessageActions(message, isMine));
+            bubble.onclick = () => toggleMessageActions(row);
+        }
+        row.append(bubbleWrap);
         const reactions = renderReactions(message);
         if (reactions) row.appendChild(reactions);
         row.appendChild(meta);
@@ -584,16 +605,32 @@ function scrollToChatMessage(messageId) {
     setTimeout(() => target.classList.remove('chat-message-highlight'), 1500);
 }
 
+// Auf Touch-Geraeten blendet ein Tipp auf die Nachricht die Aktionen ein, am Desktop das Hovern.
+function toggleMessageActions(row) {
+    const wasOpen = row.classList.contains('actions-open');
+    document.querySelectorAll('#chat-messages .actions-open').forEach(element => element.classList.remove('actions-open'));
+    if (!wasOpen) row.classList.add('actions-open');
+}
+
+function openChatImageViewer(messageId) {
+    const snaps = (state.chats[state.activeChatPeerId] || [])
+        .filter(message => !message.deleted && isSafeInlineImage(message.snapData));
+    openImageViewer(snaps.map(message => message.snapData), snaps.findIndex(message => message.id === messageId));
+}
+
 function renderMessageActions(message, isMine) {
-    const actions = document.createElement('span');
-    actions.className = 'flex items-center gap-2';
-    const addAction = (iconClass, title, onClick, extraClass = 'hover:text-slate-200') => {
+    const actions = document.createElement('div');
+    actions.className = `message-actions absolute -top-5 ${isMine ? 'left-0 -translate-x-1/4' : 'right-0 translate-x-1/4'} z-10 flex items-center gap-0.5 rounded-full border border-slate-700 bg-slate-900/95 px-1 py-0.5 shadow-lg text-slate-300`;
+    const addAction = (iconClass, title, onClick, extraClass = 'hover:text-white hover:bg-slate-800') => {
         const button = document.createElement('button');
         button.type = 'button';
-        button.className = `p-1 transition ${extraClass}`;
+        button.className = `w-9 h-9 rounded-full flex items-center justify-center text-base transition ${extraClass}`;
         button.title = title;
         button.setAttribute('aria-label', title);
-        button.onclick = onClick;
+        button.onclick = event => {
+            event.stopPropagation();
+            onClick(event);
+        };
         const icon = document.createElement('i');
         icon.className = iconClass;
         button.appendChild(icon);
@@ -602,7 +639,7 @@ function renderMessageActions(message, isMine) {
     addAction('fa-solid fa-reply', 'Antworten', () => startReply(message.id));
     addAction('fa-regular fa-face-smile', 'Reagieren', event => toggleReactionPicker(event.currentTarget, message.id));
     addAction(message.starred ? 'fa-solid fa-star text-amber-400' : 'fa-regular fa-star', message.starred ? 'Markierung entfernen' : 'Fuer dich markieren', () => toggleMessageStar(message.id));
-    if (isMine) addAction('fa-solid fa-trash', 'Loeschen', () => deleteChatMessage(message.id), 'text-red-400 hover:text-red-300');
+    if (isMine) addAction('fa-solid fa-trash', 'Loeschen', () => deleteChatMessage(message.id), 'text-red-400 hover:text-red-300 hover:bg-slate-800');
     return actions;
 }
 

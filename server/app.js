@@ -33,6 +33,7 @@ const clientAssetFiles = [
     'app/storage.js',
     'app/profile.js',
     'app/chat.js',
+    'app/viewer.js',
     'app/albums.js',
     'app/settings.js',
     'app/router.js',

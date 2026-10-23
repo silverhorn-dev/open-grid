@@ -14,6 +14,7 @@ window.onload = async () => {
     switchTab(initialRoute.tab);
     state.applyingRoute = false;
     window.addEventListener('popstate', handlePopState);
+    initImageViewer();
     document.addEventListener('keydown', event => {
         if (event.key === 'Escape') closeMenu();
     });

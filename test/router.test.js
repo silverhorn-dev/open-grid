@@ -12,16 +12,16 @@ function loadRouter(pathname, search = '') {
             replaceState(state, _title, path) {
                 calls.push(['replace', path]);
                 this.state = state;
-                window.location.pathname = path;
+                window.location.pathname = new URL(path, 'http://localhost').pathname;
             },
             pushState(state, _title, path) {
                 calls.push(['push', path]);
                 this.state = state;
-                window.location.pathname = path;
+                window.location.pathname = new URL(path, 'http://localhost').pathname;
             }
         }
     };
-    const context = { window, state: { activeChatPeerId: null }, URLSearchParams };
+    const context = { window, state: { activeChatPeerId: null, modalStack: [] }, URLSearchParams };
     vm.runInNewContext(readFileSync(new URL('../client/app/router.js', import.meta.url), 'utf8'), context);
     return { context, window, calls };
 }
@@ -58,4 +58,23 @@ test('pushes tab changes and replaces modal entries', () => {
     context.state.activeChatPeerId = 'peer-c';
     context.syncRoute('chat');
     assert.deepEqual(calls.at(-1), ['push', '/chat/peer-c']);
+});
+
+test('closes stacked modals from the top on back navigation', () => {
+    const { context, window } = loadRouter('/grid');
+    context.state.routePath = '/grid';
+    const closed = [];
+    context.pushModalEntry('media', () => closed.push('media'));
+    const albumEntry = window.history.state;
+    context.pushModalEntry('viewer', () => closed.push('viewer'));
+    assert.equal(window.history.state.modalDepth, 2);
+
+    window.history.state = albumEntry;
+    context.handlePopState();
+    assert.deepEqual(closed, ['viewer']);
+    assert.equal(context.state.modalStack.length, 1);
+
+    window.history.state = { route: '/grid' };
+    context.handlePopState();
+    assert.deepEqual(closed, ['viewer', 'media']);
 });

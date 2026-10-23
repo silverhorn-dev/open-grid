@@ -289,6 +289,9 @@ Akzeptanzkriterien:
   sie. Reaktionen werden synchronisiert.
 - Nachrichten lassen sich lokal markieren; die Suche kann auf markierte
   Nachrichten beschraenkt werden.
+- Die Aktionen (Antworten, Reagieren, Markieren, Loeschen) sitzen als Leiste
+  mit gut treffbaren Knoepfen halb ueber der Nachricht. Am Desktop erscheinen
+  sie beim Hovern, auf Touch-Geraeten nach einem Tipp auf die Nachricht.
 - Die Suche filtert den aktuellen Chat lokal nach Text.
 
 ## UC-20: Snaps aufnehmen
@@ -333,3 +336,17 @@ Akzeptanzkriterien:
   Besitzer muss dafuer online sein.
 - Der Zugriff kann pro Peer entzogen werden. Danach werden neue Anfragen
   abgelehnt und der Client des Peers loescht seine Kopie.
+
+## UC-23: Bilder ansehen
+
+**Als Nutzer** moechte ich Bilder gross und bequem ansehen.
+
+Akzeptanzkriterien:
+
+- Snaps, Albumbilder, Bilder der Medienuebersicht und Profilbilder oeffnen in
+  einem Vollbild-Betrachter.
+- Wischen (oder Pfeiltasten/-knoepfe am Desktop) blaettert zwischen den
+  Bildern derselben Quelle; ein Zaehler zeigt die Position.
+- Pinch, Doppeltipp oder Mausrad zoomen bis 5-fach; ein gezoomtes Bild laesst
+  sich verschieben.
+- Nach unten wischen, "Zurueck" oder Escape schliessen den Betrachter.

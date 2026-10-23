@@ -465,7 +465,7 @@
     <div id="profile-detail-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
         <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full overflow-hidden shadow-2xl space-y-0 my-8">
             <div class="relative h-64 bg-slate-950">
-                <img id="modal-profile-img" src="" class="w-full h-full object-cover">
+                <img id="modal-profile-img" src="" class="w-full h-full object-cover cursor-zoom-in" onclick="openProfileImageViewer(this.src)">
                 <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/20 to-transparent"></div>
                 <button onclick="closeProfileModal()" class="absolute top-3 right-3 w-8 h-8 rounded-full bg-slate-950/70 hover:bg-slate-900 text-slate-200 border border-slate-700 flex items-center justify-center transition">
                     <i class="fa-solid fa-xmark"></i>
@@ -509,8 +509,24 @@
             </div>
             <div id="media-modal-content" class="p-4 overflow-y-auto"></div>
         </div>
-        <div id="media-lightbox" class="hidden fixed inset-0 z-[66] bg-black flex items-center justify-center" onclick="closeLightbox()">
-            <img id="media-lightbox-image" alt="" class="max-w-full max-h-full object-contain">
+    </div>
+
+    <!-- Bildbetrachter (Vollbild) -->
+    <div id="image-viewer" class="hidden fixed inset-0 z-[80] bg-black flex flex-col select-none" role="dialog" aria-modal="true" aria-label="Bildbetrachter">
+        <div class="absolute top-0 inset-x-0 z-10 p-4 flex items-center justify-between bg-gradient-to-b from-black/70 to-transparent" style="padding-top: max(1rem, env(safe-area-inset-top));">
+            <span id="image-viewer-counter" class="text-sm font-semibold text-white/90"></span>
+            <button onclick="closeImageViewer()" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Schliessen">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div id="image-viewer-stage" class="relative flex-1 min-h-0 flex items-center justify-center overflow-hidden touch-none">
+            <img id="image-viewer-image" alt="" draggable="false" class="max-w-full max-h-full object-contain will-change-transform">
+            <button id="image-viewer-prev" onclick="stepImageViewer(-1)" class="hidden sm:flex absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/50 hover:bg-black/70 text-white items-center justify-center" aria-label="Vorheriges Bild">
+                <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            <button id="image-viewer-next" onclick="stepImageViewer(1)" class="hidden sm:flex absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/50 hover:bg-black/70 text-white items-center justify-center" aria-label="Naechstes Bild">
+                <i class="fa-solid fa-chevron-right"></i>
+            </button>
         </div>
     </div>
 
@@ -562,6 +578,7 @@
     <script src="/client/grid.client.js?v={{assetVersion}}"></script>
     <script src="/client/p2p.client.js?v={{assetVersion}}"></script>
     <script src="/client/app/chat.js?v={{assetVersion}}"></script>
+    <script src="/client/app/viewer.js?v={{assetVersion}}"></script>
     <script src="/client/app/albums.js?v={{assetVersion}}"></script>
     <script src="/client/app/settings.js?v={{assetVersion}}"></script>
     <script src="/client/app/router.js?v={{assetVersion}}"></script>

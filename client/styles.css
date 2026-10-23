@@ -23,6 +23,25 @@ html.debug-on .debug-off-only {
     transform: scaleX(-1);
 }
 
+/* Nachrichten-Aktionen: am Desktop beim Hovern, auf Touch nach Tipp auf die Nachricht */
+.message-actions {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 120ms;
+}
+.chat-bubble-wrap:hover .message-actions,
+.actions-open .message-actions {
+    opacity: 1;
+    pointer-events: auto;
+}
+@media (hover: none) {
+    .chat-bubble-wrap:hover .message-actions { opacity: 0; pointer-events: none; }
+    .actions-open .chat-bubble-wrap .message-actions { opacity: 1; pointer-events: auto; }
+}
+#chat-messages > [id^="chat-message-"] {
+    padding-top: 0.75rem;
+}
+
 .chat-message-highlight > div:first-of-type {
     outline: 2px solid rgb(244 63 94 / 0.6);
     outline-offset: 2px;
@@ -59,10 +78,11 @@ html.debug-on .debug-off-only {
 }
 .nav-bottom-btn.is-active { color: #fb7185; }
 
-/* Platz fuer die feste Bottom-Navigation auf Smartphones */
+/* Platz fuer die feste Bottom-Navigation auf Smartphones.
+   !important, weil das zur Laufzeit eingefuegte Tailwind-CSS (p-4) sonst gewinnt. */
 @media (max-width: 767px) {
     .app-main {
-        padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+        padding-bottom: calc(5.5rem + env(safe-area-inset-bottom)) !important;
     }
 }
 

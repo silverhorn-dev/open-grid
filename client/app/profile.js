@@ -83,7 +83,8 @@ function renderProfileForm(containerId = 'dynamic-profile-form') {
 
     PROFILE_SCHEMA.forEach(field => {
         const wrapper = document.createElement('div');
-        wrapper.className = 'space-y-1';
+        // Freitextfelder ("Ueber mich") nehmen die ganze Breite ein.
+        wrapper.className = field.type === 'description' ? 'space-y-1 md:col-span-2' : 'space-y-1';
 
         const label = document.createElement('label');
         label.className = 'text-xs font-bold text-slate-400';
@@ -111,8 +112,15 @@ function renderProfileForm(containerId = 'dynamic-profile-form') {
             });
         } else if (field.type === 'description') {
             input = document.createElement('textarea');
-            input.rows = 3;
+            input.rows = 6;
             input.value = currentValue;
+            // Waechst mit dem Text mit, damit nichts in einem Mini-Feld scrollt.
+            const fitHeight = () => {
+                input.style.height = 'auto';
+                input.style.height = `${Math.max(input.scrollHeight, 144)}px`;
+            };
+            input.addEventListener('input', fitHeight);
+            requestAnimationFrame(fitHeight);
         } else {
             input = document.createElement('input');
             input.type = field.type === 'number' ? 'number' : 'text';
@@ -121,7 +129,8 @@ function renderProfileForm(containerId = 'dynamic-profile-form') {
             if (field.max !== undefined) input.max = field.max;
         }
 
-        input.className = 'w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500';
+        input.className = 'w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-base md:text-sm text-slate-100 focus:outline-none focus:border-brand-500';
+        if (field.type === 'description') input.classList.add('min-h-36', 'resize-y', 'leading-relaxed');
 
         input.onchange = (e) => {
             if (field.type === 'multiselect') {

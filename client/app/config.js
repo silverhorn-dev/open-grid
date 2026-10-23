@@ -53,7 +53,7 @@ const state = {
     gridRing: 0,
     routePath: null,
     applyingRoute: false,
-    openModal: null,
+    modalStack: [],
     replyToMessageId: null,
     chatSearch: '',
     chatStarredOnly: false,

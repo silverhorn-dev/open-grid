@@ -78,6 +78,9 @@ const state = {
     secureMessageQueues: {},
     presenceProbes: {},
     peerChatFocus: {},
+    // Match-Zustand pro Peer (aus MATCH_PING/MATCH_RESET, siehe matching.js). Muss vor dem
+    // ersten Rendern der Chatliste existieren.
+    matchState: {},
     // Online-Status der Chat-Partner (nur gegenseitig, vom Server per PRESENCE gemeldet).
     peerPresence: {},
     presenceSubscription: [],

@@ -52,6 +52,7 @@ liegt im benannten Volume `open-grid-data` unter `/app/data`.
 | `BUILD_VERSION` | `self-hosted` | Im UI angezeigte Build-Version |
 | `BUILD_TIMESTAMP` | Startzeit | Im UI angezeigter Build-Zeitpunkt |
 | `PROFILE_SCHEMA` | eingebautes Schema | Optionales JSON-Array fuer Profilfelder |
+| `PROFILE_SCHEMAS` | – | Optionales JSON-Objekt mit einem Schema pro App-Modus, z. B. `{"chat": [...]}`; ohne Angabe nutzt "Nur Chat" Name + Status |
 | `TURN_SERVER` | `turn.deine-domain.de` | Hostname des coturn-Servers |
 | `TURN_SECRET` | – | Muss exakt dem `static-auth-secret` des coturn entsprechen |
 | `TURN_PORT` | `3478` | Port fuer die UDP- und TCP-Relays |

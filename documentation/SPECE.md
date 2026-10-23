@@ -129,7 +129,7 @@ Explizit entfernte Peers erhalten einen zeitlich begrenzten Tombstone.
 
 Der Betreiber erlaubt Modi per `APP_MODES` (kommagetrennt aus `discovery`,
 `chat`, `friends`, `event`; Standard alle) und `DEFAULT_APP_MODE`.
-`GET /api/config` liefert `{ modes, defaultMode }`; der Client merkt sich die
+`GET /api/config` liefert `{ modes, defaultMode, profileSchemas }`; der Client merkt sich die
 Antwort fuer den Offline-Start (`keys`/`app-config`). Der Nutzer waehlt beim
 Onboarding (falls mehrere erlaubt) und in den Einstellungen
 (`keys`/`app-mode = { mode, eventCode, eventHash, eventJoinedAt, modeBeforeEvent }`).
@@ -151,6 +151,18 @@ oeffentliche Grid mit 403.
 Der Event-Code wird im Client normalisiert (Grossbuchstaben, einfache
 Leerzeichen) und als `SHA-256("og-event:" + code)` gesendet; der Server sieht
 den Code nie. Nach 12 Stunden verlaesst der Client das Event automatisch.
+
+**Profil-Schema pro Modus**: `PROFILE_SCHEMAS` (JSON-Objekt, Schluessel =
+Modus) ueberschreibt einzelne Modi; ohne Angabe nutzt `chat` ein schlankes
+Schema (Anzeigename + Status), alle anderen `PROFILE_SCHEMA`. Die App-Shell
+bekommt alle Schemas eingebettet, aktiv ist das des gewaehlten Modus. Das
+Profil enthaelt nur Felder des aktiven Schemas (plus `displayName`); fremde
+Profile zeigen auch Felder aus anderen Schemas an.
+
+**Profil-Handshake**: Steht nach dem ersten `KEY_HELLO` noch kein Profil des
+Peers im Cache (neuer Kontakt per Einladung oder erste Nachricht), fragt der
+Client es sofort per `PROFILE_REQUEST` an; Chatliste und Kontaktleiste
+uebernehmen Name und Bild, sobald es ankommt.
 
 **Einladungslinks** (`chat`, `friends`): `/invite#<peerId>.<fingerprint>`,
 Fingerprint = erste 32 Hex-Zeichen von `SHA-256("<crv>:<x>:<y>")` des

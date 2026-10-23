@@ -203,18 +203,25 @@ function buildProfilePayloadFor(peerId) {
         return {
             ...base,
             audience: visibility === 1 ? 'public' : peerId,
-            fields: state.myProfile.fields,
+            fields: activeSchemaFields(),
             avatar: state.myProfile.avatar,
             gallery: state.myProfile.gallery || []
         };
     }
     if (visibility === 2) {
         const privateFields = new Set(state.myProfile.privateFields || []);
-        const fields = Object.fromEntries(Object.entries(state.myProfile.fields || {})
+        const fields = Object.fromEntries(Object.entries(activeSchemaFields())
             .filter(([key]) => !privateFields.has(key)));
         return { ...base, audience: 'public', fields, avatar: state.myProfile.avatar, gallery: [], restricted: true };
     }
     return { ...base, audience: 'public', fields: {}, avatar: null, gallery: [], restricted: true };
+}
+
+// Nur Felder des aktiven Schemas gehen raus (z. B. im Modus "Nur Chat" keine Dating-Details).
+function activeSchemaFields() {
+    const fields = state.myProfile.fields || {};
+    const keys = new Set(['displayName', ...PROFILE_SCHEMA.map(field => field.key)]);
+    return Object.fromEntries(Object.entries(fields).filter(([key]) => keys.has(key)));
 }
 
 // Darf ein empfangenes Profil (direkt oder ueber den Schwarm) gespeichert werden?

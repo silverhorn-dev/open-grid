@@ -34,8 +34,22 @@ async function loadAppMode() {
         ? stored.mode
         : (state.appConfig.modes.includes(state.appConfig.defaultMode) ? state.appConfig.defaultMode : state.appConfig.modes[0]);
     if (state.appMode === 'event' && !hasActiveEvent()) state.appMode = fallbackMode();
+    if (config?.profileSchemas) {
+        try {
+            PROFILE_SCHEMAS = normalizeProfileSchemas(config.profileSchemas);
+        } catch (error) {
+            logDebug(`Invalid profile schemas from router: ${error.message}`);
+        }
+    }
+    applyProfileSchemaForMode();
     scheduleEventExpiry();
     applyAppModeUi();
+}
+
+// Jeder Modus hat sein eigenes Profil-Schema (z. B. "Nur Chat": Name + Status).
+function applyProfileSchemaForMode() {
+    PROFILE_SCHEMA = PROFILE_SCHEMAS[state.appMode] || PROFILE_SCHEMAS.discovery || Object.values(PROFILE_SCHEMAS)[0] || DEFAULT_PROFILE_SCHEMA;
+    if (typeof renderProfileForm === 'function' && document.getElementById('dynamic-profile-form')) renderProfileForm();
 }
 
 function fallbackMode() {
@@ -60,6 +74,7 @@ async function setAppMode(mode) {
     state.appMode = mode;
     await saveAppModeSettings({ mode });
     state.gridRing = 0;
+    applyProfileSchemaForMode();
     applyAppModeUi();
     await refreshPresenceAndGrid();
 }
@@ -168,6 +183,8 @@ function renderOnboardingModeChooser() {
     const choose = mode => {
         state.appMode = mode;
         saveAppModeSettings({ mode }).catch(() => {});
+        applyProfileSchemaForMode();
+        renderProfileForm('onboarding-profile-form');
         renderOnboardingModeChooser();
     };
     renderModeChooser(container, choose);

@@ -22,6 +22,7 @@ function loadMatching({ visibility = 1, chatPolicy, privateFields = [], stored =
             cachedProfiles: {}
         },
         getDatabaseRecordsByIndex: async () => stored,
+        PROFILE_SCHEMA: [{ key: 'displayName' }, { key: 'age' }, { key: 'bio' }],
         Date,
         Math,
         Number,
@@ -121,4 +122,12 @@ test('the sender sees the remaining messages of the receiver policy', () => {
     assert.equal(context.getPeerChatAllowance('peer').allowed, false);
     context.state.chats.peer.push({ id: 'b', senderId: 'peer' });
     assert.equal(context.getPeerChatAllowance('peer').allowed, true, 'a reply from the peer accepts the chat');
+});
+
+test('only fields of the active profile schema are sent', () => {
+    const context = loadMatching();
+    context.state.myProfile.fields.role = 'dating detail';
+    context.PROFILE_SCHEMA = [{ key: 'displayName' }, { key: 'status' }];
+    const payload = plain(context.buildProfilePayloadFor('stranger'));
+    assert.deepEqual(Object.keys(payload.fields), ['displayName']);
 });

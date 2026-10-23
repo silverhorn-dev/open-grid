@@ -120,7 +120,10 @@ function renderProfileModalData(profile) {
         galleryContainer.classList.add('hidden');
     }
 
-    PROFILE_SCHEMA.forEach(field => {
+    // Felder in Schema-Reihenfolge, danach unbekannte Felder aus dem Schema des Partners.
+    const knownKeys = PROFILE_SCHEMA.map(field => field.key);
+    const extraKeys = Object.keys(profile.fields || {}).filter(key => key !== 'displayName' && !knownKeys.includes(key));
+    [...PROFILE_SCHEMA, ...extraKeys.map(key => findProfileField(key) || { key, label: key, type: 'string' })].forEach(field => {
         const value = profile.fields?.[field.key];
         if (value === undefined || value === null || value === '') return;
         const card = document.createElement('div');
@@ -218,21 +221,13 @@ function launchChatFromModal() {
 }
 
 async function openChatWithPeer(peerId) {
-    const peer = getPeerPresentation(peerId);
     if (state.activeChatPeerId !== peerId) resetChatTools();
     state.activeChatPeerId = peerId;
     await loadChatHistory(peerId);
     switchTab('chat');
     renderChatPeerIndicator();
-    document.getElementById('chat-peer-name').textContent = peer.name || 'Peer';
+    renderChatPeerHeader(peerId);
     document.getElementById('chat-connection-type').textContent = 'Encrypted WebRTC DataChannel';
-    const avatar = document.getElementById('chat-peer-avatar');
-    avatar.innerHTML = '';
-    const image = document.createElement('img');
-    image.src = localAvatar(peer.avatar);
-    image.alt = '';
-    image.className = 'w-full h-full object-cover';
-    avatar.appendChild(image);
     renderActivePeerList();
     renderChatHistory();
     updateChatActionButtons();
@@ -855,6 +850,19 @@ function updateChatConnectionStatus(peerId, text, classes) {
 
 function isSecureChannelOpen(peerId) {
     return state.dataChannels[peerId]?.readyState === 'open' && Boolean(state.sessionKeys[peerId]);
+}
+
+// Name und Bild in der Kontaktleiste (auch nachgezogen, wenn der Profil-Handshake ankommt).
+function renderChatPeerHeader(peerId) {
+    const peer = getPeerPresentation(peerId);
+    document.getElementById('chat-peer-name').textContent = peer.name || HIDDEN_PEER_NAME;
+    const avatar = document.getElementById('chat-peer-avatar');
+    avatar.innerHTML = '';
+    const image = document.createElement('img');
+    image.src = localAvatar(peer.avatar);
+    image.alt = '';
+    image.className = 'w-full h-full object-cover';
+    avatar.appendChild(image);
 }
 
 // Kontaktleiste: Online-Punkt am Avatar, darunter "online", "offline" oder "hat den Chat offen".

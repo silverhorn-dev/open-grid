@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { generateKeyPairSync, randomBytes, sign } from 'node:crypto';
 import { afterEach, beforeEach, test } from 'node:test';
-import { buildApp, parseAppModes, parseMediaKeyEpochMinutes } from '../server/app.js';
+import { buildApp, parseAppModes, parseMediaKeyEpochMinutes, parseProfileSchemas } from '../server/app.js';
 import { createStore } from '../server/database.js';
 import { decodeGeohash, encodeGeohash, geohashNeighbours } from '../server/geohash.js';
 
@@ -675,15 +675,25 @@ test('shares presence only between mutually subscribed, unblocked chat partners 
 });
 
 test('exposes the allowed app modes', async () => {
-    assert.deepEqual((await app.inject({ method: 'GET', url: '/api/config' })).json(), {
-        modes: ['discovery', 'chat', 'friends', 'event'],
-        defaultMode: 'discovery'
-    });
+    const config = (await app.inject({ method: 'GET', url: '/api/config' })).json();
+    assert.deepEqual(config.modes, ['discovery', 'chat', 'friends', 'event']);
+    assert.equal(config.defaultMode, 'discovery');
+    // Pro Modus ein Profil-Schema; "Nur Chat" ist schlank.
+    assert.deepEqual(config.profileSchemas.chat.map(field => field.key), ['displayName', 'status']);
+    assert.ok(config.profileSchemas.discovery.some(field => field.key === 'age'));
+    const shell = await app.inject({ method: 'GET', url: '/' });
+    assert.match(shell.body, /"chat":\[\{"key":"displayName"/);
+
+    const custom = parseProfileSchemas('{"event":[{"key":"displayName","label":"Name","type":"string"}]}', [{ key: 'bio' }], ['discovery', 'event', 'chat']);
+    assert.deepEqual(custom.discovery, [{ key: 'bio' }]);
+    assert.equal(custom.event[0].label, 'Name');
+    assert.throws(() => parseProfileSchemas('[]', [], ['chat']), /JSON object/);
     assert.deepEqual(parseAppModes('chat, event,bogus,chat'), ['chat', 'event']);
     assert.deepEqual(parseAppModes(''), ['discovery', 'chat', 'friends', 'event']);
 
     const chatOnly = await buildApp({ store: createStore(':memory:'), buildVersion: 'x', buildTimestamp: 'y', appModes: 'chat', defaultAppMode: 'discovery' });
-    assert.deepEqual((await chatOnly.inject({ method: 'GET', url: '/api/config' })).json(), { modes: ['chat'], defaultMode: 'chat' });
+    const chatOnlyConfig = (await chatOnly.inject({ method: 'GET', url: '/api/config' })).json();
+    assert.deepEqual([chatOnlyConfig.modes, chatOnlyConfig.defaultMode, Object.keys(chatOnlyConfig.profileSchemas)], [['chat'], 'chat', ['chat']]);
     assert.equal((await chatOnly.inject({ method: 'GET', url: '/api/grid?geohash=u10j2k' })).statusCode, 403);
     await chatOnly.close();
 });

@@ -514,6 +514,9 @@ Akzeptanzkriterien:
 Akzeptanzkriterien:
 
 - Es gibt kein Grid; man ist fuer niemanden sichtbar.
+- Das Profil ist schlank (Name und Status, vom Betreiber anpassbar);
+  Dating-Angaben aus anderen Modi werden nicht mitgeschickt.
+- Beim ersten Kontakt tauschen beide Seiten automatisch ihre Profile aus.
 - Kontakte kommen ueber einen Einladungslink oder QR-Code (Kopieren,
   Teilen). Wer den Link oeffnet, landet direkt im Chat.
 - Passt der Schluessel beim ersten Kontakt nicht zur Einladung, wird die

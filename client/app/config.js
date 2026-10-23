@@ -38,7 +38,9 @@ const DEFAULT_PROFILE_SCHEMA = [
     { key: 'role', label: 'Position / Role', type: 'select', options: ['Top', 'Bottom', 'Versatile', 'Side'], default: 'Versatile' },
     { key: 'bio', label: 'About Me', type: 'description', default: 'Privacy-first tech enthusiast!' }
 ];
-let PROFILE_SCHEMA = loadInjectedProfileSchema();
+// Der Router liefert ein Schema pro App-Modus; aktiv ist das des gewaehlten Modus (modes.js).
+let PROFILE_SCHEMAS = loadInjectedProfileSchemas();
+let PROFILE_SCHEMA = PROFILE_SCHEMAS.discovery || Object.values(PROFILE_SCHEMAS)[0] || DEFAULT_PROFILE_SCHEMA;
 
 const state = {
     nodeId: getOrCreateNodeId(),
@@ -151,16 +153,33 @@ function loadDebugModePreference() {
     }
 }
 
-function loadInjectedProfileSchema() {
+// Akzeptiert ein Schema pro Modus ({ discovery: [...], chat: [...] }) oder ein einzelnes Array.
+function loadInjectedProfileSchemas() {
     try {
         const rawSchema = document.getElementById('profile-schema-data')?.textContent.trim();
-        if (!rawSchema || rawSchema.startsWith('{{')) return DEFAULT_PROFILE_SCHEMA;
-        const schema = JSON.parse(rawSchema);
-        return validateProfileSchema(schema);
+        if (!rawSchema || rawSchema.startsWith('{{')) return { discovery: DEFAULT_PROFILE_SCHEMA };
+        return normalizeProfileSchemas(JSON.parse(rawSchema));
     } catch (error) {
         console.error('Could not parse injected profile schema.', error);
-        return DEFAULT_PROFILE_SCHEMA;
+        return { discovery: DEFAULT_PROFILE_SCHEMA };
     }
+}
+
+function normalizeProfileSchemas(value) {
+    if (Array.isArray(value)) return { discovery: validateProfileSchema(value) };
+    const schemas = Object.fromEntries(Object.entries(value || {})
+        .filter(([, schema]) => Array.isArray(schema))
+        .map(([mode, schema]) => [mode, validateProfileSchema(schema)]));
+    return Object.keys(schemas).length ? schemas : { discovery: DEFAULT_PROFILE_SCHEMA };
+}
+
+// Feldbeschreibung fuer fremde Profile: der Partner kann ein anderes Schema nutzen.
+function findProfileField(key) {
+    for (const schema of [PROFILE_SCHEMA, ...Object.values(PROFILE_SCHEMAS)]) {
+        const field = schema.find(entry => entry.key === key);
+        if (field) return field;
+    }
+    return null;
 }
 
 function validateProfileSchema(schema) {

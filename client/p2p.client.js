@@ -446,6 +446,8 @@ async function deriveSessionKey(peerId, publicJwk, profileSigningKey) {
     );
     updateChatConnectionStatus(peerId, 'E2EE connected', 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30');
     if (isChatVisibleFor(peerId)) sendChatFocus(peerId, true);
+    // Profil-Handshake: neuer Kontakt (Einladung, erste Nachricht) ohne bekanntes Profil.
+    if (!state.cachedProfiles[peerId]) sendSecurePayload(peerId, { type: 'PROFILE_REQUEST' }).catch(() => {});
     await beginChatSync(peerId);
     await flushSecureMessageQueue(peerId);
 }
@@ -513,6 +515,9 @@ async function handleIncomingProfileResponse(peerId, signedEnvelopeOrProfile) {
     if (state.activeModalPeerId === peerId && typeof renderProfileModalData === 'function') {
         renderProfileModalData(acceptedProfile);
     }
+    // Name und Bild in Chatliste und Kontaktleiste nachziehen.
+    renderActivePeerList();
+    if (state.activeChatPeerId === peerId) renderChatPeerHeader(peerId);
 }
 
 async function handleIncomingImageRequest(peerId, imageId) {

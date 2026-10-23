@@ -74,6 +74,12 @@ const defaultSchema = [
     { key: 'bio', label: 'About Me', type: 'description', default: 'Privacy-first tech enthusiast!' }
 ];
 
+// Im Modus "Nur Chat" reicht ein schlankes Profil: Name und Status.
+const defaultChatSchema = [
+    { key: 'displayName', label: 'Display Name', type: 'string', required: true, default: 'Alex' },
+    { key: 'status', label: 'Status', type: 'string', default: 'Hey, ich nutze OpenGrid.' }
+];
+
 function parseProfileSchema(value) {
     if (!value) return defaultSchema;
     const schema = JSON.parse(value);
@@ -81,6 +87,22 @@ function parseProfileSchema(value) {
         throw new Error('PROFILE_SCHEMA must be a non-empty JSON array.');
     }
     return schema;
+}
+
+// Profil-Schema pro App-Modus (PROFILE_SCHEMAS als JSON-Objekt, z. B. {"chat": [...]}).
+// Fehlende Modi: Chat nutzt das schlanke Schema, alle anderen PROFILE_SCHEMA.
+export function parseProfileSchemas(value, baseSchema, modes) {
+    const overrides = value ? JSON.parse(value) : {};
+    if (!overrides || typeof overrides !== 'object' || Array.isArray(overrides)) {
+        throw new Error('PROFILE_SCHEMAS must be a JSON object keyed by app mode.');
+    }
+    return Object.fromEntries(modes.map(mode => {
+        const schema = overrides[mode] ?? (mode === 'chat' ? defaultChatSchema : baseSchema);
+        if (!Array.isArray(schema) || schema.length === 0) {
+            throw new Error(`PROFILE_SCHEMAS.${mode} must be a non-empty JSON array.`);
+        }
+        return [mode, schema];
+    }));
 }
 
 function isString(value, maxLength) {
@@ -217,6 +239,8 @@ export async function buildApp(options = {}) {
     const appModes = parseAppModes(options.appModes ?? process.env.APP_MODES);
     const requestedDefaultMode = options.defaultAppMode ?? process.env.DEFAULT_APP_MODE;
     const defaultAppMode = appModes.includes(requestedDefaultMode) ? requestedDefaultMode : appModes[0];
+    const profileSchemas = options.profileSchemas
+        || parseProfileSchemas(process.env.PROFILE_SCHEMAS, profileSchema, appModes);
 
     // Verlaessliche Zeit fuer die Schluessel-Rotation; die Geraetezeit wird dafuer ignoriert.
     app.get('/api/time', async (_request, reply) => {
@@ -240,7 +264,7 @@ export async function buildApp(options = {}) {
             .replaceAll('{{versionTag}}', buildVersion)
             .replaceAll('{{timestamp}}', buildTimestamp)
             .replaceAll('{{assetVersion}}', assetVersion)
-            .replace('{{profileSchema}}', JSON.stringify(profileSchema));
+            .replace('{{profileSchema}}', JSON.stringify(profileSchemas));
         return reply.type('text/html; charset=utf-8').header('Cache-Control', 'no-cache').send(html);
     };
     // Client-Routen (client/app/router.js) liefern dieselbe App-Shell.
@@ -459,7 +483,7 @@ export async function buildApp(options = {}) {
     app.delete('/api/register', unregister);
     app.post('/api/unregister', unregister);
 
-    app.get('/api/config', async () => ({ modes: appModes, defaultMode: defaultAppMode }));
+    app.get('/api/config', async () => ({ modes: appModes, defaultMode: defaultAppMode, profileSchemas }));
 
     const toGridPeer = (origin) => ({ peer, km }) => ({
         id: peer.peerId,

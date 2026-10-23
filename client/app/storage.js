@@ -704,3 +704,70 @@ async function trimChatDeleteOperations(peerId) {
         })
     );
 }
+
+// ================= SPEICHERPLATZ =================
+const STORAGE_WARNING_RATIO = 0.8;
+
+// Bittet den Browser, die Daten nicht bei Platzmangel zu loeschen (Chats, Schluessel, Medien).
+async function requestPersistentStorage() {
+    try {
+        if (navigator.storage?.persisted && !await navigator.storage.persisted()) await navigator.storage.persist();
+    } catch (error) {
+        logDebug(`Persistent storage request failed: ${error.message}`);
+    }
+}
+
+async function renderStorageUsage(warn = false) {
+    const output = document.getElementById('storage-usage');
+    if (!navigator.storage?.estimate) {
+        if (output) output.textContent = 'Speicherangaben werden von diesem Browser nicht unterstuetzt.';
+        return;
+    }
+    try {
+        const { usage = 0, quota = 0 } = await navigator.storage.estimate();
+        const persisted = await navigator.storage.persisted?.().catch(() => false);
+        const ratio = quota ? usage / quota : 0;
+        const megabytes = value => (value / (1024 * 1024)).toFixed(1);
+        if (output) {
+            output.textContent = `${megabytes(usage)} MB von ${megabytes(quota)} MB belegt (${Math.round(ratio * 100)} %)`
+                + (persisted ? ' · dauerhaft gespeichert' : ' · kann vom Browser geloescht werden');
+            output.classList.toggle('text-amber-400', ratio >= STORAGE_WARNING_RATIO);
+        }
+        if (warn && ratio >= STORAGE_WARNING_RATIO) {
+            showToast('Der Speicher ist fast voll. In den Einstellungen kannst du aufraeumen.', 'warning');
+        }
+    } catch (error) {
+        logDebug(`Storage estimate failed: ${error.message}`);
+    }
+}
+
+// IDs aller Medien, die noch gebraucht werden. Alles andere im Store `media` kann weg.
+async function collectReferencedMediaIds() {
+    const referenced = new Set((state.myProfile.gallery || []).map(item => item.id));
+    Object.values(state.cachedProfiles).forEach(profile => (profile.gallery || []).forEach(item => referenced.add(item.id)));
+    Object.values(state.albums).forEach(album => (album.items || []).forEach(item => referenced.add(item.id)));
+    // Schluessel noch offener Secure Snaps des Senders.
+    const messages = await getAllDatabaseRecords('messages').catch(() => []);
+    messages.forEach(message => {
+        if (message.secureSnap?.snapId && message.secureSnap.encrypted) referenced.add(`ssnap_${message.secureSnap.snapId}`);
+    });
+    return referenced;
+}
+
+async function cleanupUnusedMedia() {
+    const button = document.getElementById('storage-cleanup-btn');
+    if (button) button.disabled = true;
+    try {
+        const referenced = await collectReferencedMediaIds();
+        const keys = await databaseRequest('media', 'readonly', store => store.getAllKeys());
+        const unused = keys.filter(key => !referenced.has(key));
+        await Promise.all(unused.map(key => deleteDatabaseRecord('media', key)));
+        showToast(unused.length ? `${unused.length} nicht mehr benoetigte Medien entfernt.` : 'Nichts aufzuraeumen.', 'success');
+        await renderStorageUsage();
+    } catch (error) {
+        showToast(`Aufraeumen fehlgeschlagen: ${error.message}`, 'error');
+    } finally {
+        if (button) button.disabled = false;
+    }
+}
+

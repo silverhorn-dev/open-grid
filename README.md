@@ -59,6 +59,7 @@ liegt im benannten Volume `open-grid-data` unter `/app/data`.
 | `TURN_TLS_PORT` | – | Optional, aktiviert zusaetzlich eine `turns:`-URL |
 | `STUN_SERVER` | eigener TURN-Server | STUN-Server (`host:port`) oder `none`. Ohne Angabe dient der eigene coturn auch als STUN; erst ohne TURN wird der oeffentliche Google-STUN genutzt |
 | `PUSH_HOST_ALLOWLIST` | – | Zusaetzliche erlaubte Push-Hosts, kommagetrennt (z. B. ein eigener UnifiedPush-/ntfy-Server). Standard: Google, Mozilla, Apple, Microsoft |
+| `CREDENTIAL_RETENTION_DAYS` | `180` | Nach so vielen Tagen ohne Registrierung werden Zugangsdaten, Push-Abo, eigene Chat-Kontrollen und wartende Nachrichten eines Peers geloescht (mindestens 7) |
 | `TRUST_PROXY` | private Netze | Welchen Proxies `X-Forwarded-For` geglaubt wird: `true`, `false`, Anzahl Hops oder Adressen/Netze. Standard: Loopback und private Netze |
 | `LAN_MODE` | `false` | `true` = Club-/LAN-Betrieb: keine STUN/TURN-Server, nur Verbindungen im selben Netz |
 | `VAPID_SUBJECT` | `mailto:admin@localhost` | Kontaktadresse fuer Push-Dienste (`mailto:` oder `https:`); Apple lehnt den Standardwert ab |
@@ -168,6 +169,12 @@ npm.cmd run check
   bzw. 20 MB, pro Absender und Empfaenger 200 Nachrichten.
 - Logs enthalten weder Query-Strings (Geohash, Peer-IDs, Event-Hashes) noch
   IP-Adressen.
+- Peers, die sich `CREDENTIAL_RETENTION_DAYS` (Standard 180) Tage nicht
+  registriert haben, werden mit Zugangsdaten, Push-Abo, eigenen
+  Chat-Kontrollen und wartenden Nachrichten geloescht.
+- Im Browser liegen Profile, Medien und Alben (inkl. Albumgeheimnis)
+  verschluesselt; die App bittet um dauerhaften Speicher und zeigt die Belegung
+  in den Einstellungen.
 - Chat-Loeschungen speichern einen Cutoff in `chat_controls`, damit alte
   Operationen den geloeschten Verlauf nicht wiederherstellen.
 - Blockierungen bleiben serverseitig bestehen, entfernen wartende Nachrichten

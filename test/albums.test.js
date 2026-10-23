@@ -174,3 +174,30 @@ test('revoking access bumps the album key version', async () => {
     const raw = async key => Buffer.from(await globalThis.crypto.subtle.exportKey('raw', key)).toString('hex');
     assert.notEqual(await raw(keyBefore), await raw(keyAfter));
 });
+
+test('album records are sealed at rest and old plaintext records get migrated', async () => {
+    const { context, records } = loadAlbums();
+    const key = await globalThis.crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+    context.state.storageKey = key;
+    context.encryptStoredProfile = async value => {
+        const iv = globalThis.crypto.getRandomValues(new Uint8Array(12));
+        const ciphertext = await globalThis.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(value)));
+        return { iv: Buffer.from(iv).toString('base64'), ciphertext: Buffer.from(ciphertext).toString('base64') };
+    };
+    context.decryptStoredProfile = async sealed => JSON.parse(new TextDecoder().decode(await globalThis.crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: Buffer.from(sealed.iv, 'base64') }, key, Buffer.from(sealed.ciphertext, 'base64'))));
+
+    // Alter Klartext-Datensatz mit Geheimnis.
+    records.set('albums:alb_1', { ...context.state.albums.alb_1 });
+    await context.loadAlbums();
+    const stored = records.get('albums:alb_1');
+    assert.ok(stored.sealed, 'record is sealed after loading');
+    assert.equal(JSON.stringify(stored).includes(context.state.albums.alb_1.secret), false, 'secret no longer in clear text');
+    assert.equal(stored.secret, undefined);
+
+    // Erneut laden: entschluesselt wieder dasselbe Album.
+    context.state.albums = {};
+    await context.loadAlbums();
+    assert.equal(context.state.albums.alb_1.name, 'Urlaub');
+    assert.equal(context.state.albums.alb_1.secret, Buffer.alloc(32, 7).toString('base64'));
+});

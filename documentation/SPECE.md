@@ -250,6 +250,13 @@ Sobald der Peer wieder in einer aktuellen Grid-Antwort erscheint, wird eine
 offene Chat- oder Nachrichtenverbindung mit einer neuen RTCPeerConnection
 aufgebaut.
 
+Jede entschluesselte Nachricht (P2P und Pfad C) wird vor der Verarbeitung von
+`client/app/payload-validation.js` geprueft: nur bekannte Typen, erwartete
+Feldtypen und Obergrenzen (Text 10 000 Zeichen, Bilder 3 MB, Sync-Listen 50
+IDs, Profile 50 Felder, Alben 500 Bilder); rohe DataChannel-Nachrichten ueber
+4 MB werden gar nicht erst geparst. Ungueltiges wird verworfen und im
+Debug-Log vermerkt.
+
 Nach Aufbau des DataChannels tauschen beide Clients oeffentliche ECDH-P-256-
 Schluessel aus und leiten einen AES-256-GCM-Session-Key ab. Beim Oeffnen eines
 Profils prueft ein verschluesseltes `PRESENCE_PING`/`PRESENCE_PONG` die
@@ -342,6 +349,10 @@ Zone, registriert sich der Client als `silent`.
 
 ### 5.1 Alben
 
+Album-Datensaetze (inkl. `secret` und rollender Keys) liegen wie Profile mit dem
+Speicherschluessel verschluesselt im Store `albums` (`{ id, sealed: { iv, ciphertext } }`);
+alte Klartext-Datensaetze werden beim Laden migriert.
+
 Ein eigenes Album ist `{ id: 'alb_<uuid>', ownerId, name, items: [{ id, version }], acl: [peerId] }`.
 Die Bilder (`albimg_<uuid>`, max. 1080 px, JPEG 0.7) liegen verschluesselt in
 `media`. Alben sind nicht Teil des Profils.
@@ -412,6 +423,12 @@ fuer angefragte Bilder aus dem gecachten Profil oder einem empfangenen Album
 desselben Besitzers angenommen. Ein Entzug wirkt fuer neue Anfragen sofort;
 bereits empfangene Kopien loescht der Client des Betrachters nach
 `ALBUM_REVOKED`/`ALBUM_DENIED` (ohne Garantie gegen manipulierte Clients).
+
+Speicher: Beim Start bittet die App per `navigator.storage.persist()` um
+dauerhaften Speicher und zeigt `navigator.storage.estimate()` in den
+Einstellungen (Hinweis ab 80 % Belegung). "Nicht mehr benoetigte Medien
+entfernen" loescht Eintraege im Store `media`, die weder zur eigenen Galerie,
+zu gecachten Galerien, zu Alben noch zu offenen Secure Snaps gehoeren.
 
 Nur eine hoehere Profilversion ersetzt einen vorhandenen Cache.
 Das eigene Profil wird nie durch Grid-Tombstones oder Peer-Cache-Bereinigung
@@ -715,6 +732,12 @@ Ein Klick auf die Benachrichtigung fokussiert die App und oeffnet den Chat
 (`OPEN_CHAT`) oder startet sie mit `/?chat=<peerId>`.
 
 ## 9.2 Server-Haertung
+
+- Aufbewahrung: `peer_credentials.last_active_at` wird bei jeder Registrierung
+  gesetzt. Stuendlich loescht der Server Peers, die laenger als
+  `CREDENTIAL_RETENTION_DAYS` (Standard 180, mindestens 7) inaktiv sind:
+  Zugangsdaten, Push-Abo, eigene Chat-Kontrollen, wartende Nachrichten und den
+  Grid-Eintrag.
 
 - Rate-Limits pro IP (Fenster 1 Minute): Registrierung 30, Grid 90, Chat-Kontrollen 30,
   Push-Abo 10; Pfad C 120 pro Absender; WebSocket 300 Nachrichten pro 10 Sekunden

@@ -470,6 +470,16 @@
 
                 <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
                     <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-hard-drive text-sky-400"></i> Speicher
+                    </h3>
+                    <div id="storage-usage" class="text-xs text-slate-300">Wird berechnet...</div>
+                    <button id="storage-cleanup-btn" onclick="cleanupUnusedMedia()" class="bg-slate-800 hover:bg-slate-700 disabled:opacity-60 border border-slate-700 text-xs text-slate-200 px-3 py-2 rounded-lg font-semibold">
+                        Nicht mehr benoetigte Medien entfernen
+                    </button>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
+                    <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
                         <i class="fa-solid fa-text-height text-brand-400"></i> Darstellung
                     </h3>
                     <label class="flex items-center gap-2 text-xs text-slate-300">
@@ -786,6 +796,7 @@
     <script src="/client/app/config.js?v={{assetVersion}}"></script>
     <script src="/client/app/storage.js?v={{assetVersion}}"></script>
     <script src="/client/app/profile.js?v={{assetVersion}}"></script>
+    <script src="/client/app/payload-validation.js?v={{assetVersion}}"></script>
     <script src="/client/grid.client.js?v={{assetVersion}}"></script>
     <script src="/client/p2p.client.js?v={{assetVersion}}"></script>
     <script src="/client/app/chat.js?v={{assetVersion}}"></script>

@@ -597,6 +597,10 @@ async function handleIncomingImageResponse(peerId, imageId, version, data) {
 
 async function handleDataChannelMessage(peerId, rawMessage) {
     try {
+        // Uebergrosse oder binaere Nachrichten gar nicht erst parsen.
+        if (typeof rawMessage !== 'string' || rawMessage.length > MAX_SECURE_MESSAGE_LENGTH) {
+            throw new Error('Message too large or not text.');
+        }
         const message = JSON.parse(rawMessage);
         if (message.type === 'KEY_HELLO') {
             await deriveSessionKey(peerId, message.publicKey, message.profileSigningKey);
@@ -611,6 +615,11 @@ async function handleDataChannelMessage(peerId, rawMessage) {
 
 async function handleSecurePayload(peerId, payload, deliveredVia = 'E2EE P2P') {
     if (isPeerBlocked(peerId)) return;
+    // Gilt fuer P2P und Pfad C: nur bekannte Typen mit plausiblen Feldern (payload-validation.js).
+    if (!isValidSecurePayload(payload)) {
+        logDebug(`Rejected invalid ${typeof payload?.type === 'string' ? payload.type.substring(0, 40) : 'unknown'} payload from ${peerId}.`);
+        return;
+    }
     if (payload.type === 'CHAT_OPERATION') {
         await applyChatOperation(peerId, payload.operation, deliveredVia);
     } else if (payload.type === 'CHAT_FOCUS') {

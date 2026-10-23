@@ -39,6 +39,8 @@ window.onload = async () => {
         await loadCachedGridPeers();
         await loadChatPeerIds();
         await loadAlbums();
+        requestPersistentStorage();
+        renderStorageUsage(true);
         await loadMatchState();
         renderMatchingSettings();
         syncChatGate();

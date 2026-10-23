@@ -823,6 +823,24 @@ test('logs requests without query strings', async () => {
     assert.doesNotMatch(output, /u10j2k|secret-peer|eventHash|remoteAddress/);
 });
 
+test('removes identities that have not registered within the retention period', async () => {
+    const day = 24 * 60 * 60 * 1000;
+    const retained = createStore(':memory:', { credentialRetentionDays: 30 });
+    const register = (peerId, now) => retained.registerPeer({ peerId, registrationId: 'r', authHash: `hash-${peerId}`, identityJwk: null, geohash: 'u10j2k', thumbnail: null, name: peerId }, now);
+    register('old-peer', 0);
+    register('active-peer', 0);
+    register('active-peer', 25 * day);
+    retained.setPushSubscription('old-peer', { endpoint: 'https://fcm.googleapis.com/x', keys: { p256dh: 'a', auth: 'b' } }, 0);
+    retained.setChatControl('old-peer', 'active-peer', 'BLOCK', 0);
+
+    assert.equal(retained.removeStaleIdentities(40 * day), 1);
+    assert.equal(retained.authenticatePeer('old-peer', 'hash-old-peer'), false);
+    assert.equal(retained.getPushSubscription('old-peer'), null);
+    assert.equal(retained.isBlocked('old-peer', 'active-peer'), false);
+    assert.equal(retained.authenticatePeer('active-peer', 'hash-active-peer'), true);
+    retained.close();
+});
+
 test('rejects unauthorized access to peer-owned state', async () => {
     await registerPeer('peer-a');
     await registerPeer('peer-b');

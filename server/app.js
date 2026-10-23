@@ -69,6 +69,7 @@ const projectDirectory = join(serverDirectory, '..');
 const clientAssetFiles = [
     'crypto.client.js',
     'geohash.client.js',
+    'app/payload-validation.js',
     'grid.client.js',
     'p2p.client.js',
     'styles.css',
@@ -189,7 +190,10 @@ export async function buildApp(options = {}) {
         trustProxy: parseTrustProxy(options.trustProxy ?? process.env.TRUST_PROXY),
         bodyLimit: 128 * 1024
     });
-    const store = options.store || createStore(options.databasePath || process.env.DATABASE_PATH || join(projectDirectory, 'data', 'open-grid.sqlite'));
+    const store = options.store || createStore(
+        options.databasePath || process.env.DATABASE_PATH || join(projectDirectory, 'data', 'open-grid.sqlite'),
+        { credentialRetentionDays: process.env.CREDENTIAL_RETENTION_DAYS }
+    );
 
     // Fehlendes TURN faellt im Browser nur als "keine relay-Kandidaten" auf.
     // Deshalb beim Start klar benennen, dass die Variablen fehlen.

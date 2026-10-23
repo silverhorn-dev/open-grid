@@ -9,7 +9,18 @@ const MAX_GRID_TTL_MS = 60 * 60 * 1000;
 const REMOVED_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const MAX_QUEUE_TTL_HOURS = 72;
 
-export function createStore(databasePath) {
+const DEFAULT_CREDENTIAL_RETENTION_DAYS = 180;
+const RETENTION_SWEEP_INTERVAL_MS = 60 * 60 * 1000;
+
+// Aufbewahrung verwaister Identitaeten (CREDENTIAL_RETENTION_DAYS, mindestens 7 Tage).
+export function parseRetentionDays(value) {
+    const days = Number(value);
+    return Number.isFinite(days) && days >= 7 ? Math.floor(days) : DEFAULT_CREDENTIAL_RETENTION_DAYS;
+}
+
+export function createStore(databasePath, { credentialRetentionDays = DEFAULT_CREDENTIAL_RETENTION_DAYS } = {}) {
+    const retentionMs = parseRetentionDays(credentialRetentionDays) * 24 * 60 * 60 * 1000;
+    let lastRetentionSweep = 0;
     if (databasePath !== ':memory:') mkdirSync(dirname(databasePath), { recursive: true });
     const database = new DatabaseSync(databasePath);
     database.exec('PRAGMA journal_mode = WAL');
@@ -98,6 +109,11 @@ export function createStore(databasePath) {
     if (!credentialColumns.some(column => column.name === 'identity_jwk')) {
         database.exec('ALTER TABLE peer_credentials ADD COLUMN identity_jwk TEXT');
     }
+    // Letzte Registrierung; alte Datensaetze starten mit ihrem Erstellungsdatum.
+    if (!credentialColumns.some(column => column.name === 'last_active_at')) {
+        database.exec('ALTER TABLE peer_credentials ADD COLUMN last_active_at INTEGER');
+        database.exec('UPDATE peer_credentials SET last_active_at = created_at WHERE last_active_at IS NULL');
+    }
 
     const statements = {
         findPeer: database.prepare(`
@@ -110,6 +126,11 @@ export function createStore(databasePath) {
             FROM peer_credentials
             WHERE peer_id = ?
         `),
+        touchPeerCredential: database.prepare('UPDATE peer_credentials SET last_active_at = ? WHERE peer_id = ?'),
+        listStaleCredentials: database.prepare('SELECT peer_id AS peerId FROM peer_credentials WHERE COALESCE(last_active_at, created_at) < ?'),
+        deleteCredential: database.prepare('DELETE FROM peer_credentials WHERE peer_id = ?'),
+        deleteOwnerControls: database.prepare('DELETE FROM chat_controls WHERE owner_id = ?'),
+        deleteRecipientMessages: database.prepare('DELETE FROM queued_messages WHERE recipient_id = ?'),
         insertPeerCredential: database.prepare(`
             INSERT INTO peer_credentials (peer_id, auth_hash, identity_jwk, created_at)
             VALUES (?, ?, ?, ?)
@@ -299,6 +320,7 @@ export function createStore(databasePath) {
                     session.peerId
                 );
             }
+            statements.touchPeerCredential.run(now, session.peerId);
             const silent = session.silent ? 1 : 0;
             const scope = ['friends', 'event'].includes(session.scope) ? session.scope : 'public';
             const wasPublic = previous && !previous.silent && (previous.scope || 'public') === 'public';
@@ -354,11 +376,38 @@ export function createStore(databasePath) {
         statements.deleteExpiredPeers.run(now);
         statements.deleteExpiredRemoved.run(now);
         statements.deleteExpiredMessages.run(now);
+        if (now - lastRetentionSweep >= RETENTION_SWEEP_INTERVAL_MS) {
+            lastRetentionSweep = now;
+            removeStaleIdentities(now);
+        }
+    }
+
+    // Seit der Aufbewahrungsfrist nicht mehr registriert: Zugangsdaten, Push-Abo, eigene
+    // Chat-Kontrollen und wartende Nachrichten loeschen. Bei Rueckkehr registriert sich der
+    // Client mit seinem Signaturschluessel neu.
+    function removeStaleIdentities(now) {
+        const stale = statements.listStaleCredentials.all(now - retentionMs);
+        if (!stale.length) return 0;
+        transaction(() => {
+            for (const { peerId } of stale) {
+                statements.deleteCredential.run(peerId);
+                statements.deletePushSubscription.run(peerId);
+                statements.deleteOwnerControls.run(peerId);
+                statements.deleteRecipientMessages.run(peerId);
+                statements.deletePeer.run(peerId);
+            }
+        });
+        return stale.length;
     }
 
     return {
         registerPeer(session, now = Date.now()) {
             return registerPeerTransaction(session, now);
+        },
+
+        // Fuer Tests und Betrieb: sofortiger Durchlauf der Aufbewahrungsregel.
+        removeStaleIdentities(now = Date.now()) {
+            return removeStaleIdentities(now);
         },
 
         getPeerGeohash(peerId) {

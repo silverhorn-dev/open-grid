@@ -19,6 +19,8 @@ function fakeDatabase(stores) {
         transaction: storeName => ({
             objectStore: () => ({
                 get: key => request(() => stores[storeName].get(key)),
+                getAll: () => request(() => [...stores[storeName].values()]),
+                getAllKeys: () => request(() => [...stores[storeName].keys()]),
                 put: value => request(() => stores[storeName].set(value.id ?? value.operationId, value)),
                 delete: key => request(() => stores[storeName].delete(key))
             })
@@ -27,9 +29,11 @@ function fakeDatabase(stores) {
 }
 
 function loadStorage() {
-    const stores = { messages: new Map(), chatOperations: new Map() };
+    const stores = { messages: new Map(), chatOperations: new Map(), media: new Map() };
     const context = {
-        state: { myProfile: { id: 'me' }, chatControls: {}, chats: {}, chatPreviews: {}, chatPeerIds: [], activeChatPeerId: null },
+        state: { myProfile: { id: 'me', gallery: [] }, chatControls: {}, chats: {}, chatPreviews: {}, chatPeerIds: [], activeChatPeerId: null, cachedProfiles: {}, albums: {} },
+        showToast: () => {},
+        document: { getElementById: () => null },
         subscribePresence: () => {},
         db: fakeDatabase(stores),
         renderActivePeerList: () => {},
@@ -86,3 +90,17 @@ test('custom display rules respect .hidden and the open action bar keeps its bac
     const touchBlock = styles.slice(styles.indexOf('@media (hover: none) {\n    /* Unter #chat-messages'));
     assert.doesNotMatch(touchBlock.slice(0, touchBlock.indexOf('\n}\n')), /:hover \.message-actions/);
 });
+
+test('media cleanup keeps everything that is still referenced', async () => {
+    const { context, stores } = loadStorage();
+    context.state.myProfile.gallery = [{ id: 'img_own' }];
+    context.state.cachedProfiles = { peer: { gallery: [{ id: 'img_peer' }] } };
+    context.state.albums = { a: { items: [{ id: 'albimg_kept' }] } };
+    stores.messages.set('m1', { id: 'm1', secureSnap: { snapId: 'open', encrypted: { iv: 'x', ciphertext: 'y' } } });
+    stores.messages.set('m2', { id: 'm2', secureSnap: { snapId: 'done' } });
+    for (const id of ['img_own', 'img_peer', 'albimg_kept', 'ssnap_open', 'ssnap_done', 'albimg_orphan', 'img_old']) stores.media.set(id, { id });
+
+    await context.cleanupUnusedMedia();
+    assert.deepEqual([...stores.media.keys()].sort(), ['albimg_kept', 'img_own', 'img_peer', 'ssnap_open']);
+});
+

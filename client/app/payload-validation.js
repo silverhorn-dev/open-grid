@@ -1,0 +1,105 @@
+// ================= P2P-EINGABEPRUEFUNG =================
+// Jede entschluesselte P2P-Nachricht wird vor der Verarbeitung geprueft: bekannter Typ,
+// erwartete Feldtypen, Grenzen fuer Laengen und Listen. Alles andere wird verworfen.
+const MAX_SECURE_MESSAGE_LENGTH = 4 * 1024 * 1024;
+const MAX_ID_LENGTH = 200;
+const MAX_TEXT_LENGTH = 10000;
+const MAX_INLINE_IMAGE_LENGTH = 3 * 1024 * 1024;
+const MAX_PROFILE_FIELDS = 50;
+const MAX_PROFILE_VALUE_LENGTH = 5000;
+const MAX_SYNC_IDS = 50;
+const CHAT_OPERATION_TYPES = [
+    'MESSAGE_PUT', 'MESSAGE_DELETE', 'MESSAGE_REACT', 'CHAT_WIPE', 'PEER_UNHIDE',
+    'MATCH_PING', 'MATCH_RESET', 'SNAP_CONSUMED', 'ALBUM_KEYS'
+];
+
+const isId = value => typeof value === 'string' && value.length > 0 && value.length <= MAX_ID_LENGTH;
+const isOptionalString = (value, max) => value === undefined || value === null || (typeof value === 'string' && value.length <= max);
+const isSmallInt = value => Number.isInteger(value) && value >= 0 && value <= 1e9;
+const isTimestamp = value => value === undefined || (Number.isFinite(value) && value >= 0);
+const isIdList = (value, max) => Array.isArray(value) && value.length <= max && value.every(isId);
+
+function isValidMessage(message) {
+    if (!message || typeof message !== 'object') return false;
+    return isId(message.id) && isId(message.senderId)
+        && isOptionalString(message.text, MAX_TEXT_LENGTH)
+        && isOptionalString(message.snapData, MAX_INLINE_IMAGE_LENGTH)
+        && isOptionalString(message.timestamp, 40)
+        && isTimestamp(message.createdAt);
+}
+
+function isValidChatOperation(operation) {
+    if (!operation || typeof operation !== 'object') return false;
+    if (!isId(operation.operationId) || !CHAT_OPERATION_TYPES.includes(operation.type)) return false;
+    if (!isOptionalString(operation.actorId, MAX_ID_LENGTH) || !isTimestamp(operation.createdAt)) return false;
+    if (operation.type === 'MESSAGE_PUT') return isId(operation.messageId) && isValidMessage(operation.message);
+    if (['MESSAGE_DELETE', 'MESSAGE_REACT', 'SNAP_CONSUMED'].includes(operation.type)) return isId(operation.messageId);
+    if (operation.type === 'ALBUM_KEYS') return Array.isArray(operation.bundles) && operation.bundles.length <= 4;
+    return true;
+}
+
+function isValidProfileEnvelope(envelope) {
+    if (!envelope || typeof envelope !== 'object') return false;
+    // Signierter Umschlag oder (alt) direktes Profil.
+    const profile = envelope.payload || envelope;
+    if (!profile || typeof profile !== 'object') return false;
+    const fields = profile.fields || {};
+    if (typeof fields !== 'object' || Array.isArray(fields) || Object.keys(fields).length > MAX_PROFILE_FIELDS) return false;
+    const fieldsOk = Object.values(fields).every(value => {
+        if (Array.isArray(value)) return value.length <= 50 && value.every(entry => typeof entry === 'string' && entry.length <= MAX_PROFILE_VALUE_LENGTH);
+        return ['string', 'number', 'boolean'].includes(typeof value) && String(value).length <= MAX_PROFILE_VALUE_LENGTH;
+    });
+    const galleryOk = profile.gallery === undefined
+        || (Array.isArray(profile.gallery) && profile.gallery.length <= 100 && profile.gallery.every(item => isId(item?.id)));
+    return fieldsOk && galleryOk && isOptionalString(profile.avatar, MAX_INLINE_IMAGE_LENGTH);
+}
+
+const PAYLOAD_VALIDATORS = {
+    CHAT_OPERATION: payload => isValidChatOperation(payload.operation),
+    CHAT_FOCUS: payload => typeof payload.open === 'boolean',
+    CHAT_SYNC_HELLO: payload => isIdList(payload.recentOperationIds || [], 20),
+    CHAT_SYNC_INVENTORY_REQUEST: payload => payload.cursor === undefined || isSmallInt(payload.cursor),
+    CHAT_SYNC_INVENTORY: payload => isIdList(payload.operationIds || [], MAX_SYNC_IDS)
+        && (payload.nextCursor === undefined || payload.nextCursor === null || isSmallInt(payload.nextCursor)),
+    CHAT_SYNC_OPERATION_REQUEST: payload => isIdList(payload.operationIds || [], MAX_SYNC_IDS),
+    CHAT_SYNC_OPERATIONS: payload => Array.isArray(payload.operations) && payload.operations.length <= MAX_SYNC_IDS
+        && payload.operations.every(isValidChatOperation),
+    CHAT_MESSAGE: payload => isId(payload.id) && isOptionalString(payload.text, MAX_TEXT_LENGTH)
+        && isOptionalString(payload.snapData, MAX_INLINE_IMAGE_LENGTH),
+    PRESENCE_PING: payload => isId(payload.nonce),
+    PRESENCE_PONG: payload => isId(payload.nonce),
+    PROFILE_REQUEST: () => true,
+    PROFILE_RESPONSE: payload => isValidProfileEnvelope(payload.signedEnvelope || payload.profile),
+    SWARM_PROFILE_REQUEST: payload => isId(payload.targetNodeId),
+    SWARM_PROFILE_RESPONSE: payload => isId(payload.targetNodeId) && isValidProfileEnvelope(payload.signedEnvelope),
+    ALBUM_REQUEST: payload => isId(payload.albumId),
+    ALBUM_RESPONSE: payload => isId(payload.album?.id) && isOptionalString(payload.album?.name, 200)
+        && Array.isArray(payload.album?.items) && payload.album.items.length <= 500,
+    ALBUM_DENIED: payload => isId(payload.albumId),
+    ALBUM_REVOKED: payload => isId(payload.albumId),
+    ALBUM_KEY_REQUEST: payload => isId(payload.albumId),
+    SNAP_VIEW_REQUEST: payload => isId(payload.snapId),
+    SNAP_VIEW_GRANT: payload => isId(payload.snapId) && isOptionalString(payload.key, 100),
+    SNAP_VIEW_DENIED: payload => payload.snapId === null || isId(payload.snapId),
+    SNAP_STREAM_START: payload => isId(payload.snapId) && isId(payload.streamId),
+    SNAP_STREAM_PLAYING: payload => isId(payload.snapId),
+    SNAP_STREAM_END: payload => isId(payload.snapId),
+    SNAP_VIEW_CLOSED: payload => isId(payload.snapId),
+    IMAGE_REQUEST: payload => isId(payload.imageId) && (payload.version === undefined || isSmallInt(payload.version)),
+    IMAGE_RESPONSE: payload => isId(payload.imageId) && isSmallInt(payload.version)
+        && (payload.encrypted
+            ? typeof payload.encrypted.iv === 'string' && payload.encrypted.iv.length <= 40
+                && typeof payload.encrypted.ciphertext === 'string' && payload.encrypted.ciphertext.length <= MAX_INLINE_IMAGE_LENGTH * 2
+            : isOptionalString(payload.data, MAX_INLINE_IMAGE_LENGTH))
+};
+
+function isValidSecurePayload(payload) {
+    if (!payload || typeof payload !== 'object' || typeof payload.type !== 'string') return false;
+    const validator = PAYLOAD_VALIDATORS[payload.type];
+    if (!validator) return false;
+    try {
+        return validator(payload) === true;
+    } catch {
+        return false;
+    }
+}

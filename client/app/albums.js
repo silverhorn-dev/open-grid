@@ -8,14 +8,35 @@ const ALBUM_COVER_EDGE = 240;
 
 async function loadAlbums() {
     const records = await getAllDatabaseRecords('albums').catch(() => []);
-    state.albums = Object.fromEntries(records.map(album => [album.id, album]));
+    const albums = [];
+    for (const record of records) {
+        if (record.sealed) {
+            const album = await decryptStoredProfile(record.sealed).catch(() => null);
+            if (album?.id === record.id) albums.push(album);
+            continue;
+        }
+        // Alte Klartext-Datensaetze werden beim Laden verschluesselt neu gespeichert.
+        albums.push(record);
+        await persistAlbum(record);
+    }
+    state.albums = Object.fromEntries(albums.map(album => [album.id, album]));
     // Alben aus der Zeit vor den rotierenden Schluesseln bekommen nachtraeglich ein Geheimnis.
     for (const album of getOwnAlbums().filter(album => !album.secret)) {
         album.secret = createAlbumSecret();
         album.keyVersion = 1;
-        await putDatabaseRecord('albums', album);
+        await persistAlbum(album);
     }
     renderAlbumManager();
+}
+
+// Alben (inkl. Albumgeheimnis und rollender Keys) liegen mit dem Speicherschluessel verschluesselt
+// in IndexedDB, wie die Profile. Nur die ID bleibt lesbar.
+async function persistAlbum(album) {
+    if (!state.storageKey) {
+        await putDatabaseRecord('albums', album);
+        return;
+    }
+    await putDatabaseRecord('albums', { id: album.id, sealed: await encryptStoredProfile(album) });
 }
 
 function createAlbumSecret() {
@@ -31,7 +52,7 @@ function getOwnAlbums() {
 async function saveAlbum(album) {
     album.updatedAt = Date.now();
     state.albums[album.id] = album;
-    await putDatabaseRecord('albums', album);
+    await persistAlbum(album);
     renderAlbumManager();
 }
 
@@ -202,7 +223,7 @@ async function handleAlbumResponse(peerId, payload) {
         receivedAt: Date.now()
     };
     state.albums[album.id] = album;
-    await putDatabaseRecord('albums', album);
+    await persistAlbum(album);
     // Buendel koennen vor den Album-Metadaten angekommen sein.
     if (!state.albumKeys[album.id]) await loadAlbumKeys(album.id).catch(() => false);
     if (state.albumViewer?.albumId === album.id) await renderAlbumViewer(album);
@@ -673,7 +694,7 @@ async function pushAlbumKeys(viewerId, album, force = false) {
     for (let offset = 0; offset <= ALBUM_KEY_EPOCHS_AHEAD; offset++) {
         bundles.push(await buildAlbumKeyBundle(album, viewerId, time, time.epoch + offset));
     }
-    await putDatabaseRecord('albums', album);
+    await persistAlbum(album);
     pushed[album.id] = marker;
     const operation = {
         operationId: `albumkeys:${album.id}:${marker}:${window.crypto.randomUUID()}`,

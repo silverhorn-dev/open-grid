@@ -113,10 +113,19 @@ function renderActivePeerList() {
         button.className = `w-full flex items-center gap-3 rounded-xl border p-2 text-left transition ${state.activeChatPeerId === peer.id ? 'border-brand-500/60 bg-brand-500/10' : 'border-slate-800 bg-slate-950/40 hover:border-slate-700'}`;
         button.onclick = () => openChatWithPeer(peer.id);
 
+        const avatar = document.createElement('div');
+        avatar.className = 'relative shrink-0';
         const image = document.createElement('img');
         image.src = peer.avatar || 'https://placehold.co/80x80/1e293b/ffffff?text=P';
         image.alt = '';
         image.className = 'w-10 h-10 rounded-full object-cover border border-slate-700';
+        avatar.appendChild(image);
+        if (!blocked && isPeerOnline(peer.id)) {
+            const dot = document.createElement('span');
+            dot.className = 'absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-slate-900';
+            dot.title = 'Online';
+            avatar.appendChild(dot);
+        }
         const details = document.createElement('div');
         details.className = 'min-w-0 flex-1';
         const name = document.createElement('div');
@@ -128,11 +137,13 @@ function renderActivePeerList() {
             ? 'Blocked'
             : state.dataChannels[peer.id]?.readyState === 'open'
             ? 'P2P connected'
-            : state.peers.some(candidate => candidate.id === peer.id)
-                ? 'Router entry'
-                : 'Offline chat';
+            : state.peerPresence[peer.id]
+                ? 'Online (presence)'
+                : state.peers.some(candidate => candidate.id === peer.id)
+                    ? 'Router entry'
+                    : 'Offline';
         details.append(name, status);
-        button.append(image, details);
+        button.append(avatar, details);
         container.appendChild(button);
     });
 }

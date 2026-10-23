@@ -576,6 +576,72 @@ test('notifies peers in the same geohash when a socket closes', async () => {
     peerA.close();
 });
 
+async function connectSocket(url, peerId) {
+    const socket = new WebSocket(url);
+    const inbox = [];
+    const waiters = [];
+    socket.onmessage = event => {
+        const message = JSON.parse(event.data);
+        inbox.push(message);
+        waiters.splice(0).forEach(waiter => waiter());
+    };
+    socket.next = (type, timeoutMs = 2000) => new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error(`Timed out waiting for ${type} on ${peerId}.`)), timeoutMs);
+        const check = () => {
+            const index = inbox.findIndex(message => message.type === type);
+            if (index < 0) {
+                waiters.push(check);
+                return;
+            }
+            clearTimeout(timer);
+            resolve(inbox.splice(index, 1)[0]);
+        };
+        check();
+    });
+    socket.has = type => inbox.some(message => message.type === type);
+    await new Promise(resolve => {
+        socket.onopen = resolve;
+    });
+    socket.send(JSON.stringify({ type: 'REGISTER_SOCKET', peerId, authToken: peerTokens.get(peerId) }));
+    await socket.next('SOCKET_REGISTERED');
+    return socket;
+}
+
+test('shares presence only between mutually subscribed, unblocked chat partners in any cell', async () => {
+    await registerPeer('peer-a');
+    const registeredB = await app.inject({ method: 'POST', url: '/api/register', payload: registrationPayload('peer-b', 'registration-peer-b', { geohash: 'gcpvj0' }) });
+    peerTokens.set('peer-b', registeredB.json().authToken);
+    await registerPeer('peer-c');
+    await app.listen({ host: '127.0.0.1', port: 0 });
+    const url = `ws://127.0.0.1:${app.server.address().port}/ws`;
+    const peerA = await connectSocket(url, 'peer-a');
+    const peerB = await connectSocket(url, 'peer-b');
+    const peerC = await connectSocket(url, 'peer-c');
+
+    // Einseitig: C beobachtet A, A aber nicht C -> C erfaehrt nichts.
+    peerC.send(JSON.stringify({ type: 'PRESENCE_SUBSCRIBE', peerIds: ['peer-a'] }));
+    assert.deepEqual((await peerC.next('PRESENCE_SNAPSHOT')).online, []);
+
+    // Gegenseitig, unterschiedliche Zellen: A und B sehen sich.
+    peerA.send(JSON.stringify({ type: 'PRESENCE_SUBSCRIBE', peerIds: ['peer-b'] }));
+    assert.deepEqual((await peerA.next('PRESENCE_SNAPSHOT')).online, []);
+    peerB.send(JSON.stringify({ type: 'PRESENCE_SUBSCRIBE', peerIds: ['peer-a'] }));
+    assert.deepEqual((await peerB.next('PRESENCE_SNAPSHOT')).online, ['peer-a']);
+    assert.deepEqual(await peerA.next('PRESENCE'), { type: 'PRESENCE', peerId: 'peer-b', online: true });
+
+    peerB.close();
+    assert.deepEqual(await peerA.next('PRESENCE'), { type: 'PRESENCE', peerId: 'peer-b', online: false });
+    await new Promise(resolve => setTimeout(resolve, 100));
+    assert.equal(peerC.has('PRESENCE'), false);
+
+    // Blockiert: kein Status mehr.
+    store.setChatControl('peer-a', 'peer-c', 'BLOCK');
+    peerA.send(JSON.stringify({ type: 'PRESENCE_SUBSCRIBE', peerIds: ['peer-b', 'peer-c'] }));
+    assert.deepEqual((await peerA.next('PRESENCE_SNAPSHOT')).online, []);
+    peerA.close();
+    peerC.close();
+});
+
 test('rejects unauthorized access to peer-owned state', async () => {
     await registerPeer('peer-a');
     await registerPeer('peer-b');

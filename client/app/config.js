@@ -67,6 +67,9 @@ const state = {
     secureMessageQueues: {},
     presenceProbes: {},
     peerChatFocus: {},
+    // Online-Status der Chat-Partner (nur gegenseitig, vom Server per PRESENCE gemeldet).
+    peerPresence: {},
+    presenceSubscription: [],
     // Sichtbarkeit und Speicher. Fehlender Datensatz = Standardwerte.
     gridSettings: { silent: false, ttlMinutes: 10, liveGrid: false, cacheEnabled: true, useLocation: false, safeZones: [], locationLabel: null },
     gridRing: 0,

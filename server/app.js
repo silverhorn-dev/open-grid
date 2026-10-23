@@ -348,6 +348,7 @@ export async function buildApp(options = {}) {
         if (!store.registerPeer(session)) {
             return reply.code(403).send({ error: 'Peer identity is already registered' });
         }
+        signaling.updatePeerCell(peerId, session.geohash, session.silent);
         return {
             status: 'registered',
             geohash: session.geohash,

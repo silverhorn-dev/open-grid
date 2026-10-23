@@ -318,6 +318,7 @@ function rememberChatPeer(peerId) {
     if (!peerId || state.chatPeerIds.includes(peerId)) return;
     state.chatPeerIds.push(peerId);
     renderActivePeerList();
+    subscribePresence();
 }
 
 function getPeerPresentation(peerId) {
@@ -387,6 +388,8 @@ async function storeChatControl(peerId, action) {
     });
     if (!response.ok) throw new Error(`Chat control API returned ${response.status}.`);
     await refreshChatControls();
+    // Blockierte Peers sehen den Status nicht mehr (und umgekehrt).
+    subscribePresence();
 }
 
 function persistChatMessage(peerId, message) {

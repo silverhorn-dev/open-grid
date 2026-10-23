@@ -21,6 +21,11 @@ async function probePeerPresence(peerId) {
         return;
     }
 
+    // Chat-Partner: Status kommt ohne P2P-Probe vom Server.
+    if (peerId in state.peerPresence) {
+        updateProfilePresence(peerId, isPeerOnline(peerId) ? 'online' : 'offline');
+        return;
+    }
     updateProfilePresence(peerId, 'checking');
     const nonce = window.crypto.randomUUID();
     const timeout = setTimeout(() => {
@@ -318,6 +323,7 @@ async function toggleActivePeerBlock() {
             );
             if (!response.ok) throw new Error(`Chat control API returned ${response.status}.`);
             await refreshChatControls();
+            subscribePresence();
 
             // UNHIDE senden, damit du beim Peer wieder im Grid auftauchst
             const operation = {
@@ -819,12 +825,13 @@ function renderChatPeerIndicator() {
     if (!indicator) return;
     const peerId = state.activeChatPeerId;
     const connected = Boolean(peerId) && isSecureChannelOpen(peerId);
+    const online = Boolean(peerId) && isPeerOnline(peerId);
     const watching = connected && Boolean(state.peerChatFocus[peerId]);
     const dot = document.getElementById('chat-peer-indicator-dot');
     const eyes = document.getElementById('chat-peer-indicator-eyes');
-    dot.classList.toggle('hidden', !connected || watching);
+    dot.classList.toggle('hidden', !online || watching);
     eyes.classList.toggle('hidden', !watching);
-    indicator.title = watching ? 'Hat den Chat geoeffnet' : connected ? 'Verbunden' : '';
+    indicator.title = watching ? 'Hat den Chat geoeffnet' : online ? 'Online' : '';
 }
 
 function isChatVisibleFor(peerId) {

@@ -49,6 +49,10 @@ Akzeptanzkriterien:
 - Ohne Pong innerhalb von 4 Sekunden erscheint **Abwesend**.
 - Trennt ein Peer seine Signaling-Verbindung, sehen Peers in derselben
   Geohash-Zelle ihn sofort als **Offline**.
+- Chat-Partner sehen sich gegenseitig online/offline, unabhaengig von Zelle,
+  Grid und Silent-Modus (gruener Punkt in Chatliste und Chat-Kopf). Wer nicht
+  gegenseitig im Chat steht oder blockiert ist, sieht nichts. Ein "zuletzt
+  online" wird nicht gespeichert.
 - Im Discovery-Grid wird kein unvalidiertes Online-Badge angezeigt.
 
 ## UC-04: Verschluesselter Profil-Cache

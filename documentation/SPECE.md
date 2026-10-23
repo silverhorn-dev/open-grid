@@ -152,7 +152,10 @@ Der WebSocket-Endpunkt `/ws` vermittelt:
 
 Schliesst die aktive WebSocket-Verbindung eines Peers, sendet der Server
 `{ type: 'PEER_OFFLINE', peerId }` an alle verbundenen Peers in derselben
-Geohash-Zelle. Diese markieren den Peer sofort als offline, brechen eine
+Geohash-Zelle. Die Zelle jedes verbundenen Peers haelt der Server im
+Speicher (Index Zelle -> Peers, aktualisiert bei `REGISTER_SOCKET` und
+`/api/register`); ein Verbindungsende kostet so O(Peers der Zelle) statt
+O(alle Verbindungen). Diese markieren den Peer sofort als offline, brechen eine
 laufende Presence-Pruefung ab und verwerfen einen noch nicht verbundenen
 WebRTC-Versuch. Eine bestehende P2P-Verbindung bleibt davon unberuehrt.
 Ein getrennter P2P-Kanal wird nach 3 Sekunden im Zustand `disconnected`
@@ -170,6 +173,27 @@ Nach Aufbau des DataChannels tauschen beide Clients oeffentliche ECDH-P-256-
 Schluessel aus und leiten einen AES-256-GCM-Session-Key ab. Beim Oeffnen eines
 Profils prueft ein verschluesseltes `PRESENCE_PING`/`PRESENCE_PONG` die
 Erreichbarkeit.
+
+### 4.1 Presence fuer Chat-Partner
+
+Online-Status von Chat-Partnern haengt nicht vom Grid ab:
+
+- Nach `SOCKET_REGISTERED` sendet der Client
+  `{ type: 'PRESENCE_SUBSCRIBE', peerIds }` mit allen nicht blockierten
+  Chat-Partnern (max. 500); erneut bei neuem Chat-Partner und nach
+  Block-Aenderungen.
+- Der Server antwortet mit `{ type: 'PRESENCE_SNAPSHOT', online: [...] }` und
+  meldet danach Wechsel als `{ type: 'PRESENCE', peerId, online }`.
+- Sichtbar ist der Status nur **gegenseitig**: A sieht B nur, wenn A B und B A
+  abonniert hat und keiner den anderen blockiert hat. Einseitige Abos liefern
+  nichts.
+- Der Silent-Modus spielt keine Rolle (er versteckt nur im Grid).
+- Der Server speichert nichts dazu (kein "zuletzt online"); Abos leben nur im
+  Speicher der aktiven Verbindung.
+- Last: O(k) pro Verbindungsaufbau/-ende (k = Chat-Partner), kein Polling.
+- Kommt ein Partner online und warten Nachrichten an ihn oder ist sein Chat
+  offen, baut der Client sofort die P2P-Verbindung auf. Das Profil-Modal
+  nutzt fuer Chat-Partner diesen Status statt eines P2P-Pings.
 
 | Status | Berechnung auf dem anfragenden Client |
 |---|---|

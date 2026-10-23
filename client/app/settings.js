@@ -142,6 +142,7 @@ async function unblockPeerFromSettings(peerId) {
         });
         if (!response.ok) throw new Error(`API returned ${response.status}.`);
         await refreshChatControls();
+        subscribePresence();
         const operation = { operationId: `unhide:${window.crypto.randomUUID()}`, type: 'PEER_UNHIDE', actorId: state.myProfile.id, createdAt: Date.now() };
         sendSecurePayload(peerId, { type: 'CHAT_OPERATION', operation }).catch(()=>{});
         showToast('Peer wurde entblockt.', 'success');

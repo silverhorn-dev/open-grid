@@ -178,16 +178,36 @@ async function handleSignalingMessage(message) {
         document.getElementById('network-indicator').className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse';
         document.getElementById('network-status-text').textContent = 'Worker connected';
         refreshChatControls()
-            .then(fetchQueuedCacheMessages)
+            .then(() => {
+                subscribePresence();
+                return fetchQueuedCacheMessages();
+            })
             .catch(error => {
                 logDebug(`Could not refresh chat controls or retrieve Path C messages: ${error.message}`);
             });
         return;
     }
 
+    if (message.type === 'PRESENCE_SNAPSHOT') {
+        const online = new Set(Array.isArray(message.online) ? message.online : []);
+        state.peerPresence = Object.fromEntries(state.presenceSubscription.map(peerId => [peerId, online.has(peerId)]));
+        online.forEach(peerId => handlePeerCameOnline(peerId));
+        renderPresenceChange();
+        return;
+    }
+    if (message.type === 'PRESENCE') {
+        if (typeof message.peerId !== 'string' || !state.presenceSubscription.includes(message.peerId)) return;
+        state.peerPresence[message.peerId] = message.online === true;
+        if (message.online === true) handlePeerCameOnline(message.peerId);
+        else updateProfilePresence(message.peerId, 'offline');
+        renderPresenceChange(message.peerId);
+        return;
+    }
+
     if (message.type === 'PEER_OFFLINE') {
         const offlinePeerId = message.peerId;
         if (!offlinePeerId || offlinePeerId === state.myProfile.id) return;
+        if (offlinePeerId in state.peerPresence) state.peerPresence[offlinePeerId] = false;
         const probe = state.presenceProbes[offlinePeerId];
         if (probe) clearTimeout(probe.timeout);
         delete state.presenceProbes[offlinePeerId];
@@ -266,6 +286,32 @@ async function handleSignalingMessage(message) {
             if (!state.ignoreOffer[peerId]) throw error;
         }
     }
+}
+
+// ================= PRESENCE (CHAT-PARTNER) =================
+// Unabhaengig vom Grid: der Server meldet den Status gegenseitiger Chat-Partner, egal in welcher Zelle.
+function subscribePresence() {
+    if (state.ws?.readyState !== WebSocket.OPEN) return;
+    state.presenceSubscription = state.chatPeerIds.filter(peerId => !isPeerBlocked(peerId));
+    state.ws.send(JSON.stringify({ type: 'PRESENCE_SUBSCRIBE', peerIds: state.presenceSubscription }));
+}
+
+function isPeerOnline(peerId) {
+    return state.peerPresence[peerId] === true || state.dataChannels[peerId]?.readyState === 'open';
+}
+
+// Kommt ein Partner online, gehen wartende Nachrichten sofort direkt raus.
+function handlePeerCameOnline(peerId) {
+    updateProfilePresence(peerId, 'online');
+    const needsConnection = Boolean(state.secureMessageQueues[peerId]?.length) || state.activeChatPeerId === peerId;
+    if (needsConnection && state.dataChannels[peerId]?.readyState !== 'open' && !isPeerBlocked(peerId)) {
+        initiateP2PConnection(peerId).catch(() => {});
+    }
+}
+
+function renderPresenceChange(peerId = null) {
+    renderActivePeerList();
+    if (!peerId || state.activeChatPeerId === peerId) renderChatPeerIndicator();
 }
 
 function retryVisiblePeerConnections() {

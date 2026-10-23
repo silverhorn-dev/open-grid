@@ -345,10 +345,10 @@ function isPeerOnline(peerId) {
 // Kommt ein Partner online, gehen wartende Nachrichten sofort direkt raus.
 function handlePeerCameOnline(peerId) {
     updateProfilePresence(peerId, 'online');
-    pushAlbumKeysToPeer(peerId).catch(() => {});
+    pushAlbumKeysToPeer(peerId).catch(logBackgroundError('handlePeerCameOnline'));
     const needsConnection = Boolean(state.secureMessageQueues[peerId]?.length) || state.activeChatPeerId === peerId;
     if (needsConnection && state.dataChannels[peerId]?.readyState !== 'open' && !isPeerBlocked(peerId)) {
-        initiateP2PConnection(peerId).catch(() => {});
+        initiateP2PConnection(peerId).catch(logBackgroundError('handlePeerCameOnline'));
     }
 }
 
@@ -490,9 +490,9 @@ async function deriveSessionKey(peerId, publicJwk, profileSigningKey) {
     updateChatConnectionStatus(peerId, 'E2EE connected', 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30');
     if (isChatVisibleFor(peerId)) sendChatFocus(peerId, true);
     // Profil-Handshake: neuer Kontakt (Einladung, erste Nachricht) ohne bekanntes Profil.
-    if (!state.cachedProfiles[peerId]) sendSecurePayload(peerId, { type: 'PROFILE_REQUEST' }).catch(() => {});
+    if (!state.cachedProfiles[peerId]) sendSecurePayload(peerId, { type: 'PROFILE_REQUEST' }).catch(logBackgroundError('deriveSessionKey'));
     // Alben v2: Betrachter bekommen beim Verbinden die aktuellen Schluessel-Buendel.
-    pushAlbumKeysToPeer(peerId).catch(() => {});
+    pushAlbumKeysToPeer(peerId).catch(logBackgroundError('deriveSessionKey'));
     await beginChatSync(peerId);
     await flushSecureMessageQueue(peerId);
 }
@@ -525,7 +525,7 @@ async function handleIncomingProfileRequest(peerId) {
     // Sichtbarkeit: jeder Peer bekommt nur, was seine Match-Stufe erlaubt.
     const profilePayload = buildProfilePayloadFor(peerId);
     const signedEnvelope = await signProfileData(profilePayload, state.myKeys.ecdsaKeyPair.privateKey, state.myKeys.jwkEcdsaPublic);
-    sendSecurePayload(peerId, { type: 'PROFILE_RESPONSE', signedEnvelope }).catch(() => {});
+    sendSecurePayload(peerId, { type: 'PROFILE_RESPONSE', signedEnvelope }).catch(logBackgroundError('handleIncomingProfileRequest'));
 }
 
 async function handleIncomingProfileResponse(peerId, signedEnvelopeOrProfile) {
@@ -577,7 +577,7 @@ async function handleIncomingImageRequest(peerId, imageId) {
         return;
     }
     const media = await loadMedia(imageId);
-    if (media) sendSecurePayload(peerId, { type: 'IMAGE_RESPONSE', imageId, version: media.version, data: media.data }).catch(() => {});
+    if (media) sendSecurePayload(peerId, { type: 'IMAGE_RESPONSE', imageId, version: media.version, data: media.data }).catch(logBackgroundError('handleIncomingImageRequest'));
 }
 
 async function handleIncomingImageResponse(peerId, imageId, version, data) {

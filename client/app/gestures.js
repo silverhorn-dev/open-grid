@@ -273,10 +273,10 @@ async function refreshActiveChat() {
     const peerId = state.activeChatPeerId;
     if (!peerId) return;
     showToast('Chat wird aktualisiert...', 'info');
-    await fetchQueuedCacheMessages().catch(() => {});
-    if (isSecureChannelOpen(peerId)) await beginChatSync(peerId).catch(() => {});
-    else if (!isPeerBlocked(peerId)) initiateP2PConnection(peerId).catch(() => {});
-    await loadChatHistory(peerId).catch(() => {});
+    await fetchQueuedCacheMessages().catch(logBackgroundError('refreshActiveChat'));
+    if (isSecureChannelOpen(peerId)) await beginChatSync(peerId).catch(logBackgroundError('refreshActiveChat'));
+    else if (!isPeerBlocked(peerId)) initiateP2PConnection(peerId).catch(logBackgroundError('refreshActiveChat'));
+    await loadChatHistory(peerId).catch(logBackgroundError('refreshActiveChat'));
     renderChatHistory();
 }
 

@@ -122,11 +122,11 @@ async function revokeAlbumAccess(albumId, peerId) {
     await saveAlbum(album);
     notifyAlbumRevoked(peerId, albumId);
     // Verbleibende Betrachter bekommen Buendel fuer die neue Schluesselversion.
-    for (const viewerId of album.acl) pushAlbumKeys(viewerId, album, true).catch(() => {});
+    for (const viewerId of album.acl) pushAlbumKeys(viewerId, album, true).catch(logBackgroundError('revokeAlbumAccess'));
 }
 
 function notifyAlbumRevoked(peerId, albumId) {
-    sendSecurePayload(peerId, { type: 'ALBUM_REVOKED', albumId }).catch(() => {});
+    sendSecurePayload(peerId, { type: 'ALBUM_REVOKED', albumId }).catch(logBackgroundError('notifyAlbumRevoked'));
 }
 
 // Kleines Deckfoto, das direkt in der Chat-Nachricht mitgeht.
@@ -359,7 +359,7 @@ async function renderReceivedAlbumTile(album, item) {
     const isCurrent = stored?.encrypted && stored.version === item.version && stored.keyVersion === album.keyVersion;
     if (!isCurrent) {
         state.pendingImageRequests[`${album.ownerId}:${item.id}`] = item.version;
-        sendSecurePayload(album.ownerId, { type: 'IMAGE_REQUEST', imageId: item.id, version: item.version }).catch(() => {});
+        sendSecurePayload(album.ownerId, { type: 'IMAGE_REQUEST', imageId: item.id, version: item.version }).catch(logBackgroundError('renderReceivedAlbumTile'));
     }
     const dataUrl = isCurrent ? await decryptAlbumImage(album.id, item.id, stored.encrypted) : null;
     const tile = dataUrl
@@ -719,7 +719,7 @@ async function pushAllAlbumKeys() {
     const viewers = new Set(getOwnAlbums().flatMap(album => album.acl));
     for (const viewerId of viewers) await pushAlbumKeysToPeer(viewerId);
     const time = await fetchServerTime().catch(() => null);
-    if (time) state.albumKeyPushTimer = setTimeout(() => pushAllAlbumKeys().catch(() => {}), Math.min(time.epochEndsAt - time.now + 1000, 2147483647));
+    if (time) state.albumKeyPushTimer = setTimeout(() => pushAllAlbumKeys().catch(logBackgroundError('pushAllAlbumKeys')), Math.min(time.epochEndsAt - time.now + 1000, 2147483647));
 }
 
 function isValidKeyBundle(bundle) {
@@ -816,8 +816,8 @@ function expireAlbumKeys(albumId, renew) {
     delete state.albumKeys[albumId];
     const album = state.albums[albumId];
     if (!renew || !album || state.albumViewer?.albumId !== albumId) return;
-    renderAlbumViewer(album).catch(() => {});
-    requestAlbumKeys(album.ownerId, albumId).catch(() => {});
+    renderAlbumViewer(album).catch(logBackgroundError('expireAlbumKeys'));
+    requestAlbumKeys(album.ownerId, albumId).catch(logBackgroundError('expireAlbumKeys'));
 }
 
 async function decryptAlbumImage(albumId, imageId, encrypted) {

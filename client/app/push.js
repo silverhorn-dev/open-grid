@@ -66,9 +66,9 @@ function handleServiceWorkerMessage(event) {
     if (data.type === 'PATH_C_AVAILABLE') {
         fetchQueuedCacheMessages();
     } else if (data.type === 'CHAT_STORE_UPDATED' && typeof data.peerId === 'string') {
-        loadChatPeerIds().catch(() => {});
+        loadChatPeerIds().catch(logBackgroundError('handleServiceWorkerMessage'));
         if (state.activeChatPeerId === data.peerId) {
-            loadChatHistory(data.peerId).then(renderChatHistory).catch(() => {});
+            loadChatHistory(data.peerId).then(renderChatHistory).catch(logBackgroundError('handleServiceWorkerMessage'));
         }
     } else if (data.type === 'OPEN_CHAT' && typeof data.peerId === 'string') {
         openChatWithPeer(data.peerId);

@@ -133,6 +133,8 @@ const state = {
     serverTime: null,
     serviceWorkerRegistration: null,
     updateRequested: false,
+    // Optionale Startschritte, die fehlgeschlagen sind (main.js).
+    startupProblems: [],
     offlineBannerTimer: null,
     persistedRouterAuthToken: null,
     pushSubscriptionSynced: false

@@ -182,7 +182,7 @@ function renderOnboardingModeChooser() {
     const container = document.getElementById('onboarding-mode-options');
     const choose = mode => {
         state.appMode = mode;
-        saveAppModeSettings({ mode }).catch(() => {});
+        saveAppModeSettings({ mode }).catch(logBackgroundError('renderOnboardingModeChooser'));
         applyProfileSchemaForMode();
         renderProfileForm('onboarding-profile-form');
         renderOnboardingModeChooser();
@@ -242,7 +242,7 @@ function scheduleEventExpiry() {
     const remaining = state.appModeSettings.eventJoinedAt + EVENT_DURATION_MS - Date.now();
     state.eventExpiryTimer = setTimeout(() => {
         showToast('Das Event ist vorbei.', 'info');
-        leaveEvent().catch(() => {});
+        leaveEvent().catch(logBackgroundError('scheduleEventExpiry'));
     }, Math.min(remaining, 2147483647));
 }
 
@@ -285,7 +285,7 @@ async function copyInviteLink() {
 async function shareInviteLink() {
     const url = await getMyInviteLink();
     if (navigator.share) {
-        navigator.share({ title: 'OpenGrid', text: 'Schreib mir auf OpenGrid', url }).catch(() => {});
+        navigator.share({ title: 'OpenGrid', text: 'Schreib mir auf OpenGrid', url }).catch(logBackgroundError('shareInviteLink'));
     } else {
         await copyInviteLink();
     }

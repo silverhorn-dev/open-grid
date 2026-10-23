@@ -241,6 +241,11 @@ async function generateUserIdentityKeys(showNotification = false) {
 }
 
 function logData(msg) { console.log(msg); }
+// Fuer Hintergrund-Promises (.catch): statt Fehler stumm zu schlucken, mit Kontext ins Debug-Log.
+function logBackgroundError(context) {
+    return error => logDebug(`${context} fehlgeschlagen: ${error?.message || error}`);
+}
+
 function logDebug(msg) {
     if (!CONFIG.DEBUG_MODE) return;
     console.debug(`[OpenGrid] ${msg}`);

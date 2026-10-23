@@ -218,7 +218,7 @@ async function stopSecureSnapStream(snapId, notify) {
     } catch (error) {
         logDebug(`Could not remove snap track: ${error.message}`);
     }
-    if (notify) sendSecurePayload(session.peerId, { type: 'SNAP_STREAM_END', snapId }).catch(() => {});
+    if (notify) sendSecurePayload(session.peerId, { type: 'SNAP_STREAM_END', snapId }).catch(logBackgroundError('stopSecureSnapStream'));
 }
 
 function handleSnapStreamPlaying(peerId, payload) {
@@ -231,13 +231,13 @@ function handleSnapStreamPlaying(peerId, payload) {
 
 function handleSnapViewClosed(peerId, payload) {
     const session = state.outgoingSnapStreams[payload.snapId];
-    if (session?.peerId === peerId) stopSecureSnapStream(payload.snapId, false).catch(() => {});
+    if (session?.peerId === peerId) stopSecureSnapStream(payload.snapId, false).catch(logBackgroundError('handleSnapViewClosed'));
 }
 
 // ----- Empfaenger -----
 function waitForSecureChannel(peerId) {
     if (isSecureChannelOpen(peerId)) return Promise.resolve(true);
-    initiateP2PConnection(peerId).catch(() => {});
+    initiateP2PConnection(peerId).catch(logBackgroundError('waitForSecureChannel'));
     return new Promise(resolve => {
         const startedAt = Date.now();
         const check = setInterval(() => {
@@ -278,7 +278,7 @@ function isAwaitingSnap(peerId, snapId) {
 async function handleSnapStreamStart(peerId, payload) {
     if (!isAwaitingSnap(peerId, payload.snapId) || typeof payload.streamId !== 'string') {
         // Niemand wartet (Viewer geschlossen): Sender soll sofort aufhoeren.
-        sendSecurePayload(peerId, { type: 'SNAP_VIEW_CLOSED', snapId: payload.snapId }).catch(() => {});
+        sendSecurePayload(peerId, { type: 'SNAP_VIEW_CLOSED', snapId: payload.snapId }).catch(logBackgroundError('handleSnapStreamStart'));
         return;
     }
     Object.assign(state.secureSnapViewing, {
@@ -312,14 +312,14 @@ function attachSecureSnapStream(stream) {
     const video = document.getElementById('secure-snap-video');
     video.srcObject = stream;
     video.classList.remove('hidden');
-    video.play().catch(() => {});
+    video.play().catch(logBackgroundError('attachSecureSnapStream'));
     video.onplaying = () => {
         if (state.secureSnapViewing !== viewing || viewing.started) return;
         viewing.started = true;
         setSecureSnapStatus('');
-        sendSecurePayload(viewing.peerId, { type: 'SNAP_STREAM_PLAYING', snapId: viewing.snapId }).catch(() => {});
+        sendSecurePayload(viewing.peerId, { type: 'SNAP_STREAM_PLAYING', snapId: viewing.snapId }).catch(logBackgroundError('attachSecureSnapStream'));
         startSecureSnapCountdown(viewing.seconds);
-        recordSecureSnapView(viewing.peerId, viewing.snapId, viewing.viewsLeft).catch(() => {});
+        recordSecureSnapView(viewing.peerId, viewing.snapId, viewing.viewsLeft).catch(logBackgroundError('attachSecureSnapStream'));
     };
 }
 
@@ -439,9 +439,9 @@ function hideSecureSnapViewer() {
         clearTimeout(viewing.timer);
         if (viewing.objectUrl) URL.revokeObjectURL(viewing.objectUrl);
         if (viewing.phase === 'streaming') {
-            sendSecurePayload(viewing.peerId, { type: 'SNAP_VIEW_CLOSED', snapId: viewing.snapId }).catch(() => {});
+            sendSecurePayload(viewing.peerId, { type: 'SNAP_VIEW_CLOSED', snapId: viewing.snapId }).catch(logBackgroundError('hideSecureSnapViewer'));
         }
-        if (viewing.mode === 'replay') finishReplaySnapView(viewing).catch(() => {});
+        if (viewing.mode === 'replay') finishReplaySnapView(viewing).catch(logBackgroundError('hideSecureSnapViewer'));
     }
     document.getElementById('secure-snap-save').classList.add('hidden');
     const video = document.getElementById('secure-snap-video');

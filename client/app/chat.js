@@ -71,7 +71,7 @@ function openProfileModal(peerId) {
     }
 
     // Immer aktiv das neueste Profil anfragen (Handshake)
-    sendSecurePayload(peerId, { type: 'PROFILE_REQUEST' }).catch(() => {});
+    sendSecurePayload(peerId, { type: 'PROFILE_REQUEST' }).catch(logBackgroundError('openProfileModal'));
 
     // SWARM FALLBACK: Wenn nach 800ms noch keine direkte Antwort kam, das Mesh befragen
     setTimeout(() => {
@@ -177,7 +177,7 @@ async function processGalleryHandshake(peerId, remoteGalleryMeta) {
             await new Promise(r => setTimeout(r, 200)); // Drosselung zum Schutz der P2P Leitung
             if (state.activeModalPeerId !== peerId) return;
             state.pendingImageRequests[`${peerId}:${meta.id}`] = meta.version;
-            sendSecurePayload(peerId, { type: 'IMAGE_REQUEST', imageId: meta.id, version: meta.version }).catch(() => {});
+            sendSecurePayload(peerId, { type: 'IMAGE_REQUEST', imageId: meta.id, version: meta.version }).catch(logBackgroundError('processGalleryHandshake'));
         }
     }
 }
@@ -232,7 +232,7 @@ async function openChatWithPeer(peerId) {
     renderChatHistory();
     updateChatActionButtons();
     updateChatLayout();
-    if (!isPeerBlocked(peerId)) initiateP2PConnection(peerId).catch(() => {});
+    if (!isPeerBlocked(peerId)) initiateP2PConnection(peerId).catch(logBackgroundError('openChatWithPeer'));
 }
 
 // Auf Smartphones zeigt der Chat-Tab entweder die Liste oder den Vollbild-Chat.
@@ -341,9 +341,9 @@ async function toggleActivePeerBlock() {
                 actorId: state.myProfile.id,
                 createdAt: Date.now()
             };
-            sendSecurePayload(peerId, { type: 'CHAT_OPERATION', operation }).catch(() => {});
+            sendSecurePayload(peerId, { type: 'CHAT_OPERATION', operation }).catch(logBackgroundError('toggleActivePeerBlock'));
 
-            initiateP2PConnection(peerId).catch(() => {});
+            initiateP2PConnection(peerId).catch(logBackgroundError('toggleActivePeerBlock'));
             showToast('Peer wurde entblockt.', 'success');
         } else {
             if (!window.confirm('Diesen Peer blockieren und den Chat loeschen?')) return;
@@ -906,7 +906,7 @@ function isChatVisibleFor(peerId) {
 // Teilt dem Gegenueber ueber den DataChannel mit, ob der Chat gerade sichtbar ist. Wird nie gequeued.
 function sendChatFocus(peerId, open) {
     if (!peerId || !isSecureChannelOpen(peerId) || isPeerBlocked(peerId)) return;
-    sendSecurePayload(peerId, { type: 'CHAT_FOCUS', open }).catch(() => {});
+    sendSecurePayload(peerId, { type: 'CHAT_FOCUS', open }).catch(logBackgroundError('sendChatFocus'));
 }
 
 function syncChatFocus() {
@@ -1083,7 +1083,7 @@ async function startSnapCamera() {
         }
         video.srcObject = state.mediaStream;
         video.classList.toggle('snap-mirrored', state.snapFacingMode === 'user');
-        await video.play().catch(() => {});
+        await video.play().catch(logBackgroundError('startSnapCamera'));
     } catch (error) {
         logDebug(`Camera error: ${error.name}: ${error.message}`);
         showSnapCameraProblem(error.name === 'NotAllowedError'

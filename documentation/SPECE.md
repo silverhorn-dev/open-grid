@@ -37,6 +37,12 @@
 - Schriftgroesse im Chat: `localStorage` `opengrid-chat-font-size`
   (`small` 13 px, `normal` 15 px, `large` 17 px, `xlarge` 19 px) setzt die
   CSS-Variable `--chat-font-size`.
+- Start (`client/app/main.js`): Nur Datenbank, Speicherverschluesselung,
+  eigenes Profil, Identitaetsschluessel und Signaling sind kritisch. Alle
+  anderen Schritte laufen ueber `runStartupStep` mit Fallback; Fehler werden
+  protokolliert, die App startet trotzdem und meldet "Einige Funktionen
+  konnten nicht geladen werden". Hintergrund-Promises loggen Fehler mit Kontext
+  (`logBackgroundError`), `unhandledrejection` und `error` landen im Debug-Log.
 - Debug-Modus: `CONFIG.DEBUG_MODE` kommt aus `localStorage`
   (`opengrid-debug-mode` = `on`/`off`, Standard aus). Ist er an, traegt
   `<html>` die Klasse `debug-on`. Elemente mit der Klasse `debug-only` sind

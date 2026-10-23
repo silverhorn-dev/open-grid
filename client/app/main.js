@@ -7,6 +7,32 @@ async function refreshPresenceAndGrid() {
     await fetchPeersFromWorkerGrid();
 }
 
+// Ein optionaler Startschritt: Fehler werden protokolliert, der Start laeuft weiter.
+async function runStartupStep(name, step) {
+    try {
+        await step();
+    } catch (error) {
+        state.startupProblems.push(name);
+        console.error(`OpenGrid startup step "${name}" failed.`, error);
+        logDebug(`Startschritt "${name}" fehlgeschlagen: ${error?.message || error}`);
+    }
+}
+
+function reportStartupProblems() {
+    if (!state.startupProblems.length) return;
+    showToast(CONFIG.DEBUG_MODE
+        ? `Teilweise gestartet, Fehler in: ${state.startupProblems.join(', ')}`
+        : 'Einige Funktionen konnten nicht geladen werden. Bitte spaeter neu laden.', 'warning');
+}
+
+// Alles, was sonst unbemerkt verloren ginge, landet im Debug-Log.
+window.addEventListener('unhandledrejection', event => {
+    logDebug(`Unbehandelter Fehler: ${event.reason?.message || event.reason}`);
+});
+window.addEventListener('error', event => {
+    logDebug(`Skriptfehler: ${event.message} (${event.filename?.split('/').pop() || '?'}:${event.lineno || 0})`);
+});
+
 window.onload = async () => {
     updateDebugButtonState();
     const initialRoute = resolveInitialRoute();
@@ -26,9 +52,12 @@ window.onload = async () => {
         if (event.key === 'Escape') closeMenu();
     });
     try {
+        // Kritisch: ohne Datenbank, Verschluesselung, eigenes Profil, Schluessel und Signaling
+        // laeuft nichts. Alles andere ist ein optionaler Schritt mit Fallback (runStartupStep),
+        // damit ein einzelner Fehler nicht die ganze App stoppt.
         await initDatabase();
         await initializeStorageEncryption();
-        await loadAppMode();
+        await runStartupStep('App-Modus', loadAppMode);
         const hasLocalProfile = await loadMyLocalProfile();
         if (!hasLocalProfile) await openProfileOnboarding();
         if (!state.myProfile.updatedAt) {
@@ -36,19 +65,24 @@ window.onload = async () => {
             state.myProfile.updatedAt = Date.now();
         }
         await cacheOwnProfile();
-        await loadCachedGridPeers();
-        await loadChatPeerIds();
-        await loadAlbums();
-        requestPersistentStorage();
-        renderStorageUsage(true);
-        await loadMatchState();
-        renderMatchingSettings();
-        syncChatGate();
-        await loadSnapSettings();
+        await runStartupStep('Grid-Cache', loadCachedGridPeers);
+        await runStartupStep('Chatliste', loadChatPeerIds);
+        await runStartupStep('Alben', loadAlbums);
+        runStartupStep('Speicher', async () => {
+            await requestPersistentStorage();
+            await renderStorageUsage(true);
+        });
+        await runStartupStep('Matches', async () => {
+            await loadMatchState();
+            renderMatchingSettings();
+            await syncChatGate();
+        });
+        await runStartupStep('Snap-Einstellungen', loadSnapSettings);
         await generateUserIdentityKeys();
-        await loadGridSettings();
-        await registerServiceWorker();
+        await runStartupStep('Sichtbarkeit', loadGridSettings);
+        await runStartupStep('Service Worker', registerServiceWorker);
         connectWorkerWebSocket();
+        reportStartupProblems();
         renderInviteCard().catch(error => logDebug(`Invite card failed: ${error.message}`));
         if (state.pendingInvite) acceptPendingInvite().catch(error => logDebug(`Invite failed: ${error.message}`));
         document.getElementById('chat-input').addEventListener('keydown', (event) => {

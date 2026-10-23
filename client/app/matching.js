@@ -87,11 +87,11 @@ async function applyMatchOperation(peerId, operation) {
         await releaseHeldMessages(peerId);
         if (operation.actorId === peerId) showToast(`Match mit ${getPeerPresentation(peerId).name || 'Peer'}!`, 'success');
         // Das Profil ist jetzt fuer diesen Peer vollstaendig: neu anfragen.
-        sendSecurePayload(peerId, { type: 'PROFILE_REQUEST' }).catch(() => {});
+        sendSecurePayload(peerId, { type: 'PROFILE_REQUEST' }).catch(logBackgroundError('applyMatchOperation'));
     } else if (operation.type === 'MATCH_PING' && operation.actorId === peerId && !nowMatched) {
         showToast(`${getPeerPresentation(peerId).name || HIDDEN_PEER_NAME} hat dir eine Flamme geschickt.`, 'info');
     }
-    if (wasMatched && !nowMatched) sendSecurePayload(peerId, { type: 'PROFILE_REQUEST' }).catch(() => {});
+    if (wasMatched && !nowMatched) sendSecurePayload(peerId, { type: 'PROFILE_REQUEST' }).catch(logBackgroundError('applyMatchOperation'));
     renderMatchUi(peerId);
     return true;
 }

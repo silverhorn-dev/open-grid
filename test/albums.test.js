@@ -49,6 +49,7 @@ function loadAlbums({ identity = null, peerKeys = {}, time = { now: 1000, epoch:
         fetchServerTime: async () => ({ ...clock, epochEndsAt: (clock.epoch + 1) * clock.epochMs }),
         isGalleryVisibleTo: () => true,
         logDebug: () => {},
+        logBackgroundError: () => () => {},
         sendSecurePayload: async (peerId, payload) => sent.push({ peerId, payload }),
         putDatabaseRecord: async (store, value) => records.set(`${store}:${value.id}`, value),
         deleteDatabaseRecord: async (store, id) => records.delete(`${store}:${id}`),

@@ -234,7 +234,11 @@ test('serves the app shell and all client modules', async () => {
     assert.match(appSource, /async function refreshChatControls\(\)/);
     assert.match(appSource, /function rememberChatPeer\(peerId\)/);
 
-    const p2pClient = await app.inject({ method: 'GET', url: '/client/p2p.client.js' });
+    // Seit H4 liegen Sync und Pfad C in delivery.client.js.
+    const p2pClient = {
+        body: (await app.inject({ method: 'GET', url: '/client/p2p.client.js' })).body
+            + (await app.inject({ method: 'GET', url: '/client/delivery.client.js' })).body
+    };
     assert.match(p2pClient.body, /recentOperationIds: operations\.slice\(0, 20\)/);
     assert.match(p2pClient.body, /CHAT_SYNC_INVENTORY/);
     assert.match(p2pClient.body, /fetch\(`\$\{API_BASE\}\/api\/cache`/);
@@ -775,6 +779,8 @@ test('sends security headers and no wildcard CORS', async () => {
     assert.equal(response.headers['access-control-allow-origin'], undefined);
     assert.match(response.headers['content-security-policy'], /default-src 'self'/);
     assert.match(response.headers['content-security-policy'], /frame-ancestors 'none'/);
+    assert.match(response.headers['content-security-policy'], /script-src 'self';/);
+    assert.doesNotMatch(response.headers['content-security-policy'], /script-src[^;]*unsafe-inline/);
     assert.match(response.headers['content-security-policy'], /connect-src 'self' ws:\/\/grid\.example wss:\/\/grid\.example https:\/\/nominatim\.openstreetmap\.org/);
     assert.equal(response.headers['x-content-type-options'], 'nosniff');
     assert.equal(response.headers['referrer-policy'], 'no-referrer');

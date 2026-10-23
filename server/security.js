@@ -88,12 +88,13 @@ export function buildLoggerOptions(logger) {
 const NOMINATIM_ORIGIN = 'https://nominatim.openstreetmap.org';
 
 export function securityHeaders(host) {
-    // Inline-Event-Handler (onclick) brauchen noch 'unsafe-inline' (Abbau in H4).
+    // Skripte nur von der eigenen Origin, keine Inline-Handler (siehe client/app/actions.js).
+    // Inline-Styles (style-Attribute) bleiben erlaubt.
     const socketOrigins = host ? ` ws://${host} wss://${host}` : '';
     return {
         'Content-Security-Policy': [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-inline'",
+            "script-src 'self'",
             "style-src 'self' 'unsafe-inline'",
             "img-src 'self' data: blob:",
             "media-src 'self' blob:",

@@ -58,13 +58,38 @@ async function renderEditGallery() {
     const container = document.getElementById('edit-gallery-container');
     if (!container) return;
 
-    const addBtnHtml = `<label id="add-gallery-btn" class="w-20 h-20 rounded-xl bg-slate-950 border border-dashed border-slate-700 flex flex-col items-center justify-center cursor-pointer hover:border-brand-500 hover:text-brand-400 text-slate-500 transition shrink-0"><i class="fa-solid fa-plus text-xl"></i><input type="file" accept="image/*" class="hidden" onchange="handleGalleryUpload(this)"></label>`;
-    const imagesHtml = await Promise.all(state.myProfile.gallery.map(async (meta) => {
+    // DOM statt HTML-Strings: keine Inline-Handler (strikte CSP) und kein innerHTML mit Daten.
+    const tiles = await Promise.all(state.myProfile.gallery.map(async meta => {
         const media = await loadMedia(meta.id);
-        if (!media) return '';
-        return `<div class="w-20 h-20 rounded-xl overflow-hidden relative group border border-slate-800 shrink-0"><img src="${media.data}" class="w-full h-full object-cover"><button onclick="removeGalleryImage('${meta.id}')" class="absolute top-1 right-1 w-6 h-6 bg-red-600 hover:bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition shadow-lg flex items-center justify-center text-xs"><i class="fa-solid fa-xmark"></i></button></div>`;
+        if (!media || !isSafeInlineImage(media.data)) return null;
+        const tile = document.createElement('div');
+        tile.className = 'w-20 h-20 rounded-xl overflow-hidden relative group border border-slate-800 shrink-0';
+        const image = document.createElement('img');
+        image.src = media.data;
+        image.alt = '';
+        image.className = 'w-full h-full object-cover';
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'absolute top-1 right-1 w-6 h-6 bg-red-600 hover:bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition shadow-lg flex items-center justify-center text-xs';
+        remove.setAttribute('aria-label', 'Bild entfernen');
+        remove.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+        remove.onclick = () => removeGalleryImage(meta.id);
+        tile.append(image, remove);
+        return tile;
     }));
-    container.innerHTML = imagesHtml.join('') + addBtnHtml;
+
+    const addButton = document.createElement('label');
+    addButton.id = 'add-gallery-btn';
+    addButton.className = 'w-20 h-20 rounded-xl bg-slate-950 border border-dashed border-slate-700 flex flex-col items-center justify-center cursor-pointer hover:border-brand-500 hover:text-brand-400 text-slate-500 transition shrink-0';
+    addButton.innerHTML = '<i class="fa-solid fa-plus text-xl"></i>';
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+    fileInput.className = 'hidden';
+    fileInput.onchange = () => handleGalleryUpload(fileInput);
+    addButton.appendChild(fileInput);
+
+    container.replaceChildren(...tiles.filter(Boolean), addButton);
 }
 
 // ================= DYNAMIC FORM =================

@@ -27,6 +27,7 @@ zwischen Clients ueber verschluesselte WebRTC DataChannels uebertragen.
 | `client/crypto.client.js` | Gemeinsame Base64-Helfer fuer Web Crypto |
 | `client/grid.client.js` | Discovery, Heartbeats, Grid und Signaling-Verbindung |
 | `client/p2p.client.js` | WebRTC, DataChannels, ECDH/AES-GCM und P2P-Protokoll |
+| `client/delivery.client.js` | Chat-Sync, Sende-Queue und Pfad C (Zwischenspeicher) |
 | `client/sw.js` | Service Worker fuer Push-Empfang im Hintergrund |
 | `index.html` | HTML-Markup der App-Shell |
 | `client/app/*.js` | UI-Logik: Konfiguration, IndexedDB, Profil, Chat, Einstellungen, Push, Start |
@@ -144,6 +145,14 @@ Tests:
 ```powershell
 npm.cmd test
 npm.cmd run check
+npm.cmd run audit:prod
+```
+
+End-to-End-Tests (zwei Browser, Desktop, iPhone-Emulation und offline
+Partner) laufen komplett in Docker, lokal ist kein Node noetig:
+
+```sh
+sh scripts/e2e.sh   # oder: npm run test:e2e
 ```
 
 ## Datenhaltung

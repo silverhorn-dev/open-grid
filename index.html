@@ -30,7 +30,7 @@
         </div>
         <div id="update-banner" class="hidden pointer-events-auto max-w-md w-full bg-slate-900/95 border border-brand-500/50 text-slate-100 text-xs rounded-xl px-3 py-2 shadow-lg flex items-center justify-between gap-3">
             <span><i class="fa-solid fa-arrows-rotate text-brand-400"></i> Eine neue Version ist bereit.</span>
-            <button onclick="activateServiceWorkerUpdate()" class="bg-brand-600 hover:bg-brand-500 text-white font-semibold px-3 py-1.5 rounded-lg">Aktualisieren</button>
+            <button data-click="activateServiceWorkerUpdate" class="bg-brand-600 hover:bg-brand-500 text-white font-semibold px-3 py-1.5 rounded-lg">Aktualisieren</button>
         </div>
     </div>
 
@@ -54,13 +54,13 @@
 
             <!-- Desktop Navigation -->
             <nav class="hidden md:flex items-center gap-1 text-sm" aria-label="Hauptnavigation">
-                <button data-tab-btn="grid" data-nav="top" onclick="switchTab('grid')" class="nav-top-btn">
+                <button data-tab-btn="grid" data-nav="top" data-click="switchTab" data-args='["grid"]' class="nav-top-btn">
                     <i class="fa-solid fa-border-all"></i> Grid
                 </button>
-                <button data-tab-btn="chat" data-nav="top" onclick="switchTab('chat')" class="nav-top-btn">
+                <button data-tab-btn="chat" data-nav="top" data-click="switchTab" data-args='["chat"]' class="nav-top-btn">
                     <i class="fa-solid fa-comments"></i> Chat
                 </button>
-                <button data-tab-btn="editprofile" data-nav="top" onclick="switchTab('editprofile')" class="nav-top-btn">
+                <button data-tab-btn="editprofile" data-nav="top" data-click="switchTab" data-args='["editprofile"]' class="nav-top-btn">
                     <i class="fa-solid fa-user"></i> Profil
                 </button>
             </nav>
@@ -71,7 +71,7 @@
                     <span id="network-indicator" class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
                     <span id="network-status-text" class="debug-only text-slate-200">Online</span>
                 </div>
-                <button onclick="openMenu()" class="w-9 h-9 flex items-center justify-center bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-lg transition" title="Menue" aria-label="Menue oeffnen" aria-controls="app-menu">
+                <button data-click="openMenu" class="w-9 h-9 flex items-center justify-center bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-lg transition" title="Menue" aria-label="Menue oeffnen" aria-controls="app-menu">
                     <i class="fa-solid fa-bars"></i>
                 </button>
             </div>
@@ -80,38 +80,38 @@
 
     <!-- Mobile Bottom Navigation -->
     <nav class="bottom-nav md:hidden fixed bottom-0 inset-x-0 z-40 bg-slate-900/95 backdrop-blur border-t border-slate-800 grid grid-cols-3" aria-label="Hauptnavigation">
-        <button data-tab-btn="grid" data-nav="bottom" onclick="switchTab('grid')" class="nav-bottom-btn">
+        <button data-tab-btn="grid" data-nav="bottom" data-click="switchTab" data-args='["grid"]' class="nav-bottom-btn">
             <i class="fa-solid fa-border-all text-lg"></i><span>Grid</span>
         </button>
-        <button data-tab-btn="chat" data-nav="bottom" onclick="switchTab('chat')" class="nav-bottom-btn">
+        <button data-tab-btn="chat" data-nav="bottom" data-click="switchTab" data-args='["chat"]' class="nav-bottom-btn">
             <i class="fa-solid fa-comments text-lg"></i><span>Chat</span>
         </button>
-        <button data-tab-btn="editprofile" data-nav="bottom" onclick="switchTab('editprofile')" class="nav-bottom-btn">
+        <button data-tab-btn="editprofile" data-nav="bottom" data-click="switchTab" data-args='["editprofile"]' class="nav-bottom-btn">
             <i class="fa-solid fa-user text-lg"></i><span>Profil</span>
         </button>
     </nav>
 
     <!-- Menu Drawer (technical settings) -->
-    <div id="app-menu-backdrop" onclick="closeMenu()" class="hidden fixed inset-0 z-[55] bg-slate-950/70 backdrop-blur-sm"></div>
+    <div id="app-menu-backdrop" data-click="closeMenu" class="hidden fixed inset-0 z-[55] bg-slate-950/70 backdrop-blur-sm"></div>
     <aside id="app-menu" class="menu-drawer fixed top-0 right-0 bottom-0 z-[56] w-72 max-w-[85vw] bg-slate-900 border-l border-slate-800 shadow-2xl flex flex-col" aria-label="Menue" aria-hidden="true">
         <div class="flex items-center justify-between px-4 py-4 border-b border-slate-800">
             <span class="font-bold text-slate-100">Menue</span>
-            <button onclick="closeMenu()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center" aria-label="Menue schliessen">
+            <button data-click="closeMenu" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center" aria-label="Menue schliessen">
                 <i class="fa-solid fa-xmark"></i>
             </button>
         </div>
         <div class="flex-1 overflow-y-auto p-3 space-y-1 text-sm">
-            <button onclick="switchTab('keys'); closeMenu()" class="menu-item">
+            <button data-click="openSettingsFromMenu" class="menu-item">
                 <i class="fa-solid fa-gear text-slate-400"></i> Einstellungen
             </button>
-            <button onclick="switchTab('cloud'); closeMenu()" class="menu-item debug-only">
+            <button data-click="openCloudFromMenu" class="menu-item debug-only">
                 <i class="fa-solid fa-cloud-arrow-up text-sky-400"></i> Cloud Cache (Pfad C)
             </button>
-            <button id="toggle-debug-btn" onclick="toggleDebugMode()" class="menu-item justify-between" role="switch" aria-checked="false">
+            <button id="toggle-debug-btn" data-click="toggleDebugMode" class="menu-item justify-between" role="switch" aria-checked="false">
                 <span class="flex items-center gap-3"><i class="fa-solid fa-bug text-amber-400"></i> Debug-Modus</span>
                 <span id="debug-status-text" class="toggle-pill">AUS</span>
             </button>
-            <button onclick="closeMenu(); gracefulUnregister()" class="menu-item text-red-300" title="Abmelden vom Routing-Server (Graceful Leave)">
+            <button data-click="unregisterFromMenu" class="menu-item text-red-300" title="Abmelden vom Routing-Server (Graceful Leave)">
                 <i class="fa-solid fa-power-off text-red-400"></i> Abmelden
             </button>
         </div>
@@ -143,13 +143,13 @@
                 </div>
 
                 <div class="flex items-center gap-2">
-                    <button id="use-location-btn" onclick="updateGridSetting('useLocation', true)" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
+                    <button id="use-location-btn" data-click="updateGridSetting" data-args='["useLocation", true]' class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
                         <i class="fa-solid fa-location-arrow"></i> Standort verwenden
                     </button>
-                    <button id="leave-event-btn" onclick="leaveEvent()" class="hidden bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
+                    <button id="leave-event-btn" data-click="leaveEvent" class="hidden bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
                         <i class="fa-solid fa-right-from-bracket"></i> Event verlassen
                     </button>
-                    <button id="refresh-grid-btn" onclick="refreshGrid()" class="bg-brand-600 hover:bg-brand-500 disabled:opacity-60 text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
+                    <button id="refresh-grid-btn" data-click="refreshGrid" class="bg-brand-600 hover:bg-brand-500 disabled:opacity-60 text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
                         <i id="refresh-grid-icon" class="fa-solid fa-rotate"></i> Aktualisieren
                     </button>
                 </div>
@@ -160,7 +160,7 @@
                 <!-- Dynamic cards injected via JS -->
             </div>
             <div class="flex justify-center">
-                <button id="grid-load-more-btn" onclick="loadMoreGrid()" class="hidden bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 px-4 py-2 rounded-lg flex items-center gap-1.5 transition">
+                <button id="grid-load-more-btn" data-click="loadMoreGrid" class="hidden bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 px-4 py-2 rounded-lg flex items-center gap-1.5 transition">
                     <i class="fa-solid fa-expand"></i> Mehr laden
                 </button>
             </div>
@@ -172,7 +172,7 @@
             <div id="chat-list-panel" class="bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-col min-h-0">
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 px-1 flex items-center justify-between">
                     <span>Chats</span>
-                    <button onclick="switchTab('keys'); document.getElementById('invite-card')?.scrollIntoView({ behavior: 'smooth' })" class="ml-auto mr-2 normal-case tracking-normal text-brand-400 hover:text-brand-300 font-semibold" title="Kontakt einladen">
+                    <button data-click="openInviteCard" class="ml-auto mr-2 normal-case tracking-normal text-brand-400 hover:text-brand-300 font-semibold" title="Kontakt einladen">
                         <i class="fa-solid fa-user-plus"></i> Einladen
                     </button>
                     <span id="active-peers-count" class="bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full text-xs">0</span>
@@ -184,10 +184,10 @@
             <div id="chat-window-panel" class="md:col-span-2 bg-slate-900 border border-slate-800 rounded-xl flex flex-col h-full min-h-0">
                 <div id="chat-header" class="chat-header p-3 border-b border-slate-800 flex items-center justify-between gap-2 bg-slate-900/50">
                     <div class="flex flex-1 items-center gap-2 min-w-0">
-                        <button onclick="leaveActiveChat()" class="md:hidden w-9 h-9 shrink-0 rounded-lg text-slate-300 hover:bg-slate-800 flex items-center justify-center" aria-label="Zurueck zur Chatliste">
+                        <button data-click="leaveActiveChat" class="md:hidden w-9 h-9 shrink-0 rounded-lg text-slate-300 hover:bg-slate-800 flex items-center justify-center" aria-label="Zurueck zur Chatliste">
                             <i class="fa-solid fa-arrow-left"></i>
                         </button>
-                        <div class="flex items-center gap-3 min-w-0 cursor-pointer hover:opacity-80 transition" onclick="if(state.activeChatPeerId) openProfileModal(state.activeChatPeerId)" title="Profil anzeigen">
+                        <div class="flex items-center gap-3 min-w-0 cursor-pointer hover:opacity-80 transition" data-click="openActiveChatProfile" title="Profil anzeigen">
                             <div class="relative shrink-0">
                                 <div id="chat-peer-avatar" class="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-slate-400 overflow-hidden">?</div>
                                 <span id="chat-peer-online-dot" class="hidden absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-slate-900" title="Online"></span>
@@ -203,27 +203,27 @@
                         <div id="connection-status-pill" class="debug-only text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-400 font-mono">
                             Disconnected
                         </div>
-                        <button onclick="toggleChatSearch()" class="w-9 h-9 rounded-lg text-slate-300 hover:bg-slate-800 flex items-center justify-center" title="Im Chat suchen" aria-label="Im Chat suchen">
+                        <button data-click="toggleChatSearch" class="w-9 h-9 rounded-lg text-slate-300 hover:bg-slate-800 flex items-center justify-center" title="Im Chat suchen" aria-label="Im Chat suchen">
                             <i class="fa-solid fa-magnifying-glass"></i>
                         </button>
                         <div class="relative">
-                            <button id="chat-header-menu-btn" onclick="toggleChatHeaderMenu(event)" class="w-9 h-9 rounded-lg text-slate-300 hover:bg-slate-800 flex items-center justify-center" title="Mehr" aria-label="Weitere Aktionen" aria-haspopup="menu" aria-expanded="false">
+                            <button id="chat-header-menu-btn" data-click="toggleChatHeaderMenu" data-args='["$event"]' class="w-9 h-9 rounded-lg text-slate-300 hover:bg-slate-800 flex items-center justify-center" title="Mehr" aria-label="Weitere Aktionen" aria-haspopup="menu" aria-expanded="false">
                                 <i class="fa-solid fa-ellipsis-vertical"></i>
                             </button>
                             <div id="chat-header-menu" class="hidden absolute right-0 top-full mt-1 z-30 w-48 py-1 rounded-xl border border-slate-700 bg-slate-900 shadow-xl" role="menu">
-                                <button onclick="closeChatHeaderMenu(); openChatMediaOverview()" class="chat-menu-item" role="menuitem"><i class="fa-regular fa-images"></i> Medien</button>
-                                <button onclick="closeChatHeaderMenu(); if (state.activeChatPeerId) openProfileModal(state.activeChatPeerId)" class="chat-menu-item" role="menuitem"><i class="fa-regular fa-user"></i> Profil</button>
-                                <button id="delete-chat-btn" onclick="closeChatHeaderMenu(); deleteActiveChat()" class="hidden chat-menu-item text-red-300" role="menuitem"><i class="fa-solid fa-trash"></i> Chat loeschen</button>
-                                <button id="block-peer-btn" onclick="closeChatHeaderMenu(); toggleActivePeerBlock()" class="hidden chat-menu-item text-red-300" role="menuitem"><i class="fa-solid fa-ban"></i> <span id="block-peer-label">Blockieren</span></button>
+                                <button data-click="chatMenuMedia" class="chat-menu-item" role="menuitem"><i class="fa-regular fa-images"></i> Medien</button>
+                                <button data-click="chatMenuProfile" class="chat-menu-item" role="menuitem"><i class="fa-regular fa-user"></i> Profil</button>
+                                <button id="delete-chat-btn" data-click="chatMenuDeleteChat" class="hidden chat-menu-item text-red-300" role="menuitem"><i class="fa-solid fa-trash"></i> Chat loeschen</button>
+                                <button id="block-peer-btn" data-click="chatMenuToggleBlock" class="hidden chat-menu-item text-red-300" role="menuitem"><i class="fa-solid fa-ban"></i> <span id="block-peer-label">Blockieren</span></button>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <div id="chat-search-bar" class="hidden px-4 py-2 border-b border-slate-800 flex items-center gap-3">
-                    <input id="chat-search-input" type="search" placeholder="Im Chat suchen..." oninput="setChatSearch(this.value)" class="flex-1 min-w-0 bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-base md:text-sm text-slate-100 focus:outline-none focus:border-brand-500">
+                    <input id="chat-search-input" type="search" placeholder="Im Chat suchen..." data-input="setChatSearch" data-args='["$value"]' class="flex-1 min-w-0 bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-base md:text-sm text-slate-100 focus:outline-none focus:border-brand-500">
                     <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer whitespace-nowrap">
-                        <input type="checkbox" id="chat-starred-toggle" onchange="setChatStarredOnly(this.checked)" class="accent-brand-500">
+                        <input type="checkbox" id="chat-starred-toggle" data-change="setChatStarredOnly" data-args='["$checked"]' class="accent-brand-500">
                         <i class="fa-solid fa-star text-amber-400"></i> Nur markierte
                     </label>
                 </div>
@@ -242,19 +242,19 @@
                             <div id="chat-reply-author" class="text-[11px] font-semibold text-brand-400"></div>
                             <div id="chat-reply-preview" class="text-xs text-slate-400 truncate"></div>
                         </div>
-                        <button onclick="cancelReply()" class="w-7 h-7 rounded-lg text-slate-400 hover:bg-slate-800 flex items-center justify-center" aria-label="Antwort abbrechen">
+                        <button data-click="cancelReply" class="w-7 h-7 rounded-lg text-slate-400 hover:bg-slate-800 flex items-center justify-center" aria-label="Antwort abbrechen">
                             <i class="fa-solid fa-xmark"></i>
                         </button>
                     </div>
                     <div class="flex items-center gap-2">
-                        <button data-chat-image-action onclick="openSnapUploadModal()" class="disabled:opacity-40 bg-slate-800 hover:bg-slate-700 text-brand-400 border border-slate-700 p-2.5 rounded-lg transition flex items-center gap-1.5 text-xs font-semibold" title="Snap senden">
+                        <button data-chat-image-action data-click="openSnapUploadModal" class="disabled:opacity-40 bg-slate-800 hover:bg-slate-700 text-brand-400 border border-slate-700 p-2.5 rounded-lg transition flex items-center gap-1.5 text-xs font-semibold" title="Snap senden">
                             <i class="fa-solid fa-bolt text-amber-400"></i><span class="hidden sm:inline">Snap</span>
                         </button>
-                        <button data-chat-image-action onclick="openAlbumPicker()" class="disabled:opacity-40 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 p-2.5 rounded-lg transition text-xs" title="Album teilen" aria-label="Album teilen">
+                        <button data-chat-image-action data-click="openAlbumPicker" class="disabled:opacity-40 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 p-2.5 rounded-lg transition text-xs" title="Album teilen" aria-label="Album teilen">
                             <i class="fa-solid fa-images"></i>
                         </button>
                         <input id="chat-input" type="text" placeholder="Nachricht schreiben..." class="flex-1 min-w-0 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-base md:text-sm text-slate-100 focus:outline-none focus:border-brand-500 transition">
-                        <button id="send-chat-btn" onclick="sendChatMessage()" class="bg-brand-600 hover:bg-brand-500 disabled:bg-slate-700 disabled:text-slate-400 text-white px-3 sm:px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-1.5" title="Senden">
+                        <button id="send-chat-btn" data-click="sendChatMessage" class="bg-brand-600 hover:bg-brand-500 disabled:bg-slate-700 disabled:text-slate-400 text-white px-3 sm:px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-1.5" title="Senden">
                             <i class="fa-solid fa-paper-plane"></i><span class="hidden sm:inline">Senden</span>
                         </button>
                     </div>
@@ -272,7 +272,7 @@
                         </h2>
                         <p class="text-xs text-slate-400">Bearbeite dein Profil und deine Galerie. <span class="debug-only">Die Felder kommen aus dem Profil-Schema.</span></p>
                     </div>
-                    <button onclick="saveUserProfile()" class="bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-lg pulse-glow">
+                    <button data-click="saveUserProfile" class="bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-lg pulse-glow">
                         <i class="fa-solid fa-floppy-disk"></i> Speichern
                     </button>
                 </div>
@@ -290,7 +290,7 @@
                                 <label class="absolute inset-0 bg-black/60 hidden group-hover:flex flex-col items-center justify-center cursor-pointer text-white transition">
                                     <i class="fa-solid fa-upload text-xl mb-1"></i>
                                     <span class="text-[9px] uppercase tracking-wider font-bold">Aendern</span>
-                                    <input type="file" accept="image/*" class="hidden" onchange="handleAvatarUpload(this)">
+                                    <input type="file" accept="image/*" class="hidden" data-change="handleAvatarUpload" data-args='["$el"]'>
                                 </label>
                             </div>
                         </div>
@@ -300,7 +300,7 @@
                                 <!-- JS injects thumbnails here -->
                                 <label id="add-gallery-btn" class="w-20 h-20 rounded-xl bg-slate-950 border border-dashed border-slate-700 flex flex-col items-center justify-center cursor-pointer hover:border-brand-500 hover:text-brand-400 text-slate-500 transition shrink-0">
                                     <i class="fa-solid fa-plus text-xl"></i>
-                                    <input type="file" accept="image/*" class="hidden" onchange="handleGalleryUpload(this)">
+                                    <input type="file" accept="image/*" class="hidden" data-change="handleGalleryUpload" data-args='["$el"]'>
                                 </label>
                             </div>
                         </div>
@@ -319,8 +319,8 @@
                     <p class="text-xs text-slate-400">Alben sind nicht im Profil sichtbar. Du teilst sie im Chat und kannst den Zugriff jederzeit entziehen.</p>
                 </div>
                 <div class="flex gap-2">
-                    <input id="new-album-name" type="text" maxlength="80" placeholder="Neues Album" onkeydown="if (event.key === 'Enter') createAlbum()" class="flex-1 min-w-0 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-base md:text-sm text-slate-200">
-                    <button onclick="createAlbum()" class="bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-lg text-xs font-semibold">Anlegen</button>
+                    <input id="new-album-name" type="text" maxlength="80" placeholder="Neues Album" data-enter="createAlbum" class="flex-1 min-w-0 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-base md:text-sm text-slate-200">
+                    <button data-click="createAlbum" class="bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-lg text-xs font-semibold">Anlegen</button>
                 </div>
                 <div id="album-manager-list" class="space-y-2"></div>
             </div>
@@ -350,13 +350,13 @@
                     </h3>
                     <div class="flex flex-wrap items-center gap-2">
                         <span class="text-[10px] text-slate-500 bg-slate-950 px-2 py-1 rounded border border-slate-800">Build: {{timestamp}}</span>
-                        <button onclick="copyDebugLogs()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded flex items-center gap-1.5" title="Vollstaendiges Protokoll in die Zwischenablage kopieren">
+                        <button data-click="copyDebugLogs" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded flex items-center gap-1.5" title="Vollstaendiges Protokoll in die Zwischenablage kopieren">
                             <i class="fa-solid fa-copy text-sky-400"></i> Copy Logs
                         </button>
-                        <button onclick="runConnectivityDiagnostics()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded flex items-center gap-1.5" title="STUN/TURN-Erreichbarkeit pruefen">
+                        <button data-click="runConnectivityDiagnostics" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded flex items-center gap-1.5" title="STUN/TURN-Erreichbarkeit pruefen">
                             <i class="fa-solid fa-stethoscope text-emerald-400"></i> Test ICE
                         </button>
-                        <button onclick="clearDebugLogs()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded">Clear Logs</button>
+                        <button data-click="clearDebugLogs" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded">Clear Logs</button>
                     </div>
                 </div>
                 <div id="debug-log-output" class="bg-slate-950 p-3 rounded-lg border border-slate-800 font-mono text-xs text-emerald-400 h-40 overflow-y-auto space-y-1">
@@ -371,7 +371,7 @@
                     </h3>
                     <p class="text-xs text-slate-400">Die Profilfelder werden aus dieser JSON-Konfiguration erzeugt.</p>
                     <textarea id="schema-json-input" rows="10" spellcheck="false" class="w-full bg-slate-950 p-2.5 rounded-lg border border-slate-800 font-mono text-xs text-slate-300 focus:outline-none focus:border-brand-500"></textarea>
-                    <button onclick="updateProfileSchemaFromJSON()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-200 px-3 py-2 rounded-lg font-semibold transition">
+                    <button data-click="updateProfileSchemaFromJSON" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-200 px-3 py-2 rounded-lg font-semibold transition">
                         Apply Schema
                     </button>
                 </div>
@@ -383,7 +383,7 @@
                     <p class="text-xs text-slate-400">Snaps und Albumbilder tragen unsichtbar die ID des Empfaengers. Lade einen 1:1-Screenshot oder das Bild hoch, um herauszufinden, an wen es ging.</p>
                     <label class="inline-block bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-200 px-3 py-2 rounded-lg font-semibold cursor-pointer">
                         Bild auswaehlen
-                        <input type="file" accept="image/*" class="hidden" onchange="checkWatermarkFile(this)">
+                        <input type="file" accept="image/*" class="hidden" data-change="checkWatermarkFile" data-args='["$el"]'>
                     </label>
                     <div id="watermark-check-result" class="text-xs font-mono text-slate-300"></div>
                 </div>
@@ -397,7 +397,7 @@
                         <label class="text-xs font-mono text-slate-400">Public Key Fingerprint (SHA-256)</label>
                         <div id="inspect-pubkey-fingerprint" class="bg-slate-950 p-2 rounded border border-slate-800 font-mono text-xs text-emerald-400 break-all">Generating...</div>
                     </div>
-                    <button id="regenerate-key-btn" onclick="generateUserIdentityKeys(true)" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-200 px-3 py-2 rounded-lg font-semibold transition">
+                    <button id="regenerate-key-btn" data-click="generateUserIdentityKeys" data-args='[true]' class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-200 px-3 py-2 rounded-lg font-semibold transition">
                         Regenerate Keypair
                     </button>
                 </div>
@@ -410,8 +410,8 @@
                     <div id="event-settings" class="space-y-2 border-t border-slate-800 pt-3">
                         <div class="text-xs text-slate-300">Event beitreten (der Server sieht nur einen Hash des Codes):</div>
                         <div class="flex gap-2">
-                            <input id="event-code-input" type="text" maxlength="64" placeholder="Event-Code, z. B. PRIDE24" onkeydown="if (event.key === 'Enter') joinEvent()" class="flex-1 min-w-0 bg-slate-950 border border-slate-700 rounded px-2 py-1.5 text-base md:text-xs text-slate-200 uppercase">
-                            <button onclick="joinEvent()" class="bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg">Beitreten</button>
+                            <input id="event-code-input" type="text" maxlength="64" placeholder="Event-Code, z. B. PRIDE24" data-enter="joinEvent" class="flex-1 min-w-0 bg-slate-950 border border-slate-700 rounded px-2 py-1.5 text-base md:text-xs text-slate-200 uppercase">
+                            <button data-click="joinEvent" class="bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg">Beitreten</button>
                         </div>
                         <div id="event-status" class="text-[11px] text-slate-500">Kein Event aktiv.</div>
                     </div>
@@ -425,8 +425,8 @@
                     <img id="invite-qr" alt="QR-Code mit deinem Einladungslink" class="hidden w-40 h-40 rounded-lg bg-white p-1 [image-rendering:pixelated]">
                     <input id="invite-link-output" type="text" readonly class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1.5 text-[11px] font-mono text-slate-300">
                     <div class="flex gap-2">
-                        <button onclick="copyInviteLink()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-200 px-3 py-1.5 rounded-lg font-semibold"><i class="fa-regular fa-copy"></i> Kopieren</button>
-                        <button onclick="shareInviteLink()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-200 px-3 py-1.5 rounded-lg font-semibold"><i class="fa-solid fa-share-nodes"></i> Teilen</button>
+                        <button data-click="copyInviteLink" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-200 px-3 py-1.5 rounded-lg font-semibold"><i class="fa-regular fa-copy"></i> Kopieren</button>
+                        <button data-click="shareInviteLink" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-200 px-3 py-1.5 rounded-lg font-semibold"><i class="fa-solid fa-share-nodes"></i> Teilen</button>
                     </div>
                 </div>
 
@@ -436,7 +436,7 @@
                     </h3>
                     <label class="flex flex-wrap items-center gap-2 text-xs text-slate-300">
                         <span>Profil sichtbar:</span>
-                        <select id="profile-visibility-select" onchange="updateMatchingSetting('visibility', this.value)" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200">
+                        <select id="profile-visibility-select" data-change="updateMatchingSetting" data-args='["visibility", "$value"]' class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200">
                             <option value="1">1 - Alles fuer alle</option>
                             <option value="2">2 - Teilweise (markierte Felder + Galerie nur fuer Matches)</option>
                             <option value="3">3 - Verborgen (alles erst nach Match)</option>
@@ -444,7 +444,7 @@
                     </label>
                     <label class="flex flex-wrap items-center gap-2 text-xs text-slate-300">
                         <span>Wer darf schreiben:</span>
-                        <select id="chat-mode-select" onchange="updateMatchingSetting('chatMode', this.value)" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200">
+                        <select id="chat-mode-select" data-change="updateMatchingSetting" data-args='["chatMode", "$value"]' class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200">
                             <option value="A">A - Alle</option>
                             <option value="B">B - Begrenzt bis zum Match</option>
                             <option value="C">C - Nur Matches</option>
@@ -452,7 +452,7 @@
                     </label>
                     <div id="chat-limit-options" class="hidden flex flex-wrap items-center gap-3 text-xs text-slate-300">
                         <label class="flex items-center gap-2">Max.
-                            <select id="chat-limit-select" onchange="updateMatchingSetting('chatLimit', this.value)" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-slate-200">
+                            <select id="chat-limit-select" data-change="updateMatchingSetting" data-args='["chatLimit", "$value"]' class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-slate-200">
                                 <option value="1">1</option>
                                 <option value="3">3</option>
                                 <option value="5">5</option>
@@ -461,7 +461,7 @@
                             Nachrichten bis zum Match
                         </label>
                         <label class="flex items-center gap-2 cursor-pointer">
-                            <input type="checkbox" id="chat-images-toggle" onchange="updateMatchingSetting('chatImages', this.checked)" class="accent-brand-500">
+                            <input type="checkbox" id="chat-images-toggle" data-change="updateMatchingSetting" data-args='["chatImages", "$checked"]' class="accent-brand-500">
                             Bilder erlaubt
                         </label>
                     </div>
@@ -473,7 +473,7 @@
                         <i class="fa-solid fa-hard-drive text-sky-400"></i> Speicher
                     </h3>
                     <div id="storage-usage" class="text-xs text-slate-300">Wird berechnet...</div>
-                    <button id="storage-cleanup-btn" onclick="cleanupUnusedMedia()" class="bg-slate-800 hover:bg-slate-700 disabled:opacity-60 border border-slate-700 text-xs text-slate-200 px-3 py-2 rounded-lg font-semibold">
+                    <button id="storage-cleanup-btn" data-click="cleanupUnusedMedia" class="bg-slate-800 hover:bg-slate-700 disabled:opacity-60 border border-slate-700 text-xs text-slate-200 px-3 py-2 rounded-lg font-semibold">
                         Nicht mehr benoetigte Medien entfernen
                     </button>
                 </div>
@@ -484,7 +484,7 @@
                     </h3>
                     <label class="flex items-center gap-2 text-xs text-slate-300">
                         <span>Schriftgroesse im Chat:</span>
-                        <select id="chat-font-size-select" onchange="setChatFontSize(this.value)" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200">
+                        <select id="chat-font-size-select" data-change="setChatFontSize" data-args='["$value"]' class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200">
                             <option value="small">Klein</option>
                             <option value="normal">Normal</option>
                             <option value="large">Gross</option>
@@ -494,9 +494,9 @@
                     <div class="flex flex-wrap items-center gap-2 text-xs text-slate-300">
                         <span>Thema:</span>
                         <div class="flex gap-1 p-1 rounded-xl bg-slate-950 border border-slate-800" role="group" aria-label="Thema">
-                            <button type="button" data-theme-mode="system" onclick="setThemeMode('system')" class="px-3 py-1.5 rounded-lg font-semibold">System</button>
-                            <button type="button" data-theme-mode="light" onclick="setThemeMode('light')" class="px-3 py-1.5 rounded-lg font-semibold">Hell</button>
-                            <button type="button" data-theme-mode="dark" onclick="setThemeMode('dark')" class="px-3 py-1.5 rounded-lg font-semibold">Dunkel</button>
+                            <button type="button" data-theme-mode="system" data-click="setThemeMode" data-args='["system"]' class="px-3 py-1.5 rounded-lg font-semibold">System</button>
+                            <button type="button" data-theme-mode="light" data-click="setThemeMode" data-args='["light"]' class="px-3 py-1.5 rounded-lg font-semibold">Hell</button>
+                            <button type="button" data-theme-mode="dark" data-click="setThemeMode" data-args='["dark"]' class="px-3 py-1.5 rounded-lg font-semibold">Dunkel</button>
                         </div>
                     </div>
                     <div class="flex flex-wrap items-center gap-4">
@@ -506,7 +506,7 @@
                         <div class="space-y-2">
                             <div class="text-xs text-slate-300">Akzentfarbe: im Kreis ziehen oder waehlen</div>
                             <div id="accent-presets" class="grid grid-cols-4 gap-2"></div>
-                            <button type="button" onclick="setAccent(null)" class="text-[11px] text-slate-400 hover:text-slate-200 underline">Standard</button>
+                            <button type="button" data-click="setAccent" data-args='[null]' class="text-[11px] text-slate-400 hover:text-slate-200 underline">Standard</button>
                         </div>
                     </div>
                 </div>
@@ -516,12 +516,12 @@
                         <i class="fa-solid fa-eye-slash text-sky-400"></i> Sichtbarkeit &amp; Speicher
                     </h3>
                     <label class="flex items-start gap-2 text-xs text-slate-300 cursor-pointer">
-                        <input type="checkbox" id="silent-mode-toggle" onchange="updateGridSetting('silent', this.checked)" class="accent-brand-500 mt-0.5">
+                        <input type="checkbox" id="silent-mode-toggle" data-change="updateGridSetting" data-args='["silent", "$checked"]' class="accent-brand-500 mt-0.5">
                         <span>Silent-Modus: nicht im Grid sichtbar, aber fuer bestehende Chats erreichbar</span>
                     </label>
                     <label class="flex items-center gap-2 text-xs text-slate-300">
                         <span>Im Grid sichtbar nach dem Schliessen:</span>
-                        <select id="grid-ttl-select" onchange="updateGridSetting('ttlMinutes', Number(this.value))" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200">
+                        <select id="grid-ttl-select" data-change="updateGridSetting" data-args='["ttlMinutes", "$number"]' class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200">
                             <option value="1">1 Minute</option>
                             <option value="10">10 Minuten</option>
                             <option value="30">30 Minuten</option>
@@ -529,34 +529,34 @@
                         </select>
                     </label>
                     <label class="flex items-start gap-2 text-xs text-slate-300 cursor-pointer">
-                        <input type="checkbox" id="lan-only-toggle" onchange="updateGridSetting('lanOnly', this.checked)" class="accent-brand-500 mt-0.5">
+                        <input type="checkbox" id="lan-only-toggle" data-change="updateGridSetting" data-args='["lanOnly", "$checked"]' class="accent-brand-500 mt-0.5">
                         <span>Nur lokales Netz (Club-Modus): Verbindungen nur im selben WLAN, ohne STUN/TURN-Server. Chats mit Leuten ausserhalb des Netzes laufen dann ueber den verschluesselten Zwischenspeicher.</span>
                     </label>
                     <label class="flex items-start gap-2 text-xs text-slate-300 cursor-pointer">
-                        <input type="checkbox" id="live-grid-toggle" onchange="updateGridSetting('liveGrid', this.checked)" class="accent-brand-500 mt-0.5">
+                        <input type="checkbox" id="live-grid-toggle" data-change="updateGridSetting" data-args='["liveGrid", "$checked"]' class="accent-brand-500 mt-0.5">
                         <span>Live-Grid: nur Profile zeigen, die gerade online sind</span>
                     </label>
                     <label class="flex items-start gap-2 text-xs text-slate-300 cursor-pointer">
-                        <input type="checkbox" id="use-location-toggle" onchange="updateGridSetting('useLocation', this.checked)" class="accent-brand-500 mt-0.5">
+                        <input type="checkbox" id="use-location-toggle" data-change="updateGridSetting" data-args='["useLocation", "$checked"]' class="accent-brand-500 mt-0.5">
                         <span>Geraetestandort verwenden (nur als Zelle von ca. 1 km an den Router)</span>
                     </label>
                     <div class="space-y-1.5">
                         <div class="text-xs text-slate-300">Oder Adresse angeben (wird einmalig an OpenStreetMap Nominatim gesendet, der Router sieht nur die Zelle):</div>
                         <div class="flex gap-2">
-                            <input id="address-input" type="text" autocomplete="street-address" placeholder="Strasse, Ort" onkeydown="if (event.key === 'Enter') searchAddressLocation()" class="flex-1 min-w-0 bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200">
-                            <button id="address-search-btn" onclick="searchAddressLocation()" class="bg-slate-800 hover:bg-slate-700 disabled:opacity-60 border border-slate-700 text-xs text-slate-200 px-3 py-1.5 rounded-lg font-semibold transition">Suchen</button>
+                            <input id="address-input" type="text" autocomplete="street-address" placeholder="Strasse, Ort" data-enter="searchAddressLocation" class="flex-1 min-w-0 bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200">
+                            <button id="address-search-btn" data-click="searchAddressLocation" class="bg-slate-800 hover:bg-slate-700 disabled:opacity-60 border border-slate-700 text-xs text-slate-200 px-3 py-1.5 rounded-lg font-semibold transition">Suchen</button>
                         </div>
                         <div id="location-label" class="text-[11px] text-slate-500 truncate">Aktuell: kein Standort gesetzt</div>
                     </div>
                     <div class="space-y-1.5">
                         <div class="text-xs text-slate-300">Safe Zones: an diesen Orten automatisch unsichtbar</div>
                         <ul id="safe-zone-list" class="space-y-1"></ul>
-                        <button id="add-safe-zone-btn" onclick="addCurrentSafeZone()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-200 px-3 py-1.5 rounded-lg font-semibold transition">
+                        <button id="add-safe-zone-btn" data-click="addCurrentSafeZone" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-200 px-3 py-1.5 rounded-lg font-semibold transition">
                             Aktuellen Ort als Safe Zone speichern
                         </button>
                     </div>
                     <label class="flex items-start gap-2 text-xs text-slate-300 cursor-pointer">
-                        <input type="checkbox" id="cache-enabled-toggle" checked onchange="updateGridSetting('cacheEnabled', this.checked)" class="accent-brand-500 mt-0.5">
+                        <input type="checkbox" id="cache-enabled-toggle" checked data-change="updateGridSetting" data-args='["cacheEnabled", "$checked"]' class="accent-brand-500 mt-0.5">
                         <span>Cloud-Cache: eigene Nachrichten verschluesselt auf dem Server zwischenspeichern, wenn keine direkte Verbindung besteht (eingehende Nachrichten kommen weiterhin an)</span>
                     </label>
                 </div>
@@ -566,19 +566,19 @@
                         <i class="fa-solid fa-lock text-amber-400"></i> Secure Snaps
                     </h3>
                     <label class="flex items-start gap-2 text-xs text-slate-300 cursor-pointer">
-                        <input type="checkbox" id="secure-snaps-toggle" onchange="updateSnapSetting('secureSnaps', this.checked)" class="accent-brand-500 mt-0.5">
+                        <input type="checkbox" id="secure-snaps-toggle" data-change="updateSnapSetting" data-args='["secureSnaps", "$checked"]' class="accent-brand-500 mt-0.5">
                         <span>Snaps nur mit Freigabe ansehen lassen: begrenzte Ansichten und Dauer, live gestreamt, wenn moeglich. Der Empfaenger braucht dafuer deine Verbindung (du musst online sein).</span>
                     </label>
                     <div id="secure-snap-defaults" class="hidden flex flex-wrap items-center gap-3 text-xs text-slate-300">
                         <label class="flex items-center gap-2">Standard:
-                            <select id="secure-snap-default-views" onchange="updateSnapSetting('views', Number(this.value))" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-slate-200">
+                            <select id="secure-snap-default-views" data-change="updateSnapSetting" data-args='["views", "$number"]' class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-slate-200">
                                 <option value="1">1x</option>
                                 <option value="2">2x</option>
                                 <option value="3">3x</option>
                             </select>
                         </label>
                         <label class="flex items-center gap-2">je
-                            <select id="secure-snap-default-seconds" onchange="updateSnapSetting('seconds', Number(this.value))" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-slate-200">
+                            <select id="secure-snap-default-seconds" data-change="updateSnapSetting" data-args='["seconds", "$number"]' class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-slate-200">
                                 <option value="5">5 s</option>
                                 <option value="10">10 s</option>
                                 <option value="30">30 s</option>
@@ -595,11 +595,11 @@
                     </h3>
                     <p class="text-xs text-slate-400">Weckt die App bei neuen Nachrichten, auch wenn sie geschlossen ist. Der Push enthaelt nur verschluesselte Daten.</p>
                     <div id="push-status" class="debug-only text-xs font-mono text-slate-400">Checking...</div>
-                    <button id="push-toggle-btn" onclick="togglePushNotifications()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-200 px-3 py-2 rounded-lg font-semibold transition">
+                    <button id="push-toggle-btn" data-click="togglePushNotifications" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-200 px-3 py-2 rounded-lg font-semibold transition">
                         Enable Notifications
                     </button>
                     <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
-                        <input type="checkbox" id="push-compact-toggle" checked onchange="setCompactPushNotifications(this.checked)" class="accent-brand-500">
+                        <input type="checkbox" id="push-compact-toggle" checked data-change="setCompactPushNotifications" data-args='["$checked"]' class="accent-brand-500">
                         Nur eine Meldung "Neue Nachrichten" (ohne Name und Text)
                     </label>
                 </div>
@@ -638,7 +638,7 @@
                 </div>
                 <div id="onboarding-profile-form" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
                 <div id="onboarding-profile-error" class="hidden text-xs text-red-300 bg-red-950/50 border border-red-800 rounded-lg p-3"></div>
-                <button id="complete-onboarding-btn" onclick="completeProfileOnboarding()" class="w-full bg-brand-600 hover:bg-brand-500 disabled:opacity-60 text-white font-semibold py-3 px-4 rounded-xl transition flex items-center justify-center gap-2 shadow-lg pulse-glow">
+                <button id="complete-onboarding-btn" data-click="completeProfileOnboarding" class="w-full bg-brand-600 hover:bg-brand-500 disabled:opacity-60 text-white font-semibold py-3 px-4 rounded-xl transition flex items-center justify-center gap-2 shadow-lg pulse-glow">
                     <i class="fa-solid fa-shield-halved"></i> Profil verschluesselt speichern
                 </button>
             </div>
@@ -649,9 +649,9 @@
     <div id="profile-detail-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
         <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full overflow-hidden shadow-2xl space-y-0 my-8">
             <div class="relative h-64 bg-slate-950">
-                <img id="modal-profile-img" src="" class="w-full h-full object-cover cursor-zoom-in" onclick="openProfileImageViewer(this.src)">
+                <img id="modal-profile-img" src="" class="w-full h-full object-cover cursor-zoom-in" data-click="openProfileImageViewer" data-args='["$src"]'>
                 <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/20 to-transparent"></div>
-                <button onclick="closeProfileModal()" class="absolute top-3 right-3 w-8 h-8 rounded-full bg-slate-950/70 hover:bg-slate-900 text-slate-200 border border-slate-700 flex items-center justify-center transition">
+                <button data-click="closeProfileModal" class="absolute top-3 right-3 w-8 h-8 rounded-full bg-slate-950/70 hover:bg-slate-900 text-slate-200 border border-slate-700 flex items-center justify-center transition">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
                 <div class="absolute bottom-3 left-4 flex flex-col gap-1">
@@ -675,10 +675,10 @@
                     </div>
                 </div>
                 <div class="pt-2 flex gap-2">
-                    <button onclick="launchChatFromModal()" class="flex-1 bg-brand-600 hover:bg-brand-500 text-white font-semibold py-2.5 px-4 rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-lg pulse-glow">
+                    <button data-click="launchChatFromModal" class="flex-1 bg-brand-600 hover:bg-brand-500 text-white font-semibold py-2.5 px-4 rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-lg pulse-glow">
                         <i class="fa-solid fa-comments"></i> Chat starten
                     </button>
-                    <button onclick="closeProfileModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-2.5 px-4 rounded-xl text-xs transition border border-slate-700">Close</button>
+                    <button data-click="closeProfileModal" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-2.5 px-4 rounded-xl text-xs transition border border-slate-700">Close</button>
                 </div>
             </div>
         </div>
@@ -689,7 +689,7 @@
         <div class="bg-slate-900 border border-slate-800 w-full sm:max-w-2xl max-h-[90dvh] rounded-t-2xl sm:rounded-2xl flex flex-col overflow-hidden">
             <div class="flex items-center justify-between gap-3 p-4 border-b border-slate-800">
                 <h3 id="media-modal-title" class="font-bold text-sm text-slate-100 truncate">Medien</h3>
-                <button onclick="closeMediaModal()" class="w-8 h-8 rounded-lg text-slate-300 hover:bg-slate-800 flex items-center justify-center" aria-label="Schliessen">
+                <button data-click="closeMediaModal" class="w-8 h-8 rounded-lg text-slate-300 hover:bg-slate-800 flex items-center justify-center" aria-label="Schliessen">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
@@ -701,7 +701,7 @@
     <div id="image-viewer" class="hidden fixed inset-0 z-[80] bg-black flex flex-col select-none" role="dialog" aria-modal="true" aria-label="Bildbetrachter">
         <div class="absolute top-0 inset-x-0 z-10 p-4 flex items-center justify-between bg-gradient-to-b from-black/70 to-transparent" style="padding-top: max(1rem, env(safe-area-inset-top));">
             <span id="image-viewer-counter" class="text-sm font-semibold text-white/90"></span>
-            <button onclick="closeImageViewer()" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Schliessen">
+            <button data-click="closeImageViewer" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Schliessen">
                 <i class="fa-solid fa-xmark"></i>
             </button>
         </div>
@@ -711,17 +711,17 @@
                 <div class="viewer-slide w-1/3 h-full flex items-center justify-center"><img id="image-viewer-image" alt="" draggable="false" class="max-w-full max-h-full object-contain will-change-transform"></div>
                 <div class="viewer-slide w-1/3 h-full flex items-center justify-center"><img id="image-viewer-next-image" alt="" draggable="false" class="max-w-full max-h-full object-contain"></div>
             </div>
-            <button id="image-viewer-prev" onclick="stepImageViewer(-1)" class="hidden sm:flex absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/50 hover:bg-black/70 text-white items-center justify-center" aria-label="Vorheriges Bild">
+            <button id="image-viewer-prev" data-click="stepImageViewer" data-args='[-1]' class="hidden sm:flex absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/50 hover:bg-black/70 text-white items-center justify-center" aria-label="Vorheriges Bild">
                 <i class="fa-solid fa-chevron-left"></i>
             </button>
-            <button id="image-viewer-next" onclick="stepImageViewer(1)" class="hidden sm:flex absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/50 hover:bg-black/70 text-white items-center justify-center" aria-label="Naechstes Bild">
+            <button id="image-viewer-next" data-click="stepImageViewer" data-args='[1]' class="hidden sm:flex absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/50 hover:bg-black/70 text-white items-center justify-center" aria-label="Naechstes Bild">
                 <i class="fa-solid fa-chevron-right"></i>
             </button>
         </div>
     </div>
 
     <!-- Secure-Snap-Viewer -->
-    <div id="secure-snap-viewer" class="hidden fixed inset-0 z-[85] bg-black flex items-center justify-center select-none" style="-webkit-touch-callout: none;" oncontextmenu="return false" role="dialog" aria-modal="true" aria-label="Secure Snap">
+    <div id="secure-snap-viewer" class="hidden fixed inset-0 z-[85] bg-black flex items-center justify-center select-none" style="-webkit-touch-callout: none;" data-no-context-menu role="dialog" aria-modal="true" aria-label="Secure Snap">
         <video id="secure-snap-video" class="hidden max-w-full max-h-full object-contain pointer-events-none" playsinline muted disablepictureinpicture></video>
         <img id="secure-snap-image" alt="" draggable="false" class="hidden max-w-full max-h-full object-contain pointer-events-none">
         <div id="secure-snap-status" class="absolute inset-x-8 top-1/2 -translate-y-1/2 text-center text-sm text-slate-200"></div>
@@ -730,8 +730,8 @@
                 <circle cx="20" cy="20" r="16" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="4"></circle>
                 <circle id="secure-snap-countdown-progress" cx="20" cy="20" r="16" fill="none" stroke="#fbbf24" stroke-width="4" stroke-linecap="round"></circle>
             </svg>
-            <button id="secure-snap-save" onclick="saveReplaySnap()" class="hidden px-4 py-2 rounded-full bg-black/50 text-white text-sm font-semibold disabled:opacity-60">Speichern</button>
-            <button onclick="closeSecureSnapViewer()" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Schliessen">
+            <button id="secure-snap-save" data-click="saveReplaySnap" class="hidden px-4 py-2 rounded-full bg-black/50 text-white text-sm font-semibold disabled:opacity-60">Speichern</button>
+            <button data-click="closeSecureSnapViewer" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Schliessen">
                 <i class="fa-solid fa-xmark"></i>
             </button>
         </div>
@@ -744,10 +744,10 @@
             <img id="snap-review-image" alt="" class="hidden absolute inset-0 w-full h-full object-contain bg-black">
             <div id="snap-camera-status" class="hidden absolute inset-x-6 top-1/2 -translate-y-1/2 text-center text-sm text-slate-200 bg-black/60 rounded-xl p-4"></div>
             <div class="absolute top-0 inset-x-0 p-4 flex items-center justify-between" style="padding-top: max(1rem, env(safe-area-inset-top));">
-                <button onclick="closeSnapModal()" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Schliessen">
+                <button data-click="closeSnapModal" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Schliessen">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
-                <button onclick="switchSnapCamera()" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Kamera wechseln">
+                <button data-click="switchSnapCamera" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Kamera wechseln">
                     <i class="fa-solid fa-camera-rotate"></i>
                 </button>
             </div>
@@ -756,9 +756,9 @@
             <div id="snap-live-controls" class="flex items-center justify-center gap-10">
                 <label class="w-11 h-11 rounded-full bg-white/10 text-white flex items-center justify-center cursor-pointer" aria-label="Bild auswaehlen">
                     <i class="fa-regular fa-image text-lg"></i>
-                    <input type="file" accept="image/*" class="hidden" onchange="pickSnapImage(this)">
+                    <input type="file" accept="image/*" class="hidden" data-change="pickSnapImage" data-args='["$el"]'>
                 </label>
-                <button onclick="captureSnap()" class="w-20 h-20 rounded-full border-4 border-white bg-white/20 active:bg-white/60 transition" aria-label="Ausloesen"></button>
+                <button data-click="captureSnap" class="w-20 h-20 rounded-full border-4 border-white bg-white/20 active:bg-white/60 transition" aria-label="Ausloesen"></button>
                 <span class="w-11 h-11"></span>
             </div>
             <div id="snap-review-controls" class="hidden flex flex-col gap-3">
@@ -778,10 +778,10 @@
                     </select>
                 </div>
                 <div class="flex items-center justify-between">
-                    <button onclick="retakeSnap()" class="px-4 py-2.5 rounded-full bg-white/10 text-white text-sm font-semibold">
+                    <button data-click="retakeSnap" class="px-4 py-2.5 rounded-full bg-white/10 text-white text-sm font-semibold">
                         <i class="fa-solid fa-rotate-left"></i> Nochmal
                     </button>
-                    <button onclick="sendSnapDraft()" class="px-5 py-2.5 rounded-full bg-brand-600 hover:bg-brand-500 text-white text-sm font-semibold">
+                    <button data-click="sendSnapDraft" class="px-5 py-2.5 rounded-full bg-brand-600 hover:bg-brand-500 text-white text-sm font-semibold">
                         Senden <i class="fa-solid fa-paper-plane"></i>
                     </button>
                 </div>
@@ -799,7 +799,10 @@
     <script src="/client/app/payload-validation.js?v={{assetVersion}}"></script>
     <script src="/client/grid.client.js?v={{assetVersion}}"></script>
     <script src="/client/p2p.client.js?v={{assetVersion}}"></script>
+    <script src="/client/delivery.client.js?v={{assetVersion}}"></script>
     <script src="/client/app/chat.js?v={{assetVersion}}"></script>
+    <script src="/client/app/chat-tools.js?v={{assetVersion}}"></script>
+    <script src="/client/app/snaps.js?v={{assetVersion}}"></script>
     <script src="/client/app/viewer.js?v={{assetVersion}}"></script>
     <script src="/client/app/watermark.js?v={{assetVersion}}"></script>
     <script src="/client/app/albums.js?v={{assetVersion}}"></script>
@@ -810,6 +813,7 @@
     <script src="/vendor/qrcode/qrcode.js"></script>
     <script src="/client/app/settings.js?v={{assetVersion}}"></script>
     <script src="/client/app/router.js?v={{assetVersion}}"></script>
+    <script src="/client/app/actions.js?v={{assetVersion}}"></script>
     <script src="/client/app/push.js?v={{assetVersion}}"></script>
     <script src="/client/app/main.js?v={{assetVersion}}"></script>
 </body>

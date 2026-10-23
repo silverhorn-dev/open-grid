@@ -9,14 +9,17 @@
 - `client/grid.client.js` kapselt Discovery, Heartbeats und den
   Signaling-Client.
 - `client/p2p.client.js` kapselt WebRTC, DataChannels und das verschluesselte
-  P2P-Protokoll.
+  P2P-Protokoll; `client/delivery.client.js` Chat-Sync, Sende-Queue und
+  Pfad C.
 - `client/crypto.client.js` stellt gemeinsame Kodierungsfunktionen fuer
   Web-Crypto-Payloads bereit.
 - `index.html` enthaelt nur noch das HTML-Markup der App-Shell.
 - `client/app/*.js` enthaelt die UI-Logik als klassische Skripte (globaler
   Scope, Reihenfolge wie in `index.html`): `config.js` (Konfiguration,
   `state`), `storage.js` (IndexedDB, Chat-Operationen), `profile.js`
-  (Profil, Medien, Onboarding), `chat.js` (Modal, Chat, Snaps),
+  (Profil, Medien, Onboarding), `chat.js` (Modal, Chat),
+  `chat-tools.js` (Antworten, Reaktionen, Suche, Kontaktleiste), `snaps.js`
+  (Snaps, Kamera), `actions.js` (deklarative Aktionen, siehe unten),
   `settings.js` (Debug, Schluessel, Toasts, Tabs, Sichtbarkeit),
   `router.js` (Client-Routen, History), `viewer.js` (Bildbetrachter),
   `albums.js` (Alben, Medienuebersicht), `push.js` (Web Push), `main.js`
@@ -751,11 +754,17 @@ Ein Klick auf die Benachrichtigung fokussiert die App und oeffnet den Chat
   mit `Retry-After`.
 - Sicherheits-Header auf allen Antworten: `Content-Security-Policy`
   (`default-src 'self'`, Bilder auch `data:`/`blob:`, `connect-src` nur eigener
-  Host inkl. WebSocket und Nominatim, `frame-ancestors 'none'`; vorerst mit
-  `'unsafe-inline'` fuer die `onclick`-Attribute), `X-Content-Type-Options`,
+  Host inkl. WebSocket und Nominatim, `frame-ancestors 'none'`,
+  `script-src 'self'` ohne `'unsafe-inline'`), `X-Content-Type-Options`,
   `Referrer-Policy: no-referrer`, `Permissions-Policy` (Kamera und Standort nur
   same-origin), `Cross-Origin-Opener-Policy`, `X-Frame-Options`. Keine
   CORS-Header: die App laeuft same-origin.
+- Keine Inline-Handler im Markup: Elemente tragen `data-click`,
+  `data-change`, `data-input` oder `data-enter` (Enter-Taste) mit dem Namen
+  einer globalen Funktion, Argumente als JSON in `data-args` (Platzhalter
+  `$value`, `$checked`, `$number`, `$el`, `$src`, `$event`).
+  `client/app/actions.js` verteilt die Ereignisse; `test/markup-actions.test.js`
+  prueft, dass es keine `on*`-Attribute gibt und jede Aktion existiert.
 - Logs: nur Methode, Pfad ohne Query-String und Statuscode, keine IP-Adressen.
 - Capability-Token-Hashes werden konstant-zeitig verglichen.
 - `trustProxy` standardmaessig nur fuer Loopback und private Netze (`TRUST_PROXY`).

@@ -10,6 +10,8 @@
     "start": "node server/index.js",
     "pretest": "npm run build:css",
     "test": "node --test",
+    "test:e2e": "sh scripts/e2e.sh",
+    "audit:prod": "npm audit --omit=dev --audit-level=moderate",
     "turn:check": "node scripts/turn-check.mjs",
     "check": "node --check server/index.js && node --check server/app.js && node --check server/database.js && node --check server/signaling.js && node --check server/push.js && node --check server/geohash.js && node --check server/security.js && node --check client/sw.js"
   },

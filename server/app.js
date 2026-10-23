@@ -72,6 +72,7 @@ const clientAssetFiles = [
     'app/payload-validation.js',
     'grid.client.js',
     'p2p.client.js',
+    'delivery.client.js',
     'styles.css',
     'tailwind.css',
     'icon.svg',
@@ -80,6 +81,8 @@ const clientAssetFiles = [
     'app/storage.js',
     'app/profile.js',
     'app/chat.js',
+    'app/chat-tools.js',
+    'app/snaps.js',
     'app/viewer.js',
     'app/watermark.js',
     'app/albums.js',
@@ -89,6 +92,7 @@ const clientAssetFiles = [
     'app/modes.js',
     'app/settings.js',
     'app/router.js',
+    'app/actions.js',
     'app/push.js',
     'app/main.js'
 ];

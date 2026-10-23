@@ -298,6 +298,7 @@ function switchTab(tabName) {
         else button.removeAttribute('aria-current');
     });
     window.scrollTo(0, 0);
+    syncChatFocus();
 }
 
 function openMenu() {

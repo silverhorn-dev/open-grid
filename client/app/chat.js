@@ -26,7 +26,7 @@ async function probePeerPresence(peerId) {
     const timeout = setTimeout(() => {
         delete state.presenceProbes[peerId];
         updateProfilePresence(peerId, 'absent');
-    }, 8000);
+    }, 4000);
     state.presenceProbes[peerId] = { nonce, timeout };
     await sendSecurePayload(peerId, { type: 'PRESENCE_PING', nonce });
 }
@@ -191,6 +191,7 @@ async function openChatWithPeer(peerId) {
     state.activeChatPeerId = peerId;
     await loadChatHistory(peerId);
     switchTab('chat');
+    renderChatPeerIndicator();
     document.getElementById('chat-peer-name').textContent = peer.name || 'Peer';
     document.getElementById('chat-connection-type').textContent = 'Encrypted WebRTC DataChannel';
     const avatar = document.getElementById('chat-peer-avatar');
@@ -227,6 +228,8 @@ function resetActiveChat(placeholderText) {
     updateChatActionButtons();
     updateChatLayout();
     renderActivePeerList();
+    renderChatPeerIndicator();
+    syncChatFocus();
 }
 
 function leaveActiveChat() {
@@ -331,6 +334,13 @@ async function toggleActivePeerBlock() {
     }
 }
 
+const DELIVERY_PATH_LABELS = {
+    p2p: 'E2EE P2P',
+    cache: 'Encrypted Path C',
+    rejected: 'Delivery rejected',
+    pending: 'Pending'
+};
+
 async function sendChatMessage(snapData = null) {
     const input = document.getElementById('chat-input');
     const text = input.value.trim() || (snapData ? '? Snap' : '');
@@ -363,11 +373,7 @@ async function sendChatMessage(snapData = null) {
             peerId: undefined
         }
     }, (deliveryPath) => {
-        message.deliveredVia = deliveryPath === 'cache'
-            ? 'Encrypted Path C'
-            : deliveryPath === 'rejected'
-                ? 'Delivery rejected'
-                : 'E2EE P2P';
+        message.deliveredVia = DELIVERY_PATH_LABELS[deliveryPath] || 'E2EE P2P';
         persistChatMessage(peerId, message).catch(error => logDebug(`Could not update chat message: ${error.message}`));
         renderChatHistory();
     });
@@ -479,6 +485,52 @@ function updateChatConnectionStatus(peerId, text, classes) {
     const pill = document.getElementById('connection-status-pill');
     pill.textContent = text;
     pill.className = `debug-only text-xs px-2.5 py-1 rounded-full border font-mono whitespace-nowrap ${classes}`;
+    renderChatPeerIndicator();
+}
+
+function isSecureChannelOpen(peerId) {
+    return state.dataChannels[peerId]?.readyState === 'open' && Boolean(state.sessionKeys[peerId]);
+}
+
+// Ausserhalb des Debug-Modus: gruener Punkt = E2EE-Kanal steht, Augen = Gegenueber hat den Chat offen.
+function renderChatPeerIndicator() {
+    const indicator = document.getElementById('chat-peer-indicator');
+    if (!indicator) return;
+    const peerId = state.activeChatPeerId;
+    const connected = Boolean(peerId) && isSecureChannelOpen(peerId);
+    const watching = connected && Boolean(state.peerChatFocus[peerId]);
+    const dot = document.getElementById('chat-peer-indicator-dot');
+    const eyes = document.getElementById('chat-peer-indicator-eyes');
+    dot.classList.toggle('hidden', !connected || watching);
+    eyes.classList.toggle('hidden', !watching);
+    indicator.title = watching ? 'Hat den Chat geoeffnet' : connected ? 'Verbunden' : '';
+}
+
+function isChatVisibleFor(peerId) {
+    return Boolean(peerId)
+        && state.activeChatPeerId === peerId
+        && document.visibilityState === 'visible'
+        && !document.getElementById('view-chat')?.classList.contains('hidden');
+}
+
+// Teilt dem Gegenueber ueber den DataChannel mit, ob der Chat gerade sichtbar ist. Wird nie gequeued.
+function sendChatFocus(peerId, open) {
+    if (!peerId || !isSecureChannelOpen(peerId) || isPeerBlocked(peerId)) return;
+    sendSecurePayload(peerId, { type: 'CHAT_FOCUS', open }).catch(() => {});
+}
+
+function syncChatFocus() {
+    const focusedPeerId = isChatVisibleFor(state.activeChatPeerId) ? state.activeChatPeerId : null;
+    const previousPeerId = state.chatFocusPeerId;
+    if (previousPeerId === focusedPeerId) return;
+    if (previousPeerId) sendChatFocus(previousPeerId, false);
+    if (focusedPeerId) sendChatFocus(focusedPeerId, true);
+    state.chatFocusPeerId = focusedPeerId;
+}
+
+function receiveChatFocus(peerId, open) {
+    state.peerChatFocus[peerId] = Boolean(open);
+    if (state.activeChatPeerId === peerId) renderChatPeerIndicator();
 }
 
 async function openSnapUploadModal() {

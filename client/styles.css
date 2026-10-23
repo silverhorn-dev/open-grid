@@ -15,6 +15,10 @@ html:not(.debug-on) .debug-only {
     display: none !important;
 }
 
+html.debug-on .debug-off-only {
+    display: none !important;
+}
+
 /* Navigation */
 .nav-top-btn {
     display: flex;

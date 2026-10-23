@@ -35,6 +35,9 @@ Akzeptanzkriterien:
 - Ein verschluesselter Ping/Pong bestaetigt **Online**.
 - Ohne Antwort wird der Peer als **Abwesend** angezeigt.
 - Ohne eigene Netzwerk- oder Signaling-Verbindung erscheint **Offline**.
+- Ohne Pong innerhalb von 4 Sekunden erscheint **Abwesend**.
+- Trennt ein Peer seine Signaling-Verbindung, sehen Peers in derselben
+  Geohash-Zelle ihn sofort als **Offline**.
 - Im Discovery-Grid wird kein unvalidiertes Online-Badge angezeigt.
 
 ## UC-04: Verschluesselter Profil-Cache
@@ -134,6 +137,10 @@ Akzeptanzkriterien:
   Server-Queue geloescht.
 - Ohne bekannten Peer-Key bleibt die Operation lokal fuer einen spaeteren
   direkten Verbindungsversuch.
+- Steht der direkte Kanal nach 10 Sekunden nicht, wird automatisch Pfad C
+  genutzt. Keine Nachricht bleibt dauerhaft auf "Establishing secure
+  channel..." stehen.
+- Der Empfaenger sieht als Zustellpfad `Encrypted Path C`, nicht `E2EE P2P`.
 
 ## UC-11: Offline-Chat wiederfinden
 
@@ -203,3 +210,6 @@ Akzeptanzkriterien:
   Protokoll, Schema-Editor und Schluessel.
 - Ohne Debug-Modus erscheinen keine technischen Warnungen als Toast. Hinweise,
   auf die der Nutzer reagieren muss, bleiben sichtbar.
+- Ohne Debug-Modus zeigt der Chat-Kopf statt des Verbindungsstatus nur ein
+  Symbol: gruener Punkt = verbunden, Augen = das Gegenueber hat den Chat
+  gerade geoeffnet.

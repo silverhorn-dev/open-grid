@@ -76,6 +76,15 @@ Der WebSocket-Endpunkt `/ws` vermittelt:
 - SDP Offer und Answer
 - ICE Candidates
 - Offline-Fallback-Meldungen
+- `PEER_OFFLINE`-Hinweise
+
+Schliesst die aktive WebSocket-Verbindung eines Peers, sendet der Server
+`{ type: 'PEER_OFFLINE', peerId }` an alle verbundenen Peers in derselben
+Geohash-Zelle. Diese markieren den Peer sofort als offline, brechen eine
+laufende Presence-Pruefung ab und verwerfen einen noch nicht verbundenen
+WebRTC-Versuch. Eine bestehende P2P-Verbindung bleibt davon unberuehrt.
+Ein getrennter P2P-Kanal wird nach 3 Sekunden im Zustand `disconnected`
+neu aufgebaut.
 
 Der Server speichert keine Signaling-Nachrichten. Pro Peer-ID ist genau die
 neueste WebSocket-Verbindung aktiv.
@@ -92,9 +101,17 @@ Erreichbarkeit.
 
 | Status | Berechnung auf dem anfragenden Client |
 |---|---|
-| Online | Passender Pong innerhalb von 8 Sekunden |
+| Online | Passender Pong innerhalb von 4 Sekunden |
 | Abwesend | Router-Eintrag vorhanden, aber kein Pong |
-| Offline | Eigene Netzwerk- oder Signaling-Verbindung fehlt |
+| Offline | Eigene Netzwerk- oder Signaling-Verbindung fehlt oder `PEER_OFFLINE` empfangen |
+
+Ueber den verschluesselten DataChannel meldet ein Client mit
+`CHAT_FOCUS { open: boolean }`, ob der Chat mit dem Gegenueber gerade sichtbar
+ist (aktiver Chat, Chat-Tab offen, Seite sichtbar). Die Meldung wird nie
+gequeued oder ueber Pfad C gesendet und verfaellt beim Verbindungsabbau.
+Ausserhalb des Debug-Modus zeigt der Chat-Kopf daraus ein Symbol: gruener
+Punkt fuer einen bestehenden E2EE-Kanal, Augen, wenn das Gegenueber den Chat
+geoeffnet hat.
 
 ## 5. Profilprotokoll und lokaler Cache
 
@@ -159,6 +176,24 @@ Nach jedem neuen E2EE-Schluessel und vor einem weiteren Nachrichtenversand
 tauschen beide Clients die 20 neuesten Operations-IDs aus. Fehlende
 Operationen werden angefordert. Aeltere IDs werden anschliessend in
 Inventarseiten zu je 50 IDs im Hintergrund verglichen.
+
+Jede Nachricht traegt lokal ein `deliveredVia`-Label (nur im Debug-Modus
+sichtbar):
+
+| Label | Bedeutung |
+|---|---|
+| `Establishing secure channel...` | Gesendet, Kanal noch nicht bereit |
+| `E2EE P2P` | Direkt ueber den DataChannel gesendet oder empfangen |
+| `E2EE Sync` | Beim Empfaenger ueber die Chat-Synchronisation nachgeliefert |
+| `Encrypted Path C` | Ueber die Server-Queue gesendet oder empfangen |
+| `E2EE Push` | Vom Service Worker aus einer Web-Push-Nachricht gespeichert |
+| `Pending` | Weder P2P noch Pfad C erfolgreich; Zustellung beim naechsten Sync |
+| `Delivery rejected` | Empfaenger hat Pfad C abgelehnt (z. B. blockiert) |
+
+Steht der Kanal 10 Sekunden nach dem Senden noch nicht, wird die Operation
+ueber Pfad C eingestellt; schlaegt auch das fehl, wird sie `Pending`. Beim
+Laden eines Chats werden Nachrichten, die laenger als 15 Sekunden auf
+`Establishing secure channel...` stehen, ebenfalls auf `Pending` gesetzt.
 
 Pro Chat bleiben maximal 100 `MESSAGE_DELETE`-Operationen erhalten. Eine
 geloeschte Nachricht bleibt lokal als Platzhalter sichtbar und wird nicht

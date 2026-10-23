@@ -396,6 +396,44 @@ test('relays signaling messages between two websocket clients', async () => {
     peerB.close();
 });
 
+test('notifies peers in the same geohash when a socket closes', async () => {
+    await registerPeer('peer-a');
+    await registerPeer('peer-b');
+    await app.listen({ host: '127.0.0.1', port: 0 });
+    const url = `ws://127.0.0.1:${app.server.address().port}/ws`;
+
+    const openRegistered = (peerId) => new Promise((resolve, reject) => {
+        const socket = new WebSocket(url);
+        const timeout = setTimeout(() => reject(new Error(`Timed out registering ${peerId}.`)), 3000);
+        socket.onopen = () => socket.send(JSON.stringify({
+            type: 'REGISTER_SOCKET',
+            peerId,
+            authToken: peerTokens.get(peerId)
+        }));
+        socket.onmessage = event => {
+            if (JSON.parse(event.data).type !== 'SOCKET_REGISTERED') return;
+            clearTimeout(timeout);
+            resolve(socket);
+        };
+    });
+
+    const peerA = await openRegistered('peer-a');
+    const peerB = await openRegistered('peer-b');
+    const notice = new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('Timed out waiting for PEER_OFFLINE.')), 3000);
+        peerA.onmessage = event => {
+            const message = JSON.parse(event.data);
+            if (message.type !== 'PEER_OFFLINE') return;
+            clearTimeout(timeout);
+            resolve(message);
+        };
+    });
+    peerB.close();
+
+    assert.deepEqual(await notice, { type: 'PEER_OFFLINE', peerId: 'peer-b' });
+    peerA.close();
+});
+
 test('rejects unauthorized access to peer-owned state', async () => {
     await registerPeer('peer-a');
     await registerPeer('peer-b');

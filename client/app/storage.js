@@ -268,8 +268,19 @@ async function cacheOwnProfile() {
     return true;
 }
 
+// Nachrichten, deren Zustellung beim letzten Lauf nie bestaetigt wurde, gelten als ausstehend.
+// Ihre Operation liegt im Log und wird beim naechsten Chat-Sync nachgeliefert.
+const STALE_SENDING_MS = 15000;
+
 async function loadChatHistory(peerId) {
     const messages = await getDatabaseRecordsByIndex('messages', 'peerId', peerId);
+    const staleBefore = Date.now() - STALE_SENDING_MS;
+    const staleMessages = messages.filter(message => message.deliveredVia === 'Establishing secure channel...'
+        && (message.createdAt || 0) < staleBefore);
+    staleMessages.forEach(message => {
+        message.deliveredVia = 'Pending';
+    });
+    await Promise.all(staleMessages.map(message => persistChatMessage(peerId, message)));
     state.chats[peerId] = messages.sort((left, right) => left.createdAt - right.createdAt);
     const operations = await getChatOperations(peerId);
     const operationIds = new Set(operations.map(operation => operation.operationId));
@@ -428,7 +439,7 @@ function createPutOperation(peerId, message) {
     };
 }
 
-async function applyChatOperation(peerId, operation) {
+async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') {
     if (!operation?.operationId) return false;
     const control = state.chatControls[peerId];
     if (control?.blockedAt || (control?.deletedBefore && (operation.createdAt || 0) <= control.deletedBefore)) {
@@ -453,7 +464,7 @@ async function applyChatOperation(peerId, operation) {
             const message = {
                 ...localOperation.message,
                 peerId,
-                deliveredVia: 'E2EE P2P'
+                deliveredVia
             };
             await persistChatMessage(peerId, message);
             if (!state.chats[peerId]) state.chats[peerId] = [];

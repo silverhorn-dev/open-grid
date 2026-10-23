@@ -35,6 +35,7 @@ window.onload = async () => {
             }
         });
         document.addEventListener('visibilitychange', () => {
+            syncChatFocus();
             if (document.visibilityState === 'visible') refreshPresenceAndGrid();
         });
         window.addEventListener('storage', event => {

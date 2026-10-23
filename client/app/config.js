@@ -47,6 +47,8 @@ const state = {
     sessionKeys: {},
     secureMessageQueues: {},
     presenceProbes: {},
+    peerChatFocus: {},
+    chatFocusPeerId: null,
     chatSyncInProgress: {},
     peerIdentityKeys: {},
     cacheFetchInFlight: false,

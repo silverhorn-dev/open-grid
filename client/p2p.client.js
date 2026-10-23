@@ -97,7 +97,7 @@ function getOrCreatePeerConnection(peerId) {
             clearTimeout(state.disconnectTimers[peerId]);
             state.disconnectTimers[peerId] = setTimeout(() => {
                 if (connection.connectionState === 'disconnected') recoverPeerConnection(peerId, connection);
-            }, 5000);
+            }, 3000);
         } else if (status === 'closed') {
             cleanupPeerConnection(peerId, connection);
         }
@@ -135,6 +135,8 @@ function cleanupPeerConnection(peerId, connection) {
         delete state.dataChannels[peerId];
         delete state.sessionKeys[peerId];
         delete state.pendingIceCandidates[peerId];
+        delete state.peerChatFocus[peerId];
+        if (state.activeChatPeerId === peerId) renderChatPeerIndicator();
     }
     if (connection.signalingState !== 'closed') connection.close();
 }
@@ -178,6 +180,18 @@ async function handleSignalingMessage(message) {
             .catch(error => {
                 logDebug(`Could not refresh chat controls or retrieve Path C messages: ${error.message}`);
             });
+        return;
+    }
+
+    if (message.type === 'PEER_OFFLINE') {
+        const offlinePeerId = message.peerId;
+        if (!offlinePeerId || offlinePeerId === state.myProfile.id) return;
+        const probe = state.presenceProbes[offlinePeerId];
+        if (probe) clearTimeout(probe.timeout);
+        delete state.presenceProbes[offlinePeerId];
+        updateProfilePresence(offlinePeerId, 'offline');
+        const connection = state.webrtcConnections[offlinePeerId];
+        if (connection && connection.connectionState !== 'connected') cleanupPeerConnection(offlinePeerId, connection);
         return;
     }
 
@@ -358,6 +372,7 @@ async function deriveSessionKey(peerId, publicJwk, profileSigningKey) {
         ['encrypt', 'decrypt']
     );
     updateChatConnectionStatus(peerId, 'E2EE connected', 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30');
+    if (isChatVisibleFor(peerId)) sendChatFocus(peerId, true);
     await beginChatSync(peerId);
     await flushSecureMessageQueue(peerId);
 }
@@ -467,10 +482,12 @@ async function handleDataChannelMessage(peerId, rawMessage) {
     }
 }
 
-async function handleSecurePayload(peerId, payload) {
+async function handleSecurePayload(peerId, payload, deliveredVia = 'E2EE P2P') {
     if (isPeerBlocked(peerId)) return;
     if (payload.type === 'CHAT_OPERATION') {
-        await applyChatOperation(peerId, payload.operation);
+        await applyChatOperation(peerId, payload.operation, deliveredVia);
+    } else if (payload.type === 'CHAT_FOCUS') {
+        receiveChatFocus(peerId, payload.open);
     } else if (payload.type === 'CHAT_SYNC_HELLO') {
         await handleChatSyncHello(peerId, payload);
     } else if (payload.type === 'CHAT_SYNC_INVENTORY_REQUEST') {
@@ -481,7 +498,7 @@ async function handleSecurePayload(peerId, payload) {
         await sendRequestedChatOperations(peerId, payload.operationIds || []);
     } else if (payload.type === 'CHAT_SYNC_OPERATIONS') {
         for (const operation of payload.operations || []) {
-            await applyChatOperation(peerId, operation);
+            await applyChatOperation(peerId, operation, 'E2EE Sync');
         }
     } else if (payload.type === 'CHAT_MESSAGE') {
         await receiveChatMessage(peerId, payload);
@@ -646,14 +663,33 @@ async function sendSecurePayload(peerId, payload, onSent = null) {
         state.secureMessageQueues[peerId] = [];
     }
 
-    state.secureMessageQueues[peerId].push({payload, onSent, cacheQueued: false});
+    const item = {payload, onSent, cacheQueued: false};
+    state.secureMessageQueues[peerId].push(item);
     logDebug(`P2P/TURN-Kanal fuer ${peerId} noch nicht bereit. Nachricht in Queue eingereiht, starte Verbindung...`);
+    if (onSent) scheduleQueueFallback(peerId, item);
 
     initiateP2PConnection(peerId).catch(error => {
         logDebug(`Could not initiate P2P connection: ${error.message}`);
     });
 
     return false;
+}
+
+// Steht der Kanal nach SECURE_QUEUE_FALLBACK_MS noch nicht, geht die Operation ueber Path C.
+// Klappt auch das nicht, bleibt sie im Operations-Log und wird beim naechsten Chat-Sync zugestellt.
+const SECURE_QUEUE_FALLBACK_MS = 10000;
+
+function scheduleQueueFallback(peerId, item) {
+    setTimeout(async () => {
+        if (!state.secureMessageQueues[peerId]?.includes(item) || item.cacheQueued || item.discarded) return;
+        let queued = false;
+        try {
+            queued = await queuePayloadInCache(peerId, item);
+        } catch (error) {
+            logDebug(`Path C fallback for ${peerId} failed: ${error.message}`);
+        }
+        if (!queued && !item.discarded) item.onSent('pending');
+    }, SECURE_QUEUE_FALLBACK_MS);
 }
 
 async function flushSecureMessageQueue(peerId) {
@@ -776,7 +812,7 @@ async function fetchQueuedCacheMessages() {
                 );
                 const payload = JSON.parse(new TextDecoder().decode(plaintext));
                 if (payload.type !== 'CHAT_OPERATION') throw new Error('Unsupported cached payload type.');
-                await handleSecurePayload(cachedMessage.senderId, payload);
+                await handleSecurePayload(cachedMessage.senderId, payload, 'Encrypted Path C');
                 const deleteResponse = await fetch(
                     `${API_BASE}/api/cache/${encodeURIComponent(cachedMessage.msgId)}`,
                     {method: 'DELETE', headers: peerAuthHeaders()}

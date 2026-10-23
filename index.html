@@ -171,6 +171,10 @@
                         <button id="block-peer-btn" onclick="toggleActivePeerBlock()" class="hidden text-xs px-2.5 py-1.5 rounded-lg border border-red-800 bg-red-950/60 text-red-300 hover:bg-red-900/80 transition">
                             Blockieren
                         </button>
+                        <div id="chat-peer-indicator" class="debug-off-only flex items-center" aria-live="polite">
+                            <span id="chat-peer-indicator-dot" class="hidden w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+                            <span id="chat-peer-indicator-eyes" class="hidden text-base leading-none" role="img" aria-label="Hat den Chat geoeffnet">&#128064;</span>
+                        </div>
                         <div id="connection-status-pill" class="debug-only text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-400 font-mono">
                             Disconnected
                         </div>

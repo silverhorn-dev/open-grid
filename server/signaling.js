@@ -3,6 +3,21 @@ import { createHash } from 'node:crypto';
 export function registerSignalingRoute(app, store) {
     const activeSockets = new Map();
 
+    // Informiert nur Peers in derselben Geohash-Zelle, damit sie den Peer sofort als offline markieren.
+    const notifyPeerOffline = (peerId) => {
+        try {
+            const geohash = store.getPeerGeohash(peerId);
+            if (!geohash) return;
+            const notice = JSON.stringify({ type: 'PEER_OFFLINE', peerId });
+            for (const [otherPeerId, otherSocket] of activeSockets) {
+                if (otherSocket.readyState !== 1 || store.getPeerGeohash(otherPeerId) !== geohash) continue;
+                otherSocket.send(notice);
+            }
+        } catch {
+            // Beim Herunterfahren kann der Store bereits geschlossen sein.
+        }
+    };
+
     app.get('/ws', { websocket: true }, (socket) => {
         let currentPeerId = null;
 
@@ -51,9 +66,9 @@ export function registerSignalingRoute(app, store) {
         });
 
         const removeSocket = () => {
-            if (currentPeerId && activeSockets.get(currentPeerId) === socket) {
-                activeSockets.delete(currentPeerId);
-            }
+            if (!currentPeerId || activeSockets.get(currentPeerId) !== socket) return;
+            activeSockets.delete(currentPeerId);
+            notifyPeerOffline(currentPeerId);
         };
         socket.on('close', removeSocket);
         socket.on('error', removeSocket);

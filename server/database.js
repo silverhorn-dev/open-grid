@@ -316,6 +316,10 @@ export function createStore(databasePath) {
             return registerPeerTransaction(session, now);
         },
 
+        getPeerGeohash(peerId) {
+            return statements.findPeer.get(peerId)?.geohash || null;
+        },
+
         authenticatePeer(peerId, authHash) {
             const credential = statements.findPeerCredential.get(peerId);
             return Boolean(credential?.authHash && authHash && credential.authHash === authHash);

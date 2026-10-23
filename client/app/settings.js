@@ -334,6 +334,7 @@ async function loadGridSettings() {
                 ttlMinutes: GRID_TTL_OPTIONS.includes(stored.ttlMinutes) ? stored.ttlMinutes : 10,
                 liveGrid: stored.liveGrid === true,
                 cacheEnabled: stored.cacheEnabled !== false,
+                lanOnly: stored.lanOnly === true,
                 useLocation: stored.useLocation === true,
                 safeZones: Array.isArray(stored.safeZones) ? stored.safeZones.filter(zone => typeof zone === 'string') : [],
                 locationLabel: typeof stored.locationLabel === 'string' ? stored.locationLabel : null
@@ -472,6 +473,8 @@ function renderGridSettings() {
     if (ttl) ttl.value = String(settings.ttlMinutes);
     if (live) live.checked = settings.liveGrid;
     if (cache) cache.checked = settings.cacheEnabled;
+    const lanOnly = document.getElementById('lan-only-toggle');
+    if (lanOnly) lanOnly.checked = settings.lanOnly;
     const location = document.getElementById('use-location-toggle');
     if (location) location.checked = settings.useLocation;
     document.getElementById('use-location-btn')?.classList.toggle('hidden', settings.useLocation);
@@ -509,7 +512,8 @@ async function updateGridSetting(key, value) {
         return;
     }
     // Silent-Modus, TTL, Standort und Safe Zones aendern den Router-Eintrag; Live-Modus nur die Grid-Abfrage, der Cache nur den Versand.
-    if (key === 'cacheEnabled') return;
+    // Cache und LAN-Modus wirken nur lokal (neue P2P-Verbindungen), kein Re-Register noetig.
+    if (key === 'cacheEnabled' || key === 'lanOnly') return;
     if (key === 'liveGrid') await fetchPeersFromWorkerGrid();
     else await refreshPresenceAndGrid();
 }

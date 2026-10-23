@@ -19,6 +19,10 @@ services:
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       PORT: 3000
+      # STUN: ohne Angabe dient der eigene TURN-Server als STUN. "none" = kein STUN.
+      # STUN_SERVER: none
+      # Club-/LAN-Betrieb ohne Internet (keine STUN/TURN-Server, HTTPS bleibt Pflicht).
+      # LAN_MODE: "true"
       # App-Modi, die Nutzer waehlen koennen (discovery, chat, friends, event).
       # APP_MODES: discovery,chat,friends,event
       # DEFAULT_APP_MODE: discovery

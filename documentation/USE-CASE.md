@@ -561,3 +561,21 @@ Akzeptanzkriterien:
   Vorgaben; "Standard" stellt die urspruengliche Farbe wieder her.
 - Thema und Akzentfarbe gelten sofort und auch nach einem Neustart, ohne
   Aufflackern.
+
+## UC-36: Club-/LAN-Betrieb
+
+**Als Veranstalter** moechte ich OpenGrid im lokalen WLAN eines Events ohne
+Internet betreiben, **als Nutzer** moechte ich, dass dabei keine Daten an
+fremde Server gehen.
+
+Akzeptanzkriterien:
+
+- Mit `LAN_MODE=true` verteilt der Server keine STUN/TURN-Server; Verbindungen
+  laufen nur direkt im WLAN.
+- Nutzer koennen "Nur lokales Netz" auch selbst einschalten.
+- Ist ein Chat-Partner im selben Netz, zeigt die Kontaktleiste "im selben
+  WLAN".
+- Ohne eigene Konfiguration nutzt der Server seinen eigenen TURN-Server auch
+  fuer STUN statt eines fremden Dienstes.
+- Die Grenzen sind dokumentiert: HTTPS ist Pflicht, ein Mesh ohne Server ist
+  in einer PWA nicht moeglich.

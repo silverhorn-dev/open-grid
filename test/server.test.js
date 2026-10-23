@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { generateKeyPairSync, randomBytes, sign } from 'node:crypto';
 import { afterEach, beforeEach, test } from 'node:test';
-import { buildApp, parseAppModes, parseMediaKeyEpochMinutes, parseProfileSchemas } from '../server/app.js';
+import { buildApp, parseAppModes, parseMediaKeyEpochMinutes, parseProfileSchemas, resolveStunServers } from '../server/app.js';
 import { createStore } from '../server/database.js';
 import { decodeGeohash, encodeGeohash, geohashNeighbours } from '../server/geohash.js';
 
@@ -89,12 +89,30 @@ test('offers a TCP TURN transport so UDP-blocked networks can relay', async () =
         assert.ok(turn.urls.every(url => url.includes('?transport=')));
         // Der coturn-Name darf nach der Ablaufzeit keinen weiteren Doppelpunkt enthalten.
         assert.equal(turn.username.split(':').length, 2);
+        // STUN laeuft ueber den eigenen coturn, nicht ueber einen fremden Dienst.
+        assert.deepEqual(response.json().iceServers[0], { urls: 'stun:turn.example.test:3478' });
     } finally {
         if (previousSecret === undefined) delete process.env.TURN_SECRET;
         else process.env.TURN_SECRET = previousSecret;
         if (previousServer === undefined) delete process.env.TURN_SERVER;
         else process.env.TURN_SERVER = previousServer;
     }
+});
+
+test('resolves STUN servers without leaking to third parties when avoidable', () => {
+    assert.deepEqual(resolveStunServers('none', 'turn.example.test'), []);
+    assert.deepEqual(resolveStunServers('stun.example.test:3478'), [{ urls: 'stun:stun.example.test:3478' }]);
+    assert.deepEqual(resolveStunServers('', 'turn.example.test', '5349'), [{ urls: 'stun:turn.example.test:5349' }]);
+    assert.deepEqual(resolveStunServers('', ''), [{ urls: 'stun:stun.l.google.com:19302' }]);
+});
+
+test('LAN mode hands out no STUN/TURN servers', async () => {
+    const lanApp = await buildApp({ store: createStore(':memory:'), buildVersion: 'x', buildTimestamp: 'y', lanMode: 'true' });
+    const ice = (await lanApp.inject({ method: 'GET', url: '/api/ice-config' })).json();
+    assert.deepEqual(ice.iceServers, []);
+    assert.equal(ice.lanMode, true);
+    assert.equal((await lanApp.inject({ method: 'GET', url: '/api/config' })).json().lanMode, true);
+    await lanApp.close();
 });
 
 test('reports that TURN is disabled when the server configuration is incomplete', async () => {

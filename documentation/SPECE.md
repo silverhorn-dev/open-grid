@@ -215,6 +215,15 @@ Position (Schutz gegen Trilateration).
 
 ## 4. WebRTC-Signaling und Presence
 
+`GET /api/ice-config` liefert die ICE-Server. STUN: `STUN_SERVER`
+(`host:port` oder `none`), sonst der eigene TURN-Server, erst ohne beides
+`stun.l.google.com`. Mit `LAN_MODE=true` ist die Liste leer (`lanMode: true`,
+auch in `/api/config`): nur host/mDNS-Kandidaten, Verbindungen nur im selben
+Netz. Die Einstellung "Nur lokales Netz" (`grid-settings.lanOnly`) bewirkt das
+pro Geraet fuer neue Verbindungen. Nach dem Verbindungsaufbau ermittelt der
+Client per `getStats()` das gewaehlte Kandidatenpaar (`lan` = host/host,
+`relay`, sonst `direct`) und zeigt "im selben WLAN" in der Kontaktleiste.
+
 Der WebSocket-Endpunkt `/ws` vermittelt:
 
 - SDP Offer und Answer

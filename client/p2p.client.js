@@ -11,6 +11,7 @@ async function fetchIceConfig() {
         if (!data.iceServers) return;
 
         rtcConfig.iceServers = data.iceServers;
+        state.serverLanMode = data.lanMode === true;
         // Der Server liefert auch ohne TURN eine gueltige STUN-Konfiguration.
         // Ohne diese Unterscheidung wuerde ein fehlendes TURN_SECRET faelschlich
         // als Erfolg protokolliert und die fehlenden Relays blieben unerklaert.
@@ -27,6 +28,44 @@ async function fetchIceConfig() {
 
 fetchIceConfig();
 
+// Club-/LAN-Modus (Server LAN_MODE oder Einstellung "Nur lokales Netz"): keine STUN/TURN-Server,
+// nur lokale host/mDNS-Kandidaten. Verbindungen klappen dann nur im selben Netz.
+function getRtcConfig() {
+    const lanOnly = state.serverLanMode || state.gridSettings.lanOnly;
+    return { ...rtcConfig, iceServers: lanOnly ? [] : rtcConfig.iceServers };
+}
+
+// Verbindungsart aus dem gewaehlten Kandidatenpaar: beide host = selbes Netz.
+function classifyTransport(localType, remoteType) {
+    if (localType === 'relay' || remoteType === 'relay') return 'relay';
+    if (localType === 'host' && remoteType === 'host') return 'lan';
+    return 'direct';
+}
+
+async function detectPeerTransport(peerId, connection) {
+    try {
+        const stats = await connection.getStats();
+        let pair = null;
+        stats.forEach(report => {
+            if (report.type === 'transport' && report.selectedCandidatePairId) pair = stats.get(report.selectedCandidatePairId);
+        });
+        if (!pair) stats.forEach(report => {
+            if (!pair && report.type === 'candidate-pair' && report.state === 'succeeded' && report.nominated) pair = report;
+        });
+        if (!pair) return;
+        const local = stats.get(pair.localCandidateId);
+        const remote = stats.get(pair.remoteCandidateId);
+        state.peerTransport[peerId] = classifyTransport(local?.candidateType, remote?.candidateType);
+        logDebug(`Verbindung zu ${peerId}: ${state.peerTransport[peerId]} (${local?.candidateType}/${remote?.candidateType})`);
+        if (state.activeChatPeerId === peerId) {
+            renderChatPeerIndicator();
+            document.getElementById('chat-connection-type').textContent = `Encrypted WebRTC DataChannel (${state.peerTransport[peerId]})`;
+        }
+    } catch (error) {
+        logDebug(`Could not read connection stats: ${error.message}`);
+    }
+}
+
 function sendSignalingMessage(payload) {
     if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
         throw new Error('Signaling connection is not ready.');
@@ -39,7 +78,7 @@ function getOrCreatePeerConnection(peerId) {
     if (existing && !['closed', 'failed'].includes(existing.connectionState)) return existing;
     if (existing) cleanupPeerConnection(peerId, existing);
 
-    const connection = new RTCPeerConnection(rtcConfig);
+    const connection = new RTCPeerConnection(getRtcConfig());
     state.webrtcConnections[peerId] = connection;
     state.pendingIceCandidates[peerId] = state.pendingIceCandidates[peerId] || [];
     const seenCandidateTypes = new Set();
@@ -81,6 +120,7 @@ function getOrCreatePeerConnection(peerId) {
         const status = connection.connectionState;
         logDebug(`P2P connection with ${peerId}: ${status}`);
         if (status === 'connected') {
+            detectPeerTransport(peerId, connection);
             clearTimeout(state.disconnectTimers[peerId]);
             delete state.disconnectTimers[peerId];
             state.connectionRetryCounts[peerId] = 0;
@@ -138,6 +178,7 @@ function cleanupPeerConnection(peerId, connection) {
         delete state.sessionKeys[peerId];
         delete state.pendingIceCandidates[peerId];
         delete state.peerChatFocus[peerId];
+        delete state.peerTransport[peerId];
         if (state.activeChatPeerId === peerId) renderChatPeerIndicator();
     }
     if (connection.signalingState !== 'closed') connection.close();

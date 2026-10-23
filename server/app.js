@@ -18,6 +18,17 @@ import {
 import { MAX_PUSH_PLAINTEXT_BYTES, createPushSender, generateVapidKeys } from './push.js';
 
 const MAX_GRID_RESULTS = 100;
+const FALLBACK_STUN_URL = 'stun:stun.l.google.com:19302';
+
+// STUN: STUN_SERVER (Host[:Port] oder "none"), sonst der eigene coturn (kann auch STUN),
+// erst ohne beides der oeffentliche Google-STUN.
+export function resolveStunServers(stunServer, turnServer, turnPort = '3478') {
+    const configured = String(stunServer || '').trim();
+    if (configured.toLowerCase() === 'none') return [];
+    if (configured) return [{ urls: configured.startsWith('stun:') ? configured : `stun:${configured}` }];
+    if (turnServer) return [{ urls: `stun:${turnServer}:${turnPort}` }];
+    return [{ urls: FALLBACK_STUN_URL }];
+}
 const APP_MODES = ['discovery', 'chat', 'friends', 'event'];
 
 // Vom Betreiber erlaubte App-Modi (APP_MODES, kommagetrennt). Ungueltiges faellt auf alle zurueck.
@@ -237,6 +248,7 @@ export async function buildApp(options = {}) {
     const mediaKeyEpochMs = parseMediaKeyEpochMinutes(options.mediaKeyEpochMinutes ?? process.env.MEDIA_KEY_EPOCH_MINUTES) * 60 * 1000;
     const now = options.now || Date.now;
     const appModes = parseAppModes(options.appModes ?? process.env.APP_MODES);
+    const isLanMode = String(options.lanMode ?? process.env.LAN_MODE ?? '').toLowerCase() === 'true';
     const requestedDefaultMode = options.defaultAppMode ?? process.env.DEFAULT_APP_MODE;
     const defaultAppMode = appModes.includes(requestedDefaultMode) ? requestedDefaultMode : appModes[0];
     const profileSchemas = options.profileSchemas
@@ -305,6 +317,12 @@ export async function buildApp(options = {}) {
     app.get('/api/ice-config', async (request, reply) => {
         const turnSecret = process.env.TURN_SECRET;
         const turnServer = process.env.TURN_SERVER;
+        const turnPort = process.env.TURN_PORT || '3478';
+        // Club-/LAN-Betrieb: nur lokale (host/mDNS) Kandidaten, keine Anfrage an fremde Server.
+        if (isLanMode) {
+            return { turnEnabled: false, lanMode: true, reason: 'LAN_MODE is enabled', iceServers: [] };
+        }
+        const stunServers = resolveStunServers(process.env.STUN_SERVER, turnServer, turnPort);
 
         // Ohne Secret oder Host kann coturn keine Allocation autorisieren. Das
         // wird explizit gemeldet, damit der Client nicht faelschlich meldet, es
@@ -317,7 +335,7 @@ export async function buildApp(options = {}) {
             return {
                 turnEnabled: false,
                 reason: `Missing server configuration: ${missing.join(', ')}`,
-                iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                iceServers: stunServers
             };
         }
 
@@ -333,7 +351,6 @@ export async function buildApp(options = {}) {
         // Ohne expliziten transport-Parameter nutzt der Browser laut RFC 7065
         // ausschliesslich UDP. In Netzen, die UDP blockieren, gaebe es dann
         // keinen nutzbaren Relay-Pfad, deshalb die TCP-Variante.
-        const turnPort = process.env.TURN_PORT || '3478';
         const turnUrls = [
             `turn:${turnServer}:${turnPort}?transport=udp`,
             `turn:${turnServer}:${turnPort}?transport=tcp`
@@ -345,7 +362,7 @@ export async function buildApp(options = {}) {
         return {
             turnEnabled: true,
             iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
+                ...stunServers,
                 {
                     urls: turnUrls,
                     username: username,
@@ -483,7 +500,7 @@ export async function buildApp(options = {}) {
     app.delete('/api/register', unregister);
     app.post('/api/unregister', unregister);
 
-    app.get('/api/config', async () => ({ modes: appModes, defaultMode: defaultAppMode, profileSchemas }));
+    app.get('/api/config', async () => ({ modes: appModes, defaultMode: defaultAppMode, profileSchemas, lanMode: isLanMode }));
 
     const toGridPeer = (origin) => ({ peer, km }) => ({
         id: peer.peerId,

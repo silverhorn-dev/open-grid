@@ -57,6 +57,8 @@ liegt im benannten Volume `open-grid-data` unter `/app/data`.
 | `TURN_SECRET` | – | Muss exakt dem `static-auth-secret` des coturn entsprechen |
 | `TURN_PORT` | `3478` | Port fuer die UDP- und TCP-Relays |
 | `TURN_TLS_PORT` | – | Optional, aktiviert zusaetzlich eine `turns:`-URL |
+| `STUN_SERVER` | eigener TURN-Server | STUN-Server (`host:port`) oder `none`. Ohne Angabe dient der eigene coturn auch als STUN; erst ohne TURN wird der oeffentliche Google-STUN genutzt |
+| `LAN_MODE` | `false` | `true` = Club-/LAN-Betrieb: keine STUN/TURN-Server, nur Verbindungen im selben Netz |
 | `VAPID_SUBJECT` | `mailto:admin@localhost` | Kontaktadresse fuer Push-Dienste (`mailto:` oder `https:`); Apple lehnt den Standardwert ab |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | generiert | Optional feste VAPID-Schluessel (base64url); sonst einmalig erzeugt und in SQLite gespeichert |
 | `APP_MODES` | alle | Erlaubte App-Modi, kommagetrennt: `discovery`, `chat`, `friends`, `event`. Z. B. `chat` fuer einen reinen Chat-Server |
@@ -97,6 +99,27 @@ terminiert selbst kein TLS.
 Bei Updates mit persistenten Daten-, Token-, Protokoll- oder
 Konfigurationsaenderungen sind die versionsgebundenen Migrationsanweisungen in
 `documentation/SPECE.md` verbindlich zu beachten.
+
+## Club-/LAN-Betrieb
+
+Fuer Events (Club, Pride, Festival) kann OpenGrid vollstaendig im lokalen WLAN
+laufen, ohne Internet:
+
+- Server auf einem Laptop oder Raspberry Pi im selben WLAN starten, mit
+  `LAN_MODE=true` (und z. B. `APP_MODES=event`). Der Server verteilt dann keine
+  STUN/TURN-Server, die Clients verbinden sich nur ueber lokale (host/mDNS)
+  Kandidaten direkt im WLAN.
+- **HTTPS ist Pflicht**: Ohne sicheren Kontext gibt es im Browser weder
+  `crypto.subtle` noch Service Worker. Ein reines `http://192.168.x.x`
+  funktioniert also nicht. Moeglich sind ein Reverse Proxy mit lokaler CA
+  (z. B. Caddy `tls internal`, das CA-Zertifikat muss auf den Geraeten
+  vertraut sein) oder eine echte Domain, deren DNS auf die lokale IP zeigt
+  (Zertifikat per DNS-01-Challenge).
+- Einzelne Nutzer koennen auch ohne `LAN_MODE` in den Einstellungen "Nur
+  lokales Netz" waehlen: dann gehen keine Anfragen an STUN/TURN-Server raus.
+- Ein Mesh ganz ohne Server ist in einer PWA nicht moeglich: Browser bieten
+  keine lokale Geraetesuche, das Signaling braucht immer einen erreichbaren
+  Server. Der lokale Server uebernimmt diese Rolle.
 
 ## Lokale Entwicklung
 

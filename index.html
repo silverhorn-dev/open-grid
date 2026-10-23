@@ -519,6 +519,10 @@
                         </select>
                     </label>
                     <label class="flex items-start gap-2 text-xs text-slate-300 cursor-pointer">
+                        <input type="checkbox" id="lan-only-toggle" onchange="updateGridSetting('lanOnly', this.checked)" class="accent-brand-500 mt-0.5">
+                        <span>Nur lokales Netz (Club-Modus): Verbindungen nur im selben WLAN, ohne STUN/TURN-Server. Chats mit Leuten ausserhalb des Netzes laufen dann ueber den verschluesselten Zwischenspeicher.</span>
+                    </label>
+                    <label class="flex items-start gap-2 text-xs text-slate-300 cursor-pointer">
                         <input type="checkbox" id="live-grid-toggle" onchange="updateGridSetting('liveGrid', this.checked)" class="accent-brand-500 mt-0.5">
                         <span>Live-Grid: nur Profile zeigen, die gerade online sind</span>
                     </label>

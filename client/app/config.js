@@ -80,6 +80,9 @@ const state = {
     secureMessageQueues: {},
     presenceProbes: {},
     peerChatFocus: {},
+    // Verbindungsart pro Peer (lan, direct, relay) und ob der Server im LAN-Modus laeuft.
+    peerTransport: {},
+    serverLanMode: false,
     // Match-Zustand pro Peer (aus MATCH_PING/MATCH_RESET, siehe matching.js). Muss vor dem
     // ersten Rendern der Chatliste existieren.
     matchState: {},
@@ -93,7 +96,7 @@ const state = {
     peerPresence: {},
     presenceSubscription: [],
     // Sichtbarkeit und Speicher. Fehlender Datensatz = Standardwerte.
-    gridSettings: { silent: false, ttlMinutes: 10, liveGrid: false, cacheEnabled: true, useLocation: false, safeZones: [], locationLabel: null },
+    gridSettings: { silent: false, ttlMinutes: 10, liveGrid: false, cacheEnabled: true, lanOnly: false, useLocation: false, safeZones: [], locationLabel: null },
     gridRing: 0,
     routePath: null,
     applyingRoute: false,

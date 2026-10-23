@@ -698,11 +698,22 @@ function renderMessageActions(message, isMine, row) {
         actions.appendChild(button);
     };
     addAction('fa-solid fa-reply', 'Antworten', () => startReply(message.id));
+    if (message.text) addAction('fa-regular fa-copy', 'Kopieren', () => copyMessageText(message));
     addAction('fa-regular fa-face-smile', 'Reagieren', event => toggleReactionPicker(event.currentTarget, message.id));
     addAction(message.starred ? 'fa-solid fa-star text-amber-400' : 'fa-regular fa-star', message.starred ? 'Markierung entfernen' : 'Fuer dich markieren', () => toggleMessageStar(message.id));
     if (isMine) addAction('fa-solid fa-trash', 'Loeschen', () => deleteChatMessage(message.id), 'text-red-400 hover:text-red-300 hover:bg-slate-800');
     if (isMine) actions.appendChild(toggle);
     return actions;
+}
+
+async function copyMessageText(message) {
+    try {
+        await navigator.clipboard.writeText(message.text || '');
+        showToast('Text kopiert.', 'success');
+    } catch {
+        showToast('Kopieren nicht moeglich.', 'error');
+    }
+    closeMessageActions();
 }
 
 function toggleReactionPicker(anchor, messageId) {

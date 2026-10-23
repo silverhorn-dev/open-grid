@@ -1,6 +1,17 @@
 # Feature Request: Touch Gestures (Mobile)
 
-Status: open (requested 2026-10-23), not scheduled yet.
+Status: first round implemented 2026-10-23 (`client/app/gestures.js`).
+
+Decided 2026-10-23:
+
+- In: G1 swipe to reply, G2 long press, G3 double tap ❤️, G7 swipe between
+  tabs, G8/G9 swipe down to close the profile and media windows, "Kopieren"
+  as an action button.
+- Out: G4 edge swipe (the OS back gesture already does this, and chats have
+  real routes), G6 pull to refresh on the grid (clashes with the browser's
+  own pull to refresh), G5 swipe on chat rows, G10/G11 camera gestures.
+- New: in an open chat, pull **up** at the end of the messages to refresh
+  (fetch Path C queue, reconnect P2P, chat sync).
 
 OpenGrid is used mostly on smartphones as an installed PWA. Smartphones have no
 hover, so every action currently needs a visible button (e.g. the chevron next

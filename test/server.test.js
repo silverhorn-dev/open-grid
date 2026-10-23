@@ -161,6 +161,15 @@ test('serves the app offline-ready without external CDNs', async () => {
         const response = await app.inject({ method: 'GET', url });
         assert.equal(response.statusCode, 200, url);
     }
+    assert.match(index.body, /rel="apple-touch-icon" href="\/client\/icon-180\.png"/);
+    // Die Schriftgroessen-Einstellung haengt an dieser Regel.
+    const styles = await app.inject({ method: 'GET', url: '/client/styles.css' });
+    assert.match(styles.body, /\.chat-bubble \{\s*font-size: var\(--chat-font-size/);
+    assert.match(styles.body, /#chat-messages \{\s*touch-action: pan-y/);
+    const icon = await app.inject({ method: 'GET', url: '/client/icon-180.png' });
+    assert.equal(icon.headers['content-type'], 'image/png');
+    assert.equal(icon.rawPayload.subarray(1, 4).toString(), 'PNG');
+    assert.ok(precache.includes('/client/icon-192.png'));
     const font = await app.inject({ method: 'GET', url: precache.find(url => url.endsWith('.woff2')) });
     assert.equal(font.headers['content-type'], 'font/woff2');
 });

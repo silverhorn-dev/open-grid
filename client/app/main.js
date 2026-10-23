@@ -16,6 +16,7 @@ window.onload = async () => {
     window.addEventListener('popstate', handlePopState);
     initImageViewer();
     initSecureSnaps();
+    initGestures();
     window.addEventListener('online', updateConnectivityBanner);
     window.addEventListener('offline', updateConnectivityBanner);
     updateConnectivityBanner();

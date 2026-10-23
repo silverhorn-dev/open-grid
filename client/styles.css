@@ -75,6 +75,28 @@ html.debug-on .debug-off-only {
     }
     #chat-messages .actions-open .message-actions-toggle i { transform: rotate(180deg); }
 }
+/* Schriftgroesse im Chat (Einstellung "Darstellung") */
+.chat-bubble {
+    font-size: var(--chat-font-size, 15px);
+    line-height: 1.45;
+}
+
+/* Gesten: vertikal scrollt der Browser, horizontal gehoert das Wischen zum Antworten uns. */
+#chat-messages {
+    touch-action: pan-y pinch-zoom;
+    overscroll-behavior-y: contain;
+}
+@media (hover: none) {
+    /* Langes Druecken oeffnet die Aktionen statt Textauswahl/Kontextmenue (Kopieren ist eine Aktion). */
+    #chat-messages .chat-bubble {
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
+    }
+}
+#chat-pull-refresh.is-ready { color: #fb7185; }
+#chat-pull-refresh.is-ready i { transform: rotate(180deg); }
+
 #chat-messages > [id^="chat-message-"] {
     padding-top: 0.75rem;
 }

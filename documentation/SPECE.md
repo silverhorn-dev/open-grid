@@ -36,6 +36,16 @@
 - Navigation: `switchTab()` steuert die Ansichten und markiert alle Knoepfe mit
   passendem `data-tab-btn` (Header-Navigation auf dem Desktop,
   Bottom-Navigation auf Smartphones).
+- Gesten (`client/app/gestures.js`, nur Touch): Nachricht wischen (fremde
+  nach rechts, eigene nach links, ab 56 px) = antworten; lange druecken
+  (450 ms) = Aktionsleiste; doppelt tippen = Reaktion ❤️; seitlich wischen
+  (ab 80 px, nicht in den 24-px-Kantenzonen, nicht in horizontal scrollbaren
+  Bereichen oder im offenen Chat) = Tab Grid/Chat/Profil wechseln; Profil- und
+  Medienfenster von oben nach unten wischen = schliessen; im Chat am Ende nach
+  oben ziehen = aktualisieren (Pfad-C-Queue, P2P, Chat-Sync). Nachrichten
+  nutzen Pointer Events mit `touch-action: pan-y`, alles andere passive Touch
+  Events. Die System-Geste "zurueck" und Pull-to-Refresh des Browsers bleiben
+  unberuehrt.
 - Client-Routen (`client/app/router.js`): `/grid`, `/chat`, `/chat/:peerId`,
   `/profile`, `/settings`, `/cloud`. Der Server liefert fuer alle dieselbe
   App-Shell. `switchTab()` legt per `history.pushState` einen Eintrag an,
@@ -593,7 +603,7 @@ Externe Abhaengigkeiten zur Laufzeit gibt es keine mehr: Tailwind wird mit
 `npm run build:css` (Tailwind-CLI 3, `tailwind.config.cjs`) nach
 `client/tailwind.css` kompiliert (Docker-Build, `prestart`, `pretest`); Font
 Awesome kommt aus `node_modules/@fortawesome/fontawesome-free` unter
-`/vendor/fontawesome/*`; Platzhalterbilder und App-Icon (`client/icon.svg`)
+`/vendor/fontawesome/*`; Platzhalterbilder und App-Icons (`client/icon.svg`, PNG 180/192/512 fuer Manifest und `apple-touch-icon`)
 sind lokal.
 
 Ein Klick auf die Benachrichtigung fokussiert die App und oeffnet den Chat

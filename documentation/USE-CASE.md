@@ -472,3 +472,19 @@ Akzeptanzkriterien:
 - Eine neue Version wird nie mitten in der Sitzung aktiviert. Die App zeigt
   "Eine neue Version ist bereit" mit Knopf "Aktualisieren".
 - Zur Laufzeit werden keine externen CDNs oder Bilddienste geladen.
+
+## UC-30: Gesten auf dem Smartphone
+
+**Als Nutzer** moechte ich die App mit gewohnten Gesten bedienen.
+
+Akzeptanzkriterien:
+
+- Eine Nachricht zur Seite wischen startet eine Antwort (fremde nach rechts,
+  eigene nach links); ein Antwort-Symbol zeigt den Fortschritt.
+- Lange druecken oeffnet die Aktionsleiste, doppelt tippen reagiert mit ❤️.
+- Text laesst sich ueber die Aktion "Kopieren" kopieren.
+- Seitlich wischen wechselt zwischen Grid, Chat und Profil.
+- Profil- und Medienfenster schliessen per Wischen nach unten.
+- Im Chat am Ende nach oben ziehen aktualisiert den Chat.
+- Senkrechtes Scrollen, die Zurueck-Geste des Systems und alle Knoepfe
+  funktionieren weiter wie bisher.

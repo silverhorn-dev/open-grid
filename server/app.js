@@ -48,6 +48,7 @@ const clientAssetFiles = [
     'app/albums.js',
     'app/secure-snaps.js',
     'app/matching.js',
+    'app/gestures.js',
     'app/settings.js',
     'app/router.js',
     'app/push.js',
@@ -93,6 +94,8 @@ function loadVapidKeys(store) {
 }
 
 const FONT_AWESOME_DIRECTORY = join(projectDirectory, 'node_modules', '@fortawesome', 'fontawesome-free');
+// PNG-Icons fuer Home-Bildschirm/Manifest (iOS nutzt kein SVG als apple-touch-icon).
+const ICON_FILES = ['icon-180.png', 'icon-192.png', 'icon-512.png'];
 const FONT_CONTENT_TYPES = { '.woff2': 'font/woff2', '.ttf': 'font/ttf' };
 
 async function loadVendorAssets() {
@@ -101,6 +104,12 @@ async function loadVendorAssets() {
         contentType: 'text/css; charset=utf-8',
         body: await readFile(join(FONT_AWESOME_DIRECTORY, 'css', 'all.min.css'))
     });
+    for (const file of ICON_FILES) {
+        assets.set(`/client/${file}`, {
+            contentType: 'image/png',
+            body: await readFile(join(projectDirectory, 'client', file))
+        });
+    }
     for (const file of await readdir(join(FONT_AWESOME_DIRECTORY, 'webfonts'))) {
         const extension = file.slice(file.lastIndexOf('.'));
         // Moderne Browser laden nur woff2; ttf bleibt als Fallback der CSS-Datei erreichbar.

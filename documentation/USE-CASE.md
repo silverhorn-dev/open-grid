@@ -355,9 +355,13 @@ Akzeptanzkriterien:
   Besitzer muss dafuer online sein.
 - Der Zugriff kann pro Peer entzogen werden. Danach werden neue Anfragen
   abgelehnt und der Client des Peers loescht seine Kopie.
-- Betrachter speichern Albumbilder nur verschluesselt. Die Schluessel gelten
-  nur fuer eine Epoche (Server-Einstellung, z. B. 3 Stunden) und muessen dann
-  beim Besitzer neu geholt werden.
+- Betrachter speichern Albumbilder nur verschluesselt. Zum Ansehen braucht es
+  drei Teile: den eigenen Schluessel, den des Besitzers und einen rollenden
+  Schluessel, den der Besitzer pro Epoche (Server-Einstellung, z. B. 3 Stunden)
+  verteilt - direkt oder ueber den verschluesselten Zwischenspeicher.
+- Der Besitzer verteilt die Schluessel fuer die laufende und die naechste
+  Epoche; Betrachter sehen das Album also auch, wenn der Besitzer kurz offline
+  ist. Nach einem Entzug ist spaetestens mit Ende der naechsten Epoche Schluss.
 
 ## UC-23: Bilder ansehen
 

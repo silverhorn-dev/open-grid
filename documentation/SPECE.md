@@ -324,7 +324,7 @@ Der Store `keys` enthaelt zusaetzlich den Datensatz `router-auth` mit
 Worker, der keinen Zugriff auf `localStorage` hat. Der Datensatz
 `push-settings` speichert `compactNotifications` fuer den Service Worker.
 Die Datensaetze `app-config`, `app-mode` und `invite-expect:<peerId>` gehoeren
-zu den App-Modi (Abschnitt 3.0). Der Datensatz `chat-gate` spiegelt die Chat-Berechtigungen fuer den Service
+zu den App-Modi (Abschnitt 3.0), `album-keys:*` zu den Alben (5.1). Der Datensatz `chat-gate` spiegelt die Chat-Berechtigungen fuer den Service
 Worker (Abschnitt 6.0). Der Datensatz `grid-settings` speichert `silent`, `ttlMinutes`, `liveGrid`,
 `cacheEnabled` (Standard an), `useLocation`, `locationLabel` und `safeZones`
 (Liste von Geohash-Zellen). Ein fehlender Datensatz entspricht den Standardwerten.
@@ -351,30 +351,51 @@ P2P-Protokoll (nur ueber den verschluesselten DataChannel):
 | `ALBUM_DENIED { albumId }` | Besitzer -> Betrachter | kein Zugriff; der Betrachter loescht seine Kopie |
 | `ALBUM_REVOKED { albumId }` | Besitzer -> Betrachter | Zugriff entzogen oder Album geloescht |
 
-Rotierende Schluessel (seit P5): Jedes eigene Album hat ein Geheimnis `secret`
-(32 Byte, nur beim Besitzer) und eine `keyVersion`. Pro Betrachter und Bild gilt
+Inhaltsschluessel: Jedes eigene Album hat ein Geheimnis `secret` (32 Byte,
+nur beim Besitzer) und eine `keyVersion`. Pro Betrachter und Bild gilt
 
 ```
-key = HKDF-SHA256(ikm = secret, salt = "<albumId>:<keyVersion>", info = "<imageId>:<viewerId>")
+CK = HKDF-SHA256(ikm = secret, salt = "<albumId>:<keyVersion>", info = "<imageId>:<viewerId>")
 ```
 
-Albumbilder gehen nur als Ciphertext unter diesem Schluessel raus
+Albumbilder gehen nur als Ciphertext unter `CK` raus
 (`IMAGE_RESPONSE { imageId, version, keyVersion, encrypted: { iv, ciphertext } }`);
-der Betrachter speichert nur den Ciphertext. Die Schluessel holt er pro
-Epoche:
+der Betrachter speichert nur den Ciphertext. Der Besitzer bettet vorher ein
+Wasserzeichen mit der ID des Betrachters ein (Abschnitt 6.2).
 
-| Nachricht | Richtung | Bedeutung |
-|---|---|---|
-| `ALBUM_KEY_REQUEST { albumId, epoch }` | Betrachter -> Besitzer | Schluessel fuer die laufende Epoche anfragen |
-| `ALBUM_KEY_RESPONSE { albumId, keyVersion, epoch, epochEndsAt, keys }` | Besitzer -> Betrachter | Rohschluessel pro Bild, nur fuer Peers in der `acl` |
+**Schluesselverteilung (Alben v2, P12)**: Der Schluessel zum Auspacken der
+`CK`s setzt sich aus drei Teilen zusammen - eigener Schluessel, Schluessel der
+Quelle (Besitzer) und rollender Source-Key `R_e`, den der Besitzer pro Album
+und Epoche zufaellig erzeugt:
 
-Die Epoche kommt aus der Serverzeit (`GET /api/time`, Laenge per
-`MEDIA_KEY_EPOCH_MINUTES`). Der Betrachter importiert die Schluessel als nicht
-exportierbare `CryptoKey`s, haelt sie nur im Arbeitsspeicher und verwirft sie
-bei `epochEndsAt`; ist das Album offen, fragt er sofort neu an. Entzieht der
-Besitzer einem Peer den Zugriff, steigt `keyVersion`: alle Schluessel aendern
-sich, andere Betrachter laden die Bilder neu. Der Besitzer bettet vor dem
-Verschluesseln ein Wasserzeichen mit der ID des Betrachters ein (Abschnitt 6.2).
+```
+KEK_e = HKDF-SHA256(ikm = ECDH(eigener Identitaetsschluessel, Identitaetsschluessel der Gegenseite),
+                    salt = R_e, info = "og-album:<albumId>:<epoch>:<keyVersion>")
+```
+
+Der Besitzer schickt jedem Betrachter in der `acl` die Chat-Operation
+`ALBUM_KEYS { bundles }` mit je einem Buendel fuer die laufende und die
+naechste Epoche: `{ albumId, keyVersion, epoch, epochEndsAt, rollingKey,
+iv, wrapped }` (`wrapped` = AES-GCM unter `KEK_e` ueber alle `CK`s). Weg: P2P,
+steht nach 10 Sekunden kein Kanal, Pfad C (kein Web Push). Gesendet wird beim
+Start des Besitzers, zu jedem Epochenwechsel (Timer aus `/api/time`), wenn ein
+Betrachter online kommt oder sich verbindet, beim Teilen und nach einem Entzug
+(neue Version) - pro Betrachter, Album, Version und Epoche hoechstens einmal.
+`ALBUM_KEYS` wird nicht ins Operations-Log uebernommen.
+
+Der Betrachter speichert nur die Buendel (`keys`/`album-keys:<albumId>:<keyVersion>:<epoch>`,
+abgelaufene werden geloescht). Beim Ansehen leitet er `KEK_e` fuer die
+laufende Epoche ab, packt die `CK`s als nicht exportierbare `CryptoKey`s aus
+und haelt sie nur im Arbeitsspeicher; bei `epochEndsAt` werden sie verworfen
+und das naechste Buendel geoeffnet. Buendel gelten nur, wenn ihr Absender der
+Besitzer des Albums ist. Fehlt ein Buendel, fragt der Betrachter den Besitzer
+direkt (`ALBUM_KEY_REQUEST { albumId }`, P2P); dieser antwortet mit einem neuen
+`ALBUM_KEYS`.
+
+Folgen: Ein Betrachter sieht ein Album bis zu zwei Epochen weiter, auch wenn
+der Besitzer offline ist. Nach einem Entzug steigt `keyVersion` (neue `CK`s),
+der entzogene Betrachter bekommt keine Buendel mehr und verliert den Zugriff
+spaetestens mit dem Ende der naechsten Epoche.
 
 `IMAGE_REQUEST` liefert nur noch Galeriebilder des eigenen Profils oder Bilder
 aus Alben, in deren `acl` der anfragende Peer steht. `IMAGE_RESPONSE` wird nur

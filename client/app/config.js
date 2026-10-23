@@ -120,7 +120,9 @@ const state = {
     pendingAlbumRequests: {},
     mediaOverviewFilter: 'all',
     albumKeys: {},
-    pendingAlbumKeyRequests: {},
+    // Alben v2: zuletzt gepushte Schluessel-Buendel pro Betrachter/Album und Timer fuer den Epochenwechsel.
+    albumKeyPushes: {},
+    albumKeyPushTimer: null,
     snapSettings: { secureSnaps: false, views: 1, seconds: 10 },
     secureSnapViewing: null,
     outgoingSnapStreams: {},

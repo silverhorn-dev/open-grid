@@ -100,6 +100,8 @@ async function revokeAlbumAccess(albumId, peerId) {
     album.keyVersion = (album.keyVersion || 1) + 1;
     await saveAlbum(album);
     notifyAlbumRevoked(peerId, albumId);
+    // Verbleibende Betrachter bekommen Buendel fuer die neue Schluesselversion.
+    for (const viewerId of album.acl) pushAlbumKeys(viewerId, album, true).catch(() => {});
 }
 
 function notifyAlbumRevoked(peerId, albumId) {
@@ -134,6 +136,7 @@ async function shareAlbumInChat(albumId) {
         album.acl.push(peerId);
         await saveAlbum(album);
     }
+    pushAlbumKeys(peerId, album, true).catch(error => logDebug(`Album key push failed: ${error.message}`));
     closeMediaModal();
     await sendChatMessage(null, '', {
         albumId: album.id,
@@ -200,6 +203,8 @@ async function handleAlbumResponse(peerId, payload) {
     };
     state.albums[album.id] = album;
     await putDatabaseRecord('albums', album);
+    // Buendel koennen vor den Album-Metadaten angekommen sein.
+    if (!state.albumKeys[album.id]) await loadAlbumKeys(album.id).catch(() => false);
     if (state.albumViewer?.albumId === album.id) await renderAlbumViewer(album);
 }
 
@@ -594,64 +599,192 @@ async function handleAlbumImageResponse(peerId, payload) {
     }
 }
 
-async function requestAlbumKeys(ownerId, albumId) {
-    state.pendingAlbumKeyRequests[`${ownerId}:${albumId}`] = true;
-    let epoch = null;
-    try {
-        epoch = (await fetchServerTime()).epoch;
-    } catch (error) {
-        logDebug(`Server time unavailable: ${error.message}`);
-    }
-    await sendSecurePayload(ownerId, { type: 'ALBUM_KEY_REQUEST', albumId, epoch });
+// ----- Alben v2: eigener Key + Source-Key + rollender Source-Key -----
+// KEK_e = HKDF(ikm = ECDH(eigener Identitaetsschluessel, Schluessel der Gegenseite),
+//              salt = R_e (rollender Source-Key des Besitzers), info = Album:Epoche:Version).
+// Der Besitzer schickt pro Betrachter ein Buendel fuer die laufende und die naechste Epoche:
+// R_e plus die mit KEK_e verpackten Inhaltsschluessel. Weg: P2P, sonst Pfad C (Chat-Operation
+// ALBUM_KEYS, ohne Push). Der Betrachter speichert nur das Buendel; die Inhaltsschluessel entstehen
+// erst beim Ansehen, nicht exportierbar und nur im Arbeitsspeicher.
+const ALBUM_KEY_BUNDLE_PREFIX = 'album-keys:';
+const ALBUM_KEY_EPOCHS_AHEAD = 1;
+
+async function pairwiseAlbumSecret(peerId) {
+    const peerJwk = await getPeerIdentityKey(peerId);
+    if (!peerJwk) throw new Error('No trusted identity key for this peer.');
+    const publicKey = await window.crypto.subtle.importKey('jwk', peerJwk, { name: 'ECDH', namedCurve: 'P-256' }, false, []);
+    return window.crypto.subtle.deriveBits({ name: 'ECDH', public: publicKey }, state.myKeys.keyPair.privateKey, 256);
 }
 
-// Der Besitzer gibt immer nur Schluessel fuer die laufende Epoche heraus.
+async function deriveAlbumKek(peerId, rollingKey, albumId, epoch, keyVersion) {
+    const shared = await window.crypto.subtle.importKey('raw', await pairwiseAlbumSecret(peerId), 'HKDF', false, ['deriveKey']);
+    return window.crypto.subtle.deriveKey(
+        {
+            name: 'HKDF',
+            hash: 'SHA-256',
+            salt: base64ToBytes(rollingKey),
+            info: new TextEncoder().encode(`og-album:${albumId}:${epoch}:${keyVersion}`)
+        },
+        shared,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['encrypt', 'decrypt']
+    );
+}
+
+// Besitzer: zufaelliger rollender Key pro Album und Epoche; aeltere Epochen werden verworfen.
+function getRollingKey(album, epoch, currentEpoch) {
+    album.rollingKeys = Object.fromEntries(Object.entries(album.rollingKeys || {})
+        .filter(([storedEpoch]) => Number(storedEpoch) >= currentEpoch));
+    if (!album.rollingKeys[epoch]) album.rollingKeys[epoch] = bytesToBase64(window.crypto.getRandomValues(new Uint8Array(32)));
+    return album.rollingKeys[epoch];
+}
+
+async function buildAlbumKeyBundle(album, viewerId, time, epoch) {
+    const keyVersion = album.keyVersion || 1;
+    const keys = {};
+    for (const item of album.items) {
+        const key = await deriveAlbumImageKey(album, item.id, viewerId);
+        keys[item.id] = bytesToBase64(new Uint8Array(await window.crypto.subtle.exportKey('raw', key)));
+    }
+    const rollingKey = getRollingKey(album, epoch, time.epoch);
+    const kek = await deriveAlbumKek(viewerId, rollingKey, album.id, epoch, keyVersion);
+    const iv = window.crypto.getRandomValues(new Uint8Array(12));
+    const wrapped = await window.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, kek, new TextEncoder().encode(JSON.stringify(keys)));
+    return {
+        albumId: album.id,
+        keyVersion,
+        epoch,
+        epochEndsAt: (epoch + 1) * time.epochMs,
+        rollingKey,
+        iv: bytesToBase64(iv),
+        wrapped: bytesToBase64(new Uint8Array(wrapped))
+    };
+}
+
+// Schickt einem Betrachter die Buendel fuer jetzt und die naechste Epoche (einmal pro Epoche und Version).
+async function pushAlbumKeys(viewerId, album, force = false) {
+    if (!album || album.ownerId !== state.myProfile.id || !album.acl.includes(viewerId) || !album.items.length) return;
+    const time = await fetchServerTime();
+    const marker = `${album.keyVersion || 1}:${time.epoch}`;
+    const pushed = state.albumKeyPushes[viewerId] || (state.albumKeyPushes[viewerId] = {});
+    if (!force && pushed[album.id] === marker) return;
+    const bundles = [];
+    for (let offset = 0; offset <= ALBUM_KEY_EPOCHS_AHEAD; offset++) {
+        bundles.push(await buildAlbumKeyBundle(album, viewerId, time, time.epoch + offset));
+    }
+    await putDatabaseRecord('albums', album);
+    pushed[album.id] = marker;
+    const operation = {
+        operationId: `albumkeys:${album.id}:${marker}:${window.crypto.randomUUID()}`,
+        type: 'ALBUM_KEYS',
+        actorId: state.myProfile.id,
+        createdAt: Date.now(),
+        bundles
+    };
+    // Mit Rueckruf: steht nach 10 s kein Kanal, geht das Buendel ueber Pfad C.
+    await sendSecurePayload(viewerId, { type: 'CHAT_OPERATION', operation }, () => {});
+}
+
+async function pushAlbumKeysToPeer(peerId) {
+    for (const album of getOwnAlbums().filter(entry => entry.acl.includes(peerId))) {
+        await pushAlbumKeys(peerId, album).catch(error => logDebug(`Album key push failed: ${error.message}`));
+    }
+}
+
+// Beim Start und zu jedem Epochenwechsel an alle Betrachter.
+async function pushAllAlbumKeys() {
+    clearTimeout(state.albumKeyPushTimer);
+    const viewers = new Set(getOwnAlbums().flatMap(album => album.acl));
+    for (const viewerId of viewers) await pushAlbumKeysToPeer(viewerId);
+    const time = await fetchServerTime().catch(() => null);
+    if (time) state.albumKeyPushTimer = setTimeout(() => pushAllAlbumKeys().catch(() => {}), Math.min(time.epochEndsAt - time.now + 1000, 2147483647));
+}
+
+function isValidKeyBundle(bundle) {
+    return bundle && typeof bundle.albumId === 'string' && bundle.albumId.length <= 200
+        && Number.isInteger(bundle.keyVersion) && Number.isInteger(bundle.epoch) && Number.isFinite(bundle.epochEndsAt)
+        && typeof bundle.rollingKey === 'string' && typeof bundle.iv === 'string'
+        && typeof bundle.wrapped === 'string' && bundle.wrapped.length <= 200000;
+}
+
+// Betrachter: Buendel speichern (verpackt), abgelaufene entfernen. Aus applyChatOperation.
+async function handleAlbumKeysOperation(ownerId, operation) {
+    const bundles = Array.isArray(operation.bundles) ? operation.bundles.slice(0, ALBUM_KEY_EPOCHS_AHEAD + 1) : [];
+    const valid = bundles.filter(isValidKeyBundle);
+    for (const bundle of valid) {
+        await putDatabaseRecord('keys', {
+            id: `${ALBUM_KEY_BUNDLE_PREFIX}${bundle.albumId}:${bundle.keyVersion}:${bundle.epoch}`,
+            ownerId,
+            ...bundle
+        });
+    }
+    await pruneAlbumKeyBundles();
+    const openAlbum = state.albumViewer && state.albums[state.albumViewer.albumId];
+    if (openAlbum && valid.some(bundle => bundle.albumId === openAlbum.id) && !state.albumKeys[openAlbum.id]) {
+        if (await loadAlbumKeys(openAlbum.id)) await renderAlbumViewer(openAlbum);
+    }
+    return valid.length > 0;
+}
+
+async function pruneAlbumKeyBundles() {
+    const now = (await fetchServerTime().catch(() => ({ now: Date.now() }))).now;
+    const records = await getAllDatabaseRecords('keys').catch(() => []);
+    await Promise.all(records
+        .filter(record => typeof record.id === 'string' && record.id.startsWith(ALBUM_KEY_BUNDLE_PREFIX) && record.epochEndsAt <= now)
+        .map(record => deleteDatabaseRecord('keys', record.id)));
+}
+
+// Entpackt das Buendel der laufenden Epoche in nicht exportierbare Schluessel (nur im RAM).
+async function loadAlbumKeys(albumId) {
+    const album = state.albums[albumId];
+    if (!album || album.ownerId === state.myProfile.id) return false;
+    const time = await fetchServerTime();
+    const keyVersion = album.keyVersion || 1;
+    const record = await databaseRequest('keys', 'readonly', store => store.get(`${ALBUM_KEY_BUNDLE_PREFIX}${albumId}:${keyVersion}:${time.epoch}`)).catch(() => null);
+    if (!record || record.ownerId !== album.ownerId) return false;
+    let keyMap;
+    try {
+        const kek = await deriveAlbumKek(album.ownerId, record.rollingKey, albumId, record.epoch, keyVersion);
+        const plaintext = await window.crypto.subtle.decrypt({ name: 'AES-GCM', iv: base64ToBytes(record.iv) }, kek, base64ToBytes(record.wrapped));
+        keyMap = JSON.parse(new TextDecoder().decode(plaintext));
+    } catch (error) {
+        logDebug(`Album key bundle could not be opened: ${error.message}`);
+        return false;
+    }
+    const keys = new Map();
+    for (const [imageId, raw] of Object.entries(keyMap).slice(0, 500)) {
+        if (typeof raw !== 'string') continue;
+        keys.set(imageId, await window.crypto.subtle.importKey('raw', base64ToBytes(raw), { name: 'AES-GCM' }, false, ['decrypt']));
+    }
+    expireAlbumKeys(albumId, false);
+    state.albumKeys[albumId] = {
+        ownerId: album.ownerId,
+        keyVersion,
+        epoch: record.epoch,
+        keys,
+        timer: setTimeout(() => expireAlbumKeys(albumId, true), Math.min(Math.max(0, record.epochEndsAt - time.now), 2147483647))
+    };
+    return true;
+}
+
+// Erst das gespeicherte Buendel, sonst den Besitzer direkt fragen (er pusht dann neu).
+async function requestAlbumKeys(ownerId, albumId) {
+    if (await loadAlbumKeys(albumId).catch(() => false)) {
+        const album = state.albums[albumId];
+        if (album && state.albumViewer?.albumId === albumId) await renderAlbumViewer(album);
+        return;
+    }
+    await sendSecurePayload(ownerId, { type: 'ALBUM_KEY_REQUEST', albumId });
+}
+
 async function handleAlbumKeyRequest(peerId, payload) {
     const album = state.albums[payload.albumId];
     if (!album || album.ownerId !== state.myProfile.id || !album.acl.includes(peerId)) {
         await sendSecurePayload(peerId, { type: 'ALBUM_DENIED', albumId: payload.albumId });
         return;
     }
-    const time = await fetchServerTime();
-    const keys = {};
-    for (const item of album.items) {
-        const key = await deriveAlbumImageKey(album, item.id, peerId);
-        keys[item.id] = bytesToBase64(new Uint8Array(await window.crypto.subtle.exportKey('raw', key)));
-    }
-    await sendSecurePayload(peerId, {
-        type: 'ALBUM_KEY_RESPONSE',
-        albumId: album.id,
-        keyVersion: album.keyVersion || 1,
-        epoch: time.epoch,
-        epochEndsAt: time.epochEndsAt,
-        keys
-    });
-}
-
-async function handleAlbumKeyResponse(peerId, payload) {
-    const requestKey = `${peerId}:${payload.albumId}`;
-    const album = state.albums[payload.albumId];
-    if (!state.pendingAlbumKeyRequests[requestKey] || (album && album.ownerId !== peerId)) return;
-    delete state.pendingAlbumKeyRequests[requestKey];
-    if (!payload.keys || typeof payload.keys !== 'object' || !Number.isFinite(payload.epochEndsAt)) return;
-    const keys = new Map();
-    for (const [imageId, raw] of Object.entries(payload.keys).slice(0, 500)) {
-        if (typeof raw !== 'string') continue;
-        // Nicht exportierbar: der Rohschluessel existiert danach nur noch in dieser Funktion.
-        keys.set(imageId, await window.crypto.subtle.importKey('raw', base64ToBytes(raw), { name: 'AES-GCM' }, false, ['decrypt']));
-    }
-    expireAlbumKeys(payload.albumId, false);
-    const time = await fetchServerTime().catch(() => ({ now: Date.now() }));
-    const lifetime = Math.max(0, payload.epochEndsAt - time.now);
-    state.albumKeys[payload.albumId] = {
-        ownerId: peerId,
-        keyVersion: payload.keyVersion,
-        epoch: payload.epoch,
-        keys,
-        timer: setTimeout(() => expireAlbumKeys(payload.albumId, true), Math.min(lifetime, 2147483647))
-    };
-    const current = state.albums[payload.albumId];
-    if (current && state.albumViewer?.albumId === current.id) await renderAlbumViewer(current);
+    await pushAlbumKeys(peerId, album, true);
 }
 
 // Laeuft die Epoche ab, werden die Schluessel verworfen. Ist das Album offen, wird sofort nachgefragt.

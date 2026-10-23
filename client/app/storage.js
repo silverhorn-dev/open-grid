@@ -581,6 +581,10 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
         const index = state.chats[peerId].findIndex(item => item.id === localOperation.messageId);
         if (index >= 0) state.chats[peerId][index] = deletedMessage;
         else state.chats[peerId].push(deletedMessage);
+    } else if (localOperation.type === 'ALBUM_KEYS') {
+        // Schluessel-Buendel werden separat gespeichert und nicht im Operations-Log synchronisiert.
+        if (localOperation.actorId !== peerId) return false;
+        return handleAlbumKeysOperation(peerId, localOperation);
     } else if (localOperation.type === 'SNAP_CONSUMED') {
         // Nur der Empfaenger eines eigenen Einmal-Snaps darf ihn als verbraucht melden.
         if (localOperation.actorId !== peerId) return false;

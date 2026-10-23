@@ -180,6 +180,7 @@ async function handleSignalingMessage(message) {
         refreshChatControls()
             .then(() => {
                 subscribePresence();
+                pushAllAlbumKeys().catch(error => logDebug(`Album key push failed: ${error.message}`));
                 return fetchQueuedCacheMessages();
             })
             .catch(error => {
@@ -303,6 +304,7 @@ function isPeerOnline(peerId) {
 // Kommt ein Partner online, gehen wartende Nachrichten sofort direkt raus.
 function handlePeerCameOnline(peerId) {
     updateProfilePresence(peerId, 'online');
+    pushAlbumKeysToPeer(peerId).catch(() => {});
     const needsConnection = Boolean(state.secureMessageQueues[peerId]?.length) || state.activeChatPeerId === peerId;
     if (needsConnection && state.dataChannels[peerId]?.readyState !== 'open' && !isPeerBlocked(peerId)) {
         initiateP2PConnection(peerId).catch(() => {});
@@ -448,6 +450,8 @@ async function deriveSessionKey(peerId, publicJwk, profileSigningKey) {
     if (isChatVisibleFor(peerId)) sendChatFocus(peerId, true);
     // Profil-Handshake: neuer Kontakt (Einladung, erste Nachricht) ohne bekanntes Profil.
     if (!state.cachedProfiles[peerId]) sendSecurePayload(peerId, { type: 'PROFILE_REQUEST' }).catch(() => {});
+    // Alben v2: Betrachter bekommen beim Verbinden die aktuellen Schluessel-Buendel.
+    pushAlbumKeysToPeer(peerId).catch(() => {});
     await beginChatSync(peerId);
     await flushSecureMessageQueue(peerId);
 }
@@ -666,8 +670,6 @@ async function handleSecurePayload(peerId, payload, deliveredVia = 'E2EE P2P') {
         handleSnapViewClosed(peerId, payload);
     } else if (payload.type === 'ALBUM_KEY_REQUEST') {
         await handleAlbumKeyRequest(peerId, payload);
-    } else if (payload.type === 'ALBUM_KEY_RESPONSE') {
-        await handleAlbumKeyResponse(peerId, payload);
     } else if (payload.type === 'ALBUM_REVOKED') {
         await forgetReceivedAlbum(peerId, payload.albumId);
     } else if (payload.type === 'IMAGE_REQUEST') {

@@ -273,7 +273,8 @@
     - entschieden: felder einzeln "nur fuer matches" markierbar + galerie
   - [x] Stufe 3: Unsichtbar (Profil-Details und Bilder erst nach "Match" sichtbar; erzeugt zwingend Ping)
     - entschieden: im grid silhouette ohne namen, router bekommt weder namen noch bild
-  - im chat modus sollte das grid und ein paar profildetails gar nicht an sein. wenn man einen chatpartner hinzufügt sollte ein profilhandshake passieren
+  - [ ] im chat modus sollte das grid und ein paar profildetails gar nicht an sein. wenn man einen chatpartner hinzufügt sollte ein profilhandshake passieren
+    - da wäre es sogar besser pro modus verschiedene default profil schemas als router anzubieten
 
 # Hyperlocal Mesh (Festival/Club Mode)
 - [ ] WebRTC over LAN: mDNS und lokale Host-Kandidaten aggressiv priorisieren

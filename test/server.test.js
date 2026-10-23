@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { generateKeyPairSync, randomBytes, sign } from 'node:crypto';
 import { afterEach, beforeEach, test } from 'node:test';
-import { buildApp, parseMediaKeyEpochMinutes } from '../server/app.js';
+import { buildApp, parseAppModes, parseMediaKeyEpochMinutes } from '../server/app.js';
 import { createStore } from '../server/database.js';
 import { decodeGeohash, encodeGeohash, geohashNeighbours } from '../server/geohash.js';
 
@@ -671,6 +671,74 @@ test('shares presence only between mutually subscribed, unblocked chat partners 
     peerA.send(JSON.stringify({ type: 'PRESENCE_SUBSCRIBE', peerIds: ['peer-b', 'peer-c'] }));
     assert.deepEqual((await peerA.next('PRESENCE_SNAPSHOT')).online, []);
     peerA.close();
+    peerC.close();
+});
+
+test('exposes the allowed app modes', async () => {
+    assert.deepEqual((await app.inject({ method: 'GET', url: '/api/config' })).json(), {
+        modes: ['discovery', 'chat', 'friends', 'event'],
+        defaultMode: 'discovery'
+    });
+    assert.deepEqual(parseAppModes('chat, event,bogus,chat'), ['chat', 'event']);
+    assert.deepEqual(parseAppModes(''), ['discovery', 'chat', 'friends', 'event']);
+
+    const chatOnly = await buildApp({ store: createStore(':memory:'), buildVersion: 'x', buildTimestamp: 'y', appModes: 'chat', defaultAppMode: 'discovery' });
+    assert.deepEqual((await chatOnly.inject({ method: 'GET', url: '/api/config' })).json(), { modes: ['chat'], defaultMode: 'chat' });
+    assert.equal((await chatOnly.inject({ method: 'GET', url: '/api/grid?geohash=u10j2k' })).statusCode, 403);
+    await chatOnly.close();
+});
+
+test('keeps friends and event peers out of the public grid', async () => {
+    const eventHash = 'a'.repeat(64);
+    await registerPeer('peer-a');
+    await reregister('peer-a', { scope: 'public' });
+    await registerPeer('peer-b');
+    await reregister('peer-b', { scope: 'event', eventHash });
+    await registerPeer('peer-c');
+    await reregister('peer-c', { scope: 'friends' });
+
+    const publicGrid = await gridPeerIds();
+    assert.deepEqual(publicGrid.peers.map(peer => peer.id), ['peer-a']);
+    assert.deepEqual(publicGrid.removedPeerIds.sort(), ['peer-b', 'peer-c']);
+
+    const eventGrid = await gridPeerIds(`geohash=u10j2k&scope=event&eventHash=${eventHash}`);
+    assert.deepEqual(eventGrid.peers.map(peer => peer.id), ['peer-b']);
+    assert.equal(eventGrid.peers[0].distanceBucket, 'lt1');
+    assert.equal((await gridPeerIds(`geohash=u10j2k&scope=event&eventHash=${'b'.repeat(64)}`)).count, 0);
+
+    const invalid = await app.inject({
+        method: 'POST',
+        url: '/api/register',
+        payload: registrationPayload('peer-b', 'registration-peer-b', { scope: 'event', eventHash: 'not-a-hash' })
+    });
+    assert.equal(invalid.statusCode, 400);
+    const friendsWithoutAuth = await app.inject({ method: 'GET', url: '/api/grid?geohash=u10j2k&scope=friends&peerId=peer-a' });
+    assert.equal(friendsWithoutAuth.statusCode, 401);
+});
+
+test('friends grid shows only online mutual contacts', async () => {
+    await registerPeer('peer-a');
+    await registerPeer('peer-b');
+    await reregister('peer-b', { scope: 'friends' });
+    await registerPeer('peer-c');
+    await app.listen({ host: '127.0.0.1', port: 0 });
+    const url = `ws://127.0.0.1:${app.server.address().port}/ws`;
+    const peerA = await connectSocket(url, 'peer-a');
+    const peerB = await connectSocket(url, 'peer-b');
+    const peerC = await connectSocket(url, 'peer-c');
+    peerA.send(JSON.stringify({ type: 'PRESENCE_SUBSCRIBE', peerIds: ['peer-b', 'peer-c'] }));
+    await peerA.next('PRESENCE_SNAPSHOT');
+    peerB.send(JSON.stringify({ type: 'PRESENCE_SUBSCRIBE', peerIds: ['peer-a'] }));
+    await peerB.next('PRESENCE_SNAPSHOT');
+
+    const friends = await app.inject({
+        method: 'GET',
+        url: '/api/grid?geohash=u10j2k&scope=friends&peerId=peer-a',
+        headers: authHeaders('peer-a')
+    });
+    assert.deepEqual(friends.json().peers.map(peer => peer.id), ['peer-b'], 'peer-c is not mutual');
+    peerA.close();
+    peerB.close();
     peerC.close();
 });
 

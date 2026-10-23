@@ -164,6 +164,7 @@ let resolveProfileOnboarding = null;
 
 function openProfileOnboarding() {
     renderProfileForm('onboarding-profile-form');
+    renderOnboardingModeChooser();
     document.getElementById('profile-onboarding-modal').classList.remove('hidden');
     return new Promise(resolve => {
         resolveProfileOnboarding = resolve;

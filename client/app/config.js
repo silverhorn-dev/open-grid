@@ -81,6 +81,12 @@ const state = {
     // Match-Zustand pro Peer (aus MATCH_PING/MATCH_RESET, siehe matching.js). Muss vor dem
     // ersten Rendern der Chatliste existieren.
     matchState: {},
+    // App-Modus (P8): vom Server erlaubte Modi, gewaehlter Modus und Event-Daten.
+    appConfig: { modes: ['discovery', 'chat', 'friends', 'event'], defaultMode: 'discovery' },
+    appMode: 'discovery',
+    appModeSettings: {},
+    eventExpiryTimer: null,
+    pendingInvite: null,
     // Online-Status der Chat-Partner (nur gegenseitig, vom Server per PRESENCE gemeldet).
     peerPresence: {},
     presenceSubscription: [],

@@ -488,3 +488,47 @@ Akzeptanzkriterien:
 - Im Chat am Ende nach oben ziehen aktualisiert den Chat.
 - Senkrechtes Scrollen, die Zurueck-Geste des Systems und alle Knoepfe
   funktionieren weiter wie bisher.
+
+## UC-31: App-Modus waehlen
+
+**Als Betreiber** moechte ich festlegen, wofuer meine Instanz da ist, und
+**als Nutzer** moechte ich zwischen den erlaubten Modi waehlen.
+
+Akzeptanzkriterien:
+
+- Der Betreiber erlaubt Modi ueber `APP_MODES` und setzt `DEFAULT_APP_MODE`.
+- Sind mehrere Modi erlaubt, fragt das Onboarding danach; in den
+  Einstellungen laesst sich der Modus jederzeit wechseln.
+
+## UC-32: Nur Chat
+
+**Als Nutzer** moechte ich OpenGrid wie einen privaten Messenger nutzen.
+
+Akzeptanzkriterien:
+
+- Es gibt kein Grid; man ist fuer niemanden sichtbar.
+- Kontakte kommen ueber einen Einladungslink oder QR-Code (Kopieren,
+  Teilen). Wer den Link oeffnet, landet direkt im Chat.
+- Passt der Schluessel beim ersten Kontakt nicht zur Einladung, wird die
+  Verbindung abgebrochen und eine Warnung angezeigt.
+
+## UC-33: Freunde in der Naehe
+
+**Als Nutzer** moechte ich nur meine Kontakte in der Naehe sehen.
+
+Akzeptanzkriterien:
+
+- Das Grid zeigt nur gegenseitige, nicht blockierte Kontakte, die gerade
+  online sind, mit Entfernungsgruppe.
+- Fremde sehen einen nicht, auch nicht im oeffentlichen Grid.
+
+## UC-34: Event-Modus
+
+**Als Nutzer** moechte ich auf einem Event nur die anderen Teilnehmer sehen.
+
+Akzeptanzkriterien:
+
+- Mit einem Event-Code tritt man bei; das Grid zeigt alle mit demselben Code.
+- Der Server kennt nur einen Hash des Codes.
+- Nach 12 Stunden oder per "Event verlassen" endet die Teilnahme; danach
+  gilt wieder der vorherige Modus.

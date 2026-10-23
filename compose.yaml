@@ -19,6 +19,9 @@ services:
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       PORT: 3000
+      # App-Modi, die Nutzer waehlen koennen (discovery, chat, friends, event).
+      # APP_MODES: discovery,chat,friends,event
+      # DEFAULT_APP_MODE: discovery
       # Schluessel-Epoche fuer Alben und View-once-Snaps (Minuten). 5 = Testbetrieb.
       MEDIA_KEY_EPOCH_MINUTES: 5
       # Echter Betrieb: 3 Stunden

@@ -14,7 +14,7 @@ async function fetchServerTime() {
 }
 
 async function loadMoreGrid() {
-    if (state.gridRing >= MAX_GRID_RING) return;
+    if (state.appMode !== 'discovery' || state.gridRing >= MAX_GRID_RING) return;
     state.gridRing += 1;
     const loaded = await fetchPeersFromWorkerGrid();
     if (!loaded) state.gridRing -= 1;
@@ -35,13 +35,18 @@ function renderDiscoveryGrid() {
     document.getElementById('grid-peer-count').textContent = `${visiblePeers.length} ${visiblePeers.length === 1 ? 'peer' : 'peers'}`;
     const geohashLabel = document.getElementById('current-geohash');
     if (geohashLabel) geohashLabel.textContent = `${state.myProfile.geohash} · Ring ${state.gridRing}`;
-    document.getElementById('grid-load-more-btn')?.classList.toggle('hidden', !state.gridHasMore);
+    document.getElementById('grid-load-more-btn')?.classList.toggle('hidden', state.appMode !== 'discovery' || !state.gridHasMore);
     renderActivePeerList();
 
     if (visiblePeers.length === 0) {
         const emptyState = document.createElement('div');
         emptyState.className = 'col-span-full text-center py-12 text-slate-500 text-sm border border-dashed border-slate-800 rounded-2xl bg-slate-900/40';
-        emptyState.innerHTML = '<i class="fa-solid fa-satellite-dish text-2xl text-slate-600 mb-3"></i><div>No other peers are currently visible in this grid cell.</div>';
+        emptyState.innerHTML = '<i class="fa-solid fa-satellite-dish text-2xl text-slate-600 mb-3"></i><div></div>';
+        emptyState.lastChild.textContent = state.appMode === 'friends'
+            ? 'Gerade ist keiner deiner Kontakte online. Lade Freunde mit deinem Einladungslink ein.'
+            : state.appMode === 'event'
+                ? 'Noch niemand sonst in diesem Event.'
+                : 'Gerade ist niemand in deiner Naehe sichtbar.';
         container.appendChild(emptyState);
         return;
     }
@@ -168,7 +173,7 @@ function renderActivePeerList() {
 }
 
 async function fetchPeersFromWorkerGrid() {
-    if (state.gridFetchInFlight) return false;
+    if (state.gridFetchInFlight || !isGridAvailable()) return false;
     state.gridFetchInFlight = true;
     const refreshButton = document.getElementById('refresh-grid-btn');
     const refreshIcon = document.getElementById('refresh-grid-icon');
@@ -176,9 +181,9 @@ async function fetchPeersFromWorkerGrid() {
     if (refreshIcon) refreshIcon.classList.add('fa-spin');
 
     try {
-        const query = new URLSearchParams({ geohash: state.myProfile.geohash, ring: String(state.gridRing) });
-        if (state.gridSettings.liveGrid) query.set('live', '1');
-        const res = await fetch(`${API_BASE}/api/grid?${query}`, { cache: 'no-store' });
+        const query = buildGridQuery();
+        const headers = state.appMode === 'friends' ? peerAuthHeaders() : {};
+        const res = await fetch(`${API_BASE}/api/grid?${query}`, { cache: 'no-store', headers });
         if (!res.ok) throw new Error('Worker offline');
         const data = await res.json();
 
@@ -289,7 +294,8 @@ async function registerWithWorkerGrid() {
                 // Sichtbarkeitsstufe 3: der Router bekommt weder Namen noch Vorschaubild.
                 ...getRegistrationIdentity(),
                 authToken: state.routerAuthToken,
-                silent: isEffectivelySilent(),
+                silent: isEffectivelySilent() || isModeSilent(),
+                ...getRegistrationScope(),
                 ttlMinutes: state.gridSettings.ttlMinutes,
                 registrationProof: {
                     publicKey: state.myKeys.jwkEcdsaPublic,

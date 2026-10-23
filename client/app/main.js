@@ -27,6 +27,7 @@ window.onload = async () => {
     try {
         await initDatabase();
         await initializeStorageEncryption();
+        await loadAppMode();
         const hasLocalProfile = await loadMyLocalProfile();
         if (!hasLocalProfile) await openProfileOnboarding();
         if (!state.myProfile.updatedAt) {
@@ -45,6 +46,8 @@ window.onload = async () => {
         await loadGridSettings();
         await registerServiceWorker();
         connectWorkerWebSocket();
+        renderInviteCard().catch(error => logDebug(`Invite card failed: ${error.message}`));
+        if (state.pendingInvite) acceptPendingInvite().catch(error => logDebug(`Invite failed: ${error.message}`));
         document.getElementById('chat-input').addEventListener('keydown', (event) => {
             if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();

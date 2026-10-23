@@ -128,7 +128,7 @@
                         <i class="fa-solid fa-location-crosshairs text-xl"></i>
                     </div>
                     <div>
-                        <div class="text-sm font-semibold">In deiner Naehe <span class="debug-only">· Geohash-Zelle <span id="current-geohash" class="font-mono text-brand-400">u10j2k</span></span></div>
+                        <div class="text-sm font-semibold"><span id="grid-title">In deiner Naehe</span> <span class="debug-only">· Geohash-Zelle <span id="current-geohash" class="font-mono text-brand-400">u10j2k</span></span></div>
                         <p class="text-xs text-slate-400">
                             <span id="grid-peer-count">0 peers</span>
                             <span class="text-slate-600">•</span>
@@ -143,6 +143,9 @@
                 <div class="flex items-center gap-2">
                     <button id="use-location-btn" onclick="updateGridSetting('useLocation', true)" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
                         <i class="fa-solid fa-location-arrow"></i> Standort verwenden
+                    </button>
+                    <button id="leave-event-btn" onclick="leaveEvent()" class="hidden bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
+                        <i class="fa-solid fa-right-from-bracket"></i> Event verlassen
                     </button>
                     <button id="refresh-grid-btn" onclick="refreshGrid()" class="bg-brand-600 hover:bg-brand-500 disabled:opacity-60 text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
                         <i id="refresh-grid-icon" class="fa-solid fa-rotate"></i> Aktualisieren
@@ -167,6 +170,9 @@
             <div id="chat-list-panel" class="bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-col min-h-0">
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 px-1 flex items-center justify-between">
                     <span>Chats</span>
+                    <button onclick="switchTab('keys'); document.getElementById('invite-card')?.scrollIntoView({ behavior: 'smooth' })" class="ml-auto mr-2 normal-case tracking-normal text-brand-400 hover:text-brand-300 font-semibold" title="Kontakt einladen">
+                        <i class="fa-solid fa-user-plus"></i> Einladen
+                    </button>
                     <span id="active-peers-count" class="bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full text-xs">0</span>
                 </h3>
                 <div id="active-peers-list" class="flex-1 min-h-0 space-y-2 overflow-y-auto"></div>
@@ -392,6 +398,34 @@
                     </button>
                 </div>
 
+                <div id="app-mode-card" class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3 md:col-span-2">
+                    <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-brand-400"></i> App-Modus
+                    </h3>
+                    <div id="app-mode-options" class="grid gap-2 sm:grid-cols-2"></div>
+                    <div id="event-settings" class="space-y-2 border-t border-slate-800 pt-3">
+                        <div class="text-xs text-slate-300">Event beitreten (der Server sieht nur einen Hash des Codes):</div>
+                        <div class="flex gap-2">
+                            <input id="event-code-input" type="text" maxlength="64" placeholder="Event-Code, z. B. PRIDE24" onkeydown="if (event.key === 'Enter') joinEvent()" class="flex-1 min-w-0 bg-slate-950 border border-slate-700 rounded px-2 py-1.5 text-base md:text-xs text-slate-200 uppercase">
+                            <button onclick="joinEvent()" class="bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg">Beitreten</button>
+                        </div>
+                        <div id="event-status" class="text-[11px] text-slate-500">Kein Event aktiv.</div>
+                    </div>
+                </div>
+
+                <div id="invite-card" class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
+                    <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-user-plus text-brand-400"></i> Kontakt einladen
+                    </h3>
+                    <p class="text-xs text-slate-400">Wer diesen Link oeffnet oder den QR-Code scannt, kann dir schreiben. Der Link enthaelt deinen Schluessel-Fingerprint, so faellt ein Abfangen auf.</p>
+                    <img id="invite-qr" alt="QR-Code mit deinem Einladungslink" class="hidden w-40 h-40 rounded-lg bg-white p-1 [image-rendering:pixelated]">
+                    <input id="invite-link-output" type="text" readonly class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1.5 text-[11px] font-mono text-slate-300">
+                    <div class="flex gap-2">
+                        <button onclick="copyInviteLink()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-200 px-3 py-1.5 rounded-lg font-semibold"><i class="fa-regular fa-copy"></i> Kopieren</button>
+                        <button onclick="shareInviteLink()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-200 px-3 py-1.5 rounded-lg font-semibold"><i class="fa-solid fa-share-nodes"></i> Teilen</button>
+                    </div>
+                </div>
+
                 <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
                     <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
                         <i class="fa-solid fa-fire text-orange-400"></i> Matching &amp; Privatsphaere
@@ -561,6 +595,11 @@
                 </p>
             </div>
             <div class="p-5 space-y-5">
+                <div id="onboarding-mode" class="hidden space-y-2">
+                    <div class="text-xs font-bold text-slate-400">Wie moechtest du OpenGrid nutzen?</div>
+                    <div id="onboarding-mode-options" class="grid gap-2"></div>
+                    <p class="text-[11px] text-slate-500">Das kannst du jederzeit in den Einstellungen aendern.</p>
+                </div>
                 <div id="onboarding-profile-form" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
                 <div id="onboarding-profile-error" class="hidden text-xs text-red-300 bg-red-950/50 border border-red-800 rounded-lg p-3"></div>
                 <button id="complete-onboarding-btn" onclick="completeProfileOnboarding()" class="w-full bg-brand-600 hover:bg-brand-500 disabled:opacity-60 text-white font-semibold py-3 px-4 rounded-xl transition flex items-center justify-center gap-2 shadow-lg pulse-glow">
@@ -730,6 +769,8 @@
     <script src="/client/app/secure-snaps.js?v={{assetVersion}}"></script>
     <script src="/client/app/matching.js?v={{assetVersion}}"></script>
     <script src="/client/app/gestures.js?v={{assetVersion}}"></script>
+    <script src="/client/app/modes.js?v={{assetVersion}}"></script>
+    <script src="/vendor/qrcode/qrcode.js"></script>
     <script src="/client/app/settings.js?v={{assetVersion}}"></script>
     <script src="/client/app/router.js?v={{assetVersion}}"></script>
     <script src="/client/app/push.js?v={{assetVersion}}"></script>

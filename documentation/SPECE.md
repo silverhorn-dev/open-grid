@@ -116,6 +116,42 @@ Das Grid entspricht immer der aktuellen Router-Antwort fuer einen Geohash.
 Lokale Cache-Eintraege werden nicht ohne aktiven Router-Eintrag angezeigt.
 Explizit entfernte Peers erhalten einen zeitlich begrenzten Tombstone.
 
+### 3.0 App-Modi
+
+Der Betreiber erlaubt Modi per `APP_MODES` (kommagetrennt aus `discovery`,
+`chat`, `friends`, `event`; Standard alle) und `DEFAULT_APP_MODE`.
+`GET /api/config` liefert `{ modes, defaultMode }`; der Client merkt sich die
+Antwort fuer den Offline-Start (`keys`/`app-config`). Der Nutzer waehlt beim
+Onboarding (falls mehrere erlaubt) und in den Einstellungen
+(`keys`/`app-mode = { mode, eventCode, eventHash, eventJoinedAt, modeBeforeEvent }`).
+
+| Modus | Registrierung | Grid |
+|---|---|---|
+| `discovery` | `scope: 'public'` | Ringe um die eigene Zelle (3.1) |
+| `chat` | `scope: 'public'`, immer `silent` | keins (Grid-Tab ausgeblendet) |
+| `friends` | `scope: 'friends'` | `GET /api/grid?scope=friends&peerId=` (Bearer): nur online, gegenseitig abonnierte, nicht blockierte Kontakte (Presence-Abos, 4.1) |
+| `event` | `scope: 'event'`, `eventHash` | `GET /api/grid?scope=event&eventHash=`: alle mit demselben Hash |
+
+`POST /api/register` akzeptiert dafuer `scope` (`public`, `friends`, `event`;
+nur erlaubte Modi) und bei `event` den `eventHash` (64 Hex-Zeichen). Das
+oeffentliche Grid zeigt nur `scope = 'public'`; der Wechsel aus dem
+oeffentlichen Grid erzeugt einen Tombstone, und nur oeffentlich sichtbare Peers
+loesen `PEER_OFFLINE` aus. Ist `discovery` nicht erlaubt, antwortet das
+oeffentliche Grid mit 403.
+
+Der Event-Code wird im Client normalisiert (Grossbuchstaben, einfache
+Leerzeichen) und als `SHA-256("og-event:" + code)` gesendet; der Server sieht
+den Code nie. Nach 12 Stunden verlaesst der Client das Event automatisch.
+
+**Einladungslinks** (`chat`, `friends`): `/invite#<peerId>.<fingerprint>`,
+Fingerprint = erste 32 Hex-Zeichen von `SHA-256("<crv>:<x>:<y>")` des
+ECDSA-Profilschluessels. Der Teil nach `#` erreicht den Server nie. Beim
+Oeffnen legt der Client den Kontakt an und merkt sich den Fingerprint
+(`keys`/`invite-expect:<peerId>`); beim ersten `KEY_HELLO` muss der
+Schluessel passen, sonst wird die Verbindung verworfen (Schutz gegen einen
+Server, der eine fremde Identitaet einschleust). Der QR-Code wird lokal mit
+`qrcode-generator` (`/vendor/qrcode/qrcode.js`) erzeugt.
+
 ### 3.1 Grid in Ringen
 
 `GET /api/grid?geohash=<eigene Zelle>&ring=<0-5>[&live=1]` laedt das Grid
@@ -261,7 +297,8 @@ Der Store `keys` enthaelt zusaetzlich den Datensatz `router-auth` mit
 `nodeId` und Router-Token. Er spiegelt `localStorage` fuer den Service
 Worker, der keinen Zugriff auf `localStorage` hat. Der Datensatz
 `push-settings` speichert `compactNotifications` fuer den Service Worker.
-Der Datensatz `chat-gate` spiegelt die Chat-Berechtigungen fuer den Service
+Die Datensaetze `app-config`, `app-mode` und `invite-expect:<peerId>` gehoeren
+zu den App-Modi (Abschnitt 3.0). Der Datensatz `chat-gate` spiegelt die Chat-Berechtigungen fuer den Service
 Worker (Abschnitt 6.0). Der Datensatz `grid-settings` speichert `silent`, `ttlMinutes`, `liveGrid`,
 `cacheEnabled` (Standard an), `useLocation`, `locationLabel` und `safeZones`
 (Liste von Geohash-Zellen). Ein fehlender Datensatz entspricht den Standardwerten.

@@ -18,6 +18,17 @@ import {
 import { MAX_PUSH_PLAINTEXT_BYTES, createPushSender, generateVapidKeys } from './push.js';
 
 const MAX_GRID_RESULTS = 100;
+const APP_MODES = ['discovery', 'chat', 'friends', 'event'];
+
+// Vom Betreiber erlaubte App-Modi (APP_MODES, kommagetrennt). Ungueltiges faellt auf alle zurueck.
+export function parseAppModes(value) {
+    const modes = String(value || '').split(',').map(mode => mode.trim()).filter(mode => APP_MODES.includes(mode));
+    return modes.length ? [...new Set(modes)] : [...APP_MODES];
+}
+
+function isEventHash(value) {
+    return typeof value === 'string' && /^[0-9a-f]{64}$/.test(value);
+}
 const DEFAULT_MEDIA_KEY_EPOCH_MINUTES = 5;
 const MAX_MEDIA_KEY_EPOCH_MINUTES = 7 * 24 * 60;
 
@@ -49,6 +60,7 @@ const clientAssetFiles = [
     'app/secure-snaps.js',
     'app/matching.js',
     'app/gestures.js',
+    'app/modes.js',
     'app/settings.js',
     'app/router.js',
     'app/push.js',
@@ -103,6 +115,11 @@ async function loadVendorAssets() {
     assets.set('/vendor/fontawesome/css/all.min.css', {
         contentType: 'text/css; charset=utf-8',
         body: await readFile(join(FONT_AWESOME_DIRECTORY, 'css', 'all.min.css'))
+    });
+    // QR-Codes fuer Einladungslinks (Modus "Nur Chat"/"Freunde").
+    assets.set('/vendor/qrcode/qrcode.js', {
+        contentType: 'text/javascript; charset=utf-8',
+        body: await readFile(join(projectDirectory, 'node_modules', 'qrcode-generator', 'qrcode.js'))
     });
     for (const file of ICON_FILES) {
         assets.set(`/client/${file}`, {
@@ -196,6 +213,9 @@ export async function buildApp(options = {}) {
 
     const mediaKeyEpochMs = parseMediaKeyEpochMinutes(options.mediaKeyEpochMinutes ?? process.env.MEDIA_KEY_EPOCH_MINUTES) * 60 * 1000;
     const now = options.now || Date.now;
+    const appModes = parseAppModes(options.appModes ?? process.env.APP_MODES);
+    const requestedDefaultMode = options.defaultAppMode ?? process.env.DEFAULT_APP_MODE;
+    const defaultAppMode = appModes.includes(requestedDefaultMode) ? requestedDefaultMode : appModes[0];
 
     // Verlaessliche Zeit fuer die Schluessel-Rotation; die Geraetezeit wird dafuer ignoriert.
     app.get('/api/time', async (_request, reply) => {
@@ -223,7 +243,7 @@ export async function buildApp(options = {}) {
         return reply.type('text/html; charset=utf-8').header('Cache-Control', 'no-cache').send(html);
     };
     // Client-Routen (client/app/router.js) liefern dieselbe App-Shell.
-    for (const path of ['/', '/index.html', '/grid', '/chat', '/chat/:peerId', '/profile', '/settings', '/cloud']) {
+    for (const path of ['/', '/index.html', '/grid', '/chat', '/chat/:peerId', '/profile', '/settings', '/cloud', '/invite']) {
         app.get(path, serveAppShell);
     }
 
@@ -361,7 +381,9 @@ export async function buildApp(options = {}) {
             authToken: suppliedToken,
             registrationProof,
             silent,
-            ttlMinutes
+            ttlMinutes,
+            scope,
+            eventHash
         } = request.body || {};
         if (!isString(peerId, 200) || !isGeohash(geohash, GRID_PRECISION) || !isString(registrationId, 200)) {
             return reply.code(400).send({ error: 'Invalid payload' });
@@ -375,6 +397,15 @@ export async function buildApp(options = {}) {
         if ((silent != null && typeof silent !== 'boolean')
             || (ttlMinutes != null && !Number.isFinite(ttlMinutes))) {
             return reply.code(400).send({ error: 'Invalid visibility settings' });
+        }
+        // Sichtbarkeit je App-Modus; nur Modi, die der Betreiber erlaubt.
+        const peerScope = scope == null ? 'public' : scope;
+        const scopeMode = { public: 'discovery', friends: 'friends', event: 'event' }[peerScope];
+        if (!scopeMode || (peerScope !== 'public' && !appModes.includes(scopeMode))) {
+            return reply.code(400).send({ error: 'Invalid scope' });
+        }
+        if (peerScope === 'event' && !isEventHash(eventHash)) {
+            return reply.code(400).send({ error: 'Invalid eventHash' });
         }
 
         const authToken = suppliedToken != null
@@ -397,12 +428,14 @@ export async function buildApp(options = {}) {
             thumbnail: thumbnail ? thumbnail.substring(0, 150000) : null,
             name: typeof name === 'string' ? name.substring(0, 100) : 'Peer',
             silent: silent === true,
-            ttlMs: ttlMinutes != null ? ttlMinutes * 60 * 1000 : undefined
+            ttlMs: ttlMinutes != null ? ttlMinutes * 60 * 1000 : undefined,
+            scope: peerScope,
+            eventHash: peerScope === 'event' ? eventHash : null
         };
         if (!store.registerPeer(session)) {
             return reply.code(403).send({ error: 'Peer identity is already registered' });
         }
-        signaling.updatePeerCell(peerId, session.geohash, session.silent);
+        signaling.updatePeerCell(peerId, session.geohash, session.silent || peerScope !== 'public');
         return {
             status: 'registered',
             geohash: session.geohash,
@@ -425,27 +458,58 @@ export async function buildApp(options = {}) {
     app.delete('/api/register', unregister);
     app.post('/api/unregister', unregister);
 
+    app.get('/api/config', async () => ({ modes: appModes, defaultMode: defaultAppMode }));
+
+    const toGridPeer = (origin) => ({ peer, km }) => ({
+        id: peer.peerId,
+        avatar: peer.thumbnail,
+        name: peer.name,
+        distanceBucket: origin ? distanceBucket(km) : null
+    });
+    const withDistance = (origin, peers) => peers
+        .map(peer => ({ peer, km: origin && isGeohash(peer.geohash) ? distanceKm(origin, decodeGeohash(peer.geohash)) : Infinity }))
+        .sort((left, right) => left.km - right.km || left.peer.peerId.localeCompare(right.peer.peerId))
+        .slice(0, MAX_GRID_RESULTS);
+
     app.get('/api/grid', async (request, reply) => {
-        const { geohash, live } = request.query || {};
+        const { geohash, live, scope = 'public' } = request.query || {};
         if (!isGeohash(geohash, GRID_PRECISION)) {
             return reply.code(400).send({ error: 'Missing geohash param' });
         }
+        const normalizedGeohash = geohash.substring(0, GRID_PRECISION);
+        const origin = decodeGeohash(normalizedGeohash);
+
+        // Freunde in der Naehe: nur gegenseitige Kontakte des anfragenden Peers.
+        if (scope === 'friends') {
+            if (!appModes.includes('friends')) return reply.code(403).send({ error: 'Mode not enabled' });
+            const { peerId } = request.query;
+            if (!isString(peerId, 200)) return reply.code(400).send({ error: 'Missing peerId' });
+            if (!requirePeerAuth(request, reply, peerId)) return;
+            const peers = withDistance(origin, store.getVisiblePeers(signaling.getMutualContacts(peerId)));
+            return { geohash: normalizedGeohash, scope, count: peers.length, hasMore: false, peers: peers.map(toGridPeer(origin)), removedPeerIds: [] };
+        }
+
+        // Event: alle Teilnehmer mit demselben Code-Hash, unabhaengig vom Ort.
+        if (scope === 'event') {
+            if (!appModes.includes('event')) return reply.code(403).send({ error: 'Mode not enabled' });
+            const { eventHash } = request.query;
+            if (!isEventHash(eventHash)) return reply.code(400).send({ error: 'Invalid eventHash' });
+            const peers = withDistance(origin, store.getEventPeers(eventHash));
+            return { geohash: normalizedGeohash, scope, count: peers.length, hasMore: false, peers: peers.map(toGridPeer(origin)), removedPeerIds: [] };
+        }
+
+        if (scope !== 'public') return reply.code(400).send({ error: 'Invalid scope' });
+        if (!appModes.includes('discovery')) return reply.code(403).send({ error: 'Mode not enabled' });
         const ring = request.query.ring == null ? 0 : Number(request.query.ring);
         if (!Number.isInteger(ring) || ring < 0 || ring > MAX_GRID_RING) {
             return reply.code(400).send({ error: 'Invalid ring' });
         }
-        const normalizedGeohash = geohash.substring(0, GRID_PRECISION);
-        const origin = decodeGeohash(normalizedGeohash);
         const liveOnly = live === '1';
         const visible = peer => !liveOnly || signaling.isPeerOnline(peer.peerId);
 
         const grid = store.getGridArea(gridRingCells(normalizedGeohash, ring));
         // Entfernung nur zwischen Zellmittelpunkten; die Antwort enthaelt weder Koordinaten noch Geohash.
-        const peers = grid.peers
-            .filter(visible)
-            .map(peer => ({ peer, km: distanceKm(origin, decodeGeohash(peer.geohash)) }))
-            .sort((left, right) => left.km - right.km || left.peer.peerId.localeCompare(right.peer.peerId))
-            .slice(0, MAX_GRID_RESULTS);
+        const peers = withDistance(origin, grid.peers.filter(visible));
         const hasMore = ring < MAX_GRID_RING
             && store.getGridArea(gridRingCells(normalizedGeohash, ring + 1)).peers.filter(visible).length > grid.peers.filter(visible).length;
         return {
@@ -453,12 +517,7 @@ export async function buildApp(options = {}) {
             ring,
             count: peers.length,
             hasMore,
-            peers: peers.map(({ peer, km }) => ({
-                id: peer.peerId,
-                avatar: peer.thumbnail,
-                name: peer.name,
-                distanceBucket: distanceBucket(km)
-            })),
+            peers: peers.map(toGridPeer(origin)),
             removedPeerIds: grid.removedPeerIds
         };
     });

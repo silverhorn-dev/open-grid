@@ -422,6 +422,13 @@ async function deriveSessionKey(peerId, publicJwk, profileSigningKey) {
     if (knownIdentity?.profileSigningKey && !publicJwksMatch(knownIdentity.profileSigningKey, profileSigningKey)) {
         throw new Error('Peer profile signing key changed.');
     }
+    // Per Einladungslink angelegter Kontakt: der Schluessel muss zum Fingerprint im Link passen.
+    if (!await verifyInvitedPeerKey(peerId, profileSigningKey)) {
+        showToast('Achtung: Dieser Kontakt hat nicht den Schluessel aus der Einladung. Verbindung abgebrochen.', 'error');
+        const connection = state.webrtcConnections[peerId];
+        if (connection) cleanupPeerConnection(peerId, connection);
+        throw new Error('Peer key does not match the invite fingerprint.');
+    }
     await persistPeerIdentityKey(peerId, publicJwk, profileSigningKey);
     const publicKey = await window.crypto.subtle.importKey(
         'jwk',

@@ -95,7 +95,7 @@ export function registerSignalingRoute(app, store) {
                     }
                     currentPeerId = peerId;
                     activeSockets.set(peerId, socket);
-                    setPeerCell(peerId, store.getPeerGeohash(peerId), store.isPeerSilent(peerId));
+                    setPeerCell(peerId, store.getPeerGeohash(peerId), !store.isPeerPublic(peerId));
                     socket.send(JSON.stringify({ type: 'SOCKET_REGISTERED', peerId }));
                     return;
                 }
@@ -141,6 +141,10 @@ export function registerSignalingRoute(app, store) {
 
     return {
         isPeerOnline: isOnline,
+        // Gegenseitige, nicht blockierte Kontakte, die gerade online sind (Freunde-Grid).
+        getMutualContacts(peerId) {
+            return [...(subscriptions.get(peerId) || [])].filter(targetId => isOnline(targetId) && canSeePresence(peerId, targetId));
+        },
         // Vom Register-Endpunkt: Zelle oder Silent-Modus haben sich geaendert.
         updatePeerCell(peerId, geohash, silent) {
             if (activeSockets.has(peerId)) setPeerCell(peerId, geohash, silent);

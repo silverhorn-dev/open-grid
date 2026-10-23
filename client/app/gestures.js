@@ -190,10 +190,11 @@ function handleTabTouchEnd() {
     if (!gesture || gesture.axis !== 'x') return;
     const fast = Math.abs(gesture.deltaX) / Math.max(1, performance.now() - gesture.startedAt) > 0.5;
     if (Math.abs(gesture.deltaX) < TAB_SWIPE_TRIGGER && !fast) return;
-    const index = TAB_ORDER.indexOf(tab) + (gesture.deltaX < 0 ? 1 : -1);
-    if (index < 0 || index >= TAB_ORDER.length) return;
+    const order = TAB_ORDER.filter(entry => entry !== 'grid' || isGridAvailable());
+    const index = order.indexOf(tab) + (gesture.deltaX < 0 ? 1 : -1);
+    if (index < 0 || index >= order.length) return;
     hapticTick();
-    switchTab(TAB_ORDER[index]);
+    switchTab(order[index]);
 }
 
 // ----- Fenster nach unten wischen = schliessen -----

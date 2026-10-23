@@ -83,7 +83,8 @@ async function applyRoute({ tab, peerId }) {
             else switchTab('chat');
         } else {
             if (tab === 'chat' && state.activeChatPeerId) leaveActiveChat();
-            switchTab(tab);
+            // Im Modus "Nur Chat" gibt es kein Grid.
+            switchTab(tab === 'grid' && typeof isGridAvailable === 'function' && !isGridAvailable() ? 'chat' : tab);
         }
     } finally {
         state.applyingRoute = false;
@@ -102,6 +103,13 @@ function handlePopState() {
 
 // Startroute: alte Deep Links (/?chat=<id>) und "/" werden auf echte Pfade umgeschrieben.
 function resolveInitialRoute() {
+    // Einladungslink: der Teil nach # wird gemerkt und nach dem Start ausgewertet.
+    if (window.location.pathname === '/invite') {
+        state.pendingInvite = window.location.hash;
+        window.history.replaceState({ route: TAB_PATHS.chat, from: null }, '', TAB_PATHS.chat);
+        state.routePath = TAB_PATHS.chat;
+        return { tab: 'chat', peerId: null };
+    }
     const legacyChatPeerId = new URLSearchParams(window.location.search).get('chat');
     const route = legacyChatPeerId ? { tab: 'chat', peerId: legacyChatPeerId } : parseRoute();
     const path = route.peerId ? `/chat/${encodeURIComponent(route.peerId)}` : TAB_PATHS[route.tab];

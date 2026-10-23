@@ -86,6 +86,14 @@ export function createStore(databasePath) {
     if (!peerColumns.some(column => column.name === 'silent')) {
         database.exec('ALTER TABLE peers ADD COLUMN silent INTEGER NOT NULL DEFAULT 0');
     }
+    // App-Modi (P8): wo der Peer sichtbar ist (public, friends, event) und der Hash des Event-Codes.
+    if (!peerColumns.some(column => column.name === 'scope')) {
+        database.exec("ALTER TABLE peers ADD COLUMN scope TEXT NOT NULL DEFAULT 'public'");
+    }
+    if (!peerColumns.some(column => column.name === 'event_hash')) {
+        database.exec('ALTER TABLE peers ADD COLUMN event_hash TEXT');
+        database.exec('CREATE INDEX IF NOT EXISTS peers_event_expires ON peers (event_hash, expires_at)');
+    }
     const credentialColumns = database.prepare('PRAGMA table_info(peer_credentials)').all();
     if (!credentialColumns.some(column => column.name === 'identity_jwk')) {
         database.exec('ALTER TABLE peer_credentials ADD COLUMN identity_jwk TEXT');
@@ -93,7 +101,7 @@ export function createStore(databasePath) {
 
     const statements = {
         findPeer: database.prepare(`
-            SELECT peer_id AS peerId, registration_id AS registrationId, auth_hash AS authHash, geohash, silent
+            SELECT peer_id AS peerId, registration_id AS registrationId, auth_hash AS authHash, geohash, silent, scope
             FROM peers
             WHERE peer_id = ?
         `),
@@ -112,8 +120,8 @@ export function createStore(databasePath) {
             WHERE peer_id = ?
         `),
         upsertPeer: database.prepare(`
-            INSERT INTO peers (peer_id, registration_id, auth_hash, geohash, thumbnail, name, silent, expires_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO peers (peer_id, registration_id, auth_hash, geohash, thumbnail, name, silent, scope, event_hash, expires_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(peer_id) DO UPDATE SET
                 registration_id = excluded.registration_id,
                 auth_hash = excluded.auth_hash,
@@ -121,6 +129,8 @@ export function createStore(databasePath) {
                 thumbnail = excluded.thumbnail,
                 name = excluded.name,
                 silent = excluded.silent,
+                scope = excluded.scope,
+                event_hash = excluded.event_hash,
                 expires_at = excluded.expires_at
         `),
         deletePeer: database.prepare('DELETE FROM peers WHERE peer_id = ?'),
@@ -129,7 +139,18 @@ export function createStore(databasePath) {
         listPeersInCell: database.prepare(`
             SELECT peer_id AS peerId, geohash, thumbnail, name
             FROM peers
-            WHERE geohash >= ? AND geohash < ? AND expires_at > ? AND silent = 0
+            WHERE geohash >= ? AND geohash < ? AND expires_at > ? AND silent = 0 AND scope = 'public'
+        `),
+        listEventPeers: database.prepare(`
+            SELECT peer_id AS peerId, geohash, thumbnail, name
+            FROM peers
+            WHERE event_hash = ? AND scope = 'event' AND expires_at > ? AND silent = 0
+            LIMIT 500
+        `),
+        findVisiblePeer: database.prepare(`
+            SELECT peer_id AS peerId, geohash, thumbnail, name
+            FROM peers
+            WHERE peer_id = ? AND expires_at > ? AND silent = 0 AND scope IN ('public', 'friends')
         `),
         listRemovedInCell: database.prepare(`
             SELECT peer_id AS peerId
@@ -271,7 +292,10 @@ export function createStore(databasePath) {
                 );
             }
             const silent = session.silent ? 1 : 0;
-            if (previous && !previous.silent && (previous.geohash !== session.geohash || silent)) {
+            const scope = ['friends', 'event'].includes(session.scope) ? session.scope : 'public';
+            const wasPublic = previous && !previous.silent && (previous.scope || 'public') === 'public';
+            const isPublic = !silent && scope === 'public';
+            if (wasPublic && (previous.geohash !== session.geohash || !isPublic)) {
                 // Tombstone, damit andere Clients den Peer aus ihrem lokalen Grid-Cache entfernen.
                 statements.upsertRemoved.run(
                     previous.geohash,
@@ -291,9 +315,11 @@ export function createStore(databasePath) {
                 session.thumbnail,
                 session.name,
                 silent,
+                scope,
+                scope === 'event' ? session.eventHash : null,
                 now + ttlMs
             );
-            if (!silent) statements.deleteRemoved.run(session.geohash, session.peerId);
+            if (isPublic) statements.deleteRemoved.run(session.geohash, session.peerId);
             return true;
         });
     }
@@ -333,6 +359,22 @@ export function createStore(databasePath) {
 
         isPeerSilent(peerId) {
             return Boolean(statements.findPeer.get(peerId)?.silent);
+        },
+
+        // Nur im oeffentlichen Grid sichtbare Peers loesen PEER_OFFLINE in ihrer Zelle aus.
+        isPeerPublic(peerId) {
+            const peer = statements.findPeer.get(peerId);
+            return Boolean(peer) && !peer.silent && (peer.scope || 'public') === 'public';
+        },
+
+        getEventPeers(eventHash, now = Date.now()) {
+            cleanup(now);
+            return statements.listEventPeers.all(eventHash, now);
+        },
+
+        // Fuer das Freunde-Grid: nur nicht stille Peers im Modus public oder friends.
+        getVisiblePeers(peerIds, now = Date.now()) {
+            return peerIds.map(peerId => statements.findVisiblePeer.get(peerId, now)).filter(Boolean);
         },
 
         authenticatePeer(peerId, authHash) {

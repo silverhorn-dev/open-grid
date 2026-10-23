@@ -512,3 +512,19 @@ async function updateGridSetting(key, value) {
     if (key === 'liveGrid') await fetchPeersFromWorkerGrid();
     else await refreshPresenceAndGrid();
 }
+
+// ================= DARSTELLUNG =================
+function setChatFontSize(size) {
+    if (!CHAT_FONT_SIZES[size]) return;
+    try {
+        window.localStorage.setItem(CHAT_FONT_SIZE_STORAGE_KEY, size);
+    } catch {
+        // Ohne localStorage gilt die Einstellung nur fuer diese Sitzung.
+    }
+    applyChatFontSize(size);
+}
+
+function renderAppearanceSettings() {
+    const select = document.getElementById('chat-font-size-select');
+    if (select) select.value = loadChatFontSize();
+}

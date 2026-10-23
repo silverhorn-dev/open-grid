@@ -25,6 +25,9 @@
   und die Tailwind-Konfiguration.
 - Der Server liefert nur Dateien aus der festen Liste `clientAssetFiles` in
   `server/app.js` aus; neue Client-Dateien muessen dort eingetragen werden.
+- Schriftgroesse im Chat: `localStorage` `opengrid-chat-font-size`
+  (`small` 13 px, `normal` 15 px, `large` 17 px, `xlarge` 19 px) setzt die
+  CSS-Variable `--chat-font-size`.
 - Debug-Modus: `CONFIG.DEBUG_MODE` kommt aus `localStorage`
   (`opengrid-debug-mode` = `on`/`off`, Standard aus). Ist er an, traegt
   `<html>` die Klasse `debug-on`. Elemente mit der Klasse `debug-only` sind
@@ -305,6 +308,12 @@ Chats werden als idempotente Operationen synchronisiert:
   `chatOperations` geloescht. Reaktionen loesen keinen Web Push aus.
 - Markierungen (`message.starred`) und die Chat-Suche sind rein lokal und
   werden nicht synchronisiert.
+- Normale Snaps tragen `snapMode: 'replay'`: der Empfaenger kann sie einmal
+  ansehen und einmal wiederholen (lokal `snapViews`). Danach wird `snapData`
+  in `messages` und im Operations-Log (`put:<id>`) geloescht. Mit "Speichern"
+  setzt der Empfaenger lokal `snapSaved`; dann bleibt der Snap wie ein Bild im
+  Chat. Secure Snaps lassen sich nie speichern. Snaps ohne `snapMode` (vor
+  dieser Aenderung) bleiben dauerhaft sichtbar.
 - Snaps (`message.snapData`) werden auf max. 1080 px verkleinert und so lange
   komprimiert, bis die Data-URL hoechstens 70 000 Zeichen hat. So passen sie
   auch in Pfad C (Queue-Limit 100 KB Ciphertext).

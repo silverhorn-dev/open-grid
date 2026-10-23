@@ -38,6 +38,17 @@ html.debug-on .debug-off-only {
     .chat-bubble-wrap:hover .message-actions { opacity: 0; pointer-events: none; }
     .actions-open .chat-bubble-wrap .message-actions { opacity: 1; pointer-events: auto; }
 }
+.message-actions-toggle { display: none; }
+@media (hover: none) {
+    .message-actions-toggle { display: flex; }
+    .actions-open .message-actions-toggle i { transform: rotate(180deg); }
+}
+
+/* Schriftgroesse im Chat (Einstellung "Darstellung") */
+.chat-bubble {
+    font-size: var(--chat-font-size, 15px);
+    line-height: 1.45;
+}
 #chat-messages > [id^="chat-message-"] {
     padding-top: 0.75rem;
 }

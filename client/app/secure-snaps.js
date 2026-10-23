@@ -441,7 +441,9 @@ function hideSecureSnapViewer() {
         if (viewing.phase === 'streaming') {
             sendSecurePayload(viewing.peerId, { type: 'SNAP_VIEW_CLOSED', snapId: viewing.snapId }).catch(() => {});
         }
+        if (viewing.mode === 'replay') finishReplaySnapView(viewing).catch(() => {});
     }
+    document.getElementById('secure-snap-save').classList.add('hidden');
     const video = document.getElementById('secure-snap-video');
     video.pause();
     video.srcObject = null;

@@ -291,7 +291,10 @@ Akzeptanzkriterien:
   Nachrichten beschraenkt werden.
 - Die Aktionen (Antworten, Reagieren, Markieren, Loeschen) sitzen als Leiste
   mit gut treffbaren Knoepfen halb ueber der Nachricht. Am Desktop erscheinen
-  sie beim Hovern, auf Touch-Geraeten nach einem Tipp auf die Nachricht.
+  sie beim Hovern, auf Touch-Geraeten ueber einen Pfeil an der Aussenseite der
+  Nachricht. Die Leiste ist bei eigenen Nachrichten rechtsbuendig, bei fremden
+  linksbuendig, und ragt nie aus dem Bildschirm.
+- Die Schriftgroesse der Nachrichten ist in den Einstellungen waehlbar.
 - Die Suche filtert den aktuellen Chat lokal nach Text.
 
 ## UC-20: Snaps aufnehmen
@@ -308,6 +311,9 @@ Akzeptanzkriterien:
 - Nach der Aufnahme gibt es eine Vorschau mit optionaler Bildunterschrift,
   "Nochmal" und "Senden".
 - Die Kamera wird beim Schliessen immer freigegeben.
+- Ein normaler Snap laesst sich einmal ansehen und einmal wiederholen; danach
+  ist er weg. Mit "Speichern" bleibt er dauerhaft im Chat. Secure Snaps
+  lassen sich nicht speichern.
 - Snaps passen immer in Pfad C. Laeuft die Queue-TTL ab, bevor der
   Empfaender sie abholt, sieht der Sender einen Hinweis; die Nachricht geht
   beim naechsten direkten Sync raus.
@@ -348,8 +354,9 @@ Akzeptanzkriterien:
 
 - Snaps, Albumbilder, Bilder der Medienuebersicht und Profilbilder oeffnen in
   einem Vollbild-Betrachter.
-- Wischen (oder Pfeiltasten/-knoepfe am Desktop) blaettert zwischen den
-  Bildern derselben Quelle; ein Zaehler zeigt die Position.
+- Wischen (oder Pfeiltasten/-knoepfe am Desktop) blaettert fluessig zwischen
+  den Bildern derselben Quelle; das naechste Bild ist beim Wischen schon
+  sichtbar. Ein Zaehler zeigt die Position.
 - Pinch, Doppeltipp oder Mausrad zoomen bis 5-fach; ein gezoomtes Bild laesst
   sich verschieben.
 - Nach unten wischen, "Zurueck" oder Escape schliessen den Betrachter.

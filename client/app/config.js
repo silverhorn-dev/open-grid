@@ -2,6 +2,25 @@ const DEBUG_MODE_STORAGE_KEY = 'opengrid-debug-mode';
 const CONFIG = { DEBUG_MODE: loadDebugModePreference(), DEFAULT_GEOHASH: 'u10j2k' };
 document.documentElement.classList.toggle('debug-on', CONFIG.DEBUG_MODE);
 
+// Schriftgroesse der Chatnachrichten, pro Geraet (wie der Debug-Modus).
+const CHAT_FONT_SIZES = { small: 13, normal: 15, large: 17, xlarge: 19 };
+const CHAT_FONT_SIZE_STORAGE_KEY = 'opengrid-chat-font-size';
+
+function loadChatFontSize() {
+    try {
+        const stored = window.localStorage.getItem(CHAT_FONT_SIZE_STORAGE_KEY);
+        return CHAT_FONT_SIZES[stored] ? stored : 'normal';
+    } catch {
+        return 'normal';
+    }
+}
+
+function applyChatFontSize(size) {
+    document.documentElement.style.setProperty('--chat-font-size', `${CHAT_FONT_SIZES[size] || CHAT_FONT_SIZES.normal}px`);
+}
+
+applyChatFontSize(loadChatFontSize());
+
 const DEFAULT_PROFILE_SCHEMA = [
     { key: 'displayName', label: 'Display Name', type: 'string', required: true, default: 'Alex' },
     { key: 'age', label: 'Age', type: 'number', min: 18, max: 99, default: 26 },

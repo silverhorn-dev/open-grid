@@ -376,6 +376,8 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
         senderId: state.myProfile.id,
         text,
         snapData,
+        // Neue normale Snaps: einmal ansehen, einmal wiederholen, nur gespeichert bleibt er.
+        snapMode: snapData ? 'replay' : undefined,
         album: album || undefined,
         secureSnap: secureSnap || undefined,
         replyTo: buildReplyReference(peerId, state.replyToMessageId),
@@ -478,7 +480,7 @@ function renderChatHistory() {
         row.className = `flex flex-col ${isMine ? 'items-end' : 'items-start'}`;
         if (message.replyTo && !message.deleted) row.appendChild(renderReplyQuote(message.replyTo, isMine));
         const bubble = document.createElement('div');
-        bubble.className = `max-w-[80%] rounded-2xl px-4 py-2 text-xs overflow-hidden ${message.deleted ? 'bg-slate-900 text-slate-500 border border-slate-800 italic' : isMine ? 'bg-brand-600 text-white rounded-br-none' : 'bg-slate-800 text-slate-100 rounded-bl-none'}`;
+        bubble.className = `chat-bubble max-w-[80%] rounded-2xl px-4 py-2 overflow-hidden ${message.deleted ? 'bg-slate-900 text-slate-500 border border-slate-800 italic' : isMine ? 'bg-brand-600 text-white rounded-br-none' : 'bg-slate-800 text-slate-100 rounded-bl-none'}`;
 
         if (message.deleted) {
             bubble.textContent = 'Nachricht geloescht';
@@ -498,6 +500,8 @@ function renderChatHistory() {
                 caption.textContent = message.text;
                 bubble.appendChild(caption);
             }
+        } else if (message.snapMode === 'replay' && !message.snapSaved) {
+            renderReplaySnapMessage(bubble, message, isMine);
         } else if (message.snapData) {
             if (isSafeInlineImage(message.snapData)) {
                 const image = document.createElement('img');
@@ -539,7 +543,17 @@ function renderChatHistory() {
         bubbleWrap.appendChild(bubble);
         if (!message.deleted) {
             bubbleWrap.appendChild(renderMessageActions(message, isMine));
-            bubble.onclick = () => toggleMessageActions(row);
+            // Touch-Geraete haben kein Hovern: ein Pfeil an der Aussenseite der Nachricht oeffnet die Aktionen.
+            const toggle = document.createElement('button');
+            toggle.type = 'button';
+            toggle.className = `message-actions-toggle absolute top-0 ${isMine ? '-left-8' : '-right-8'} w-7 h-7 rounded-full bg-slate-800/80 border border-slate-700 text-slate-300 text-xs items-center justify-center`;
+            toggle.setAttribute('aria-label', 'Aktionen anzeigen');
+            toggle.innerHTML = '<i class="fa-solid fa-chevron-down"></i>';
+            toggle.onclick = event => {
+                event.stopPropagation();
+                toggleMessageActions(row);
+            };
+            bubbleWrap.appendChild(toggle);
         }
         row.append(bubbleWrap);
         const reactions = renderReactions(message);
@@ -564,7 +578,7 @@ function describePendingDelivery(message, isMine) {
 function messagePreview(message) {
     if (message.secureSnap) return 'Secure Snap';
     if (message.album) return `Album: ${message.album.name}`;
-    if (message.snapData) return message.text ? `Snap: ${message.text}` : 'Snap';
+    if (message.snapData || message.snapMode) return message.text ? `Snap: ${message.text}` : 'Snap';
     const text = String(message.text || '');
     return text.length > REPLY_PREVIEW_LENGTH ? `${text.slice(0, REPLY_PREVIEW_LENGTH)}...` : text;
 }
@@ -618,19 +632,29 @@ function scrollToChatMessage(messageId) {
 // Auf Touch-Geraeten blendet ein Tipp auf die Nachricht die Aktionen ein, am Desktop das Hovern.
 function toggleMessageActions(row) {
     const wasOpen = row.classList.contains('actions-open');
-    document.querySelectorAll('#chat-messages .actions-open').forEach(element => element.classList.remove('actions-open'));
+    closeMessageActions();
     if (!wasOpen) row.classList.add('actions-open');
 }
 
+function closeMessageActions() {
+    document.querySelectorAll('#chat-messages .actions-open').forEach(element => element.classList.remove('actions-open'));
+}
+
+// Tipp ausserhalb schliesst offene Aktionsleisten.
+document.addEventListener('click', event => {
+    if (!event.target.closest?.('.actions-open')) closeMessageActions();
+});
+
 function openChatImageViewer(messageId) {
     const snaps = (state.chats[state.activeChatPeerId] || [])
-        .filter(message => !message.deleted && isSafeInlineImage(message.snapData));
+        .filter(message => !message.deleted && isInlineSnap(message));
     openImageViewer(snaps.map(message => message.snapData), snaps.findIndex(message => message.id === messageId));
 }
 
 function renderMessageActions(message, isMine) {
     const actions = document.createElement('div');
-    actions.className = `message-actions absolute -top-5 ${isMine ? 'left-0 -translate-x-1/4' : 'right-0 translate-x-1/4'} z-10 flex items-center gap-0.5 rounded-full border border-slate-700 bg-slate-900/95 px-1 py-0.5 shadow-lg text-slate-300`;
+    // Eigene Nachrichten rechtsbuendig, fremde linksbuendig: die Leiste waechst zur Bildschirmmitte.
+    actions.className = `message-actions absolute -top-5 ${isMine ? 'right-0' : 'left-0'} z-10 flex items-center gap-0.5 rounded-full border border-slate-700 bg-slate-900/95 px-1 py-0.5 shadow-lg text-slate-300`;
     const addAction = (iconClass, title, onClick, extraClass = 'hover:text-white hover:bg-slate-800') => {
         const button = document.createElement('button');
         button.type = 'button';
@@ -831,6 +855,95 @@ function receiveChatFocus(peerId, open) {
 }
 
 // ================= SNAPS =================
+// Ein Snap erscheint dauerhaft im Chat (und in Medienuebersicht/Viewer), wenn er gespeichert wurde
+// oder aus der Zeit vor den Einmal-Snaps stammt.
+function isInlineSnap(message) {
+    return isSafeInlineImage(message.snapData) && (message.snapMode !== 'replay' || message.snapSaved);
+}
+
+const REPLAY_SNAP_MAX_VIEWS = 2;
+
+function renderReplaySnapMessage(bubble, message, isMine) {
+    const views = message.snapViews || 0;
+    const available = isSafeInlineImage(message.snapData) && (isMine || views < REPLAY_SNAP_MAX_VIEWS);
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'flex items-center gap-3 text-left w-56';
+    const icon = document.createElement('span');
+    icon.className = `w-10 h-10 shrink-0 rounded-xl flex items-center justify-center text-lg ${available ? 'bg-brand-500/20 text-brand-300' : 'bg-slate-700 text-slate-400'}`;
+    icon.innerHTML = '<i class="fa-solid fa-bolt"></i>';
+    const details = document.createElement('div');
+    details.className = 'min-w-0';
+    const title = document.createElement('div');
+    title.className = 'font-semibold';
+    title.textContent = 'Snap';
+    const meta = document.createElement('div');
+    meta.className = 'opacity-75 text-[11px]';
+    if (isMine) meta.textContent = 'Gesendet · Tippen zum Ansehen';
+    else if (!available) meta.textContent = 'Abgelaufen';
+    else meta.textContent = views === 0 ? 'Tippen zum Ansehen' : 'Tippen zum Wiederholen (1x)';
+    details.append(title, meta);
+    card.append(icon, details);
+    if (available) {
+        card.onclick = event => {
+            event.stopPropagation();
+            openReplaySnap(message.id);
+        };
+    } else {
+        card.disabled = true;
+    }
+    bubble.appendChild(card);
+    if (message.text) {
+        const caption = document.createElement('div');
+        caption.className = 'opacity-90 mt-1';
+        caption.textContent = message.text;
+        bubble.appendChild(caption);
+    }
+}
+
+function openReplaySnap(messageId) {
+    const peerId = state.activeChatPeerId;
+    const message = state.chats[peerId]?.find(item => item.id === messageId);
+    if (!message || !isSafeInlineImage(message.snapData)) return;
+    const isMine = message.senderId === state.myProfile.id;
+    openSecureSnapViewer('');
+    state.secureSnapViewing = { mode: 'replay', peerId, messageId, isMine };
+    const image = document.getElementById('secure-snap-image');
+    image.src = message.snapData;
+    image.classList.remove('hidden');
+    const save = document.getElementById('secure-snap-save');
+    save.classList.toggle('hidden', isMine);
+    save.disabled = false;
+    save.textContent = 'Speichern';
+}
+
+async function saveReplaySnap() {
+    const viewing = state.secureSnapViewing;
+    if (viewing?.mode !== 'replay' || viewing.isMine) return;
+    const message = state.chats[viewing.peerId]?.find(item => item.id === viewing.messageId);
+    if (!message) return;
+    message.snapSaved = true;
+    viewing.saved = true;
+    await persistChatMessage(viewing.peerId, message);
+    const save = document.getElementById('secure-snap-save');
+    save.disabled = true;
+    save.textContent = 'Gespeichert';
+    renderChatHistory();
+}
+
+// Wird beim Schliessen des Viewers aufgerufen: zaehlt die Ansicht, nach der Wiederholung ist der Snap weg.
+async function finishReplaySnapView(viewing) {
+    if (viewing.isMine || viewing.saved) return;
+    const message = state.chats[viewing.peerId]?.find(item => item.id === viewing.messageId);
+    if (!message || message.snapSaved) return;
+    message.snapViews = (message.snapViews || 0) + 1;
+    if (message.snapViews >= REPLAY_SNAP_MAX_VIEWS) {
+        message.snapData = undefined;
+        await removeSnapFromOperation(message.id);
+    }
+    await persistChatMessage(viewing.peerId, message);
+    if (state.activeChatPeerId === viewing.peerId) renderChatHistory();
+}
 // Snaps muessen auch ueber Pfad C passen (Queue-Limit 100 KB Ciphertext), daher max. ca. 70 KB als Data-URL.
 const SNAP_MAX_EDGE = 1080;
 const SNAP_MAX_DATA_URL_LENGTH = 70000;

@@ -16,6 +16,7 @@ window.onload = async () => {
     window.addEventListener('popstate', handlePopState);
     initImageViewer();
     initSecureSnaps();
+    renderAppearanceSettings();
     document.addEventListener('keydown', event => {
         if (event.key === 'Escape') closeMenu();
     });

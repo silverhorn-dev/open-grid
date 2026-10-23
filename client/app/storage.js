@@ -476,6 +476,7 @@ function createPutOperation(peerId, message) {
             senderId: message.senderId,
             text: message.text,
             snapData: message.snapData,
+            snapMode: message.snapMode,
             album: message.album,
             secureSnap: message.secureSnap ? {
                 snapId: message.secureSnap.snapId,
@@ -519,6 +520,7 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
                 secureSnap: sanitizeSecureSnap(localOperation.message.secureSnap),
                 // Ein Secure Snap darf nie zusaetzlich als Klartext-Snap ankommen.
                 snapData: localOperation.message.secureSnap ? undefined : localOperation.message.snapData,
+                snapMode: localOperation.message.snapMode === 'replay' ? 'replay' : undefined,
                 peerId,
                 deliveredVia
             };
@@ -621,6 +623,14 @@ async function trimReactionOperations(peerId, latest) {
         && operation.operationId !== latest.operationId
         && (operation.createdAt || 0) <= (latest.createdAt || 0));
     await Promise.all(outdated.map(operation => deleteDatabaseRecord('chatOperations', operation.operationId)));
+}
+
+// Abgelaufene Einmal-Snaps auch aus dem Operations-Log entfernen, sonst laege das Bild dort weiter.
+async function removeSnapFromOperation(messageId) {
+    const operation = await databaseRequest('chatOperations', 'readonly', store => store.get(`put:${messageId}`));
+    if (!operation?.message?.snapData) return;
+    operation.message = { ...operation.message, snapData: undefined };
+    await persistChatOperation(operation);
 }
 
 // Taucht eine eigene Put-Operation im Inventar des Peers auf, hat er die Nachricht sicher erhalten.

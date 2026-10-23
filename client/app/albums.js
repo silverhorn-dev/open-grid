@@ -356,7 +356,7 @@ function openChatMediaOverview() {
     if (!peerId) return;
     const content = openMediaModal('Medien im Chat');
     const messages = (state.chats[peerId] || []).filter(message => !message.deleted);
-    const snaps = messages.filter(message => isSafeInlineImage(message.snapData));
+    const snaps = messages.filter(isInlineSnap);
     const albums = messages.filter(message => message.album);
     if (!snaps.length && !albums.length) {
         renderMediaModalMessage('In diesem Chat wurden noch keine Bilder geteilt.');

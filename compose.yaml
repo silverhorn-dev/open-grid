@@ -12,8 +12,8 @@ services:
       BUILD_TIMESTAMP: ${BUILD_TIMESTAMP:-}
       DATABASE_PATH: /app/data/open-grid.sqlite
       # TURN-Server Konfiguration
-      TURN_SERVER: turn.og.silverhorn.dev
-      TURN_SECRET: ${TURN_SECRET:-}
+#      TURN_SERVER: turn.og.silverhorn.dev
+#      TURN_SECRET: ${TURN_SECRET:-}
       # Web Push
       VAPID_SUBJECT: ${VAPID_SUBJECT:-}
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}

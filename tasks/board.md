@@ -1,9 +1,11 @@
 # Routing
 - [x] in the kv database just should be the name and the thumbnail
+- [ ] Keine Single-Root mehr: Echte Pages/Routes für State-Erhalt bei Refresh und native Smartphone-Zurück-Navigation
 
 # general
 - [ ] coloring
 - [ ] general config for just chatting or smth else
+- [ ] Optional den Cloudcache ausschalten können
 - [x] split index.html into separate files (`client/app/*.js`, `client/styles.css`)
 - [x] THE GUI IMPROVEMENT
   - [x] mobile first
@@ -42,6 +44,7 @@
 			  - heißt, man sieht die ungefähre entfernung
 		  - ist das ne gute idee, oder sollte man die aktuelle genaue pos übergeben
 			    sollte man einstellen können!
+- [ ] Konfigurierbare Profil-TTL: "Live"-Modus checkt Online-Status im Grid, bevor das Profil sichtbar wird
 
 # Chat
 - [x] functional chat
@@ -54,6 +57,11 @@
   - [ ] unter den nachrichten stimmt beim empfänger die herkunft nicht immer, bei path c zb steht E2E P2P und nicht E2EE PC oder so
   - [x] blocking und chat delete sollte den chat jeweils vollständig löschen!
   - [x] im chat bereich sollten nicht alle peers erscheinen, nur jene zu denen ein chat existiert
+  - [ ] normale Chat-Funktionen: reagieren, antworten (auch auf eigene), suchen, markieren
+  - [ ] Foto- & Medienwelt:
+    - [ ] Medien-Übersicht des Chats
+    - [ ] Geteilte Alben im Chat: Deckfoto anzeigen, erneuter Klick öffnet das Album
+
 ## status
 - [ ] aktuell kann der status P2P Connected ausgelesen werden. im debug sollte das so sein. ohne würde ich da analog zu snap :eyes: platzieren
 - [ ] nachrichtenstatus hnäg teilweise bei establishing secure channel
@@ -63,6 +71,7 @@
   - [ ] use camera
 	  - [ ] hier funkt die kameraanbindung nicht so gut
   - [ ] better gui
+  - [ ] bilder können im PCache landen, aber da gibt es eine TTL also sollte der sender auf das ablaufen dieser gefasst sein. 
   - [ ] angelehnt an die snapchat GUI
 
 # Debug
@@ -100,3 +109,38 @@
 - [x] service worker stores message in IndexedDB + ACKs the queue
 - [x] notification click opens the chat
 - [x] test on real devices (Android Chrome, Firefox, iOS PWA)
+
+# Media & Albums (Access Control)
+- [ ] Mehrere Alben unterstützen
+- [ ] Zugriffssteuerung pro Album: teilen / nicht mehr teilen (Revoke-Management)
+
+# Advanced Encryption (Media & Performance)
+- [ ] Rolling-Key / Double-Key Verfahren für Medien:
+  - [ ] Zusammengesetzter Key: Schlüssel Sender + Key Empfänger = Media-Key
+  - [ ] Schlüssel rotieren/ablaufen lassen (z.B. per Hour-Flag)
+  - [ ] Parameterisiertes Verfahren: Nur der Client-Schlüssel wird manipuliert, nicht die rohen Daten neu verschlüsseln (CPU schonen)
+  - [ ] TTL für Verschlüsselungs-Parameter (stündlicher Wechsel, vom Client pünktlich getauscht)
+  - [ ] Verlässliche Server-Zeit für Rotation (Geräte-Zeit ignorieren wg. Manipulationssicherheit)
+
+# Privacy & Location (Anti-Triangulation)
+- [ ] Grid-Snapping (Fuzzy Location): Koordinaten mathematisch auf den Mittelpunkt der Geohash-Zelle runden, um Trilateration zu verhindern
+- [ ] Safe Zones (Privacy Bubbles): Eigene Geofences (z. B. Zuhause, Arbeit) definieren, in denen der Client automatisch aus dem Grid verschwindet
+
+# E2E View-Once & Watermarking
+- [ ] Kryptografisches Zeroing: Symmetrische Schlüssel für ephemere Medien (Snaps) nach X Sekunden im RAM mit Nullen überschreiben
+- [ ] Personalisierte Steganografie-Wasserzeichen: Empfänger-ID als Rauschen ins Bild rechnen (Leaker-Identifikation bei Screenshots)
+
+# Matching & Chat-Modi
+- [ ] 3-stufige Chat-Berechtigungen (jederzeit wechselbar):
+  - [ ] A (Alles): Jeder Peer kann uneingeschränkt schreiben
+  - [ ] B (Eingeschränkt): Max. 5 Nachrichten (optional ohne Bilder) bis zum gegenseitigen "Match"
+  - [ ] C (Nur Matches): Chat ist blockiert, bis auf "Match" geklickt wurde
+- [ ] Flame / Match Ping Logik: Leichtgewichtiger Interaktions-Ping (ähnlich Grindr Taps) zum Signalisieren von Interesse und Triggern von Matches
+- [ ] 3-stufige Profil-Sichtbarkeit:
+  - [ ] Stufe 1: Alles sofort für jeden im Grid sichtbar
+  - [ ] Stufe 2: Teilsichtbar (Eine Hälfte oder die Bilder-Galerie erst nach "Match" sichtbar; erzeugt optionalen Ping)
+  - [ ] Stufe 3: Unsichtbar (Profil-Details und Bilder erst nach "Match" sichtbar; erzeugt zwingend Ping)
+
+# Hyperlocal Mesh (Festival/Club Mode)
+- [ ] WebRTC over LAN: mDNS und lokale Host-Kandidaten aggressiv priorisieren
+- [ ] Offline-Mesh: Direkter Traffic im selben WLAN (z. B. auf Prides/in Clubs) ohne Cloud-Routing

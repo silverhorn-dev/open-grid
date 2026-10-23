@@ -449,6 +449,11 @@ async function handleIncomingProfileResponse(peerId, signedEnvelopeOrProfile) {
 }
 
 async function handleIncomingImageRequest(peerId, imageId) {
+    // Nur Galeriebilder und Bilder aus Alben, fuer die der Peer freigeschaltet ist.
+    if (typeof imageId !== 'string' || !canPeerAccessImage(peerId, imageId)) {
+        logDebug(`Denied image ${imageId} for ${peerId}.`);
+        return;
+    }
     const media = await loadMedia(imageId);
     if (media) sendSecurePayload(peerId, { type: 'IMAGE_RESPONSE', imageId, version: media.version, data: media.data }).catch(() => {});
 }
@@ -456,8 +461,9 @@ async function handleIncomingImageRequest(peerId, imageId) {
 async function handleIncomingImageResponse(peerId, imageId, version, data) {
     const requestKey = `${peerId}:${imageId}`;
     const requestedVersion = state.pendingImageRequests[requestKey];
-    const galleryEntry = state.cachedProfiles[peerId]?.gallery?.find(item => item.id === imageId);
-    if (requestedVersion !== version || galleryEntry?.version !== version) {
+    const galleryEntry = state.cachedProfiles[peerId]?.gallery?.find(item => item.id === imageId)
+        || findReceivedAlbumItem(peerId, imageId);
+    if (requestedVersion !== version || galleryEntry?.version !== version || !isSafeInlineImage(data)) {
         logDebug(`Rejected unsolicited gallery image ${imageId} from ${peerId}.`);
         return;
     }
@@ -466,6 +472,7 @@ async function handleIncomingImageResponse(peerId, imageId, version, data) {
     if (currentMedia && currentMedia.version > version) return;
     await cacheMedia(imageId, data, version);
     if (typeof renderModalGalleryImage === 'function') renderModalGalleryImage(imageId, data);
+    renderAlbumViewerImage(imageId, data);
 }
 
 async function handleDataChannelMessage(peerId, rawMessage) {
@@ -560,6 +567,14 @@ async function handleSecurePayload(peerId, payload, deliveredVia = 'E2EE P2P') {
         if (state.activeModalPeerId === targetNodeId && typeof renderProfileModalData === 'function') {
             renderProfileModalData(acceptedProfile);
         }
+    } else if (payload.type === 'ALBUM_REQUEST') {
+        await handleAlbumRequest(peerId, payload.albumId);
+    } else if (payload.type === 'ALBUM_RESPONSE') {
+        await handleAlbumResponse(peerId, payload);
+    } else if (payload.type === 'ALBUM_DENIED') {
+        await handleAlbumDenied(peerId, payload.albumId);
+    } else if (payload.type === 'ALBUM_REVOKED') {
+        await forgetReceivedAlbum(peerId, payload.albumId);
     } else if (payload.type === 'IMAGE_REQUEST') {
         await handleIncomingImageRequest(peerId, payload.imageId);
     } else if (payload.type === 'IMAGE_RESPONSE') {
@@ -583,6 +598,7 @@ async function beginChatSync(peerId) {
 }
 
 async function handleChatSyncHello(peerId, payload) {
+    await confirmDeliveredOperations(peerId, payload.recentOperationIds || []);
     const operations = await getChatOperations(peerId);
     const localIds = new Set(operations.map(operation => operation.operationId));
     const missingIds = (payload.recentOperationIds || []).filter(operationId => !localIds.has(operationId));
@@ -613,6 +629,7 @@ async function sendChatSyncInventory(peerId, cursor) {
 }
 
 async function handleChatSyncInventory(peerId, payload) {
+    await confirmDeliveredOperations(peerId, payload.operationIds || []);
     const localIds = new Set(
         (await getChatOperations(peerId)).map(operation => operation.operationId)
     );
@@ -762,7 +779,8 @@ async function queuePayloadInCache(peerId, item) {
     }
     if (!response.ok) throw new Error(`Cache API returned ${response.status}.`);
     item.cacheQueued = true;
-    if (item.onSent) item.onSent('cache');
+    const queued = await response.json().catch(() => ({}));
+    if (item.onSent) item.onSent('cache', { expiresAt: queued.expiresAt });
     return true;
 }
 

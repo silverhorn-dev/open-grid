@@ -29,6 +29,7 @@ window.onload = async () => {
         await cacheOwnProfile();
         await loadCachedGridPeers();
         await loadChatPeerIds();
+        await loadAlbums();
         await generateUserIdentityKeys();
         await loadGridSettings();
         await registerServiceWorker();

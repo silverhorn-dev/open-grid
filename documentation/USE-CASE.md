@@ -290,3 +290,46 @@ Akzeptanzkriterien:
 - Nachrichten lassen sich lokal markieren; die Suche kann auf markierte
   Nachrichten beschraenkt werden.
 - Die Suche filtert den aktuellen Chat lokal nach Text.
+
+## UC-20: Snaps aufnehmen
+
+**Als Nutzer** moechte ich wie in einer Kamera-App schnell ein Foto im Chat
+verschicken.
+
+Akzeptanzkriterien:
+
+- Die Snap-Kamera oeffnet im Vollbild mit grossem Ausloeser, Kamerawechsel
+  (vorne/hinten) und Schliessen-Knopf.
+- Ohne Kamera oder ohne Erlaubnis kann ein Bild aus der Galerie gewaehlt
+  werden.
+- Nach der Aufnahme gibt es eine Vorschau mit optionaler Bildunterschrift,
+  "Nochmal" und "Senden".
+- Die Kamera wird beim Schliessen immer freigegeben.
+- Snaps passen immer in Pfad C. Laeuft die Queue-TTL ab, bevor der
+  Empfaender sie abholt, sieht der Sender einen Hinweis; die Nachricht geht
+  beim naechsten direkten Sync raus.
+
+## UC-21: Medienuebersicht im Chat
+
+**Als Nutzer** moechte ich alle Bilder eines Chats auf einen Blick sehen.
+
+Akzeptanzkriterien:
+
+- Ein Knopf im Chat-Kopf zeigt alle Snaps und geteilten Alben des Chats.
+- Ein Klick oeffnet das Bild gross beziehungsweise das Album.
+
+## UC-22: Private Alben teilen und entziehen
+
+**Als Nutzer** moechte ich mehrere private Alben anlegen und gezielt
+einzelnen Chat-Partnern zeigen.
+
+Akzeptanzkriterien:
+
+- Alben werden im Profil angelegt, befuellt und geloescht; sie sind nicht
+  Teil des oeffentlichen Profils.
+- Ein Album wird im Chat geteilt und erscheint dort mit Deckfoto; ein Klick
+  oeffnet es.
+- Nur freigegebene Peers erhalten Albuminhalt und Bilder, immer per P2P. Der
+  Besitzer muss dafuer online sein.
+- Der Zugriff kann pro Peer entzogen werden. Danach werden neue Anfragen
+  abgelehnt und der Client des Peers loescht seine Kopie.

@@ -204,7 +204,7 @@ Damit die spaetere direkte Verbindung ein zuvor per Swarm gecachtes Profil auch
 bei identischer Version ersetzen kann, laesst `cachePeerProfile` den Uebergang
 von `unpinned` nach `trusted` als Sonderfall zu.
 
-IndexedDB Version 7 enthaelt:
+IndexedDB Version 8 enthaelt:
 
 | Store | Inhalt |
 |---|---|
@@ -212,8 +212,10 @@ IndexedDB Version 7 enthaelt:
 | `localProfile` | genau ein verschluesseltes eigenes Profil |
 | `profiles` | ausschliesslich verschluesselte Profile anderer Peers |
 | `messages` | lokaler Chatverlauf pro Peer |
-| `chatOperations` | idempotente Put-/Delete-Operationen pro Chat |
+| `chatOperations` | idempotente Put-/Delete-/React-Operationen pro Chat |
 | `gridPeers` | minimale lokale Routing-Metadaten |
+| `media` | verschluesselte Bilder (Galerie, Alben) |
+| `albums` | eigene Alben (`ownerId` = eigene ID, mit `acl`) und empfangene Alben anderer Peers (seit Version 8) |
 
 Der Store `keys` enthaelt zusaetzlich den Datensatz `router-auth` mit
 `nodeId` und Router-Token. Er spiegelt `localStorage` fuer den Service
@@ -224,6 +226,33 @@ Der Datensatz `grid-settings` speichert `silent`, `ttlMinutes`, `liveGrid`,
 (Liste von Geohash-Zellen). Ein fehlender Datensatz entspricht den Standardwerten.
 Safe Zones verlassen nie das Geraet: Liegt die eigene Zelle in einer Safe
 Zone, registriert sich der Client als `silent`.
+
+### 5.1 Alben
+
+Ein eigenes Album ist `{ id: 'alb_<uuid>', ownerId, name, items: [{ id, version }], acl: [peerId] }`.
+Die Bilder (`albimg_<uuid>`, max. 1080 px, JPEG 0.7) liegen verschluesselt in
+`media`. Alben sind nicht Teil des Profils.
+
+Teilen: Der Besitzer nimmt den Chat-Partner in die `acl` auf und sendet eine
+Chat-Nachricht mit `message.album = { albumId, ownerId, name, cover, count }`
+(Deckfoto max. 30 KB). Der Empfaenger akzeptiert den Verweis nur, wenn
+`ownerId` dem Absender entspricht.
+
+P2P-Protokoll (nur ueber den verschluesselten DataChannel):
+
+| Nachricht | Richtung | Bedeutung |
+|---|---|---|
+| `ALBUM_REQUEST { albumId }` | Betrachter -> Besitzer | Albuminhalt anfragen |
+| `ALBUM_RESPONSE { album: { id, name, items } }` | Besitzer -> Betrachter | nur wenn der Betrachter in der `acl` steht und die Anfrage offen ist |
+| `ALBUM_DENIED { albumId }` | Besitzer -> Betrachter | kein Zugriff; der Betrachter loescht seine Kopie |
+| `ALBUM_REVOKED { albumId }` | Besitzer -> Betrachter | Zugriff entzogen oder Album geloescht |
+
+`IMAGE_REQUEST` liefert nur noch Galeriebilder des eigenen Profils oder Bilder
+aus Alben, in deren `acl` der anfragende Peer steht. `IMAGE_RESPONSE` wird nur
+fuer angefragte Bilder aus dem gecachten Profil oder einem empfangenen Album
+desselben Besitzers angenommen. Ein Entzug wirkt fuer neue Anfragen sofort;
+bereits empfangene Kopien loescht der Client des Betrachters nach
+`ALBUM_REVOKED`/`ALBUM_DENIED` (ohne Garantie gegen manipulierte Clients).
 
 Nur eine hoehere Profilversion ersetzt einen vorhandenen Cache.
 Das eigene Profil wird nie durch Grid-Tombstones oder Peer-Cache-Bereinigung
@@ -248,6 +277,15 @@ Chats werden als idempotente Operationen synchronisiert:
   `chatOperations` geloescht. Reaktionen loesen keinen Web Push aus.
 - Markierungen (`message.starred`) und die Chat-Suche sind rein lokal und
   werden nicht synchronisiert.
+- Snaps (`message.snapData`) werden auf max. 1080 px verkleinert und so lange
+  komprimiert, bis die Data-URL hoechstens 70 000 Zeichen hat. So passen sie
+  auch in Pfad C (Queue-Limit 100 KB Ciphertext).
+- Geht eine eigene Nachricht ueber Pfad C, speichert der Sender
+  `cacheExpiresAt` aus der Queue-Antwort. Taucht ihre `put:`-Operation im
+  `CHAT_SYNC_HELLO` oder `CHAT_SYNC_INVENTORY` des Peers auf, wird sie als
+  `deliveryConfirmed` markiert. Ist die TTL ohne Bestaetigung abgelaufen,
+  zeigt der Chat "Nicht abgeholt - wird bei der naechsten direkten Verbindung
+  zugestellt"; der naechste Chat-Sync liefert die Operation aus.
 - Operationen besitzen global eindeutige IDs und koennen mehrfach empfangen
   werden, ohne doppelte Nachrichten zu erzeugen.
 

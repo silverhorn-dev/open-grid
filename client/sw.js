@@ -212,6 +212,7 @@ async function loadCompactSetting() {
 }
 
 function previewText(message) {
+    if (message.album) return 'Album';
     if (message.snapData) return 'Snap';
     const text = String(message.text || '');
     return text.length > PREVIEW_LENGTH ? `${text.slice(0, PREVIEW_LENGTH)}...` : text;

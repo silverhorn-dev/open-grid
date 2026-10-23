@@ -67,6 +67,11 @@ const state = {
     pendingImageRequests: {},
     debugLogBuffer: [],
     mediaStream: null,
+    snapFacingMode: 'user',
+    snapDraft: null,
+    albums: {},
+    albumViewer: null,
+    pendingAlbumRequests: {},
     serviceWorkerRegistration: null,
     persistedRouterAuthToken: null,
     pushSubscriptionSynced: false

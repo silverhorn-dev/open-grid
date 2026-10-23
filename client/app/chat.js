@@ -354,10 +354,12 @@ const DELIVERY_PATH_LABELS = {
     pending: 'Pending'
 };
 
-async function sendChatMessage(snapData = null) {
+// Ohne Anhang kommt der Text aus dem Eingabefeld; Snaps und Alben bringen eine eigene Bildunterschrift mit.
+async function sendChatMessage(snapData = null, caption = '', album = null) {
     const input = document.getElementById('chat-input');
-    const text = input.value.trim() || (snapData ? '? Snap' : '');
-    if ((!text && !snapData) || !state.activeChatPeerId || isPeerBlocked(state.activeChatPeerId)) return;
+    const hasAttachment = Boolean(snapData || album);
+    const text = hasAttachment ? String(caption || '').trim() : input.value.trim();
+    if ((!text && !hasAttachment) || !state.activeChatPeerId || isPeerBlocked(state.activeChatPeerId)) return;
 
     const peerId = state.activeChatPeerId;
     const message = {
@@ -365,6 +367,7 @@ async function sendChatMessage(snapData = null) {
         senderId: state.myProfile.id,
         text,
         snapData,
+        album: album || undefined,
         replyTo: buildReplyReference(peerId, state.replyToMessageId),
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         createdAt: Date.now(),
@@ -376,7 +379,7 @@ async function sendChatMessage(snapData = null) {
     await persistChatMessage(peerId, message);
     const operation = createPutOperation(peerId, message);
     await persistChatOperation(operation);
-    input.value = '';
+    if (!hasAttachment) input.value = '';
     state.replyToMessageId = null;
     renderReplyBar();
     renderChatHistory();
@@ -388,8 +391,10 @@ async function sendChatMessage(snapData = null) {
             ...operation,
             peerId: undefined
         }
-    }, (deliveryPath) => {
+    }, (deliveryPath, details = {}) => {
         message.deliveredVia = DELIVERY_PATH_LABELS[deliveryPath] || 'E2EE P2P';
+        // Path C haelt die Nachricht nur bis zum Ablauf der Queue-TTL.
+        if (deliveryPath === 'cache' && details.expiresAt) message.cacheExpiresAt = details.expiresAt;
         persistChatMessage(peerId, message).catch(error => logDebug(`Could not update chat message: ${error.message}`));
         renderChatHistory();
     });
@@ -467,6 +472,14 @@ function renderChatHistory() {
 
         if (message.deleted) {
             bubble.textContent = 'Nachricht geloescht';
+        } else if (message.album) {
+            renderAlbumMessage(bubble, message.album);
+            if (message.text) {
+                const caption = document.createElement('div');
+                caption.className = 'opacity-90 mt-1';
+                caption.textContent = message.text;
+                bubble.appendChild(caption);
+            }
         } else if (message.snapData) {
             if (isSafeInlineImage(message.snapData)) {
                 const image = document.createElement('img');
@@ -490,6 +503,13 @@ function renderChatHistory() {
         deliveryPath.className = 'debug-only';
         deliveryPath.textContent = message.deliveredVia;
         meta.append(status, deliveryPath);
+        const deliveryHint = describePendingDelivery(message, isMine);
+        if (deliveryHint) {
+            const hint = document.createElement('span');
+            hint.className = 'text-amber-400';
+            hint.textContent = deliveryHint;
+            meta.appendChild(hint);
+        }
         if (!message.deleted) meta.appendChild(renderMessageActions(message, isMine));
         row.append(bubble);
         const reactions = renderReactions(message);
@@ -500,8 +520,19 @@ function renderChatHistory() {
     if (!filtering) container.scrollTop = container.scrollHeight;
 }
 
+// Path C haelt Nachrichten nur bis zur Queue-TTL. Danach liefert erst der naechste direkte Chat-Sync aus.
+function describePendingDelivery(message, isMine) {
+    if (!isMine || message.deleted || message.deliveryConfirmed) return null;
+    if (message.cacheExpiresAt && Date.now() > message.cacheExpiresAt) {
+        return 'Nicht abgeholt - wird bei der naechsten direkten Verbindung zugestellt';
+    }
+    if (message.deliveredVia === 'Pending') return 'Wartet auf Verbindung';
+    return null;
+}
+
 // ================= CHAT-FUNKTIONEN: ANTWORTEN, REAGIEREN, MARKIEREN, SUCHEN =================
 function messagePreview(message) {
+    if (message.album) return `Album: ${message.album.name}`;
     if (message.snapData) return message.text ? `Snap: ${message.text}` : 'Snap';
     const text = String(message.text || '');
     return text.length > REPLY_PREVIEW_LENGTH ? `${text.slice(0, REPLY_PREVIEW_LENGTH)}...` : text;
@@ -752,21 +783,77 @@ function receiveChatFocus(peerId, open) {
     if (state.activeChatPeerId === peerId) renderChatPeerIndicator();
 }
 
+// ================= SNAPS =================
+// Snaps muessen auch ueber Pfad C passen (Queue-Limit 100 KB Ciphertext), daher max. ca. 70 KB als Data-URL.
+const SNAP_MAX_EDGE = 1080;
+const SNAP_MAX_DATA_URL_LENGTH = 70000;
+
 async function openSnapUploadModal() {
     if (!state.activeChatPeerId || isPeerBlocked(state.activeChatPeerId)) {
         showToast('Bitte waehle zuerst einen aktiven Chat aus.', 'warning');
         return;
     }
-    try {
-        state.mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-        const video = document.getElementById('snap-video-preview');
-        video.srcObject = state.mediaStream;
-        document.getElementById('snap-capture-modal').classList.remove('hidden');
-        pushModalEntry('snap', hideSnapModal);
-    } catch (error) {
-        showToast('Kamera-Zugriff verweigert oder nicht verfuegbar.', 'error');
-        logDebug(`Camera error: ${error.message}`);
+    state.snapFacingMode = state.snapFacingMode || 'user';
+    resetSnapPreview();
+    document.getElementById('snap-capture-modal').classList.remove('hidden');
+    pushModalEntry('snap', hideSnapModal);
+    await startSnapCamera();
+}
+
+function stopSnapCamera() {
+    if (state.mediaStream) {
+        state.mediaStream.getTracks().forEach(track => track.stop());
+        state.mediaStream = null;
     }
+    const video = document.getElementById('snap-video-preview');
+    if (video) video.srcObject = null;
+}
+
+async function startSnapCamera() {
+    stopSnapCamera();
+    const video = document.getElementById('snap-video-preview');
+    const status = document.getElementById('snap-camera-status');
+    status.classList.add('hidden');
+    if (!navigator.mediaDevices?.getUserMedia) {
+        showSnapCameraProblem('Keine Kamera verfuegbar. Du kannst ein Bild auswaehlen.');
+        return;
+    }
+    try {
+        try {
+            state.mediaStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: state.snapFacingMode, width: { ideal: 1920 }, height: { ideal: 1080 } },
+                audio: false
+            });
+        } catch (error) {
+            // Manche Geraete kennen facingMode oder die Aufloesung nicht.
+            if (error.name === 'NotAllowedError') throw error;
+            state.mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        }
+        // Das Modal kann waehrend der Kamera-Anfrage geschlossen worden sein.
+        if (document.getElementById('snap-capture-modal').classList.contains('hidden')) {
+            stopSnapCamera();
+            return;
+        }
+        video.srcObject = state.mediaStream;
+        video.classList.toggle('snap-mirrored', state.snapFacingMode === 'user');
+        await video.play().catch(() => {});
+    } catch (error) {
+        logDebug(`Camera error: ${error.name}: ${error.message}`);
+        showSnapCameraProblem(error.name === 'NotAllowedError'
+            ? 'Kamera-Zugriff verweigert. Du kannst ein Bild auswaehlen.'
+            : 'Kamera nicht verfuegbar. Du kannst ein Bild auswaehlen.');
+    }
+}
+
+function showSnapCameraProblem(text) {
+    const status = document.getElementById('snap-camera-status');
+    status.textContent = text;
+    status.classList.remove('hidden');
+}
+
+async function switchSnapCamera() {
+    state.snapFacingMode = state.snapFacingMode === 'user' ? 'environment' : 'user';
+    await startSnapCamera();
 }
 
 function closeSnapModal() {
@@ -774,24 +861,94 @@ function closeSnapModal() {
 }
 
 function hideSnapModal() {
-    if (state.mediaStream) {
-        state.mediaStream.getTracks().forEach(track => track.stop());
-        state.mediaStream = null;
-    }
-    document.getElementById('snap-video-preview').srcObject = null;
+    stopSnapCamera();
+    resetSnapPreview();
     document.getElementById('snap-capture-modal').classList.add('hidden');
 }
 
-async function captureAndSendSnap() {
-    const video = document.getElementById('snap-video-preview');
+function resetSnapPreview() {
+    state.snapDraft = null;
+    document.getElementById('snap-live-controls')?.classList.remove('hidden');
+    document.getElementById('snap-review-controls')?.classList.add('hidden');
+    const preview = document.getElementById('snap-review-image');
+    if (preview) {
+        preview.src = '';
+        preview.classList.add('hidden');
+    }
+    const caption = document.getElementById('snap-caption-input');
+    if (caption) caption.value = '';
+}
+
+// Verkleinert und komprimiert, bis der Snap unter das Pfad-C-Limit passt.
+function encodeSnap(source, width, height, mirror = false) {
     const canvas = document.getElementById('snap-canvas-capture');
+    let scale = Math.min(1, SNAP_MAX_EDGE / Math.max(width, height));
+    let quality = 0.8;
+    for (let attempt = 0; attempt < 12; attempt++) {
+        canvas.width = Math.round(width * scale);
+        canvas.height = Math.round(height * scale);
+        const context = canvas.getContext('2d');
+        context.save();
+        if (mirror) {
+            context.translate(canvas.width, 0);
+            context.scale(-1, 1);
+        }
+        context.drawImage(source, 0, 0, canvas.width, canvas.height);
+        context.restore();
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        if (dataUrl.length <= SNAP_MAX_DATA_URL_LENGTH) return dataUrl;
+        if (quality > 0.45) quality -= 0.1;
+        else scale *= 0.8;
+    }
+    return null;
+}
+
+function showSnapReview(dataUrl) {
+    stopSnapCamera();
+    state.snapDraft = dataUrl;
+    const preview = document.getElementById('snap-review-image');
+    preview.src = dataUrl;
+    preview.classList.remove('hidden');
+    document.getElementById('snap-live-controls').classList.add('hidden');
+    document.getElementById('snap-review-controls').classList.remove('hidden');
+}
+
+function captureSnap() {
+    const video = document.getElementById('snap-video-preview');
     if (!video.videoWidth) return;
+    const dataUrl = encodeSnap(video, video.videoWidth, video.videoHeight, state.snapFacingMode === 'user');
+    if (!dataUrl) {
+        showToast('Snap konnte nicht erstellt werden.', 'error');
+        return;
+    }
+    showSnapReview(dataUrl);
+}
 
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+async function pickSnapImage(input) {
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    try {
+        const bitmap = await createImageBitmap(file);
+        const dataUrl = encodeSnap(bitmap, bitmap.width, bitmap.height);
+        bitmap.close?.();
+        if (!dataUrl) throw new Error('Image too large');
+        showSnapReview(dataUrl);
+    } catch (error) {
+        logDebug(`Snap image failed: ${error.message}`);
+        showToast('Bild konnte nicht geladen werden.', 'error');
+    }
+}
 
-    const imageData = canvas.toDataURL('image/jpeg', 0.8);
+async function retakeSnap() {
+    resetSnapPreview();
+    await startSnapCamera();
+}
+
+async function sendSnapDraft() {
+    const snapData = state.snapDraft;
+    if (!snapData) return;
+    const caption = document.getElementById('snap-caption-input').value;
     closeSnapModal();
-    await sendChatMessage(imageData);
+    await sendChatMessage(snapData, caption);
 }

@@ -176,6 +176,9 @@
                         </div>
                     </div>
                     <div class="flex items-center gap-2 shrink-0">
+                        <button onclick="openChatMediaOverview()" class="w-8 h-8 rounded-lg text-slate-300 hover:bg-slate-800 flex items-center justify-center" title="Medien im Chat" aria-label="Medien im Chat">
+                            <i class="fa-regular fa-images"></i>
+                        </button>
                         <button onclick="toggleChatSearch()" class="w-8 h-8 rounded-lg text-slate-300 hover:bg-slate-800 flex items-center justify-center" title="Im Chat suchen" aria-label="Im Chat suchen">
                             <i class="fa-solid fa-magnifying-glass"></i>
                         </button>
@@ -220,6 +223,9 @@
                     <div class="flex items-center gap-2">
                         <button onclick="openSnapUploadModal()" class="bg-slate-800 hover:bg-slate-700 text-brand-400 border border-slate-700 p-2.5 rounded-lg transition flex items-center gap-1.5 text-xs font-semibold" title="Snap senden">
                             <i class="fa-solid fa-bolt text-amber-400"></i><span class="hidden sm:inline">Snap</span>
+                        </button>
+                        <button onclick="openAlbumPicker()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 p-2.5 rounded-lg transition text-xs" title="Album teilen" aria-label="Album teilen">
+                            <i class="fa-solid fa-images"></i>
                         </button>
                         <input id="chat-input" type="text" placeholder="Nachricht schreiben..." class="flex-1 min-w-0 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-base md:text-sm text-slate-100 focus:outline-none focus:border-brand-500 transition">
                         <button id="send-chat-btn" onclick="sendChatMessage()" class="bg-brand-600 hover:bg-brand-500 disabled:bg-slate-700 disabled:text-slate-400 text-white px-3 sm:px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-1.5" title="Senden">
@@ -277,6 +283,20 @@
 
                 <!-- Dynamic Profile Form Fields -->
                 <div id="dynamic-profile-form" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            </div>
+
+            <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-3">
+                <div>
+                    <h2 class="text-base font-bold text-slate-100 flex items-center gap-2">
+                        <i class="fa-solid fa-images text-brand-400"></i> Private Alben
+                    </h2>
+                    <p class="text-xs text-slate-400">Alben sind nicht im Profil sichtbar. Du teilst sie im Chat und kannst den Zugriff jederzeit entziehen.</p>
+                </div>
+                <div class="flex gap-2">
+                    <input id="new-album-name" type="text" maxlength="80" placeholder="Neues Album" onkeydown="if (event.key === 'Enter') createAlbum()" class="flex-1 min-w-0 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-base md:text-sm text-slate-200">
+                    <button onclick="createAlbum()" class="bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-lg text-xs font-semibold">Anlegen</button>
+                </div>
+                <div id="album-manager-list" class="space-y-2"></div>
             </div>
         </section>
 
@@ -478,6 +498,61 @@
         </div>
     </div>
 
+    <!-- Medien: Alben, Medienuebersicht, Albumauswahl -->
+    <div id="media-modal" class="hidden fixed inset-0 z-[65] bg-slate-950/90 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="media-modal-title">
+        <div class="bg-slate-900 border border-slate-800 w-full sm:max-w-2xl max-h-[90dvh] rounded-t-2xl sm:rounded-2xl flex flex-col overflow-hidden">
+            <div class="flex items-center justify-between gap-3 p-4 border-b border-slate-800">
+                <h3 id="media-modal-title" class="font-bold text-sm text-slate-100 truncate">Medien</h3>
+                <button onclick="closeMediaModal()" class="w-8 h-8 rounded-lg text-slate-300 hover:bg-slate-800 flex items-center justify-center" aria-label="Schliessen">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div id="media-modal-content" class="p-4 overflow-y-auto"></div>
+        </div>
+        <div id="media-lightbox" class="hidden fixed inset-0 z-[66] bg-black flex items-center justify-center" onclick="closeLightbox()">
+            <img id="media-lightbox-image" alt="" class="max-w-full max-h-full object-contain">
+        </div>
+    </div>
+
+    <!-- Snap-Kamera (Vollbild) -->
+    <div id="snap-capture-modal" class="hidden fixed inset-0 z-[70] bg-black flex flex-col" role="dialog" aria-modal="true" aria-label="Snap aufnehmen">
+        <div class="relative flex-1 min-h-0 overflow-hidden">
+            <video id="snap-video-preview" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover"></video>
+            <img id="snap-review-image" alt="" class="hidden absolute inset-0 w-full h-full object-contain bg-black">
+            <div id="snap-camera-status" class="hidden absolute inset-x-6 top-1/2 -translate-y-1/2 text-center text-sm text-slate-200 bg-black/60 rounded-xl p-4"></div>
+            <div class="absolute top-0 inset-x-0 p-4 flex items-center justify-between" style="padding-top: max(1rem, env(safe-area-inset-top));">
+                <button onclick="closeSnapModal()" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Schliessen">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+                <button onclick="switchSnapCamera()" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Kamera wechseln">
+                    <i class="fa-solid fa-camera-rotate"></i>
+                </button>
+            </div>
+        </div>
+        <div class="bg-black p-5 flex flex-col gap-3" style="padding-bottom: max(1.25rem, env(safe-area-inset-bottom));">
+            <div id="snap-live-controls" class="flex items-center justify-center gap-10">
+                <label class="w-11 h-11 rounded-full bg-white/10 text-white flex items-center justify-center cursor-pointer" aria-label="Bild auswaehlen">
+                    <i class="fa-regular fa-image text-lg"></i>
+                    <input type="file" accept="image/*" class="hidden" onchange="pickSnapImage(this)">
+                </label>
+                <button onclick="captureSnap()" class="w-20 h-20 rounded-full border-4 border-white bg-white/20 active:bg-white/60 transition" aria-label="Ausloesen"></button>
+                <span class="w-11 h-11"></span>
+            </div>
+            <div id="snap-review-controls" class="hidden flex flex-col gap-3">
+                <input id="snap-caption-input" type="text" maxlength="200" placeholder="Bildunterschrift (optional)" class="w-full bg-white/10 border border-white/20 rounded-full px-4 py-2.5 text-base text-white placeholder:text-slate-400 focus:outline-none">
+                <div class="flex items-center justify-between">
+                    <button onclick="retakeSnap()" class="px-4 py-2.5 rounded-full bg-white/10 text-white text-sm font-semibold">
+                        <i class="fa-solid fa-rotate-left"></i> Nochmal
+                    </button>
+                    <button onclick="sendSnapDraft()" class="px-5 py-2.5 rounded-full bg-brand-600 hover:bg-brand-500 text-white text-sm font-semibold">
+                        Senden <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <canvas id="snap-canvas-capture" class="hidden"></canvas>
+    </div>
+
     <script id="profile-schema-data" type="application/json">{{profileSchema}}</script>
     <script src="/client/crypto.client.js?v={{assetVersion}}"></script>
     <script src="/client/geohash.client.js?v={{assetVersion}}"></script>
@@ -487,6 +562,7 @@
     <script src="/client/grid.client.js?v={{assetVersion}}"></script>
     <script src="/client/p2p.client.js?v={{assetVersion}}"></script>
     <script src="/client/app/chat.js?v={{assetVersion}}"></script>
+    <script src="/client/app/albums.js?v={{assetVersion}}"></script>
     <script src="/client/app/settings.js?v={{assetVersion}}"></script>
     <script src="/client/app/router.js?v={{assetVersion}}"></script>
     <script src="/client/app/push.js?v={{assetVersion}}"></script>

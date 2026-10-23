@@ -134,8 +134,8 @@ npm.cmd run check
   Operationen den geloeschten Verlauf nicht wiederherstellen.
 - Blockierungen bleiben serverseitig bestehen, entfernen wartende Nachrichten
   der Peer-Kombination und verhindern neue Queue-Zustellungen.
-- Vollstaendige Profile, Klartext-Chats und private Schluessel verbleiben im
-  Browser.
+- Vollstaendige Profile, Klartext-Chats, private Alben und private Schluessel
+  verbleiben im Browser. Alben gehen nur per P2P an freigegebene Peers.
 - Das eigene Profil liegt in einem separaten IndexedDB-Singleton-Store und
   wird nicht gemeinsam mit fremden Peer-Profilen geladen oder bereinigt.
 

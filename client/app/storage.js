@@ -1,7 +1,7 @@
 // ================= INDEXEDDB =================
 function initDatabase() {
     return new Promise((resolve) => {
-        const req = indexedDB.open('OpenGridDB_Live', 7);
+        const req = indexedDB.open('OpenGridDB_Live', 8);
         let settled = false;
         const finish = (database = null) => {
             if (settled) return;
@@ -31,6 +31,7 @@ function initDatabase() {
             if (!database.objectStoreNames.contains('media')) {
                 database.createObjectStore('media', { keyPath: 'id' });
             }
+            if (!database.objectStoreNames.contains('albums')) database.createObjectStore('albums', { keyPath: 'id' });
         };
         req.onsuccess = (e) => {
             db = e.target.result;
@@ -422,6 +423,7 @@ async function persistPeerIdentityKey(peerId, jwkPublic, profileSigningKey) {
 
 const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥'];
 const REPLY_PREVIEW_LENGTH = 80;
+const ALBUM_COVER_MAX_LENGTH = 30000;
 
 function sanitizeReplyReference(replyTo) {
     if (!replyTo || typeof replyTo.messageId !== 'string' || typeof replyTo.senderId !== 'string') return undefined;
@@ -429,6 +431,18 @@ function sanitizeReplyReference(replyTo) {
         messageId: replyTo.messageId.substring(0, 200),
         senderId: replyTo.senderId.substring(0, 200),
         preview: String(replyTo.preview || '').substring(0, REPLY_PREVIEW_LENGTH + 3)
+    };
+}
+
+// Album-Verweis in einer Chat-Nachricht: nur der Absender kann eigene Alben teilen.
+function sanitizeAlbumReference(album, senderId) {
+    if (!album || typeof album.albumId !== 'string' || album.ownerId !== senderId) return undefined;
+    return {
+        albumId: album.albumId.substring(0, 200),
+        ownerId: senderId,
+        name: String(album.name || 'Album').substring(0, 80),
+        cover: isSafeInlineImage(album.cover) && album.cover.length <= ALBUM_COVER_MAX_LENGTH ? album.cover : undefined,
+        count: Number.isInteger(album.count) ? Math.max(0, Math.min(album.count, 999)) : undefined
     };
 }
 
@@ -445,6 +459,7 @@ function createPutOperation(peerId, message) {
             senderId: message.senderId,
             text: message.text,
             snapData: message.snapData,
+            album: message.album,
             replyTo: message.replyTo,
             timestamp: message.timestamp,
             createdAt: message.createdAt
@@ -477,6 +492,7 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
             const message = {
                 ...localOperation.message,
                 replyTo: sanitizeReplyReference(localOperation.message.replyTo),
+                album: sanitizeAlbumReference(localOperation.message.album, localOperation.actorId),
                 peerId,
                 deliveredVia
             };
@@ -579,6 +595,21 @@ async function trimReactionOperations(peerId, latest) {
         && operation.operationId !== latest.operationId
         && (operation.createdAt || 0) <= (latest.createdAt || 0));
     await Promise.all(outdated.map(operation => deleteDatabaseRecord('chatOperations', operation.operationId)));
+}
+
+// Taucht eine eigene Put-Operation im Inventar des Peers auf, hat er die Nachricht sicher erhalten.
+async function confirmDeliveredOperations(peerId, operationIds) {
+    const messageIds = operationIds
+        .filter(operationId => typeof operationId === 'string' && operationId.startsWith('put:'))
+        .map(operationId => operationId.slice(4));
+    for (const messageId of messageIds) {
+        const stored = await databaseRequest('messages', 'readonly', store => store.get(messageId));
+        if (!stored || stored.peerId !== peerId || stored.senderId !== state.myProfile.id || stored.deliveryConfirmed) continue;
+        const loaded = state.chats[peerId]?.find(item => item.id === messageId);
+        if (loaded) loaded.deliveryConfirmed = true;
+        await persistChatMessage(peerId, { ...stored, ...(loaded || {}), deliveryConfirmed: true });
+    }
+    if (state.activeChatPeerId === peerId && messageIds.length) renderChatHistory();
 }
 
 async function trimChatDeleteOperations(peerId) {

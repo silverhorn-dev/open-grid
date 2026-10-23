@@ -19,6 +19,10 @@ html.debug-on .debug-off-only {
     display: none !important;
 }
 
+.snap-mirrored {
+    transform: scaleX(-1);
+}
+
 .chat-message-highlight > div:first-of-type {
     outline: 2px solid rgb(244 63 94 / 0.6);
     outline-offset: 2px;

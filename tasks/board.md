@@ -82,6 +82,7 @@
   - done P2: Live-Grid = `/api/grid?live=1`, router filtert auf peers mit aktivem WebSocket (statt P2P-probe pro tile, spart verbindungen)
 
 # Chat
+- [ ] bug: the icon bar after clicking the arrow icon menu have no background, therefore the are not well lookable
 - [x] bug: arrow menu icon too big. on textmessages it should be in the message top corner and the text should be margined so it fits in
   - done: 24 px pfeil in der oberen ecke der bubble (eigene rechts, fremde links), text bekommt 2rem innenabstand; offen waechst der pfeil wieder und sitzt aussen an der leiste
 - [x] functional chat
@@ -108,6 +109,7 @@
       - done P4: `message.album` mit deckfoto (max 30 KB), klick laedt album per P2P (`ALBUM_REQUEST`), besitzer muss online sein
 
 ## status
+- [ ] the status is from time to time very fuzzy
 - [x] aktuell kann der status P2P Connected ausgelesen werden. im debug sollte das so sein. ohne würde ich da analog zu snap :eyes: platzieren
   - plan: P1: pill bleibt `debug-only`; ohne debug zwei zustaende als icon:
   - plan: P1: P2P/E2EE connected -> gruener punkt
@@ -137,6 +139,7 @@
   - done: 36 px buttons in einer leiste, die zur haelfte ueber der nachricht sitzt (desktop: hover, touch: tipp auf die nachricht)
 - [x] bilder kann man nicht richtig anschauen -> eigener viewer
   - done: `client/app/viewer.js`, vollbild, wischen zum blaettern, pinch/doppeltipp/mausrad-zoom, verschieben, nach unten wischen schliesst; fuer snaps, alben, medienuebersicht und profilbilder
+- manchmal denkt der client er ist offline obwohl man einfach lang nicht mehr reloaded hat
 
 ## Bugs (2026-10-23, runde 2)
 - [x] image viewer: seitwaerts wischen sehr abgehackt
@@ -151,6 +154,7 @@
   - done: eigene rechtsbuendig, fremde linksbuendig
 - [x] wischgesten -> feature request `tasks/feature-request-gestures.md`
   - done: wischen = antworten, lange druecken = aktionen, doppelt tippen = herz, tabs seitlich wischen, fenster nach unten schliessen, chat am ende hochziehen = aktualisieren, "kopieren"-aktion (`client/app/gestures.js`); kante + pull-to-refresh bleiben bei OS/browser (entschieden)
+  - ein reload sollte einen seiten reload wenn möglich triggern, diese popum messages nerven
   - fix nebenbei: schriftgroessen-regel war seit `840764d` versehentlich geloescht, wiederhergestellt + test
   - plan: P1 = wischen zum antworten, long press = aktionen, kante wischen = zurueck; offene fragen im FR abschnitt 7
 
@@ -265,6 +269,7 @@
     - entschieden: felder einzeln "nur fuer matches" markierbar + galerie
   - [x] Stufe 3: Unsichtbar (Profil-Details und Bilder erst nach "Match" sichtbar; erzeugt zwingend Ping)
     - entschieden: im grid silhouette ohne namen, router bekommt weder namen noch bild
+  - im chat modus sollte das grid und ein paar profildetails gar nicht an sein. wenn man einen chatpartner hinzufügt sollte ein profilhandshake passieren
 
 # Hyperlocal Mesh (Festival/Club Mode)
 - [ ] WebRTC over LAN: mDNS und lokale Host-Kandidaten aggressiv priorisieren

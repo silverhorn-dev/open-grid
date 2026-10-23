@@ -58,6 +58,8 @@ liegt im benannten Volume `open-grid-data` unter `/app/data`.
 | `TURN_PORT` | `3478` | Port fuer die UDP- und TCP-Relays |
 | `TURN_TLS_PORT` | – | Optional, aktiviert zusaetzlich eine `turns:`-URL |
 | `STUN_SERVER` | eigener TURN-Server | STUN-Server (`host:port`) oder `none`. Ohne Angabe dient der eigene coturn auch als STUN; erst ohne TURN wird der oeffentliche Google-STUN genutzt |
+| `PUSH_HOST_ALLOWLIST` | – | Zusaetzliche erlaubte Push-Hosts, kommagetrennt (z. B. ein eigener UnifiedPush-/ntfy-Server). Standard: Google, Mozilla, Apple, Microsoft |
+| `TRUST_PROXY` | private Netze | Welchen Proxies `X-Forwarded-For` geglaubt wird: `true`, `false`, Anzahl Hops oder Adressen/Netze. Standard: Loopback und private Netze |
 | `LAN_MODE` | `false` | `true` = Club-/LAN-Betrieb: keine STUN/TURN-Server, nur Verbindungen im selben Netz |
 | `VAPID_SUBJECT` | `mailto:admin@localhost` | Kontaktadresse fuer Push-Dienste (`mailto:` oder `https:`); Apple lehnt den Standardwert ab |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | generiert | Optional feste VAPID-Schluessel (base64url); sonst einmalig erzeugt und in SQLite gespeichert |
@@ -162,7 +164,10 @@ npm.cmd run check
 - Entfernte Peer-IDs bleiben als Tombstone bis zu 30 Tage erhalten, damit
   Clients veraltete Profil-Caches loeschen koennen.
 - Queue-Nachrichten enthalten ausschliesslich Ciphertext und IV und laufen
-  nach maximal 72 Stunden ab.
+  nach maximal 72 Stunden ab. Pro Empfaenger gelten hoechstens 500 Nachrichten
+  bzw. 20 MB, pro Absender und Empfaenger 200 Nachrichten.
+- Logs enthalten weder Query-Strings (Geohash, Peer-IDs, Event-Hashes) noch
+  IP-Adressen.
 - Chat-Loeschungen speichern einen Cutoff in `chat_controls`, damit alte
   Operationen den geloeschten Verlauf nicht wiederherstellen.
 - Blockierungen bleiben serverseitig bestehen, entfernen wartende Nachrichten

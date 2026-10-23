@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 
 const MAX_PRESENCE_SUBSCRIPTIONS = 500;
 
-export function registerSignalingRoute(app, store) {
+export function registerSignalingRoute(app, store, { messageLimiter = null } = {}) {
     const activeSockets = new Map();
     // Grid-Zelle pro verbundenem Peer, im Speicher indiziert: PEER_OFFLINE erreicht so nur die
     // Peers der eigenen Zelle, ohne bei jedem Verbindungsende alle Sockets abzufragen.
@@ -76,8 +76,17 @@ export function registerSignalingRoute(app, store) {
 
     app.get('/ws', { websocket: true }, (socket) => {
         let currentPeerId = null;
+        const limiter = messageLimiter?.();
+        let warned = false;
 
         socket.on('message', rawMessage => {
+            // Pro Verbindung begrenzt: zu viele Nachrichten werden verworfen.
+            if (limiter && limiter.take('socket') !== true) {
+                if (!warned) socket.send(JSON.stringify({ type: 'SIGNALING_ERROR', message: 'Rate limit exceeded' }));
+                warned = true;
+                return;
+            }
+            warned = false;
             try {
                 const data = JSON.parse(rawMessage.toString());
 

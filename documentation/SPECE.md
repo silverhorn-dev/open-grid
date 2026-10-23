@@ -587,7 +587,9 @@ clientseitig verschluesselte Payloads.
 | `DELETE` | `/api/cache/:msgId` | Verarbeitete Nachricht entfernen |
 
 Alle Queue-Routen verlangen das Capability-Token des Absenders beziehungsweise
-Empfaengers als Bearer-Token.
+Empfaengers als Bearer-Token. Quoten: hoechstens 500 Nachrichten oder 20 MB
+Ciphertext pro Empfaenger und 200 Nachrichten pro Absender und Empfaenger;
+darueber antwortet `POST /api/cache` mit 429 `Recipient queue is full`.
 
 Der Cloud-Cache ist eine reine Sender-Einstellung (`grid-settings.cacheEnabled`).
 Ist er aus, stellt der Client eigene Operationen nicht in Pfad C ein; sie
@@ -645,6 +647,12 @@ Der Server liefert `client/sw.js` unter `/sw.js` mit Scope `/` aus.
 | `DELETE` | `/api/push/subscribe/:peerId` | Push-Subscription entfernen (authentifiziert) |
 
 SQLite speichert pro Peer genau eine Subscription in `push_subscriptions`.
+Endpunkte muessen https sein und zu einem bekannten Push-Dienst gehoeren
+(`fcm.googleapis.com`, `android.googleapis.com`, `*.push.services.mozilla.com`,
+`web.push.apple.com`, `*.push.apple.com`, `*.notify.windows.com`, erweiterbar per
+`PUSH_HOST_ALLOWLIST`); IP-Adressen und Zugangsdaten in der URL sind verboten.
+So kann kein Client den Server gegen interne Hosts schicken (SSRF). Vor jedem
+Push wird das erneut geprueft.
 Generierte VAPID-Schluessel liegen in `server_settings`.
 
 Ablauf:
@@ -705,6 +713,23 @@ sind lokal.
 
 Ein Klick auf die Benachrichtigung fokussiert die App und oeffnet den Chat
 (`OPEN_CHAT`) oder startet sie mit `/?chat=<peerId>`.
+
+## 9.2 Server-Haertung
+
+- Rate-Limits pro IP (Fenster 1 Minute): Registrierung 30, Grid 90, Chat-Kontrollen 30,
+  Push-Abo 10; Pfad C 120 pro Absender; WebSocket 300 Nachrichten pro 10 Sekunden
+  pro Verbindung (danach `SIGNALING_ERROR` und verworfen). Ueberschreitung: 429
+  mit `Retry-After`.
+- Sicherheits-Header auf allen Antworten: `Content-Security-Policy`
+  (`default-src 'self'`, Bilder auch `data:`/`blob:`, `connect-src` nur eigener
+  Host inkl. WebSocket und Nominatim, `frame-ancestors 'none'`; vorerst mit
+  `'unsafe-inline'` fuer die `onclick`-Attribute), `X-Content-Type-Options`,
+  `Referrer-Policy: no-referrer`, `Permissions-Policy` (Kamera und Standort nur
+  same-origin), `Cross-Origin-Opener-Policy`, `X-Frame-Options`. Keine
+  CORS-Header: die App laeuft same-origin.
+- Logs: nur Methode, Pfad ohne Query-String und Statuscode, keine IP-Adressen.
+- Capability-Token-Hashes werden konstant-zeitig verglichen.
+- `trustProxy` standardmaessig nur fuer Loopback und private Netze (`TRUST_PROXY`).
 
 ## 10. Betriebsgrenzen
 

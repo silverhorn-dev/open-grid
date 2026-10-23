@@ -16,8 +16,21 @@ import {
     isGeohash
 } from './geohash.js';
 import { MAX_PUSH_PLAINTEXT_BYTES, createPushSender, generateVapidKeys } from './push.js';
+import {
+    DEFAULT_RATE_LIMITS,
+    buildLoggerOptions,
+    createRateLimiter,
+    isAllowedPushEndpoint,
+    parsePushHostAllowlist,
+    parseTrustProxy,
+    securityHeaders
+} from './security.js';
 
 const MAX_GRID_RESULTS = 100;
+// Quoten fuer den Pfad-C-Zwischenspeicher, damit niemand die Queue eines Empfaengers flutet.
+const MAX_QUEUED_MESSAGES_PER_RECIPIENT = 500;
+const MAX_QUEUED_BYTES_PER_RECIPIENT = 20 * 1024 * 1024;
+const MAX_QUEUED_MESSAGES_PER_SENDER = 200;
 const FALLBACK_STUN_URL = 'stun:stun.l.google.com:19302';
 
 // STUN: STUN_SERVER (Host[:Port] oder "none"), sonst der eigene coturn (kann auch STUN),
@@ -120,14 +133,10 @@ function isString(value, maxLength) {
     return typeof value === 'string' && value.length > 0 && value.length <= maxLength;
 }
 
-function isPushSubscription(subscription) {
+function isPushSubscription(subscription, allowedHosts) {
     if (!subscription || !isString(subscription.endpoint, 2048)) return false;
     if (!isString(subscription.keys?.p256dh, 200) || !isString(subscription.keys?.auth, 100)) return false;
-    try {
-        return new URL(subscription.endpoint).protocol === 'https:';
-    } catch {
-        return false;
-    }
+    return isAllowedPushEndpoint(subscription.endpoint, allowedHosts);
 }
 
 function loadVapidKeys(store) {
@@ -175,8 +184,9 @@ async function loadVendorAssets() {
 
 export async function buildApp(options = {}) {
     const app = Fastify({
-        logger: options.logger ?? false,
-        trustProxy: options.trustProxy ?? true,
+        // Logs ohne Query-Strings und IP-Adressen (security.js).
+        logger: buildLoggerOptions(options.logger ?? false),
+        trustProxy: parseTrustProxy(options.trustProxy ?? process.env.TRUST_PROXY),
         bodyLimit: 128 * 1024
     });
     const store = options.store || createStore(options.databasePath || process.env.DATABASE_PATH || join(projectDirectory, 'data', 'open-grid.sqlite'));
@@ -231,19 +241,27 @@ export async function buildApp(options = {}) {
             maxPayload: 128 * 1024
         }
     });
-    const signaling = registerSignalingRoute(app, store);
+    const signaling = registerSignalingRoute(app, store, { messageLimiter: () => createRateLimiter((options.rateLimits || {}).websocket || DEFAULT_RATE_LIMITS.websocket) });
 
     app.addHook('onClose', async () => {
         if (ownsStore) store.close();
     });
 
+    // Die App laeuft komplett same-origin: keine CORS-Header, dafuer Sicherheits-Header.
     app.addHook('onRequest', async (request, reply) => {
-        reply.header('Access-Control-Allow-Origin', '*');
-        reply.header('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-        reply.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+        reply.headers(securityHeaders(request.headers.host));
     });
 
-    app.options('*', async (_request, reply) => reply.code(204).send());
+    const rateLimiters = Object.fromEntries(Object.entries({ ...DEFAULT_RATE_LIMITS, ...(options.rateLimits || {}) })
+        .map(([name, config]) => [name, createRateLimiter(config)]));
+    // false = Anfrage wurde mit 429 beantwortet.
+    function allowRequest(name, key, reply) {
+        const result = rateLimiters[name].take(key);
+        if (result === true) return true;
+        reply.code(429).header('Retry-After', String(result)).send({ error: 'Too many requests' });
+        return false;
+    }
+    const pushHostAllowlist = parsePushHostAllowlist(options.pushHostAllowlist ?? process.env.PUSH_HOST_ALLOWLIST);
 
     const mediaKeyEpochMs = parseMediaKeyEpochMinutes(options.mediaKeyEpochMinutes ?? process.env.MEDIA_KEY_EPOCH_MINUTES) * 60 * 1000;
     const now = options.now || Date.now;
@@ -414,6 +432,7 @@ export async function buildApp(options = {}) {
     }
 
     app.post('/api/register', async (request, reply) => {
+        if (!allowRequest('register', request.ip, reply)) return;
         const {
             peerId,
             geohash,
@@ -514,6 +533,7 @@ export async function buildApp(options = {}) {
         .slice(0, MAX_GRID_RESULTS);
 
     app.get('/api/grid', async (request, reply) => {
+        if (!allowRequest('grid', request.ip, reply)) return;
         const { geohash, live, scope = 'public' } = request.query || {};
         if (!isGeohash(geohash, GRID_PRECISION)) {
             return reply.code(400).send({ error: 'Missing geohash param' });
@@ -566,7 +586,8 @@ export async function buildApp(options = {}) {
 
     async function notifyRecipient(message) {
         const subscription = store.getPushSubscription(message.recipientId);
-        if (!subscription) return;
+        // Auch alte, vor der Allowlist gespeicherte Subscriptions nie an fremde Hosts.
+        if (!subscription || !isAllowedPushEndpoint(subscription.endpoint, pushHostAllowlist)) return;
         const fullPayload = {
             type: 'PATH_C',
             msgId: message.msgId,
@@ -590,12 +611,13 @@ export async function buildApp(options = {}) {
     app.get('/api/push/vapid-public-key', async () => ({ publicKey: vapidKeys.publicKey }));
 
     app.post('/api/push/subscribe', async (request, reply) => {
+        if (!allowRequest('push', request.ip, reply)) return;
         const { peerId, subscription } = request.body || {};
         if (!isString(peerId, 200)) {
             return reply.code(400).send({ error: 'Invalid peerId' });
         }
         if (!requirePeerAuth(request, reply, peerId)) return;
-        if (!isPushSubscription(subscription)) {
+        if (!isPushSubscription(subscription, pushHostAllowlist)) {
             return reply.code(400).send({ error: 'Invalid push subscription' });
         }
         store.setPushSubscription(peerId, subscription);
@@ -618,11 +640,18 @@ export async function buildApp(options = {}) {
             return reply.code(400).send({ error: 'Missing or invalid senderId' });
         }
         if (!requirePeerAuth(request, reply, senderId)) return;
+        if (!allowRequest('cache', senderId, reply)) return;
         if (ivHex != null && typeof ivHex !== 'string') {
             return reply.code(400).send({ error: 'Invalid ivHex' });
         }
         if (store.isBlocked(recipientId, senderId)) {
             return reply.code(403).send({ error: 'Recipient does not accept messages from this sender' });
+        }
+        const usage = store.getQueueUsage(recipientId, senderId);
+        if (usage.count >= MAX_QUEUED_MESSAGES_PER_RECIPIENT
+            || usage.bytes + ciphertextPayload.length > MAX_QUEUED_BYTES_PER_RECIPIENT
+            || usage.fromSender >= MAX_QUEUED_MESSAGES_PER_SENDER) {
+            return reply.code(429).send({ error: 'Recipient queue is full' });
         }
         const message = store.enqueueMessage({
             recipientId,
@@ -674,6 +703,7 @@ export async function buildApp(options = {}) {
     });
 
     app.post('/api/chat-controls', async (request, reply) => {
+        if (!allowRequest('chatControls', request.ip, reply)) return;
         const { ownerId, peerId, action } = request.body || {};
         if (!isString(ownerId, 200) || !isString(peerId, 200) || ownerId === peerId) {
             return reply.code(400).send({ error: 'Invalid ownerId or peerId' });
@@ -687,6 +717,7 @@ export async function buildApp(options = {}) {
     });
 
     app.delete('/api/chat-controls/:ownerId/:peerId/block', async (request, reply) => {
+        if (!allowRequest('chatControls', request.ip, reply)) return;
         const { ownerId, peerId } = request.params;
         if (!isString(ownerId, 200) || !isString(peerId, 200)) {
             return reply.code(400).send({ error: 'Invalid ownerId or peerId' });

@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { dirname } from 'node:path';
 import { mkdirSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
@@ -184,6 +184,14 @@ export function createStore(databasePath) {
             ORDER BY rowid
         `),
         deleteMessage: database.prepare('DELETE FROM queued_messages WHERE msg_id = ?'),
+        queueUsage: database.prepare(`
+            SELECT
+                COUNT(*) AS count,
+                COALESCE(SUM(LENGTH(ciphertext_payload)), 0) AS bytes,
+                COALESCE(SUM(CASE WHEN sender_id = ? THEN 1 ELSE 0 END), 0) AS fromSender
+            FROM queued_messages
+            WHERE recipient_id = ? AND expires_at > ?
+        `),
         findMessageRecipient: database.prepare('SELECT recipient_id AS recipientId FROM queued_messages WHERE msg_id = ?'),
         deleteExpiredMessages: database.prepare('DELETE FROM queued_messages WHERE expires_at <= ?'),
         deleteConversationMessages: database.prepare(`
@@ -379,7 +387,11 @@ export function createStore(databasePath) {
 
         authenticatePeer(peerId, authHash) {
             const credential = statements.findPeerCredential.get(peerId);
-            return Boolean(credential?.authHash && authHash && credential.authHash === authHash);
+            if (!credential?.authHash || typeof authHash !== 'string') return false;
+            // Konstante Laufzeit: der Vergleich verraet nichts ueber den gespeicherten Hash.
+            const stored = Buffer.from(credential.authHash);
+            const given = Buffer.from(authHash);
+            return stored.length === given.length && timingSafeEqual(stored, given);
         },
 
         unregisterPeer(peerId, registrationId, geohash = null, now = Date.now()) {
@@ -417,6 +429,11 @@ export function createStore(databasePath) {
                 queued.expiresAt
             );
             return queued;
+        },
+
+        getQueueUsage(recipientId, senderId, now = Date.now()) {
+            const usage = statements.queueUsage.get(senderId, recipientId, now);
+            return { count: Number(usage.count), bytes: Number(usage.bytes), fromSender: Number(usage.fromSender) };
         },
 
         getMessages(recipientId, now = Date.now()) {

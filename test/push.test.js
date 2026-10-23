@@ -25,7 +25,7 @@ function createBrowserSubscription() {
     return {
         privateKey,
         subscription: {
-            endpoint: 'https://push.example.test/send/abc',
+            endpoint: 'https://fcm.googleapis.com/fcm/send/abc',
             keys: { p256dh: raw.toString('base64url'), auth: auth.toString('base64url') }
         }
     };
@@ -214,8 +214,20 @@ test('stores push subscriptions only for authenticated peers', async () => {
     });
     assert.equal(anonymous.statusCode, 401);
 
-    const insecure = await subscribe('peer-b', { ...subscription, endpoint: 'http://push.example.test/x' });
+    const insecure = await subscribe('peer-b', { ...subscription, endpoint: 'http://fcm.googleapis.com/x' });
     assert.equal(insecure.statusCode, 400);
+    // SSRF: nur bekannte Push-Dienste, keine internen Hosts oder IP-Adressen.
+    for (const endpoint of [
+        'https://internal.service.local/admin',
+        'https://127.0.0.1/push',
+        'https://[::1]/push',
+        'https://169.254.169.254/latest/meta-data',
+        'https://evil.example/fcm.googleapis.com',
+        'https://fcm.googleapis.com.evil.example/x',
+        'https://user:pass@fcm.googleapis.com/x'
+    ]) {
+        assert.equal((await subscribe('peer-b', { ...subscription, endpoint })).statusCode, 400, endpoint);
+    }
 
     assert.equal((await subscribe('peer-b', subscription)).statusCode, 201);
     assert.deepEqual(store.getPushSubscription('peer-b'), subscription);

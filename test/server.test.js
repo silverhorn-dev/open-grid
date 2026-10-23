@@ -770,6 +770,59 @@ test('friends grid shows only online mutual contacts', async () => {
     peerC.close();
 });
 
+test('sends security headers and no wildcard CORS', async () => {
+    const response = await app.inject({ method: 'GET', url: '/grid', headers: { host: 'grid.example' } });
+    assert.equal(response.headers['access-control-allow-origin'], undefined);
+    assert.match(response.headers['content-security-policy'], /default-src 'self'/);
+    assert.match(response.headers['content-security-policy'], /frame-ancestors 'none'/);
+    assert.match(response.headers['content-security-policy'], /connect-src 'self' ws:\/\/grid\.example wss:\/\/grid\.example https:\/\/nominatim\.openstreetmap\.org/);
+    assert.equal(response.headers['x-content-type-options'], 'nosniff');
+    assert.equal(response.headers['referrer-policy'], 'no-referrer');
+    assert.match(response.headers['permissions-policy'], /camera=\(self\)/);
+});
+
+test('rate limits registrations per IP', async () => {
+    const limited = await buildApp({ store: createStore(':memory:'), buildVersion: 'x', buildTimestamp: 'y', rateLimits: { register: { windowMs: 60000, max: 2 } } });
+    const attempt = () => limited.inject({ method: 'POST', url: '/api/register', payload: { peerId: 'x' } });
+    assert.equal((await attempt()).statusCode, 400);
+    assert.equal((await attempt()).statusCode, 400);
+    const blocked = await attempt();
+    assert.equal(blocked.statusCode, 429);
+    assert.ok(Number(blocked.headers['retry-after']) > 0);
+    await limited.close();
+});
+
+test('caps the Path C queue per sender and recipient', async () => {
+    await registerPeer('peer-a');
+    await registerPeer('peer-b');
+    const enqueue = () => app.inject({
+        method: 'POST',
+        url: '/api/cache',
+        headers: authHeaders('peer-a'),
+        payload: { recipientId: 'peer-b', senderId: 'peer-a', ciphertextPayload: 'x' }
+    });
+    // 200 Nachrichten vom selben Sender passen, die 201. nicht.
+    for (let index = 0; index < 200; index++) store.enqueueMessage({ recipientId: 'peer-b', senderId: 'peer-a', ciphertextPayload: 'x' });
+    const full = await enqueue();
+    assert.equal(full.statusCode, 429);
+    assert.match(full.json().error, /queue is full/);
+});
+
+test('logs requests without query strings', async () => {
+    const lines = [];
+    const logged = await buildApp({
+        store: createStore(':memory:'),
+        buildVersion: 'x',
+        buildTimestamp: 'y',
+        logger: { level: 'info', stream: { write: line => lines.push(line) } }
+    });
+    await logged.inject({ method: 'GET', url: '/api/grid?geohash=u10j2k&peerId=secret-peer&eventHash=abc' });
+    await logged.close();
+    const output = lines.join('');
+    assert.match(output, /\/api\/grid/);
+    assert.doesNotMatch(output, /u10j2k|secret-peer|eventHash|remoteAddress/);
+});
+
 test('rejects unauthorized access to peer-owned state', async () => {
     await registerPeer('peer-a');
     await registerPeer('peer-b');

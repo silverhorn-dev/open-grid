@@ -295,8 +295,9 @@ Akzeptanzkriterien:
   Nachrichten beschraenkt werden.
 - Die Aktionen (Antworten, Reagieren, Markieren, Loeschen) sitzen als Leiste
   mit gut treffbaren Knoepfen halb ueber der Nachricht. Am Desktop erscheinen
-  sie beim Hovern, auf Touch-Geraeten ueber einen Pfeil an der Aussenseite der
-  Nachricht. Die Leiste ist bei eigenen Nachrichten rechtsbuendig, bei fremden
+  sie beim Hovern. Auf Touch-Geraeten sitzt ein Pfeil an der oberen Ecke der
+  Nachricht (eigene rechts, fremde links); er ist das aeussere Element der
+  Leiste und klappt sie auf und wieder zu. Die Leiste ist bei eigenen Nachrichten rechtsbuendig, bei fremden
   linksbuendig, und ragt nie aus dem Bildschirm.
 - Die Schriftgroesse der Nachrichten ist in den Einstellungen waehlbar.
 - Die Suche filtert den aktuellen Chat lokal nach Text.

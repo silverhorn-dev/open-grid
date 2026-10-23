@@ -547,20 +547,7 @@ function renderChatHistory() {
         bubbleWrap.className = `chat-bubble-wrap relative max-w-[80%] flex ${isMine ? 'justify-end' : 'justify-start'}`;
         bubble.classList.remove('max-w-[80%]');
         bubbleWrap.appendChild(bubble);
-        if (!message.deleted) {
-            bubbleWrap.appendChild(renderMessageActions(message, isMine));
-            // Touch-Geraete haben kein Hovern: ein Pfeil an der Aussenseite der Nachricht oeffnet die Aktionen.
-            const toggle = document.createElement('button');
-            toggle.type = 'button';
-            toggle.className = `message-actions-toggle absolute top-0 ${isMine ? '-left-8' : '-right-8'} w-7 h-7 rounded-full bg-slate-800/80 border border-slate-700 text-slate-300 text-xs items-center justify-center`;
-            toggle.setAttribute('aria-label', 'Aktionen anzeigen');
-            toggle.innerHTML = '<i class="fa-solid fa-chevron-down"></i>';
-            toggle.onclick = event => {
-                event.stopPropagation();
-                toggleMessageActions(row);
-            };
-            bubbleWrap.appendChild(toggle);
-        }
+        if (!message.deleted) bubbleWrap.appendChild(renderMessageActions(message, isMine, row));
         row.append(bubbleWrap);
         const reactions = renderReactions(message);
         if (reactions) row.appendChild(reactions);
@@ -657,14 +644,25 @@ function openChatImageViewer(messageId) {
     openImageViewer(snaps.map(message => message.snapData), snaps.findIndex(message => message.id === messageId));
 }
 
-function renderMessageActions(message, isMine) {
+// Eigene Nachrichten rechtsbuendig, fremde linksbuendig: die Leiste waechst zur Bildschirmmitte.
+// Auf Touch-Geraeten ist der Pfeil das aeussere Element der Leiste: er oeffnet und schliesst sie.
+function renderMessageActions(message, isMine, row) {
     const actions = document.createElement('div');
-    // Eigene Nachrichten rechtsbuendig, fremde linksbuendig: die Leiste waechst zur Bildschirmmitte.
     actions.className = `message-actions absolute -top-5 ${isMine ? 'right-0' : 'left-0'} z-10 flex items-center gap-0.5 rounded-full border border-slate-700 bg-slate-900/95 px-1 py-0.5 shadow-lg text-slate-300`;
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'message-actions-toggle w-9 h-9 rounded-full items-center justify-center text-sm text-slate-300 bg-slate-800 border border-slate-700';
+    toggle.setAttribute('aria-label', 'Aktionen ein- oder ausblenden');
+    toggle.innerHTML = '<i class="fa-solid fa-chevron-down transition-transform"></i>';
+    toggle.onclick = event => {
+        event.stopPropagation();
+        toggleMessageActions(row);
+    };
+    if (!isMine) actions.appendChild(toggle);
     const addAction = (iconClass, title, onClick, extraClass = 'hover:text-white hover:bg-slate-800') => {
         const button = document.createElement('button');
         button.type = 'button';
-        button.className = `w-9 h-9 rounded-full flex items-center justify-center text-base transition ${extraClass}`;
+        button.className = `message-action w-9 h-9 rounded-full flex items-center justify-center text-base transition ${extraClass}`;
         button.title = title;
         button.setAttribute('aria-label', title);
         button.onclick = event => {
@@ -680,6 +678,7 @@ function renderMessageActions(message, isMine) {
     addAction('fa-regular fa-face-smile', 'Reagieren', event => toggleReactionPicker(event.currentTarget, message.id));
     addAction(message.starred ? 'fa-solid fa-star text-amber-400' : 'fa-regular fa-star', message.starred ? 'Markierung entfernen' : 'Fuer dich markieren', () => toggleMessageStar(message.id));
     if (isMine) addAction('fa-solid fa-trash', 'Loeschen', () => deleteChatMessage(message.id), 'text-red-400 hover:text-red-300 hover:bg-slate-800');
+    if (isMine) actions.appendChild(toggle);
     return actions;
 }
 

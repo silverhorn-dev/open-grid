@@ -23,7 +23,8 @@ html.debug-on .debug-off-only {
     transform: scaleX(-1);
 }
 
-/* Nachrichten-Aktionen: am Desktop beim Hovern, auf Touch nach Tipp auf die Nachricht */
+/* Nachrichten-Aktionen: am Desktop beim Hovern (ohne Pfeil). Auf Touch-Geraeten ist nur der
+   Pfeil an der Aussenkante sichtbar; er klappt die Leiste auf und wieder zu. */
 .message-actions {
     opacity: 0;
     pointer-events: none;
@@ -34,20 +35,25 @@ html.debug-on .debug-off-only {
     opacity: 1;
     pointer-events: auto;
 }
-@media (hover: none) {
-    .chat-bubble-wrap:hover .message-actions { opacity: 0; pointer-events: none; }
-    .actions-open .chat-bubble-wrap .message-actions { opacity: 1; pointer-events: auto; }
-}
 .message-actions-toggle { display: none; }
 @media (hover: none) {
+    .message-actions,
+    .chat-bubble-wrap:hover .message-actions {
+        opacity: 1;
+        pointer-events: auto;
+        background: transparent;
+        border-color: transparent;
+        box-shadow: none;
+    }
+    .message-actions .message-action { display: none; }
     .message-actions-toggle { display: flex; }
+    .actions-open .message-actions {
+        background: rgb(15 23 42 / 0.95);
+        border-color: #334155;
+        box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.4);
+    }
+    .actions-open .message-actions .message-action { display: flex; }
     .actions-open .message-actions-toggle i { transform: rotate(180deg); }
-}
-
-/* Schriftgroesse im Chat (Einstellung "Darstellung") */
-.chat-bubble {
-    font-size: var(--chat-font-size, 15px);
-    line-height: 1.45;
 }
 #chat-messages > [id^="chat-message-"] {
     padding-top: 0.75rem;

@@ -229,7 +229,47 @@ function attachSwipeToClose(scrollContainer, card, close) {
     }, { passive: true });
 }
 
-// ----- Chat: am Ende nach oben ziehen = aktualisieren -----
+// ----- Chat: am Ende nach oben ziehen = einstellbare Aktion -----
+// keys/pullup-settings: 'reload' (Tab neu laden, Standard), 'next' (naechster Chat der Liste),
+// 'snap' (Snap-Kamera), 'album' (Album teilen).
+const PULL_UP_ACTIONS = {
+    reload: 'Loslassen zum Neuladen',
+    next: 'Loslassen: naechster Chat',
+    snap: 'Loslassen: Snap aufnehmen',
+    album: 'Loslassen: Album teilen'
+};
+const PULL_UP_RECORD_ID = 'pullup-settings';
+
+async function loadPullUpSetting() {
+    const stored = await databaseRequest('keys', 'readonly', store => store.get(PULL_UP_RECORD_ID)).catch(() => null);
+    state.pullUpAction = PULL_UP_ACTIONS[stored?.action] ? stored.action : 'reload';
+    const select = document.getElementById('pullup-action-select');
+    if (select) select.value = state.pullUpAction;
+}
+
+async function updatePullUpSetting(action) {
+    if (!PULL_UP_ACTIONS[action]) return;
+    state.pullUpAction = action;
+    await putDatabaseRecord('keys', { id: PULL_UP_RECORD_ID, action })
+        .catch(error => logDebug(`Could not store pull-up setting: ${error.message}`));
+}
+
+// Ohne Toast/Banner (die stapelten sich beim schnellen Wiederholen).
+function runPullUpAction() {
+    const action = state.pullUpAction;
+    if (action === 'next') {
+        // Am Ende der Liste wieder von vorn.
+        const target = neighbourChat(1) || visibleChatPeerIds().find(peerId => peerId !== state.activeChatPeerId);
+        if (target) switchToChat(target).catch(logBackgroundError('runPullUpAction'));
+    } else if (action === 'snap') {
+        openSnapUploadModal().catch(logBackgroundError('runPullUpAction'));
+    } else if (action === 'album') {
+        openAlbumPicker();
+    } else {
+        window.location.reload();
+    }
+}
+
 function attachPullUpRefresh(container) {
     if (!container) return;
     let gesture = null;
@@ -239,7 +279,9 @@ function attachPullUpRefresh(container) {
         if (!indicator) return;
         indicator.style.height = `${distance}px`;
         indicator.classList.toggle('is-ready', distance >= PULL_REFRESH_TRIGGER);
-        indicator.querySelector('span').textContent = distance >= PULL_REFRESH_TRIGGER ? 'Loslassen zum Aktualisieren' : 'Zum Aktualisieren ziehen';
+        indicator.querySelector('span').textContent = distance >= PULL_REFRESH_TRIGGER
+            ? PULL_UP_ACTIONS[state.pullUpAction] || PULL_UP_ACTIONS.reload
+            : 'Weiter ziehen';
     };
     container.addEventListener('touchstart', event => {
         gesture = event.touches.length === 1 && state.activeChatPeerId && isAtBottom()
@@ -263,21 +305,9 @@ function attachPullUpRefresh(container) {
         render(0);
         if (finished?.distance >= PULL_REFRESH_TRIGGER) {
             hapticTick();
-            refreshActiveChat();
+            runPullUpAction();
         }
     }, { passive: true });
-}
-
-// Holt wartende Path-C-Nachrichten, baut die P2P-Verbindung auf und synchronisiert.
-async function refreshActiveChat() {
-    const peerId = state.activeChatPeerId;
-    if (!peerId) return;
-    showToast('Chat wird aktualisiert...', 'info');
-    await fetchQueuedCacheMessages().catch(logBackgroundError('refreshActiveChat'));
-    if (isSecureChannelOpen(peerId)) await beginChatSync(peerId).catch(logBackgroundError('refreshActiveChat'));
-    else if (!isPeerBlocked(peerId)) initiateP2PConnection(peerId).catch(logBackgroundError('refreshActiveChat'));
-    await loadChatHistory(peerId).catch(logBackgroundError('refreshActiveChat'));
-    renderChatHistory();
 }
 
 function initGestures() {

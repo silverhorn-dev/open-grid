@@ -530,7 +530,9 @@ Akzeptanzkriterien:
 - Text laesst sich ueber die Aktion "Kopieren" kopieren.
 - Seitlich wischen wechselt zwischen Grid, Chat und Profil.
 - Profil- und Medienfenster schliessen per Wischen nach unten.
-- Im Chat am Ende nach oben ziehen aktualisiert den Chat.
+- Im Chat am Ende nach oben ziehen loest die eingestellte Aktion aus: Seite
+  neu laden (Standard), naechster Chat, Snap aufnehmen oder Album teilen
+  (Einstellungen, "Darstellung").
 - Senkrechtes Scrollen, die Zurueck-Geste des Systems und alle Knoepfe
   funktionieren weiter wie bisher.
 

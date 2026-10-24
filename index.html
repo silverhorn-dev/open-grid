@@ -243,7 +243,7 @@
                     </button>
                 </div>
                 <div id="chat-pull-refresh" class="h-0 overflow-hidden flex items-center justify-center gap-2 text-xs text-slate-400 transition-colors" aria-hidden="true">
-                    <i class="fa-solid fa-arrow-up"></i><span>Zum Aktualisieren ziehen</span>
+                    <i class="fa-solid fa-arrow-up"></i><span>Weiter ziehen</span>
                 </div>
 
                 <div class="chat-input-bar p-3 border-t border-slate-800 bg-slate-900/80 flex flex-col gap-2">
@@ -525,6 +525,15 @@
                             <option value="swipe">Wischen auf der Kontaktleiste</option>
                         </select>
                     </div>
+                    <label class="flex flex-wrap items-center gap-2 text-xs text-slate-300">
+                        <span>Im Chat am Ende hochziehen:</span>
+                        <select id="pullup-action-select" data-change="updatePullUpSetting" data-args='["$value"]' class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200">
+                            <option value="reload">Seite neu laden</option>
+                            <option value="next">Naechster Chat</option>
+                            <option value="snap">Snap aufnehmen</option>
+                            <option value="album">Album teilen</option>
+                        </select>
+                    </label>
                     <label class="flex items-center gap-2 text-xs text-slate-300">
                         <span>Schriftgroesse im Chat:</span>
                         <select id="chat-font-size-select" data-change="setChatFontSize" data-args='["$value"]' class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200">

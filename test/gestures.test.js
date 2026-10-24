@@ -109,3 +109,30 @@ test('double tap reacts with a heart', () => {
     }
     assert.deepEqual(JSON.parse(JSON.stringify(calls.react)), [['m1', '❤️']]);
 });
+
+test('pull up at the end of a chat runs the configured action', () => {
+    const calls = [];
+    const { context } = setup();
+    Object.assign(context, {
+        neighbourChat: () => 'next-peer',
+        visibleChatPeerIds: () => ['a', 'b'],
+        switchToChat: async peerId => calls.push(`switch:${peerId}`),
+        openSnapUploadModal: async () => calls.push('snap'),
+        openAlbumPicker: () => calls.push('album'),
+        logBackgroundError: () => () => {}
+    });
+    context.state = { activeChatPeerId: 'a' };
+    context.window.location = { reload: () => calls.push('reload') };
+    for (const action of ['reload', 'next', 'snap', 'album', 'unknown']) {
+        context.state.pullUpAction = action;
+        context.runPullUpAction();
+    }
+    assert.deepEqual(calls, ['reload', 'switch:next-peer', 'snap', 'album', 'reload']);
+
+    // Am Ende der Liste geht es von vorn weiter.
+    calls.length = 0;
+    context.neighbourChat = () => null;
+    context.state.pullUpAction = 'next';
+    context.runPullUpAction();
+    assert.deepEqual(calls, ['switch:b']);
+});

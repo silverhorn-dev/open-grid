@@ -91,7 +91,9 @@
   (ab 80 px, nicht in den 24-px-Kantenzonen, nicht in horizontal scrollbaren
   Bereichen oder im offenen Chat) = Tab Grid/Chat/Profil wechseln; Profil- und
   Medienfenster von oben nach unten wischen = schliessen; im Chat am Ende nach
-  oben ziehen = aktualisieren (Pfad-C-Queue, P2P, Chat-Sync). Nachrichten
+  oben ziehen = einstellbare Aktion (`keys`/`pullup-settings.action`: `reload`
+  = Tab neu laden (Standard, ohne Toast), `next` = naechster Chat der Liste,
+  `snap` = Snap-Kamera, `album` = Album teilen). Nachrichten
   nutzen Pointer Events mit `touch-action: pan-y`, alles andere passive Touch
   Events. Die System-Geste "zurueck" und Pull-to-Refresh des Browsers bleiben
   unberuehrt.

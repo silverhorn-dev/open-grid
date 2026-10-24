@@ -81,7 +81,10 @@ window.onload = async () => {
             startStatusCleanup();
         });
         await runStartupStep('Chatliste', loadChatPeerIds);
-        await runStartupStep('Chat-Wechsel', loadChatSwitchSettings);
+        await runStartupStep('Chat-Wechsel', async () => {
+            await loadChatSwitchSettings();
+            await loadPullUpSetting();
+        });
         await runStartupStep('Alben', async () => {
             await loadAlbums();
             await loadAlbumDefaults();

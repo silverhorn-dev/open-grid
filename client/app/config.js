@@ -99,6 +99,8 @@ const state = {
     wsPingTimer: null,
     wsPingNonce: null,
     wsOpenedAt: 0,
+    // Aktion beim Hochziehen am Chat-Ende (gestures.js).
+    pullUpAction: 'reload',
     // Chat klebt unten (chat.js, Scrollposition).
     chatPinned: true,
     // Chat-Wechsel im offenen Chat (chat-switch.js).

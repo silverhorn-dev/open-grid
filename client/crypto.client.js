@@ -23,7 +23,9 @@ async function signProfileData(profileData, privateKey, jwkPublic) {
         audience: profileData.audience || 'public',
         // Chat-Regeln und "Matches koennen mich adden" (nicht angezeigt, steuern nur Knoepfe beim anderen).
         chatPolicy: profileData.chatPolicy,
-        allowMatchFriends: profileData.allowMatchFriends !== false
+        allowMatchFriends: profileData.allowMatchFriends !== false,
+        // Kurzstatus nur im Profil fuer Freunde.
+        presenceText: profileData.presenceText || undefined
     };
     const dataString = JSON.stringify(payloadToSign);
     const signatureArrayBuffer = await window.crypto.subtle.sign(

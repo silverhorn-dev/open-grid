@@ -91,6 +91,7 @@ async function applyFriendOperation(peerId, operation) {
     if (!wasFriend && nowFriend) {
         await setChatScope(peerId, 'social');
         await releaseHeldMessages(peerId);
+        pushStatusesToPeer(peerId).catch(logBackgroundError('applyFriendOperation'));
         if (operation.actorId === peerId) showToast(`${name} und du seid jetzt befreundet.`, 'success');
         sendSecurePayload(peerId, { type: 'PROFILE_REQUEST' }).catch(logBackgroundError('applyFriendOperation'));
     } else if (operation.type === 'FRIEND_PING' && operation.actorId === peerId && !nowFriend) {
@@ -98,7 +99,11 @@ async function applyFriendOperation(peerId, operation) {
         await ensureChatScope(peerId, 'social');
         if (acceptsFriendRequestFrom(peerId)) showToast(`${name} moechte dich adden.`, 'info');
     }
-    if (wasFriend && !nowFriend) sendSecurePayload(peerId, { type: 'PROFILE_REQUEST' }).catch(logBackgroundError('applyFriendOperation'));
+    if (wasFriend && !nowFriend) {
+        delete state.statusPushes[peerId];
+        await forgetStatusesOf(peerId);
+        sendSecurePayload(peerId, { type: 'PROFILE_REQUEST' }).catch(logBackgroundError('applyFriendOperation'));
+    }
     renderFriendUi(peerId);
     return true;
 }

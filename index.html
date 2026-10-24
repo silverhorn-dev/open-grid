@@ -174,6 +174,7 @@
                     </button>
                     <span id="active-peers-count" class="bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full text-xs">0</span>
                 </h3>
+                <div id="status-bar" class="hidden flex gap-2 overflow-x-auto pb-3 mb-2 border-b border-slate-800" data-no-tab-swipe aria-label="Status"></div>
                 <div id="active-peers-list" class="flex-1 min-h-0 space-y-2 overflow-y-auto"></div>
             </div>
 
@@ -614,6 +615,17 @@
 
                 <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
                     <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-circle-notch text-brand-400"></i> Status
+                    </h3>
+                    <label class="flex items-start gap-2 text-xs text-slate-300 cursor-pointer">
+                        <input type="checkbox" id="status-direct-toggle" data-change="updateStatusSetting" data-args='["directOnly", "$checked"]' class="accent-brand-500 mt-0.5">
+                        <span>Status nur direkt (P2P) verteilen. Der Server sieht dann nicht, an wen du Status schickst; Freunde bekommen ihn erst, wenn ihr gleichzeitig online seid.</span>
+                    </label>
+                    <p class="text-[11px] text-slate-500">Status (Text oder Foto) sehen nur Freunde, 24 Stunden lang. Danach werden sie auf allen Geraeten geloescht.</p>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
+                    <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
                         <i class="fa-solid fa-bell text-amber-400"></i> Push-Benachrichtigungen
                     </h3>
                     <p class="text-xs text-slate-400">Weckt die App bei neuen Nachrichten, auch wenn sie geschlossen ist. Der Push enthaelt nur verschluesselte Daten.</p>
@@ -743,6 +755,33 @@
             <button id="image-viewer-next" data-click="stepImageViewer" data-args='[1]' class="hidden sm:flex absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/50 hover:bg-black/70 text-white items-center justify-center" aria-label="Naechstes Bild">
                 <i class="fa-solid fa-chevron-right"></i>
             </button>
+        </div>
+    </div>
+
+    <!-- Status-Viewer (status.js): links/rechts tippen = zurueck/weiter -->
+    <div id="status-viewer" class="hidden fixed inset-0 z-[82] bg-black select-none" data-no-context-menu role="dialog" aria-modal="true" aria-label="Status">
+        <div id="status-viewer-content" class="absolute inset-0 flex items-center justify-center">
+            <canvas id="status-viewer-image" role="img" aria-label="Status" class="secure-image hidden max-w-full max-h-full object-contain"></canvas>
+            <div id="status-viewer-text"></div>
+        </div>
+        <button data-click="stepStatus" data-args='[-1]' class="absolute inset-y-0 left-0 w-1/3" aria-label="Vorheriger Status"></button>
+        <button data-click="stepStatus" data-args='[1]' class="absolute inset-y-0 right-0 w-2/3" aria-label="Naechster Status"></button>
+        <div class="absolute top-0 inset-x-0 p-3 space-y-3 bg-gradient-to-b from-black/60 to-transparent" style="padding-top: max(0.75rem, env(safe-area-inset-top));">
+            <div id="status-viewer-progress" class="flex gap-1"></div>
+            <div class="flex items-center justify-between gap-2">
+                <div class="min-w-0">
+                    <div id="status-viewer-name" class="text-sm font-semibold text-white truncate"></div>
+                    <div id="status-viewer-time" class="text-[11px] text-white/70"></div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="status-viewer-delete" data-click="deleteViewedStatus" class="hidden w-10 h-10 rounded-full bg-black/50 text-white flex items-center justify-center" aria-label="Status loeschen">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                    <button data-click="closeStatusViewer" class="w-10 h-10 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Schliessen">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -876,6 +915,7 @@
     <script src="/client/app/secure-snaps.js?v={{assetVersion}}"></script>
     <script src="/client/app/matching.js?v={{assetVersion}}"></script>
     <script src="/client/app/friends.js?v={{assetVersion}}"></script>
+    <script src="/client/app/status.js?v={{assetVersion}}"></script>
     <script src="/client/app/gestures.js?v={{assetVersion}}"></script>
     <script src="/client/app/modes.js?v={{assetVersion}}"></script>
     <script src="/vendor/qrcode/qrcode.js"></script>

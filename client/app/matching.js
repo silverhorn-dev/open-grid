@@ -208,6 +208,8 @@ function buildProfilePayloadFor(peerId) {
         chatPolicy: getMyChatPolicy(),
         allowMatchFriends: allowsMatchFriends()
     };
+    // Kurzstatus (Rich Presence) sehen nur Freunde.
+    if (typeof isFriend === 'function' && isFriend(peerId) && state.myProfile.presenceText) base.presenceText = state.myProfile.presenceText;
     if (visibility === 1 || matched) {
         return {
             ...base,

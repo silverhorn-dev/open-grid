@@ -68,6 +68,23 @@ function dismissModalEntry(name, hide) {
     hide();
 }
 
+// Ein Modal schliessen und erst danach ein anderes oeffnen: der popstate des Schliessens wuerde sonst
+// das gerade geoeffnete Modal gleich wieder ausblenden.
+function replaceModal(close, open) {
+    let done = false;
+    const run = () => {
+        if (done) return;
+        done = true;
+        window.removeEventListener('popstate', onPopState);
+        Promise.resolve(open()).catch(logBackgroundError('replaceModal'));
+    };
+    const onPopState = () => setTimeout(run, 0);
+    window.addEventListener('popstate', onPopState);
+    close();
+    // Ohne history.back() (Modal war nicht oben) kommt kein popstate.
+    setTimeout(run, 400);
+}
+
 // Schliessen, weil direkt danach navigiert wird: kein history.back(), der
 // naechste syncRoute ersetzt den Modal-Eintrag.
 function hideModalForNavigation(name, hide) {

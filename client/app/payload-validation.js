@@ -10,7 +10,8 @@ const MAX_PROFILE_VALUE_LENGTH = 5000;
 const MAX_SYNC_IDS = 50;
 const CHAT_OPERATION_TYPES = [
     'MESSAGE_PUT', 'MESSAGE_DELETE', 'MESSAGE_REACT', 'CHAT_WIPE', 'PEER_UNHIDE',
-    'MATCH_PING', 'MATCH_RESET', 'FRIEND_PING', 'FRIEND_RESET', 'SNAP_CONSUMED', 'ALBUM_KEYS'
+    'MATCH_PING', 'MATCH_RESET', 'FRIEND_PING', 'FRIEND_RESET', 'SNAP_CONSUMED', 'ALBUM_KEYS',
+    'STATUS_POST', 'STATUS_DELETE'
 ];
 
 const isId = value => typeof value === 'string' && value.length > 0 && value.length <= MAX_ID_LENGTH;
@@ -35,6 +36,10 @@ function isValidChatOperation(operation) {
     if (!isOptionalString(operation.actorId, MAX_ID_LENGTH) || !isTimestamp(operation.createdAt)) return false;
     if (operation.type === 'MESSAGE_PUT') return isId(operation.messageId) && isValidMessage(operation.message);
     if (['MESSAGE_DELETE', 'MESSAGE_REACT', 'SNAP_CONSUMED'].includes(operation.type)) return isId(operation.messageId);
+    if (operation.type === 'STATUS_DELETE') return isId(operation.statusId);
+    if (operation.type === 'STATUS_POST') return isId(operation.statusId) && ['text', 'photo'].includes(operation.kind)
+        && isOptionalString(operation.text, 280) && isOptionalString(operation.color, 20)
+        && isOptionalString(operation.image, 100000) && Number.isFinite(operation.expiresAt);
     if (operation.type === 'ALBUM_KEYS') return Array.isArray(operation.bundles) && operation.bundles.length <= 4
         && operation.bundles.every(bundle => bundle && (bundle.epochMs === undefined || (Number.isInteger(bundle.epochMs) && bundle.epochMs > 0)))
         && (operation.ticket === undefined || operation.ticket === null || isValidTicket(operation.ticket));

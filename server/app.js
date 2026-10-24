@@ -93,6 +93,7 @@ const clientAssetFiles = [
     'app/secure-snaps.js',
     'app/matching.js',
     'app/friends.js',
+    'app/status.js',
     'app/gestures.js',
     'app/modes.js',
     'app/settings.js',

@@ -223,7 +223,7 @@ test('serves the app shell and all client modules', async () => {
         assert.ok(response.body.length > 100, path);
         appSource += response.body;
     }
-    assert.match(appSource, /indexedDB\.open\('OpenGridDB_Live', 8\)/);
+    assert.match(appSource, /indexedDB\.open\('OpenGridDB_Live', 9\)/);
     assert.match(appSource, /createObjectStore\('albums'/);
     assert.match(appSource, /canPeerAccessImage\(peerId, imageId\)/);
     assert.match(appSource, /createObjectStore\('localProfile'/);

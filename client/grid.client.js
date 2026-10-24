@@ -136,6 +136,7 @@ function renderActivePeerList() {
         .sort((left, right) => (state.chatPreviews[right]?.at || 0) - (state.chatPreviews[left]?.at || 0));
 
     count.textContent = peerIds.length;
+    renderStatusBar();
     const scopeLabel = document.getElementById('chat-list-scope');
     if (scopeLabel) scopeLabel.textContent = isSocialMode() ? '· Chat & Freunde' : '· Grid & Event';
     container.innerHTML = '';
@@ -202,6 +203,13 @@ function renderActivePeerList() {
             time.className = 'shrink-0 text-slate-500';
             time.textContent = formatChatListTime(preview.at);
             previewLine.appendChild(time);
+        }
+        const presence = presenceTextOf(peer.id);
+        if (presence) {
+            const presenceNote = document.createElement('span');
+            presenceNote.className = 'ml-1.5 font-normal text-slate-400';
+            presenceNote.textContent = `· ${presence}`;
+            name.appendChild(presenceNote);
         }
         details.append(name, previewLine, status);
         button.append(avatar, details);

@@ -34,6 +34,8 @@ function loadFriends({ appMode = 'chat' } = {}) {
         sendSecurePayload: async (peerId, payload) => sent.push({ peerId, payload }),
         syncChatGate: async () => {},
         getDatabaseRecordsByIndex: async () => [],
+        pushStatusesToPeer: async () => {},
+        forgetStatusesOf: async () => {},
         renderActivePeerList: () => {},
         renderProfileMatchActions: () => {},
         updateChatActionButtons: () => {},
@@ -159,3 +161,61 @@ test('grid matches can be added only after a match and only if allowed, silently
     sender.state.cachedProfiles.shy = { allowMatchFriends: true };
     assert.equal(sender.canAddMatch('shy'), true);
 });
+
+function loadStatus() {
+    const context = loadFriends({ appMode: 'chat' });
+    Object.assign(context.state, { statuses: {}, statusSettings: { directOnly: false }, statusPushes: {}, storageKey: null });
+    context.deleteDatabaseRecord = async (store, id) => context.records.delete(`${store}:${id}`);
+    context.isSafeInlineImage = value => typeof value === 'string' && value.startsWith('data:image/');
+    context.isTraceWatermarkEnabled = () => false;
+    context.renderStatusBar = () => {};
+    context.closeStatusViewer = () => {};
+    context.closeMediaModal = () => {};
+    context.setInterval = setInterval;
+    context.clearInterval = clearInterval;
+    vm.runInNewContext(read('client/app/status.js'), context);
+    context.renderStatusBar = () => {};
+    return context;
+}
+
+test('status goes only to friends, comes only from friends and expires after 24 h', async () => {
+    const me = loadStatus();
+    me.state.friendState = { buddy: { sentAt: 2, receivedAt: 3, resetAt: 0 }, stranger: emptyEntry() };
+    const status = await me.createOwnStatus({ kind: 'text', text: 'Im Park', color: '#7c3aed' });
+    const posts = me.sent.filter(entry => entry.payload.operation?.type === 'STATUS_POST');
+    assert.deepEqual(posts.map(entry => entry.peerId), ['buddy'], 'only friends get it');
+    assert.ok(status.expiresAt - status.createdAt <= 24 * 60 * 60 * 1000);
+
+    // Eingang: nur von Freunden, Ablauf hoechstens 24 h ab jetzt.
+    const now = Date.now();
+    const incoming = { operationId: 'status:x', type: 'STATUS_POST', actorId: 'buddy', statusId: 'st_x', kind: 'text', text: 'hi', color: '#7c3aed', createdAt: now, expiresAt: now + 7 * 24 * 60 * 60 * 1000 };
+    assert.equal(await me.handleStatusOperation('buddy', incoming), true);
+    assert.ok(me.state.statuses.st_x.expiresAt <= now + 24 * 60 * 60 * 1000 + 50, 'clamped to 24 h');
+    assert.equal(await me.handleStatusOperation('stranger', { ...incoming, actorId: 'stranger', statusId: 'st_y' }), false);
+    assert.equal(me.state.statuses.st_y, undefined);
+
+    // Aufraeumen nach Ablauf entfernt Datensatz und Zustand.
+    const removed = await me.removeExpiredStatuses(now + 25 * 60 * 60 * 1000);
+    assert.ok(removed >= 2);
+    assert.equal(Object.keys(me.state.statuses).length, 0);
+    assert.equal([...me.records.keys()].some(key => key.startsWith('statusUpdates:')), false);
+});
+
+test('direct-only status uses no cache fallback and deletes reach friends', async () => {
+    const me = loadStatus();
+    me.state.friendState = { buddy: { sentAt: 2, receivedAt: 3, resetAt: 0 } };
+    const fallbacks = [];
+    me.sendSecurePayload = async (peerId, payload, onSent) => { me.sent.push({ peerId, payload }); fallbacks.push(onSent); };
+    me.state.statusSettings.directOnly = true;
+    const status = await me.createOwnStatus({ kind: 'text', text: 'nur direkt', color: '#7c3aed' });
+    assert.equal(fallbacks.at(-1), null, 'no Path C fallback');
+    me.window.confirm = () => true;
+    await me.deleteOwnStatus(status.id);
+    assert.equal(me.sent.at(-1).payload.operation.type, 'STATUS_DELETE');
+    assert.equal(me.state.statuses[status.id], undefined);
+});
+
+function emptyEntry() {
+    return { sentAt: 0, receivedAt: 0, resetAt: 0 };
+}
+

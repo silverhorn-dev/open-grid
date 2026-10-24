@@ -73,6 +73,11 @@ window.onload = async () => {
             await loadChatScopes();
             await loadFriendState();
         });
+        await runStartupStep('Status', async () => {
+            await loadStatusSettings();
+            await loadStatuses();
+            startStatusCleanup();
+        });
         await runStartupStep('Chatliste', loadChatPeerIds);
         await runStartupStep('Alben', async () => {
             await loadAlbums();

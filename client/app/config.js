@@ -89,6 +89,14 @@ const state = {
     // Freunde (friends.js): Beziehung pro Peer und Zuordnung der Chats zu den Listen.
     friendState: {},
     chatScopes: {},
+    // Status (status.js): Eintraege nach ID, Einstellungen, bereits gelieferte Status pro Freund.
+    statuses: {},
+    statusSettings: { directOnly: false },
+    statusPushes: {},
+    statusCleanupTimer: null,
+    statusViewer: null,
+    // Ziel der Snap-Kamera: 'chat' oder 'status'.
+    snapTarget: null,
     // App-Modus (P8): vom Server erlaubte Modi, gewaehlter Modus und Event-Daten.
     appConfig: { modes: ['discovery', 'chat', 'friends', 'event'], defaultMode: 'discovery' },
     appMode: 'discovery',

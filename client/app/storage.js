@@ -1,7 +1,7 @@
 // ================= INDEXEDDB =================
 function initDatabase() {
     return new Promise((resolve) => {
-        const req = indexedDB.open('OpenGridDB_Live', 8);
+        const req = indexedDB.open('OpenGridDB_Live', 9);
         let settled = false;
         const finish = (database = null) => {
             if (settled) return;
@@ -32,6 +32,8 @@ function initDatabase() {
                 database.createObjectStore('media', { keyPath: 'id' });
             }
             if (!database.objectStoreNames.contains('albums')) database.createObjectStore('albums', { keyPath: 'id' });
+            // Version 9: Status von Freunden und eigene Status (24 h, verschluesselt).
+            if (!database.objectStoreNames.contains('statusUpdates')) database.createObjectStore('statusUpdates', { keyPath: 'id' });
         };
         req.onsuccess = (e) => {
             db = e.target.result;
@@ -591,6 +593,9 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
         const index = state.chats[peerId].findIndex(item => item.id === localOperation.messageId);
         if (index >= 0) state.chats[peerId][index] = deletedMessage;
         else state.chats[peerId].push(deletedMessage);
+    } else if (localOperation.type === 'STATUS_POST' || localOperation.type === 'STATUS_DELETE') {
+        // Status gehoeren nicht ins Chat-Log (wie Album-Schluessel).
+        return handleStatusOperation(peerId, localOperation);
     } else if (localOperation.type === 'ALBUM_KEYS') {
         // Schluessel-Buendel werden separat gespeichert und nicht im Operations-Log synchronisiert.
         if (localOperation.actorId !== peerId) return false;

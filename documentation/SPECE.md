@@ -346,7 +346,7 @@ Damit die spaetere direkte Verbindung ein zuvor per Swarm gecachtes Profil auch
 bei identischer Version ersetzen kann, laesst `cachePeerProfile` den Uebergang
 von `unpinned` nach `trusted` als Sonderfall zu.
 
-IndexedDB Version 8 enthaelt:
+IndexedDB Version 9 enthaelt:
 
 | Store | Inhalt |
 |---|---|
@@ -358,6 +358,7 @@ IndexedDB Version 8 enthaelt:
 | `gridPeers` | minimale lokale Routing-Metadaten |
 | `media` | verschluesselte Bilder (Galerie, Alben) |
 | `albums` | eigene Alben (`ownerId` = eigene ID, mit `acl`) und empfangene Alben anderer Peers (seit Version 8) |
+| `statusUpdates` | eigene Status und Status von Freunden, `{ id, peerId, expiresAt, sealed }`, Inhalt mit dem Speicherschluessel verschluesselt (seit Version 9) |
 
 Der Store `keys` enthaelt zusaetzlich den Datensatz `router-auth` mit
 `nodeId` und Router-Token. Er spiegelt `localStorage` fuer den Service
@@ -369,7 +370,36 @@ Worker (Abschnitt 6.0). Der Datensatz `grid-settings` speichert `silent`, `ttlMi
 `cacheEnabled` (Standard an), `useLocation`, `locationLabel` und `safeZones`
 (Liste von Geohash-Zellen). Ein fehlender Datensatz entspricht den Standardwerten.
 Safe Zones verlassen nie das Geraet: Liegt die eigene Zelle in einer Safe
-Zone, registriert sich der Client als `silent`.
+Zone, registriert sich der Client als `silent`. Weitere Datensaetze:
+`chat-scopes` (Chatlisten, 6.0), `album-defaults`, `album-ticket:<albumId>`
+(5.1), `privacy-settings` (Spur-Wasserzeichen) und `status-settings`
+(`directOnly`, Status).
+
+### 5.2 Status (R7, `client/app/status.js`)
+
+Nur im Chat- und Freunde-Modus, nur unter Freunden.
+
+| Operation | Inhalt |
+|---|---|
+| `STATUS_POST` | `{ statusId, kind: 'text' \| 'photo', text (max. 280), color, image (Foto, max. 70 KB), createdAt, expiresAt }` |
+| `STATUS_DELETE` | `{ statusId }` |
+
+- Versand an jeden Freund einzeln als `CHAT_OPERATION`: P2P, steht nach 10 s
+  kein Kanal, ueber Pfad C (ohne Web Push). Mit `status-settings.directOnly`
+  nur P2P. Status landen nicht im Chat-Log; beim naechsten Verbindungsaufbau
+  liefert der Absender aktive Status nach, die der Freund noch nicht hat.
+- Fotos kommen aus Snap-Kamera und Editor (`openSnapCamera('status')`); jeder
+  Freund bekommt sein eigenes Wasserzeichen (wenn eingeschaltet).
+- Empfaenger nehmen Status nur von Freunden an und begrenzen `expiresAt` auf
+  hoechstens 24 h ab Empfang. Abgelaufene Status loescht der Client beim
+  Start und alle 15 Minuten; endet eine Freundschaft, werden deren Status
+  sofort geloescht.
+- Kurzstatus (Rich Presence): `myProfile.presenceText` (max. 60 Zeichen) steht
+  nur im Profil fuer Freunde (signiert) und erscheint neben dem Online-Status
+  in Chatliste und Kontaktleiste.
+- Datenschutz: ueber Pfad C sieht der Server, dass ein Absender zeitgleich an
+  mehrere Empfaenger schickt (Freundeskreis erkennbar); "Status nur direkt"
+  vermeidet das.
 
 ### 5.1 Alben
 

@@ -116,6 +116,12 @@ async function openSnapUploadModal() {
         showToast('Bitte waehle zuerst einen aktiven Chat aus.', 'warning');
         return;
     }
+    await openSnapCamera('chat');
+}
+
+// Ziel: 'chat' (Snap an den aktiven Chat) oder 'status' (Foto-Status fuer Freunde, status.js).
+async function openSnapCamera(target) {
+    state.snapTarget = target;
     state.snapFacingMode = state.snapFacingMode || 'user';
     resetSnapPreview();
     document.getElementById('snap-capture-modal').classList.remove('hidden');
@@ -234,6 +240,12 @@ function showSnapReview(base) {
     document.getElementById('snap-live-controls').classList.add('hidden');
     document.getElementById('snap-gesture-hint').classList.add('hidden');
     document.getElementById('snap-review-controls').classList.remove('hidden');
+    // Foto-Status: keine Secure-Snap-Optionen, Knopf "Teilen".
+    const forStatus = state.snapTarget === 'status';
+    if (forStatus) document.getElementById('snap-review-secure-options').classList.add('hidden');
+    document.getElementById('snap-send-btn').innerHTML = forStatus
+        ? 'Als Status teilen <i class="fa-solid fa-circle-plus"></i>'
+        : 'Senden <i class="fa-solid fa-paper-plane"></i>';
     openSnapEditor(base);
 }
 
@@ -247,7 +259,8 @@ function captureSnap() {
 async function encodeSnapDraft(peerId) {
     const flat = flattenSnapDraft();
     if (!flat) return null;
-    const bits = isTraceWatermarkEnabled() ? await watermarkTag(peerId) : null;
+    // Ohne Empfaenger (Status) kein Wasserzeichen hier; das setzt status.js pro Freund.
+    const bits = peerId && isTraceWatermarkEnabled() ? await watermarkTag(peerId) : null;
     return encodeSnap(flat, flat.width, flat.height, false, bits);
 }
 
@@ -272,6 +285,14 @@ async function retakeSnap() {
 }
 
 async function sendSnapDraft() {
+    if (state.snapTarget === 'status') {
+        const image = hasSnapDraft() ? await encodeSnapDraft(null) : null;
+        const caption = document.getElementById('snap-caption-input').value;
+        closeSnapModal();
+        if (image) await postPhotoStatus(image, caption);
+        else showToast('Status konnte nicht erstellt werden.', 'error');
+        return;
+    }
     const peerId = state.activeChatPeerId;
     if (!hasSnapDraft() || !peerId) return;
     const snapData = await encodeSnapDraft(peerId);

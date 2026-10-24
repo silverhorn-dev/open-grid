@@ -286,7 +286,9 @@ function renderChatPeerIndicator() {
     const watching = online && isSecureChannelOpen(peerId) && Boolean(state.peerChatFocus[peerId]);
     dot.classList.toggle('hidden', !online);
     const sameNetwork = online && state.peerTransport[peerId] === 'lan' ? ' · im selben WLAN' : '';
-    status.textContent = !peerId ? '' : watching ? `\u{1F440} hat den Chat offen${sameNetwork}` : online ? `online${sameNetwork}` : 'offline';
+    const presence = peerId ? presenceTextOf(peerId) : '';
+    const presenceSuffix = presence ? ` · ${presence}` : '';
+    status.textContent = !peerId ? '' : watching ? `\u{1F440} hat den Chat offen${sameNetwork}${presenceSuffix}` : online ? `online${sameNetwork}${presenceSuffix}` : `offline${presenceSuffix}`;
     status.classList.toggle('text-emerald-400', online);
     status.classList.toggle('text-slate-400', !online);
 }

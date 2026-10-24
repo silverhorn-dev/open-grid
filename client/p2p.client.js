@@ -346,6 +346,7 @@ function isPeerOnline(peerId) {
 function handlePeerCameOnline(peerId) {
     updateProfilePresence(peerId, 'online');
     pushAlbumKeysToPeer(peerId).catch(logBackgroundError('handlePeerCameOnline'));
+    pushStatusesToPeer(peerId).catch(logBackgroundError('handlePeerCameOnline'));
     const needsConnection = Boolean(state.secureMessageQueues[peerId]?.length) || state.activeChatPeerId === peerId;
     if (needsConnection && state.dataChannels[peerId]?.readyState !== 'open' && !isPeerBlocked(peerId)) {
         initiateP2PConnection(peerId).catch(logBackgroundError('handlePeerCameOnline'));
@@ -493,6 +494,7 @@ async function deriveSessionKey(peerId, publicJwk, profileSigningKey) {
     if (!state.cachedProfiles[peerId]) sendSecurePayload(peerId, { type: 'PROFILE_REQUEST' }).catch(logBackgroundError('deriveSessionKey'));
     // Alben v2: Betrachter bekommen beim Verbinden die aktuellen Schluessel-Buendel.
     pushAlbumKeysToPeer(peerId).catch(logBackgroundError('deriveSessionKey'));
+    pushStatusesToPeer(peerId).catch(logBackgroundError('deriveSessionKey'));
     await beginChatSync(peerId);
     await flushSecureMessageQueue(peerId);
 }

@@ -587,6 +587,23 @@ Akzeptanzkriterien:
   "Chat & Freunde".
 - Im Freunde-Modus zeigt das Grid nur Freunde.
 
+## UC-38: Status fuer Freunde
+
+**Als Nutzer** moechte ich meinen Freunden fuer einen Tag zeigen, was los ist.
+
+Akzeptanzkriterien:
+
+- Im Chat- und Freunde-Modus zeigt eine Leiste ueber der Chatliste den eigenen
+  Status ("+") und Freunde mit aktuellem Status (farbiger Ring = ungesehen).
+- Ein Status ist ein Text mit Hintergrundfarbe oder ein Foto aus der
+  Snap-Kamera (mit Editor); er ist 24 Stunden sichtbar und wird danach auf
+  allen Geraeten geloescht. Eigene Status lassen sich vorher loeschen.
+- Nur Freunde bekommen Status; Fremde und Grid-Kontakte sehen nichts.
+- Ein dauerhafter Kurzstatus (z. B. "Im Club") erscheint bei Freunden neben
+  dem Online-Status.
+- "Status nur direkt" verteilt Status nur P2P; der Server sieht dann nicht,
+  an wen man Status schickt.
+
 ## UC-34: Event-Modus
 
 **Als Nutzer** moechte ich auf einem Event nur die anderen Teilnehmer sehen.

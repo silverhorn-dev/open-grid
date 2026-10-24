@@ -261,6 +261,13 @@ html.debug-on .debug-off-only {
     #view-chat:not(.chat-open) #chat-window-panel {
         display: none;
     }
+    /* Chatliste ohne umgebende Box: die Chats stehen direkt auf der Seite (am Desktop bleibt die Box). */
+    #chat-list-panel {
+        background: transparent;
+        border: 0;
+        border-radius: 0;
+        padding: 0;
+    }
     #view-chat.chat-open #chat-list-panel {
         display: none;
     }

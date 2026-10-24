@@ -360,6 +360,7 @@ function connectWorkerWebSocket() {
     try {
         state.ws = new WebSocket(WS_URL);
         state.ws.onopen = async () => {
+            state.wsOpenedAt = Date.now();
             logDebug('Connected to Worker Signaling');
             updateConnectivityIndicator();
             const registered = await registerWithWorkerGrid();

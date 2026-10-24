@@ -79,6 +79,8 @@ function getOrCreatePeerConnection(peerId) {
     if (existing) cleanupPeerConnection(peerId, existing);
 
     const connection = new RTCPeerConnection(getRtcConfig());
+    // Zeitpunkt merken: nach einem Signaling-Neustart gelten nur aeltere Verbindungen als haengend.
+    connection.openGridCreatedAt = Date.now();
     state.webrtcConnections[peerId] = connection;
     state.pendingIceCandidates[peerId] = state.pendingIceCandidates[peerId] || [];
     const seenCandidateTypes = new Set();
@@ -367,23 +369,29 @@ function renderPresenceChange(peerId = null) {
 
 // Offener Chat und Peers mit wartenden Nachrichten, auch wenn sie nicht im Grid stehen (Chat- und
 // Freunde-Modus haben kein Grid). Nach einem Signaling-Neustart (afterReconnect) gelten auch
-// Verbindungen, die noch "new" oder "connecting" sind, als haengend: ihre Angebote gingen an einen
-// toten Socket.
+// Verbindungen, die noch "new" oder "connecting" sind, als haengend, wenn sie vor dem neuen Socket
+// entstanden sind: ihre Angebote gingen an den alten. Neuere laufen weiter.
 function retryVisiblePeerConnections(afterReconnect = false) {
     const candidates = new Set([
         ...state.peers.map(peer => peer.id),
         state.activeChatPeerId,
         ...Object.keys(state.secureMessageQueues)
     ].filter(Boolean));
-    const stale = afterReconnect ? ['failed', 'closed', 'disconnected', 'new', 'connecting'] : ['failed', 'closed', 'disconnected'];
+    const broken = ['failed', 'closed', 'disconnected'];
+    const isStale = connection => broken.includes(connection.connectionState)
+        || (afterReconnect && ['new', 'connecting'].includes(connection.connectionState)
+            && (connection.openGridCreatedAt || 0) < (state.wsOpenedAt || 0));
     candidates.forEach(peerId => {
         const shouldReconnect = state.activeChatPeerId === peerId
             || Boolean(state.secureMessageQueues[peerId]?.length);
         if (!shouldReconnect || state.dataChannels[peerId]?.readyState === 'open' || isPeerBlocked(peerId)) return;
 
         const connection = state.webrtcConnections[peerId];
-        if (connection && stale.includes(connection.connectionState)) {
+        if (connection && isStale(connection)) {
             cleanupPeerConnection(peerId, connection);
+        } else if (connection && ['new', 'connecting', 'connected'].includes(connection.connectionState)) {
+            // Laeuft noch (oder steht schon): nicht doppelt anstossen.
+            return;
         }
         state.connectionRetryCounts[peerId] = 0;
         initiateP2PConnection(peerId).catch(error => {

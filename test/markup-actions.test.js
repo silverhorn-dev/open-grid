@@ -36,8 +36,8 @@ test('every declarative action points to an existing function with valid argumen
 test('chat input is a multiline field and offline state is an icon, not a banner', () => {
     assert.match(markup, /<textarea id="chat-input" rows="1"/);
     assert.doesNotMatch(markup, /id="offline-banner"/);
-    assert.ok((markup.match(/class="offline-indicator hidden/g) || []).length >= 1);
-    assert.ok((markup.match(/offline-indicator hidden/g) || []).length >= 2, 'top bar and chat header');
+    // Nur im Chat-Kopf; in der Kopfzeile zeigt der Punkt den Verbindungsstatus.
+    assert.equal((markup.match(/offline-indicator hidden/g) || []).length, 1, 'only in the chat header');
 });
 
 test('viewers draw images into canvases and only chat images can be saved', () => {

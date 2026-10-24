@@ -98,6 +98,7 @@ const state = {
     // Signaling-Heartbeat (grid.client.js).
     wsPingTimer: null,
     wsPingNonce: null,
+    wsOpenedAt: 0,
     // Chat-Wechsel im offenen Chat (chat-switch.js).
     chatSwitchSettings: { enabled: true, style: 'bar' },
     // Ziel der Snap-Kamera: 'chat' oder 'status'.

@@ -326,8 +326,14 @@ Akzeptanzkriterien:
   (vorne/hinten) und Schliessen-Knopf.
 - Ohne Kamera oder ohne Erlaubnis kann ein Bild aus der Galerie gewaehlt
   werden.
-- Nach der Aufnahme gibt es eine Vorschau mit optionaler Bildunterschrift,
-  "Nochmal" und "Senden".
+- Nach der Aufnahme gibt es einen Editor: mit dem Finger zeichnen (Farben),
+  Text und Emojis auf das Bild legen und verschieben, doppelt tippen entfernt
+  eine Ebene, "Rueckgaengig". Dazu optionale Bildunterschrift, "Nochmal" und
+  "Senden". Verschickt wird ein einziges JPEG.
+- Gesten in der Kamera: nach unten wischen schliesst, am Ausloeser nach oben
+  wischen oeffnet die Galerie, doppelt tippen wechselt die Kamera, zwei Finger
+  zoomen (wenn die Kamera Zoom kann). Hat die Kamera eine Lampe, gibt es einen
+  Licht-Knopf.
 - Die Kamera wird beim Schliessen immer freigegeben.
 - Ein normaler Snap laesst sich einmal ansehen und einmal wiederholen; danach
   ist er weg, auch beim Sender. Mit "Speichern" bleibt er dauerhaft im Chat;

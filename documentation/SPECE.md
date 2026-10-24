@@ -59,6 +59,16 @@
   Chat-Kopf); ohne `navigator.onLine` sofort.
 - Nachrichtenfeld `#chat-input` ist ein `<textarea>`; `fitChatInput` (`chat.js`)
   setzt die Hoehe bis `CHAT_INPUT_MAX_LINES` (5), danach scrollt es.
+- Snap-Kamera (`snaps.js`, `snap-camera.js`, `snap-editor.js`): Vollbild, alle
+  Bedienelemente liegen ueber dem Bild. Licht per
+  `applyConstraints({ advanced: [{ torch }] })` und Zoom per `zoom`, nur wenn
+  `getCapabilities()` sie meldet. Gesten per Pointer Events auf der Vorschau:
+  runter > 110 px = schliessen, doppelt tippen (< 300 ms) = Kamera wechseln,
+  zwei Finger = Zoom; am Ausloeser hoch > 60 px = Galerie. Aufnahme =
+  Rohbild ohne Wasserzeichen (max. 1080 px). Der Editor haelt Striche
+  (Canvas-Koordinaten) und Text/Emoji-Ebenen (Position 0..1, Groesse relativ
+  zur Breite); `flattenSnapDraft` zeichnet alles in einen Canvas, erst danach
+  bettet `encodeSnap` das Wasserzeichen ein und komprimiert unter 70 KB.
 - Gesten (`client/app/gestures.js`, nur Touch): Nachricht wischen (fremde
   nach rechts, eigene nach links, ab 56 px) = antworten; lange druecken
   (450 ms) = Aktionsleiste; doppelt tippen = Reaktion ❤️; seitlich wischen

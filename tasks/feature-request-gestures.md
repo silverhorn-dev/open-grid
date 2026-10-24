@@ -47,8 +47,8 @@ Priority: **P1** = first iteration, **P2** = later, **P3** = nice to have.
 | G7 | Main tabs (mobile) | Horizontal swipe on empty area | Switch Grid ↔ Chat ↔ Profil | P3 |
 | G8 | Profile modal | Swipe down | Close the modal | P2 |
 | G9 | Media modal (bottom sheet) | Swipe down on the header | Close the sheet | P2 |
-| G10 | Snap camera | Swipe up on the shutter area | Open the gallery picker | P3 |
-| G11 | Snap camera | Double tap the preview | Switch front/rear camera | P3 |
+| G10 | Snap camera | Swipe up on the shutter area | Open the gallery picker (done R5) | P3 |
+| G11 | Snap camera | Double tap the preview | Switch front/rear camera (done R5) | P3 |
 
 Already implemented (image viewer, 2026-10-23): swipe left/right to page,
 pinch / double tap / wheel zoom, drag to pan, swipe down to close.

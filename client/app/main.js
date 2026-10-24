@@ -43,6 +43,8 @@ window.onload = async () => {
     initImageViewer();
     initSecureSnaps();
     initGestures();
+    initSnapEditor();
+    initSnapCamera();
     window.addEventListener('online', updateConnectivityIndicator);
     window.addEventListener('offline', updateConnectivityIndicator);
     updateConnectivityIndicator();

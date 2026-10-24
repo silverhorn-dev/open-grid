@@ -120,7 +120,6 @@ const state = {
     debugLogBuffer: [],
     mediaStream: null,
     snapFacingMode: 'user',
-    snapDraft: null,
     albums: {},
     albumViewer: null,
     pendingAlbumRequests: {},

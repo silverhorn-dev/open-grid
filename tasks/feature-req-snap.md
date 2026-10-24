@@ -22,8 +22,16 @@ Die aktuelle Snap-Funktion soll zu einer vollwertigen, immersiven Full-Screen-Ka
 - **Performance:** Die Bildkompression (bereits in `compressImage` implementiert) greift unmittelbar nach dem Flattening des Canvas. ? 
 
 ## ? Akzeptanzkriterien
-- [ ] Kamera-UI nimmt den gesamten Viewport des mobilen Geräts ein.
-- [ ] Nutzer kann zwischen Front- und Back-Kamera wechseln.
-- [ ] Nutzer kann freihändig auf dem Bild zeichnen und Text tippen.
-- [ ] Das modifizierte Bild wird als *ein* einzelner komprimierter Base64-String generiert.
-- [ ] Timer-Einstellung wird im verschlüsselten E2EE-Payload an den Empfänger übermittelt.
+- [x] Kamera-UI nimmt den gesamten Viewport des mobilen Geräts ein.
+- [x] Nutzer kann zwischen Front- und Back-Kamera wechseln.
+- [x] Nutzer kann freihändig auf dem Bild zeichnen und Text tippen.
+- [x] Das modifizierte Bild wird als *ein* einzelner komprimierter Base64-String generiert.
+- [x] Timer-Einstellung wird im verschlüsselten E2EE-Payload an den Empfänger übermittelt.
+
+## Status (2026-10-24, Runde R5)
+- Umgesetzt: Vollbild-Kamera mit Overlay-Bedienung, Licht (wenn vorhanden), Kamera-Gesten
+  (runter = schliessen, hochwischen = Galerie, doppelt tippen = wechseln, zwei Finger = Zoom),
+  Editor mit Zeichnen, Text, Emojis, Rueckgaengig; Flattening vor Wasserzeichen und Kompression.
+- Gab es schon: Front/Back-Wechsel, Timer und Ansichten im E2EE-Payload (Secure Snaps), Kompression.
+- Timer 1-10 s: Secure Snaps bieten 5 s, 10 s, 30 s und "bis zum Schliessen".
+

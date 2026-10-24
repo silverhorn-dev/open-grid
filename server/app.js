@@ -83,6 +83,8 @@ const clientAssetFiles = [
     'app/chat.js',
     'app/chat-tools.js',
     'app/snaps.js',
+    'app/snap-editor.js',
+    'app/snap-camera.js',
     'app/viewer.js',
     'app/watermark.js',
     'app/secure-canvas.js',

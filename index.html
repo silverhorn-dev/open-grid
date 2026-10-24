@@ -760,29 +760,66 @@
     </div>
 
     <!-- Snap-Kamera (Vollbild) -->
-    <div id="snap-capture-modal" class="hidden fixed inset-0 z-[70] bg-black flex flex-col" role="dialog" aria-modal="true" aria-label="Snap aufnehmen">
-        <div class="relative flex-1 min-h-0 overflow-hidden">
+    <div id="snap-capture-modal" class="hidden fixed inset-0 z-[70] bg-black select-none" role="dialog" aria-modal="true" aria-label="Snap aufnehmen">
+        <!-- Live-Kamera: Vollbild, Gesten (snap-camera.js): runter = schliessen, doppelt tippen = Kamera wechseln, zwei Finger = Zoom -->
+        <div id="snap-camera-stage" class="absolute inset-0 overflow-hidden touch-none">
             <video id="snap-video-preview" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover"></video>
-            <img id="snap-review-image" alt="" class="hidden absolute inset-0 w-full h-full object-contain bg-black">
-            <div id="snap-camera-status" class="hidden absolute inset-x-6 top-1/2 -translate-y-1/2 text-center text-sm text-slate-200 bg-black/60 rounded-xl p-4"></div>
-            <div class="absolute top-0 inset-x-0 p-4 flex items-center justify-between" style="padding-top: max(1rem, env(safe-area-inset-top));">
-                <button data-click="closeSnapModal" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Schliessen">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
+            <div id="snap-zoom-label" class="hidden absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 px-3 py-1 rounded-full bg-black/60 text-white text-sm font-semibold"></div>
+        </div>
+        <!-- Editor nach der Aufnahme: Bild + Zeichnung + Text/Emoji-Ebenen (snap-editor.js) -->
+        <div id="snap-editor" class="hidden absolute inset-0 flex items-center justify-center bg-black">
+            <div id="snap-editor-stage" class="relative touch-none" data-no-context-menu>
+                <canvas id="snap-edit-base" class="absolute inset-0 w-full h-full"></canvas>
+                <canvas id="snap-edit-draw" class="absolute inset-0 w-full h-full"></canvas>
+                <div id="snap-edit-layers" class="absolute inset-0 overflow-hidden pointer-events-none"></div>
+            </div>
+        </div>
+        <div id="snap-camera-status" class="hidden absolute inset-x-6 top-1/2 -translate-y-1/2 text-center text-sm text-slate-200 bg-black/60 rounded-xl p-4"></div>
+
+        <div class="absolute top-0 inset-x-0 p-4 flex items-start justify-between bg-gradient-to-b from-black/60 to-transparent" style="padding-top: max(1rem, env(safe-area-inset-top));">
+            <button data-click="closeSnapModal" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Schliessen">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div id="snap-live-tools" class="flex flex-col gap-2">
                 <button data-click="switchSnapCamera" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Kamera wechseln">
                     <i class="fa-solid fa-camera-rotate"></i>
                 </button>
+                <button id="snap-torch-btn" data-click="toggleSnapTorch" class="hidden w-11 h-11 rounded-full bg-black/50 text-white text-lg items-center justify-center" aria-label="Licht" aria-pressed="false">
+                    <i class="fa-solid fa-bolt"></i>
+                </button>
+            </div>
+            <div id="snap-edit-tools" class="hidden flex flex-col items-end gap-2">
+                <div class="flex gap-2">
+                    <button id="snap-tool-draw" data-click="setSnapEditTool" data-args='["draw"]' class="snap-tool w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Zeichnen" aria-pressed="false">
+                        <i class="fa-solid fa-pen"></i>
+                    </button>
+                    <button data-click="startSnapText" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg font-bold flex items-center justify-center" aria-label="Text">Aa</button>
+                    <button id="snap-tool-emoji" data-click="toggleSnapEmojiPicker" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Emoji">
+                        <i class="fa-regular fa-face-smile"></i>
+                    </button>
+                    <button data-click="undoSnapEdit" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Rueckgaengig">
+                        <i class="fa-solid fa-rotate-left"></i>
+                    </button>
+                </div>
+                <div id="snap-color-row" class="flex gap-2" role="radiogroup" aria-label="Farbe"></div>
+                <div id="snap-emoji-row" class="hidden flex flex-wrap justify-end gap-1 max-w-[16rem] p-2 rounded-2xl bg-black/60"></div>
+                <div id="snap-text-entry" class="hidden flex gap-2 w-72 max-w-[80vw]">
+                    <input id="snap-text-input" type="text" maxlength="80" placeholder="Text" data-enter="commitSnapText" class="flex-1 min-w-0 bg-black/60 border border-white/30 rounded-full px-4 py-2 text-base text-white placeholder:text-slate-400 focus:outline-none">
+                    <button data-click="commitSnapText" class="px-4 rounded-full bg-brand-600 text-white text-sm font-semibold">OK</button>
+                </div>
             </div>
         </div>
-        <div class="bg-black p-5 flex flex-col gap-3" style="padding-bottom: max(1.25rem, env(safe-area-inset-bottom));">
-            <div id="snap-live-controls" class="flex items-center justify-center gap-10">
+
+        <div class="absolute bottom-0 inset-x-0 px-5 pt-10 flex flex-col gap-3 bg-gradient-to-t from-black/70 to-transparent" style="padding-bottom: max(1.25rem, env(safe-area-inset-bottom));">
+            <div id="snap-live-controls" class="flex items-center justify-center gap-10 touch-none">
                 <label class="w-11 h-11 rounded-full bg-white/10 text-white flex items-center justify-center cursor-pointer" aria-label="Bild auswaehlen">
                     <i class="fa-regular fa-image text-lg"></i>
-                    <input type="file" accept="image/*" class="hidden" data-change="pickSnapImage" data-args='["$el"]'>
+                    <input id="snap-file-input" type="file" accept="image/*" class="hidden" data-change="pickSnapImage" data-args='["$el"]'>
                 </label>
                 <button data-click="captureSnap" class="w-20 h-20 rounded-full border-4 border-white bg-white/20 active:bg-white/60 transition" aria-label="Ausloesen"></button>
                 <span class="w-11 h-11"></span>
             </div>
+            <p id="snap-gesture-hint" class="text-center text-[11px] text-white/60">Hochwischen: Galerie · Doppelt tippen: Kamera wechseln</p>
             <div id="snap-review-controls" class="hidden flex flex-col gap-3">
                 <input id="snap-caption-input" type="text" maxlength="200" placeholder="Bildunterschrift (optional)" class="w-full bg-white/10 border border-white/20 rounded-full px-4 py-2.5 text-base text-white placeholder:text-slate-400 focus:outline-none">
                 <div id="snap-review-secure-options" class="hidden flex items-center justify-center gap-3 text-xs text-white">
@@ -803,7 +840,7 @@
                     <button data-click="retakeSnap" class="px-4 py-2.5 rounded-full bg-white/10 text-white text-sm font-semibold">
                         <i class="fa-solid fa-rotate-left"></i> Nochmal
                     </button>
-                    <button data-click="sendSnapDraft" class="px-5 py-2.5 rounded-full bg-brand-600 hover:bg-brand-500 text-white text-sm font-semibold">
+                    <button id="snap-send-btn" data-click="sendSnapDraft" class="px-5 py-2.5 rounded-full bg-brand-600 hover:bg-brand-500 text-white text-sm font-semibold">
                         Senden <i class="fa-solid fa-paper-plane"></i>
                     </button>
                 </div>
@@ -825,6 +862,8 @@
     <script src="/client/app/chat.js?v={{assetVersion}}"></script>
     <script src="/client/app/chat-tools.js?v={{assetVersion}}"></script>
     <script src="/client/app/snaps.js?v={{assetVersion}}"></script>
+    <script src="/client/app/snap-editor.js?v={{assetVersion}}"></script>
+    <script src="/client/app/snap-camera.js?v={{assetVersion}}"></script>
     <script src="/client/app/secure-canvas.js?v={{assetVersion}}"></script>
     <script src="/client/app/viewer.js?v={{assetVersion}}"></script>
     <script src="/client/app/watermark.js?v={{assetVersion}}"></script>

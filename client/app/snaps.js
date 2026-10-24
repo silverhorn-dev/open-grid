@@ -160,6 +160,7 @@ async function startSnapCamera() {
         video.srcObject = state.mediaStream;
         video.classList.toggle('snap-mirrored', state.snapFacingMode === 'user');
         await video.play().catch(logBackgroundError('startSnapCamera'));
+        updateSnapCameraCapabilities();
     } catch (error) {
         logDebug(`Camera error: ${error.name}: ${error.message}`);
         showSnapCameraProblem(error.name === 'NotAllowedError'
@@ -190,14 +191,11 @@ function hideSnapModal() {
 }
 
 function resetSnapPreview() {
-    state.snapDraft = null;
+    closeSnapEditor();
     document.getElementById('snap-live-controls')?.classList.remove('hidden');
+    document.getElementById('snap-gesture-hint')?.classList.remove('hidden');
+    document.getElementById('snap-camera-stage')?.classList.remove('hidden');
     document.getElementById('snap-review-controls')?.classList.add('hidden');
-    const preview = document.getElementById('snap-review-image');
-    if (preview) {
-        preview.src = '';
-        preview.classList.add('hidden');
-    }
     const caption = document.getElementById('snap-caption-input');
     if (caption) caption.value = '';
 }
@@ -228,27 +226,29 @@ function encodeSnap(source, width, height, mirror = false, watermarkBits = null)
     return null;
 }
 
-function showSnapReview(dataUrl) {
+// Nach der Aufnahme: Editor mit dem Rohbild (ohne Wasserzeichen) oeffnen.
+function showSnapReview(base) {
     stopSnapCamera();
     renderSnapSettings();
-    state.snapDraft = dataUrl;
-    const preview = document.getElementById('snap-review-image');
-    preview.src = dataUrl;
-    preview.classList.remove('hidden');
+    document.getElementById('snap-camera-stage').classList.add('hidden');
     document.getElementById('snap-live-controls').classList.add('hidden');
+    document.getElementById('snap-gesture-hint').classList.add('hidden');
     document.getElementById('snap-review-controls').classList.remove('hidden');
+    openSnapEditor(base);
 }
 
-async function captureSnap() {
+function captureSnap() {
     const video = document.getElementById('snap-video-preview');
     if (!video.videoWidth) return;
-    const bits = isTraceWatermarkEnabled() ? await watermarkTag(state.activeChatPeerId) : null;
-    const dataUrl = encodeSnap(video, video.videoWidth, video.videoHeight, state.snapFacingMode === 'user', bits);
-    if (!dataUrl) {
-        showToast('Snap konnte nicht erstellt werden.', 'error');
-        return;
-    }
-    showSnapReview(dataUrl);
+    showSnapReview(captureSnapBase(video, video.videoWidth, video.videoHeight, state.snapFacingMode === 'user'));
+}
+
+// Bearbeitetes Bild flachen, Wasserzeichen des Empfaengers einbetten und unter das Pfad-C-Limit kodieren.
+async function encodeSnapDraft(peerId) {
+    const flat = flattenSnapDraft();
+    if (!flat) return null;
+    const bits = isTraceWatermarkEnabled() ? await watermarkTag(peerId) : null;
+    return encodeSnap(flat, flat.width, flat.height, false, bits);
 }
 
 async function pickSnapImage(input) {
@@ -257,11 +257,9 @@ async function pickSnapImage(input) {
     if (!file) return;
     try {
         const bitmap = await createImageBitmap(file);
-        const bits = isTraceWatermarkEnabled() ? await watermarkTag(state.activeChatPeerId) : null;
-        const dataUrl = encodeSnap(bitmap, bitmap.width, bitmap.height, false, bits);
+        const base = captureSnapBase(bitmap, bitmap.width, bitmap.height, false);
         bitmap.close?.();
-        if (!dataUrl) throw new Error('Image too large');
-        showSnapReview(dataUrl);
+        showSnapReview(base);
     } catch (error) {
         logDebug(`Snap image failed: ${error.message}`);
         showToast('Bild konnte nicht geladen werden.', 'error');
@@ -274,9 +272,13 @@ async function retakeSnap() {
 }
 
 async function sendSnapDraft() {
-    const snapData = state.snapDraft;
     const peerId = state.activeChatPeerId;
-    if (!snapData || !peerId) return;
+    if (!hasSnapDraft() || !peerId) return;
+    const snapData = await encodeSnapDraft(peerId);
+    if (!snapData) {
+        showToast('Snap konnte nicht erstellt werden.', 'error');
+        return;
+    }
     const caption = document.getElementById('snap-caption-input').value;
     const secure = state.snapSettings.secureSnaps;
     const views = Number(document.getElementById('snap-review-views')?.value) || state.snapSettings.views;

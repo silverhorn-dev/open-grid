@@ -150,7 +150,8 @@ npm.cmd run audit:prod
 
 End-to-End-Tests (`e2e/*.e2e.cjs`: Chat loeschen/blockieren auf Desktop,
 iPhone-Emulation und mit offline Partner; Album-Weitergabe ueber einen
-anderen Betrachter) laufen komplett in Docker, lokal ist kein Node noetig:
+anderen Betrachter; Snap-Kamera mit Fake-Kamera, Gesten und Editor) laufen
+komplett in Docker, lokal ist kein Node noetig:
 
 ```sh
 sh scripts/e2e.sh   # oder: npm run test:e2e

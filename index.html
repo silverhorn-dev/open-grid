@@ -169,14 +169,17 @@
         <section id="view-chat" class="hidden flex-1 grid grid-cols-1 md:grid-cols-3 gap-4 md:h-[calc(100dvh-7rem)] md:max-h-[calc(100dvh-7rem)] md:min-h-[480px]">
             <!-- Chat List -->
             <div id="chat-list-panel" class="bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-col min-h-0">
-                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 px-1 flex items-center justify-between">
-                    <span>Chats <span id="chat-list-scope" class="normal-case tracking-normal font-medium text-slate-500"></span></span>
-                    <button data-click="openInviteCard" class="ml-auto mr-2 normal-case tracking-normal text-brand-400 hover:text-brand-300 font-semibold" title="Kontakt einladen">
-                        <i class="fa-solid fa-user-plus"></i> Einladen
-                    </button>
-                    <span id="active-peers-count" class="bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full text-xs">0</span>
-                </h3>
-                <div id="status-bar" class="hidden flex gap-2 overflow-x-auto pb-3 mb-2 border-b border-slate-800" data-no-tab-swipe aria-label="Status"></div>
+                <!-- Kopf der Chatliste: auf dem Smartphone ein zweiter Header (styles.css), die Chats scrollen darunter -->
+                <div id="chat-list-head" class="shrink-0">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 px-1 flex items-center justify-between">
+                        <span>Chats <span id="chat-list-scope" class="normal-case tracking-normal font-medium text-slate-500"></span></span>
+                        <button data-click="openInviteCard" class="ml-auto mr-2 normal-case tracking-normal text-brand-400 hover:text-brand-300 font-semibold" title="Kontakt einladen">
+                            <i class="fa-solid fa-user-plus"></i> Einladen
+                        </button>
+                        <span id="active-peers-count" class="bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full text-xs">0</span>
+                    </h3>
+                    <div id="status-bar" class="hidden flex gap-2 overflow-x-auto pb-3 mb-2 border-b border-slate-800" data-no-tab-swipe aria-label="Status"></div>
+                </div>
                 <div id="active-peers-list" class="flex-1 min-h-0 space-y-2 overflow-y-auto"></div>
             </div>
 

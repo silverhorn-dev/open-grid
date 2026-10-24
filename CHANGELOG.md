@@ -18,6 +18,7 @@ Neueste Aenderungen oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 - Nachrichtenfeld mehrzeilig (bis 5 Zeilen); Offline-Symbol statt Banner; Desktop-Chat als feste Box
 
 ### Behoben
+- Smartphone: Kopf der Chatliste (Titel, Status, Einladen) ist ein eigener zweiter Header mit Trennlinie ueber die volle Breite; nur die Chats scrollen darunter
 - P2P ging nach dem Hintergrund (Smartphone) verloren und beide Seiten nutzten den Router-Cache bis zum Neuladen: Heartbeat fuer die Signaling-Verbindung, haengende Verbindungen werden neu aufgebaut
 - Chatliste auf dem Smartphone ging ueber den Bildschirmrand und stand in einer Box
 - Kurzstatus auf dem Smartphone abgeschnitten

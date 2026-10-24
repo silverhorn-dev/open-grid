@@ -18,7 +18,7 @@ RUN groupadd --system --gid 10001 opengrid \
     && mkdir -p /app/data \
     && chown -R opengrid:opengrid /app
 COPY --from=dependencies --chown=opengrid:opengrid /app/node_modules ./node_modules
-COPY --chown=opengrid:opengrid package.json index.html ./
+COPY --chown=opengrid:opengrid package.json index.html CHANGELOG.md ./
 COPY --chown=opengrid:opengrid client ./client
 COPY --from=dependencies --chown=opengrid:opengrid /app/client/tailwind.css ./client/tailwind.css
 COPY --chown=opengrid:opengrid server ./server

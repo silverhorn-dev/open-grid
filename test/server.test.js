@@ -959,3 +959,10 @@ test('signaling answers application pings and drops half-open sockets', async ()
         await heartbeatApp.close();
     }
 });
+
+test('serves the changelog as markdown', async () => {
+    const response = await app.inject({ method: 'GET', url: '/changelog.md' });
+    assert.equal(response.statusCode, 200);
+    assert.match(response.headers['content-type'], /text\/markdown/);
+    assert.match(response.body, /^# Changelog/);
+});

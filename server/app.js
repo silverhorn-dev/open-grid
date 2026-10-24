@@ -320,6 +320,12 @@ export async function buildApp(options = {}) {
 
     // Der Service Worker muss unter dem Wurzelpfad liegen, damit sein Scope
     // die ganze App abdeckt. no-cache sorgt dafuer, dass Updates erkannt werden.
+    // Changelog (im Debug-Modus im Menue). Wird bei jedem Abruf gelesen, damit Updates ohne Neustart sichtbar sind.
+    app.get('/changelog.md', async (_request, reply) => {
+        const text = await readFile(join(projectDirectory, 'CHANGELOG.md'), 'utf8').catch(() => '# Changelog\n\nNicht verfuegbar.');
+        return reply.type('text/markdown; charset=utf-8').header('Cache-Control', 'no-cache').send(text);
+    });
+
     app.get('/sw.js', async (_request, reply) => {
         return reply
             .type('text/javascript; charset=utf-8')

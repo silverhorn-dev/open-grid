@@ -45,6 +45,7 @@ window.onload = async () => {
     initGestures();
     initSnapEditor();
     initSnapCamera();
+    initChatSwitchSwipe();
     window.addEventListener('online', updateConnectivityIndicator);
     window.addEventListener('offline', updateConnectivityIndicator);
     updateConnectivityIndicator();
@@ -79,6 +80,7 @@ window.onload = async () => {
             startStatusCleanup();
         });
         await runStartupStep('Chatliste', loadChatPeerIds);
+        await runStartupStep('Chat-Wechsel', loadChatSwitchSettings);
         await runStartupStep('Alben', async () => {
             await loadAlbums();
             await loadAlbumDefaults();
@@ -115,8 +117,16 @@ window.onload = async () => {
         });
         document.addEventListener('visibilitychange', () => {
             syncChatFocus();
-            if (document.visibilityState === 'visible') refreshPresenceAndGrid();
+            if (document.visibilityState === 'visible') {
+                // Zurueck aus dem Hintergrund: Signaling pruefen (oft halb offen), dann aktualisieren.
+                checkSignalingHealth('resume');
+                refreshPresenceAndGrid();
+            }
         });
+        window.addEventListener('online', () => checkSignalingHealth('online'));
+        setInterval(() => {
+            if (document.visibilityState === 'visible') checkSignalingHealth('interval');
+        }, WS_PING_INTERVAL_MS);
         window.addEventListener('storage', event => {
             if (event.key === 'opengrid-router-auth-token' && event.newValue) {
                 state.routerAuthToken = event.newValue;

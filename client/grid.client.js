@@ -118,25 +118,33 @@ function formatChatListTime(timestamp) {
         : date.toLocaleDateString([], { day: '2-digit', month: '2-digit' });
 }
 
+// Chats der aktuellen Liste (Grid & Event oder Chat & Freunde), neueste oben. Der aktive Chat bleibt
+// drin, auch wenn er gerade erst ueber das Grid gestartet wurde. Auch fuer den Chat-Wechsel.
+function visibleChatPeerIds() {
+    let hiddenList = [];
+    try {
+        hiddenList = JSON.parse(localStorage.getItem('hiddenByPeers') || '[]');
+    } catch {
+        hiddenList = [];
+    }
+    const activeSet = new Set(state.chatPeerIds);
+    if (state.activeChatPeerId) activeSet.add(state.activeChatPeerId);
+    return Array.from(activeSet)
+        .filter(peerId => !isPeerBlocked(peerId) && !hiddenList.includes(peerId)
+            && (peerId === state.activeChatPeerId || isInCurrentChatList(peerId)))
+        .sort((left, right) => (state.chatPreviews[right]?.at || 0) - (state.chatPreviews[left]?.at || 0));
+}
+
 function renderActivePeerList() {
     const container = document.getElementById('active-peers-list');
     const count = document.getElementById('active-peers-count');
     if (!container || !count) return;
 
-    const hiddenList = JSON.parse(localStorage.getItem('hiddenByPeers') || '[]');
-    // Zeige korrekte DB-geladene Peers an.
-    // Fuege den aktiven Peer temporaer hinzu, falls der Chat gerade erst ueber das Grid gestartet wurde.
-    const activeSet = new Set(state.chatPeerIds);
-    if (state.activeChatPeerId) activeSet.add(state.activeChatPeerId);
-    // Neueste Unterhaltung oben.
-    // Getrennte Listen: nur Chats des aktuellen Bereichs (Grid & Event oder Chat & Freunde).
-    const peerIds = Array.from(activeSet)
-        .filter(peerId => !isPeerBlocked(peerId) && !hiddenList.includes(peerId)
-            && (peerId === state.activeChatPeerId || isInCurrentChatList(peerId)))
-        .sort((left, right) => (state.chatPreviews[right]?.at || 0) - (state.chatPreviews[left]?.at || 0));
+    const peerIds = visibleChatPeerIds();
 
     count.textContent = peerIds.length;
     renderStatusBar();
+    renderChatSwitcher();
     const scopeLabel = document.getElementById('chat-list-scope');
     if (scopeLabel) scopeLabel.textContent = isSocialMode() ? '· Chat & Freunde' : '· Grid & Event';
     container.innerHTML = '';
@@ -291,6 +299,61 @@ async function fetchGridRing() {
         if (refreshIcon) refreshIcon.classList.remove('fa-spin');
     }
     return false;
+}
+
+// ----- Signaling-Heartbeat -----
+// Ein WebSocket kann "halb offen" sein (Smartphone im Hintergrund, WLAN-Wechsel): readyState bleibt
+// OPEN, aber nichts kommt mehr an. Daher regelmaessig und beim Zurueckkehren in die App ein PING;
+// kommt kein PONG, wird die Verbindung neu aufgebaut.
+const WS_PING_INTERVAL_MS = 25000;
+const WS_PONG_TIMEOUT_MS = 5000;
+
+function checkSignalingHealth(reason) {
+    const ws = state.ws;
+    if (!state.shouldReconnect) return;
+    if (!ws || ws.readyState === WebSocket.CLOSED || ws.readyState === WebSocket.CLOSING) {
+        reconnectSignaling(reason);
+        return;
+    }
+    if (ws.readyState !== WebSocket.OPEN || state.wsPingTimer) return;
+    const nonce = window.crypto.randomUUID();
+    state.wsPingNonce = nonce;
+    try {
+        ws.send(JSON.stringify({ type: 'PING', nonce }));
+    } catch {
+        reconnectSignaling(reason);
+        return;
+    }
+    state.wsPingTimer = setTimeout(() => {
+        state.wsPingTimer = null;
+        logDebug(`Signaling antwortet nicht (${reason}), baue die Verbindung neu auf.`);
+        reconnectSignaling(reason);
+    }, WS_PONG_TIMEOUT_MS);
+}
+
+function handleSignalingPong(message) {
+    if (message.nonce !== state.wsPingNonce) return;
+    clearTimeout(state.wsPingTimer);
+    state.wsPingTimer = null;
+}
+
+// Alten Socket ohne Reconnect-Timer schliessen und sofort neu verbinden.
+function reconnectSignaling(reason) {
+    clearTimeout(state.wsPingTimer);
+    state.wsPingTimer = null;
+    const old = state.ws;
+    if (old) {
+        old.onopen = old.onmessage = old.onerror = old.onclose = null;
+        try {
+            old.close();
+        } catch {
+            // Schon zu.
+        }
+    }
+    state.ws = null;
+    logDebug(`Signaling: neue Verbindung (${reason}).`);
+    updateConnectivityIndicator();
+    connectWorkerWebSocket();
 }
 
 function connectWorkerWebSocket() {

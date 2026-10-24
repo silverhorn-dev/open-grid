@@ -95,6 +95,11 @@ const state = {
     statusPushes: {},
     statusCleanupTimer: null,
     statusViewer: null,
+    // Signaling-Heartbeat (grid.client.js).
+    wsPingTimer: null,
+    wsPingNonce: null,
+    // Chat-Wechsel im offenen Chat (chat-switch.js).
+    chatSwitchSettings: { enabled: true, style: 'bar' },
     // Ziel der Snap-Kamera: 'chat' oder 'status'.
     snapTarget: null,
     // App-Modus (P8): vom Server erlaubte Modi, gewaehlter Modus und Event-Daten.

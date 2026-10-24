@@ -182,6 +182,9 @@
             <div id="chat-window-panel" class="md:col-span-2 bg-slate-900 border border-slate-800 rounded-xl flex flex-col h-full min-h-0">
                 <div id="chat-header" class="chat-header p-3 border-b border-slate-800 flex items-center justify-between gap-2 bg-slate-900/50">
                     <div class="flex flex-1 items-center gap-2 min-w-0">
+                        <button data-click="switchChat" data-args='[-1]' data-direction="-1" class="chat-switch-arrow hidden w-8 h-9 shrink-0 rounded-lg text-slate-300 hover:bg-slate-800 items-center justify-center disabled:opacity-30" aria-label="Vorheriger Chat">
+                            <i class="fa-solid fa-chevron-up"></i>
+                        </button>
                         <button data-click="leaveActiveChat" class="md:hidden w-9 h-9 shrink-0 rounded-lg text-slate-300 hover:bg-slate-800 flex items-center justify-center" aria-label="Zurueck zur Chatliste">
                             <i class="fa-solid fa-arrow-left"></i>
                         </button>
@@ -201,6 +204,9 @@
                         <div id="connection-status-pill" class="debug-only text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-400 font-mono">
                             Disconnected
                         </div>
+                        <button data-click="switchChat" data-args='[1]' data-direction="1" class="chat-switch-arrow hidden w-8 h-9 shrink-0 rounded-lg text-slate-300 hover:bg-slate-800 items-center justify-center disabled:opacity-30" aria-label="Naechster Chat">
+                            <i class="fa-solid fa-chevron-down"></i>
+                        </button>
                         <span class="offline-indicator hidden w-9 h-9 items-center justify-center text-amber-400" role="img" title="Offline - Chats sind lokal verfuegbar, neue Nachrichten kommen, sobald du wieder verbunden bist" aria-label="Offline"><i class="fa-solid fa-wifi wifi-off"></i></span>
                         <button data-click="toggleChatSearch" class="w-9 h-9 rounded-lg text-slate-300 hover:bg-slate-800 flex items-center justify-center" title="Im Chat suchen" aria-label="Im Chat suchen">
                             <i class="fa-solid fa-magnifying-glass"></i>
@@ -218,6 +224,8 @@
                         </div>
                     </div>
                 </div>
+
+                <div id="chat-switch-bar" class="hidden flex gap-1.5 px-3 py-2 border-b border-slate-800 overflow-x-auto" data-no-tab-swipe aria-label="Chats wechseln"></div>
 
                 <div id="chat-search-bar" class="hidden px-4 py-2 border-b border-slate-800 flex items-center gap-3">
                     <input id="chat-search-input" type="search" placeholder="Im Chat suchen..." data-input="setChatSearch" data-args='["$value"]' class="flex-1 min-w-0 bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-base md:text-sm text-slate-100 focus:outline-none focus:border-brand-500">
@@ -502,6 +510,17 @@
                     <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
                         <i class="fa-solid fa-text-height text-brand-400"></i> Darstellung
                     </h3>
+                    <div class="flex flex-wrap items-center gap-2 text-xs text-slate-300">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="chat-switch-toggle" checked data-change="updateChatSwitchSetting" data-args='["enabled", "$checked"]' class="accent-brand-500">
+                            Im Chat schnell zum naechsten Chat wechseln
+                        </label>
+                        <select id="chat-switch-style" data-change="updateChatSwitchSetting" data-args='["style", "$value"]' aria-label="Art des Wechsels" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200">
+                            <option value="bar">Leiste mit Avataren</option>
+                            <option value="arrows">Pfeile in der Kontaktleiste</option>
+                            <option value="swipe">Wischen auf der Kontaktleiste</option>
+                        </select>
+                    </div>
                     <label class="flex items-center gap-2 text-xs text-slate-300">
                         <span>Schriftgroesse im Chat:</span>
                         <select id="chat-font-size-select" data-change="setChatFontSize" data-args='["$value"]' class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200">
@@ -904,6 +923,7 @@
     <script src="/client/delivery.client.js?v={{assetVersion}}"></script>
     <script src="/client/app/chat.js?v={{assetVersion}}"></script>
     <script src="/client/app/chat-tools.js?v={{assetVersion}}"></script>
+    <script src="/client/app/chat-switch.js?v={{assetVersion}}"></script>
     <script src="/client/app/snaps.js?v={{assetVersion}}"></script>
     <script src="/client/app/snap-editor.js?v={{assetVersion}}"></script>
     <script src="/client/app/snap-camera.js?v={{assetVersion}}"></script>

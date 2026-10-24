@@ -261,6 +261,7 @@ function resetActiveChat(placeholderText) {
     updateChatLayout();
     renderActivePeerList();
     renderChatPeerIndicator();
+    renderChatSwitcher();
     syncChatFocus();
     if (!state.applyingRoute && window.location.pathname.startsWith('/chat/')) replaceRoute('/chat');
 }

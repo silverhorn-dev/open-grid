@@ -83,6 +83,7 @@ const clientAssetFiles = [
     'app/profile.js',
     'app/chat.js',
     'app/chat-tools.js',
+    'app/chat-switch.js',
     'app/snaps.js',
     'app/snap-editor.js',
     'app/snap-camera.js',
@@ -257,7 +258,7 @@ export async function buildApp(options = {}) {
         }
     });
     const limits = scaleRateLimits({ ...DEFAULT_RATE_LIMITS, ...(options.rateLimits || {}) }, options.rateLimitScale ?? process.env.RATE_LIMIT_SCALE);
-    const signaling = registerSignalingRoute(app, store, { messageLimiter: () => createRateLimiter(limits.websocket) });
+    const signaling = registerSignalingRoute(app, store, { messageLimiter: () => createRateLimiter(limits.websocket), heartbeatMs: options.heartbeatMs });
 
     app.addHook('onClose', async () => {
         if (ownsStore) store.close();

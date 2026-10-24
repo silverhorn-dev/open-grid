@@ -302,6 +302,10 @@ Akzeptanzkriterien:
 - Das Nachrichtenfeld waechst mit bis zu fuenf Zeilen und scrollt danach; am
   Desktop sendet Enter (Shift+Enter = neue Zeile), auf dem Smartphone ist
   Enter eine neue Zeile und der Senden-Knopf sendet.
+- Im offenen Chat laesst sich direkt zum naechsten Chat derselben Liste
+  wechseln: per Avatar-Leiste, Pfeilen oder Wischen auf der Kontaktleiste
+  (einstellbar unter "Darstellung", auch ganz abschaltbar). "Zurueck" fuehrt
+  danach zur Chatliste, nicht durch alle besuchten Chats.
 - Am Desktop ist der Chat eine Box in Fensterhoehe: nur die Nachrichten
   scrollen, die Kontaktleiste bleibt oben stehen.
 - Nachrichten lassen sich lokal markieren; die Suche kann auf markierte

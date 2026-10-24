@@ -215,12 +215,19 @@ async function flushPendingIceCandidates(peerId) {
 }
 
 async function handleSignalingMessage(message) {
+    if (message.type === 'PONG') {
+        handleSignalingPong(message);
+        return;
+    }
+
     if (message.type === 'SOCKET_REGISTERED') {
         document.getElementById('network-indicator').className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse';
         document.getElementById('network-status-text').textContent = 'Worker connected';
         refreshChatControls()
             .then(() => {
                 subscribePresence();
+                // Nach einem (Neu-)Verbinden haengende P2P-Verbindungen neu aufbauen.
+                retryVisiblePeerConnections(true);
                 pushAllAlbumKeys().catch(error => logDebug(`Album key push failed: ${error.message}`));
                 return fetchQueuedCacheMessages();
             })
@@ -358,19 +365,29 @@ function renderPresenceChange(peerId = null) {
     if (!peerId || state.activeChatPeerId === peerId) renderChatPeerIndicator();
 }
 
-function retryVisiblePeerConnections() {
-    state.peers.forEach(peer => {
-        const shouldReconnect = state.activeChatPeerId === peer.id
-            || Boolean(state.secureMessageQueues[peer.id]?.length);
-        if (!shouldReconnect || state.dataChannels[peer.id]?.readyState === 'open') return;
+// Offener Chat und Peers mit wartenden Nachrichten, auch wenn sie nicht im Grid stehen (Chat- und
+// Freunde-Modus haben kein Grid). Nach einem Signaling-Neustart (afterReconnect) gelten auch
+// Verbindungen, die noch "new" oder "connecting" sind, als haengend: ihre Angebote gingen an einen
+// toten Socket.
+function retryVisiblePeerConnections(afterReconnect = false) {
+    const candidates = new Set([
+        ...state.peers.map(peer => peer.id),
+        state.activeChatPeerId,
+        ...Object.keys(state.secureMessageQueues)
+    ].filter(Boolean));
+    const stale = afterReconnect ? ['failed', 'closed', 'disconnected', 'new', 'connecting'] : ['failed', 'closed', 'disconnected'];
+    candidates.forEach(peerId => {
+        const shouldReconnect = state.activeChatPeerId === peerId
+            || Boolean(state.secureMessageQueues[peerId]?.length);
+        if (!shouldReconnect || state.dataChannels[peerId]?.readyState === 'open' || isPeerBlocked(peerId)) return;
 
-        const connection = state.webrtcConnections[peer.id];
-        if (connection && ['failed', 'closed', 'disconnected'].includes(connection.connectionState)) {
-            cleanupPeerConnection(peer.id, connection);
+        const connection = state.webrtcConnections[peerId];
+        if (connection && stale.includes(connection.connectionState)) {
+            cleanupPeerConnection(peerId, connection);
         }
-        state.connectionRetryCounts[peer.id] = 0;
-        initiateP2PConnection(peer.id).catch(error => {
-            logDebug(`Could not reconnect to visible peer ${peer.id}: ${error.message}`);
+        state.connectionRetryCounts[peerId] = 0;
+        initiateP2PConnection(peerId).catch(error => {
+            logDebug(`Could not reconnect to peer ${peerId}: ${error.message}`);
         });
     });
 }

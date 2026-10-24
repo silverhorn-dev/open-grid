@@ -2,8 +2,30 @@ import { createHash } from 'node:crypto';
 
 const MAX_PRESENCE_SUBSCRIPTIONS = 500;
 
-export function registerSignalingRoute(app, store, { messageLimiter = null } = {}) {
+// Heartbeat: halb offene Verbindungen (Smartphone im Hintergrund, WLAN-Wechsel) erkennen. Wer auf
+// einen Ping bis zum naechsten nicht antwortet, wird getrennt; Signaling an ihn bekommt dann sofort
+// PEER_OFFLINE_FALLBACK statt ins Leere zu laufen.
+export const HEARTBEAT_INTERVAL_MS = 30000;
+
+export function registerSignalingRoute(app, store, { messageLimiter = null, heartbeatMs = HEARTBEAT_INTERVAL_MS } = {}) {
     const activeSockets = new Map();
+    const allSockets = new Set();
+    const heartbeat = setInterval(() => {
+        for (const socket of allSockets) {
+            if (socket.isAlive === false) {
+                socket.terminate();
+                continue;
+            }
+            socket.isAlive = false;
+            try {
+                socket.ping();
+            } catch {
+                socket.terminate();
+            }
+        }
+    }, heartbeatMs);
+    heartbeat.unref?.();
+    app.addHook('onClose', async () => clearInterval(heartbeat));
     // Grid-Zelle pro verbundenem Peer, im Speicher indiziert: PEER_OFFLINE erreicht so nur die
     // Peers der eigenen Zelle, ohne bei jedem Verbindungsende alle Sockets abzufragen.
     const peerCells = new Map();
@@ -76,6 +98,11 @@ export function registerSignalingRoute(app, store, { messageLimiter = null } = {
 
     app.get('/ws', { websocket: true }, (socket) => {
         let currentPeerId = null;
+        socket.isAlive = true;
+        allSockets.add(socket);
+        socket.on('pong', () => {
+            socket.isAlive = true;
+        });
         const limiter = messageLimiter?.();
         let warned = false;
 
@@ -89,6 +116,12 @@ export function registerSignalingRoute(app, store, { messageLimiter = null } = {
             warned = false;
             try {
                 const data = JSON.parse(rawMessage.toString());
+                socket.isAlive = true;
+                // Anwendungs-Ping des Clients (Browser koennen keine WebSocket-Pings senden).
+                if (data.type === 'PING') {
+                    socket.send(JSON.stringify({ type: 'PONG', nonce: typeof data.nonce === 'string' ? data.nonce.substring(0, 40) : null }));
+                    return;
+                }
 
                 if (data.type === 'REGISTER_SOCKET' && typeof data.peerId === 'string' && typeof data.authToken === 'string') {
                     const peerId = data.peerId.substring(0, 200);
@@ -144,7 +177,10 @@ export function registerSignalingRoute(app, store, { messageLimiter = null } = {
             subscriptions.delete(currentPeerId);
             notifyPeerOffline(currentPeerId);
         };
-        socket.on('close', removeSocket);
+        socket.on('close', () => {
+            allSockets.delete(socket);
+            removeSocket();
+        });
         socket.on('error', removeSocket);
     });
 

@@ -57,6 +57,13 @@
 - Verbindungshinweis: `updateConnectivityIndicator` (`settings.js`) zeigt nach
   4 s ohne Netz oder WebSocket die Icons `.offline-indicator` (Kopfzeile,
   Chat-Kopf); ohne `navigator.onLine` sofort.
+- Chat-Wechsel (`client/app/chat-switch.js`): im offenen Chat zum vorherigen
+  oder naechsten Chat derselben Liste (`visibleChatPeerIds`, Reihenfolge wie
+  die Chatliste). Einstellung `keys`/`chat-switch-settings`
+  (`{ enabled, style }`, Standard an + `bar`): `bar` = Avatar-Leiste unter der
+  Kontaktleiste, `arrows` = Pfeile in der Kontaktleiste, `swipe` = seitlich
+  wischen auf der Kontaktleiste (ab 70 px; nicht auf Nachrichten, dort heisst
+  wischen "antworten"). Ein Wechsel ersetzt den History-Eintrag.
 - Smartphone: `fitChatListPanel` begrenzt die Chatliste auf den Platz bis zur
   unteren Navigation, die Liste scrollt in sich. Der Kurzstatus steht in einer
   eigenen Zeile unter dem Namen.
@@ -290,6 +297,20 @@ Profils prueft ein verschluesseltes `PRESENCE_PING`/`PRESENCE_PONG` die
 Erreichbarkeit.
 
 ### 4.1 Presence fuer Chat-Partner
+
+Heartbeat (gegen halb offene Verbindungen, z. B. Smartphone im Hintergrund oder
+WLAN-Wechsel):
+
+- Server: WebSocket-Ping alle 30 s; wer bis zum naechsten Ping nicht antwortet,
+  wird getrennt. Signaling an ihn bekommt dann `PEER_OFFLINE_FALLBACK`.
+- Client: `{ type: 'PING', nonce }` alle 25 s (sichtbare App), beim
+  Zurueckkehren in die App und beim `online`-Ereignis; der Server antwortet
+  `{ type: 'PONG', nonce }`. Ohne Antwort in 5 s baut der Client den Socket neu
+  auf (`reconnectSignaling`).
+- Nach jedem `SOCKET_REGISTERED` baut der Client P2P-Verbindungen zum offenen
+  Chat und zu Peers mit wartenden Nachrichten neu auf; Verbindungen, die noch
+  `new`/`connecting` sind, gelten dabei als haengend (ihre Angebote gingen an
+  den alten Socket). Das gilt auch fuer Chat-Partner ausserhalb des Grids.
 
 Online-Status von Chat-Partnern haengt nicht vom Grid ab:
 

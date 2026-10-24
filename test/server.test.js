@@ -928,3 +928,34 @@ test('accepts an existing matching token without a registration proof during mig
 
     assert.equal(response.statusCode, 200);
 });
+
+test('signaling answers application pings and drops half-open sockets', async () => {
+    const { WebSocket: NodeWebSocket } = await import('ws');
+    const heartbeatApp = await buildApp({ databasePath: ':memory:', heartbeatMs: 100 });
+    await heartbeatApp.listen({ host: '127.0.0.1', port: 0 });
+    const url = `ws://127.0.0.1:${heartbeatApp.server.address().port}/ws`;
+    try {
+        // Anwendungs-PING (Browser) -> PONG mit derselben Nonce.
+        const browserLike = new NodeWebSocket(url);
+        await new Promise(resolve => browserLike.on('open', resolve));
+        const pong = new Promise(resolve => browserLike.on('message', data => resolve(JSON.parse(data.toString()))));
+        browserLike.send(JSON.stringify({ type: 'PING', nonce: 'n-1' }));
+        assert.deepEqual(await pong, { type: 'PONG', nonce: 'n-1' });
+
+        // Ein Client, der auf WebSocket-Pings nicht antwortet (halb offen), wird getrennt.
+        const halfOpen = new NodeWebSocket(url, { autoPong: false });
+        await new Promise(resolve => halfOpen.on('open', resolve));
+        const closed = await new Promise(resolve => {
+            const timeout = setTimeout(() => resolve(false), 2000);
+            halfOpen.on('close', () => {
+                clearTimeout(timeout);
+                resolve(true);
+            });
+        });
+        assert.equal(closed, true, 'half-open socket is terminated');
+        assert.equal(browserLike.readyState, NodeWebSocket.OPEN, 'healthy sockets stay');
+        browserLike.close();
+    } finally {
+        await heartbeatApp.close();
+    }
+});

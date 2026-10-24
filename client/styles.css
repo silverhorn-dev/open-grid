@@ -312,3 +312,9 @@ html.debug-on .debug-off-only {
     transform: translateX(-50%) rotate(-45deg);
 }
 
+/* Chat-Wechsel per Wischen: Kontaktleiste reagiert nur horizontal, vertikal bleibt normal */
+.chat-header-swipe {
+    touch-action: pan-y;
+    cursor: grab;
+}
+

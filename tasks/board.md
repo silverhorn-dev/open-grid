@@ -5,7 +5,11 @@
   - done P3: menue/profil/snap-modal = eigener history entry, zurueck schliesst modal
 
 # general
-- [ ] coloring
+- [x] coloring (P10)
+  - done P10: `client/app/theme.js` (im head), farbrad + vorgaben, system/hell/dunkel; `slate`/`brand` als CSS-variablen
+  - plan: P10: akzentfarbe per rundem farbrad wie im zen-browser (konischer verlauf + ziehbarer punkt + presets), pro geraet gespeichert
+  - plan: P10: `brand`-farben als CSS-variablen in `tailwind.config.cjs`, picker schreibt 50-900 nach `:root`
+  - plan: P10: hell/dunkel/system fuer die ganze app: `slate`-palette als CSS-variablen, `.theme-light` tauscht sie; keine klassen im markup aendern
 - [x] general config for just chatting or smth else (P8: App-Modi)
   - done P8: `client/app/modes.js`, `/api/config`, register `scope`/`eventHash`, freunde- und event-grid, einladungslink + QR mit fingerprint-pruefung, onboarding-auswahl, event auto-ende nach 12 h
   - done: test `client-state.test.js` verhindert nicht deklarierte `state`-felder (ursache des startup-crashs)
@@ -53,6 +57,9 @@
   - [x] steady handshake. on a refresh or a new peer the existent should be persisted (just in the loaded geo chunk)
   - [x] not reachable peer should be 'abwesend' or offline
     - [x] wenn sich jmd abgemeldet hat ist er ganz weg
+- [x] grid: "mehr laden" erst nach einer weile sichtbar; bei wenig/keinen leuten automatisch weitere ringe laden, max 3, keine dauerschleife
+  - done P9
+  - plan: P9: knopf direkt nach der ersten antwort; < 6 peers und `hasMore` -> naechster ring automatisch, hoechstens bis ring 3, einmal pro refresh-zyklus; `hasMore=false` stoppt sofort
 - [x] better performance
   - [x] er checkt sehr lange die verbindung, man sollte schneller offline sein.
     - plan: P1: presence probe 8 s -> 4 s (`probePeerPresence`, `client/app/chat.js`), P2P disconnect timer 5 s -> 3 s (`client/p2p.client.js`)
@@ -82,7 +89,24 @@
   - done P2: Live-Grid = `/api/grid?live=1`, router filtert auf peers mit aktivem WebSocket (statt P2P-probe pro tile, spart verbindungen)
 
 # Chat
-- [ ] bug: the icon bar after clicking the arrow icon menu have no background, therefore the are not well lookable
+- [x] bug: the icon bar after clicking the arrow icon menu have no background, therefore the are not well lookable
+  - done P9
+  - plan: P9: ursache: geschlossene regel mit `:hover` ist spezifischer als die offene, `:hover` bleibt auf touch nach dem tippen haengen -> `:hover`-selektor raus
+- [x] bug: im chat modus sieht man das grid noch
+  - done P9
+  - plan: P9: `.nav-top-btn`/`.nav-bottom-btn` setzen `display:flex` in `styles.css` (laedt nach tailwind) und ueberschreiben `.hidden` -> gezielte `.hidden`-regeln, uebrige `display`-regeln pruefen
+- [x] kontaktleiste ueberarbeiten: online-badge sitzt ganz rechts hinter blockieren/chat loeschen/suchen
+  - done P9
+  - plan: P9: links zurueck + avatar mit online-punkt + name + untertitel (online/offline/hat den chat offen); rechts nur suche + `...`-menue (medien, chat loeschen, blockieren, profil)
+- [x] chat-uebersicht: vorschau der letzten nachricht
+  - done P9
+  - plan: P9: letzte sichtbare nachricht pro chat (text/Snap/Album/Secure Snap, eigene mit "Du:") + uhrzeit, neuester chat oben; `state.chatPreviews`
+- [x] reaktionen auf nachrichten sind zu klein und unter der nachricht
+  - done P9
+  - plan: P9: chips ~1.5x groesser, ueberlappen die untere kante der bubble (eigene unten links, fremde unten rechts)
+- [x] sender soll den eigenen snap speichern koennen; hat der empfaenger seine views verbraucht, wird der snap auch beim sender geloescht
+  - done P9
+  - plan: P9: speichern-knopf auch fuer eigene snaps; empfaenger sendet nach der letzten ansicht chat-operation `SNAP_CONSUMED` (P2P/Path C, kein push), sender loescht `snapData` + aus dem operations-log, ausser er hat gespeichert
 - [x] bug: arrow menu icon too big. on textmessages it should be in the message top corner and the text should be margined so it fits in
   - done: 24 px pfeil in der oberen ecke der bubble (eigene rechts, fremde links), text bekommt 2rem innenabstand; offen waechst der pfeil wieder und sitzt aussen an der leiste
 - [x] functional chat
@@ -109,7 +133,6 @@
       - done P4: `message.album` mit deckfoto (max 30 KB), klick laedt album per P2P (`ALBUM_REQUEST`), besitzer muss online sein
 
 ## status
-- [ ] the status is from time to time very fuzzy
 - [x] aktuell kann der status P2P Connected ausgelesen werden. im debug sollte das so sein. ohne würde ich da analog zu snap :eyes: platzieren
   - plan: P1: pill bleibt `debug-only`; ohne debug zwei zustaende als icon:
   - plan: P1: P2P/E2EE connected -> gruener punkt
@@ -211,13 +234,22 @@
 # Media & Albums (Access Control)
 - [x] Mehrere Alben unterstützen
   - done P4: store `albums` (IndexedDB v8), verwaltung im profil, `client/app/albums.js`
+- [x] Alben v2: verschluesselung aus eigenem key, key des source und einem rollenden source key, der vom source-client gestellt und per P2P oder cache-forwarding geliefert wird (P12)
+  - entschieden 2026-10-23: besitzer pusht den rollenden key fuer aktuelle + naechste epoche
+  - plan: P12: pro bild zufaelliger inhaltsschluessel `CK`; pro album und epoche zufaelliger rollender key `R_e`
+  - plan: P12: `KEK_e = HKDF(ECDH(eigener key, source key), salt = R_e, info = albumId:epoch)`; besitzer schickt `R_e` + mit `KEK_e` verpackte `CK`s an alle in der ACL: P2P, sonst als Path-C-chat-operation `ALBUM_KEYS` (kein push)
+  - plan: P12: gepusht beim start des besitzers, beim epochenwechsel (timer ueber `/api/time`) und wenn ein betrachter sich verbindet; betrachter entpackt `CK` nicht exportierbar nur im RAM
+  - plan: P12: entziehen = kein push mehr + neue `keyVersion` -> nach spaetestens einer epoche kein zugriff; v1-alben werden beim naechsten start des besitzers neu verteilt
+  - done P12: `ALBUM_KEYS`-buendel (P2P, sonst Path C), betrachter speichert nur buendel; inhaltsschluessel bleiben deterministisch -> v1-ciphertext bleibt gueltig, kein neuer download noetig
 - [x] Zugriffssteuerung pro Album: teilen / nicht mehr teilen (Revoke-Management)
   - done P4: teilen = peer in `acl` + chat-nachricht; entziehen = aus `acl` + `ALBUM_REVOKED`, `IMAGE_REQUEST` prueft `acl`
   - done P5: entziehen erhoeht `keyVersion` (rolling keys)
-- [ ] der renderer sollte screenshots und aufnahmen blockieren
+- [x] der renderer sollte screenshots und aufnahmen blockieren (P13: nur recherche, entschieden 2026-10-23)
+  - done P13: recherche unten dokumentiert, bewusst nicht gebaut
   - bringt hier eine frequenz was?
   - am schönsten wäre es die wasserzeichen nachträglich beim rendern noch durch ein negativzeichen auszublenden
-  - 
+  - plan: P13: notiz: browser koennen screenshots nicht blockieren (nur DRM-video per EME). frequenz-idee: zwei frames im wechsel (bild + verstaerktes wasserzeichen, bild - wasserzeichen), das auge mittelt, ein screenshot faengt einen frame mit starkem wasserzeichen. nachteile: flackern auf 60-Hz-displays, akku, fotosensible nutzer, bildschirmaufnahmen mitteln es wieder raus
+  - plan: P13: wasserzeichen beim rendern abziehen wuerde es auch aus screenshots entfernen -> nur in kombination mit der frequenz-idee sinnvoll; nicht gebaut
 
 # Advanced Encryption (Media & Performance)
 - [x] Rolling-Key / Double-Key Verfahren für Medien:
@@ -273,11 +305,79 @@
     - entschieden: felder einzeln "nur fuer matches" markierbar + galerie
   - [x] Stufe 3: Unsichtbar (Profil-Details und Bilder erst nach "Match" sichtbar; erzeugt zwingend Ping)
     - entschieden: im grid silhouette ohne namen, router bekommt weder namen noch bild
-  - [ ] im chat modus sollte das grid und ein paar profildetails gar nicht an sein. wenn man einen chatpartner hinzufügt sollte ein profilhandshake passieren
+  - [x] im chat modus sollte das grid und ein paar profildetails gar nicht an sein. wenn man einen chatpartner hinzufügt sollte ein profilhandshake passieren (P11)
+    - done P11: `PROFILE_SCHEMAS` pro modus (chat: name + status), nur felder des aktiven schemas gehen raus, automatischer `PROFILE_REQUEST` nach dem ersten `KEY_HELLO`
     - da wäre es sogar besser pro modus verschiedene default profil schemas als router anzubieten
+    - plan: P11: router bietet pro modus ein profil-schema (`PROFILE_SCHEMAS` JSON, fallback `PROFILE_SCHEMA`), chat-modus: name + status; ueber `/api/config` + index-template
+    - plan: P11: nach dem ersten `KEY_HELLO` ohne gecachtes profil schicken beide automatisch `PROFILE_REQUEST`
 
 # Hyperlocal Mesh (Festival/Club Mode)
-- [ ] WebRTC over LAN: mDNS und lokale Host-Kandidaten aggressiv priorisieren
+- [x] WebRTC over LAN: mDNS und lokale Host-Kandidaten aggressiv priorisieren
+  - done P7: `LAN_MODE` (server) und "nur lokales netz" (geraet) -> keine STUN/TURN, nur host/mDNS; verbindungsart per `getStats()` ("im selben WLAN"); STUN standardmaessig ueber den eigenen coturn statt google (`STUN_SERVER`)
   - plan: naechste iteration: host candidates bevorzugen (mDNS nicht strippen), STUN-loser club-modus
-- [ ] Offline-Mesh: Direkter Traffic im selben WLAN (z. B. auf Prides/in Clubs) ohne Cloud-Routing
+- [x] Offline-Mesh: Direkter Traffic im selben WLAN (z. B. auf Prides/in Clubs) ohne Cloud-Routing
+  - done P7: README "Club-/LAN-Betrieb": server im event-WLAN mit `LAN_MODE=true`; HTTPS pflicht (lokale CA oder DNS-01); mesh ganz ohne server in einer PWA nicht moeglich (keine lokale geraetesuche)
   - plan: naechste iteration: PWA hat keine lokale discovery API -> signaling server muss im LAN laufen (limitation)
+
+# Hardening (H1-H4, geplant 2026-10-23)
+## H1 Sicherheit Server (kritisch zuerst)
+- [x] Push-Subscriptions: SSRF verhindern
+  - done H1 (`server/security.js`)
+  - befund: `isPushSubscription` (`server/app.js`) akzeptiert jede https-URL, der server POSTet dorthin (auch interne hosts)
+  - plan: nur bekannte push-dienste erlauben (fcm.googleapis.com, *.push.services.mozilla.com, web.push.apple.com, *.notify.windows.com), konfigurierbar per `PUSH_HOST_ALLOWLIST`; zusaetzlich private/loopback-IPs ablehnen
+- [x] Rate-Limits und Quoten
+  - done H1 (`server/security.js`)
+  - befund: keine limits auf register, grid, cache, signaling; queue pro empfaenger unbegrenzt (100 KB x beliebig viele, 72 h)
+  - plan: einfacher token-bucket im speicher pro IP + peer (register, grid, cache, chat-controls, WS-nachrichten); queue-quote pro empfaenger (z. B. 500 nachrichten / 20 MB) und pro sender->empfaenger; 429 mit `Retry-After`
+- [x] Logs ohne personenbezogene Daten
+  - done H1 (`server/security.js`)
+  - befund: fastify-logger schreibt komplette URLs inkl. `geohash`, `peerId`, `eventHash` ins log
+  - plan: request-serializer ohne query-string und ohne IP (oder gekuerzt), tests dafuer
+- [x] Sicherheits-Header
+  - done H1 (`server/security.js`)
+  - plan: `Content-Security-Policy` (default-src 'self'; img-src 'self' data: blob:; connect-src 'self' wss: + nominatim; frame-ancestors 'none'), `X-Content-Type-Options`, `Referrer-Policy: no-referrer`, `Permissions-Policy` (camera/geolocation self); schritt 1 mit 'unsafe-inline' wegen `onclick`-attributen, schritt 2 (H4) inline-handler entfernen
+- [x] Token-Vergleich konstant-zeitig
+  - done H1 (`server/security.js`)
+  - befund: `authenticatePeer` vergleicht hashes mit `===`
+  - plan: `crypto.timingSafeEqual`
+- [x] `trustProxy` nicht blind auf true
+  - done H1 (`server/security.js`)
+  - plan: `TRUST_PROXY` env (standard: nur private netze / loopback), README
+
+## H2 Eingaben und Daten im Client
+- [x] P2P-Payloads validieren
+  - done H2
+  - plan: zentrale pruefung in `handleSecurePayload` (typ, max. groessen: profilfelder, avatar, bildantworten, snap-anfragen, listen-laengen); unbekannte typen verwerfen; tests
+- [x] Geheimnisse im IndexedDB verschluesseln
+  - done H2
+  - befund: album-`secret`, rollende keys und chat-gate liegen im klartext in IndexedDB (medien sind schon mit `storageKey` verschluesselt)
+  - plan: album-datensaetze mit `storageKey` verschluesseln (wie profile), migration beim laden
+- [x] Speicherplatz
+  - done H2
+  - plan: `navigator.storage.persist()` anfragen, `estimate()` in den einstellungen anzeigen, warnung ab 80 %; alte medien/snaps aufraeumen
+- [x] Server-Aufraeumen
+  - done H2
+  - plan: verwaiste `peer_credentials`/push-subscriptions nach X tagen ohne login loeschen (retention in README)
+
+## H3 Robustheit
+- [x] Fehler nicht stumm schlucken
+  - done H3
+  - befund: viele `.catch(() => {})`
+  - plan: einheitlich `logDebug` + optionaler debug-toast; kritische pfade (senden, sync, schluessel) mit sichtbarem hinweis
+- [x] SW und Seite gleich halten
+  - done H3
+  - plan: test, der `storeMessagePut` (SW) und `applyChatOperation` (seite) mit denselben faellen prueft (held/gated, geloescht, duplikat)
+- [x] Startup-Pfad absichern
+  - done H3
+  - plan: jeder `load*`-schritt in `main.js` einzeln mit fallback, damit ein fehler nicht die ganze app stoppt (wie beim matchState-crash)
+
+## H4 Wartbarkeit und Tests
+- [x] Grosse Dateien teilen: `chat.js` (1200 zeilen: snaps, nachrichten-aktionen, kontaktleiste), `p2p.client.js` (1000 zeilen: signaling, sync, path C)
+  - done H4: `chat-tools.js`, `snaps.js`, `delivery.client.js`
+- [x] Inline-`onclick` durch event-listener ersetzen (fuer strikte CSP ohne 'unsafe-inline')
+  - done H4: `actions.js` (`data-click`), CSP `script-src 'self'`
+- [x] Playwright-E2E vom nutzer ins repo + `npm run test:e2e`
+  - done H4: `e2e/chat-controls.e2e.cjs`, `scripts/e2e.sh`
+- [x] `npm audit` / dependency-check im docker-build oder CI
+  - done H4: `npm run audit:prod` = 0 findings; dev: 3 moderate in tailwind 3 (postcss-selector-parser, nur build-zeit, eigenes CSS) -> fix erst mit tailwind-4-migration
+

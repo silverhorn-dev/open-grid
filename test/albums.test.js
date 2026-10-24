@@ -8,7 +8,9 @@ async function createIdentity() {
     return { keyPair, jwkPublic: await globalThis.crypto.subtle.exportKey('jwk', keyPair.publicKey) };
 }
 
-function loadAlbums({ identity = null, peerKeys = {}, time = { now: 3 * 60000 + 1000, epochMs: 60000 } } = {}) {
+function loadAlbums({ identity = null, peerKeys = {}, signingKeys = {}, withSwarm = false, time = { now: 3 * 60000 + 1000, epochMs: 60000 } } = {}) {
+    const openChannels = new Set();
+    const swarmRequests = [];
     const sent = [];
     const records = new Map();
     const clock = { ...time };
@@ -35,6 +37,19 @@ function loadAlbums({ identity = null, peerKeys = {}, time = { now: 3 * 60000 + 
             myKeys: identity
         },
         getPeerIdentityKey: async peerId => peerKeys[peerId] || null,
+        getPeerIdentity: async peerId => (signingKeys[peerId] ? { profileSigningKey: signingKeys[peerId] } : null),
+        isSecureChannelOpen: peerId => openChannels.has(peerId),
+        requestAlbumFromSwarm: () => {},
+        requestAlbumImageFromSwarm: (album, item) => swarmRequests.push(item.id),
+        signEnvelope: async (payload, privateKey, publicKey) => ({
+            payload,
+            publicKey,
+            signature: Buffer.from(await globalThis.crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, privateKey, new TextEncoder().encode(JSON.stringify(payload)))).toString('base64')
+        }),
+        verifyEnvelope: async (envelope, expected) => Boolean(expected) && JSON.stringify(envelope.publicKey) === JSON.stringify(expected)
+            && globalThis.crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' },
+                await globalThis.crypto.subtle.importKey('jwk', expected, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']),
+                Buffer.from(envelope.signature, 'base64'), new TextEncoder().encode(JSON.stringify(envelope.payload))),
         databaseRequest: async (store, _mode, run) => run({ get: id => records.get(`${store}:${id}`) }),
         window: { crypto: globalThis.crypto },
         bytesToBase64: bytes => Buffer.from(bytes).toString('base64'),
@@ -44,7 +59,7 @@ function loadAlbums({ identity = null, peerKeys = {}, time = { now: 3 * 60000 + 
         setTimeout,
         clearTimeout,
         isSafeInlineImage: value => typeof value === 'string' && value.startsWith('data:image/'),
-        loadMedia: async id => (id === 'albimg_a' ? { data: 'data:image/jpeg;base64,AAAA', version: 1 } : null),
+        loadMedia: async id => records.get(`media:${id}`) || (id === 'albimg_a' && !withSwarm ? { data: 'data:image/jpeg;base64,AAAA', version: 1 } : null),
         cacheMediaPayload: async (id, payload) => records.set(`media:${id}`, payload),
         fetchServerTime: async () => {
             const epoch = Math.floor(clock.now / clock.epochMs);
@@ -65,7 +80,14 @@ function loadAlbums({ identity = null, peerKeys = {}, time = { now: 3 * 60000 + 
         Date
     };
     vm.runInNewContext(readFileSync(new URL('../client/app/albums.js', import.meta.url), 'utf8'), context);
-    return { context, sent, records, clock };
+    if (withSwarm) {
+        Object.assign(context.state, { dataChannels: {}, pendingSwarmImages: {}, pendingSwarmAlbums: {}, cachedProfiles: {} });
+        context.sha256Base64 = async text => Buffer.from(await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))).toString('base64');
+        context.cacheMedia = async (id, data, version) => records.set(`media:${id}`, { data, version });
+        context.isProfileShareable = profile => !profile?.audience || profile.audience === 'public';
+        vm.runInNewContext(readFileSync(new URL('../client/app/swarm.js', import.meta.url), 'utf8'), context);
+    }
+    return { context, sent, records, clock, openChannels, swarmRequests };
 }
 
 test('serves album images only to peers on the access list', () => {
@@ -86,6 +108,7 @@ test('answers album requests according to the access list', async () => {
         id: 'alb_1',
         name: 'Urlaub',
         keyVersion: 1,
+        updatedAt: 0,
         items: [{ id: 'albimg_a', version: 1 }]
     });
     assert.equal(sent[1].payload.type, 'ALBUM_DENIED');
@@ -206,8 +229,8 @@ test('revoking access bumps the album key version', async () => {
     const { context } = loadAlbums();
     await context.revokeAlbumAccess('alb_1', 'peer-allowed');
     assert.equal(context.state.albums.alb_1.keyVersion, 2);
-    const keyBefore = await context.deriveAlbumImageKey({ ...context.state.albums.alb_1, keyVersion: 1 }, 'albimg_a', 'peer-x');
-    const keyAfter = await context.deriveAlbumImageKey(context.state.albums.alb_1, 'albimg_a', 'peer-x');
+    const keyBefore = await context.deriveAlbumImageKey({ ...context.state.albums.alb_1, keyVersion: 1 }, 'albimg_a');
+    const keyAfter = await context.deriveAlbumImageKey(context.state.albums.alb_1, 'albimg_a');
     const raw = async key => Buffer.from(await globalThis.crypto.subtle.exportKey('raw', key)).toString('hex');
     assert.notEqual(await raw(keyBefore), await raw(keyAfter));
 });
@@ -238,3 +261,88 @@ test('album records are sealed at rest and old plaintext records get migrated', 
     assert.equal(context.state.albums.alb_1.name, 'Urlaub');
     assert.equal(context.state.albums.alb_1.secret, Buffer.alloc(32, 7).toString('base64'));
 });
+
+async function createSigningIdentity() {
+    const ecdh = await createIdentity();
+    const ecdsa = await globalThis.crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+    return { ...ecdh, ecdsaKeyPair: ecdsa, jwkEcdsaPublic: await globalThis.crypto.subtle.exportKey('jwk', ecdsa.publicKey) };
+}
+
+test('a viewer relays an album to another viewer while the owner is offline', async () => {
+    const [ownerId, relayId, requesterId] = await Promise.all([createSigningIdentity(), createSigningIdentity(), createSigningIdentity()]);
+    const owner = loadAlbums({ identity: ownerId, peerKeys: { 'peer-c': relayId.jwkPublic, 'peer-b': requesterId.jwkPublic } });
+    owner.context.state.myKeys = ownerId;
+    owner.context.state.albums.alb_1.acl = ['peer-c', 'peer-b'];
+    owner.records.set('media:albimg_a', { data: 'data:image/jpeg;base64,AAAA', version: 1 });
+
+    // C hat das Album vom Besitzer (Manifest + Bild + Schluessel).
+    const relay = loadAlbums({ identity: relayId, withSwarm: true, peerKeys: { 'peer-owner': ownerId.jwkPublic }, signingKeys: { 'peer-owner': ownerId.jwkEcdsaPublic } });
+    relay.context.state.myProfile.id = 'peer-c';
+    relay.context.state.albums = {};
+    owner.context.state.myProfile.id = 'peer-owner';
+    owner.context.state.albums.alb_1.ownerId = 'peer-owner';
+    await owner.context.handleAlbumRequest('peer-c', 'alb_1');
+    relay.context.state.pendingAlbumRequests['peer-owner:alb_1'] = true;
+    await relay.context.handleAlbumResponse('peer-owner', owner.sent.at(-1).payload);
+    assert.ok(relay.context.state.albums.alb_1.manifest, 'signed manifest kept');
+    await owner.context.serveAlbumImage('peer-c', 'albimg_a');
+    relay.context.state.pendingImageRequests['peer-owner:albimg_a'] = 1;
+    await relay.context.handleAlbumImageResponse('peer-owner', owner.sent.at(-1).payload);
+    await owner.context.pushAlbumKeys('peer-c', owner.context.state.albums.alb_1, true);
+    await relay.context.handleAlbumKeysOperation('peer-owner', owner.sent.at(-1).payload.operation);
+    await owner.context.pushAlbumKeys('peer-b', owner.context.state.albums.alb_1, true);
+    const keysForB = owner.sent.at(-1).payload.operation;
+
+    // B kennt das Album nur aus dem Chat; der Besitzer ist offline, C antwortet.
+    const requester = loadAlbums({ identity: requesterId, withSwarm: true, peerKeys: { 'peer-owner': ownerId.jwkPublic }, signingKeys: { 'peer-owner': ownerId.jwkEcdsaPublic } });
+    requester.context.state.myProfile.id = 'peer-b';
+    requester.context.state.albums = {};
+    requester.context.state.pendingSwarmAlbums['peer-c:alb_1'] = 'peer-owner';
+    await relay.context.handleSwarmAlbumRequest('peer-b', { ownerId: 'peer-owner', albumId: 'alb_1' });
+    const albumReply = relay.sent.at(-1).payload;
+    assert.equal(albumReply.type, 'SWARM_ALBUM_RESPONSE');
+    await requester.context.handleSwarmAlbumResponse('peer-c', albumReply);
+    assert.equal(requester.context.state.albums.alb_1.name, 'Urlaub');
+
+    requester.context.state.pendingSwarmImages['peer-c:albimg_a'] = { ownerId: 'peer-owner', albumId: 'alb_1', version: 1 };
+    await relay.context.handleSwarmAlbumImageRequest('peer-b', { ownerId: 'peer-owner', albumId: 'alb_1', imageId: 'albimg_a', version: 1 });
+    const imageReply = relay.sent.at(-1).payload;
+    assert.equal(imageReply.type, 'SWARM_ALBUM_IMAGE_RESPONSE');
+    await requester.context.handleSwarmAlbumImageResponse('peer-c', imageReply);
+    const stored = requester.records.get('media:albimg_a');
+    assert.equal(stored.relayedBy, 'peer-c');
+
+    // Ansehen nur mit den Schluesseln des Besitzers.
+    assert.equal(await requester.context.decryptAlbumImage('alb_1', 'albimg_a', stored.encrypted), null);
+    await requester.context.handleAlbumKeysOperation('peer-owner', keysForB);
+    assert.equal(await requester.context.loadAlbumKeys('alb_1'), true);
+    assert.equal(await requester.context.decryptAlbumImage('alb_1', 'albimg_a', stored.encrypted), 'data:image/jpeg;base64,AAAA');
+    requester.context.expireAlbumKeys('alb_1', false);
+    relay.context.expireAlbumKeys('alb_1', false);
+});
+
+test('swarm answers that are forged or unrequested are dropped', async () => {
+    const [ownerId, forgerId] = await Promise.all([createSigningIdentity(), createSigningIdentity()]);
+    const requester = loadAlbums({ withSwarm: true, signingKeys: { 'peer-owner': ownerId.jwkEcdsaPublic } });
+    requester.context.state.albums = {};
+    const manifestPayload = { id: 'alb_9', ownerId: 'peer-owner', name: 'Fake', keyVersion: 1, updatedAt: 1, items: [] };
+    const forged = await requester.context.signEnvelope(manifestPayload, forgerId.ecdsaKeyPair.privateKey, forgerId.jwkEcdsaPublic);
+    requester.context.state.pendingSwarmAlbums['peer-x:alb_9'] = 'peer-owner';
+    await requester.context.handleSwarmAlbumResponse('peer-x', { ownerId: 'peer-owner', albumId: 'alb_9', manifest: forged });
+    assert.equal(requester.context.state.albums.alb_9, undefined, 'not signed by the owner');
+
+    const genuine = await requester.context.signEnvelope(manifestPayload, ownerId.ecdsaKeyPair.privateKey, ownerId.jwkEcdsaPublic);
+    await requester.context.handleSwarmAlbumResponse('peer-x', { ownerId: 'peer-owner', albumId: 'alb_9', manifest: genuine });
+    assert.equal(requester.context.state.albums.alb_9, undefined, 'not requested (request was used up)');
+
+    // Galerie: Kopie muss zum signierten Hash passen.
+    const data = 'data:image/jpeg;base64,BBBB';
+    requester.context.state.cachedProfiles['peer-owner'] = { gallery: [{ id: 'img_1', version: 2, sha256: await requester.context.sha256Base64(data) }] };
+    requester.context.state.pendingSwarmImages['peer-x:img_1'] = { ownerId: 'peer-owner', version: 2 };
+    await requester.context.handleSwarmImageResponse('peer-x', { ownerId: 'peer-owner', imageId: 'img_1', version: 2, data: 'data:image/jpeg;base64,CCCC' });
+    assert.equal(requester.records.has('media:img_1'), false, 'hash mismatch');
+    requester.context.state.pendingSwarmImages['peer-x:img_1'] = { ownerId: 'peer-owner', version: 2 };
+    await requester.context.handleSwarmImageResponse('peer-x', { ownerId: 'peer-owner', imageId: 'img_1', version: 2, data });
+    assert.equal(requester.records.get('media:img_1').data, data);
+});
+

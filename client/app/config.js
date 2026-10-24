@@ -114,6 +114,9 @@ const state = {
     chatPreviews: {},
     chatControls: {},
     pendingImageRequests: {},
+    // Schwarm-Abruf (swarm.js): offene Anfragen pro `${peerId}:${imageId}` bzw. `${peerId}:${albumId}`.
+    pendingSwarmImages: {},
+    pendingSwarmAlbums: {},
     debugLogBuffer: [],
     mediaStream: null,
     snapFacingMode: 'user',

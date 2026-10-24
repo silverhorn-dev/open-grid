@@ -51,8 +51,22 @@ function isValidProfileEnvelope(envelope) {
         return ['string', 'number', 'boolean'].includes(typeof value) && String(value).length <= MAX_PROFILE_VALUE_LENGTH;
     });
     const galleryOk = profile.gallery === undefined
-        || (Array.isArray(profile.gallery) && profile.gallery.length <= 100 && profile.gallery.every(item => isId(item?.id)));
+        || (Array.isArray(profile.gallery) && profile.gallery.length <= 100
+            && profile.gallery.every(item => isId(item?.id) && isOptionalString(item.sha256, 64)));
     return fieldsOk && galleryOk && isOptionalString(profile.avatar, MAX_INLINE_IMAGE_LENGTH);
+}
+
+function isEncryptedImage(encrypted) {
+    return Boolean(encrypted) && typeof encrypted.iv === 'string' && encrypted.iv.length <= 40
+        && typeof encrypted.ciphertext === 'string' && encrypted.ciphertext.length <= MAX_INLINE_IMAGE_LENGTH * 2;
+}
+
+function isValidAlbumManifest(manifest) {
+    const payload = manifest?.payload;
+    return Boolean(payload) && typeof manifest.signature === 'string' && manifest.signature.length <= 200
+        && Boolean(manifest.publicKey) && typeof manifest.publicKey === 'object'
+        && isId(payload.id) && isId(payload.ownerId) && isOptionalString(payload.name, 200)
+        && Array.isArray(payload.items) && payload.items.length <= 500;
 }
 
 const PAYLOAD_VALIDATORS = {
@@ -75,7 +89,16 @@ const PAYLOAD_VALIDATORS = {
     SWARM_PROFILE_RESPONSE: payload => isId(payload.targetNodeId) && isValidProfileEnvelope(payload.signedEnvelope),
     ALBUM_REQUEST: payload => isId(payload.albumId),
     ALBUM_RESPONSE: payload => isId(payload.album?.id) && isOptionalString(payload.album?.name, 200)
-        && Array.isArray(payload.album?.items) && payload.album.items.length <= 500,
+        && Array.isArray(payload.album?.items) && payload.album.items.length <= 500
+        && (payload.manifest === undefined || payload.manifest === null || isValidAlbumManifest(payload.manifest)),
+    SWARM_IMAGE_REQUEST: payload => isId(payload.ownerId) && isId(payload.imageId) && isSmallInt(payload.version),
+    SWARM_IMAGE_RESPONSE: payload => isId(payload.ownerId) && isId(payload.imageId) && isSmallInt(payload.version)
+        && typeof payload.data === 'string' && payload.data.length <= MAX_INLINE_IMAGE_LENGTH,
+    SWARM_ALBUM_REQUEST: payload => isId(payload.ownerId) && isId(payload.albumId),
+    SWARM_ALBUM_RESPONSE: payload => isId(payload.ownerId) && isId(payload.albumId) && isValidAlbumManifest(payload.manifest),
+    SWARM_ALBUM_IMAGE_REQUEST: payload => isId(payload.ownerId) && isId(payload.albumId) && isId(payload.imageId) && isSmallInt(payload.version),
+    SWARM_ALBUM_IMAGE_RESPONSE: payload => isId(payload.ownerId) && isId(payload.albumId) && isId(payload.imageId)
+        && isSmallInt(payload.version) && isSmallInt(payload.keyVersion) && isEncryptedImage(payload.encrypted),
     ALBUM_DENIED: payload => isId(payload.albumId),
     ALBUM_REVOKED: payload => isId(payload.albumId),
     ALBUM_KEY_REQUEST: payload => isId(payload.albumId),
@@ -88,10 +111,7 @@ const PAYLOAD_VALIDATORS = {
     SNAP_VIEW_CLOSED: payload => isId(payload.snapId),
     IMAGE_REQUEST: payload => isId(payload.imageId) && (payload.version === undefined || isSmallInt(payload.version)),
     IMAGE_RESPONSE: payload => isId(payload.imageId) && isSmallInt(payload.version)
-        && (payload.encrypted
-            ? typeof payload.encrypted.iv === 'string' && payload.encrypted.iv.length <= 40
-                && typeof payload.encrypted.ciphertext === 'string' && payload.encrypted.ciphertext.length <= MAX_INLINE_IMAGE_LENGTH * 2
-            : isOptionalString(payload.data, MAX_INLINE_IMAGE_LENGTH))
+        && (payload.encrypted ? isEncryptedImage(payload.encrypted) : isOptionalString(payload.data, MAX_INLINE_IMAGE_LENGTH))
 };
 
 function isValidSecurePayload(payload) {

@@ -386,16 +386,26 @@ P2P-Protokoll (nur ueber den verschluesselten DataChannel):
 | `ALBUM_REVOKED { albumId }` | Besitzer -> Betrachter | Zugriff entzogen oder Album geloescht |
 
 Inhaltsschluessel: Jedes eigene Album hat ein Geheimnis `secret` (32 Byte,
-nur beim Besitzer) und eine `keyVersion`. Pro Betrachter und Bild gilt
+nur beim Besitzer) und eine `keyVersion`. Pro Bild gilt (Schema 2, R3; fuer
+alle Betrachter gleich, damit Betrachter Bilder weitergeben koennen)
 
 ```
-CK = HKDF-SHA256(ikm = secret, salt = "<albumId>:<keyVersion>", info = "<imageId>:<viewerId>")
+CK = HKDF-SHA256(ikm = secret, salt = "<albumId>:<keyVersion>", info = "og-album-image:<imageId>")
 ```
 
 Albumbilder gehen nur als Ciphertext unter `CK` raus
-(`IMAGE_RESPONSE { imageId, version, keyVersion, encrypted: { iv, ciphertext } }`);
-der Betrachter speichert nur den Ciphertext. Der Besitzer bettet vorher ein
-Wasserzeichen mit der ID des Betrachters ein (Abschnitt 6.2).
+(`IMAGE_RESPONSE { imageId, version, keyVersion, keyScheme: 2, encrypted: { iv, ciphertext } }`);
+der Betrachter speichert nur den Ciphertext (`media`: `{ encrypted, version,
+keyVersion, keyScheme, relayedBy? }`). Der Sender bettet vorher ein
+Wasserzeichen mit der ID des Empfaengers ein (Abschnitt 6.2). Gespeicherte
+Kopien ohne `keyScheme: 2` (Schema 1, Schluessel pro Betrachter) gelten als
+veraltet und werden neu angefragt.
+
+`ALBUM_RESPONSE` enthaelt zusaetzlich `manifest`: einen mit dem
+ECDSA-Identitaetsschluessel des Besitzers signierten Umschlag
+`{ payload: { id, ownerId, name, keyVersion, updatedAt, items }, publicKey, signature }`.
+Betrachter speichern ihn mit dem Album; geprueft wird nur gegen den gepinnten
+Schluessel des Besitzers (`verifyEnvelope`).
 
 **Schluesselverteilung (Alben v2, P12)**: Der Schluessel zum Auspacken der
 `CK`s setzt sich aus drei Teilen zusammen - eigener Schluessel, Schluessel der
@@ -441,6 +451,31 @@ Folgen: Ein Betrachter sieht ein Album bis zu zwei Epochen weiter, auch wenn
 der Besitzer offline ist. Nach einem Entzug steigt `keyVersion` (neue `CK`s),
 der entzogene Betrachter bekommt keine Buendel mehr und verliert den Zugriff
 spaetestens mit dem Ende der naechsten Epoche.
+
+**Schwarm-Abruf (R3, `client/app/swarm.js`)**: Antwortet der Besitzer nicht
+(kein offener Kanal bzw. nach 1,5 s), fragt der Client seine offenen
+P2P-Kanaele. Es wird nichts zusaetzlich gespeichert; weitergegeben wird nur,
+was der Client selbst schon hat.
+
+| Typ | Antwort | Pruefung beim Empfaenger |
+|---|---|---|
+| `SWARM_IMAGE_REQUEST { ownerId, imageId, version }` | `SWARM_IMAGE_RESPONSE { ..., data }` | nur oeffentliche Profile; `SHA-256(data)` = `sha256` des Galerie-Eintrags im signierten Profil |
+| `SWARM_ALBUM_REQUEST { ownerId, albumId }` | `SWARM_ALBUM_RESPONSE { ..., manifest }` | Manifest vom gepinnten Besitzer-Schluessel signiert, nur neuere Staende (`keyVersion`, `updatedAt`) |
+| `SWARM_ALBUM_IMAGE_REQUEST { ownerId, albumId, imageId, version }` | `SWARM_ALBUM_IMAGE_RESPONSE { ..., keyVersion, keyScheme, encrypted }` | Bild im Manifest, passende Versionen; Speicherung mit `relayedBy` |
+
+Ein weitergebender Betrachter braucht selbst gueltige Album-Schluessel: er
+entschluesselt seine Kopie, setzt das Wasserzeichen des Anfragenden und
+verschluesselt neu unter `CK`. Ansehen kann der Anfragende nur mit eigenen
+`ALBUM_KEYS` vom Besitzer; die Zugriffsliste bleibt damit beim Besitzer.
+Weitergegebene Kopien werden durch die des Besitzers ersetzt, sobald er
+erreichbar ist. Grenze: ein berechtigter Betrachter koennte einem anderen ein
+falsches Bild unter `CK` unterschieben (er hat `CK`); das Manifest schuetzt
+Name und Bildliste, nicht den Bildinhalt.
+
+Galerie-Eintraege tragen `sha256` (Base64 von SHA-256 der Data-URL), alte
+Eintraege bekommen ihn beim Start (`ensureGalleryHashes`). Das signierte Profil
+enthaelt jetzt auch `audience`, damit Dritte Match-Profile nicht als oeffentlich
+weitergeben koennen.
 
 `IMAGE_REQUEST` liefert nur noch Galeriebilder des eigenen Profils oder Bilder
 aus Alben, in deren `acl` der anfragende Peer steht. `IMAGE_RESPONSE` wird nur

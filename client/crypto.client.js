@@ -18,7 +18,9 @@ async function signProfileData(profileData, privateKey, jwkPublic) {
         updatedAt: profileData.updatedAt,
         fields: profileData.fields,
         avatar: profileData.avatar,
-        gallery: profileData.gallery || []
+        gallery: profileData.gallery || [],
+        // Mit signiert, damit Dritte Match-Profile nicht als oeffentlich weitergeben koennen.
+        audience: profileData.audience || 'public'
     };
     const dataString = JSON.stringify(payloadToSign);
     const signatureArrayBuffer = await window.crypto.subtle.sign(
@@ -39,6 +41,37 @@ function publicJwksMatch(left, right) {
         && left.crv === right.crv
         && left.x === right.x
         && left.y === right.y;
+}
+
+// Allgemeiner signierter Umschlag (z. B. Album-Manifest) mit dem ECDSA-Identitaetsschluessel.
+async function signEnvelope(payload, privateKey, jwkPublic) {
+    const signature = await window.crypto.subtle.sign(
+        { name: 'ECDSA', hash: { name: 'SHA-256' } },
+        privateKey,
+        new TextEncoder().encode(JSON.stringify(payload))
+    );
+    return { payload, publicKey: jwkPublic, signature: bytesToBase64(new Uint8Array(signature)) };
+}
+
+// Prueft einen Umschlag nur gegen einen bereits gepinnten Schluessel (kein Vertrauen auf Erstkontakt).
+async function verifyEnvelope(envelope, expectedPublicKey) {
+    try {
+        if (!expectedPublicKey || !envelope?.payload || typeof envelope.signature !== 'string') return false;
+        if (!publicJwksMatch(envelope.publicKey, expectedPublicKey)) return false;
+        const key = await window.crypto.subtle.importKey('jwk', expectedPublicKey, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+        return await window.crypto.subtle.verify(
+            { name: 'ECDSA', hash: { name: 'SHA-256' } },
+            key,
+            base64ToBytes(envelope.signature),
+            new TextEncoder().encode(JSON.stringify(envelope.payload))
+        );
+    } catch {
+        return false;
+    }
+}
+
+async function sha256Base64(text) {
+    return bytesToBase64(new Uint8Array(await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))));
 }
 
 /**

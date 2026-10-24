@@ -178,6 +178,10 @@ async function processGalleryHandshake(peerId, remoteGalleryMeta) {
             if (state.activeModalPeerId !== peerId) return;
             state.pendingImageRequests[`${peerId}:${meta.id}`] = meta.version;
             sendSecurePayload(peerId, { type: 'IMAGE_REQUEST', imageId: meta.id, version: meta.version }).catch(logBackgroundError('processGalleryHandshake'));
+            // Antwortet der Besitzer nicht, Kopien aus dem Schwarm holen (Hash aus dem signierten Profil).
+            setTimeout(() => {
+                if (state.pendingImageRequests[`${peerId}:${meta.id}`] === meta.version) requestGalleryImageFromSwarm(peerId, meta);
+            }, SWARM_FALLBACK_MS);
         }
     }
 }

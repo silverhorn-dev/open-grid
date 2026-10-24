@@ -65,6 +65,7 @@ window.onload = async () => {
             state.myProfile.updatedAt = Date.now();
         }
         await cacheOwnProfile();
+        await runStartupStep('Galerie-Hashes', ensureGalleryHashes);
         await runStartupStep('Grid-Cache', loadCachedGridPeers);
         await runStartupStep('Chatliste', loadChatPeerIds);
         await runStartupStep('Alben', async () => {

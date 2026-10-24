@@ -38,7 +38,7 @@ async function handleGalleryUpload(input) {
         const base64 = await compressImage(input.files[0], 800, 800, 0.75);
         const imgId = 'img_' + window.crypto.randomUUID();
         await cacheMedia(imgId, base64, 1);
-        state.myProfile.gallery.push({ id: imgId, version: 1 });
+        state.myProfile.gallery.push({ id: imgId, version: 1, sha256: await sha256Base64(base64) });
         renderEditGallery();
         await saveUserProfile();
         showToast('Bild zur Galerie hinzugefuegt.', 'success');

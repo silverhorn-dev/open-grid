@@ -358,8 +358,13 @@ Akzeptanzkriterien:
   Teil des oeffentlichen Profils.
 - Ein Album wird im Chat geteilt und erscheint dort mit Deckfoto; ein Klick
   oeffnet es.
-- Nur freigegebene Peers erhalten Albuminhalt und Bilder, immer per P2P. Der
-  Besitzer muss dafuer online sein.
+- Nur freigegebene Peers erhalten Albuminhalt und Bilder, immer per P2P. Ist
+  der Besitzer offline, koennen andere Betrachter, die das Album schon haben,
+  Liste und Bilder weitergeben; das Wasserzeichen zeigt dann auf den
+  Empfaenger. Ansehen geht nur mit gueltigen Schluesseln vom Besitzer.
+- Oeffentliche Profilbilder kommen ebenfalls von anderen Grid-Teilnehmern,
+  wenn der Besitzer nicht antwortet; der Client prueft jedes Bild gegen den
+  Hash im signierten Profil.
 - Der Zugriff kann pro Peer entzogen werden. Danach werden neue Anfragen
   abgelehnt und der Client des Peers loescht seine Kopie.
 - Betrachter speichern Albumbilder nur verschluesselt. Zum Ansehen braucht es

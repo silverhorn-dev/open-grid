@@ -30,7 +30,7 @@ zwischen Clients ueber verschluesselte WebRTC DataChannels uebertragen.
 | `client/delivery.client.js` | Chat-Sync, Sende-Queue und Pfad C (Zwischenspeicher) |
 | `client/sw.js` | Service Worker fuer Push-Empfang im Hintergrund |
 | `index.html` | HTML-Markup der App-Shell |
-| `client/app/*.js` | UI-Logik: Konfiguration, IndexedDB, Profil, Chat, Einstellungen, Push, Start |
+| `client/app/*.js` | UI-Logik: Konfiguration, IndexedDB, Profil, Chat, Alben, Schwarm-Abruf (`swarm.js`), Einstellungen, Push, Start |
 | `client/styles.css` | Eigene Styles neben Tailwind |
 
 Cloudflare KV, Durable Objects, Worker Metadata und Wrangler werden nicht mehr
@@ -148,8 +148,9 @@ npm.cmd run check
 npm.cmd run audit:prod
 ```
 
-End-to-End-Tests (zwei Browser, Desktop, iPhone-Emulation und offline
-Partner) laufen komplett in Docker, lokal ist kein Node noetig:
+End-to-End-Tests (`e2e/*.e2e.cjs`: Chat loeschen/blockieren auf Desktop,
+iPhone-Emulation und mit offline Partner; Album-Weitergabe ueber einen
+anderen Betrachter) laufen komplett in Docker, lokal ist kein Node noetig:
 
 ```sh
 sh scripts/e2e.sh   # oder: npm run test:e2e

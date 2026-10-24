@@ -189,15 +189,28 @@ async function handleAlbumRequest(peerId, albumId) {
         await sendSecurePayload(peerId, { type: 'ALBUM_DENIED', albumId });
         return;
     }
-    await sendSecurePayload(peerId, {
-        type: 'ALBUM_RESPONSE',
-        album: {
-            id: album.id,
-            name: album.name,
-            keyVersion: album.keyVersion || 1,
-            items: album.items.map(({ id, version }) => ({ id, version }))
-        }
-    });
+    const summary = {
+        id: album.id,
+        name: album.name,
+        keyVersion: album.keyVersion || 1,
+        updatedAt: album.updatedAt || 0,
+        items: album.items.map(({ id, version }) => ({ id, version }))
+    };
+    await sendSecurePayload(peerId, { type: 'ALBUM_RESPONSE', album: summary, manifest: await signAlbumManifest(summary) });
+}
+
+// Signiertes Manifest (Name, Version, Bilder): Betrachter koennen es weitergeben, Dritte koennen es
+// nicht faelschen.
+async function signAlbumManifest(summary) {
+    if (!state.myKeys?.ecdsaKeyPair?.privateKey) return null;
+    return signEnvelope({ ...summary, ownerId: state.myProfile.id }, state.myKeys.ecdsaKeyPair.privateKey, state.myKeys.jwkEcdsaPublic);
+}
+
+// Gueltig nur mit dem gepinnten Schluessel des Besitzers und passender Album-ID.
+async function verifyAlbumManifest(manifest, ownerId, albumId) {
+    if (manifest?.payload?.ownerId !== ownerId || manifest.payload.id !== albumId) return false;
+    const identity = await getPeerIdentity(ownerId);
+    return verifyEnvelope(manifest, identity?.profileSigningKey);
 }
 
 async function handleAlbumResponse(peerId, payload) {
@@ -222,7 +235,8 @@ async function handleAlbumResponse(peerId, payload) {
         name: String(payload.album.name || 'Album').substring(0, 80),
         keyVersion,
         items,
-        receivedAt: Date.now()
+        receivedAt: Date.now(),
+        ...(await verifyAlbumManifest(payload.manifest, peerId, payload.album.id) ? { manifest: payload.manifest } : {})
     };
     state.albums[album.id] = album;
     await persistAlbum(album);
@@ -313,10 +327,11 @@ async function openAlbumViewer(albumId, reference = null) {
     state.albumViewer = { albumId, ownerId };
     if (album) await renderAlbumViewer(album);
     if (ownerId && ownerId !== state.myProfile.id) {
-        if (!album) renderMediaModalMessage('Album wird geladen... Der Besitzer muss online sein.');
+        if (!album) renderMediaModalMessage('Album wird geladen... vom Besitzer oder von anderen Betrachtern.');
         state.pendingAlbumRequests[`${ownerId}:${albumId}`] = true;
         await sendSecurePayload(ownerId, { type: 'ALBUM_REQUEST', albumId });
         await requestAlbumKeys(ownerId, albumId);
+        if (!isSecureChannelOpen(ownerId)) requestAlbumFromSwarm(ownerId, albumId);
     }
 }
 
@@ -358,10 +373,14 @@ async function renderAlbumViewer(album) {
 // Empfangene Albumbilder liegen nur als Ciphertext vor und brauchen den Schluessel der aktuellen Epoche.
 async function renderReceivedAlbumTile(album, item) {
     const stored = await loadMedia(item.id);
-    const isCurrent = stored?.encrypted && stored.version === item.version && stored.keyVersion === album.keyVersion;
-    if (!isCurrent) {
+    const isCurrent = stored?.encrypted && stored.version === item.version && stored.keyVersion === album.keyVersion
+        && stored.keyScheme === ALBUM_KEY_SCHEME;
+    const ownerOnline = isSecureChannelOpen(album.ownerId);
+    // Weitergegebene Kopien werden durch die des Besitzers ersetzt, sobald er erreichbar ist.
+    if (!isCurrent || (stored.relayedBy && ownerOnline)) {
         state.pendingImageRequests[`${album.ownerId}:${item.id}`] = item.version;
         sendSecurePayload(album.ownerId, { type: 'IMAGE_REQUEST', imageId: item.id, version: item.version }).catch(logBackgroundError('renderReceivedAlbumTile'));
+        if (!isCurrent && !ownerOnline) requestAlbumImageFromSwarm(album, item);
     }
     const dataUrl = isCurrent ? await decryptAlbumImage(album.id, item.id, stored.encrypted) : null;
     const tile = dataUrl
@@ -566,14 +585,19 @@ function findOwnAlbumForImage(imageId) {
     return getOwnAlbums().find(album => album.items.some(item => item.id === imageId)) || null;
 }
 
-async function deriveAlbumImageKey(album, imageId, viewerId) {
+// Schema 2 (R3): ein Inhaltsschluessel pro Bild und Version, fuer alle Betrachter gleich. So kann ein
+// Betrachter einem anderen das Bild weitergeben, wenn der Besitzer offline ist. Das Wasserzeichen
+// setzt jeweils der Sender (Besitzer oder weitergebender Betrachter) fuer den Empfaenger.
+const ALBUM_KEY_SCHEME = 2;
+
+async function deriveAlbumImageKey(album, imageId) {
     const secret = await window.crypto.subtle.importKey('raw', base64ToBytes(album.secret), 'HKDF', false, ['deriveKey']);
     return window.crypto.subtle.deriveKey(
         {
             name: 'HKDF',
             hash: 'SHA-256',
             salt: new TextEncoder().encode(`${album.id}:${album.keyVersion || 1}`),
-            info: new TextEncoder().encode(`${imageId}:${viewerId}`)
+            info: new TextEncoder().encode(`og-album-image:${imageId}`)
         },
         secret,
         { name: 'AES-GCM', length: 256 },
@@ -587,17 +611,23 @@ async function serveAlbumImage(peerId, imageId) {
     const item = album?.items.find(entry => entry.id === imageId);
     const media = item ? await loadMedia(imageId) : null;
     if (!album || !media?.data || !album.acl.includes(peerId)) return;
-    const marked = typeof embedWatermark === 'function' ? await embedWatermark(media.data, peerId) : media.data;
-    const key = await deriveAlbumImageKey(album, imageId, peerId);
-    const iv = window.crypto.getRandomValues(new Uint8Array(12));
-    const ciphertext = await window.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(marked));
+    const key = await deriveAlbumImageKey(album, imageId);
     await sendSecurePayload(peerId, {
         type: 'IMAGE_RESPONSE',
         imageId,
         version: item.version,
         keyVersion: album.keyVersion || 1,
-        encrypted: { iv: bytesToBase64(iv), ciphertext: bytesToBase64(new Uint8Array(ciphertext)) }
+        keyScheme: ALBUM_KEY_SCHEME,
+        encrypted: await encryptAlbumImageFor(peerId, media.data, key)
     });
+}
+
+// Wasserzeichen fuer den Empfaenger, dann mit dem Inhaltsschluessel verschluesseln.
+async function encryptAlbumImageFor(recipientId, dataUrl, key) {
+    const marked = typeof embedWatermark === 'function' ? await embedWatermark(dataUrl, recipientId) : dataUrl;
+    const iv = window.crypto.getRandomValues(new Uint8Array(12));
+    const ciphertext = await window.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(marked));
+    return { iv: bytesToBase64(iv), ciphertext: bytesToBase64(new Uint8Array(ciphertext)) };
 }
 
 async function handleAlbumImageResponse(peerId, payload) {
@@ -611,8 +641,19 @@ async function handleAlbumImageResponse(peerId, payload) {
         return;
     }
     delete state.pendingImageRequests[requestKey];
+    await storeReceivedAlbumImage(album, payload, null);
+}
+
+// Speichert ein empfangenes Albumbild (vom Besitzer oder weitergegeben) nur verschluesselt.
+async function storeReceivedAlbumImage(album, payload, relayedBy) {
     const encrypted = { iv: payload.encrypted.iv, ciphertext: payload.encrypted.ciphertext };
-    await cacheMediaPayload(payload.imageId, { encrypted, version: payload.version, keyVersion: payload.keyVersion });
+    await cacheMediaPayload(payload.imageId, {
+        encrypted,
+        version: payload.version,
+        keyVersion: payload.keyVersion,
+        keyScheme: payload.keyScheme === ALBUM_KEY_SCHEME ? ALBUM_KEY_SCHEME : 1,
+        ...(relayedBy ? { relayedBy } : {})
+    });
     if (state.albumViewer?.albumId !== album.id) return;
     const dataUrl = await decryptAlbumImage(album.id, payload.imageId, encrypted);
     const tile = document.getElementById(`album-tile-${payload.imageId}`);
@@ -689,7 +730,7 @@ async function buildAlbumKeyBundle(album, viewerId, current, epoch) {
     const keyVersion = album.keyVersion || 1;
     const keys = {};
     for (const item of album.items) {
-        const key = await deriveAlbumImageKey(album, item.id, viewerId);
+        const key = await deriveAlbumImageKey(album, item.id);
         keys[item.id] = bytesToBase64(new Uint8Array(await window.crypto.subtle.exportKey('raw', key)));
     }
     const rollingKey = getRollingKey(album, epoch, current.epoch);
@@ -898,7 +939,8 @@ async function loadAlbumKeys(albumId) {
     const keys = new Map();
     for (const [imageId, raw] of Object.entries(keyMap).slice(0, 500)) {
         if (typeof raw !== 'string') continue;
-        keys.set(imageId, await window.crypto.subtle.importKey('raw', base64ToBytes(raw), { name: 'AES-GCM' }, false, ['decrypt']));
+        // Auch 'encrypt': Betrachter geben Bilder fuer andere Betrachter neu verschluesselt weiter.
+        keys.set(imageId, await window.crypto.subtle.importKey('raw', base64ToBytes(raw), { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']));
     }
     expireAlbumKeys(albumId, false);
     state.albumKeys[albumId] = {

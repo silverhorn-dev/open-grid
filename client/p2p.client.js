@@ -724,6 +724,18 @@ async function handleSecurePayload(peerId, payload, deliveredVia = 'E2EE P2P') {
         await forgetReceivedAlbum(peerId, payload.albumId);
     } else if (payload.type === 'IMAGE_REQUEST') {
         await handleIncomingImageRequest(peerId, payload.imageId);
+    } else if (payload.type === 'SWARM_IMAGE_REQUEST') {
+        await handleSwarmImageRequest(peerId, payload);
+    } else if (payload.type === 'SWARM_IMAGE_RESPONSE') {
+        await handleSwarmImageResponse(peerId, payload);
+    } else if (payload.type === 'SWARM_ALBUM_REQUEST') {
+        await handleSwarmAlbumRequest(peerId, payload);
+    } else if (payload.type === 'SWARM_ALBUM_RESPONSE') {
+        await handleSwarmAlbumResponse(peerId, payload);
+    } else if (payload.type === 'SWARM_ALBUM_IMAGE_REQUEST') {
+        await handleSwarmAlbumImageRequest(peerId, payload);
+    } else if (payload.type === 'SWARM_ALBUM_IMAGE_RESPONSE') {
+        await handleSwarmAlbumImageResponse(peerId, payload);
     } else if (payload.type === 'IMAGE_RESPONSE' && payload.encrypted) {
         await handleAlbumImageResponse(peerId, payload);
     } else if (payload.type === 'IMAGE_RESPONSE') {

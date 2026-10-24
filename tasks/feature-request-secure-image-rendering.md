@@ -1,3 +1,7 @@
+Status (2026-10-24): entschieden "nur Canvas, kein Pixel-Verwuerfeln", umgesetzt in R4
+(`client/app/secure-canvas.js`, SPECE 6.3). Daten sind schon E2E und im Speicher verschluesselt;
+Verwuerfeln haette keinen zusaetzlichen Schutz gegen Screenshots gebracht.
+
 Überblick
 
 Um Bilddaten vor dem Speichern oder Abfotografieren zu schützen, können die Rohdaten verschleiert (z. B. Farbkanäle vertauscht oder Pixel permutiert) und erst unmittelbar vor dem Rendern im Browser durch einen Shader oder die Canvas-API korrigiert dargestellt werden.

@@ -554,10 +554,7 @@ function renderChatHistory() {
             renderReplaySnapMessage(bubble, message, isMine);
         } else if (message.snapData) {
             if (isSafeInlineImage(message.snapData)) {
-                const image = document.createElement('img');
-                image.src = message.snapData;
-                image.alt = '';
-                image.className = 'w-48 sm:w-64 rounded-xl mb-1.5 border border-slate-900/50 cursor-zoom-in';
+                const image = createSecureImage(message.snapData, 'w-48 sm:w-64 rounded-xl mb-1.5 border border-slate-900/50 cursor-zoom-in');
                 image.onclick = event => {
                     event.stopPropagation();
                     openChatImageViewer(message.id);

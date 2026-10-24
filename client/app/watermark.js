@@ -7,6 +7,30 @@ const WATERMARK_BLOCK = 16;
 const WATERMARK_STEP = 8;
 const WATERMARK_BITS = 32;
 
+const PRIVACY_SETTINGS_RECORD_ID = 'privacy-settings';
+
+function isTraceWatermarkEnabled() {
+    return state.traceWatermark !== false;
+}
+
+async function loadTraceWatermarkSetting() {
+    const stored = await databaseRequest('keys', 'readonly', store => store.get(PRIVACY_SETTINGS_RECORD_ID)).catch(() => null);
+    state.traceWatermark = stored?.traceWatermark !== false;
+    const toggle = document.getElementById('trace-watermark-toggle');
+    if (toggle) toggle.checked = state.traceWatermark;
+}
+
+async function updateTraceWatermark(enabled) {
+    state.traceWatermark = enabled === true;
+    try {
+        await putDatabaseRecord('keys', { id: PRIVACY_SETTINGS_RECORD_ID, traceWatermark: state.traceWatermark });
+    } catch (error) {
+        logDebug(`Could not store privacy settings: ${error.message}`);
+        showToast('Einstellung konnte nicht gespeichert werden.', 'error');
+    }
+    if (!state.traceWatermark) showToast('Neue Snaps und Albumbilder tragen kein Wasserzeichen mehr.', 'info');
+}
+
 async function watermarkTag(peerId) {
     const digest = new Uint8Array(await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(`og-watermark:${peerId}`)));
     const bits = [];

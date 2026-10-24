@@ -39,3 +39,15 @@ test('chat input is a multiline field and offline state is an icon, not a banner
     assert.ok((markup.match(/class="offline-indicator hidden/g) || []).length >= 1);
     assert.ok((markup.match(/offline-indicator hidden/g) || []).length >= 2, 'top bar and chat header');
 });
+
+test('viewers draw images into canvases and only chat images can be saved', () => {
+    for (const id of ['image-viewer-image', 'image-viewer-prev-image', 'image-viewer-next-image', 'secure-snap-image']) {
+        assert.match(markup, new RegExp(`<canvas id="${id}"`), id);
+    }
+    assert.match(markup, /id="image-viewer-save"[^>]*class="hidden/);
+    assert.match(markup, /id="trace-watermark-toggle"/);
+    const chatTools = readFileSync(join(root, 'client/app/chat-tools.js'), 'utf8');
+    assert.match(chatTools, /allowSave: isSocialMode\(\)/);
+    const albums = readFileSync(join(root, 'client/app/albums.js'), 'utf8');
+    assert.doesNotMatch(albums, /allowSave/);
+});

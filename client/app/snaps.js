@@ -54,7 +54,7 @@ function openReplaySnap(messageId) {
     openSecureSnapViewer('');
     state.secureSnapViewing = { mode: 'replay', peerId, messageId, isMine };
     const image = document.getElementById('secure-snap-image');
-    image.src = message.snapData;
+    drawSecureImage(image, message.snapData).catch(logBackgroundError('openReplaySnap'));
     image.classList.remove('hidden');
     // Auch der Sender kann seinen eigenen Snap behalten.
     const save = document.getElementById('secure-snap-save');
@@ -242,7 +242,7 @@ function showSnapReview(dataUrl) {
 async function captureSnap() {
     const video = document.getElementById('snap-video-preview');
     if (!video.videoWidth) return;
-    const bits = await watermarkTag(state.activeChatPeerId);
+    const bits = isTraceWatermarkEnabled() ? await watermarkTag(state.activeChatPeerId) : null;
     const dataUrl = encodeSnap(video, video.videoWidth, video.videoHeight, state.snapFacingMode === 'user', bits);
     if (!dataUrl) {
         showToast('Snap konnte nicht erstellt werden.', 'error');
@@ -257,7 +257,8 @@ async function pickSnapImage(input) {
     if (!file) return;
     try {
         const bitmap = await createImageBitmap(file);
-        const dataUrl = encodeSnap(bitmap, bitmap.width, bitmap.height, false, await watermarkTag(state.activeChatPeerId));
+        const bits = isTraceWatermarkEnabled() ? await watermarkTag(state.activeChatPeerId) : null;
+        const dataUrl = encodeSnap(bitmap, bitmap.width, bitmap.height, false, bits);
         bitmap.close?.();
         if (!dataUrl) throw new Error('Image too large');
         showSnapReview(dataUrl);

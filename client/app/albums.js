@@ -194,6 +194,8 @@ async function handleAlbumRequest(peerId, albumId) {
         name: album.name,
         keyVersion: album.keyVersion || 1,
         updatedAt: album.updatedAt || 0,
+        // Weitergebende Betrachter halten sich an die Wasserzeichen-Einstellung des Besitzers.
+        watermark: isTraceWatermarkEnabled(),
         items: album.items.map(({ id, version }) => ({ id, version }))
     };
     await sendSecurePayload(peerId, { type: 'ALBUM_RESPONSE', album: summary, manifest: await signAlbumManifest(summary) });
@@ -297,7 +299,7 @@ function renderMediaModalMessage(text) {
 
 // Alle bereits geladenen Bilder des offenen Medien-Modals, in Anzeigereihenfolge.
 function openViewerFromTiles(dataUrl) {
-    const images = [...document.querySelectorAll('#media-modal-content [data-viewer-image] img')].map(image => image.src);
+    const images = [...document.querySelectorAll('#media-modal-content [data-viewer-image] canvas')].map(secureImageSource).filter(Boolean);
     openImageViewer(images, Math.max(0, images.indexOf(dataUrl)));
 }
 
@@ -307,11 +309,7 @@ function createThumbnail(dataUrl, onClick) {
     tile.className = 'aspect-square rounded-xl overflow-hidden border border-slate-800 bg-slate-800 hover:border-brand-500 transition';
     if (dataUrl && isSafeInlineImage(dataUrl)) {
         tile.dataset.viewerImage = 'true';
-        const image = document.createElement('img');
-        image.src = dataUrl;
-        image.alt = '';
-        image.className = 'w-full h-full object-cover';
-        tile.appendChild(image);
+        tile.appendChild(createSecureImage(dataUrl, 'w-full h-full object-cover'));
     } else {
         tile.classList.add('animate-pulse', 'flex', 'items-center', 'justify-center', 'text-brand-500');
         tile.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
@@ -380,7 +378,7 @@ async function renderReceivedAlbumTile(album, item) {
     if (!isCurrent || (stored.relayedBy && ownerOnline)) {
         state.pendingImageRequests[`${album.ownerId}:${item.id}`] = item.version;
         sendSecurePayload(album.ownerId, { type: 'IMAGE_REQUEST', imageId: item.id, version: item.version }).catch(logBackgroundError('renderReceivedAlbumTile'));
-        if (!isCurrent && !ownerOnline) requestAlbumImageFromSwarm(album, item);
+        if (!isCurrent && !ownerOnline) requestAlbumImageFromSwarm(album, item).catch(logBackgroundError('renderReceivedAlbumTile'));
     }
     const dataUrl = isCurrent ? await decryptAlbumImage(album.id, item.id, stored.encrypted) : null;
     const tile = dataUrl
@@ -489,11 +487,7 @@ function renderAlbumMessage(bubble, album) {
     card.type = 'button';
     card.className = 'block w-48 sm:w-56 text-left';
     if (album.cover && isSafeInlineImage(album.cover)) {
-        const image = document.createElement('img');
-        image.src = album.cover;
-        image.alt = '';
-        image.className = 'w-full aspect-square object-cover rounded-xl mb-1.5 border border-slate-900/50';
-        card.appendChild(image);
+        card.appendChild(createSecureImage(album.cover, 'w-full aspect-square object-cover rounded-xl mb-1.5 border border-slate-900/50'));
     }
     const title = document.createElement('div');
     title.className = 'font-semibold';
@@ -618,13 +612,13 @@ async function serveAlbumImage(peerId, imageId) {
         version: item.version,
         keyVersion: album.keyVersion || 1,
         keyScheme: ALBUM_KEY_SCHEME,
-        encrypted: await encryptAlbumImageFor(peerId, media.data, key)
+        encrypted: await encryptAlbumImageFor(peerId, media.data, key, isTraceWatermarkEnabled())
     });
 }
 
-// Wasserzeichen fuer den Empfaenger, dann mit dem Inhaltsschluessel verschluesseln.
-async function encryptAlbumImageFor(recipientId, dataUrl, key) {
-    const marked = typeof embedWatermark === 'function' ? await embedWatermark(dataUrl, recipientId) : dataUrl;
+// Wasserzeichen fuer den Empfaenger (wenn gewuenscht), dann mit dem Inhaltsschluessel verschluesseln.
+async function encryptAlbumImageFor(recipientId, dataUrl, key, watermark = true) {
+    const marked = watermark && typeof embedWatermark === 'function' ? await embedWatermark(dataUrl, recipientId) : dataUrl;
     const iv = window.crypto.getRandomValues(new Uint8Array(12));
     const ciphertext = await window.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(marked));
     return { iv: bytesToBase64(iv), ciphertext: bytesToBase64(new Uint8Array(ciphertext)) };
@@ -769,7 +763,8 @@ async function pushAlbumKeys(viewerId, album, force = false) {
         type: 'ALBUM_KEYS',
         actorId: state.myProfile.id,
         createdAt: Date.now(),
-        bundles
+        bundles,
+        ticket: await signAlbumTicket(album, viewerId, bundles.at(-1).epochEndsAt)
     };
     // Mit Rueckruf: steht nach 10 s kein Kanal, geht das Buendel ueber Pfad C.
     await sendSecurePayload(viewerId, { type: 'CHAT_OPERATION', operation }, () => {});
@@ -883,9 +878,43 @@ function isValidKeyBundle(bundle) {
 }
 
 // Betrachter: Buendel speichern (verpackt), abgelaufene entfernen. Aus applyChatOperation.
+// Zugangsticket (R4): vom Besitzer signiert, gilt fuer genau einen Betrachter bis zum Ende der letzten
+// gelieferten Epoche. Weitergebende Betrachter (Schwarm) bedienen nur Peers mit gueltigem Ticket.
+const ALBUM_TICKET_PREFIX = 'album-ticket:';
+
+async function signAlbumTicket(album, viewerId, expiresAt) {
+    if (!state.myKeys?.ecdsaKeyPair?.privateKey) return null;
+    return signEnvelope(
+        { albumId: album.id, ownerId: state.myProfile.id, viewerId, keyVersion: album.keyVersion || 1, expiresAt },
+        state.myKeys.ecdsaKeyPair.privateKey,
+        state.myKeys.jwkEcdsaPublic
+    );
+}
+
+// Prueft ein Ticket: Signatur des Besitzers (gepinnt), Album, Betrachter und Ablauf.
+async function verifyAlbumTicket(ticket, { ownerId, albumId, viewerId, now }) {
+    const payload = ticket?.payload;
+    if (!payload || payload.ownerId !== ownerId || payload.albumId !== albumId || payload.viewerId !== viewerId) return false;
+    if (!Number.isFinite(payload.expiresAt) || payload.expiresAt <= now) return false;
+    const identity = await getPeerIdentity(ownerId);
+    return verifyEnvelope(ticket, identity?.profileSigningKey);
+}
+
+async function loadAlbumTicket(albumId) {
+    return databaseRequest('keys', 'readonly', store => store.get(`${ALBUM_TICKET_PREFIX}${albumId}`))
+        .then(record => record?.ticket || null)
+        .catch(() => null);
+}
+
 async function handleAlbumKeysOperation(ownerId, operation) {
     const bundles = Array.isArray(operation.bundles) ? operation.bundles.slice(0, MAX_ALBUM_KEY_BUNDLES) : [];
     const valid = bundles.filter(isValidKeyBundle);
+    const ticketAlbumId = operation.ticket?.payload?.albumId;
+    if (typeof ticketAlbumId === 'string' && await verifyAlbumTicket(operation.ticket, {
+        ownerId, albumId: ticketAlbumId, viewerId: state.myProfile.id, now: (await fetchServerTime().catch(() => ({ now: Date.now() }))).now
+    })) {
+        await putDatabaseRecord('keys', { id: `${ALBUM_TICKET_PREFIX}${ticketAlbumId}`, ownerId, ticket: operation.ticket });
+    }
     for (const bundle of valid) {
         await putDatabaseRecord('keys', {
             id: `${ALBUM_KEY_BUNDLE_PREFIX}${bundle.albumId}:${bundle.keyVersion}:${bundle.epoch}`,

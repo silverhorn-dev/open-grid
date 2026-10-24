@@ -85,6 +85,7 @@ const clientAssetFiles = [
     'app/snaps.js',
     'app/viewer.js',
     'app/watermark.js',
+    'app/secure-canvas.js',
     'app/albums.js',
     'app/swarm.js',
     'app/secure-snaps.js',

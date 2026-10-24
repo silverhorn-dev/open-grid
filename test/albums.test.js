@@ -39,8 +39,9 @@ function loadAlbums({ identity = null, peerKeys = {}, signingKeys = {}, withSwar
         getPeerIdentityKey: async peerId => peerKeys[peerId] || null,
         getPeerIdentity: async peerId => (signingKeys[peerId] ? { profileSigningKey: signingKeys[peerId] } : null),
         isSecureChannelOpen: peerId => openChannels.has(peerId),
+        isTraceWatermarkEnabled: () => true,
         requestAlbumFromSwarm: () => {},
-        requestAlbumImageFromSwarm: (album, item) => swarmRequests.push(item.id),
+        requestAlbumImageFromSwarm: async (album, item) => swarmRequests.push(item.id),
         signEnvelope: async (payload, privateKey, publicKey) => ({
             payload,
             publicKey,
@@ -109,6 +110,7 @@ test('answers album requests according to the access list', async () => {
         name: 'Urlaub',
         keyVersion: 1,
         updatedAt: 0,
+        watermark: true,
         items: [{ id: 'albimg_a', version: 1 }]
     });
     assert.equal(sent[1].payload.type, 'ALBUM_DENIED');
@@ -297,24 +299,40 @@ test('a viewer relays an album to another viewer while the owner is offline', as
     const requester = loadAlbums({ identity: requesterId, withSwarm: true, peerKeys: { 'peer-owner': ownerId.jwkPublic }, signingKeys: { 'peer-owner': ownerId.jwkEcdsaPublic } });
     requester.context.state.myProfile.id = 'peer-b';
     requester.context.state.albums = {};
+    requester.context.identifyWatermark = async () => ({ peerId: 'peer-b' });
+    await requester.context.handleAlbumKeysOperation('peer-owner', keysForB);
+    const ticket = await requester.context.loadAlbumTicket('alb_1');
+    assert.equal(ticket.payload.viewerId, 'peer-b', 'owner signed a ticket for B');
+
+    // Ohne Ticket oder mit dem Ticket eines anderen gibt C nichts heraus (Zweitaccount).
+    const before = relay.sent.length;
+    await relay.context.handleSwarmAlbumRequest('peer-sock', { ownerId: 'peer-owner', albumId: 'alb_1', ticket });
+    await relay.context.handleSwarmAlbumImageRequest('peer-sock', { ownerId: 'peer-owner', albumId: 'alb_1', imageId: 'albimg_a', version: 1, ticket });
+    assert.equal(relay.sent.length, before, 'ticket belongs to B, not to the asking peer');
+
     requester.context.state.pendingSwarmAlbums['peer-c:alb_1'] = 'peer-owner';
-    await relay.context.handleSwarmAlbumRequest('peer-b', { ownerId: 'peer-owner', albumId: 'alb_1' });
+    await relay.context.handleSwarmAlbumRequest('peer-b', { ownerId: 'peer-owner', albumId: 'alb_1', ticket });
     const albumReply = relay.sent.at(-1).payload;
     assert.equal(albumReply.type, 'SWARM_ALBUM_RESPONSE');
     await requester.context.handleSwarmAlbumResponse('peer-c', albumReply);
     assert.equal(requester.context.state.albums.alb_1.name, 'Urlaub');
 
     requester.context.state.pendingSwarmImages['peer-c:albimg_a'] = { ownerId: 'peer-owner', albumId: 'alb_1', version: 1 };
-    await relay.context.handleSwarmAlbumImageRequest('peer-b', { ownerId: 'peer-owner', albumId: 'alb_1', imageId: 'albimg_a', version: 1 });
+    await relay.context.handleSwarmAlbumImageRequest('peer-b', { ownerId: 'peer-owner', albumId: 'alb_1', imageId: 'albimg_a', version: 1, ticket });
     const imageReply = relay.sent.at(-1).payload;
     assert.equal(imageReply.type, 'SWARM_ALBUM_IMAGE_RESPONSE');
+
+    // Eine Kopie ohne das eigene Wasserzeichen wird verworfen.
+    requester.context.identifyWatermark = async () => ({ peerId: 'peer-c' });
+    await requester.context.handleSwarmAlbumImageResponse('peer-c', imageReply);
+    assert.equal(requester.records.has('media:albimg_a'), false, 'watermark of someone else');
+    requester.context.identifyWatermark = async () => ({ peerId: 'peer-b' });
+    requester.context.state.pendingSwarmImages['peer-c:albimg_a'] = { ownerId: 'peer-owner', albumId: 'alb_1', version: 1 };
     await requester.context.handleSwarmAlbumImageResponse('peer-c', imageReply);
     const stored = requester.records.get('media:albimg_a');
     assert.equal(stored.relayedBy, 'peer-c');
 
     // Ansehen nur mit den Schluesseln des Besitzers.
-    assert.equal(await requester.context.decryptAlbumImage('alb_1', 'albimg_a', stored.encrypted), null);
-    await requester.context.handleAlbumKeysOperation('peer-owner', keysForB);
     assert.equal(await requester.context.loadAlbumKeys('alb_1'), true);
     assert.equal(await requester.context.decryptAlbumImage('alb_1', 'albimg_a', stored.encrypted), 'data:image/jpeg;base64,AAAA');
     requester.context.expireAlbumKeys('alb_1', false);

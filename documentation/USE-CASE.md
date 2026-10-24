@@ -421,6 +421,11 @@ Akzeptanzkriterien:
   Empfaengers.
 - Im Debug-Modus laesst sich ein Bild oder 1:1-Screenshot pruefen; ein
   Treffer nennt den Peer.
+- Das Spur-Wasserzeichen laesst sich in den Einstellungen abschalten (Standard
+  an).
+- Albumbilder, Snaps und Chat-Bilder werden nur angezeigt (Canvas), nicht als
+  Datei bereitgestellt. Chat-Bilder lassen sich im Chat- und Freunde-Modus im
+  Bildbetrachter speichern, in Grid und Event nicht.
 
 ## UC-26: Flamme senden und Match
 

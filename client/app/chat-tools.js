@@ -74,7 +74,7 @@ document.addEventListener('click', event => {
 function openChatImageViewer(messageId) {
     const snaps = (state.chats[state.activeChatPeerId] || [])
         .filter(message => !message.deleted && isInlineSnap(message));
-    openImageViewer(snaps.map(message => message.snapData), snaps.findIndex(message => message.id === messageId));
+    openImageViewer(snaps.map(message => message.snapData), snaps.findIndex(message => message.id === messageId), { allowSave: isSocialMode() });
 }
 
 // Eigene Nachrichten rechtsbuendig, fremde linksbuendig: die Leiste waechst zur Bildschirmmitte.

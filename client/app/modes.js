@@ -79,6 +79,11 @@ async function setAppMode(mode) {
     await refreshPresenceAndGrid();
 }
 
+// Sozialer Bereich (Chat, Freunde): hier duerfen Chat-Bilder gespeichert werden.
+function isSocialMode() {
+    return state.appMode === 'chat' || state.appMode === 'friends';
+}
+
 function isGridAvailable() {
     return state.appMode !== 'chat';
 }

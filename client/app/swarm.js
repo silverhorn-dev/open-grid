@@ -6,6 +6,9 @@
 //   dem Inhaltsschluessel. Ansehen kann der Anfragende nur mit den Schluesseln des Besitzers
 //   (ALBUM_KEYS), die Zugriffsliste bleibt also in der Hand des Besitzers.
 // Es wird nichts zusaetzlich gespeichert: weitergegeben wird nur, was der Client selbst schon hat.
+// Schutz gegen Zweitaccounts: Album-Anfragen brauchen ein vom Besitzer signiertes Zugangsticket fuer
+// genau den anfragenden Peer. Der Anfragende prueft, dass eine weitergegebene Kopie sein eigenes
+// Wasserzeichen traegt (sonst koennte der Weitergebende es weglassen oder faelschen).
 const SWARM_FALLBACK_MS = 1500;
 
 function openSwarmPeers(excludeId) {
@@ -79,18 +82,22 @@ async function handleSwarmImageResponse(peerId, payload) {
 
 // ----- Alben -----
 function requestAlbumFromSwarm(ownerId, albumId) {
-    setTimeout(() => {
+    setTimeout(async () => {
         if (state.albumViewer?.albumId !== albumId || isSecureChannelOpen(ownerId)) return;
         if (!state.pendingAlbumRequests[`${ownerId}:${albumId}`] && state.albums[albumId]?.manifest) return;
+        const ticket = await loadAlbumTicket(albumId);
+        if (!ticket) return;
         openSwarmPeers(ownerId).forEach(peerId => {
             state.pendingSwarmAlbums[`${peerId}:${albumId}`] = ownerId;
-            sendSecurePayload(peerId, { type: 'SWARM_ALBUM_REQUEST', ownerId, albumId })
+            sendSecurePayload(peerId, { type: 'SWARM_ALBUM_REQUEST', ownerId, albumId, ticket })
                 .catch(logBackgroundError('requestAlbumFromSwarm'));
         });
     }, SWARM_FALLBACK_MS);
 }
 
-function requestAlbumImageFromSwarm(album, item) {
+async function requestAlbumImageFromSwarm(album, item) {
+    const ticket = await loadAlbumTicket(album.id);
+    if (!ticket) return;
     openSwarmPeers(album.ownerId).forEach(peerId => {
         state.pendingSwarmImages[`${peerId}:${item.id}`] = { ownerId: album.ownerId, albumId: album.id, version: item.version };
         sendSecurePayload(peerId, {
@@ -98,15 +105,25 @@ function requestAlbumImageFromSwarm(album, item) {
             ownerId: album.ownerId,
             albumId: album.id,
             imageId: item.id,
-            version: item.version
+            version: item.version,
+            ticket
         }).catch(logBackgroundError('requestAlbumImageFromSwarm'));
     });
+}
+
+// Nur fuer den Peer am anderen Ende des Kanals, mit gueltigem Ticket des Besitzers.
+async function hasValidSwarmTicket(peerId, payload) {
+    const now = (await fetchServerTime().catch(() => ({ now: Date.now() }))).now;
+    const valid = await verifyAlbumTicket(payload.ticket, { ownerId: payload.ownerId, albumId: payload.albumId, viewerId: peerId, now });
+    if (!valid) logDebug(`Schwarm-Anfrage fuer Album ${payload.albumId} von ${peerId} ohne gueltiges Ticket abgelehnt.`);
+    return valid;
 }
 
 // Weitergeben nur, was vom Besitzer signiert ist.
 async function handleSwarmAlbumRequest(peerId, payload) {
     const album = state.albums[payload.albumId];
     if (!album || album.ownerId !== payload.ownerId || album.ownerId === state.myProfile.id || !album.manifest) return;
+    if (!await hasValidSwarmTicket(peerId, payload)) return;
     await sendSecurePayload(peerId, { type: 'SWARM_ALBUM_RESPONSE', ownerId: album.ownerId, albumId: album.id, manifest: album.manifest });
 }
 
@@ -146,6 +163,7 @@ async function handleSwarmAlbumResponse(peerId, payload) {
 async function handleSwarmAlbumImageRequest(peerId, payload) {
     const album = state.albums[payload.albumId];
     if (!album || album.ownerId !== payload.ownerId || album.ownerId === state.myProfile.id || !album.manifest) return;
+    if (!await hasValidSwarmTicket(peerId, payload)) return;
     const item = album.items.find(entry => entry.id === payload.imageId && entry.version === payload.version);
     const stored = item ? await loadMedia(item.id) : null;
     if (!stored?.encrypted || stored.version !== item.version || stored.keyVersion !== album.keyVersion
@@ -162,7 +180,7 @@ async function handleSwarmAlbumImageRequest(peerId, payload) {
         version: item.version,
         keyVersion: album.keyVersion,
         keyScheme: ALBUM_KEY_SCHEME,
-        encrypted: await encryptAlbumImageFor(peerId, dataUrl, key)
+        encrypted: await encryptAlbumImageFor(peerId, dataUrl, key, album.manifest.payload.watermark !== false)
     });
 }
 
@@ -180,5 +198,20 @@ async function handleSwarmAlbumImageResponse(peerId, payload) {
     const current = await loadMedia(payload.imageId);
     if (current?.encrypted && current.version === item.version && current.keyVersion === album.keyVersion
         && current.keyScheme === ALBUM_KEY_SCHEME && !current.relayedBy) return;
+    if (!await relayedCopyCarriesOwnWatermark(album, payload)) {
+        logDebug(`Weitergegebenes Album-Bild ${payload.imageId} von ${peerId} traegt nicht das eigene Wasserzeichen, verworfen.`);
+        return;
+    }
     await storeReceivedAlbumImage(album, payload, peerId);
+}
+
+// Will der Besitzer ein Wasserzeichen (signiertes Manifest), muss die Kopie das eigene Tag tragen.
+// Geprueft wird mit den eigenen Album-Schluesseln; ohne gueltige Schluessel keine weitergegebene Kopie.
+async function relayedCopyCarriesOwnWatermark(album, payload) {
+    if (album.manifest?.payload?.watermark === false) return true;
+    if (!state.albumKeys[album.id] && !await loadAlbumKeys(album.id).catch(() => false)) return false;
+    const dataUrl = await decryptAlbumImage(album.id, payload.imageId, payload.encrypted);
+    if (!dataUrl || typeof identifyWatermark !== 'function') return false;
+    const match = await identifyWatermark(dataUrl, [state.myProfile.id]).catch(() => null);
+    return match?.peerId === state.myProfile.id;
 }

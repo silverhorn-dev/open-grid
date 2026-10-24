@@ -35,7 +35,8 @@ function isValidChatOperation(operation) {
     if (operation.type === 'MESSAGE_PUT') return isId(operation.messageId) && isValidMessage(operation.message);
     if (['MESSAGE_DELETE', 'MESSAGE_REACT', 'SNAP_CONSUMED'].includes(operation.type)) return isId(operation.messageId);
     if (operation.type === 'ALBUM_KEYS') return Array.isArray(operation.bundles) && operation.bundles.length <= 4
-        && operation.bundles.every(bundle => bundle && (bundle.epochMs === undefined || (Number.isInteger(bundle.epochMs) && bundle.epochMs > 0)));
+        && operation.bundles.every(bundle => bundle && (bundle.epochMs === undefined || (Number.isInteger(bundle.epochMs) && bundle.epochMs > 0)))
+        && (operation.ticket === undefined || operation.ticket === null || isValidTicket(operation.ticket));
     return true;
 }
 
@@ -54,6 +55,13 @@ function isValidProfileEnvelope(envelope) {
         || (Array.isArray(profile.gallery) && profile.gallery.length <= 100
             && profile.gallery.every(item => isId(item?.id) && isOptionalString(item.sha256, 64)));
     return fieldsOk && galleryOk && isOptionalString(profile.avatar, MAX_INLINE_IMAGE_LENGTH);
+}
+
+function isValidTicket(ticket) {
+    const payload = ticket?.payload;
+    return Boolean(payload) && typeof ticket.signature === 'string' && ticket.signature.length <= 200
+        && Boolean(ticket.publicKey) && typeof ticket.publicKey === 'object'
+        && isId(payload.albumId) && isId(payload.ownerId) && isId(payload.viewerId) && Number.isFinite(payload.expiresAt);
 }
 
 function isEncryptedImage(encrypted) {
@@ -94,9 +102,10 @@ const PAYLOAD_VALIDATORS = {
     SWARM_IMAGE_REQUEST: payload => isId(payload.ownerId) && isId(payload.imageId) && isSmallInt(payload.version),
     SWARM_IMAGE_RESPONSE: payload => isId(payload.ownerId) && isId(payload.imageId) && isSmallInt(payload.version)
         && typeof payload.data === 'string' && payload.data.length <= MAX_INLINE_IMAGE_LENGTH,
-    SWARM_ALBUM_REQUEST: payload => isId(payload.ownerId) && isId(payload.albumId),
+    SWARM_ALBUM_REQUEST: payload => isId(payload.ownerId) && isId(payload.albumId) && isValidTicket(payload.ticket),
     SWARM_ALBUM_RESPONSE: payload => isId(payload.ownerId) && isId(payload.albumId) && isValidAlbumManifest(payload.manifest),
-    SWARM_ALBUM_IMAGE_REQUEST: payload => isId(payload.ownerId) && isId(payload.albumId) && isId(payload.imageId) && isSmallInt(payload.version),
+    SWARM_ALBUM_IMAGE_REQUEST: payload => isId(payload.ownerId) && isId(payload.albumId) && isId(payload.imageId)
+        && isSmallInt(payload.version) && isValidTicket(payload.ticket),
     SWARM_ALBUM_IMAGE_RESPONSE: payload => isId(payload.ownerId) && isId(payload.albumId) && isId(payload.imageId)
         && isSmallInt(payload.version) && isSmallInt(payload.keyVersion) && isEncryptedImage(payload.encrypted),
     ALBUM_DENIED: payload => isId(payload.albumId),

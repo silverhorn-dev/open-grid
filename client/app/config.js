@@ -130,6 +130,8 @@ const state = {
     albumKeyPushes: {},
     albumKeyPushTimer: null,
     snapSettings: { secureSnaps: false, views: 1, seconds: 10 },
+    // Spur-Wasserzeichen in eigenen Snaps und Albumbildern (keys/privacy-settings).
+    traceWatermark: true,
     // Standard fuer neue Alben: Epochenlaenge in Minuten (0 = Server-Wert) und vorab gelieferte Epochen.
     albumDefaults: { epochMinutes: 0, epochsAhead: 1 },
     secureSnapViewing: null,

@@ -30,10 +30,12 @@ function viewerElement(id) {
     return document.getElementById(id);
 }
 
-function openImageViewer(images, startIndex = 0) {
+// options.allowSave: Speichern-Knopf (nur Chat-Bilder im Chat-/Freunde-Modus).
+function openImageViewer(images, startIndex = 0, options = {}) {
     const safeImages = images.filter(isSafeInlineImage);
     if (!safeImages.length) return;
     viewer.images = safeImages;
+    viewerElement('image-viewer-save').classList.toggle('hidden', !options.allowSave);
     viewer.index = Math.min(Math.max(startIndex, 0), safeImages.length - 1);
     const element = viewerElement('image-viewer');
     if (element.classList.contains('hidden')) {
@@ -49,7 +51,8 @@ function closeImageViewer() {
 
 function hideImageViewer() {
     viewerElement('image-viewer').classList.add('hidden');
-    ['image-viewer-image', 'image-viewer-prev-image', 'image-viewer-next-image'].forEach(id => viewerElement(id).removeAttribute('src'));
+    ['image-viewer-image', 'image-viewer-prev-image', 'image-viewer-next-image'].forEach(id => clearSecureCanvas(viewerElement(id)));
+    viewerElement('image-viewer-save').classList.add('hidden');
     viewer.images = [];
     viewer.pointers.clear();
     viewer.gesture = null;
@@ -61,9 +64,12 @@ function isImageViewerOpen() {
 }
 
 function setSlideImage(id, dataUrl) {
-    const image = viewerElement(id);
-    if (dataUrl) image.src = dataUrl;
-    else image.removeAttribute('src');
+    drawSecureImage(viewerElement(id), dataUrl || null).catch(logBackgroundError('setSlideImage'));
+}
+
+function saveViewerImage() {
+    if (viewerElement('image-viewer-save').classList.contains('hidden')) return;
+    downloadCanvasImage(viewerElement('image-viewer-image'), `opengrid-${Date.now()}.jpg`);
 }
 
 function showViewerImage() {

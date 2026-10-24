@@ -601,7 +601,11 @@
                             </select>
                         </label>
                     </div>
-                    <p class="text-[11px] text-slate-500">Screenshots lassen sich im Browser nicht verhindern. Jeder Snap traegt aber unsichtbar die ID des Empfaengers.</p>
+                    <label class="flex items-start gap-2 text-xs text-slate-300 cursor-pointer">
+                        <input type="checkbox" id="trace-watermark-toggle" checked data-change="updateTraceWatermark" data-args='["$checked"]' class="accent-brand-500 mt-0.5">
+                        <span>Spur-Wasserzeichen: eigene Snaps und Albumbilder tragen unsichtbar die ID des Empfaengers. So laesst sich ein Leak (z. B. Screenshot) zuordnen.</span>
+                    </label>
+                    <p class="text-[11px] text-slate-500">Screenshots lassen sich im Browser nicht verhindern. Bilder werden nur angezeigt, nicht als Datei bereitgestellt; speichern lassen sich nur Chat-Bilder im Chat- und Freunde-Modus.</p>
                 </div>
 
                 <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
@@ -713,18 +717,21 @@
     </div>
 
     <!-- Bildbetrachter (Vollbild) -->
-    <div id="image-viewer" class="hidden fixed inset-0 z-[80] bg-black flex flex-col select-none" role="dialog" aria-modal="true" aria-label="Bildbetrachter">
+    <div id="image-viewer" class="hidden fixed inset-0 z-[80] bg-black flex flex-col select-none" data-no-context-menu role="dialog" aria-modal="true" aria-label="Bildbetrachter">
         <div class="absolute top-0 inset-x-0 z-10 p-4 flex items-center justify-between bg-gradient-to-b from-black/70 to-transparent" style="padding-top: max(1rem, env(safe-area-inset-top));">
             <span id="image-viewer-counter" class="text-sm font-semibold text-white/90"></span>
+            <button id="image-viewer-save" data-click="saveViewerImage" class="hidden ml-auto mr-2 h-11 px-4 rounded-full bg-black/50 text-white text-sm font-semibold flex items-center gap-2" aria-label="Bild speichern">
+                <i class="fa-solid fa-download"></i><span class="hidden sm:inline">Speichern</span>
+            </button>
             <button data-click="closeImageViewer" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Schliessen">
                 <i class="fa-solid fa-xmark"></i>
             </button>
         </div>
         <div id="image-viewer-stage" class="relative flex-1 min-h-0 flex items-center justify-center overflow-hidden touch-none">
             <div id="image-viewer-track" class="absolute inset-y-0 left-0 flex will-change-transform" style="width: 300%; transform: translate3d(-33.3333%, 0, 0);">
-                <div class="viewer-slide w-1/3 h-full flex items-center justify-center"><img id="image-viewer-prev-image" alt="" draggable="false" class="max-w-full max-h-full object-contain"></div>
-                <div class="viewer-slide w-1/3 h-full flex items-center justify-center"><img id="image-viewer-image" alt="" draggable="false" class="max-w-full max-h-full object-contain will-change-transform"></div>
-                <div class="viewer-slide w-1/3 h-full flex items-center justify-center"><img id="image-viewer-next-image" alt="" draggable="false" class="max-w-full max-h-full object-contain"></div>
+                <div class="viewer-slide w-1/3 h-full flex items-center justify-center"><canvas id="image-viewer-prev-image" role="img" aria-label="Bild" class="secure-image max-w-full max-h-full object-contain"></canvas></div>
+                <div class="viewer-slide w-1/3 h-full flex items-center justify-center"><canvas id="image-viewer-image" role="img" aria-label="Bild" class="secure-image max-w-full max-h-full object-contain will-change-transform"></canvas></div>
+                <div class="viewer-slide w-1/3 h-full flex items-center justify-center"><canvas id="image-viewer-next-image" role="img" aria-label="Bild" class="secure-image max-w-full max-h-full object-contain"></canvas></div>
             </div>
             <button id="image-viewer-prev" data-click="stepImageViewer" data-args='[-1]' class="hidden sm:flex absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/50 hover:bg-black/70 text-white items-center justify-center" aria-label="Vorheriges Bild">
                 <i class="fa-solid fa-chevron-left"></i>
@@ -738,7 +745,7 @@
     <!-- Secure-Snap-Viewer -->
     <div id="secure-snap-viewer" class="hidden fixed inset-0 z-[85] bg-black flex items-center justify-center select-none" style="-webkit-touch-callout: none;" data-no-context-menu role="dialog" aria-modal="true" aria-label="Secure Snap">
         <video id="secure-snap-video" class="hidden max-w-full max-h-full object-contain pointer-events-none" playsinline muted disablepictureinpicture></video>
-        <img id="secure-snap-image" alt="" draggable="false" class="hidden max-w-full max-h-full object-contain pointer-events-none">
+        <canvas id="secure-snap-image" role="img" aria-label="Snap" class="secure-image hidden max-w-full max-h-full object-contain pointer-events-none"></canvas>
         <div id="secure-snap-status" class="absolute inset-x-8 top-1/2 -translate-y-1/2 text-center text-sm text-slate-200"></div>
         <div class="absolute top-0 inset-x-0 p-4 flex items-center justify-between" style="padding-top: max(1rem, env(safe-area-inset-top));">
             <svg id="secure-snap-countdown" class="hidden w-10 h-10 -rotate-90" viewBox="0 0 40 40" aria-hidden="true">
@@ -818,6 +825,7 @@
     <script src="/client/app/chat.js?v={{assetVersion}}"></script>
     <script src="/client/app/chat-tools.js?v={{assetVersion}}"></script>
     <script src="/client/app/snaps.js?v={{assetVersion}}"></script>
+    <script src="/client/app/secure-canvas.js?v={{assetVersion}}"></script>
     <script src="/client/app/viewer.js?v={{assetVersion}}"></script>
     <script src="/client/app/watermark.js?v={{assetVersion}}"></script>
     <script src="/client/app/albums.js?v={{assetVersion}}"></script>

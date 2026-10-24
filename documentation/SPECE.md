@@ -460,17 +460,42 @@ was der Client selbst schon hat.
 | Typ | Antwort | Pruefung beim Empfaenger |
 |---|---|---|
 | `SWARM_IMAGE_REQUEST { ownerId, imageId, version }` | `SWARM_IMAGE_RESPONSE { ..., data }` | nur oeffentliche Profile; `SHA-256(data)` = `sha256` des Galerie-Eintrags im signierten Profil |
-| `SWARM_ALBUM_REQUEST { ownerId, albumId }` | `SWARM_ALBUM_RESPONSE { ..., manifest }` | Manifest vom gepinnten Besitzer-Schluessel signiert, nur neuere Staende (`keyVersion`, `updatedAt`) |
-| `SWARM_ALBUM_IMAGE_REQUEST { ownerId, albumId, imageId, version }` | `SWARM_ALBUM_IMAGE_RESPONSE { ..., keyVersion, keyScheme, encrypted }` | Bild im Manifest, passende Versionen; Speicherung mit `relayedBy` |
+| `SWARM_ALBUM_REQUEST { ownerId, albumId, ticket }` | `SWARM_ALBUM_RESPONSE { ..., manifest }` | Manifest vom gepinnten Besitzer-Schluessel signiert, nur neuere Staende (`keyVersion`, `updatedAt`) |
+| `SWARM_ALBUM_IMAGE_REQUEST { ownerId, albumId, imageId, version, ticket }` | `SWARM_ALBUM_IMAGE_RESPONSE { ..., keyVersion, keyScheme, encrypted }` | Bild im Manifest, passende Versionen, eigenes Wasserzeichen; Speicherung mit `relayedBy` |
+
+Zugangstickets: Jedes `ALBUM_KEYS` enthaelt `ticket`, einen vom Besitzer
+signierten Umschlag `{ albumId, ownerId, viewerId, keyVersion, expiresAt }`
+(`expiresAt` = Ende der letzten gelieferten Epoche). Der Betrachter speichert es
+unter `keys`/`album-ticket:<albumId>` und schickt es mit jeder Album-Anfrage an
+den Schwarm. Der Weitergebende antwortet nur, wenn die Signatur zum gepinnten
+Besitzer-Schluessel passt, `viewerId` der Peer am anderen Ende des
+verschluesselten Kanals ist und das Ticket nicht abgelaufen ist. Damit bekommt
+ein Zweitaccount ohne eigene Freigabe keine Kopie mit seinem Wasserzeichen,
+und die Zugriffsliste bleibt privat.
+
+Wasserzeichen-Pruefung: Verlangt das Manifest ein Wasserzeichen, entschluesselt
+der Anfragende die weitergegebene Kopie sofort mit seinen Album-Schluesseln und
+behaelt sie nur, wenn sie sein eigenes Tag traegt (`identifyWatermark`). Ein
+Weitergebender kann das Wasserzeichen also nicht weglassen oder auf einen
+anderen Peer faelschen; ohne gueltige Schluessel nimmt der Client keine
+weitergegebene Kopie an.
 
 Ein weitergebender Betrachter braucht selbst gueltige Album-Schluessel: er
 entschluesselt seine Kopie, setzt das Wasserzeichen des Anfragenden und
 verschluesselt neu unter `CK`. Ansehen kann der Anfragende nur mit eigenen
 `ALBUM_KEYS` vom Besitzer; die Zugriffsliste bleibt damit beim Besitzer.
 Weitergegebene Kopien werden durch die des Besitzers ersetzt, sobald er
-erreichbar ist. Grenze: ein berechtigter Betrachter koennte einem anderen ein
-falsches Bild unter `CK` unterschieben (er hat `CK`); das Manifest schuetzt
-Name und Bildliste, nicht den Bildinhalt.
+erreichbar ist.
+
+Grenzen:
+- Ein berechtigter Betrachter koennte einem anderen ein falsches Bild unter
+  `CK` unterschieben (er hat `CK`); das Manifest schuetzt Name und Bildliste,
+  nicht den Bildinhalt.
+- Das Wasserzeichen ist Abschreckung, kein Beweis: wer den Klartext hat und
+  den Client manipuliert, kann es entfernen oder faelschen (das Verfahren ist
+  im Client-Code sichtbar).
+- Zwei vom Besitzer freigegebene Accounts derselben Person koennen ihre
+  Kopien vergleichen und das Wasserzeichen gezielt entfernen (Kollusion).
 
 Galerie-Eintraege tragen `sha256` (Base64 von SHA-256 der Data-URL), alte
 Eintraege bekommen ihn beim Start (`ensureGalleryHashes`). Das signierte Profil
@@ -651,6 +676,23 @@ Helligkeit von 16x16-Bloecken (Stufe 8, max. +-4 Helligkeitsstufen), Bit
 gilt ein bekannter Peer als Treffer. Uebersteht JPEG bis Qualitaet 40 und
 1:1-Screenshots, nicht aber Skalieren oder Zuschneiden. Pruefen: Debug-Karte
 "Wasserzeichen pruefen" in den Einstellungen.
+
+Einstellung "Spur-Wasserzeichen" (`keys`/`privacy-settings.traceWatermark`,
+Standard an): aus = eigene neue Snaps und ausgelieferte Albumbilder werden
+nicht markiert. Das signierte Album-Manifest traegt `watermark`; weitergebende
+Betrachter (Schwarm) folgen der Einstellung des Besitzers.
+
+### 6.3 Anzeige per Canvas
+
+Albumbilder (Kacheln, Deckfotos), Snaps, Secure Snaps, Chat-Bilder und der
+Bildbetrachter zeichnen in `<canvas>` (`client/app/secure-canvas.js`:
+`createImageBitmap` aus den Bytes, kein Data- oder Blob-URL im DOM,
+Kontextmenue gesperrt). Die Quelle fuer den Betrachter liegt nur in einer
+`WeakMap`. Beim Schliessen werden die Canvas geleert. Speichern (Download als
+JPEG aus dem Canvas) gibt es nur fuer Chat-Bilder im Chat- und Freunde-Modus
+(`isSocialMode`), nie fuer Alben oder Secure Snaps. Profil-Galerien bleiben
+`<img>`. Kein Schutz gegen Screenshots; Pixel-Verwuerfeln wurde bewusst nicht
+gebaut (entschieden 2026-10-24).
 
 ## 7. Message Queue Cache API
 

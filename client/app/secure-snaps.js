@@ -333,6 +333,7 @@ async function handleSnapViewGrant(peerId, payload) {
     if (!encrypted) return;
     viewing.phase = 'granted';
     let bytes = null;
+    let blob = null;
     try {
         const rawKey = base64ToBytes(payload.key);
         const key = await window.crypto.subtle.importKey('raw', rawKey, { name: 'AES-GCM' }, false, ['decrypt']);
@@ -342,7 +343,7 @@ async function handleSnapViewGrant(peerId, payload) {
             key,
             base64ToBytes(encrypted.ciphertext)
         ));
-        viewing.objectUrl = URL.createObjectURL(new Blob([bytes], { type: 'image/jpeg' }));
+        blob = new Blob([bytes], { type: 'image/jpeg' });
     } catch (error) {
         logDebug(`Secure snap decryption failed: ${error.message}`);
         setSecureSnapStatus('Snap konnte nicht entschluesselt werden.');
@@ -352,7 +353,7 @@ async function handleSnapViewGrant(peerId, payload) {
         bytes?.fill(0);
     }
     const image = document.getElementById('secure-snap-image');
-    image.src = viewing.objectUrl;
+    await drawSecureImage(image, blob);
     image.classList.remove('hidden');
     setSecureSnapStatus('');
     startSecureSnapCountdown(Number(payload.seconds) || 0);
@@ -437,7 +438,6 @@ function hideSecureSnapViewer() {
     state.secureSnapViewing = null;
     if (viewing) {
         clearTimeout(viewing.timer);
-        if (viewing.objectUrl) URL.revokeObjectURL(viewing.objectUrl);
         if (viewing.phase === 'streaming') {
             sendSecurePayload(viewing.peerId, { type: 'SNAP_VIEW_CLOSED', snapId: viewing.snapId }).catch(logBackgroundError('hideSecureSnapViewer'));
         }
@@ -449,7 +449,7 @@ function hideSecureSnapViewer() {
     video.srcObject = null;
     video.classList.add('hidden');
     const image = document.getElementById('secure-snap-image');
-    image.removeAttribute('src');
+    clearSecureCanvas(image);
     image.classList.add('hidden');
     document.getElementById('secure-snap-countdown').classList.add('hidden');
     document.getElementById('secure-snap-viewer').classList.add('hidden');

@@ -87,11 +87,12 @@ async function main() {
         await waitFor(bob, async () => (await loadMedia('albimg_e2e'))?.relayedBy !== undefined, null, 20000);
         const stored = await bob.evaluate(() => loadMedia('albimg_e2e'));
         assert.equal(stored.relayedBy, carolId);
-        await waitFor(bob, () => Boolean(document.querySelector('#album-tile-albimg_e2e img')), null, 15000);
+        await waitFor(bob, () => Boolean(document.querySelector('#album-tile-albimg_e2e canvas')?.width), null, 15000);
+        assert.equal(await bob.evaluate(() => document.querySelectorAll('#media-modal-content img').length), 0, 'album images render as canvas');
 
         // Das Wasserzeichen der weitergegebenen Kopie zeigt auf B, nicht auf C.
         const marked = await bob.evaluate(async ([me, relay]) => {
-            const src = document.querySelector('#album-tile-albimg_e2e img').src;
+            const src = secureImageSource(document.querySelector('#album-tile-albimg_e2e canvas'));
             return (await identifyWatermark(src, [me, relay]))?.peerId || null;
         }, [bobId, carolId]);
         assert.equal(marked, bobId, 'watermark names the requester');

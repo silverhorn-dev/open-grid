@@ -287,3 +287,10 @@ html.debug-on .debug-off-only {
         conic-gradient(hsl(0 90% 57%), hsl(60 90% 57%), hsl(120 90% 57%), hsl(180 90% 57%), hsl(240 90% 57%), hsl(300 90% 57%), hsl(360 90% 57%));
     touch-action: none;
 }
+
+/* Bilder als Canvas (secure-canvas.js): nicht markieren, kein iOS-Kontextmenue zum Sichern */
+.secure-image {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}

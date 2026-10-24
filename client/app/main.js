@@ -81,7 +81,10 @@ window.onload = async () => {
             renderMatchingSettings();
             await syncChatGate();
         });
-        await runStartupStep('Snap-Einstellungen', loadSnapSettings);
+        await runStartupStep('Snap-Einstellungen', async () => {
+            await loadSnapSettings();
+            await loadTraceWatermarkSetting();
+        });
         await generateUserIdentityKeys();
         await runStartupStep('Sichtbarkeit', loadGridSettings);
         await runStartupStep('Service Worker', registerServiceWorker);

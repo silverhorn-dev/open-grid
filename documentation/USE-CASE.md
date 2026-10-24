@@ -563,6 +563,30 @@ Akzeptanzkriterien:
   online sind, mit Entfernungsgruppe.
 - Fremde sehen einen nicht, auch nicht im oeffentlichen Grid.
 
+## UC-37: Freunde adden (Chat- und Freunde-Modus)
+
+**Als Nutzer** moechte ich im Chat- und Freunde-Modus Leute adden statt
+Flammen zu verschicken, und meine Freundes-Chats getrennt von Dating-Chats
+sehen.
+
+Akzeptanzkriterien:
+
+- Im Profil gibt es "Adden"; der andere sieht "Moechte dich adden" mit
+  "Annehmen" und "Ablehnen". Eine gesendete Anfrage laesst sich zurueckziehen,
+  eine Freundschaft beenden.
+- Freunde sehen das volle Profil (auch "nur fuer Matches"-Felder) und die
+  Galerie; Schreiben geht auch ohne Freundschaft.
+- In Grid und Event bleiben Flamme und Match. Nach einem Match kann man
+  dort zusaetzlich adden; der Chat wandert dann nach "Chat & Freunde".
+- Wer das nicht will, schaltet "Matches koennen mich adden" ab. Die
+  Einstellung geht unsichtbar mit dem Profil mit: Matches sehen dann keinen
+  "Adden"-Knopf.
+- Die Chatliste zeigt im Grid-/Event-Modus nur "Grid & Event"-Chats und im
+  Chat-/Freunde-Modus nur "Chat & Freunde"-Chats. Ein Chat gehoert in die
+  Liste des Modus, in dem er begann; befreundete Chats wandern nach
+  "Chat & Freunde".
+- Im Freunde-Modus zeigt das Grid nur Freunde.
+
 ## UC-34: Event-Modus
 
 **Als Nutzer** moechte ich auf einem Event nur die anderen Teilnehmer sehen.

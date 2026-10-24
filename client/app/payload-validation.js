@@ -10,7 +10,7 @@ const MAX_PROFILE_VALUE_LENGTH = 5000;
 const MAX_SYNC_IDS = 50;
 const CHAT_OPERATION_TYPES = [
     'MESSAGE_PUT', 'MESSAGE_DELETE', 'MESSAGE_REACT', 'CHAT_WIPE', 'PEER_UNHIDE',
-    'MATCH_PING', 'MATCH_RESET', 'SNAP_CONSUMED', 'ALBUM_KEYS'
+    'MATCH_PING', 'MATCH_RESET', 'FRIEND_PING', 'FRIEND_RESET', 'SNAP_CONSUMED', 'ALBUM_KEYS'
 ];
 
 const isId = value => typeof value === 'string' && value.length > 0 && value.length <= MAX_ID_LENGTH;
@@ -25,6 +25,7 @@ function isValidMessage(message) {
         && isOptionalString(message.text, MAX_TEXT_LENGTH)
         && isOptionalString(message.snapData, MAX_INLINE_IMAGE_LENGTH)
         && isOptionalString(message.timestamp, 40)
+        && (message.scope === undefined || ['discovery', 'social'].includes(message.scope))
         && isTimestamp(message.createdAt);
 }
 

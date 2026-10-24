@@ -31,7 +31,7 @@ function fakeDatabase(stores) {
 function loadStorage() {
     const stores = { messages: new Map(), chatOperations: new Map(), media: new Map() };
     const context = {
-        state: { myProfile: { id: 'me', gallery: [] }, chatControls: {}, chats: {}, chatPreviews: {}, chatPeerIds: [], activeChatPeerId: null, cachedProfiles: {}, albums: {} },
+        state: { myProfile: { id: 'me', gallery: [] }, chatControls: {}, chats: {}, chatPreviews: {}, chatPeerIds: [], activeChatPeerId: null, cachedProfiles: {}, albums: {}, chatScopes: {} },
         showToast: () => {},
         document: { getElementById: () => null },
         subscribePresence: () => {},
@@ -40,6 +40,10 @@ function loadStorage() {
         renderChatHistory: () => {},
         rememberChatPeer: () => {},
         messagePreview: message => message.text || 'Snap',
+        CHAT_SCOPES: ['discovery', 'social'],
+        setChatScope: async () => {},
+        ensureChatScope: async () => {},
+        currentChatScope: () => 'discovery',
         queueMicrotask,
         Date
     };

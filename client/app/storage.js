@@ -309,6 +309,12 @@ async function loadChatPeerIds() {
 
     state.chatPreviews = {};
     activeMessages.forEach(message => updateChatPreview(message.peerId, message, false));
+    // Vom Service Worker gespeicherte Erstnachrichten: Liste des Absenders nachtragen.
+    for (const message of activeMessages) {
+        if (message.senderId === message.peerId && CHAT_SCOPES.includes(message.scope) && !state.chatScopes[message.peerId]) {
+            await setChatScope(message.peerId, message.scope);
+        }
+    }
 
     state.chatPeerIds = Array.from(new Set([
         ...activeMessages.map(message => message.peerId),
@@ -510,6 +516,7 @@ function createPutOperation(peerId, message) {
                 encrypted: message.secureSnap.encrypted
             } : undefined,
             replyTo: message.replyTo,
+            scope: message.scope,
             timestamp: message.timestamp,
             createdAt: message.createdAt
         }
@@ -551,6 +558,9 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
             };
             // Chat-Berechtigungen: ohne Match ggf. zurueckhalten (wird beim Match freigegeben).
             if (await shouldHoldIncomingMessage(peerId, message)) message.held = true;
+            // Liste des Absenders (Grid & Event oder Chat & Freunde), wenn der Chat noch keine hat.
+            if (message.senderId === peerId && CHAT_SCOPES.includes(message.scope)) await ensureChatScope(peerId, message.scope);
+            else if (message.senderId !== peerId) await ensureChatScope(peerId, currentChatScope());
             await persistChatMessage(peerId, message);
             if (!state.chats[peerId]) state.chats[peerId] = [];
             const index = state.chats[peerId].findIndex(item => item.id === message.id);
@@ -601,6 +611,8 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
         await persistChatMessage(peerId, target);
     } else if (localOperation.type === 'MATCH_PING' || localOperation.type === 'MATCH_RESET') {
         if (!await applyMatchOperation(peerId, localOperation)) return false;
+    } else if (localOperation.type === 'FRIEND_PING' || localOperation.type === 'FRIEND_RESET') {
+        if (!await applyFriendOperation(peerId, localOperation)) return false;
     } else if (localOperation.type === 'MESSAGE_REACT') {
         // Pro Absender gilt die neueste Reaktion; null entfernt sie.
         const emoji = localOperation.emoji === null ? null : localOperation.emoji;

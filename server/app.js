@@ -92,6 +92,7 @@ const clientAssetFiles = [
     'app/swarm.js',
     'app/secure-snaps.js',
     'app/matching.js',
+    'app/friends.js',
     'app/gestures.js',
     'app/modes.js',
     'app/settings.js',

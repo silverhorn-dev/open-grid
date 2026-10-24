@@ -129,11 +129,15 @@ function renderActivePeerList() {
     const activeSet = new Set(state.chatPeerIds);
     if (state.activeChatPeerId) activeSet.add(state.activeChatPeerId);
     // Neueste Unterhaltung oben.
+    // Getrennte Listen: nur Chats des aktuellen Bereichs (Grid & Event oder Chat & Freunde).
     const peerIds = Array.from(activeSet)
-        .filter(peerId => !isPeerBlocked(peerId) && !hiddenList.includes(peerId))
+        .filter(peerId => !isPeerBlocked(peerId) && !hiddenList.includes(peerId)
+            && (peerId === state.activeChatPeerId || isInCurrentChatList(peerId)))
         .sort((left, right) => (state.chatPreviews[right]?.at || 0) - (state.chatPreviews[left]?.at || 0));
 
     count.textContent = peerIds.length;
+    const scopeLabel = document.getElementById('chat-list-scope');
+    if (scopeLabel) scopeLabel.textContent = isSocialMode() ? '· Chat & Freunde' : '· Grid & Event';
     container.innerHTML = '';
     peerIds.forEach(peerId => {
         const peer = getPeerPresentation(peerId);
@@ -161,7 +165,12 @@ function renderActivePeerList() {
         const name = document.createElement('div');
         name.className = 'text-xs font-semibold text-slate-200 truncate';
         name.textContent = peer.name || HIDDEN_PEER_NAME;
-        if (isMatched(peer.id) || hasReceivedFlame(peer.id)) {
+        if (isSocialMode() && (isFriend(peer.id) || hasFriendRequest(peer.id))) {
+            const friend = document.createElement('i');
+            friend.className = `fa-solid ${isFriend(peer.id) ? 'fa-user-check text-emerald-400' : 'fa-user-plus text-brand-400'} ml-1.5`;
+            friend.title = isFriend(peer.id) ? 'Befreundet' : 'Moechte dich adden';
+            name.appendChild(friend);
+        } else if (!isSocialMode() && (isMatched(peer.id) || hasReceivedFlame(peer.id))) {
             const flame = document.createElement('i');
             flame.className = `fa-solid fa-fire ml-1.5 ${isMatched(peer.id) ? 'text-orange-400' : 'text-orange-300/60'}`;
             flame.title = isMatched(peer.id) ? 'Match' : 'Hat dir eine Flamme geschickt';
@@ -183,7 +192,10 @@ function renderActivePeerList() {
         previewLine.className = 'flex items-center gap-2 text-[11px] text-slate-400';
         const previewText = document.createElement('span');
         previewText.className = 'truncate flex-1';
-        previewText.textContent = preview ? `${preview.mine ? 'Du: ' : ''}${preview.text}` : (hasReceivedFlame(peer.id) ? 'Hat dir eine Flamme geschickt' : '');
+        const pendingNote = isSocialMode()
+            ? (hasFriendRequest(peer.id) ? 'Moechte dich adden' : '')
+            : (hasReceivedFlame(peer.id) ? 'Hat dir eine Flamme geschickt' : '');
+        previewText.textContent = preview ? `${preview.mine ? 'Du: ' : ''}${preview.text}` : pendingNote;
         previewLine.appendChild(previewText);
         if (preview?.at) {
             const time = document.createElement('span');
@@ -244,6 +256,8 @@ async function fetchGridRing() {
             state.gridHasMore = data.hasMore === true;
             state.peers = data.peers
                 .filter(peer => peer.id !== state.myProfile.id && !removedPeerIds.has(peer.id))
+                // Freunde-Modus: das Grid ist ein Adressbuch nur mit Freunden.
+                .filter(peer => state.appMode !== 'friends' || isFriend(peer.id))
                 .map(peer => {
                     const cachedProfile = state.cachedProfiles[peer.id];
                     return {

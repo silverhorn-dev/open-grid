@@ -76,6 +76,7 @@ async function setAppMode(mode) {
     state.gridRing = 0;
     applyProfileSchemaForMode();
     applyAppModeUi();
+    renderActivePeerList();
     await refreshPresenceAndGrid();
 }
 

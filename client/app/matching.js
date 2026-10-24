@@ -138,7 +138,7 @@ function messageHasImage(message) {
 
 // true = Nachricht wird zurueckgehalten (nicht angezeigt), bis es ein Match gibt.
 async function shouldHoldIncomingMessage(peerId, message) {
-    if (message.senderId !== peerId || isMatched(peerId)) return false;
+    if (message.senderId !== peerId || isConnectedPeer(peerId)) return false;
     const policy = getMyChatPolicy();
     if (policy.mode === 'A') return false;
     // Liest aus der Datenbank, der Chat muss dafuer nicht geoeffnet sein.
@@ -164,40 +164,49 @@ async function releaseHeldMessages(peerId) {
     if (held.length && state.activeChatPeerId === peerId) renderChatHistory();
 }
 
+// Texte je Bereich: Grid/Event sprechen von Match und Flamme, Chat/Freunde von Freundschaft und Adden.
+function connectionWording() {
+    return isSocialMode()
+        ? { single: 'Adden', plural: 'Freunde', action: 'Adde die Person' }
+        : { single: 'Match', plural: 'Matches', action: 'Sende eine Flamme' };
+}
+
 // Absender-Sicht: was erlaubt die Einstellung des anderen? (nur Anzeige, durchgesetzt wird beim Empfaenger)
 function getPeerChatAllowance(peerId) {
-    if (isMatched(peerId)) return { allowed: true, remaining: Infinity, images: true };
+    if (isConnectedPeer(peerId)) return { allowed: true, remaining: Infinity, images: true };
     // Hat der andere schon geschrieben, hat er den Chat angenommen.
     const peerWrote = (state.chats[peerId] || []).some(message => message.senderId === peerId && !message.held);
     if (peerWrote) return { allowed: true, remaining: Infinity, images: true };
     const policy = sanitizeChatPolicy(state.cachedProfiles[peerId]?.chatPolicy);
     if (policy.mode === 'A') return { allowed: true, remaining: Infinity, images: true };
-    if (policy.mode === 'C') return { allowed: false, remaining: 0, images: false, reason: 'Nur Matches koennen schreiben. Sende eine Flamme.' };
+    const wording = connectionWording();
+    if (policy.mode === 'C') return { allowed: false, remaining: 0, images: false, reason: `Nur ${wording.plural} koennen schreiben. ${wording.action}.` };
     const sent = (state.chats[peerId] || []).filter(message => message.senderId === state.myProfile.id && !message.deleted).length;
     const remaining = Math.max(0, policy.limit - sent);
     return {
         allowed: remaining > 0,
         remaining,
         images: policy.allowImages,
-        reason: remaining > 0 ? null : 'Nachrichtenlimit bis zum Match erreicht. Sende eine Flamme.'
+        reason: remaining > 0 ? null : `Nachrichtenlimit bis zum ${wording.single} erreicht. ${wording.action}.`
     };
 }
 
 // ----- Profil-Sichtbarkeit (durchgesetzt beim Besitzer) -----
 function isGalleryVisibleTo(peerId) {
-    return getMyVisibility() === 1 || isMatched(peerId);
+    return getMyVisibility() === 1 || isConnectedPeer(peerId);
 }
 
 // Baut das Profil, das genau dieser Peer sehen darf. `audience` bindet ein Match-Profil an ihn.
 function buildProfilePayloadFor(peerId) {
     const visibility = getMyVisibility();
-    const matched = isMatched(peerId);
+    const matched = isConnectedPeer(peerId);
     const base = {
         id: state.myProfile.id,
         version: state.myProfile.version,
         updatedAt: state.myProfile.updatedAt,
         visibility,
-        chatPolicy: getMyChatPolicy()
+        chatPolicy: getMyChatPolicy(),
+        allowMatchFriends: allowsMatchFriends()
     };
     if (visibility === 1 || matched) {
         return {
@@ -257,6 +266,7 @@ async function syncChatGate() {
             .filter(message => message.senderId === state.myProfile.id && !message.held)
             .map(message => message.peerId));
         Object.keys(state.matchState).filter(isMatched).forEach(peerId => accepted.add(peerId));
+        Object.keys(state.friendState).filter(isFriend).forEach(peerId => accepted.add(peerId));
         await putDatabaseRecord('keys', { id: 'chat-gate', mode: getMyChatPolicy().mode, acceptedPeerIds: [...accepted] });
     } catch (error) {
         logDebug(`Could not sync chat gate: ${error.message}`);
@@ -279,6 +289,10 @@ async function updateMatchingSetting(key, value) {
     else if (key === 'chatMode') state.myProfile.chatPolicy = { ...getMyChatPolicy(), mode: value };
     else if (key === 'chatLimit') state.myProfile.chatPolicy = { ...getMyChatPolicy(), limit: Number(value) };
     else if (key === 'chatImages') state.myProfile.chatPolicy = { ...getMyChatPolicy(), allowImages: Boolean(value) };
+    else if (key === 'matchFriends') {
+        // Steht im Profil (nicht als Feld sichtbar): Matches bekommen dann keinen "Adden"-Knopf.
+        state.myProfile.allowMatchFriends = Boolean(value);
+    }
     renderMatchingSettings();
     if (key === 'visibility' && typeof renderProfileForm === 'function') renderProfileForm();
     await syncChatGate();
@@ -304,6 +318,8 @@ function renderMatchingSettings() {
     const images = document.getElementById('chat-images-toggle');
     if (images) images.checked = policy.allowImages;
     document.getElementById('chat-limit-options')?.classList.toggle('hidden', policy.mode !== 'B');
+    const matchFriends = document.getElementById('match-friends-toggle');
+    if (matchFriends) matchFriends.checked = allowsMatchFriends();
 }
 
 // ----- UI -----
@@ -321,6 +337,11 @@ function renderProfileMatchActions(peerId) {
     if (!container) return;
     container.innerHTML = '';
     if (!peerId || isPeerBlocked(peerId)) return;
+    // Chat-/Freunde-Modus: Adden statt Flamme.
+    if (isSocialMode()) {
+        renderProfileFriendActions(container, peerId);
+        return;
+    }
     const status = document.createElement('div');
     status.className = 'text-xs text-slate-400 flex items-center gap-1.5';
     const button = document.createElement('button');
@@ -331,6 +352,15 @@ function renderProfileMatchActions(peerId) {
         button.className = 'text-xs px-3 py-1.5 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800';
         button.textContent = 'Match loesen';
         button.onclick = () => dissolveMatch(peerId);
+        // Nach einem Match auch adden, wenn beide es erlauben.
+        if (canAddMatch(peerId)) {
+            container.append(status, button);
+            const friendRow = document.createElement('div');
+            friendRow.className = 'w-full flex items-center justify-between gap-2 pt-2 mt-1 border-t border-slate-800';
+            renderProfileFriendActions(friendRow, peerId);
+            container.appendChild(friendRow);
+            return;
+        }
     } else {
         if (hasReceivedFlame(peerId)) status.textContent = 'Hat dir eine Flamme geschickt';
         else if (hasSentFlame(peerId)) status.textContent = 'Flamme gesendet';
@@ -367,9 +397,18 @@ function renderChatAllowance() {
     hint.classList.remove('hidden');
     hint.innerHTML = '';
     const text = document.createElement('span');
-    text.textContent = allowance.reason || `Noch ${allowance.remaining} ${allowance.remaining === 1 ? 'Nachricht' : 'Nachrichten'} bis zum Match${allowance.images ? '' : ' (ohne Bilder)'}.`;
+    text.textContent = allowance.reason || `Noch ${allowance.remaining} ${allowance.remaining === 1 ? 'Nachricht' : 'Nachrichten'} bis zum ${connectionWording().single}${allowance.images ? '' : ' (ohne Bilder)'}.`;
     hint.appendChild(text);
-    if (!hasSentFlame(peerId)) {
+    if (isSocialMode()) {
+        if (!hasSentFriendRequest(peerId) && !isFriend(peerId)) {
+            const add = document.createElement('button');
+            add.type = 'button';
+            add.className = 'ml-2 text-brand-400 font-semibold';
+            add.innerHTML = '<i class="fa-solid fa-user-plus"></i> Adden';
+            add.onclick = () => addFriend(peerId);
+            hint.appendChild(add);
+        }
+    } else if (!hasSentFlame(peerId)) {
         const flame = document.createElement('button');
         flame.type = 'button';
         flame.className = 'ml-2 text-orange-300 font-semibold';

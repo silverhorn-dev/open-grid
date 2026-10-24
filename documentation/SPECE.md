@@ -610,6 +610,43 @@ Ein **Match** besteht, wenn beide Seiten nach dem letzten `MATCH_RESET` eine
 Flamme gesendet haben. Beide Clients berechnen das aus ihrem Operations-Log;
 der Server erfaehrt nichts. Flammen loesen keinen Web Push aus.
 
+**Freunde (R6, `client/app/friends.js`)**: Im Chat- und Freunde-Modus ersetzt
+"Adden" die Flamme; gleiche Mechanik, eigene Beziehung:
+
+| Operation | Bedeutung |
+|---|---|
+| `FRIEND_PING { actorId, createdAt }` (`friend:<uuid>`) | Anfrage senden bzw. eine erhaltene annehmen |
+| `FRIEND_RESET { actorId, createdAt }` (`unfriend:<uuid>`) | ablehnen, zurueckziehen oder Freundschaft beenden |
+
+Befreundet = beide haben nach dem letzten `FRIEND_RESET` ein `FRIEND_PING`
+gesendet. Freunde zaehlen wie Matches (`isConnectedPeer`): keine
+Chat-Einschraenkungen, volles Profil (`audience` = Freund), Galerie. Match
+und Freundschaft sind unabhaengig; ein Grid-Match macht niemanden zum Freund.
+Im Freunde-Modus zeigt das Grid nur Freunde (Filter im Client, der Server
+kennt keine Freundschaften).
+
+Aus Grid/Event: Chats in `discovery` lassen sich erst nach einem Match adden
+(Knopf unter der Match-Info). Die Einstellung `myProfile.allowMatchFriends`
+(Standard an) steht im signierten Profil, wird aber nicht als Feld angezeigt:
+ist sie aus, bekommt der Match keinen "Adden"-Knopf (`canAddMatch` prueft
+beide Seiten). Zusaetzlich ignoriert der Empfaenger `FRIEND_PING` aus
+`discovery`-Chats ohne Match oder bei abgeschalteter Einstellung (gespeichert,
+aber weder gemeldet noch annehmbar). Eine angenommene Freundschaft verschiebt
+den Chat nach `social`.
+
+Signiertes Profil: neben `fields`, `avatar`, `gallery` und `audience` sind
+jetzt auch `chatPolicy` und `allowMatchFriends` signiert und kommen beim
+anderen an (vorher fehlten die Chat-Regeln beim Empfaenger, Absender sahen
+immer die Standardregeln).
+
+**Getrennte Chatlisten**: Jeder Chat gehoert zu `discovery` (Grid & Event)
+oder `social` (Chat & Freunde), gespeichert in `keys`/`chat-scopes`
+(`{ scopes: { <peerId>: scope } }`). Festgelegt beim ersten
+Nachrichtenaustausch: eigene erste Nachricht = aktueller Modus, eingehende
+erste Nachricht = `message.scope` des Absenders (Feld im verschluesselten
+`MESSAGE_PUT`). Freunde sind immer `social`. Chats ohne Zuordnung (aeltere
+Versionen) erscheinen in beiden Listen.
+
 **Chat-Berechtigungen** (`myProfile.chatPolicy = { mode, limit, allowImages }`,
 im signierten Profil):
 

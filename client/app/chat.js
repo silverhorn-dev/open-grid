@@ -426,6 +426,8 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
         album: album || undefined,
         secureSnap: secureSnap || undefined,
         replyTo: buildReplyReference(peerId, state.replyToMessageId),
+        // Liste dieses Chats (Grid & Event oder Chat & Freunde), der Empfaenger uebernimmt sie fuer neue Chats.
+        scope: chatScopeOf(peerId) || currentChatScope(),
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         createdAt: Date.now(),
         deliveredVia: 'Establishing secure channel...'

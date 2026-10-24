@@ -18,9 +18,12 @@ function loadMatching({ visibility = 1, chatPolicy, privateFields = [], stored =
                 gallery: [{ id: 'img_1', version: 1 }]
             },
             matchState: {},
+            friendState: {},
+            appMode: 'discovery',
             chats: {},
             cachedProfiles: {}
         },
+        isSocialMode: () => false,
         getDatabaseRecordsByIndex: async () => stored,
         PROFILE_SCHEMA: [{ key: 'displayName' }, { key: 'age' }, { key: 'bio' }],
         Date,
@@ -31,6 +34,7 @@ function loadMatching({ visibility = 1, chatPolicy, privateFields = [], stored =
         Set
     };
     vm.runInNewContext(readFileSync(new URL('../client/app/matching.js', import.meta.url), 'utf8'), context);
+    vm.runInNewContext(readFileSync(new URL('../client/app/friends.js', import.meta.url), 'utf8'), context);
     return context;
 }
 

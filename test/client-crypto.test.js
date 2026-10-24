@@ -60,3 +60,18 @@ test('verifies a profile only for its expected owner and pinned signing key', as
     const tampered = { ...envelope, payload: { ...envelope.payload, fields: { displayName: 'Mallory' } } };
     assert.equal(await verifySignedProfile(tampered, 'peer-a', undefined), false);
 });
+
+test('the signed profile carries chat rules and the add flag, tampering breaks it', async () => {
+    const { signProfileData, verifySignedProfile } = await loadCryptoClient();
+    const keyPair = await webcrypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+    const publicKey = await webcrypto.subtle.exportKey('jwk', keyPair.publicKey);
+    const envelope = await signProfileData({
+        id: 'peer-a', version: 1, updatedAt: 1, fields: {}, avatar: null, gallery: [],
+        chatPolicy: { mode: 'C', limit: 5, allowImages: false },
+        allowMatchFriends: false
+    }, keyPair.privateKey, publicKey);
+    assert.equal(envelope.payload.chatPolicy.mode, 'C');
+    assert.equal(envelope.payload.allowMatchFriends, false);
+    const tampered = { ...envelope, payload: { ...envelope.payload, allowMatchFriends: true } };
+    assert.equal(await verifySignedProfile(tampered, 'peer-a', publicKey), false);
+});

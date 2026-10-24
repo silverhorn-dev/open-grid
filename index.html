@@ -168,7 +168,7 @@
             <!-- Chat List -->
             <div id="chat-list-panel" class="bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-col min-h-0">
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 px-1 flex items-center justify-between">
-                    <span>Chats</span>
+                    <span>Chats <span id="chat-list-scope" class="normal-case tracking-normal font-medium text-slate-500"></span></span>
                     <button data-click="openInviteCard" class="ml-auto mr-2 normal-case tracking-normal text-brand-400 hover:text-brand-300 font-semibold" title="Kontakt einladen">
                         <i class="fa-solid fa-user-plus"></i> Einladen
                     </button>
@@ -480,6 +480,10 @@
                             Bilder erlaubt
                         </label>
                     </div>
+                    <label class="flex items-start gap-2 text-xs text-slate-300 cursor-pointer">
+                        <input type="checkbox" id="match-friends-toggle" checked data-change="updateMatchingSetting" data-args='["matchFriends", "$checked"]' class="accent-brand-500 mt-0.5">
+                        <span>Matches koennen mich adden (Chat wandert dann nach "Chat &amp; Freunde"). Aus: deine Matches sehen keinen "Adden"-Knopf.</span>
+                    </label>
                     <p class="text-[11px] text-slate-500">Ein Match entsteht, wenn ihr euch gegenseitig eine Flamme schickt. Bei Stufe 2 markierst du im Profil, welche Felder nur Matches sehen.</p>
                 </div>
 
@@ -686,7 +690,7 @@
                     <!-- Modal gallery images -->
                 </div>
 
-                <div id="modal-match-actions" class="flex items-center justify-between gap-2"></div>
+                <div id="modal-match-actions" class="flex flex-wrap items-center justify-between gap-2"></div>
 
                 <div id="modal-rendered-fields" class="grid grid-cols-2 gap-2 text-xs">
                     <div class="col-span-2 text-slate-500 text-center py-4">
@@ -871,6 +875,7 @@
     <script src="/client/app/swarm.js?v={{assetVersion}}"></script>
     <script src="/client/app/secure-snaps.js?v={{assetVersion}}"></script>
     <script src="/client/app/matching.js?v={{assetVersion}}"></script>
+    <script src="/client/app/friends.js?v={{assetVersion}}"></script>
     <script src="/client/app/gestures.js?v={{assetVersion}}"></script>
     <script src="/client/app/modes.js?v={{assetVersion}}"></script>
     <script src="/vendor/qrcode/qrcode.js"></script>

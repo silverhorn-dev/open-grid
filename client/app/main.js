@@ -69,6 +69,10 @@ window.onload = async () => {
         await cacheOwnProfile();
         await runStartupStep('Galerie-Hashes', ensureGalleryHashes);
         await runStartupStep('Grid-Cache', loadCachedGridPeers);
+        await runStartupStep('Freunde', async () => {
+            await loadChatScopes();
+            await loadFriendState();
+        });
         await runStartupStep('Chatliste', loadChatPeerIds);
         await runStartupStep('Alben', async () => {
             await loadAlbums();

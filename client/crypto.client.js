@@ -20,7 +20,10 @@ async function signProfileData(profileData, privateKey, jwkPublic) {
         avatar: profileData.avatar,
         gallery: profileData.gallery || [],
         // Mit signiert, damit Dritte Match-Profile nicht als oeffentlich weitergeben koennen.
-        audience: profileData.audience || 'public'
+        audience: profileData.audience || 'public',
+        // Chat-Regeln und "Matches koennen mich adden" (nicht angezeigt, steuern nur Knoepfe beim anderen).
+        chatPolicy: profileData.chatPolicy,
+        allowMatchFriends: profileData.allowMatchFriends !== false
     };
     const dataString = JSON.stringify(payloadToSign);
     const signatureArrayBuffer = await window.crypto.subtle.sign(

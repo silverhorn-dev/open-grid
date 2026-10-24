@@ -8,7 +8,7 @@ PLAYWRIGHT_IMAGE="mcr.microsoft.com/playwright:v1.48.2-jammy"
 trap 'docker rm -f "$NAME" >/dev/null 2>&1 || true' EXIT
 
 docker run -d --name "$NAME" -v "$PWD":/app:ro node:22-alpine sh -c \
-    'cp -r /app/. /work && cd /work && rm -rf node_modules && npm install --silent && npm run build:css && DATABASE_PATH=/tmp/e2e.sqlite node server/index.js' >/dev/null
+    'cp -r /app/. /work && cd /work && rm -rf node_modules && npm install --silent && npm run build:css && DATABASE_PATH=/tmp/e2e.sqlite RATE_LIMIT_SCALE=20 node server/index.js' >/dev/null
 
 i=0
 until docker exec "$NAME" wget -qO- http://127.0.0.1:3000/health >/dev/null 2>&1; do

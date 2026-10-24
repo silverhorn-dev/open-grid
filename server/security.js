@@ -33,6 +33,13 @@ export const DEFAULT_RATE_LIMITS = {
     websocket: { windowMs: 10_000, max: 300 }
 };
 
+// Testumgebungen mit vielen Clients hinter einer IP (z. B. E2E) heben die Grenzen per
+// RATE_LIMIT_SCALE an (Faktor fuer `max`, 1 bis 100; Standard 1).
+export function scaleRateLimits(limits, scale) {
+    const factor = Math.min(100, Math.max(1, Math.floor(Number(scale) || 1)));
+    return Object.fromEntries(Object.entries(limits).map(([name, config]) => [name, { ...config, max: config.max * factor }]));
+}
+
 // ================= Push-Endpunkte =================
 // Der Server sendet Web Pushes an die Endpoint-URL der Subscription. Ohne Allowlist koennte ein
 // Client den Server so gegen beliebige (auch interne) https-Hosts schicken (SSRF).

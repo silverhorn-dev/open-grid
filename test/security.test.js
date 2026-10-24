@@ -28,3 +28,12 @@ test('trust proxy defaults to private networks only', () => {
     assert.equal(parseTrustProxy('2'), 2);
     assert.equal(parseTrustProxy('10.0.0.1'), '10.0.0.1');
 });
+
+test('rate limits can be scaled for test environments, within bounds', async () => {
+    const { scaleRateLimits, DEFAULT_RATE_LIMITS } = await import('../server/security.js');
+    assert.equal(scaleRateLimits(DEFAULT_RATE_LIMITS, undefined).register.max, DEFAULT_RATE_LIMITS.register.max);
+    assert.equal(scaleRateLimits(DEFAULT_RATE_LIMITS, '20').register.max, DEFAULT_RATE_LIMITS.register.max * 20);
+    assert.equal(scaleRateLimits(DEFAULT_RATE_LIMITS, '5000').register.max, DEFAULT_RATE_LIMITS.register.max * 100);
+    assert.equal(scaleRateLimits(DEFAULT_RATE_LIMITS, '-3').register.max, DEFAULT_RATE_LIMITS.register.max);
+});
+

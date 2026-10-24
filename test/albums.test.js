@@ -77,6 +77,7 @@ function loadAlbums({ identity = null, peerKeys = {}, signingKeys = {}, withSwar
             .map(([, value]) => value),
         renderMediaModalMessage: () => {},
         renderAlbumManager: () => {},
+        isSocialMode: () => false,
         document: { getElementById: () => null },
         Date
     };

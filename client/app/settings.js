@@ -306,7 +306,27 @@ function switchTab(tabName) {
     window.scrollTo(0, 0);
     syncRoute(tabName);
     syncChatFocus();
+    if (tabName === 'chat') fitChatListPanel();
 }
+
+// Smartphone: die Chatliste endet ueber der unteren Navigation und scrollt in sich, statt die Seite
+// zu verlaengern (am Desktop begrenzt das CSS die ganze Chat-Box).
+function fitChatListPanel() {
+    const panel = document.getElementById('chat-list-panel');
+    if (!panel) return;
+    if (window.matchMedia('(min-width: 768px)').matches) {
+        panel.style.maxHeight = '';
+        return;
+    }
+    requestAnimationFrame(() => {
+        const nav = document.querySelector('nav.bottom-nav');
+        const navHeight = nav && getComputedStyle(nav).display !== 'none' ? nav.getBoundingClientRect().height : 0;
+        const top = panel.getBoundingClientRect().top + window.scrollY;
+        panel.style.maxHeight = `${Math.max(240, window.innerHeight - top - navHeight - 32)}px`;
+    });
+}
+
+window.addEventListener('resize', fitChatListPanel);
 
 function openMenu() {
     document.getElementById('app-menu').classList.add('is-open');

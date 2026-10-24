@@ -20,6 +20,7 @@ import {
     DEFAULT_RATE_LIMITS,
     buildLoggerOptions,
     createRateLimiter,
+    scaleRateLimits,
     isAllowedPushEndpoint,
     parsePushHostAllowlist,
     parseTrustProxy,
@@ -255,7 +256,8 @@ export async function buildApp(options = {}) {
             maxPayload: 128 * 1024
         }
     });
-    const signaling = registerSignalingRoute(app, store, { messageLimiter: () => createRateLimiter((options.rateLimits || {}).websocket || DEFAULT_RATE_LIMITS.websocket) });
+    const limits = scaleRateLimits({ ...DEFAULT_RATE_LIMITS, ...(options.rateLimits || {}) }, options.rateLimitScale ?? process.env.RATE_LIMIT_SCALE);
+    const signaling = registerSignalingRoute(app, store, { messageLimiter: () => createRateLimiter(limits.websocket) });
 
     app.addHook('onClose', async () => {
         if (ownsStore) store.close();
@@ -266,8 +268,7 @@ export async function buildApp(options = {}) {
         reply.headers(securityHeaders(request.headers.host));
     });
 
-    const rateLimiters = Object.fromEntries(Object.entries({ ...DEFAULT_RATE_LIMITS, ...(options.rateLimits || {}) })
-        .map(([name, config]) => [name, createRateLimiter(config)]));
+    const rateLimiters = Object.fromEntries(Object.entries(limits).map(([name, config]) => [name, createRateLimiter(config)]));
     // false = Anfrage wurde mit 429 beantwortet.
     function allowRequest(name, key, reply) {
         const result = rateLimiters[name].take(key);

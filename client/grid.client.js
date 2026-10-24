@@ -204,14 +204,12 @@ function renderActivePeerList() {
             time.textContent = formatChatListTime(preview.at);
             previewLine.appendChild(time);
         }
+        // Kurzstatus in eigener Zeile, damit lange Namen ihn auf dem Smartphone nicht abschneiden.
         const presence = presenceTextOf(peer.id);
-        if (presence) {
-            const presenceNote = document.createElement('span');
-            presenceNote.className = 'ml-1.5 font-normal text-slate-400';
-            presenceNote.textContent = `· ${presence}`;
-            name.appendChild(presenceNote);
-        }
-        details.append(name, previewLine, status);
+        const presenceLine = document.createElement('div');
+        presenceLine.className = presence ? 'text-[11px] text-brand-400 truncate' : 'hidden';
+        presenceLine.textContent = presence;
+        details.append(name, presenceLine, previewLine, status);
         button.append(avatar, details);
         container.appendChild(button);
     });

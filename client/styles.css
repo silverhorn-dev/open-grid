@@ -294,3 +294,21 @@ html.debug-on .debug-off-only {
     user-select: none;
     -webkit-touch-callout: none;
 }
+
+/* Offline-Symbol: WLAN-Icon mit Schraegstrich (Font Awesome Free hat kein wifi-slash) */
+.wifi-off {
+    position: relative;
+}
+.wifi-off::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: -12%;
+    width: 0.14em;
+    height: 124%;
+    border-radius: 0.07em;
+    background: currentColor;
+    box-shadow: 0 0 0 0.06em rgb(var(--slate-800));
+    transform: translateX(-50%) rotate(-45deg);
+}
+

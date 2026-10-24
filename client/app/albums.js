@@ -505,7 +505,15 @@ function renderAlbumMessage(bubble, album) {
 }
 
 // ----- Verwaltung im Profil -----
+// Chat-/Freunde-Modus: Alben-Karte nur, wenn es eigene Alben gibt (damit geteilte nicht vergessen
+// werden); in Grid und Event immer.
+function syncAlbumCardVisibility() {
+    const hide = isSocialMode() && getOwnAlbums().length === 0;
+    document.getElementById('album-manager-card')?.classList.toggle('hidden', hide);
+}
+
 function renderAlbumManager() {
+    syncAlbumCardVisibility();
     const container = document.getElementById('album-manager-list');
     if (!container) return;
     container.innerHTML = '';

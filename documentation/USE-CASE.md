@@ -586,6 +586,8 @@ Akzeptanzkriterien:
   Liste des Modus, in dem er begann; befreundete Chats wandern nach
   "Chat & Freunde".
 - Im Freunde-Modus zeigt das Grid nur Freunde.
+- Im Chat- und Freunde-Modus erscheint die Alben-Karte im Profil nur, wenn es
+  eigene Alben gibt.
 
 ## UC-38: Status fuer Freunde
 

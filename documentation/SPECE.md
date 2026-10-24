@@ -57,6 +57,9 @@
 - Verbindungshinweis: `updateConnectivityIndicator` (`settings.js`) zeigt nach
   4 s ohne Netz oder WebSocket die Icons `.offline-indicator` (Kopfzeile,
   Chat-Kopf); ohne `navigator.onLine` sofort.
+- Smartphone: `fitChatListPanel` begrenzt die Chatliste auf den Platz bis zur
+  unteren Navigation, die Liste scrollt in sich. Der Kurzstatus steht in einer
+  eigenen Zeile unter dem Namen.
 - Nachrichtenfeld `#chat-input` ist ein `<textarea>`; `fitChatInput` (`chat.js`)
   setzt die Hoehe bis `CHAT_INPUT_MAX_LINES` (5), danach scrollt es.
 - Snap-Kamera (`snaps.js`, `snap-camera.js`, `snap-editor.js`): Vollbild, alle

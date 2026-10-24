@@ -378,6 +378,26 @@ const DELIVERY_PATH_LABELS = {
     pending: 'Pending'
 };
 
+// Nachrichtenfeld waechst mit dem Text bis CHAT_INPUT_MAX_LINES Zeilen, danach scrollt es.
+const CHAT_INPUT_MAX_LINES = 5;
+
+function fitChatInput(input) {
+    if (!input) return;
+    const style = getComputedStyle(input);
+    const lineHeight = parseFloat(style.lineHeight) || 20;
+    const padding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+    const border = parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth);
+    const maxHeight = lineHeight * CHAT_INPUT_MAX_LINES + padding + border;
+    input.style.height = 'auto';
+    const height = Math.min(input.scrollHeight + border, maxHeight);
+    input.style.height = `${height}px`;
+    input.style.overflowY = input.scrollHeight + border > maxHeight ? 'auto' : 'hidden';
+}
+
+function isCoarsePointer() {
+    return Boolean(window.matchMedia?.('(pointer: coarse)').matches);
+}
+
 // Ohne Anhang kommt der Text aus dem Eingabefeld; Snaps und Alben bringen eine eigene Bildunterschrift mit.
 async function sendChatMessage(snapData = null, caption = '', album = null, secureSnap = null) {
     const input = document.getElementById('chat-input');
@@ -413,7 +433,10 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
     const operation = createPutOperation(peerId, message);
     await persistChatOperation(operation);
     syncChatGate();
-    if (!hasAttachment) input.value = '';
+    if (!hasAttachment) {
+        input.value = '';
+        fitChatInput(input);
+    }
     state.replyToMessageId = null;
     renderReplyBar();
     renderChatHistory();
@@ -503,7 +526,7 @@ function renderChatHistory() {
         row.className = `flex flex-col ${isMine ? 'items-end' : 'items-start'}`;
         if (message.replyTo && !message.deleted) row.appendChild(renderReplyQuote(message.replyTo, isMine));
         const bubble = document.createElement('div');
-        bubble.className = `chat-bubble max-w-[80%] rounded-2xl px-4 py-2 overflow-hidden ${message.deleted ? 'bg-slate-900 text-slate-500 border border-slate-800 italic' : isMine ? 'bg-brand-600 text-white rounded-br-none' : 'bg-slate-800 text-slate-100 rounded-bl-none'}`;
+        bubble.className = `chat-bubble whitespace-pre-wrap break-words max-w-[80%] rounded-2xl px-4 py-2 overflow-hidden ${message.deleted ? 'bg-slate-900 text-slate-500 border border-slate-800 italic' : isMine ? 'bg-brand-600 text-white rounded-br-none' : 'bg-slate-800 text-slate-100 rounded-bl-none'}`;
 
         if (message.deleted) {
             bubble.textContent = 'Nachricht geloescht';

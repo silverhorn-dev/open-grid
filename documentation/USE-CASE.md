@@ -297,6 +297,13 @@ Akzeptanzkriterien:
   ("online", "offline", "hat den Chat offen"); rechts nur Suche und ein Menue
   mit Medien, Profil, Chat loeschen und Blockieren.
 - Die Chatliste zeigt pro Chat die letzte Nachricht mit Uhrzeit, neueste oben.
+- Ist das eigene Geraet offline, zeigt ein dezentes Icon in der Kopfzeile und
+  im Chat-Kopf das an (kein Banner); Chats bleiben lokal lesbar.
+- Das Nachrichtenfeld waechst mit bis zu fuenf Zeilen und scrollt danach; am
+  Desktop sendet Enter (Shift+Enter = neue Zeile), auf dem Smartphone ist
+  Enter eine neue Zeile und der Senden-Knopf sendet.
+- Am Desktop ist der Chat eine Box in Fensterhoehe: nur die Nachrichten
+  scrollen, die Kontaktleiste bleibt oben stehen.
 - Nachrichten lassen sich lokal markieren; die Suche kann auf markierte
   Nachrichten beschraenkt werden.
 - Die Aktionen (Antworten, Reagieren, Markieren, Loeschen) sitzen als Leiste

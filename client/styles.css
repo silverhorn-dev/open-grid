@@ -230,6 +230,32 @@ html.debug-on .debug-off-only {
     color: #fde68a;
 }
 
+/* Nachrichtenfeld: mehrzeilig, Hoehe setzt fitChatInput (max. 5 Zeilen, dann Scrollen) */
+.chat-input {
+    resize: none;
+    overflow-y: hidden;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+/* Desktop: Chat als begrenzte Box, nur die Nachrichten scrollen, Kontaktleiste bleibt stehen */
+@media (min-width: 768px) {
+    #view-chat {
+        /* Nicht mit dem Inhalt wachsen (flex-1 + Mindesthoehe des Inhalts dehnte die Seite). */
+        flex: 0 0 auto;
+        grid-template-rows: minmax(0, 1fr);
+    }
+    #chat-window-panel {
+        overflow: hidden;
+    }
+    #chat-window-panel .chat-header {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+    }
+}
+
 /* Chat auf Smartphones: Liste ODER Vollbild-Chat, wie eine native App */
 @media (max-width: 767px) {
     #view-chat:not(.chat-open) #chat-window-panel {

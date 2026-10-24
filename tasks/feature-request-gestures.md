@@ -9,7 +9,11 @@ Decided 2026-10-23:
   as an action button.
 - Out: G4 edge swipe (the OS back gesture already does this, and chats have
   real routes), G6 pull to refresh on the grid (clashes with the browser's
-  own pull to refresh), G5 swipe on chat rows, G10/G11 camera gestures.
+  own pull to refresh), G5 swipe on chat rows.
+- 2026-10-24: G10/G11 camera gestures are in after all (plus swipe down to
+  close and pinch zoom), built with the full-screen camera (board R5).
+- 2026-10-24: unit tests for direction lock, thresholds, long press and
+  double tap in `test/gestures.test.js`.
 - New: in an open chat, pull **up** at the end of the messages to refresh
   (fetch Path C queue, reconnect P2P, chat sync).
 

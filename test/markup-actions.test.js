@@ -32,3 +32,10 @@ test('every declarative action points to an existing function with valid argumen
         assert.ok(Array.isArray(JSON.parse(args)), args);
     }
 });
+
+test('chat input is a multiline field and offline state is an icon, not a banner', () => {
+    assert.match(markup, /<textarea id="chat-input" rows="1"/);
+    assert.doesNotMatch(markup, /id="offline-banner"/);
+    assert.ok((markup.match(/class="offline-indicator hidden/g) || []).length >= 1);
+    assert.ok((markup.match(/offline-indicator hidden/g) || []).length >= 2, 'top bar and chat header');
+});

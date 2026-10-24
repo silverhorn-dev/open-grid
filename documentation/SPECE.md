@@ -54,6 +54,11 @@
 - Navigation: `switchTab()` steuert die Ansichten und markiert alle Knoepfe mit
   passendem `data-tab-btn` (Header-Navigation auf dem Desktop,
   Bottom-Navigation auf Smartphones).
+- Verbindungshinweis: `updateConnectivityIndicator` (`settings.js`) zeigt nach
+  4 s ohne Netz oder WebSocket die Icons `.offline-indicator` (Kopfzeile,
+  Chat-Kopf); ohne `navigator.onLine` sofort.
+- Nachrichtenfeld `#chat-input` ist ein `<textarea>`; `fitChatInput` (`chat.js`)
+  setzt die Hoehe bis `CHAT_INPUT_MAX_LINES` (5), danach scrollt es.
 - Gesten (`client/app/gestures.js`, nur Touch): Nachricht wischen (fremde
   nach rechts, eigene nach links, ab 56 px) = antworten; lange druecken
   (450 ms) = Aktionsleiste; doppelt tippen = Reaktion ❤️; seitlich wischen

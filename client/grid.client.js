@@ -278,7 +278,7 @@ function connectWorkerWebSocket() {
         state.ws = new WebSocket(WS_URL);
         state.ws.onopen = async () => {
             logDebug('Connected to Worker Signaling');
-            updateConnectivityBanner();
+            updateConnectivityIndicator();
             const registered = await registerWithWorkerGrid();
             if (!registered) {
                 document.getElementById('network-status-text').textContent = 'Registration failed';
@@ -304,7 +304,7 @@ function connectWorkerWebSocket() {
             document.getElementById('network-status-text').textContent = 'Signaling error';
         };
         state.ws.onclose = () => {
-            updateConnectivityBanner();
+            updateConnectivityIndicator();
             document.getElementById('network-indicator').className = 'w-2.5 h-2.5 rounded-full bg-red-500';
             document.getElementById('network-status-text').textContent = 'Reconnecting';
             if (state.shouldReconnect) setTimeout(connectWorkerWebSocket, 5000);

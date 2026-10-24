@@ -540,20 +540,25 @@ function renderAppearanceSettings() {
 }
 
 // ================= OFFLINE-HINWEIS =================
-// Kurze Aussetzer (Reconnect nach 5 s) zeigen keinen Hinweis.
-const OFFLINE_BANNER_DELAY_MS = 4000;
+// Dezentes Icon (Kopfzeile und Chat-Kopf) statt Banner. Kurze Aussetzer (Reconnect nach 5 s)
+// zeigen keinen Hinweis.
+const OFFLINE_INDICATOR_DELAY_MS = 4000;
 
-function updateConnectivityBanner() {
-    const banner = document.getElementById('offline-banner');
-    if (!banner) return;
-    clearTimeout(state.offlineBannerTimer);
+function setOfflineIndicators(offline) {
+    document.querySelectorAll('.offline-indicator').forEach(icon => {
+        icon.classList.toggle('hidden', !offline);
+        icon.classList.toggle('inline-flex', offline);
+    });
+}
+
+function updateConnectivityIndicator() {
+    clearTimeout(state.offlineIndicatorTimer);
     const connected = navigator.onLine && state.ws?.readyState === WebSocket.OPEN;
     if (connected) {
-        banner.classList.add('hidden');
+        setOfflineIndicators(false);
         return;
     }
-    state.offlineBannerTimer = setTimeout(() => {
-        const stillOffline = !navigator.onLine || state.ws?.readyState !== WebSocket.OPEN;
-        banner.classList.toggle('hidden', !stillOffline);
-    }, navigator.onLine ? OFFLINE_BANNER_DELAY_MS : 0);
+    state.offlineIndicatorTimer = setTimeout(() => {
+        setOfflineIndicators(!navigator.onLine || state.ws?.readyState !== WebSocket.OPEN);
+    }, navigator.onLine ? OFFLINE_INDICATOR_DELAY_MS : 0);
 }

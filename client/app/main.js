@@ -43,9 +43,9 @@ window.onload = async () => {
     initImageViewer();
     initSecureSnaps();
     initGestures();
-    window.addEventListener('online', updateConnectivityBanner);
-    window.addEventListener('offline', updateConnectivityBanner);
-    updateConnectivityBanner();
+    window.addEventListener('online', updateConnectivityIndicator);
+    window.addEventListener('offline', updateConnectivityIndicator);
+    updateConnectivityIndicator();
     renderAppearanceSettings();
     initThemeSettings();
     document.addEventListener('keydown', event => {
@@ -85,8 +85,12 @@ window.onload = async () => {
         reportStartupProblems();
         renderInviteCard().catch(error => logDebug(`Invite card failed: ${error.message}`));
         if (state.pendingInvite) acceptPendingInvite().catch(error => logDebug(`Invite failed: ${error.message}`));
-        document.getElementById('chat-input').addEventListener('keydown', (event) => {
-            if (event.key === 'Enter' && !event.shiftKey) {
+        const chatInput = document.getElementById('chat-input');
+        chatInput.addEventListener('input', () => fitChatInput(chatInput));
+        chatInput.addEventListener('keydown', (event) => {
+            // Am Desktop sendet Enter (Shift+Enter = neue Zeile); auf Touch-Tastaturen ist Enter
+            // eine neue Zeile und der Senden-Knopf sendet.
+            if (event.key === 'Enter' && !event.shiftKey && !event.isComposing && !isCoarsePointer()) {
                 event.preventDefault();
                 sendChatMessage();
             }

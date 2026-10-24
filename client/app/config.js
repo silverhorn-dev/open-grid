@@ -135,7 +135,7 @@ const state = {
     updateRequested: false,
     // Optionale Startschritte, die fehlgeschlagen sind (main.js).
     startupProblems: [],
-    offlineBannerTimer: null,
+    offlineIndicatorTimer: null,
     persistedRouterAuthToken: null,
     pushSubscriptionSynced: false
 };

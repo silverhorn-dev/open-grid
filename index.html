@@ -24,10 +24,6 @@
 
     <!-- Verbindungs- und Update-Hinweise -->
     <div class="fixed top-0 inset-x-0 z-[58] flex flex-col items-center gap-2 px-4 pointer-events-none" style="padding-top: max(0.5rem, env(safe-area-inset-top));">
-        <div id="offline-banner" class="hidden pointer-events-auto max-w-md w-full bg-amber-950/95 border border-amber-800 text-amber-100 text-xs rounded-xl px-3 py-2 shadow-lg flex items-center gap-2">
-            <i class="fa-solid fa-plug-circle-xmark"></i>
-            <span>Offline. Deine Chats sind lokal verfuegbar; neue Nachrichten kommen, sobald du wieder verbunden bist.</span>
-        </div>
         <div id="update-banner" class="hidden pointer-events-auto max-w-md w-full bg-slate-900/95 border border-brand-500/50 text-slate-100 text-xs rounded-xl px-3 py-2 shadow-lg flex items-center justify-between gap-3">
             <span><i class="fa-solid fa-arrows-rotate text-brand-400"></i> Eine neue Version ist bereit.</span>
             <button data-click="activateServiceWorkerUpdate" class="bg-brand-600 hover:bg-brand-500 text-white font-semibold px-3 py-1.5 rounded-lg">Aktualisieren</button>
@@ -69,6 +65,7 @@
             <div class="flex items-center gap-2 text-xs font-mono shrink-0">
                 <div class="flex items-center gap-1.5 bg-slate-800 border border-slate-700 px-2.5 py-1.5 rounded-lg" title="Verbindungsstatus">
                     <span id="network-indicator" class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <i class="offline-indicator hidden fa-solid fa-plug-circle-xmark text-amber-400" role="img" title="Offline - Chats sind lokal verfuegbar, neue Nachrichten kommen, sobald du wieder verbunden bist" aria-label="Offline"></i>
                     <span id="network-status-text" class="debug-only text-slate-200">Online</span>
                 </div>
                 <button data-click="openMenu" class="w-9 h-9 flex items-center justify-center bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-lg transition" title="Menue" aria-label="Menue oeffnen" aria-controls="app-menu">
@@ -167,7 +164,7 @@
         </section>
 
         <!-- ==================== TAB 2: P2P CHAT & SNAP ==================== -->
-        <section id="view-chat" class="hidden flex-1 grid grid-cols-1 md:grid-cols-3 gap-4 md:h-[calc(100dvh-7rem)] md:min-h-[480px]">
+        <section id="view-chat" class="hidden flex-1 grid grid-cols-1 md:grid-cols-3 gap-4 md:h-[calc(100dvh-7rem)] md:max-h-[calc(100dvh-7rem)] md:min-h-[480px]">
             <!-- Chat List -->
             <div id="chat-list-panel" class="bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-col min-h-0">
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 px-1 flex items-center justify-between">
@@ -203,6 +200,7 @@
                         <div id="connection-status-pill" class="debug-only text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-400 font-mono">
                             Disconnected
                         </div>
+                        <span class="offline-indicator hidden w-9 h-9 items-center justify-center text-amber-400" role="img" title="Offline - Chats sind lokal verfuegbar, neue Nachrichten kommen, sobald du wieder verbunden bist" aria-label="Offline"><i class="fa-solid fa-plug-circle-xmark"></i></span>
                         <button data-click="toggleChatSearch" class="w-9 h-9 rounded-lg text-slate-300 hover:bg-slate-800 flex items-center justify-center" title="Im Chat suchen" aria-label="Im Chat suchen">
                             <i class="fa-solid fa-magnifying-glass"></i>
                         </button>
@@ -246,14 +244,14 @@
                             <i class="fa-solid fa-xmark"></i>
                         </button>
                     </div>
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-end gap-2">
                         <button data-chat-image-action data-click="openSnapUploadModal" class="disabled:opacity-40 bg-slate-800 hover:bg-slate-700 text-brand-400 border border-slate-700 p-2.5 rounded-lg transition flex items-center gap-1.5 text-xs font-semibold" title="Snap senden">
                             <i class="fa-solid fa-bolt text-amber-400"></i><span class="hidden sm:inline">Snap</span>
                         </button>
                         <button data-chat-image-action data-click="openAlbumPicker" class="disabled:opacity-40 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 p-2.5 rounded-lg transition text-xs" title="Album teilen" aria-label="Album teilen">
                             <i class="fa-solid fa-images"></i>
                         </button>
-                        <input id="chat-input" type="text" placeholder="Nachricht schreiben..." class="flex-1 min-w-0 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-base md:text-sm text-slate-100 focus:outline-none focus:border-brand-500 transition">
+                        <textarea id="chat-input" rows="1" placeholder="Nachricht schreiben..." class="chat-input flex-1 min-w-0 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-base md:text-sm text-slate-100 focus:outline-none focus:border-brand-500 transition"></textarea>
                         <button id="send-chat-btn" data-click="sendChatMessage" class="bg-brand-600 hover:bg-brand-500 disabled:bg-slate-700 disabled:text-slate-400 text-white px-3 sm:px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-1.5" title="Senden">
                             <i class="fa-solid fa-paper-plane"></i><span class="hidden sm:inline">Senden</span>
                         </button>

@@ -93,6 +93,7 @@
   Medienfenster von oben nach unten wischen = schliessen; im Chat am Ende nach
   oben ziehen = einstellbare Aktion (`keys`/`pullup-settings.action`: `reload`
   = Tab neu laden (Standard, ohne Toast), `next` = naechster Chat der Liste,
+  `switcher` = Auswahl aller Chats der Liste (`openChatSwitcherSheet`),
   `snap` = Snap-Kamera, `album` = Album teilen). Nachrichten
   nutzen Pointer Events mit `touch-action: pan-y`, alles andere passive Touch
   Events. Die System-Geste "zurueck" und Pull-to-Refresh des Browsers bleiben

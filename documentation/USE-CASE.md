@@ -531,7 +531,8 @@ Akzeptanzkriterien:
 - Seitlich wischen wechselt zwischen Grid, Chat und Profil.
 - Profil- und Medienfenster schliessen per Wischen nach unten.
 - Im Chat am Ende nach oben ziehen loest die eingestellte Aktion aus: Seite
-  neu laden (Standard), naechster Chat, Snap aufnehmen oder Album teilen
+  neu laden (Standard), naechster Chat, Auswahl aller Chats der Liste
+  (Quick-Switcher), Snap aufnehmen oder Album teilen
   (Einstellungen, "Darstellung").
 - Senkrechtes Scrollen, die Zurueck-Geste des Systems und alle Knoepfe
   funktionieren weiter wie bisher.

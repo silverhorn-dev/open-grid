@@ -138,3 +138,51 @@ function initChatSwitchSwipe() {
         start = null;
     });
 }
+
+// Quick-Switcher: alle Chats der aktuellen Liste zur Auswahl (z. B. per Hochziehen im Chat).
+function openChatSwitcherSheet() {
+    const peerIds = visibleChatPeerIds();
+    const content = openMediaModal('Chat wechseln');
+    if (peerIds.length < 2) {
+        renderMediaModalMessage('Keine weiteren Chats in dieser Liste.');
+        return;
+    }
+    const list = document.createElement('div');
+    list.className = 'space-y-1.5';
+    peerIds.forEach(peerId => {
+        const peer = getPeerPresentation(peerId);
+        const current = peerId === state.activeChatPeerId;
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `w-full flex items-center gap-3 rounded-xl border p-2 text-left ${current ? 'border-brand-500/60 bg-brand-500/10' : 'border-slate-800 bg-slate-950/40 hover:border-slate-700'}`;
+        if (current) button.setAttribute('aria-current', 'true');
+        const avatar = document.createElement('div');
+        avatar.className = 'relative shrink-0';
+        const image = document.createElement('img');
+        image.src = localAvatar(peer.avatar);
+        image.alt = '';
+        image.className = 'w-10 h-10 rounded-full object-cover border border-slate-700';
+        avatar.appendChild(image);
+        if (!isPeerBlocked(peerId) && isPeerOnline(peerId)) {
+            const dot = document.createElement('span');
+            dot.className = 'absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-slate-900';
+            avatar.appendChild(dot);
+        }
+        const details = document.createElement('div');
+        details.className = 'min-w-0 flex-1';
+        const name = document.createElement('div');
+        name.className = 'text-sm font-semibold text-slate-200 truncate';
+        name.textContent = peer.name || HIDDEN_PEER_NAME;
+        const preview = document.createElement('div');
+        preview.className = 'text-xs text-slate-400 truncate';
+        const last = state.chatPreviews[peerId];
+        preview.textContent = last ? `${last.mine ? 'Du: ' : ''}${last.text}` : '';
+        details.append(name, preview);
+        button.append(avatar, details);
+        button.onclick = () => replaceModal(closeMediaModal, () => switchToChat(peerId));
+        list.appendChild(button);
+    });
+    content.appendChild(list);
+    list.querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'nearest' });
+}
+

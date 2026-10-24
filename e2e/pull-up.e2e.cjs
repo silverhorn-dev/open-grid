@@ -57,6 +57,14 @@ async function main() {
         await pullUp(page, session);
         await waitFor(page, () => state.activeChatPeerId === 'node_two', null, 5000);
 
+        // Quick-Switcher: Auswahl aller Chats, Tipp wechselt.
+        await page.evaluate(() => updatePullUpSetting('switcher'));
+        await pullUp(page, session);
+        await waitFor(page, () => !document.getElementById('media-modal').classList.contains('hidden'), null, 5000);
+        assert.equal(await page.locator('#media-modal-content button').count(), 2, 'all chats of the list');
+        await page.click('#media-modal-content button >> nth=0');
+        await waitFor(page, () => state.activeChatPeerId === 'node_one' && document.getElementById('media-modal').classList.contains('hidden'), null, 5000);
+
         // Seite neu laden, ohne Toast.
         await page.evaluate(() => updatePullUpSetting('reload'));
         await page.evaluate(() => { window.__beforeReload = true; });

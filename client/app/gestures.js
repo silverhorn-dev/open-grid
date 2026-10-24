@@ -231,10 +231,11 @@ function attachSwipeToClose(scrollContainer, card, close) {
 
 // ----- Chat: am Ende nach oben ziehen = einstellbare Aktion -----
 // keys/pullup-settings: 'reload' (Tab neu laden, Standard), 'next' (naechster Chat der Liste),
-// 'snap' (Snap-Kamera), 'album' (Album teilen).
+// 'switcher' (Auswahl aller Chats der Liste), 'snap' (Snap-Kamera), 'album' (Album teilen).
 const PULL_UP_ACTIONS = {
     reload: 'Loslassen zum Neuladen',
     next: 'Loslassen: naechster Chat',
+    switcher: 'Loslassen: Chat auswaehlen',
     snap: 'Loslassen: Snap aufnehmen',
     album: 'Loslassen: Album teilen'
 };
@@ -261,6 +262,8 @@ function runPullUpAction() {
         // Am Ende der Liste wieder von vorn.
         const target = neighbourChat(1) || visibleChatPeerIds().find(peerId => peerId !== state.activeChatPeerId);
         if (target) switchToChat(target).catch(logBackgroundError('runPullUpAction'));
+    } else if (action === 'switcher') {
+        openChatSwitcherSheet();
     } else if (action === 'snap') {
         openSnapUploadModal().catch(logBackgroundError('runPullUpAction'));
     } else if (action === 'album') {

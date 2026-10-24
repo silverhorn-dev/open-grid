@@ -119,15 +119,16 @@ test('pull up at the end of a chat runs the configured action', () => {
         switchToChat: async peerId => calls.push(`switch:${peerId}`),
         openSnapUploadModal: async () => calls.push('snap'),
         openAlbumPicker: () => calls.push('album'),
+        openChatSwitcherSheet: () => calls.push('switcher'),
         logBackgroundError: () => () => {}
     });
     context.state = { activeChatPeerId: 'a' };
     context.window.location = { reload: () => calls.push('reload') };
-    for (const action of ['reload', 'next', 'snap', 'album', 'unknown']) {
+    for (const action of ['reload', 'next', 'switcher', 'snap', 'album', 'unknown']) {
         context.state.pullUpAction = action;
         context.runPullUpAction();
     }
-    assert.deepEqual(calls, ['reload', 'switch:next-peer', 'snap', 'album', 'reload']);
+    assert.deepEqual(calls, ['reload', 'switch:next-peer', 'switcher', 'snap', 'album', 'reload']);
 
     // Am Ende der Liste geht es von vorn weiter.
     calls.length = 0;

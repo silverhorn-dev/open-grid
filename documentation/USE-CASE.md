@@ -598,6 +598,8 @@ Akzeptanzkriterien:
 - Im Freunde-Modus zeigt das Grid nur Freunde.
 - Im Chat- und Freunde-Modus erscheint die Alben-Karte im Profil nur, wenn es
   eigene Alben gibt.
+- In "Chat & Freunde"-Chats fehlt der Album-Knopf neben "Snap"; ein langer
+  Druck auf "Snap" laesst ihn fuer diesen Chat erscheinen (Easteregg).
 
 ## UC-38: Status fuer Freunde
 

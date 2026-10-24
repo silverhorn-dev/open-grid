@@ -99,6 +99,8 @@ const state = {
     wsPingTimer: null,
     wsPingNonce: null,
     wsOpenedAt: 0,
+    // Album-Knopf in sozialen Chats per langem Druck auf "Snap" gezeigt (chat-tools.js).
+    albumButtonRevealedFor: null,
     // Aktion beim Hochziehen am Chat-Ende (gestures.js).
     pullUpAction: 'reload',
     // Chat klebt unten (chat.js, Scrollposition).

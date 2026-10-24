@@ -47,6 +47,7 @@ window.onload = async () => {
     initSnapCamera();
     initChatSwitchSwipe();
     initChatScroll();
+    initSnapLongPress();
     window.addEventListener('online', updateConnectivityIndicator);
     window.addEventListener('offline', updateConnectivityIndicator);
     updateConnectivityIndicator();

@@ -343,3 +343,16 @@ html.debug-on .debug-off-only {
     cursor: grab;
 }
 
+/* Album-Knopf taucht nach dem langen Druck auf "Snap" auf (Easteregg) */
+@keyframes album-reveal {
+    0% { transform: scale(0.4); opacity: 0; }
+    70% { transform: scale(1.15); opacity: 1; }
+    100% { transform: scale(1); }
+}
+.album-reveal {
+    animation: album-reveal 320ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+    .album-reveal { animation: none; }
+}
+

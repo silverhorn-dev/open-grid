@@ -5,6 +5,7 @@ Neueste Aenderungen oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 ## 2026-10-24
 
 ### Neu
+- In "Chat & Freunde"-Chats kein Album-Knopf mehr; lange auf "Snap" druecken laesst ihn erscheinen
 - Hochziehen im Chat: neue Option "Chat auswaehlen" (Quick-Switcher mit allen Chats der Liste)
 - Changelog im Menue (nur im Debug-Modus)
 - Im Chat am Ende hochziehen: einstellbare Aktion (Seite neu laden, naechster Chat, Snap aufnehmen, Album teilen); Seite neu laden ohne Banner

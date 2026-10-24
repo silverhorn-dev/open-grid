@@ -336,3 +336,55 @@ function receiveChatFocus(peerId, open) {
     state.peerChatFocus[peerId] = Boolean(open);
     if (state.activeChatPeerId === peerId) renderChatPeerIndicator();
 }
+
+// ----- Album-Knopf im Chat -----
+// In "Chat & Freunde"-Chats hat man normalerweise keine Alben: der Knopf ist dort versteckt.
+// Easteregg: lange auf "Snap" druecken zeigt ihn fuer diesen Chat (ohne die Kamera zu oeffnen).
+const SNAP_LONG_PRESS_MS = 600;
+
+function isSocialChat(peerId) {
+    return (chatScopeOf(peerId) || currentChatScope()) === 'social';
+}
+
+function updateChatAlbumButton() {
+    const button = document.getElementById('chat-album-btn');
+    const peerId = state.activeChatPeerId;
+    if (!button) return;
+    const hidden = Boolean(peerId) && isSocialChat(peerId) && state.albumButtonRevealedFor !== peerId;
+    button.classList.toggle('hidden', hidden);
+}
+
+function initSnapLongPress() {
+    const snap = document.getElementById('chat-snap-btn');
+    if (!snap) return;
+    let timer = null;
+    let fired = false;
+    const cancel = () => {
+        clearTimeout(timer);
+        timer = null;
+    };
+    snap.addEventListener('pointerdown', () => {
+        fired = false;
+        cancel();
+        timer = setTimeout(() => {
+            const peerId = state.activeChatPeerId;
+            if (!peerId || !isSocialChat(peerId) || state.albumButtonRevealedFor === peerId) return;
+            fired = true;
+            state.albumButtonRevealedFor = peerId;
+            hapticTick(20);
+            updateChatAlbumButton();
+            document.getElementById('chat-album-btn')?.classList.add('album-reveal');
+        }, SNAP_LONG_PRESS_MS);
+    });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(type => snap.addEventListener(type, cancel));
+    // Nach dem langen Druck kein Klick: die Kamera soll nicht aufgehen.
+    snap.addEventListener('click', event => {
+        if (!fired) return;
+        fired = false;
+        event.stopPropagation();
+        event.preventDefault();
+    }, true);
+    // Kein Kontextmenue beim langen Druck auf dem Smartphone.
+    snap.addEventListener('contextmenu', event => event.preventDefault());
+}
+

@@ -64,6 +64,9 @@
   Kontaktleiste, `arrows` = Pfeile in der Kontaktleiste, `swipe` = seitlich
   wischen auf der Kontaktleiste (ab 70 px; nicht auf Nachrichten, dort heisst
   wischen "antworten"). Ein Wechsel ersetzt den History-Eintrag.
+- Album-Knopf (`chat-tools.js`): in Chats der Liste `social` versteckt;
+  600 ms langer Druck auf "Snap" zeigt ihn fuer den aktuellen Chat
+  (`state.albumButtonRevealedFor`) und unterdrueckt den Klick auf die Kamera.
 - Scrollposition im Chat (`chat.js`): `state.chatPinned` = man ist unten
   (hoechstens 80 px Abstand). Betreten setzt immer unten; Senden ebenfalls,
   ausser man ist mehr als 1,5 Bildschirmhoehen nach oben gescrollt. Ein

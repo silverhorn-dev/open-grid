@@ -120,6 +120,7 @@ function buildGridQuery() {
 // ----- Oberflaeche -----
 function applyAppModeUi() {
     syncAlbumCardVisibility();
+    updateChatAlbumButton();
     const gridAvailable = isGridAvailable();
     document.querySelectorAll('[data-tab-btn="grid"]').forEach(button => button.classList.toggle('hidden', !gridAvailable));
     document.querySelectorAll('nav.bottom-nav').forEach(nav => {

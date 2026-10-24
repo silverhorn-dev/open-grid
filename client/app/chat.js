@@ -225,7 +225,11 @@ function launchChatFromModal() {
 }
 
 async function openChatWithPeer(peerId) {
-    if (state.activeChatPeerId !== peerId) resetChatTools();
+    if (state.activeChatPeerId !== peerId) {
+        resetChatTools();
+        // Das Easteregg gilt nur fuer den Chat, in dem es ausgeloest wurde.
+        state.albumButtonRevealedFor = null;
+    }
     state.activeChatPeerId = peerId;
     // Beim Betreten immer unten.
     state.chatPinned = true;
@@ -296,6 +300,7 @@ function updateChatActionButtons() {
     document.getElementById('block-peer-label').textContent = blocked ? 'Entblocken' : 'Blockieren';
     input.disabled = blocked;
     sendButton.disabled = blocked;
+    updateChatAlbumButton();
     if (blocked) {
         updateChatConnectionStatus(peerId, 'Blocked', 'bg-red-500/10 text-red-400 border-red-500/30');
         return;

@@ -64,6 +64,12 @@
   Kontaktleiste, `arrows` = Pfeile in der Kontaktleiste, `swipe` = seitlich
   wischen auf der Kontaktleiste (ab 70 px; nicht auf Nachrichten, dort heisst
   wischen "antworten"). Ein Wechsel ersetzt den History-Eintrag.
+- Scrollposition im Chat (`chat.js`): `state.chatPinned` = man ist unten
+  (hoechstens 80 px Abstand). Betreten setzt immer unten; Senden ebenfalls,
+  ausser man ist mehr als 1,5 Bildschirmhoehen nach oben gescrollt. Ein
+  `MutationObserver` zieht nach, solange man unten klebt (Canvas-Bilder werden
+  erst nach dem Zeichnen hoch). Neu-Rendern behaelt sonst die Position. Ab
+  einer Bildschirmhoehe Abstand erscheint der Knopf "nach unten".
 - Smartphone: `fitChatListPanel` begrenzt die Chatliste auf den Platz bis zur
   unteren Navigation, die Liste scrollt in sich. Der Kurzstatus steht in einer
   eigenen Zeile unter dem Namen.

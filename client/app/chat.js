@@ -227,6 +227,8 @@ function launchChatFromModal() {
 async function openChatWithPeer(peerId) {
     if (state.activeChatPeerId !== peerId) resetChatTools();
     state.activeChatPeerId = peerId;
+    // Beim Betreten immer unten.
+    state.chatPinned = true;
     await loadChatHistory(peerId);
     switchTab('chat');
     renderChatPeerIndicator();
@@ -417,6 +419,9 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
     if ((!text && !hasAttachment) || !state.activeChatPeerId || isPeerBlocked(state.activeChatPeerId)) return;
 
     const peerId = state.activeChatPeerId;
+    // Senden fuehrt nach unten, ausser man liest gerade weit oben im Verlauf.
+    const history = document.getElementById('chat-messages');
+    if (history && !isChatFarUp(history)) state.chatPinned = true;
     const message = {
         id: window.crypto.randomUUID(),
         senderId: state.myProfile.id,
@@ -510,12 +515,58 @@ async function deleteChatMessage(messageId) {
     });
 }
 
+// ----- Scrollposition im Chat -----
+// Beim Betreten und Senden bleibt der Chat unten. Wer weit nach oben gescrollt hat (mehr als
+// CHAT_FAR_UP_SCREENS Bildschirmhoehen), behaelt seine Position und bekommt den Knopf "nach unten".
+// Spaet geladene Bilder (Canvas) vergroessern den Verlauf noch; solange man unten "klebt", wird
+// nachgezogen.
+const CHAT_PINNED_PX = 80;
+const CHAT_FAR_UP_SCREENS = 1.5;
+
+function chatDistanceFromBottom(container) {
+    return container.scrollHeight - container.scrollTop - container.clientHeight;
+}
+
+function isChatFarUp(container) {
+    return chatDistanceFromBottom(container) > container.clientHeight * CHAT_FAR_UP_SCREENS;
+}
+
+function scrollChatToBottom(smooth = false) {
+    const container = document.getElementById('chat-messages');
+    if (!container) return;
+    state.chatPinned = true;
+    container.scrollTo({ top: container.scrollHeight, behavior: smooth && !prefersReducedMotion() ? 'smooth' : 'auto' });
+    updateChatJumpButton();
+}
+
+function updateChatJumpButton() {
+    const container = document.getElementById('chat-messages');
+    const button = document.getElementById('chat-jump-bottom');
+    if (!container || !button) return;
+    button.classList.toggle('hidden', !state.activeChatPeerId || chatDistanceFromBottom(container) <= container.clientHeight);
+}
+
+function initChatScroll() {
+    const container = document.getElementById('chat-messages');
+    if (!container) return;
+    container.addEventListener('scroll', () => {
+        state.chatPinned = chatDistanceFromBottom(container) <= CHAT_PINNED_PX;
+        updateChatJumpButton();
+    }, { passive: true });
+    // Canvas-Bilder bekommen ihre Groesse erst nach dem Zeichnen: unten bleiben, wenn man dort war.
+    new MutationObserver(() => {
+        if (state.chatPinned) container.scrollTop = container.scrollHeight;
+    }).observe(container, { childList: true, subtree: true, attributes: true, attributeFilter: ['width', 'height'] });
+}
+
 function renderChatHistory() {
     const container = document.getElementById('chat-messages');
     if (!container || !state.activeChatPeerId) return;
     // Zurueckgehaltene Nachrichten (Chat-Berechtigungen) erscheinen erst nach einem Match.
     const allMessages = (state.chats[state.activeChatPeerId] || []).filter(message => !message.held);
     const msgs = filterChatMessages(allMessages);
+    // Wer nicht unten klebt, behaelt seine Position (der Inhalt darueber bleibt gleich).
+    const previousScrollTop = container.scrollTop;
     container.innerHTML = '';
     if (allMessages.length === 0) {
         container.innerHTML = '<div class="text-center text-xs text-slate-500 my-8">Noch keine Nachrichten. Sag hallo!</div>';
@@ -602,7 +653,9 @@ function renderChatHistory() {
         row.appendChild(meta);
         container.appendChild(row);
     });
-    if (!filtering) container.scrollTop = container.scrollHeight;
+    if (!filtering && state.chatPinned) container.scrollTop = container.scrollHeight;
+    else container.scrollTop = previousScrollTop;
+    updateChatJumpButton();
     renderChatAllowance();
 }
 

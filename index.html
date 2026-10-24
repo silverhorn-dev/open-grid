@@ -234,8 +234,13 @@
                     </label>
                 </div>
 
-                <div id="chat-messages" class="flex-1 min-h-0 p-4 overflow-y-auto space-y-3">
-                    <div class="text-center text-xs text-slate-500 my-8">Waehle einen Chat aus oder starte einen im Grid.</div>
+                <div class="relative flex-1 min-h-0 flex flex-col">
+                    <div id="chat-messages" class="flex-1 min-h-0 p-4 overflow-y-auto space-y-3">
+                        <div class="text-center text-xs text-slate-500 my-8">Waehle einen Chat aus oder starte einen im Grid.</div>
+                    </div>
+                    <button id="chat-jump-bottom" data-click="scrollChatToBottom" data-args='[true]' class="hidden absolute bottom-3 right-3 z-10 w-11 h-11 rounded-full bg-slate-800 border border-slate-700 text-slate-200 shadow-lg flex items-center justify-center hover:bg-slate-700" aria-label="Nach unten">
+                        <i class="fa-solid fa-arrow-down"></i>
+                    </button>
                 </div>
                 <div id="chat-pull-refresh" class="h-0 overflow-hidden flex items-center justify-center gap-2 text-xs text-slate-400 transition-colors" aria-hidden="true">
                     <i class="fa-solid fa-arrow-up"></i><span>Zum Aktualisieren ziehen</span>

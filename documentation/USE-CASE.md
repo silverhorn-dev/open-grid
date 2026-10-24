@@ -302,6 +302,9 @@ Akzeptanzkriterien:
 - Das Nachrichtenfeld waechst mit bis zu fuenf Zeilen und scrollt danach; am
   Desktop sendet Enter (Shift+Enter = neue Zeile), auf dem Smartphone ist
   Enter eine neue Zeile und der Senden-Knopf sendet.
+- Beim Oeffnen eines Chats und beim Senden steht der Verlauf unten. Wer weit
+  nach oben gescrollt hat, behaelt beim Senden und bei neuen Nachrichten seine
+  Position und bekommt einen Knopf "nach unten".
 - Im offenen Chat laesst sich direkt zum naechsten Chat derselben Liste
   wechseln: per Avatar-Leiste, Pfeilen oder Wischen auf der Kontaktleiste
   (einstellbar unter "Darstellung", auch ganz abschaltbar). "Zurueck" fuehrt

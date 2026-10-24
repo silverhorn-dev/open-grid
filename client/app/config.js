@@ -99,6 +99,8 @@ const state = {
     wsPingTimer: null,
     wsPingNonce: null,
     wsOpenedAt: 0,
+    // Chat klebt unten (chat.js, Scrollposition).
+    chatPinned: true,
     // Chat-Wechsel im offenen Chat (chat-switch.js).
     chatSwitchSettings: { enabled: true, style: 'bar' },
     // Ziel der Snap-Kamera: 'chat' oder 'status'.

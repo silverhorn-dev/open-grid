@@ -364,8 +364,12 @@ Akzeptanzkriterien:
   abgelehnt und der Client des Peers loescht seine Kopie.
 - Betrachter speichern Albumbilder nur verschluesselt. Zum Ansehen braucht es
   drei Teile: den eigenen Schluessel, den des Besitzers und einen rollenden
-  Schluessel, den der Besitzer pro Epoche (Server-Einstellung, z. B. 3 Stunden)
-  verteilt - direkt oder ueber den verschluesselten Zwischenspeicher.
+  Schluessel, den der Besitzer pro Epoche verteilt - direkt oder ueber den
+  verschluesselten Zwischenspeicher.
+- Der Besitzer stellt pro Album ein, wie lange ein Schluessel gilt
+  (Server-Standard, 15 min, 1 h, 3 h, 24 h) und wie viele Epochen er vorab
+  ausliefert (1 bis 3). Neue Alben uebernehmen den Standard aus den
+  Einstellungen.
 - Der Besitzer verteilt die Schluessel fuer die laufende und die naechste
   Epoche; Betrachter sehen das Album also auch, wenn der Besitzer kurz offline
   ist. Nach einem Entzug ist spaetestens mit Ende der naechsten Epoche Schluss.

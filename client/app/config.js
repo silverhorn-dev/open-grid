@@ -127,6 +127,8 @@ const state = {
     albumKeyPushes: {},
     albumKeyPushTimer: null,
     snapSettings: { secureSnaps: false, views: 1, seconds: 10 },
+    // Standard fuer neue Alben: Epochenlaenge in Minuten (0 = Server-Wert) und vorab gelieferte Epochen.
+    albumDefaults: { epochMinutes: 0, epochsAhead: 1 },
     secureSnapViewing: null,
     outgoingSnapStreams: {},
     pendingSnapTracks: {},

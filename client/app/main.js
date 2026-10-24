@@ -67,7 +67,10 @@ window.onload = async () => {
         await cacheOwnProfile();
         await runStartupStep('Grid-Cache', loadCachedGridPeers);
         await runStartupStep('Chatliste', loadChatPeerIds);
-        await runStartupStep('Alben', loadAlbums);
+        await runStartupStep('Alben', async () => {
+            await loadAlbums();
+            await loadAlbumDefaults();
+        });
         runStartupStep('Speicher', async () => {
             await requestPersistentStorage();
             await renderStorageUsage(true);

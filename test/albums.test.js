@@ -8,7 +8,7 @@ async function createIdentity() {
     return { keyPair, jwkPublic: await globalThis.crypto.subtle.exportKey('jwk', keyPair.publicKey) };
 }
 
-function loadAlbums({ identity = null, peerKeys = {}, time = { now: 1000, epoch: 3, epochMs: 60000, epochEndsAt: 240000 } } = {}) {
+function loadAlbums({ identity = null, peerKeys = {}, time = { now: 3 * 60000 + 1000, epochMs: 60000 } } = {}) {
     const sent = [];
     const records = new Map();
     const clock = { ...time };
@@ -46,7 +46,10 @@ function loadAlbums({ identity = null, peerKeys = {}, time = { now: 1000, epoch:
         isSafeInlineImage: value => typeof value === 'string' && value.startsWith('data:image/'),
         loadMedia: async id => (id === 'albimg_a' ? { data: 'data:image/jpeg;base64,AAAA', version: 1 } : null),
         cacheMediaPayload: async (id, payload) => records.set(`media:${id}`, payload),
-        fetchServerTime: async () => ({ ...clock, epochEndsAt: (clock.epoch + 1) * clock.epochMs }),
+        fetchServerTime: async () => {
+            const epoch = Math.floor(clock.now / clock.epochMs);
+            return { now: clock.now, epochMs: clock.epochMs, epoch, epochEndsAt: (epoch + 1) * clock.epochMs };
+        },
         isGalleryVisibleTo: () => true,
         logDebug: () => {},
         logBackgroundError: () => () => {},
@@ -141,13 +144,13 @@ test('albums v2: own key + source key + rolling source key, current and next epo
     assert.equal(await viewer.context.decryptAlbumImage('alb_1', 'albimg_a', encrypted), 'data:image/jpeg;base64,AAAA');
 
     // Naechste Epoche: das vorab gelieferte Buendel reicht, der Besitzer muss nicht online sein.
-    viewer.clock.epoch = 4;
+    viewer.clock.now = 4 * 60000 + 1000;
     viewer.context.expireAlbumKeys('alb_1', false);
     assert.equal(await viewer.context.loadAlbumKeys('alb_1'), true);
     assert.ok(await viewer.context.decryptAlbumImage('alb_1', 'albimg_a', encrypted));
 
     // Danach ist Schluss, bis neue Buendel kommen.
-    viewer.clock.epoch = 5;
+    viewer.clock.now = 5 * 60000 + 1000;
     viewer.context.expireAlbumKeys('alb_1', false);
     assert.equal(await viewer.context.loadAlbumKeys('alb_1'), false);
     assert.equal(await viewer.context.decryptAlbumImage('alb_1', 'albimg_a', encrypted), null);
@@ -164,6 +167,39 @@ test('albums v2: own key + source key + rolling source key, current and next epo
     await spoofed.context.handleAlbumKeysOperation('peer-evil', operation);
     assert.equal(await spoofed.context.loadAlbumKeys('alb_1'), false);
     viewer.context.expireAlbumKeys('alb_1', false);
+});
+
+test('the owner sets key lifetime and epochs ahead per album', async () => {
+    const [ownerIdentity, viewerIdentity] = await Promise.all([createIdentity(), createIdentity()]);
+    const quarter = 15 * 60000;
+    const owner = loadAlbums({ identity: ownerIdentity, peerKeys: { 'peer-allowed': viewerIdentity.jwkPublic }, time: { now: 10 * quarter + 5000, epochMs: 60000 } });
+    const album = owner.context.state.albums.alb_1;
+    album.keyEpochMinutes = 15;
+    album.keyEpochsAhead = 2;
+    await owner.context.serveAlbumImage('peer-allowed', 'albimg_a');
+    const encrypted = owner.sent.at(-1).payload.encrypted;
+    await owner.context.pushAlbumKeys('peer-allowed', album);
+    const { bundles } = owner.sent.at(-1).payload.operation;
+    assert.deepEqual([...bundles.map(bundle => bundle.epoch)], [10, 11, 12], 'current + 2 ahead in 15 min epochs');
+    assert.ok(bundles.every(bundle => bundle.epochMs === quarter));
+    assert.equal(bundles[0].epochEndsAt, 11 * quarter);
+
+    const viewer = loadAlbums({ identity: viewerIdentity, peerKeys: { 'peer-owner': ownerIdentity.jwkPublic }, time: { now: 12 * quarter + 1000, epochMs: 60000 } });
+    viewer.context.state.albums = { alb_1: { id: 'alb_1', ownerId: 'peer-owner', name: 'Urlaub', keyVersion: 1, items: [{ id: 'albimg_a', version: 1 }] } };
+    await viewer.context.handleAlbumKeysOperation('peer-owner', owner.sent.at(-1).payload.operation);
+    assert.equal(await viewer.context.loadAlbumKeys('alb_1'), true, 'third bundle covers 30-45 min later');
+    assert.ok(await viewer.context.decryptAlbumImage('alb_1', 'albimg_a', encrypted));
+    viewer.context.expireAlbumKeys('alb_1', false);
+    viewer.clock.now = 13 * quarter + 1000;
+    assert.equal(await viewer.context.loadAlbumKeys('alb_1'), false);
+
+    // Neue Alben uebernehmen den Standard aus den Einstellungen.
+    owner.context.state.albumDefaults = { epochMinutes: 1440, epochsAhead: 3 };
+    owner.context.document = { getElementById: id => (id === 'new-album-name' ? { value: 'Neu' } : null) };
+    await owner.context.createAlbum();
+    const created = Object.values(owner.context.state.albums).find(entry => entry.name === 'Neu');
+    assert.equal(created.keyEpochMinutes, 1440);
+    assert.equal(created.keyEpochsAhead, 3);
 });
 
 test('revoking access bumps the album key version', async () => {

@@ -409,13 +409,24 @@ KEK_e = HKDF-SHA256(ikm = ECDH(eigener Identitaetsschluessel, Identitaetsschlues
 
 Der Besitzer schickt jedem Betrachter in der `acl` die Chat-Operation
 `ALBUM_KEYS { bundles }` mit je einem Buendel fuer die laufende und die
-naechste Epoche: `{ albumId, keyVersion, epoch, epochEndsAt, rollingKey,
-iv, wrapped }` (`wrapped` = AES-GCM unter `KEK_e` ueber alle `CK`s). Weg: P2P,
+vorab eingestellten Epochen: `{ albumId, keyVersion, epoch, epochMs,
+epochEndsAt, rollingKey, iv, wrapped }` (`wrapped` = AES-GCM unter `KEK_e` ueber alle `CK`s). Weg: P2P,
 steht nach 10 Sekunden kein Kanal, Pfad C (kein Web Push). Gesendet wird beim
 Start des Besitzers, zu jedem Epochenwechsel (Timer aus `/api/time`), wenn ein
 Betrachter online kommt oder sich verbindet, beim Teilen und nach einem Entzug
 (neue Version) - pro Betrachter, Album, Version und Epoche hoechstens einmal.
 `ALBUM_KEYS` wird nicht ins Operations-Log uebernommen.
+
+Gueltigkeit pro Album (R2): `album.keyEpochMinutes` (0 = Server-Wert
+`MEDIA_KEY_EPOCH_MINUTES`, sonst 15, 60, 180 oder 1440) bestimmt die
+Epochenlaenge, `album.keyEpochsAhead` (1 bis 3) die vorab gelieferten
+Epochen; ein Push enthaelt also hoechstens 4 Buendel. Epoche =
+`floor(Serverzeit / epochMs)`. Neue Alben uebernehmen den Standard aus
+`keys`/`album-defaults` (`{ epochMinutes, epochsAhead }`). Eine Aenderung
+schickt sofort neue Buendel; alte laufen zu ihrem Ende ab, die
+Inhaltsschluessel bleiben gleich (kein neuer Bild-Download). Der Betrachter
+waehlt das Buendel, dessen Fenster `[epochEndsAt - epochMs, epochEndsAt)` die
+Serverzeit enthaelt.
 
 Der Betrachter speichert nur die Buendel (`keys`/`album-keys:<albumId>:<keyVersion>:<epoch>`,
 abgelaufene werden geloescht). Beim Ansehen leitet er `KEK_e` fuer die

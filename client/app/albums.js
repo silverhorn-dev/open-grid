@@ -70,7 +70,9 @@ async function createAlbum() {
         items: [],
         acl: [],
         secret: createAlbumSecret(),
-        keyVersion: 1
+        keyVersion: 1,
+        keyEpochMinutes: state.albumDefaults.epochMinutes,
+        keyEpochsAhead: state.albumDefaults.epochsAhead
     });
     input.value = '';
 }
@@ -529,6 +531,7 @@ function renderAlbumManager() {
         actions.append(add, remove);
         header.append(title, actions);
         card.appendChild(header);
+        card.appendChild(createAlbumKeyTimingControls(album));
 
         const access = document.createElement('div');
         access.className = 'flex flex-wrap gap-1.5 text-xs';
@@ -628,7 +631,28 @@ async function handleAlbumImageResponse(peerId, payload) {
 // ALBUM_KEYS, ohne Push). Der Betrachter speichert nur das Buendel; die Inhaltsschluessel entstehen
 // erst beim Ansehen, nicht exportierbar und nur im Arbeitsspeicher.
 const ALBUM_KEY_BUNDLE_PREFIX = 'album-keys:';
-const ALBUM_KEY_EPOCHS_AHEAD = 1;
+// Der Besitzer stellt pro Album ein, wie lange ein rollender Key gilt (0 = Server-Wert
+// MEDIA_KEY_EPOCH_MINUTES) und wie viele Epochen er vorab ausliefert.
+const ALBUM_KEY_EPOCH_OPTIONS = [0, 15, 60, 180, 1440];
+const ALBUM_KEY_AHEAD_OPTIONS = [1, 2, 3];
+const MAX_ALBUM_KEY_BUNDLES = 1 + Math.max(...ALBUM_KEY_AHEAD_OPTIONS);
+const ALBUM_DEFAULTS_RECORD_ID = 'album-defaults';
+
+function albumEpochMs(album, time) {
+    const minutes = ALBUM_KEY_EPOCH_OPTIONS.includes(album.keyEpochMinutes) ? album.keyEpochMinutes : 0;
+    return minutes > 0 ? minutes * 60 * 1000 : time.epochMs;
+}
+
+function albumEpochsAhead(album) {
+    return ALBUM_KEY_AHEAD_OPTIONS.includes(album.keyEpochsAhead) ? album.keyEpochsAhead : 1;
+}
+
+// Laufende Epoche eines Albums nach Serverzeit.
+function albumEpoch(album, time) {
+    const epochMs = albumEpochMs(album, time);
+    const epoch = Math.floor(time.now / epochMs);
+    return { epoch, epochMs, epochEndsAt: (epoch + 1) * epochMs };
+}
 
 async function pairwiseAlbumSecret(peerId) {
     const peerJwk = await getPeerIdentityKey(peerId);
@@ -661,14 +685,14 @@ function getRollingKey(album, epoch, currentEpoch) {
     return album.rollingKeys[epoch];
 }
 
-async function buildAlbumKeyBundle(album, viewerId, time, epoch) {
+async function buildAlbumKeyBundle(album, viewerId, current, epoch) {
     const keyVersion = album.keyVersion || 1;
     const keys = {};
     for (const item of album.items) {
         const key = await deriveAlbumImageKey(album, item.id, viewerId);
         keys[item.id] = bytesToBase64(new Uint8Array(await window.crypto.subtle.exportKey('raw', key)));
     }
-    const rollingKey = getRollingKey(album, epoch, time.epoch);
+    const rollingKey = getRollingKey(album, epoch, current.epoch);
     const kek = await deriveAlbumKek(viewerId, rollingKey, album.id, epoch, keyVersion);
     const iv = window.crypto.getRandomValues(new Uint8Array(12));
     const wrapped = await window.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, kek, new TextEncoder().encode(JSON.stringify(keys)));
@@ -676,23 +700,26 @@ async function buildAlbumKeyBundle(album, viewerId, time, epoch) {
         albumId: album.id,
         keyVersion,
         epoch,
-        epochEndsAt: (epoch + 1) * time.epochMs,
+        epochMs: current.epochMs,
+        epochEndsAt: (epoch + 1) * current.epochMs,
         rollingKey,
         iv: bytesToBase64(iv),
         wrapped: bytesToBase64(new Uint8Array(wrapped))
     };
 }
 
-// Schickt einem Betrachter die Buendel fuer jetzt und die naechste Epoche (einmal pro Epoche und Version).
+// Schickt einem Betrachter die Buendel fuer jetzt und die vorab eingestellten Epochen
+// (einmal pro Epoche, Version und Einstellung).
 async function pushAlbumKeys(viewerId, album, force = false) {
     if (!album || album.ownerId !== state.myProfile.id || !album.acl.includes(viewerId) || !album.items.length) return;
-    const time = await fetchServerTime();
-    const marker = `${album.keyVersion || 1}:${time.epoch}`;
+    const current = albumEpoch(album, await fetchServerTime());
+    const ahead = albumEpochsAhead(album);
+    const marker = `${album.keyVersion || 1}:${current.epochMs}:${current.epoch}:${ahead}`;
     const pushed = state.albumKeyPushes[viewerId] || (state.albumKeyPushes[viewerId] = {});
     if (!force && pushed[album.id] === marker) return;
     const bundles = [];
-    for (let offset = 0; offset <= ALBUM_KEY_EPOCHS_AHEAD; offset++) {
-        bundles.push(await buildAlbumKeyBundle(album, viewerId, time, time.epoch + offset));
+    for (let offset = 0; offset <= ahead; offset++) {
+        bundles.push(await buildAlbumKeyBundle(album, viewerId, current, current.epoch + offset));
     }
     await persistAlbum(album);
     pushed[album.id] = marker;
@@ -719,7 +746,92 @@ async function pushAllAlbumKeys() {
     const viewers = new Set(getOwnAlbums().flatMap(album => album.acl));
     for (const viewerId of viewers) await pushAlbumKeysToPeer(viewerId);
     const time = await fetchServerTime().catch(() => null);
-    if (time) state.albumKeyPushTimer = setTimeout(() => pushAllAlbumKeys().catch(logBackgroundError('pushAllAlbumKeys')), Math.min(time.epochEndsAt - time.now + 1000, 2147483647));
+    if (!time) return;
+    // Naechster Lauf zum fruehesten Epochenende aller eigenen Alben.
+    const nextEnd = Math.min(time.epochEndsAt, ...getOwnAlbums().map(album => albumEpoch(album, time).epochEndsAt));
+    state.albumKeyPushTimer = setTimeout(() => pushAllAlbumKeys().catch(logBackgroundError('pushAllAlbumKeys')), Math.min(nextEnd - time.now + 1000, 2147483647));
+}
+
+// ----- Einstellungen: Schluessel-Gueltigkeit -----
+async function loadAlbumDefaults() {
+    const stored = await databaseRequest('keys', 'readonly', store => store.get(ALBUM_DEFAULTS_RECORD_ID)).catch(() => null);
+    if (stored) {
+        state.albumDefaults = {
+            epochMinutes: ALBUM_KEY_EPOCH_OPTIONS.includes(stored.epochMinutes) ? stored.epochMinutes : 0,
+            epochsAhead: ALBUM_KEY_AHEAD_OPTIONS.includes(stored.epochsAhead) ? stored.epochsAhead : 1
+        };
+    }
+    renderAlbumDefaults();
+}
+
+async function updateAlbumDefault(key, value) {
+    const options = key === 'epochMinutes' ? ALBUM_KEY_EPOCH_OPTIONS : ALBUM_KEY_AHEAD_OPTIONS;
+    if (!options.includes(value)) return;
+    state.albumDefaults = { ...state.albumDefaults, [key]: value };
+    try {
+        await putDatabaseRecord('keys', { id: ALBUM_DEFAULTS_RECORD_ID, ...state.albumDefaults });
+    } catch (error) {
+        logDebug(`Could not store album defaults: ${error.message}`);
+        showToast('Einstellung konnte nicht gespeichert werden.', 'error');
+    }
+    renderAlbumDefaults();
+}
+
+function renderAlbumDefaults() {
+    const minutes = document.getElementById('album-default-epoch');
+    if (minutes) minutes.value = String(state.albumDefaults.epochMinutes);
+    const ahead = document.getElementById('album-default-ahead');
+    if (ahead) ahead.value = String(state.albumDefaults.epochsAhead);
+}
+
+function albumEpochLabel(minutes) {
+    if (!minutes) return 'Server-Standard';
+    return minutes < 60 ? `${minutes} min` : `${minutes / 60} h`;
+}
+
+// Besitzer aendert die Gueltigkeit: sofort neue Buendel an alle Betrachter. Alte Buendel laufen
+// zu ihrem Epochenende ab; die Inhaltsschluessel (und damit gecachte Bilder) bleiben gleich.
+async function updateAlbumKeyTiming(albumId, key, value) {
+    const album = state.albums[albumId];
+    if (!album || album.ownerId !== state.myProfile.id) return;
+    const options = key === 'keyEpochMinutes' ? ALBUM_KEY_EPOCH_OPTIONS : ALBUM_KEY_AHEAD_OPTIONS;
+    if (!options.includes(value)) return;
+    album[key] = value;
+    await saveAlbum(album);
+    for (const viewerId of album.acl) {
+        await pushAlbumKeys(viewerId, album, true).catch(logBackgroundError('updateAlbumKeyTiming'));
+    }
+    await pushAllAlbumKeys().catch(logBackgroundError('updateAlbumKeyTiming'));
+}
+
+function createAlbumKeyTimingControls(album) {
+    const row = document.createElement('div');
+    row.className = 'flex flex-wrap items-center gap-2 text-xs text-slate-400';
+    const select = (options, value, label, onChange) => {
+        const element = document.createElement('select');
+        element.className = 'bg-slate-950 border border-slate-700 rounded px-2 py-1 text-slate-200';
+        element.setAttribute('aria-label', label);
+        options.forEach(option => {
+            const entry = document.createElement('option');
+            entry.value = String(option.value);
+            entry.textContent = option.text;
+            element.appendChild(entry);
+        });
+        element.value = String(value);
+        element.onchange = () => onChange(Number(element.value));
+        return element;
+    };
+    row.append(
+        document.createTextNode('Schluessel gilt'),
+        select(ALBUM_KEY_EPOCH_OPTIONS.map(minutes => ({ value: minutes, text: albumEpochLabel(minutes) })),
+            ALBUM_KEY_EPOCH_OPTIONS.includes(album.keyEpochMinutes) ? album.keyEpochMinutes : 0, 'Gueltigkeit der Albumschluessel',
+            value => updateAlbumKeyTiming(album.id, 'keyEpochMinutes', value)),
+        document.createTextNode('vorab'),
+        select(ALBUM_KEY_AHEAD_OPTIONS.map(count => ({ value: count, text: `${count} Epoche${count > 1 ? 'n' : ''}` })),
+            albumEpochsAhead(album), 'Vorab gelieferte Epochen',
+            value => updateAlbumKeyTiming(album.id, 'keyEpochsAhead', value))
+    );
+    return row;
 }
 
 function isValidKeyBundle(bundle) {
@@ -731,7 +843,7 @@ function isValidKeyBundle(bundle) {
 
 // Betrachter: Buendel speichern (verpackt), abgelaufene entfernen. Aus applyChatOperation.
 async function handleAlbumKeysOperation(ownerId, operation) {
-    const bundles = Array.isArray(operation.bundles) ? operation.bundles.slice(0, ALBUM_KEY_EPOCHS_AHEAD + 1) : [];
+    const bundles = Array.isArray(operation.bundles) ? operation.bundles.slice(0, MAX_ALBUM_KEY_BUNDLES) : [];
     const valid = bundles.filter(isValidKeyBundle);
     for (const bundle of valid) {
         await putDatabaseRecord('keys', {
@@ -756,13 +868,23 @@ async function pruneAlbumKeyBundles() {
         .map(record => deleteDatabaseRecord('keys', record.id)));
 }
 
+// Das Buendel, dessen Zeitfenster jetzt laeuft. Die Epochenlaenge legt der Besitzer pro Album fest
+// und steht im Buendel (aeltere Buendel ohne `epochMs` nutzen den Server-Wert).
+async function findCurrentAlbumKeyBundle(albumId, keyVersion, time) {
+    const prefix = `${ALBUM_KEY_BUNDLE_PREFIX}${albumId}:${keyVersion}:`;
+    const records = await getAllDatabaseRecords('keys').catch(() => []);
+    return records.find(record => typeof record.id === 'string' && record.id.startsWith(prefix)
+        && record.epochEndsAt > time.now
+        && record.epochEndsAt - (Number.isFinite(record.epochMs) && record.epochMs > 0 ? record.epochMs : time.epochMs) <= time.now) || null;
+}
+
 // Entpackt das Buendel der laufenden Epoche in nicht exportierbare Schluessel (nur im RAM).
 async function loadAlbumKeys(albumId) {
     const album = state.albums[albumId];
     if (!album || album.ownerId === state.myProfile.id) return false;
     const time = await fetchServerTime();
     const keyVersion = album.keyVersion || 1;
-    const record = await databaseRequest('keys', 'readonly', store => store.get(`${ALBUM_KEY_BUNDLE_PREFIX}${albumId}:${keyVersion}:${time.epoch}`)).catch(() => null);
+    const record = await findCurrentAlbumKeyBundle(albumId, keyVersion, time);
     if (!record || record.ownerId !== album.ownerId) return false;
     let keyMap;
     try {

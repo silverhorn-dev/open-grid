@@ -320,6 +320,23 @@
                     <input id="new-album-name" type="text" maxlength="80" placeholder="Neues Album" data-enter="createAlbum" class="flex-1 min-w-0 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-base md:text-sm text-slate-200">
                     <button data-click="createAlbum" class="bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-lg text-xs font-semibold">Anlegen</button>
                 </div>
+                <div class="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                    <span>Standard fuer neue Alben: Schluessel gilt</span>
+                    <select id="album-default-epoch" data-change="updateAlbumDefault" data-args='["epochMinutes", "$number"]' aria-label="Standard-Gueltigkeit der Albumschluessel" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-slate-200">
+                        <option value="0">Server-Standard</option>
+                        <option value="15">15 min</option>
+                        <option value="60">1 h</option>
+                        <option value="180">3 h</option>
+                        <option value="1440">24 h</option>
+                    </select>
+                    <span>vorab</span>
+                    <select id="album-default-ahead" data-change="updateAlbumDefault" data-args='["epochsAhead", "$number"]' aria-label="Standard fuer vorab gelieferte Epochen" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-slate-200">
+                        <option value="1">1 Epoche</option>
+                        <option value="2">2 Epochen</option>
+                        <option value="3">3 Epochen</option>
+                    </select>
+                </div>
+                <p class="text-[11px] text-slate-500">Kurz = entzogener Zugriff endet schneller, Betrachter brauchen aber oefter neue Schluessel von dir. Vorab-Epochen halten Alben lesbar, wenn du offline bist.</p>
                 <div id="album-manager-list" class="space-y-2"></div>
             </div>
         </section>

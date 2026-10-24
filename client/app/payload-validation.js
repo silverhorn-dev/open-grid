@@ -34,7 +34,8 @@ function isValidChatOperation(operation) {
     if (!isOptionalString(operation.actorId, MAX_ID_LENGTH) || !isTimestamp(operation.createdAt)) return false;
     if (operation.type === 'MESSAGE_PUT') return isId(operation.messageId) && isValidMessage(operation.message);
     if (['MESSAGE_DELETE', 'MESSAGE_REACT', 'SNAP_CONSUMED'].includes(operation.type)) return isId(operation.messageId);
-    if (operation.type === 'ALBUM_KEYS') return Array.isArray(operation.bundles) && operation.bundles.length <= 4;
+    if (operation.type === 'ALBUM_KEYS') return Array.isArray(operation.bundles) && operation.bundles.length <= 4
+        && operation.bundles.every(bundle => bundle && (bundle.epochMs === undefined || (Number.isInteger(bundle.epochMs) && bundle.epochMs > 0)));
     return true;
 }
 

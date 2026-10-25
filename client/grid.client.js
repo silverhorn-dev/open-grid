@@ -146,7 +146,8 @@ function renderActivePeerList() {
     renderStatusBar();
     renderChatSwitcher();
     const scopeLabel = document.getElementById('chat-list-scope');
-    if (scopeLabel) scopeLabel.textContent = isSocialMode() ? '· Chat & Freunde' : '· Grid & Event';
+    if (scopeLabel) scopeLabel.textContent = currentChatScope() === 'social' ? '· Chat & Freunde' : '· Grid & Event';
+    renderListSwitch();
     container.innerHTML = '';
     peerIds.forEach(peerId => {
         const peer = getPeerPresentation(peerId);
@@ -174,12 +175,13 @@ function renderActivePeerList() {
         const name = document.createElement('div');
         name.className = 'text-xs font-semibold text-slate-200 truncate';
         name.textContent = peer.name || HIDDEN_PEER_NAME;
-        if (isSocialMode() && (isFriend(peer.id) || hasFriendRequest(peer.id))) {
+        const socialList = currentChatScope() === 'social';
+        if (socialList && (isFriend(peer.id) || hasFriendRequest(peer.id))) {
             const friend = document.createElement('i');
             friend.className = `fa-solid ${isFriend(peer.id) ? 'fa-user-check text-emerald-400' : 'fa-user-plus text-brand-400'} ml-1.5`;
             friend.title = isFriend(peer.id) ? 'Befreundet' : 'Moechte dich adden';
             name.appendChild(friend);
-        } else if (!isSocialMode() && (isMatched(peer.id) || hasReceivedFlame(peer.id))) {
+        } else if (!socialList && (isMatched(peer.id) || hasReceivedFlame(peer.id))) {
             const flame = document.createElement('i');
             flame.className = `fa-solid fa-fire ml-1.5 ${isMatched(peer.id) ? 'text-orange-400' : 'text-orange-300/60'}`;
             flame.title = isMatched(peer.id) ? 'Match' : 'Hat dir eine Flamme geschickt';
@@ -201,7 +203,7 @@ function renderActivePeerList() {
         previewLine.className = 'flex items-center gap-2 text-[11px] text-slate-400';
         const previewText = document.createElement('span');
         previewText.className = 'truncate flex-1';
-        const pendingNote = isSocialMode()
+        const pendingNote = socialList
             ? (hasFriendRequest(peer.id) ? 'Moechte dich adden' : '')
             : (hasReceivedFlame(peer.id) ? 'Hat dir eine Flamme geschickt' : '');
         previewText.textContent = preview ? `${preview.mine ? 'Du: ' : ''}${preview.text}` : pendingNote;

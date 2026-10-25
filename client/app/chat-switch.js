@@ -13,9 +13,10 @@ const CHAT_SWITCH_SWIPE_TRIGGER = 70;
 
 async function loadChatSwitchSettings() {
     const stored = await databaseRequest('keys', 'readonly', store => store.get(CHAT_SWITCH_RECORD_ID)).catch(() => null);
+    const defaultStyle = clientDefault('chatSwitchStyle', 'bar');
     state.chatSwitchSettings = {
-        enabled: stored?.enabled !== false,
-        style: CHAT_SWITCH_STYLES.includes(stored?.style) ? stored.style : 'bar'
+        enabled: stored ? stored.enabled !== false : clientDefault('chatSwitchEnabled', true) !== false,
+        style: CHAT_SWITCH_STYLES.includes(stored?.style) ? stored.style : CHAT_SWITCH_STYLES.includes(defaultStyle) ? defaultStyle : 'bar'
     };
     renderChatSwitchSettings();
     renderChatSwitcher();
@@ -184,5 +185,92 @@ function openChatSwitcherSheet() {
     });
     content.appendChild(list);
     list.querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'nearest' });
+}
+
+// ----- Listen-Wechsel: "Grid & Event" <-> "Chat & Freunde" -----
+// Knopf neben dem Titel der Chatliste (abschaltbar, keys/list-switch-settings):
+//   'mode': wechselt den App-Modus zur passenden Seite (zuletzt genutzter Modus dort)
+//   'view': zeigt nur die andere Liste; daneben "Modus wechseln". Tab-Wechsel und Neu laden fuehren
+//           zur Liste des Modus zurueck.
+const LIST_SWITCH_RECORD_ID = 'list-switch-settings';
+const LIST_SWITCH_BEHAVIORS = ['mode', 'view'];
+const SOCIAL_MODES = ['chat', 'friends'];
+const DISCOVERY_MODES = ['discovery', 'event'];
+
+async function loadListSwitchSettings() {
+    const stored = await databaseRequest('keys', 'readonly', store => store.get(LIST_SWITCH_RECORD_ID)).catch(() => null);
+    state.listSwitchSettings = {
+        enabled: stored ? stored.enabled !== false : clientDefault('listSwitchEnabled', true) !== false,
+        behavior: LIST_SWITCH_BEHAVIORS.includes(stored?.behavior) ? stored.behavior
+            : LIST_SWITCH_BEHAVIORS.includes(clientDefault('listSwitchBehavior')) ? clientDefault('listSwitchBehavior') : 'mode'
+    };
+    renderListSwitchSettings();
+    renderListSwitch();
+}
+
+async function updateListSwitchSetting(key, value) {
+    if (key === 'behavior' && !LIST_SWITCH_BEHAVIORS.includes(value)) return;
+    state.listSwitchSettings = { ...state.listSwitchSettings, [key]: key === 'enabled' ? value === true : value };
+    await putDatabaseRecord('keys', { id: LIST_SWITCH_RECORD_ID, ...state.listSwitchSettings })
+        .catch(error => logDebug(`Could not store list switch settings: ${error.message}`));
+    if (!state.listSwitchSettings.enabled || state.listSwitchSettings.behavior === 'mode') state.chatListScopeOverride = null;
+    renderListSwitchSettings();
+    renderActivePeerList();
+}
+
+function renderListSwitchSettings() {
+    const toggle = document.getElementById('list-switch-toggle');
+    if (toggle) toggle.checked = state.listSwitchSettings.enabled;
+    const behavior = document.getElementById('list-switch-behavior');
+    if (behavior) {
+        behavior.value = state.listSwitchSettings.behavior;
+        behavior.disabled = !state.listSwitchSettings.enabled;
+    }
+}
+
+// App-Modus fuer eine Liste: zuletzt dort genutzt, sonst der erste erlaubte (Event nur, wenn aktiv).
+function modeForChatScope(scope) {
+    const allowed = scope === 'social' ? SOCIAL_MODES : DISCOVERY_MODES;
+    const usable = mode => state.appConfig.modes.includes(mode) && (mode !== 'event' || hasActiveEvent());
+    const last = scope === 'social' ? state.appModeSettings.lastSocialMode : state.appModeSettings.lastDiscoveryMode;
+    if (allowed.includes(last) && usable(last)) return last;
+    return allowed.find(usable) || null;
+}
+
+function otherChatScope() {
+    return currentChatScope() === 'social' ? 'discovery' : 'social';
+}
+
+function renderListSwitch() {
+    const button = document.getElementById('chat-list-switch');
+    const modeButton = document.getElementById('chat-list-mode-btn');
+    if (!button) return;
+    const settings = state.listSwitchSettings;
+    const target = otherChatScope();
+    // Im Modus-Wechsel braucht die andere Seite einen erlaubten Modus.
+    const possible = settings.enabled && (settings.behavior === 'view' || Boolean(modeForChatScope(target)));
+    button.classList.toggle('hidden', !possible);
+    button.title = target === 'social' ? 'Zu "Chat & Freunde"' : 'Zu "Grid & Event"';
+    button.setAttribute('aria-label', button.title);
+    const viewingOther = Boolean(state.chatListScopeOverride) && state.chatListScopeOverride !== modeChatScope();
+    modeButton?.classList.toggle('hidden', !viewingOther || !modeForChatScope(state.chatListScopeOverride));
+}
+
+async function switchChatList() {
+    const target = otherChatScope();
+    hapticTick();
+    if (state.listSwitchSettings.behavior === 'mode') {
+        const mode = modeForChatScope(target);
+        if (mode) await setAppMode(mode);
+        return;
+    }
+    state.chatListScopeOverride = target === modeChatScope() ? null : target;
+    renderActivePeerList();
+}
+
+// "Modus wechseln" neben der nur angesehenen Liste.
+async function switchModeToViewedList() {
+    const mode = modeForChatScope(state.chatListScopeOverride);
+    if (mode) await setAppMode(mode);
 }
 

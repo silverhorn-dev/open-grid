@@ -243,7 +243,8 @@ const PULL_UP_RECORD_ID = 'pullup-settings';
 
 async function loadPullUpSetting() {
     const stored = await databaseRequest('keys', 'readonly', store => store.get(PULL_UP_RECORD_ID)).catch(() => null);
-    state.pullUpAction = PULL_UP_ACTIONS[stored?.action] ? stored.action : 'reload';
+    const fallback = PULL_UP_ACTIONS[clientDefault('pullUpAction')] ? clientDefault('pullUpAction') : 'reload';
+    state.pullUpAction = PULL_UP_ACTIONS[stored?.action] ? stored.action : fallback;
     const select = document.getElementById('pullup-action-select');
     if (select) select.value = state.pullUpAction;
 }

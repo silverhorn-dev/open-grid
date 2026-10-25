@@ -51,6 +51,38 @@ export function parseAppModes(value) {
     return modes.length ? [...new Set(modes)] : [...APP_MODES];
 }
 
+// Standardwerte fuer Client-Einstellungen (CLIENT_DEFAULTS, JSON). Nur bekannte Schluessel mit
+// erlaubten Werten; der Client nimmt sie, solange der Nutzer nichts Eigenes gespeichert hat.
+const CLIENT_DEFAULT_RULES = {
+    chatSwitchEnabled: 'boolean',
+    chatSwitchStyle: ['bar', 'arrows', 'swipe'],
+    pullUpAction: ['reload', 'next', 'switcher', 'snap', 'album'],
+    listSwitchEnabled: 'boolean',
+    listSwitchBehavior: ['mode', 'view'],
+    statusDirectOnly: 'boolean',
+    traceWatermark: 'boolean',
+    secureSnaps: 'boolean',
+    snapNextGesture: ['doubletap', 'swipe', 'swipeup'],
+    albumKeyEpochMinutes: [0, 15, 60, 180, 1440],
+    albumKeyEpochsAhead: [1, 2, 3]
+};
+
+export function parseClientDefaults(value) {
+    if (!value) return {};
+    let parsed;
+    try {
+        parsed = typeof value === 'string' ? JSON.parse(value) : value;
+    } catch {
+        return {};
+    }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    return Object.fromEntries(Object.entries(parsed).filter(([key, entry]) => {
+        const rule = CLIENT_DEFAULT_RULES[key];
+        if (!rule) return false;
+        return rule === 'boolean' ? typeof entry === 'boolean' : rule.includes(entry);
+    }));
+}
+
 function isEventHash(value) {
     return typeof value === 'string' && /^[0-9a-f]{64}$/.test(value);
 }
@@ -286,6 +318,7 @@ export async function buildApp(options = {}) {
     const isLanMode = String(options.lanMode ?? process.env.LAN_MODE ?? '').toLowerCase() === 'true';
     const requestedDefaultMode = options.defaultAppMode ?? process.env.DEFAULT_APP_MODE;
     const defaultAppMode = appModes.includes(requestedDefaultMode) ? requestedDefaultMode : appModes[0];
+    const clientDefaults = parseClientDefaults(options.clientDefaults ?? process.env.CLIENT_DEFAULTS);
     const profileSchemas = options.profileSchemas
         || parseProfileSchemas(process.env.PROFILE_SCHEMAS, profileSchema, appModes);
 
@@ -542,7 +575,7 @@ export async function buildApp(options = {}) {
     app.delete('/api/register', unregister);
     app.post('/api/unregister', unregister);
 
-    app.get('/api/config', async () => ({ modes: appModes, defaultMode: defaultAppMode, profileSchemas, lanMode: isLanMode }));
+    app.get('/api/config', async () => ({ modes: appModes, defaultMode: defaultAppMode, profileSchemas, lanMode: isLanMode, clientDefaults }));
 
     const toGridPeer = (origin) => ({ peer, km }) => ({
         id: peer.peerId,

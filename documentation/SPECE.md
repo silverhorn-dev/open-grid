@@ -89,6 +89,16 @@
   Secure Snap, Bild oder Foto-Status (`sendPickedImages`).
 - `SNAP_SAVED { messageId }` (Chat-Operation, vom Empfaenger eines Einmal-Snaps
   beim Speichern): der Absender markiert `savedByPeer` und zeigt einen Hinweis.
+- Listen-Wechsel (`chat-switch.js`): Knopf neben dem Titel der Chatliste,
+  `keys`/`list-switch-settings` `{ enabled, behavior }`: `mode` wechselt den
+  App-Modus zur anderen Seite (zuletzt genutzter Modus, `appModeSettings.
+  lastSocialMode`/`lastDiscoveryMode`), `view` zeigt nur die andere Liste
+  (`state.chatListScopeOverride`, mit "Modus wechseln"; Tab-Wechsel und Neu
+  laden setzen zurueck). Die Status-Leiste folgt der angezeigten Liste.
+- Standardwerte vom Router: `/api/config` liefert `clientDefaults` (Env
+  `CLIENT_DEFAULTS`, serverseitig gegen erlaubte Schluessel und Werte
+  geprueft). Die Einstellungs-Loader nehmen sie, solange kein eigener
+  Datensatz existiert (`clientDefault(key, fallback)`).
 - Start ueber `/chat/<id>` (Neu laden, Push): `showChatLoadingPlaceholder` zeigt
   sofort das Chat-Layout; der Chat wird direkt nach Datenbank und Chatliste
   geoeffnet (Startschritt "Chat oeffnen"), vor Service Worker, Schluesseln und
@@ -339,6 +349,12 @@ Profils prueft ein verschluesseltes `PRESENCE_PING`/`PRESENCE_PONG` die
 Erreichbarkeit.
 
 ### 4.1 Presence fuer Chat-Partner
+
+Wachhund fuer Verbindungsversuche (`watchConnectionAttempt`): ohne Antwort auf
+das Angebot nach 8 s, mit Antwort aber ohne offenen Kanal nach 20 s wird die
+Verbindung abgebaut und neu angeboten (hoechstens 3 Mal in Folge; zurueckgesetzt,
+sobald ein Kanal offen ist). Vorher blieb ein verlorenes Angebot fuer immer
+"connecting".
 
 Heartbeat (gegen halb offene Verbindungen, z. B. Smartphone im Hintergrund oder
 WLAN-Wechsel):

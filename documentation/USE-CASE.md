@@ -609,6 +609,9 @@ Akzeptanzkriterien:
   Liste des Modus, in dem er begann; befreundete Chats wandern nach
   "Chat & Freunde".
 - Im Freunde-Modus zeigt das Grid nur Freunde.
+- Ein Knopf neben dem Titel der Chatliste wechselt zur anderen Liste;
+  einstellbar, ob dabei der App-Modus wechselt oder nur die Liste angezeigt
+  wird, und abschaltbar.
 - Im Chat- und Freunde-Modus erscheint die Alben-Karte im Profil nur, wenn es
   eigene Alben gibt.
 - In "Chat & Freunde"-Chats fehlt der Album-Knopf neben "Snap"; ein langer

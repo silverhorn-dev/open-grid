@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { generateKeyPairSync, randomBytes, sign } from 'node:crypto';
 import { afterEach, beforeEach, test } from 'node:test';
-import { buildApp, parseAppModes, parseMediaKeyEpochMinutes, parseProfileSchemas, resolveStunServers } from '../server/app.js';
+import { buildApp, parseAppModes, parseClientDefaults, parseMediaKeyEpochMinutes, parseProfileSchemas, resolveStunServers } from '../server/app.js';
 import { createStore } from '../server/database.js';
 import { decodeGeohash, encodeGeohash, geohashNeighbours } from '../server/geohash.js';
 
@@ -966,3 +966,18 @@ test('serves the changelog as markdown', async () => {
     assert.match(response.headers['content-type'], /text\/markdown/);
     assert.match(response.body, /^# Changelog/);
 });
+
+test('client defaults from the operator are validated and delivered with the app config', async () => {
+    assert.deepEqual(parseClientDefaults('{"pullUpAction":"switcher","statusDirectOnly":true,"chatSwitchStyle":"teleport","evil":1,"albumKeyEpochsAhead":9}'),
+        { pullUpAction: 'switcher', statusDirectOnly: true });
+    assert.deepEqual(parseClientDefaults('kaputt'), {});
+    assert.deepEqual(parseClientDefaults('[1,2]'), {});
+    const configured = await buildApp({ databasePath: ':memory:', clientDefaults: '{"listSwitchBehavior":"view","traceWatermark":false}' });
+    try {
+        const response = await configured.inject({ method: 'GET', url: '/api/config' });
+        assert.deepEqual(response.json().clientDefaults, { listSwitchBehavior: 'view', traceWatermark: false });
+    } finally {
+        await configured.close();
+    }
+});
+

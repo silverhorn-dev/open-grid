@@ -27,7 +27,12 @@ async function loadAppMode() {
         config = await databaseRequest('keys', 'readonly', store => store.get(APP_CONFIG_RECORD_ID)).catch(() => null);
     }
     const modes = (config?.modes || []).filter(mode => APP_MODE_INFO[mode]);
-    state.appConfig = { modes: modes.length ? modes : Object.keys(APP_MODE_INFO), defaultMode: config?.defaultMode };
+    state.appConfig = {
+        modes: modes.length ? modes : Object.keys(APP_MODE_INFO),
+        defaultMode: config?.defaultMode,
+        // Standards des Betreibers fuer Client-Einstellungen (gelten, solange nichts Eigenes gespeichert ist).
+        clientDefaults: config?.clientDefaults && typeof config.clientDefaults === 'object' ? config.clientDefaults : {}
+    };
     const stored = await databaseRequest('keys', 'readonly', store => store.get(APP_MODE_RECORD_ID)).catch(() => null);
     state.appModeSettings = stored || {};
     state.appMode = state.appConfig.modes.includes(stored?.mode)
@@ -44,6 +49,11 @@ async function loadAppMode() {
     applyProfileSchemaForMode();
     scheduleEventExpiry();
     applyAppModeUi();
+}
+
+function clientDefault(key, fallback) {
+    const value = state.appConfig.clientDefaults?.[key];
+    return value === undefined ? fallback : value;
 }
 
 // Jeder Modus hat sein eigenes Profil-Schema (z. B. "Nur Chat": Name + Status).
@@ -72,7 +82,9 @@ async function setAppMode(mode) {
         return;
     }
     state.appMode = mode;
-    await saveAppModeSettings({ mode });
+    state.chatListScopeOverride = null;
+    // Zuletzt genutzter Modus pro Liste (fuer den Listen-Wechsel).
+    await saveAppModeSettings({ mode, ...(SOCIAL_MODES.includes(mode) ? { lastSocialMode: mode } : { lastDiscoveryMode: mode }) });
     state.gridRing = 0;
     applyProfileSchemaForMode();
     applyAppModeUi();

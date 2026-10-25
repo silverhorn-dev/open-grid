@@ -89,6 +89,7 @@ window.onload = async () => {
         await runStartupStep('Chat-Wechsel', async () => {
             await loadChatSwitchSettings();
             await loadPullUpSetting();
+            await loadListSwitchSettings();
         });
         // Deep Link (/chat/<id>, auch aus einer Push-Benachrichtigung): so frueh wie moeglich oeffnen.
         // Die P2P-Verbindung folgt nach SOCKET_REGISTERED (retryVisiblePeerConnections).

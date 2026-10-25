@@ -51,3 +51,9 @@ test('viewers draw images into canvases and only chat images can be saved', () =
     const albums = readFileSync(join(root, 'client/app/albums.js'), 'utf8');
     assert.doesNotMatch(albums, /allowSave/);
 });
+
+test('the page is declared German and opts out of browser translation', () => {
+    assert.match(markup, /<html lang="de" translate="no"/);
+    assert.match(markup, /<meta name="google" content="notranslate">/);
+});
+

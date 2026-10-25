@@ -16,7 +16,7 @@ const STATUS_SETTINGS_RECORD_ID = 'status-settings';
 // ----- Einstellungen -----
 async function loadStatusSettings() {
     const stored = await databaseRequest('keys', 'readonly', store => store.get(STATUS_SETTINGS_RECORD_ID)).catch(() => null);
-    state.statusSettings = { directOnly: stored?.directOnly === true };
+    state.statusSettings = { directOnly: stored ? stored.directOnly === true : clientDefault('statusDirectOnly', false) === true };
     const toggle = document.getElementById('status-direct-toggle');
     if (toggle) toggle.checked = state.statusSettings.directOnly;
 }
@@ -239,7 +239,7 @@ function statusAvatar(peerId, { ring, label, onClick }) {
 function renderStatusBar() {
     const bar = document.getElementById('status-bar');
     if (!bar) return;
-    const visible = isSocialMode();
+    const visible = currentChatScope() === 'social';
     bar.classList.toggle('hidden', !visible);
     if (!visible) return;
     const own = activeStatusesOf(state.myProfile.id);

@@ -404,6 +404,8 @@ function setupDataChannel(peerId, channel) {
     state.dataChannels[peerId] = channel;
 
     channel.onopen = () => {
+        clearTimeout(state.connectionWatchdogs[peerId]);
+        delete state.stalledOffers[peerId];
         logDebug(`DataChannel opened with ${peerId}. Starting key handshake.`);
         updateChatConnectionStatus(peerId, 'Securing channel...', 'bg-sky-500/10 text-sky-400 border-sky-500/30');
         renderActivePeerList();
@@ -445,6 +447,35 @@ async function renegotiatePeerConnection(peerId) {
     }
 }
 
+// Wachhund fuer einen Verbindungsversuch: kommt auf das Angebot keine Antwort (verloren, Gegenseite
+// startete gerade) oder oeffnet sich der Kanal trotz Antwort nicht, wird neu angeboten. Sonst bliebe der
+// Kanal fuer immer "connecting" und jeder weitere Versuch wuerde uebersprungen (Nachrichten nur noch
+// ueber Pfad C).
+const OFFER_ANSWER_TIMEOUT_MS = 8000;
+const CHANNEL_OPEN_TIMEOUT_MS = 20000;
+const MAX_STALLED_OFFERS = 3;
+
+function watchConnectionAttempt(peerId, connection) {
+    clearTimeout(state.connectionWatchdogs[peerId]);
+    const check = () => {
+        if (state.webrtcConnections[peerId] !== connection || state.dataChannels[peerId]?.readyState === 'open') return;
+        // Mit Antwort, aber noch ohne Kanal: mehr Zeit (ICE ueber TURN kann dauern).
+        const answered = Boolean(connection.remoteDescription);
+        if (answered && Date.now() - startedAt < CHANNEL_OPEN_TIMEOUT_MS) {
+            state.connectionWatchdogs[peerId] = setTimeout(check, CHANNEL_OPEN_TIMEOUT_MS - (Date.now() - startedAt));
+            return;
+        }
+        const stalled = state.stalledOffers[peerId] || 0;
+        logDebug(`Verbindung zu ${peerId} haengt (${answered ? 'Kanal oeffnet nicht' : 'keine Antwort auf das Angebot'}), Versuch ${stalled + 1}/${MAX_STALLED_OFFERS}.`);
+        cleanupPeerConnection(peerId, connection);
+        if (stalled >= MAX_STALLED_OFFERS || isPeerBlocked(peerId)) return;
+        state.stalledOffers[peerId] = stalled + 1;
+        initiateP2PConnection(peerId).catch(logBackgroundError('watchConnectionAttempt'));
+    };
+    const startedAt = Date.now();
+    state.connectionWatchdogs[peerId] = setTimeout(check, OFFER_ANSWER_TIMEOUT_MS);
+}
+
 async function initiateP2PConnection(peerId) {
     if (isPeerBlocked(peerId)) return;
     if (state.dataChannels[peerId]?.readyState === 'open') return;
@@ -466,6 +497,7 @@ async function initiateP2PConnection(peerId) {
                 sdp: connection.localDescription
             });
             logDebug(`Sent P2P offer to ${peerId}`);
+            watchConnectionAttempt(peerId, connection);
         } finally {
             state.makingOffer[peerId] = false;
         }

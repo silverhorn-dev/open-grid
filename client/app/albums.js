@@ -804,6 +804,13 @@ async function loadAlbumDefaults() {
             epochMinutes: ALBUM_KEY_EPOCH_OPTIONS.includes(stored.epochMinutes) ? stored.epochMinutes : 0,
             epochsAhead: ALBUM_KEY_AHEAD_OPTIONS.includes(stored.epochsAhead) ? stored.epochsAhead : 1
         };
+    } else {
+        const minutes = clientDefault('albumKeyEpochMinutes', 0);
+        const ahead = clientDefault('albumKeyEpochsAhead', 1);
+        state.albumDefaults = {
+            epochMinutes: ALBUM_KEY_EPOCH_OPTIONS.includes(minutes) ? minutes : 0,
+            epochsAhead: ALBUM_KEY_AHEAD_OPTIONS.includes(ahead) ? ahead : 1
+        };
     }
     renderAlbumDefaults();
 }

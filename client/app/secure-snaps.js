@@ -25,6 +25,13 @@ async function loadSnapSettings() {
                 seconds: SECURE_SNAP_SECOND_OPTIONS.includes(stored.seconds) ? stored.seconds : 10,
                 nextGesture: SNAP_NEXT_GESTURES.includes(stored.nextGesture) ? stored.nextGesture : 'doubletap'
             };
+        } else {
+            const gesture = clientDefault('snapNextGesture', 'doubletap');
+            state.snapSettings = {
+                ...state.snapSettings,
+                secureSnaps: clientDefault('secureSnaps', false) === true,
+                nextGesture: SNAP_NEXT_GESTURES.includes(gesture) ? gesture : 'doubletap'
+            };
         }
     } catch (error) {
         logDebug(`Could not load snap settings: ${error.message}`);

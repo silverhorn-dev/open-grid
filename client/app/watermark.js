@@ -15,7 +15,7 @@ function isTraceWatermarkEnabled() {
 
 async function loadTraceWatermarkSetting() {
     const stored = await databaseRequest('keys', 'readonly', store => store.get(PRIVACY_SETTINGS_RECORD_ID)).catch(() => null);
-    state.traceWatermark = stored?.traceWatermark !== false;
+    state.traceWatermark = stored ? stored.traceWatermark !== false : clientDefault('traceWatermark', true) !== false;
     const toggle = document.getElementById('trace-watermark-toggle');
     if (toggle) toggle.checked = state.traceWatermark;
 }

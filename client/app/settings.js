@@ -307,6 +307,11 @@ function switchTab(tabName) {
     syncRoute(tabName);
     syncChatFocus();
     if (tabName === 'chat') fitChatListPanel();
+    // "Nur Liste ansehen" gilt bis zum Verlassen des Chat-Tabs.
+    else if (state.chatListScopeOverride) {
+        state.chatListScopeOverride = null;
+        renderActivePeerList();
+    }
 }
 
 // Smartphone: die Chatliste steht fest zwischen Kopfzeile und unterer Navigation und scrollt in sich

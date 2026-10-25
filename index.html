@@ -1,7 +1,10 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="de" translate="no" class="dark notranslate">
 <head>
     <meta charset="UTF-8">
+    <!-- Die App ist deutsch: kein "Seite uebersetzen" (die Leiste deckte auf Android das Nachrichtenfeld ab,
+         eine Uebersetzung schreibt ausserdem Texte im DOM um, auf die die App achtet). -->
+    <meta name="google" content="notranslate">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>OpenGrid - Decentralized LGBTQ+ Discovery Platform</title>
     <meta name="theme-color" content="#0f172a">
@@ -172,7 +175,13 @@
                 <!-- Kopf der Chatliste: auf dem Smartphone ein zweiter Header (styles.css), die Chats scrollen darunter -->
                 <div id="chat-list-head" class="shrink-0">
                     <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 px-1 flex items-center justify-between">
-                        <span>Chats <span id="chat-list-scope" class="normal-case tracking-normal font-medium text-slate-500"></span></span>
+                        <span class="flex items-center gap-1.5">
+                            Chats <span id="chat-list-scope" class="normal-case tracking-normal font-medium text-slate-500"></span>
+                            <button id="chat-list-switch" data-click="switchChatList" class="hidden w-7 h-7 rounded-lg normal-case tracking-normal text-slate-400 hover:text-brand-400 hover:bg-slate-800 flex items-center justify-center" aria-label="Liste wechseln">
+                                <i class="fa-solid fa-right-left"></i>
+                            </button>
+                            <button id="chat-list-mode-btn" data-click="switchModeToViewedList" class="hidden normal-case tracking-normal text-[11px] font-semibold text-brand-400 hover:text-brand-300">Modus wechseln</button>
+                        </span>
                         <button data-click="openInviteCard" class="ml-auto mr-2 normal-case tracking-normal text-brand-400 hover:text-brand-300 font-semibold" title="Kontakt einladen">
                             <i class="fa-solid fa-user-plus"></i> Einladen
                         </button>
@@ -529,6 +538,16 @@
                             <option value="bar">Leiste mit Avataren</option>
                             <option value="arrows">Pfeile in der Kontaktleiste</option>
                             <option value="swipe">Wischen auf der Kontaktleiste</option>
+                        </select>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2 text-xs text-slate-300">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="list-switch-toggle" checked data-change="updateListSwitchSetting" data-args='["enabled", "$checked"]' class="accent-brand-500">
+                            Knopf zum Wechseln zwischen "Grid &amp; Event" und "Chat &amp; Freunde"
+                        </label>
+                        <select id="list-switch-behavior" data-change="updateListSwitchSetting" data-args='["behavior", "$value"]' aria-label="Art des Listen-Wechsels" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200">
+                            <option value="mode">wechselt den App-Modus</option>
+                            <option value="view">zeigt nur die andere Liste</option>
                         </select>
                     </div>
                     <label class="flex flex-wrap items-center gap-2 text-xs text-slate-300">

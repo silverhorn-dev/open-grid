@@ -137,8 +137,14 @@ async function resetFriendship(peerId) {
 }
 
 // ----- Getrennte Chatlisten -----
-function currentChatScope() {
+// Liste, die gerade angezeigt wird: die des App-Modus, oder die per Listen-Wechsel gewaehlte
+// ("nur Liste ansehen", chat-switch.js).
+function modeChatScope() {
     return isSocialMode() ? 'social' : 'discovery';
+}
+
+function currentChatScope() {
+    return state.chatListScopeOverride || modeChatScope();
 }
 
 async function loadChatScopes() {

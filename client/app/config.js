@@ -76,6 +76,9 @@ const state = {
     ignoreOffer: {},
     disconnectTimers: {},
     connectionRetryCounts: {},
+    // Wachhund fuer haengende Verbindungsversuche (p2p.client.js).
+    connectionWatchdogs: {},
+    stalledOffers: {},
     sessionKeys: {},
     secureMessageQueues: {},
     presenceProbes: {},
@@ -107,6 +110,9 @@ const state = {
     chatPinned: true,
     // Chat-Wechsel im offenen Chat (chat-switch.js).
     chatSwitchSettings: { enabled: true, style: 'bar' },
+    // Listen-Wechsel Grid & Event <-> Chat & Freunde (chat-switch.js); override = nur angesehene Liste.
+    listSwitchSettings: { enabled: true, behavior: 'mode' },
+    chatListScopeOverride: null,
     // Originalbilder im Empfang (originals.js), pro Nachrichten-ID.
     originalTransfers: {},
     // Snap-Kamera: als Einmal-Snap oder als normales Bild senden.

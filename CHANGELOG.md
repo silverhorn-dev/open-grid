@@ -2,7 +2,13 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 101 · 2026-10-25
+## Build 102 · 2026-10-25
+- Knopf neben dem Titel der Chatliste wechselt zwischen "Grid & Event" und "Chat & Freunde" (wechselt den App-Modus oder zeigt nur die andere Liste; abschaltbar)
+- Betreiber koennen Standardwerte fuer Einstellungen vorgeben (`CLIENT_DEFAULTS`)
+- Behoben: geht ein Verbindungsangebot verloren, blieb P2P bis zum Neuladen weg; jetzt wird nach 8 bzw. 20 Sekunden neu angeboten
+- Behoben: Chrome bot "Seite uebersetzen" an (die Leiste verdeckte auf Android das Nachrichtenfeld); die App ist jetzt als deutsch markiert und nicht uebersetzbar
+
+## Build 101 · 2026-10-25 · `442486d`
 - Mehrere Bilder aus der Galerie auf einmal auswaehlen: jedes wird ein eigener Snap, ein Bild oder ein Foto-Status
 - Mehrere ungesehene Snaps hintereinander ansehen: weiter per Doppeltippen, seitlich wischen oder nach oben wischen (einstellbar); unten steht, wie viele noch kommen
 - Behoben: Einmal-Snaps zaehlen die Ansicht jetzt schon beim Oeffnen; Neu laden oder Schliessen der App waehrend des Ansehens gibt keine zusaetzliche Ansicht

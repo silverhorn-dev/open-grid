@@ -5,6 +5,7 @@ Neueste Aenderungen oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 ## 2026-10-24
 
 ### Neu
+- Snap-Kamera: "Als Bild senden" (seitlich wischen oder Knopf am rechten Rand) schickt ein normales, dauerhaftes Bild statt eines Einmal-Snaps
 - In "Chat & Freunde"-Chats kein Album-Knopf mehr; lange auf "Snap" druecken laesst ihn erscheinen
 - Hochziehen im Chat: neue Option "Chat auswaehlen" (Quick-Switcher mit allen Chats der Liste)
 - Changelog im Menue (nur im Debug-Modus)

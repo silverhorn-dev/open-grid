@@ -4,6 +4,8 @@
 function messagePreview(message) {
     if (message.secureSnap) return 'Secure Snap';
     if (message.album) return `Album: ${message.album.name}`;
+    // Ohne snapMode ist es ein normales Bild ("Als Bild senden") oder ein gespeicherter alter Snap.
+    if (message.snapData && !message.snapMode) return message.text ? `Bild: ${message.text}` : 'Bild';
     if (message.snapData || message.snapMode) return message.text ? `Snap: ${message.text}` : 'Snap';
     const text = String(message.text || '');
     return text.length > REPLY_PREVIEW_LENGTH ? `${text.slice(0, REPLY_PREVIEW_LENGTH)}...` : text;

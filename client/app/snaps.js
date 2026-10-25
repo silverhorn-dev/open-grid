@@ -122,6 +122,7 @@ async function openSnapUploadModal() {
 // Ziel: 'chat' (Snap an den aktiven Chat) oder 'status' (Foto-Status fuer Freunde, status.js).
 async function openSnapCamera(target) {
     state.snapTarget = target;
+    setSnapSendMode('snap');
     state.snapFacingMode = state.snapFacingMode || 'user';
     resetSnapPreview();
     document.getElementById('snap-capture-modal').classList.remove('hidden');
@@ -198,6 +199,7 @@ function hideSnapModal() {
 
 function resetSnapPreview() {
     closeSnapEditor();
+    if (document.getElementById('snap-mode-pill')) setSnapSendMode(state.snapSendMode);
     document.getElementById('snap-live-controls')?.classList.remove('hidden');
     document.getElementById('snap-gesture-hint')?.classList.remove('hidden');
     document.getElementById('snap-camera-stage')?.classList.remove('hidden');
@@ -240,13 +242,23 @@ function showSnapReview(base) {
     document.getElementById('snap-live-controls').classList.add('hidden');
     document.getElementById('snap-gesture-hint').classList.add('hidden');
     document.getElementById('snap-review-controls').classList.remove('hidden');
-    // Foto-Status: keine Secure-Snap-Optionen, Knopf "Teilen".
-    const forStatus = state.snapTarget === 'status';
-    if (forStatus) document.getElementById('snap-review-secure-options').classList.add('hidden');
-    document.getElementById('snap-send-btn').innerHTML = forStatus
-        ? 'Als Status teilen <i class="fa-solid fa-circle-plus"></i>'
-        : 'Senden <i class="fa-solid fa-paper-plane"></i>';
     openSnapEditor(base);
+    setSnapSendMode(state.snapSendMode);
+}
+
+// Foto-Status und "Bild" haben keine Secure-Snap-Optionen; der Senden-Knopf sagt, was passiert.
+function updateSnapReviewOptions() {
+    const forStatus = state.snapTarget === 'status';
+    const asImage = !forStatus && state.snapSendMode === 'image';
+    const secureOptions = document.getElementById('snap-review-secure-options');
+    if (forStatus || asImage) secureOptions?.classList.add('hidden');
+    else secureOptions?.classList.toggle('hidden', !state.snapSettings.secureSnaps);
+    const send = document.getElementById('snap-send-btn');
+    if (send) {
+        send.innerHTML = forStatus
+            ? 'Als Status teilen <i class="fa-solid fa-circle-plus"></i>'
+            : asImage ? 'Bild senden <i class="fa-solid fa-paper-plane"></i>' : 'Senden <i class="fa-solid fa-paper-plane"></i>';
+    }
 }
 
 function captureSnap() {
@@ -301,6 +313,11 @@ async function sendSnapDraft() {
         return;
     }
     const caption = document.getElementById('snap-caption-input').value;
+    if (state.snapSendMode === 'image') {
+        closeSnapModal();
+        await sendChatMessage(snapData, caption, null, null, { asImage: true });
+        return;
+    }
     const secure = state.snapSettings.secureSnaps;
     const views = Number(document.getElementById('snap-review-views')?.value) || state.snapSettings.views;
     const seconds = Number(document.getElementById('snap-review-seconds')?.value ?? state.snapSettings.seconds);

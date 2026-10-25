@@ -411,7 +411,8 @@ function isCoarsePointer() {
 }
 
 // Ohne Anhang kommt der Text aus dem Eingabefeld; Snaps und Alben bringen eine eigene Bildunterschrift mit.
-async function sendChatMessage(snapData = null, caption = '', album = null, secureSnap = null) {
+// options.asImage: Bild statt Einmal-Snap (dauerhaft im Chat).
+async function sendChatMessage(snapData = null, caption = '', album = null, secureSnap = null, options = {}) {
     const input = document.getElementById('chat-input');
     const hasAttachment = Boolean(snapData || album || secureSnap);
     // Chat-Berechtigungen des anderen (nur Anzeige; der Empfaenger setzt sie selbst durch).
@@ -433,7 +434,7 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
         text,
         snapData,
         // Neue normale Snaps: einmal ansehen, einmal wiederholen, nur gespeichert bleibt er.
-        snapMode: snapData ? 'replay' : undefined,
+        snapMode: snapData && !options.asImage ? 'replay' : undefined,
         album: album || undefined,
         secureSnap: secureSnap || undefined,
         replyTo: buildReplyReference(peerId, state.replyToMessageId),

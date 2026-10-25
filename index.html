@@ -857,6 +857,11 @@
             </div>
         </div>
         <div id="snap-camera-status" class="hidden absolute inset-x-6 top-1/2 -translate-y-1/2 text-center text-sm text-slate-200 bg-black/60 rounded-xl p-4"></div>
+        <!-- Snap oder Bild (snap-camera.js): seitlich wischen oder diesen Knopf antippen -->
+        <div id="snap-mode-pill" class="pointer-events-none absolute top-4 left-1/2 -translate-x-1/2 z-10 px-3 py-1 rounded-full bg-black/50 text-white text-xs font-semibold" style="top: max(1.25rem, calc(env(safe-area-inset-top) + 0.5rem));">Snap</div>
+        <button id="snap-mode-switch" data-click="toggleSnapSendMode" class="absolute right-0 top-1/2 -translate-y-1/2 z-10 flex items-center gap-1 pl-3 pr-2 py-2 rounded-l-full bg-black/50 text-white text-xs font-semibold" aria-label="Zwischen Snap und Bild wechseln">
+            <span id="snap-mode-switch-label">Als Bild senden</span><i class="fa-solid fa-chevron-right"></i>
+        </button>
 
         <div class="absolute top-0 inset-x-0 p-4 flex items-start justify-between bg-gradient-to-b from-black/60 to-transparent" style="padding-top: max(1rem, env(safe-area-inset-top));">
             <button data-click="closeSnapModal" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Schliessen">

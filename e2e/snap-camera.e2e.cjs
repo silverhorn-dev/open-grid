@@ -95,6 +95,27 @@ async function main() {
         assert.ok(snap.length <= 70000, `snap size ${snap.length}`);
         assert.equal(await alice.evaluate(() => hasSnapDraft()), false, 'editor cleared after sending');
 
+        // "Als Bild senden": seitlich wischen schaltet um, das Bild bleibt dauerhaft im Chat.
+        await openCamera();
+        const stage = await stageBox();
+        await alice.mouse.move(stage.x + stage.width * 0.65, stage.y + stage.height * 0.35);
+        await alice.mouse.down();
+        await alice.mouse.move(stage.x + 30, stage.y + stage.height * 0.35 + 10, { steps: 8 });
+        await alice.mouse.up();
+        await waitFor(alice, () => state.snapSendMode === 'image', null, 5000);
+        assert.equal(await alice.textContent('#snap-mode-pill'), 'Bild');
+        await alice.click('#snap-mode-switch');
+        assert.equal(await alice.evaluate(() => state.snapSendMode), 'snap', 'label button switches back');
+        await alice.click('#snap-mode-switch');
+        await alice.click('[aria-label="Ausloesen"]');
+        await waitFor(alice, () => hasSnapDraft());
+        assert.match(await alice.textContent('#snap-send-btn'), /Bild senden/);
+        await alice.click('#snap-send-btn');
+        await waitFor(bob, () => Object.values(state.chats).flat().filter(message => typeof message.snapData === 'string').length >= 2, null, 30000);
+        const image = await bob.evaluate(() => Object.values(state.chats).flat().filter(message => message.snapData).at(-1));
+        assert.equal(image.snapMode, undefined, 'sent as a normal image, not a one-time snap');
+        assert.equal(await bob.evaluate(message => messagePreview(message), image), 'Bild');
+
         assert.deepEqual(pageErrors, [], 'no uncaught page errors');
         console.log('E2E OK (snap camera)');
     } finally {

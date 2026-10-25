@@ -337,6 +337,8 @@ Akzeptanzkriterien:
   Text und Emojis auf das Bild legen und verschieben, doppelt tippen entfernt
   eine Ebene, "Rueckgaengig". Dazu optionale Bildunterschrift, "Nochmal" und
   "Senden". Verschickt wird ein einziges JPEG.
+- Seitlich wischen (oder der Knopf "Als Bild senden" am rechten Rand) schaltet
+  zwischen Snap und Bild um; ein Bild bleibt dauerhaft im Chat.
 - Gesten in der Kamera: nach unten wischen schliesst, am Ausloeser nach oben
   wischen oeffnet die Galerie, doppelt tippen wechselt die Kamera, zwei Finger
   zoomen (wenn die Kamera Zoom kann). Hat die Kamera eine Lampe, gibt es einen

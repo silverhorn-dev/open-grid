@@ -82,7 +82,9 @@
   Bedienelemente liegen ueber dem Bild. Licht per
   `applyConstraints({ advanced: [{ torch }] })` und Zoom per `zoom`, nur wenn
   `getCapabilities()` sie meldet. Gesten per Pointer Events auf der Vorschau:
-  runter > 110 px = schliessen, doppelt tippen (< 300 ms) = Kamera wechseln,
+  runter > 110 px = schliessen, seitlich > 80 px = Snap/Bild umschalten
+  (`state.snapSendMode`; "Bild" = `MESSAGE_PUT` mit `snapData` ohne
+  `snapMode`, dauerhaft, keine Secure-Snap-Regeln), doppelt tippen (< 300 ms) = Kamera wechseln,
   zwei Finger = Zoom; am Ausloeser hoch > 60 px = Galerie. Aufnahme =
   Rohbild ohne Wasserzeichen (max. 1080 px). Der Editor haelt Striche
   (Canvas-Koordinaten) und Text/Emoji-Ebenen (Position 0..1, Groesse relativ

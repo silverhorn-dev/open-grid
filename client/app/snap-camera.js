@@ -1,4 +1,28 @@
 // ================= SNAP-KAMERA: LICHT, ZOOM, GESTEN =================
+// Snap oder Bild: seitlich wischen oder der Knopf am rechten Rand schaltet um. "Bild" wird als normales,
+// dauerhaftes Bild im Chat gesendet (kein Einmal-Snap, keine Secure-Snap-Regeln).
+const SNAP_SWIPE_MODE = 80;
+
+function setSnapSendMode(mode) {
+    state.snapSendMode = mode === 'image' ? 'image' : 'snap';
+    const image = state.snapSendMode === 'image';
+    document.getElementById('snap-mode-pill').textContent = image ? 'Bild' : 'Snap';
+    document.getElementById('snap-mode-switch-label').textContent = image ? 'Als Snap senden' : 'Als Bild senden';
+    const switchButton = document.getElementById('snap-mode-switch');
+    switchButton.querySelector('i').className = `fa-solid ${image ? 'fa-chevron-left' : 'fa-chevron-right'}`;
+    // Status-Fotos kennen den Unterschied nicht.
+    const forStatus = state.snapTarget === 'status';
+    switchButton.classList.toggle('hidden', forStatus);
+    // Im Editor zeigt der Senden-Knopf den Modus; die Anzeige oben wuerde die Werkzeuge verdecken.
+    document.getElementById('snap-mode-pill').classList.toggle('hidden', forStatus || hasSnapDraft());
+    if (typeof updateSnapReviewOptions === 'function') updateSnapReviewOptions();
+}
+
+function toggleSnapSendMode() {
+    hapticTick();
+    setSnapSendMode(state.snapSendMode === 'image' ? 'snap' : 'image');
+}
+
 // Gesten (feature-request-gestures.md G10/G11), jeweils mit Knopf als Alternative:
 //   - nach unten wischen = Kamera schliessen
 //   - am Ausloeser nach oben wischen = Bild aus der Galerie waehlen
@@ -112,6 +136,11 @@ function handleSnapStageUp(event) {
     if (wasPinch || !swipe) return;
     if (swipe.deltaY > SNAP_SWIPE_CLOSE && Math.abs(swipe.deltaY) > Math.abs(swipe.deltaX || 0)) {
         closeSnapModal();
+        return;
+    }
+    // Seitlich wischen: Snap <-> Bild.
+    if (Math.abs(swipe.deltaX || 0) > SNAP_SWIPE_MODE && Math.abs(swipe.deltaX) > Math.abs(swipe.deltaY) * 1.5) {
+        if (state.snapTarget !== 'status') toggleSnapSendMode();
         return;
     }
     // Kurzer Tipp ohne Bewegung: zweimal kurz hintereinander = Kamera wechseln.

@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 96 · 2026-10-25
+## Build 97 · 2026-10-25
+- Behoben: Bildbetrachter flackerte beim seitlichen Wischen und zeigte kurz das vorige Bild
+
+## Build 96 · 2026-10-25 · `dac6314`
 - Behoben: nach dem Senden war das Nachrichtenfeld nicht mehr ausgewaehlt (auf dem Smartphone ging die Tastatur zu)
 
 ## Build 95 · 2026-10-25 · `50b826c`

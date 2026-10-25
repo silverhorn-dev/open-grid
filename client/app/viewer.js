@@ -72,15 +72,54 @@ function saveViewerImage() {
     downloadCanvasImage(viewerElement('image-viewer-image'), `opengrid-${Date.now()}.jpg`);
 }
 
-function showViewerImage() {
+function resetViewerPosition() {
     viewer.scale = 1;
     viewer.x = 0;
     viewer.y = 0;
     viewer.trackOffset = 0;
     viewer.closeOffset = 0;
+}
+
+function showViewerImage() {
+    resetViewerPosition();
     setSlideImage('image-viewer-prev-image', viewer.images[viewer.index - 1]);
     setSlideImage('image-viewer-image', viewer.images[viewer.index]);
     setSlideImage('image-viewer-next-image', viewer.images[viewer.index + 1]);
+    updateViewerChrome();
+}
+
+// Nach dem Wischen: die Slides rotieren, statt alle neu zu zeichnen. Das Nachbarbild ist schon
+// gezeichnet und wird zur Mitte; nur die neue Randposition wird (asynchron) gezeichnet. Vorher
+// zeigte die Mitte kurz das alte Bild, bis das neue fertig war (Flackern/Springen).
+function rotateViewerSlides(direction) {
+    const track = viewerElement('image-viewer-track');
+    const prev = viewerElement('image-viewer-prev-image');
+    const current = viewerElement('image-viewer-image');
+    const next = viewerElement('image-viewer-next-image');
+    let entering;
+    if (direction > 0) {
+        track.appendChild(track.firstElementChild);
+        prev.id = 'image-viewer-next-image';
+        current.id = 'image-viewer-prev-image';
+        next.id = 'image-viewer-image';
+        entering = prev;
+    } else {
+        track.insertBefore(track.lastElementChild, track.firstElementChild);
+        next.id = 'image-viewer-prev-image';
+        current.id = 'image-viewer-next-image';
+        prev.id = 'image-viewer-image';
+        entering = next;
+    }
+    [prev, current, next].forEach(canvas => {
+        canvas.style.transition = 'none';
+        canvas.style.transform = '';
+        canvas.classList.toggle('will-change-transform', canvas.id === 'image-viewer-image');
+    });
+    clearSecureCanvas(entering);
+    setSlideImage(entering.id, viewer.images[viewer.index + direction]);
+}
+
+function updateViewerChrome() {
     const multiple = viewer.images.length > 1;
     viewerElement('image-viewer-counter').textContent = multiple ? `${viewer.index + 1} / ${viewer.images.length}` : '';
     viewerElement('image-viewer-prev').classList.toggle('invisible', !multiple || viewer.index === 0);
@@ -127,8 +166,10 @@ function stepImageViewer(direction) {
     renderViewer(true);
     setTimeout(() => {
         viewer.index = next;
+        rotateViewerSlides(direction);
+        resetViewerPosition();
+        updateViewerChrome();
         viewer.animating = false;
-        showViewerImage();
     }, VIEWER_SLIDE_MS);
 }
 

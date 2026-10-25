@@ -344,6 +344,8 @@ Akzeptanzkriterien:
   zoomen (wenn die Kamera Zoom kann). Hat die Kamera eine Lampe, gibt es einen
   Licht-Knopf.
 - Die Kamera wird beim Schliessen immer freigegeben.
+- Im geoeffneten Snap schliesst nach unten wischen den Snap (die Seite laedt
+  dabei nicht neu).
 - Ein normaler Snap laesst sich einmal ansehen und einmal wiederholen; danach
   ist er weg, auch beim Sender. Mit "Speichern" bleibt er dauerhaft im Chat;
   das koennen Empfaenger und Sender jeweils fuer sich. Secure Snaps

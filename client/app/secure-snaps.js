@@ -456,10 +456,40 @@ function hideSecureSnapViewer() {
 }
 
 // Verlaesst man die App (z. B. App-Wechsler), wird der Snap sofort geschlossen.
+// Nach unten wischen schliesst den Snap. touch-action: none am Viewer verhindert, dass der Browser
+// die Geste als "Seite neu laden" (Pull-to-Refresh) nimmt.
+const SNAP_VIEWER_CLOSE_SWIPE = 110;
+
 function initSecureSnaps() {
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'hidden' && state.secureSnapViewing) closeSecureSnapViewer();
     });
+    const viewer = document.getElementById('secure-snap-viewer');
+    if (!viewer) return;
+    let swipe = null;
+    const content = () => [document.getElementById('secure-snap-image'), document.getElementById('secure-snap-video')];
+    viewer.addEventListener('pointerdown', event => {
+        if (event.target.closest('button')) return;
+        swipe = { pointerId: event.pointerId, startY: event.clientY, startX: event.clientX, deltaY: 0 };
+    });
+    viewer.addEventListener('pointermove', event => {
+        if (!swipe || swipe.pointerId !== event.pointerId) return;
+        swipe.deltaY = Math.max(0, event.clientY - swipe.startY);
+        content().forEach(element => {
+            if (element) element.style.transform = `translate3d(0, ${swipe.deltaY}px, 0)`;
+        });
+    });
+    const finish = event => {
+        if (!swipe || swipe.pointerId !== event.pointerId) return;
+        const { deltaY, startX } = swipe;
+        swipe = null;
+        content().forEach(element => {
+            if (element) element.style.transform = '';
+        });
+        if (deltaY > SNAP_VIEWER_CLOSE_SWIPE && Math.abs(event.clientX - startX) < deltaY) closeSecureSnapViewer();
+    };
+    viewer.addEventListener('pointerup', finish);
+    viewer.addEventListener('pointercancel', finish);
 }
 
 // ----- Chat-Darstellung -----

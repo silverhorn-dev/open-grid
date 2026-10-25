@@ -909,6 +909,10 @@
             <p id="snap-gesture-hint" class="text-center text-[11px] text-white/60">Hochwischen: Galerie · Doppelt tippen: Kamera wechseln</p>
             <div id="snap-review-controls" class="hidden flex flex-col gap-3">
                 <input id="snap-caption-input" type="text" maxlength="200" placeholder="Bildunterschrift (optional)" class="w-full bg-white/10 border border-white/20 rounded-full px-4 py-2.5 text-base text-white placeholder:text-slate-400 focus:outline-none">
+                <label id="snap-original-option" class="hidden flex items-center justify-center gap-2 text-xs text-white cursor-pointer">
+                    <input type="checkbox" id="snap-original-toggle" class="accent-brand-500">
+                    <span>Original senden (volle Qualitaet, nur direkt per P2P, nie ueber den Server)</span>
+                </label>
                 <div id="snap-review-secure-options" class="hidden flex items-center justify-center gap-3 text-xs text-white">
                     <i class="fa-solid fa-lock text-amber-300"></i>
                     <select id="snap-review-views" class="bg-white/10 border border-white/20 rounded-full px-3 py-1.5 text-white" aria-label="Ansichten">
@@ -950,6 +954,7 @@
     <script src="/client/app/chat-tools.js?v={{assetVersion}}"></script>
     <script src="/client/app/chat-switch.js?v={{assetVersion}}"></script>
     <script src="/client/app/snaps.js?v={{assetVersion}}"></script>
+    <script src="/client/app/originals.js?v={{assetVersion}}"></script>
     <script src="/client/app/snap-editor.js?v={{assetVersion}}"></script>
     <script src="/client/app/snap-camera.js?v={{assetVersion}}"></script>
     <script src="/client/app/secure-canvas.js?v={{assetVersion}}"></script>

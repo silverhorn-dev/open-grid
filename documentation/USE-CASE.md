@@ -339,6 +339,10 @@ Akzeptanzkriterien:
   "Senden". Verschickt wird ein einziges JPEG.
 - Seitlich wischen (oder der Knopf "Als Bild senden" am rechten Rand) schaltet
   zwischen Snap und Bild um; ein Bild bleibt dauerhaft im Chat.
+- Beim Bild laesst sich "Original" einschalten: der Empfaenger bekommt sofort
+  eine Vorschau und das Original in voller Qualitaet, sobald eine direkte
+  Verbindung besteht. Originale gehen nie ueber den Server.
+- Speichert der Empfaenger einen Einmal-Snap, sieht der Absender das.
 - Gesten in der Kamera: nach unten wischen schliesst, am Ausloeser nach oben
   wischen oeffnet die Galerie, doppelt tippen wechselt die Kamera, zwei Finger
   zoomen (wenn die Kamera Zoom kann). Hat die Kamera eine Lampe, gibt es einen

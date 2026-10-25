@@ -520,6 +520,7 @@ async function deriveSessionKey(peerId, publicJwk, profileSigningKey) {
     // Alben v2: Betrachter bekommen beim Verbinden die aktuellen Schluessel-Buendel.
     pushAlbumKeysToPeer(peerId).catch(logBackgroundError('deriveSessionKey'));
     pushStatusesToPeer(peerId).catch(logBackgroundError('deriveSessionKey'));
+    requestMissingOriginals(peerId).catch(logBackgroundError('deriveSessionKey'));
     await beginChatSync(peerId);
     await flushSecureMessageQueue(peerId);
 }
@@ -751,6 +752,10 @@ async function handleSecurePayload(peerId, payload, deliveredVia = 'E2EE P2P') {
         await forgetReceivedAlbum(peerId, payload.albumId);
     } else if (payload.type === 'IMAGE_REQUEST') {
         await handleIncomingImageRequest(peerId, payload.imageId);
+    } else if (payload.type === 'ORIGINAL_REQUEST') {
+        await handleOriginalRequest(peerId, payload);
+    } else if (payload.type === 'ORIGINAL_CHUNK') {
+        await handleOriginalChunk(peerId, payload);
     } else if (payload.type === 'SWARM_IMAGE_REQUEST') {
         await handleSwarmImageRequest(peerId, payload);
     } else if (payload.type === 'SWARM_IMAGE_RESPONSE') {

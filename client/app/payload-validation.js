@@ -10,7 +10,7 @@ const MAX_PROFILE_VALUE_LENGTH = 5000;
 const MAX_SYNC_IDS = 50;
 const CHAT_OPERATION_TYPES = [
     'MESSAGE_PUT', 'MESSAGE_DELETE', 'MESSAGE_REACT', 'CHAT_WIPE', 'PEER_UNHIDE',
-    'MATCH_PING', 'MATCH_RESET', 'FRIEND_PING', 'FRIEND_RESET', 'SNAP_CONSUMED', 'ALBUM_KEYS',
+    'MATCH_PING', 'MATCH_RESET', 'FRIEND_PING', 'FRIEND_RESET', 'SNAP_CONSUMED', 'SNAP_SAVED', 'ALBUM_KEYS',
     'STATUS_POST', 'STATUS_DELETE'
 ];
 
@@ -27,7 +27,13 @@ function isValidMessage(message) {
         && isOptionalString(message.snapData, MAX_INLINE_IMAGE_LENGTH)
         && isOptionalString(message.timestamp, 40)
         && (message.scope === undefined || ['discovery', 'social'].includes(message.scope))
+        && (message.original === undefined || isValidOriginalMeta(message.original))
         && isTimestamp(message.createdAt);
+}
+
+function isValidOriginalMeta(original) {
+    return Boolean(original) && Number.isInteger(original.size) && original.size > 0 && original.size <= 15 * 1024 * 1024
+        && typeof original.sha256 === 'string' && original.sha256.length <= 64 && isOptionalString(original.mime, 40);
 }
 
 function isValidChatOperation(operation) {
@@ -35,7 +41,7 @@ function isValidChatOperation(operation) {
     if (!isId(operation.operationId) || !CHAT_OPERATION_TYPES.includes(operation.type)) return false;
     if (!isOptionalString(operation.actorId, MAX_ID_LENGTH) || !isTimestamp(operation.createdAt)) return false;
     if (operation.type === 'MESSAGE_PUT') return isId(operation.messageId) && isValidMessage(operation.message);
-    if (['MESSAGE_DELETE', 'MESSAGE_REACT', 'SNAP_CONSUMED'].includes(operation.type)) return isId(operation.messageId);
+    if (['MESSAGE_DELETE', 'MESSAGE_REACT', 'SNAP_CONSUMED', 'SNAP_SAVED'].includes(operation.type)) return isId(operation.messageId);
     if (operation.type === 'STATUS_DELETE') return isId(operation.statusId);
     if (operation.type === 'STATUS_POST') return isId(operation.statusId) && ['text', 'photo'].includes(operation.kind)
         && isOptionalString(operation.text, 280) && isOptionalString(operation.color, 20)
@@ -124,6 +130,9 @@ const PAYLOAD_VALIDATORS = {
     SNAP_STREAM_PLAYING: payload => isId(payload.snapId),
     SNAP_STREAM_END: payload => isId(payload.snapId),
     SNAP_VIEW_CLOSED: payload => isId(payload.snapId),
+    ORIGINAL_REQUEST: payload => isId(payload.messageId),
+    ORIGINAL_CHUNK: payload => isId(payload.messageId) && isSmallInt(payload.index) && isSmallInt(payload.total)
+        && payload.total <= 400 && typeof payload.data === 'string' && payload.data.length <= 64 * 1024,
     IMAGE_REQUEST: payload => isId(payload.imageId) && (payload.version === undefined || isSmallInt(payload.version)),
     IMAGE_RESPONSE: payload => isId(payload.imageId) && isSmallInt(payload.version)
         && (payload.encrypted ? isEncryptedImage(payload.encrypted) : isOptionalString(payload.data, MAX_INLINE_IMAGE_LENGTH))

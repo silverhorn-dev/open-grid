@@ -116,6 +116,44 @@ async function main() {
         assert.equal(image.snapMode, undefined, 'sent as a normal image, not a one-time snap');
         assert.equal(await bob.evaluate(message => messagePreview(message), image), 'Bild');
 
+        // "Original": volle Qualitaet nur ueber P2P, Bob bekommt erst die Vorschau, dann das Original.
+        await openCamera();
+        await alice.click('#snap-mode-switch');
+        await alice.click('[aria-label="Ausloesen"]');
+        await waitFor(alice, () => hasSnapDraft());
+        assert.equal(await alice.isVisible('#snap-original-option'), true, 'original toggle in image mode');
+        await alice.check('#snap-original-toggle');
+        await alice.click('#snap-send-btn');
+        const originalId = await alice.evaluate(async () => {
+            await new Promise(resolve => setTimeout(resolve, 500));
+            return state.chats[state.activeChatPeerId].at(-1).id;
+        });
+        const sentOriginal = await alice.evaluate(id => state.chats[state.activeChatPeerId].find(message => message.id === id).original, originalId);
+        assert.ok(sentOriginal && sentOriginal.size > 0, 'message carries the original meta');
+        await waitFor(bob, id => Object.values(state.chats).flat().find(message => message.id === id)?.originalReady === true, originalId, 30000);
+        const received = await bob.evaluate(async id => (await loadMedia(`orig_${id}`)).data.length, originalId);
+        assert.equal(received, sentOriginal.size, 'original arrived completely');
+        const preview = await bob.evaluate(id => Object.values(state.chats).flat().find(message => message.id === id).snapData.length, originalId);
+        assert.ok(preview <= 70000, 'preview stays small');
+
+        // Bob speichert einen Einmal-Snap: Alice erfaehrt es.
+        const snapId = await alice.evaluate(async () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 200;
+            canvas.height = 200;
+            canvas.getContext('2d').fillRect(0, 0, 200, 200);
+            await sendChatMessage(canvas.toDataURL('image/jpeg'), 'zum speichern');
+            return state.chats[state.activeChatPeerId].at(-1).id;
+        });
+        const aliceId = await alice.evaluate(() => state.myProfile.id);
+        await waitFor(bob, id => Object.values(state.chats).flat().some(message => message.id === id), snapId, 30000);
+        await bob.evaluate(id => openChatWithPeer(id), aliceId);
+        await bob.evaluate(id => openReplaySnap(id), snapId);
+        await bob.click('#secure-snap-save');
+        await waitFor(alice, id => state.chats[state.activeChatPeerId].find(message => message.id === id)?.savedByPeer === true, snapId, 30000);
+        await alice.evaluate(() => renderChatHistory());
+        assert.match(await alice.textContent('#chat-messages'), /vom Empfaenger gespeichert/);
+
         assert.deepEqual(pageErrors, [], 'no uncaught page errors');
         console.log('E2E OK (snap camera)');
     } finally {

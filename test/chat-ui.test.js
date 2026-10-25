@@ -77,6 +77,22 @@ test('SNAP_CONSUMED from the receiver deletes the sender copy unless it was save
     assert.ok(stores.messages.get('s2').snapData, 'saved snaps stay');
 });
 
+test('SNAP_SAVED from the receiver marks the sender copy as saved', async () => {
+    const { context, stores } = loadStorage();
+    const toasts = [];
+    context.showToast = message => toasts.push(message);
+    context.getPeerPresentation = () => ({ name: 'Bob' });
+    stores.messages.set('s1', { id: 's1', peerId: 'peer', senderId: 'me', snapMode: 'replay', snapData: 'data:image/jpeg;base64,AA', createdAt: 1 });
+    stores.messages.set('t1', { id: 't1', peerId: 'peer', senderId: 'me', text: 'kein snap', createdAt: 1 });
+    const saved = (messageId, actorId = 'peer') => ({ operationId: `saved:${messageId}`, type: 'SNAP_SAVED', messageId, actorId, createdAt: 2 });
+
+    assert.equal(await context.applyChatOperation('peer', saved('s1', 'me')), false, 'only the receiver may report');
+    assert.equal(await context.applyChatOperation('peer', saved('t1')), false, 'only for snaps');
+    assert.equal(await context.applyChatOperation('peer', saved('s1')), true);
+    assert.equal(stores.messages.get('s1').savedByPeer, true);
+    assert.deepEqual(toasts, ['Bob hat deinen Snap gespeichert.']);
+});
+
 test('grid auto-expand stops at ring 3 and when nobody else is around', () => {
     const context = { state: {} };
     vm.runInNewContext(read('client/grid.client.js'), context);

@@ -20,9 +20,10 @@ const snapEditor = {
     lastItemTap: null
 };
 
-// Rohbild ohne Wasserzeichen (max. SNAP_MAX_EDGE); das Wasserzeichen kommt erst beim Senden.
+// Rohbild ohne Wasserzeichen in voller Aufloesung (max. ORIGINAL_MAX_EDGE, fuer "Original");
+// Snaps und Vorschauen verkleinert encodeSnap beim Senden.
 function captureSnapBase(source, width, height, mirror = false) {
-    const scale = Math.min(1, SNAP_MAX_EDGE / Math.max(width, height));
+    const scale = Math.min(1, ORIGINAL_MAX_EDGE / Math.max(width, height));
     const canvas = document.createElement('canvas');
     canvas.width = Math.max(1, Math.round(width * scale));
     canvas.height = Math.max(1, Math.round(height * scale));

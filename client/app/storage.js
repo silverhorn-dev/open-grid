@@ -496,6 +496,11 @@ function sanitizeSecureSnap(snap) {
     };
 }
 
+function sanitizeOriginalMeta(original) {
+    if (!original || !Number.isInteger(original.size) || typeof original.sha256 !== 'string') return undefined;
+    return { size: original.size, sha256: original.sha256.substring(0, 64), mime: 'image/jpeg' };
+}
+
 function createPutOperation(peerId, message) {
     return {
         operationId: `put:${message.id}`,
@@ -518,6 +523,7 @@ function createPutOperation(peerId, message) {
                 encrypted: message.secureSnap.encrypted
             } : undefined,
             replyTo: message.replyTo,
+            original: message.original,
             scope: message.scope,
             timestamp: message.timestamp,
             createdAt: message.createdAt
@@ -552,6 +558,7 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
                 replyTo: sanitizeReplyReference(localOperation.message.replyTo),
                 album: sanitizeAlbumReference(localOperation.message.album, localOperation.actorId),
                 secureSnap: sanitizeSecureSnap(localOperation.message.secureSnap),
+                original: sanitizeOriginalMeta(localOperation.message.original),
                 // Ein Secure Snap darf nie zusaetzlich als Klartext-Snap ankommen.
                 snapData: localOperation.message.secureSnap ? undefined : localOperation.message.snapData,
                 snapMode: localOperation.message.snapMode === 'replay' ? 'replay' : undefined,
@@ -560,6 +567,10 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
             };
             // Chat-Berechtigungen: ohne Match ggf. zurueckhalten (wird beim Match freigegeben).
             if (await shouldHoldIncomingMessage(peerId, message)) message.held = true;
+            // Original folgt nur ueber P2P: anfragen, sobald ein Kanal offen ist.
+            if (message.original && message.senderId === peerId && typeof requestMissingOriginals === 'function') {
+                setTimeout(() => requestMissingOriginals(peerId).catch(logBackgroundError('applyChatOperation')), 0);
+            }
             // Liste des Absenders (Grid & Event oder Chat & Freunde), wenn der Chat noch keine hat.
             if (message.senderId === peerId && CHAT_SCOPES.includes(message.scope)) await ensureChatScope(peerId, message.scope);
             else if (message.senderId !== peerId) await ensureChatScope(peerId, currentChatScope());
@@ -614,6 +625,15 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
             await removeSnapFromOperation(target.id);
         }
         await persistChatMessage(peerId, target);
+    } else if (localOperation.type === 'SNAP_SAVED') {
+        // Der Empfaenger meldet: er hat meinen Snap gespeichert.
+        if (localOperation.actorId !== peerId) return false;
+        const ownMessage = await databaseRequest('messages', 'readonly', store => store.get(localOperation.messageId));
+        if (!ownMessage || ownMessage.peerId !== peerId || ownMessage.senderId !== state.myProfile.id || !ownMessage.snapMode) return false;
+        const target = state.chats[peerId]?.find(item => item.id === ownMessage.id) || ownMessage;
+        target.savedByPeer = true;
+        await persistChatMessage(peerId, target);
+        showToast(`${getPeerPresentation(peerId).name || 'Jemand'} hat deinen Snap gespeichert.`, 'info');
     } else if (localOperation.type === 'MATCH_PING' || localOperation.type === 'MATCH_RESET') {
         if (!await applyMatchOperation(peerId, localOperation)) return false;
     } else if (localOperation.type === 'FRIEND_PING' || localOperation.type === 'FRIEND_RESET') {
@@ -767,6 +787,7 @@ async function collectReferencedMediaIds() {
     const messages = await getAllDatabaseRecords('messages').catch(() => []);
     messages.forEach(message => {
         if (message.secureSnap?.snapId && message.secureSnap.encrypted) referenced.add(`ssnap_${message.secureSnap.snapId}`);
+        if (message.original && !message.deleted) referenced.add(`orig_${message.id}`);
     });
     return referenced;
 }

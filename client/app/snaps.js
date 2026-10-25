@@ -24,7 +24,10 @@ function renderReplaySnapMessage(bubble, message, isMine) {
     title.textContent = 'Snap';
     const meta = document.createElement('div');
     meta.className = 'opacity-75 text-[11px]';
-    if (isMine) meta.textContent = available ? 'Gesendet · Tippen zum Ansehen' : 'Angesehen';
+    if (isMine) {
+        meta.textContent = available ? 'Gesendet · Tippen zum Ansehen' : 'Angesehen';
+        if (message.savedByPeer) meta.textContent += ' · vom Empfaenger gespeichert';
+    }
     else if (!available) meta.textContent = 'Abgelaufen';
     else meta.textContent = views === 0 ? 'Tippen zum Ansehen' : 'Tippen zum Wiederholen (1x)';
     details.append(title, meta);
@@ -75,6 +78,22 @@ async function saveReplaySnap() {
     save.disabled = true;
     save.textContent = 'Gespeichert';
     renderChatHistory();
+    // Der Absender erfaehrt, dass sein Snap gespeichert wurde (wie bei Snapchat).
+    if (message.senderId === viewing.peerId) await sendSnapSaved(viewing.peerId, message.id);
+}
+
+async function sendSnapSaved(peerId, messageId) {
+    const operation = {
+        operationId: `saved:${messageId}`,
+        peerId,
+        type: 'SNAP_SAVED',
+        messageId,
+        actorId: state.myProfile.id,
+        createdAt: Date.now()
+    };
+    await persistChatOperation(operation);
+    const { peerId: _localPeerId, ...sharedOperation } = operation;
+    await sendSecurePayload(peerId, { type: 'CHAT_OPERATION', operation: sharedOperation }, () => {});
 }
 
 // Wird beim Schliessen des Viewers aufgerufen: zaehlt die Ansicht, nach der Wiederholung ist der Snap weg.
@@ -206,6 +225,8 @@ function resetSnapPreview() {
     document.getElementById('snap-review-controls')?.classList.add('hidden');
     const caption = document.getElementById('snap-caption-input');
     if (caption) caption.value = '';
+    const original = document.getElementById('snap-original-toggle');
+    if (original) original.checked = false;
 }
 
 // Verkleinert und komprimiert, bis der Snap unter das Pfad-C-Limit passt.
@@ -250,6 +271,7 @@ function showSnapReview(base) {
 function updateSnapReviewOptions() {
     const forStatus = state.snapTarget === 'status';
     const asImage = !forStatus && state.snapSendMode === 'image';
+    document.getElementById('snap-original-option')?.classList.toggle('hidden', !asImage);
     const secureOptions = document.getElementById('snap-review-secure-options');
     if (forStatus || asImage) secureOptions?.classList.add('hidden');
     else secureOptions?.classList.toggle('hidden', !state.snapSettings.secureSnaps);
@@ -314,8 +336,11 @@ async function sendSnapDraft() {
     }
     const caption = document.getElementById('snap-caption-input').value;
     if (state.snapSendMode === 'image') {
+        const wantsOriginal = document.getElementById('snap-original-toggle')?.checked;
+        const original = wantsOriginal ? await createOriginalImage(flattenSnapDraft(), peerId) : null;
+        if (wantsOriginal && !original) showToast('Original ist zu gross, es geht nur die Vorschau.', 'warning');
         closeSnapModal();
-        await sendChatMessage(snapData, caption, null, null, { asImage: true });
+        await sendChatMessage(snapData, caption, null, null, { asImage: true, original });
         return;
     }
     const secure = state.snapSettings.secureSnaps;

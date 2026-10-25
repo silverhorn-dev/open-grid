@@ -107,6 +107,8 @@ const state = {
     chatPinned: true,
     // Chat-Wechsel im offenen Chat (chat-switch.js).
     chatSwitchSettings: { enabled: true, style: 'bar' },
+    // Originalbilder im Empfang (originals.js), pro Nachrichten-ID.
+    originalTransfers: {},
     // Snap-Kamera: als Einmal-Snap oder als normales Bild senden.
     snapSendMode: 'snap',
     // Ziel der Snap-Kamera: 'chat' oder 'status'.

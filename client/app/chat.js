@@ -246,11 +246,17 @@ async function openChatWithPeer(peerId) {
 }
 
 // Auf Smartphones zeigt der Chat-Tab entweder die Liste oder den Vollbild-Chat.
+const CHAT_LOADING_TEXT = 'Chat wird geladen...';
+
+function isChatPlaceholderShown() {
+    return document.getElementById('chat-peer-name')?.textContent === CHAT_LOADING_TEXT;
+}
+
 // Platzhalter beim Start ueber /chat/<id>: Chat-Layout (auf dem Smartphone Vollbild) ohne Inhalt.
 function showChatLoadingPlaceholder() {
     document.getElementById('view-chat')?.classList.add('chat-open');
     const name = document.getElementById('chat-peer-name');
-    if (name) name.textContent = 'Chat wird geladen...';
+    if (name) name.textContent = CHAT_LOADING_TEXT;
     const messages = document.getElementById('chat-messages');
     if (messages) messages.innerHTML = '<div class="text-center text-xs text-slate-500 my-8"><i class="fa-solid fa-spinner fa-spin"></i> Chat wird geladen...</div>';
 }
@@ -447,12 +453,15 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
         album: album || undefined,
         secureSnap: secureSnap || undefined,
         replyTo: buildReplyReference(peerId, state.replyToMessageId),
+        original: options.original?.meta,
         // Liste dieses Chats (Grid & Event oder Chat & Freunde), der Empfaenger uebernimmt sie fuer neue Chats.
         scope: chatScopeOf(peerId) || currentChatScope(),
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         createdAt: Date.now(),
         deliveredVia: 'Establishing secure channel...'
     };
+    // Original lokal ablegen, bevor die Nachricht rausgeht (der Empfaenger fragt es dann an).
+    if (options.original) await storeOwnOriginal(message.id, options.original.dataUrl);
     if (!state.chats[peerId]) state.chats[peerId] = [];
     state.chats[peerId].push(message);
     rememberChatPeer(peerId);
@@ -648,6 +657,20 @@ function renderChatHistory() {
             text.className = 'opacity-90';
             text.textContent = message.text || '';
             bubble.appendChild(text);
+            if (message.original) {
+                const badge = document.createElement('div');
+                badge.className = 'text-[11px] opacity-75';
+                badge.dataset.originalBadge = message.id;
+                badge.textContent = isMine || message.originalReady ? 'Original' : 'Original folgt bei direkter Verbindung';
+                bubble.appendChild(badge);
+                if (!isMine && !message.originalReady) renderOriginalProgress(message.id);
+            }
+            if (isMine && message.savedByPeer) {
+                const saved = document.createElement('div');
+                saved.className = 'text-[11px] opacity-75';
+                saved.innerHTML = '<i class="fa-solid fa-bookmark"></i> vom Empfaenger gespeichert';
+                bubble.appendChild(saved);
+            }
         } else {
             bubble.textContent = message.text;
         }

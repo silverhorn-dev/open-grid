@@ -73,10 +73,12 @@ document.addEventListener('click', event => {
     if (!event.target.closest?.('.actions-open')) closeMessageActions();
 });
 
-function openChatImageViewer(messageId) {
+// Mit Original (wenn vorhanden) statt Vorschau.
+async function openChatImageViewer(messageId) {
     const snaps = (state.chats[state.activeChatPeerId] || [])
         .filter(message => !message.deleted && isInlineSnap(message));
-    openImageViewer(snaps.map(message => message.snapData), snaps.findIndex(message => message.id === messageId), { allowSave: isSocialMode() });
+    const images = await Promise.all(snaps.map(bestImageFor));
+    openImageViewer(images, snaps.findIndex(message => message.id === messageId), { allowSave: isSocialMode() });
 }
 
 // Eigene Nachrichten rechtsbuendig, fremde linksbuendig: die Leiste waechst zur Bildschirmmitte.

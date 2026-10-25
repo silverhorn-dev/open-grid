@@ -67,10 +67,26 @@
 - Album-Knopf (`chat-tools.js`): in Chats der Liste `social` versteckt;
   600 ms langer Druck auf "Snap" zeigt ihn fuer den aktuellen Chat
   (`state.albumButtonRevealedFor`) und unterdrueckt den Klick auf die Kamera.
+- Originalbilder (`client/app/originals.js`): "Als Bild senden" mit
+  "Original" schickt die Vorschau wie gewohnt (`snapData`, max. 70 KB, auch
+  ueber Pfad C) und `message.original = { size, sha256, mime }`. Das Original
+  (JPEG 0.95, max. 4096 px, per Canvas neu kodiert, also ohne EXIF; mit
+  Wasserzeichen, wenn eingeschaltet) liegt beim Absender in `media/orig_<id>`.
+  Der Empfaenger fragt es nur ueber einen offenen DataChannel an
+  (`ORIGINAL_REQUEST { messageId }`), der Absender liefert
+  `ORIGINAL_CHUNK { messageId, index, total, data }` (64 KB, max. 240 Stuecke,
+  Pause ab 1 MB `bufferedAmount`). Nie ueber Pfad C. Nach dem Zusammensetzen
+  prueft der Empfaenger Laenge und SHA-256 und speichert es verschluesselt
+  (`originalReady`). Haengt eine Uebertragung, wird nach 60 s neu angefragt
+  (bei jedem Verbindungsaufbau).
+- `SNAP_SAVED { messageId }` (Chat-Operation, vom Empfaenger eines Einmal-Snaps
+  beim Speichern): der Absender markiert `savedByPeer` und zeigt einen Hinweis.
 - Start ueber `/chat/<id>` (Neu laden, Push): `showChatLoadingPlaceholder` zeigt
   sofort das Chat-Layout; der Chat wird direkt nach Datenbank und Chatliste
   geoeffnet (Startschritt "Chat oeffnen"), vor Service Worker, Schluesseln und
-  Signaling. Die P2P-Verbindung folgt nach `SOCKET_REGISTERED`.
+  Signaling. Die P2P-Verbindung folgt nach `SOCKET_REGISTERED`. Sicherheitsnetz:
+  ist der Chat am Ende des Starts nicht offen oder steht noch der Platzhalter,
+  wird er erneut geoeffnet.
 - Scrollposition im Chat (`chat.js`): `state.chatPinned` = man ist unten
   (hoechstens 80 px Abstand). Betreten setzt immer unten; Senden ebenfalls,
   ausser man ist mehr als 1,5 Bildschirmhoehen nach oben gescrollt. Ein

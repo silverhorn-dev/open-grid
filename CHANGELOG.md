@@ -2,7 +2,12 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 99 · 2026-10-25
+## Build 100 · 2026-10-25
+- "Original senden" beim Bild: volle Qualitaet (bis 4096 px, ohne Standort-Metadaten), nur direkt per P2P/TURN, nie ueber den Server; der Empfaenger sieht zuerst die Vorschau, dann das Original
+- Speichert der Empfaenger einen Snap, sieht der Absender "vom Empfaenger gespeichert" und bekommt einen Hinweis
+- Behoben: nach dem Neuladen in einem Chat konnte die Chat-Ansicht auf "Chat wird geladen" stehen bleiben; der Chat wird jetzt notfalls am Ende des Starts erneut geoeffnet
+
+## Build 99 · 2026-10-25 · `42df43e`
 - Behoben: im Snap nach unten wischen lud die Seite neu (Snap weg); jetzt schliesst es den Snap
 
 ## Build 98 · 2026-10-25 · `6f4f7fa`

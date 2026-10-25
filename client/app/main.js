@@ -114,6 +114,13 @@ window.onload = async () => {
         await runStartupStep('Sichtbarkeit', loadGridSettings);
         await runStartupStep('Service Worker', registerServiceWorker);
         connectWorkerWebSocket();
+        // Sicherheitsnetz fuer den Deep Link: ist der Chat noch nicht offen (frueher Schritt
+        // fehlgeschlagen) oder steht noch der Platzhalter, jetzt mit allem Geladenen erneut oeffnen.
+        if (initialRoute.peerId && (state.activeChatPeerId !== initialRoute.peerId || isChatPlaceholderShown())) {
+            state.activeChatPeerId = null;
+            await runStartupStep('Chat oeffnen (erneut)', () => applyRoute(initialRoute));
+        }
+        if (!state.activeChatPeerId) updateChatLayout();
         reportStartupProblems();
         renderInviteCard().catch(error => logDebug(`Invite card failed: ${error.message}`));
         if (state.pendingInvite) acceptPendingInvite().catch(error => logDebug(`Invite failed: ${error.message}`));

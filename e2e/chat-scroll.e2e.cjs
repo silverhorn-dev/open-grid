@@ -40,7 +40,8 @@ async function main() {
             state.chatPeerIds.push(peerId);
             state.chats[peerId] = Array.from({ length: 60 }, (_, index) => ({
                 id: `m${index}`, senderId: index % 2 ? peerId : state.myProfile.id, text: `Nachricht ${index}`,
-                snapData: index % 10 === 5 ? image : undefined, snapSaved: true, timestamp: '10:00', createdAt: index
+                snapData: index % 10 === 5 ? image : undefined, imageSize: index % 10 === 5 ? { w: 600, h: 800 } : undefined,
+                snapSaved: true, timestamp: '10:00', createdAt: index
             }));
             window.loadChatHistory = async () => {};
         });
@@ -48,6 +49,16 @@ async function main() {
             const container = document.getElementById('chat-messages');
             return container.scrollHeight - container.scrollTop - container.clientHeight <= 4;
         };
+
+        // Mit bekannter Bildgroesse ist der Platz schon vor dem Zeichnen reserviert: nichts springt.
+        const heights = await page.evaluate(async () => {
+            await openChatWithPeer('node_scroll');
+            const container = document.getElementById('chat-messages');
+            const before = container.scrollHeight;
+            await new Promise(resolve => setTimeout(resolve, 800));
+            return { before, after: container.scrollHeight };
+        });
+        assert.equal(heights.after, heights.before, `no layout jump when images are drawn (${heights.before} -> ${heights.after})`);
 
         // Betreten: unten, auch nachdem die Bilder gezeichnet sind.
         await page.evaluate(() => openChatWithPeer('node_scroll'));
@@ -83,7 +94,7 @@ async function main() {
         await waitFor(page, atBottom, null, 5000);
         await waitFor(page, () => document.getElementById('chat-jump-bottom').classList.contains('hidden'), null, 5000);
 
-        assert.deepEqual(pageErrors, [], 'no uncaught page errors');
+        assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log(`E2E OK (chat scroll${process.env.MOBILE ? ', mobile' : ''})`);
     } finally {
         await browser.close();

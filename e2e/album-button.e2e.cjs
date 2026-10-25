@@ -59,7 +59,7 @@ async function main() {
         await page.evaluate(() => openChatWithPeer('node_social'));
         assert.equal(await page.isVisible('#chat-album-btn'), false, 'easter egg only for the chat where it was triggered');
 
-        assert.deepEqual(pageErrors, [], 'no uncaught page errors');
+        assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log('E2E OK (album button)');
     } finally {
         await browser.close();

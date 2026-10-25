@@ -225,6 +225,15 @@ function publicKeysMatch(left, right) {
         && left.y === right.y;
 }
 
+// Mehrere Hinweise kurz hintereinander (z. B. mehrere Nachrichten) loesen nur einen Abruf aus.
+function scheduleCacheFetch(delayMs = 300) {
+    if (state.cacheFetchTimer) return;
+    state.cacheFetchTimer = setTimeout(() => {
+        state.cacheFetchTimer = null;
+        fetchQueuedCacheMessages().catch(logBackgroundError('scheduleCacheFetch'));
+    }, delayMs);
+}
+
 async function fetchQueuedCacheMessages() {
     if (state.cacheFetchInFlight || !state.myKeys) return;
     state.cacheFetchInFlight = true;

@@ -80,7 +80,7 @@ async function main() {
         assert.equal(await page.evaluate(() => state.pullUpAction), 'reload', 'setting survives the reload');
         assert.equal(await page.locator('text=Chat wird aktualisiert').count(), 0, 'no toast');
 
-        assert.deepEqual(pageErrors, [], 'no uncaught page errors');
+        assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log('E2E OK (pull up, mobile)');
     } finally {
         await browser.close();

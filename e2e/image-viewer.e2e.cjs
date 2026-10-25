@@ -64,7 +64,7 @@ async function main() {
         }
         assert.equal(await page.textContent('#image-viewer-counter'), '2 / 4');
 
-        assert.deepEqual(pageErrors, [], 'no uncaught page errors');
+        assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log('E2E OK (image viewer)');
     } finally {
         await browser.close();

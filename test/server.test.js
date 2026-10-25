@@ -981,3 +981,35 @@ test('client defaults from the operator are validated and delivered with the app
     }
 });
 
+test('an online recipient is told that a cached message is waiting', async () => {
+    await registerPeer('peer-a');
+    await registerPeer('peer-b');
+    await app.listen({ host: '127.0.0.1', port: 0 });
+    const url = `ws://127.0.0.1:${app.server.address().port}/ws`;
+    const socket = new WebSocket(url);
+    const messages = [];
+    await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('Timed out registering.')), 3000);
+        socket.onopen = () => socket.send(JSON.stringify({ type: 'REGISTER_SOCKET', peerId: 'peer-b', authToken: peerTokens.get('peer-b') }));
+        socket.onmessage = event => {
+            const message = JSON.parse(event.data);
+            messages.push(message);
+            if (message.type === 'SOCKET_REGISTERED') {
+                clearTimeout(timeout);
+                resolve();
+            }
+        };
+    });
+    const response = await app.inject({
+        method: 'POST',
+        url: '/api/cache',
+        headers: { authorization: `Bearer ${peerTokens.get('peer-a')}` },
+        payload: { recipientId: 'peer-b', senderId: 'peer-a', ciphertextPayload: 'abc', ivHex: '00' }
+    });
+    assert.equal(response.statusCode, 201);
+    await new Promise(resolve => setTimeout(resolve, 200));
+    assert.ok(messages.some(message => message.type === 'CACHE_WAITING'), 'recipient gets a hint without content');
+    assert.equal(JSON.stringify(messages.find(message => message.type === 'CACHE_WAITING')), '{"type":"CACHE_WAITING"}');
+    socket.close();
+});
+

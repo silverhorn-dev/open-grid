@@ -4,6 +4,8 @@ const assert = require('node:assert/strict');
 const { chromium } = require('playwright');
 
 const BASE_URL = process.env.BASE_URL || 'http://127.0.0.1:3000';
+// Debug-Log der Seiten; wird nur bei einem Fehler ausgegeben.
+const debugLogs = [];
 
 async function waitFor(page, predicate, arg, timeout = 30000) {
     const startedAt = Date.now();
@@ -21,6 +23,7 @@ async function main() {
     async function user(name) {
         const page = await (await browser.newContext()).newPage();
         page.on('pageerror', error => pageErrors.push(`[${name}] ${error.message}`));
+        page.on('console', message => { if (message.text().startsWith('[OpenGrid]')) debugLogs.push(`${Date.now() % 1000000} [${name}] ${message.text().slice(11, 200)}`); });
         page.on('dialog', dialog => dialog.accept());
         await page.goto(`${BASE_URL}/`);
         await page.waitForSelector('#complete-onboarding-btn', { state: 'visible', timeout: 20000 });
@@ -29,6 +32,7 @@ async function main() {
         await input.dispatchEvent('change');
         await page.click('#complete-onboarding-btn');
         await waitFor(page, () => Boolean(state.ws && state.ws.readyState === 1 && state.myProfile.id));
+        await page.evaluate(() => { CONFIG.DEBUG_MODE = true; });
         await page.evaluate(() => setAppMode('chat'));
         return page;
     }
@@ -100,7 +104,7 @@ async function main() {
         await waitFor(carol, id => isFriend(id), daveId);
         assert.equal(await dave.evaluate(id => chatScopeOf(id), carolId), 'social', 'chat moved to "Chat & Freunde"');
 
-        assert.deepEqual(pageErrors, [], 'no uncaught page errors');
+        assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log('E2E OK (friends)');
     } finally {
         await browser.close();
@@ -108,6 +112,7 @@ async function main() {
 }
 
 main().catch(error => {
+    console.error(debugLogs.slice(-40).join('\n'));
     console.error('E2E FAILED', error);
     process.exit(1);
 });

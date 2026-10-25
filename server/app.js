@@ -720,6 +720,7 @@ export async function buildApp(options = {}) {
         // Push-Dienst des Empfaengers warten muss.
         const pushRequested = notify === true && Boolean(store.getPushSubscription(recipientId));
         if (pushRequested) notifyRecipient(message);
+        signaling.notifyCacheWaiting(recipientId);
         return reply.code(201).send({
             status: 'queued',
             msgId: message.msgId,

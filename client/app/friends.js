@@ -118,7 +118,9 @@ async function sendFriendOperation(peerId, type) {
     };
     await applyChatOperation(peerId, operation);
     const { peerId: _localPeerId, ...sharedOperation } = operation;
-    await sendSecurePayload(peerId, { type: 'CHAT_OPERATION', operation: sharedOperation });
+    // Mit Rueckruf: ohne direkte Verbindung nach 10 s ueber Pfad C (ohne Push), statt nur beim
+    // naechsten Chat-Sync.
+    await sendSecurePayload(peerId, { type: 'CHAT_OPERATION', operation: sharedOperation }, () => {});
 }
 
 // Anfrage senden oder eine erhaltene annehmen.

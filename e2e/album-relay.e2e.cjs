@@ -97,7 +97,7 @@ async function main() {
         }, [bobId, carolId]);
         assert.equal(marked, bobId, 'watermark names the requester');
 
-        assert.deepEqual(pageErrors, [], 'no uncaught page errors');
+        assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log('E2E OK (album relay)');
     } finally {
         await browser.close();

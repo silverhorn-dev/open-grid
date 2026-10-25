@@ -67,7 +67,7 @@ async function main() {
         await page.evaluate(() => openChatWithPeer('node_snap'));
         await waitFor(page, () => state.chats.node_snap?.[0] && !state.chats.node_snap[0].snapData, null, 10000);
 
-        assert.deepEqual(pageErrors, [], 'no uncaught page errors');
+        assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log('E2E OK (snap viewer, mobile)');
     } finally {
         await browser.close();

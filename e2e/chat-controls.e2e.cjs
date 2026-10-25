@@ -91,7 +91,7 @@ async function main() {
         await press('#block-peer-btn');
         await waitFor(alice, id => isPeerBlocked(id), bobId);
 
-        assert.deepEqual(pageErrors, [], 'no uncaught page errors');
+        assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log(`E2E OK (${MOBILE ? 'mobile' : 'desktop'}${OFFLINE ? ', offline partner' : ''})`);
     } finally {
         await browser.close();

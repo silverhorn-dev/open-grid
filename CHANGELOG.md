@@ -2,7 +2,13 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 102 · 2026-10-25
+## Build 103 · 2026-10-25
+- Behoben: gelegentlich blieb der Schluesselaustausch nach dem Verbindungsaufbau haengen (Kanal offen, aber nicht verschluesselt nutzbar); KEY_HELLO wird jetzt bis zu viermal wiederholt
+- Behoben: Freundschaftsanfragen und Flammen kamen ohne direkte Verbindung erst beim naechsten Chat-Abgleich an; jetzt wie Nachrichten nach 10 Sekunden ueber den Router-Cache
+- Behoben: Nachrichten ueber den Router-Cache kamen bei offener App ohne Push erst nach dem Neuladen an; der Server gibt einem online Empfaenger jetzt sofort Bescheid (`CACHE_WAITING`, ohne Inhalt), beim Zurueckkehren in die App wird ebenfalls abgeholt
+- Behoben: Bilder im Chat liessen den Verlauf beim Laden springen; neue Bilder bringen ihre Groesse mit und der Platz ist vorher reserviert (aeltere bekommen einen Platzhalter)
+
+## Build 102 · 2026-10-25 · `6729969`
 - Knopf neben dem Titel der Chatliste wechselt zwischen "Grid & Event" und "Chat & Freunde" (wechselt den App-Modus oder zeigt nur die andere Liste; abschaltbar)
 - Betreiber koennen Standardwerte fuer Einstellungen vorgeben (`CLIENT_DEFAULTS`)
 - Behoben: geht ein Verbindungsangebot verloren, blieb P2P bis zum Neuladen weg; jetzt wird nach 8 bzw. 20 Sekunden neu angeboten

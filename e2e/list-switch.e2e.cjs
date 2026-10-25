@@ -78,7 +78,7 @@ async function main() {
         await page.evaluate(() => updateListSwitchSetting('enabled', false));
         assert.equal(await page.isVisible('#chat-list-switch'), false);
 
-        assert.deepEqual(pageErrors, [], 'no uncaught page errors');
+        assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log('E2E OK (list switch, router defaults)');
     } finally {
         await browser.close();

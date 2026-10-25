@@ -190,6 +190,11 @@ export function registerSignalingRoute(app, store, { messageLimiter = null, hear
         getMutualContacts(peerId) {
             return [...(subscriptions.get(peerId) || [])].filter(targetId => isOnline(targetId) && canSeePresence(peerId, targetId));
         },
+        // Neue Nachricht im Zwischenspeicher: ein online Empfaenger holt sie sofort ab (ohne Inhalt,
+        // nur der Hinweis). Sonst laege sie bis zum naechsten Verbinden oder einem Web Push dort.
+        notifyCacheWaiting(peerId) {
+            if (isOnline(peerId)) send(peerId, { type: 'CACHE_WAITING' });
+        },
         // Vom Register-Endpunkt: Zelle oder Silent-Modus haben sich geaendert.
         updatePeerCell(peerId, geohash, silent) {
             if (activeSockets.has(peerId)) setPeerCell(peerId, geohash, silent);

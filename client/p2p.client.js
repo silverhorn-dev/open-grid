@@ -217,6 +217,11 @@ async function flushPendingIceCandidates(peerId) {
 }
 
 async function handleSignalingMessage(message) {
+    if (message.type === 'CACHE_WAITING') {
+        scheduleCacheFetch();
+        return;
+    }
+
     if (message.type === 'PONG') {
         handleSignalingPong(message);
         return;
@@ -400,6 +405,23 @@ function retryVisiblePeerConnections(afterReconnect = false) {
     });
 }
 
+// Schluesselaustausch auf dem offenen Kanal. Kommt keine Antwort (Sitzungsschluessel fehlt nach
+// KEY_HELLO_RETRY_MS), wird KEY_HELLO erneut gesendet; die Ableitung ist idempotent.
+const KEY_HELLO_RETRY_MS = 4000;
+const MAX_KEY_HELLO_ATTEMPTS = 4;
+
+function sendKeyHello(peerId, channel, attempt, force = false) {
+    if (!channel || state.dataChannels[peerId] !== channel || channel.readyState !== 'open') return;
+    if (state.sessionKeys[peerId] && !force) return;
+    if (attempt > 0) logDebug(`Kein Schluesselaustausch mit ${peerId}, sende KEY_HELLO erneut (${attempt + 1}/${MAX_KEY_HELLO_ATTEMPTS}).`);
+    channel.send(JSON.stringify({
+        type: 'KEY_HELLO',
+        publicKey: state.myKeys.jwkPublic,
+        profileSigningKey: state.myKeys.jwkEcdsaPublic
+    }));
+    if (!force && attempt + 1 < MAX_KEY_HELLO_ATTEMPTS) setTimeout(() => sendKeyHello(peerId, channel, attempt + 1), KEY_HELLO_RETRY_MS);
+}
+
 function setupDataChannel(peerId, channel) {
     state.dataChannels[peerId] = channel;
 
@@ -409,11 +431,7 @@ function setupDataChannel(peerId, channel) {
         logDebug(`DataChannel opened with ${peerId}. Starting key handshake.`);
         updateChatConnectionStatus(peerId, 'Securing channel...', 'bg-sky-500/10 text-sky-400 border-sky-500/30');
         renderActivePeerList();
-        channel.send(JSON.stringify({
-            type: 'KEY_HELLO',
-            publicKey: state.myKeys.jwkPublic,
-            profileSigningKey: state.myKeys.jwkEcdsaPublic
-        }));
+        sendKeyHello(peerId, channel, 0);
     };
     channel.onmessage = (event) => handleDataChannelMessage(peerId, event.data);
     channel.onclose = () => {
@@ -663,7 +681,12 @@ async function handleDataChannelMessage(peerId, rawMessage) {
         }
         const message = JSON.parse(rawMessage);
         if (message.type === 'KEY_HELLO') {
+            logDebug(`KEY_HELLO von ${peerId} empfangen.`);
+            const hadKey = Boolean(state.sessionKeys[peerId]);
             await deriveSessionKey(peerId, message.publicKey, message.profileSigningKey);
+            logDebug(`Sitzungsschluessel fuer ${peerId} bereit.`);
+            // Die Gegenseite fragt erneut (unser KEY_HELLO ging verloren): antworten.
+            if (hadKey) sendKeyHello(peerId, state.dataChannels[peerId], 0, true);
             return;
         }
         if (message.type !== 'SECURE_ENVELOPE' || !state.sessionKeys[peerId]) return;

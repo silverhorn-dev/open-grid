@@ -105,6 +105,10 @@
   Signaling. Die P2P-Verbindung folgt nach `SOCKET_REGISTERED`. Sicherheitsnetz:
   ist der Chat am Ende des Starts nicht offen oder steht noch der Platzhalter,
   wird er erneut geoeffnet.
+- Bildgroesse: `MESSAGE_PUT` traegt bei Bildern `imageSize { w, h }`
+  (`measureImage` beim Senden); `createSecureImage` setzt die Canvas-Groesse
+  sofort, der Platz ist vor dem Zeichnen reserviert. Ohne Groesse (aeltere
+  Nachrichten) haelt ein 4:3-Platzhalter den Platz.
 - Scrollposition im Chat (`chat.js`): `state.chatPinned` = man ist unten
   (hoechstens 80 px Abstand). Betreten setzt immer unten; Senden ebenfalls,
   ausser man ist mehr als 1,5 Bildschirmhoehen nach oben gescrollt. Ein
@@ -349,6 +353,18 @@ Profils prueft ein verschluesseltes `PRESENCE_PING`/`PRESENCE_PONG` die
 Erreichbarkeit.
 
 ### 4.1 Presence fuer Chat-Partner
+
+Zwischenspeicher-Hinweis: legt ein Sender eine Nachricht in den Cache
+(`POST /api/cache`) und der Empfaenger ist per WebSocket online, sendet der
+Server ihm `{ type: 'CACHE_WAITING' }` (ohne Inhalt, ohne Absender); der Client
+ruft den Cache dann sofort ab (`scheduleCacheFetch`, gebuendelt). Zusaetzlich
+beim Zurueckkehren in die App. Vorher holte ein online Client ohne Web Push
+den Cache erst beim naechsten Verbinden ab.
+
+Schluesselaustausch: `KEY_HELLO` wird beim Oeffnen des Kanals gesendet und alle
+4 s wiederholt (hoechstens 4 Mal), solange kein Sitzungsschluessel besteht.
+Bekommt eine Seite ein `KEY_HELLO`, obwohl sie schon einen Schluessel hat
+(die Gegenseite hat ihn noch nicht), antwortet sie mit ihrem eigenen.
 
 Wachhund fuer Verbindungsversuche (`watchConnectionAttempt`): ohne Antwort auf
 das Angebot nach 8 s, mit Antwort aber ohne offenen Kanal nach 20 s wird die

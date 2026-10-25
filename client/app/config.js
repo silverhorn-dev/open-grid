@@ -102,6 +102,8 @@ const state = {
     wsPingTimer: null,
     wsPingNonce: null,
     wsOpenedAt: 0,
+    // Abruf des Router-Caches nach CACHE_WAITING (delivery.client.js).
+    cacheFetchTimer: null,
     // Album-Knopf in sozialen Chats per langem Druck auf "Snap" gezeigt (chat-tools.js).
     albumButtonRevealedFor: null,
     // Aktion beim Hochziehen am Chat-Ende (gestures.js).

@@ -4,6 +4,8 @@ const assert = require('node:assert/strict');
 const { chromium } = require('playwright');
 
 const BASE_URL = process.env.BASE_URL || 'http://127.0.0.1:3000';
+// Debug-Log der Seiten; wird nur bei einem Fehler ausgegeben.
+const debugLogs = [];
 
 async function waitFor(page, predicate, arg, timeout = 30000) {
     const startedAt = Date.now();
@@ -22,6 +24,7 @@ async function main() {
         const context = await browser.newContext({ viewport: { width: 420, height: 860 }, permissions: ['camera'] });
         const page = await context.newPage();
         page.on('pageerror', error => pageErrors.push(`[${name}] ${error.message}`));
+        page.on('console', message => { if (message.text().startsWith('[OpenGrid]')) debugLogs.push(`${Date.now() % 1000000} [${name}] ${message.text().slice(11, 200)}`); });
         await page.goto(`${BASE_URL}/`);
         await page.waitForSelector('#complete-onboarding-btn', { state: 'visible', timeout: 20000 });
         const input = page.locator('#onboarding-profile-form input').first();
@@ -29,6 +32,7 @@ async function main() {
         await input.dispatchEvent('change');
         await page.click('#complete-onboarding-btn');
         await waitFor(page, () => Boolean(state.ws && state.ws.readyState === 1 && state.myProfile.id));
+        await page.evaluate(() => { CONFIG.DEBUG_MODE = true; });
         return page;
     }
 
@@ -114,6 +118,7 @@ async function main() {
         await waitFor(bob, () => Object.values(state.chats).flat().filter(message => typeof message.snapData === 'string').length >= 2, null, 30000);
         const image = await bob.evaluate(() => Object.values(state.chats).flat().filter(message => message.snapData).at(-1));
         assert.equal(image.snapMode, undefined, 'sent as a normal image, not a one-time snap');
+        assert.ok(image.imageSize?.w > 0 && image.imageSize?.h > 0, 'image size travels with the message');
         assert.equal(await bob.evaluate(message => messagePreview(message), image), 'Bild');
 
         // "Original": volle Qualitaet nur ueber P2P, Bob bekommt erst die Vorschau, dann das Original.
@@ -194,7 +199,7 @@ async function main() {
         await alice.evaluate(() => renderChatHistory());
         assert.match(await alice.textContent('#chat-messages'), /vom Empfaenger gespeichert/);
 
-        assert.deepEqual(pageErrors, [], 'no uncaught page errors');
+        assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log('E2E OK (snap camera)');
     } finally {
         await browser.close();
@@ -202,6 +207,7 @@ async function main() {
 }
 
 main().catch(error => {
+    console.error(debugLogs.slice(-40).join('\n'));
     console.error('E2E FAILED', error);
     process.exit(1);
 });

@@ -455,6 +455,7 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
         secureSnap: secureSnap || undefined,
         replyTo: buildReplyReference(peerId, state.replyToMessageId),
         original: options.original?.meta,
+        imageSize: snapData ? await measureImage(snapData) : undefined,
         // Liste dieses Chats (Grid & Event oder Chat & Freunde), der Empfaenger uebernimmt sie fuer neue Chats.
         scope: chatScopeOf(peerId) || currentChatScope(),
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -647,7 +648,7 @@ function renderChatHistory() {
             renderReplaySnapMessage(bubble, message, isMine);
         } else if (message.snapData) {
             if (isSafeInlineImage(message.snapData)) {
-                const image = createSecureImage(message.snapData, 'w-48 sm:w-64 rounded-xl mb-1.5 border border-slate-900/50 cursor-zoom-in');
+                const image = createSecureImage(message.snapData, 'w-48 sm:w-64 rounded-xl mb-1.5 border border-slate-900/50 cursor-zoom-in', message.imageSize);
                 image.onclick = event => {
                     event.stopPropagation();
                     openChatImageViewer(message.id);

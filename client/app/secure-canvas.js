@@ -43,15 +43,38 @@ function clearSecureCanvas(canvas, invalidate = true) {
     secureImageSources.delete(canvas);
 }
 
-function createSecureImage(dataUrl, className) {
+// size ({ w, h }, wenn bekannt): der Canvas bekommt sofort die richtigen Proportionen und haelt den
+// Platz frei, bevor das Bild gezeichnet ist (sonst springt der Inhalt darunter). Ohne Groesse haelt
+// ein 4:3-Platzhalter den Platz, bis das Bild da ist.
+function createSecureImage(dataUrl, className, size = null) {
     const canvas = document.createElement('canvas');
     canvas.className = `secure-image ${className || ''}`.trim();
     canvas.setAttribute('role', 'img');
     canvas.setAttribute('aria-label', 'Bild');
     canvas.setAttribute('data-no-context-menu', '');
+    if (isValidImageSize(size)) {
+        canvas.width = size.w;
+        canvas.height = size.h;
+    } else {
+        canvas.style.aspectRatio = '4 / 3';
+    }
     secureImageSources.set(canvas, dataUrl);
-    drawSecureImage(canvas, dataUrl).catch(logBackgroundError('createSecureImage'));
+    drawSecureImage(canvas, dataUrl)
+        .then(() => { canvas.style.aspectRatio = ''; })
+        .catch(logBackgroundError('createSecureImage'));
     return canvas;
+}
+
+// Groesse eines Bildes (fuer neue Nachrichten, damit Empfaenger den Platz vorher kennen).
+async function measureImage(dataUrl) {
+    try {
+        const bitmap = await createImageBitmap(dataUrlToBlob(dataUrl));
+        const size = { w: bitmap.width, h: bitmap.height };
+        bitmap.close?.();
+        return size;
+    } catch {
+        return undefined;
+    }
 }
 
 // Die Quelle bleibt nur im Arbeitsspeicher (fuer den Bildbetrachter), nicht im DOM.

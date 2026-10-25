@@ -85,7 +85,7 @@ async function main() {
         await waitFor(page, () => Boolean(state.ws && state.ws.readyState === 1));
         assert.equal(await page.evaluate(() => state.chatSwitchSettings.enabled), false);
 
-        assert.deepEqual(pageErrors, [], 'no uncaught page errors');
+        assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log('E2E OK (chat switch)');
     } finally {
         await browser.close();

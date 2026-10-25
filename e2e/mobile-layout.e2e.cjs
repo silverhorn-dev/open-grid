@@ -70,7 +70,7 @@ async function main() {
         await page.evaluate(() => setAppMode('discovery'));
         assert.equal(await page.isVisible('#album-manager-card'), true);
 
-        assert.deepEqual(pageErrors, [], 'no uncaught page errors');
+        assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log('E2E OK (mobile layout)');
     } finally {
         await browser.close();

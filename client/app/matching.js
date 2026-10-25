@@ -106,7 +106,8 @@ async function sendMatchOperation(peerId, type) {
     };
     await applyChatOperation(peerId, operation);
     const { peerId: _localPeerId, ...sharedOperation } = operation;
-    await sendSecurePayload(peerId, { type: 'CHAT_OPERATION', operation: sharedOperation });
+    // Ohne direkte Verbindung nach 10 s ueber Pfad C (ohne Push).
+    await sendSecurePayload(peerId, { type: 'CHAT_OPERATION', operation: sharedOperation }, () => {});
 }
 
 function flameCooldownLeft(peerId) {

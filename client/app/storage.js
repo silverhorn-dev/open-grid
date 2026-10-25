@@ -496,6 +496,11 @@ function sanitizeSecureSnap(snap) {
     };
 }
 
+// Bildgroesse einer Nachricht ({ w, h }), damit der Platz vor dem Zeichnen reserviert werden kann.
+function isValidImageSize(size) {
+    return Boolean(size) && Number.isInteger(size.w) && Number.isInteger(size.h) && size.w > 0 && size.h > 0 && size.w <= 10000 && size.h <= 10000;
+}
+
 function sanitizeOriginalMeta(original) {
     if (!original || !Number.isInteger(original.size) || typeof original.sha256 !== 'string') return undefined;
     return { size: original.size, sha256: original.sha256.substring(0, 64), mime: 'image/jpeg' };
@@ -524,6 +529,7 @@ function createPutOperation(peerId, message) {
             } : undefined,
             replyTo: message.replyTo,
             original: message.original,
+            imageSize: message.imageSize,
             scope: message.scope,
             timestamp: message.timestamp,
             createdAt: message.createdAt
@@ -559,6 +565,8 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
                 album: sanitizeAlbumReference(localOperation.message.album, localOperation.actorId),
                 secureSnap: sanitizeSecureSnap(localOperation.message.secureSnap),
                 original: sanitizeOriginalMeta(localOperation.message.original),
+                imageSize: isValidImageSize(localOperation.message.imageSize)
+                    ? { w: localOperation.message.imageSize.w, h: localOperation.message.imageSize.h } : undefined,
                 // Ein Secure Snap darf nie zusaetzlich als Klartext-Snap ankommen.
                 snapData: localOperation.message.secureSnap ? undefined : localOperation.message.snapData,
                 snapMode: localOperation.message.snapMode === 'replay' ? 'replay' : undefined,

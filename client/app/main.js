@@ -141,6 +141,8 @@ window.onload = async () => {
                 // Zurueck aus dem Hintergrund: Signaling pruefen (oft halb offen), dann aktualisieren.
                 checkSignalingHealth('resume');
                 refreshPresenceAndGrid();
+                // Was waehrend des Hintergrunds im Zwischenspeicher gelandet ist.
+                scheduleCacheFetch(0);
             }
         });
         window.addEventListener('online', () => checkSignalingHealth('online'));

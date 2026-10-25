@@ -2,6 +2,11 @@
 
 Neueste Aenderungen oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
+## 2026-10-25
+
+### Behoben
+- Smartphone: der Kopf der Chatliste bleibt oben stehen und laesst sich nicht mehr wegscrollen
+
 ## 2026-10-24
 
 ### Neu

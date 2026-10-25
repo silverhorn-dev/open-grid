@@ -309,8 +309,8 @@ function switchTab(tabName) {
     if (tabName === 'chat') fitChatListPanel();
 }
 
-// Smartphone: die Chatliste endet ueber der unteren Navigation und scrollt in sich, statt die Seite
-// zu verlaengern (am Desktop begrenzt das CSS die ganze Chat-Box).
+// Smartphone: die Chatliste steht fest zwischen Kopfzeile und unterer Navigation und scrollt in sich
+// (am Desktop begrenzt das CSS die ganze Chat-Box).
 function fitChatListPanel() {
     const panel = document.getElementById('chat-list-panel');
     if (!panel) return;
@@ -318,11 +318,14 @@ function fitChatListPanel() {
         panel.style.maxHeight = '';
         return;
     }
+    // Die Liste ist per CSS fest zwischen Kopfzeile und unterer Navigation; hier nur deren Hoehen.
     requestAnimationFrame(() => {
+        const header = document.querySelector('header.app-header');
         const nav = document.querySelector('nav.bottom-nav');
         const navHeight = nav && getComputedStyle(nav).display !== 'none' ? nav.getBoundingClientRect().height : 0;
-        const top = panel.getBoundingClientRect().top + window.scrollY;
-        panel.style.maxHeight = `${Math.max(240, window.innerHeight - top - navHeight - 32)}px`;
+        if (header) document.documentElement.style.setProperty('--app-header-height', `${Math.round(header.getBoundingClientRect().height)}px`);
+        document.documentElement.style.setProperty('--bottom-nav-height', `${Math.round(navHeight)}px`);
+        panel.style.maxHeight = '';
     });
 }
 

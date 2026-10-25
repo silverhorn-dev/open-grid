@@ -50,6 +50,16 @@ async function main() {
         assert.equal(layout.scrollable, true, 'the chat list scrolls itself');
         assert.equal(await page.isVisible('#active-peers-list >> text=Im Club bis spaet >> nth=0'), true, 'presence visible on mobile');
 
+        // Auch wenn die Seite scrollt (z. B. ein- und ausfahrende Adressleiste), bleibt der Kopf der Liste stehen.
+        await page.evaluate(() => { document.body.style.paddingBottom = '600px'; window.scrollTo(0, 400); });
+        await page.waitForTimeout(200);
+        const head = await page.evaluate(() => ({
+            top: Math.round(document.getElementById('chat-list-head').getBoundingClientRect().top),
+            header: Math.round(document.querySelector('header.app-header').getBoundingClientRect().bottom)
+        }));
+        assert.ok(Math.abs(head.top - head.header) <= 2, `list head stays pinned below the app header (${head.top} vs ${head.header})`);
+        await page.evaluate(() => { document.body.style.paddingBottom = ''; window.scrollTo(0, 0); });
+
         // Alben-Karte: im Chat-Modus ohne eigene Alben versteckt, mit Album sichtbar.
         await page.evaluate(() => switchTab('editprofile'));
         assert.equal(await page.isVisible('#album-manager-card'), false);

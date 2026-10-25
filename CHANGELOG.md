@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 97 · 2026-10-25
+## Build 98 · 2026-10-25
+- Behoben: Neu laden in einem Chat zeigte auf dem Smartphone erst einige Sekunden die Chatliste; jetzt sofort die Chat-Ansicht, der Chat oeffnet vor Service Worker und Verbindungsaufbau
+
+## Build 97 · 2026-10-25 · `dd8c150`
 - Behoben: Bildbetrachter flackerte beim seitlichen Wischen und zeigte kurz das vorige Bild
 
 ## Build 96 · 2026-10-25 · `dac6314`

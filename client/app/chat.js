@@ -246,6 +246,15 @@ async function openChatWithPeer(peerId) {
 }
 
 // Auf Smartphones zeigt der Chat-Tab entweder die Liste oder den Vollbild-Chat.
+// Platzhalter beim Start ueber /chat/<id>: Chat-Layout (auf dem Smartphone Vollbild) ohne Inhalt.
+function showChatLoadingPlaceholder() {
+    document.getElementById('view-chat')?.classList.add('chat-open');
+    const name = document.getElementById('chat-peer-name');
+    if (name) name.textContent = 'Chat wird geladen...';
+    const messages = document.getElementById('chat-messages');
+    if (messages) messages.innerHTML = '<div class="text-center text-xs text-slate-500 my-8"><i class="fa-solid fa-spinner fa-spin"></i> Chat wird geladen...</div>';
+}
+
 function updateChatLayout() {
     const view = document.getElementById('view-chat');
     if (view) view.classList.toggle('chat-open', Boolean(state.activeChatPeerId));

@@ -39,6 +39,9 @@ window.onload = async () => {
     state.applyingRoute = true;
     switchTab(initialRoute.tab);
     state.applyingRoute = false;
+    // Deep Link in einen Chat: sofort die Chat-Ansicht zeigen (statt kurz die Liste), der Inhalt
+    // kommt, sobald Datenbank und Chatliste bereit sind.
+    if (initialRoute.peerId) showChatLoadingPlaceholder();
     window.addEventListener('popstate', handlePopState);
     initImageViewer();
     initSecureSnaps();
@@ -87,6 +90,9 @@ window.onload = async () => {
             await loadChatSwitchSettings();
             await loadPullUpSetting();
         });
+        // Deep Link (/chat/<id>, auch aus einer Push-Benachrichtigung): so frueh wie moeglich oeffnen.
+        // Die P2P-Verbindung folgt nach SOCKET_REGISTERED (retryVisiblePeerConnections).
+        if (initialRoute.peerId) await runStartupStep('Chat oeffnen', () => applyRoute(initialRoute));
         await runStartupStep('Alben', async () => {
             await loadAlbums();
             await loadAlbumDefaults();
@@ -146,8 +152,6 @@ window.onload = async () => {
             if (document.visibilityState === 'visible') registerWithWorkerGrid();
         }, 25000);
 
-        // Deep Link (/chat/<id>, auch aus einer Push-Benachrichtigung)
-        if (initialRoute.peerId) await applyRoute(initialRoute);
     } catch (error) {
         console.error('OpenGrid startup failed.', error);
         showToast(CONFIG.DEBUG_MODE ? `Startup failed: ${error.message}` : 'Die App konnte nicht gestartet werden. Bitte neu laden.', 'error');

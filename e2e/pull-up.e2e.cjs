@@ -68,8 +68,14 @@ async function main() {
         // Seite neu laden, ohne Toast.
         await page.evaluate(() => updatePullUpSetting('reload'));
         await page.evaluate(() => { window.__beforeReload = true; });
-        await Promise.all([page.waitForNavigation({ timeout: 10000 }), pullUp(page, session)]);
+        await Promise.all([page.waitForNavigation({ timeout: 10000, waitUntil: 'commit' }), pullUp(page, session)]);
+        await page.waitForLoadState('load');
         assert.equal(await page.evaluate(() => window.__beforeReload), undefined, 'tab was reloaded');
+        // Nach dem Neuladen im Chat: nie die Chatliste zeigen, der Chat ist schnell wieder offen.
+        assert.equal(await page.evaluate(() => document.getElementById('view-chat').classList.contains('chat-open')), true, 'chat layout right away');
+        const openedAfter = Date.now();
+        await waitFor(page, () => state.activeChatPeerId === 'node_one', null, 4000);
+        console.log(`chat open ${Date.now() - openedAfter} ms after load`);
         await waitFor(page, () => Boolean(state.ws && state.ws.readyState === 1));
         assert.equal(await page.evaluate(() => state.pullUpAction), 'reload', 'setting survives the reload');
         assert.equal(await page.locator('text=Chat wird aktualisiert').count(), 0, 'no toast');

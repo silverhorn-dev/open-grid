@@ -67,6 +67,10 @@
 - Album-Knopf (`chat-tools.js`): in Chats der Liste `social` versteckt;
   600 ms langer Druck auf "Snap" zeigt ihn fuer den aktuellen Chat
   (`state.albumButtonRevealedFor`) und unterdrueckt den Klick auf die Kamera.
+- Start ueber `/chat/<id>` (Neu laden, Push): `showChatLoadingPlaceholder` zeigt
+  sofort das Chat-Layout; der Chat wird direkt nach Datenbank und Chatliste
+  geoeffnet (Startschritt "Chat oeffnen"), vor Service Worker, Schluesseln und
+  Signaling. Die P2P-Verbindung folgt nach `SOCKET_REGISTERED`.
 - Scrollposition im Chat (`chat.js`): `state.chatPinned` = man ist unten
   (hoechstens 80 px Abstand). Betreten setzt immer unten; Senden ebenfalls,
   ausser man ist mehr als 1,5 Bildschirmhoehen nach oben gescrollt. Ein

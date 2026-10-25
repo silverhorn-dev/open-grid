@@ -57,9 +57,12 @@ async function main() {
 
         // Senden unten: bleibt unten.
         await page.fill('#chat-input', 'neu unten');
-        await page.click('#send-chat-btn');
+        await page.focus('#chat-input');
+        if (process.env.MOBILE) await page.tap('#send-chat-btn');
+        else await page.click('#send-chat-btn');
         await page.waitForTimeout(600);
         assert.equal(await page.evaluate(atBottom), true, 'stays at the bottom after sending');
+        assert.equal(await page.evaluate(() => document.activeElement?.id), 'chat-input', 'input keeps the focus after sending');
 
         // Weit nach oben scrollen, dann kommt eine Nachricht rein und man sendet: Position bleibt.
         await page.evaluate(() => { document.getElementById('chat-messages').scrollTop = 200; });

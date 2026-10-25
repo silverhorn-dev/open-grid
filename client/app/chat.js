@@ -552,6 +552,20 @@ function updateChatJumpButton() {
     button.classList.toggle('hidden', !state.activeChatPeerId || chatDistanceFromBottom(container) <= container.clientHeight);
 }
 
+// Der Senden-Knopf nimmt dem Nachrichtenfeld den Fokus nicht weg: so bleibt auf dem Smartphone die
+// Tastatur offen und man kann direkt weiterschreiben.
+function initChatInputFocus() {
+    const send = document.getElementById('send-chat-btn');
+    const input = document.getElementById('chat-input');
+    if (!send || !input) return;
+    send.addEventListener('pointerdown', event => {
+        if (document.activeElement === input) event.preventDefault();
+    });
+    send.addEventListener('click', () => {
+        if (!input.disabled) input.focus({ preventScroll: true });
+    });
+}
+
 function initChatScroll() {
     const container = document.getElementById('chat-messages');
     if (!container) return;

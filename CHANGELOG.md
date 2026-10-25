@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 95 · 2026-10-25
+## Build 96 · 2026-10-25
+- Behoben: nach dem Senden war das Nachrichtenfeld nicht mehr ausgewaehlt (auf dem Smartphone ging die Tastatur zu)
+
+## Build 95 · 2026-10-25 · `50b826c`
 - Changelog nach Builds (Commits) statt nach Tagen
 
 ## Build 94 · 2026-10-25 · `bd3daac`

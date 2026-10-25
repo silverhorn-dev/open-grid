@@ -117,8 +117,8 @@ function renderChangelog(markdown) {
             const level = heading[1].length;
             if (level === 1) return;
             const element = document.createElement(level === 2 ? 'h3' : 'h4');
-            element.className = level === 2 ? 'pt-3 text-base font-bold text-slate-100' : 'pt-1 text-xs font-bold uppercase tracking-wider text-brand-400';
-            element.textContent = heading[2];
+            element.className = level === 2 ? 'pt-3 text-sm font-bold text-slate-100' : 'pt-1 text-xs font-bold uppercase tracking-wider text-brand-400';
+            appendInline(element, heading[2]);
             root.appendChild(element);
         } else if (line.trim()) {
             const paragraph = document.createElement('p');

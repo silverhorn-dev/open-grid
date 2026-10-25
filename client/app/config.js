@@ -155,7 +155,7 @@ const state = {
     // Alben v2: zuletzt gepushte Schluessel-Buendel pro Betrachter/Album und Timer fuer den Epochenwechsel.
     albumKeyPushes: {},
     albumKeyPushTimer: null,
-    snapSettings: { secureSnaps: false, views: 1, seconds: 10 },
+    snapSettings: { secureSnaps: false, views: 1, seconds: 10, nextGesture: 'doubletap' },
     // Spur-Wasserzeichen in eigenen Snaps und Albumbildern (keys/privacy-settings).
     traceWatermark: true,
     // Standard fuer neue Alben: Epochenlaenge in Minuten (0 = Server-Wert) und vorab gelieferte Epochen.

@@ -343,6 +343,11 @@ Akzeptanzkriterien:
   eine Vorschau und das Original in voller Qualitaet, sobald eine direkte
   Verbindung besteht. Originale gehen nie ueber den Server.
 - Speichert der Empfaenger einen Einmal-Snap, sieht der Absender das.
+- Eine Ansicht zaehlt schon beim Oeffnen des Snaps.
+- In der Galerie lassen sich mehrere Bilder auswaehlen; jedes wird ein eigener
+  Snap (bzw. Bild oder Foto-Status).
+- Mehrere ungesehene Snaps lassen sich hintereinander ansehen: weiter per
+  Doppeltippen, seitlich oder nach oben wischen (einstellbar).
 - Gesten in der Kamera: nach unten wischen schliesst, am Ausloeser nach oben
   wischen oeffnet die Galerie, doppelt tippen wechselt die Kamera, zwei Finger
   zoomen (wenn die Kamera Zoom kann). Hat die Kamera eine Lampe, gibt es einen

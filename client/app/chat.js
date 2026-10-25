@@ -234,6 +234,7 @@ async function openChatWithPeer(peerId) {
     // Beim Betreten immer unten.
     state.chatPinned = true;
     await loadChatHistory(peerId);
+    await expireUsedReplaySnaps(peerId).catch(logBackgroundError('openChatWithPeer'));
     switchTab('chat');
     renderChatPeerIndicator();
     renderChatPeerHeader(peerId);

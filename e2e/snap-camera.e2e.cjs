@@ -136,6 +136,46 @@ async function main() {
         const preview = await bob.evaluate(id => Object.values(state.chats).flat().find(message => message.id === id).snapData.length, originalId);
         assert.ok(preview <= 70000, 'preview stays small');
 
+        // Mehrfachauswahl aus der Galerie: drei Snaps auf einmal.
+        const tinyPng = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+        const beforePick = await bob.evaluate(() => Object.values(state.chats).flat().filter(message => message.snapMode === 'replay').length);
+        await openCamera();
+        await alice.setInputFiles('#snap-file-input', [1, 2, 3].map(index => ({ name: `bild${index}.png`, mimeType: 'image/png', buffer: tinyPng })));
+        await waitFor(bob, count => Object.values(state.chats).flat().filter(message => message.snapMode === 'replay').length >= count + 3, beforePick, 30000);
+
+        // Bob schaut sie hintereinander: Doppeltippen fuehrt zum naechsten, nach dem letzten zu.
+        const aliceIdForQueue = await alice.evaluate(() => state.myProfile.id);
+        await bob.evaluate(id => openChatWithPeer(id), aliceIdForQueue);
+        const queue = await bob.evaluate(id => unseenReplaySnaps(id).map(message => message.id), aliceIdForQueue);
+        // Ein frueherer, ungesehener Snap plus die drei aus der Galerie.
+        assert.equal(queue.length, 4);
+        await bob.evaluate(id => openReplaySnap(id), queue[0]);
+        assert.match(await bob.textContent('#secure-snap-queue'), /Noch 3 Snaps/);
+        const viewer = await bob.locator('#secure-snap-viewer').boundingBox();
+        const tapCenter = async () => {
+            await bob.mouse.click(viewer.x + viewer.width / 2, viewer.y + viewer.height / 2);
+            await bob.mouse.click(viewer.x + viewer.width / 2, viewer.y + viewer.height / 2);
+        };
+        await tapCenter();
+        await waitFor(bob, id => state.secureSnapViewing?.messageId === id, queue[1], 5000);
+        await bob.evaluate(() => updateSnapSetting('nextGesture', 'swipe'));
+        await bob.mouse.move(viewer.x + viewer.width * 0.8, viewer.y + viewer.height / 2);
+        await bob.mouse.down();
+        await bob.mouse.move(viewer.x + viewer.width * 0.2, viewer.y + viewer.height / 2 + 5, { steps: 6 });
+        await bob.mouse.up();
+        await waitFor(bob, id => state.secureSnapViewing?.messageId === id, queue[2], 5000);
+        const swipeLeft = async () => {
+            await bob.mouse.move(viewer.x + viewer.width * 0.8, viewer.y + viewer.height / 2);
+            await bob.mouse.down();
+            await bob.mouse.move(viewer.x + viewer.width * 0.2, viewer.y + viewer.height / 2 + 5, { steps: 6 });
+            await bob.mouse.up();
+        };
+        await swipeLeft();
+        await waitFor(bob, id => state.secureSnapViewing?.messageId === id, queue[3], 5000);
+        await swipeLeft();
+        await waitFor(bob, () => document.getElementById('secure-snap-viewer').classList.contains('hidden'), null, 5000);
+        assert.deepEqual(await bob.evaluate(ids => ids.map(id => state.chats[state.activeChatPeerId].find(message => message.id === id).snapViews), queue), [1, 1, 1, 1], 'each counted once');
+
         // Bob speichert einen Einmal-Snap: Alice erfaehrt es.
         const snapId = await alice.evaluate(async () => {
             const canvas = document.createElement('canvas');

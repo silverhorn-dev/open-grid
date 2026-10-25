@@ -2,7 +2,12 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 100 · 2026-10-25
+## Build 101 · 2026-10-25
+- Mehrere Bilder aus der Galerie auf einmal auswaehlen: jedes wird ein eigener Snap, ein Bild oder ein Foto-Status
+- Mehrere ungesehene Snaps hintereinander ansehen: weiter per Doppeltippen, seitlich wischen oder nach oben wischen (einstellbar); unten steht, wie viele noch kommen
+- Behoben: Einmal-Snaps zaehlen die Ansicht jetzt schon beim Oeffnen; Neu laden oder Schliessen der App waehrend des Ansehens gibt keine zusaetzliche Ansicht
+
+## Build 100 · 2026-10-25 · `3fc8877`
 - "Original senden" beim Bild: volle Qualitaet (bis 4096 px, ohne Standort-Metadaten), nur direkt per P2P/TURN, nie ueber den Server; der Empfaenger sieht zuerst die Vorschau, dann das Original
 - Speichert der Empfaenger einen Snap, sieht der Absender "vom Empfaenger gespeichert" und bekommt einen Hinweis
 - Behoben: nach dem Neuladen in einem Chat konnte die Chat-Ansicht auf "Chat wird geladen" stehen bleiben; der Chat wird jetzt notfalls am Ende des Starts erneut geoeffnet

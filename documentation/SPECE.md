@@ -79,6 +79,14 @@
   prueft der Empfaenger Laenge und SHA-256 und speichert es verschluesselt
   (`originalReady`). Haengt eine Uebertragung, wird nach 60 s neu angefragt
   (bei jedem Verbindungsaufbau).
+- Einmal-Snaps: die Ansicht zaehlt beim Oeffnen (`snapViews` sofort
+  gespeichert); nach der letzten Ansicht wird beim Schliessen geloescht und
+  `SNAP_CONSUMED` gesendet, war die App weg, beim naechsten Oeffnen des Chats
+  (`expireUsedReplaySnaps`). Weiter zum naechsten ungesehenen Snap
+  (`advanceReplaySnap`, zeitlich der naechste) per `snapSettings.nextGesture`:
+  `doubletap`, `swipe` (seitlich > 80 px) oder `swipeup`.
+- Galerie-Mehrfachauswahl (max. 20): jedes Bild ohne Editor als eigener Snap,
+  Secure Snap, Bild oder Foto-Status (`sendPickedImages`).
 - `SNAP_SAVED { messageId }` (Chat-Operation, vom Empfaenger eines Einmal-Snaps
   beim Speichern): der Absender markiert `savedByPeer` und zeigt einen Hinweis.
 - Start ueber `/chat/<id>` (Neu laden, Push): `showChatLoadingPlaceholder` zeigt

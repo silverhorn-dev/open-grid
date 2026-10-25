@@ -22,7 +22,8 @@ async function loadSnapSettings() {
             state.snapSettings = {
                 secureSnaps: stored.secureSnaps === true,
                 views: SECURE_SNAP_VIEW_OPTIONS.includes(stored.views) ? stored.views : 1,
-                seconds: SECURE_SNAP_SECOND_OPTIONS.includes(stored.seconds) ? stored.seconds : 10
+                seconds: SECURE_SNAP_SECOND_OPTIONS.includes(stored.seconds) ? stored.seconds : 10,
+                nextGesture: SNAP_NEXT_GESTURES.includes(stored.nextGesture) ? stored.nextGesture : 'doubletap'
             };
         }
     } catch (error) {
@@ -32,6 +33,7 @@ async function loadSnapSettings() {
 }
 
 async function updateSnapSetting(key, value) {
+    if (key === 'nextGesture' && !SNAP_NEXT_GESTURES.includes(value)) return;
     state.snapSettings = { ...state.snapSettings, [key]: value };
     try {
         await putDatabaseRecord('keys', { id: SNAP_SETTINGS_RECORD_ID, ...state.snapSettings });
@@ -54,6 +56,8 @@ function renderSnapSettings() {
         const select = document.getElementById(id);
         if (select) select.value = String(settings.seconds);
     });
+    const nextGesture = document.getElementById('snap-next-gesture');
+    if (nextGesture) nextGesture.value = settings.nextGesture;
     document.getElementById('secure-snap-defaults')?.classList.toggle('hidden', !settings.secureSnaps);
     document.getElementById('snap-review-secure-options')?.classList.toggle('hidden', !settings.secureSnaps);
 }
@@ -444,6 +448,7 @@ function hideSecureSnapViewer() {
         if (viewing.mode === 'replay') finishReplaySnapView(viewing).catch(logBackgroundError('hideSecureSnapViewer'));
     }
     document.getElementById('secure-snap-save').classList.add('hidden');
+    document.getElementById('secure-snap-queue')?.classList.add('hidden');
     const video = document.getElementById('secure-snap-video');
     video.pause();
     video.srcObject = null;
@@ -458,7 +463,11 @@ function hideSecureSnapViewer() {
 // Verlaesst man die App (z. B. App-Wechsler), wird der Snap sofort geschlossen.
 // Nach unten wischen schliesst den Snap. touch-action: none am Viewer verhindert, dass der Browser
 // die Geste als "Seite neu laden" (Pull-to-Refresh) nimmt.
+// Mehrere ungesehene Einmal-Snaps: weiter zum naechsten per Doppeltippen, seitlich wischen oder nach
+// oben wischen (Einstellung snapSettings.nextGesture).
 const SNAP_VIEWER_CLOSE_SWIPE = 110;
+const SNAP_VIEWER_NEXT_SWIPE = 80;
+const SNAP_NEXT_GESTURES = ['doubletap', 'swipe', 'swipeup'];
 
 function initSecureSnaps() {
     document.addEventListener('visibilitychange', () => {
@@ -479,14 +488,36 @@ function initSecureSnaps() {
             if (element) element.style.transform = `translate3d(0, ${swipe.deltaY}px, 0)`;
         });
     });
+    let lastTap = 0;
     const finish = event => {
         if (!swipe || swipe.pointerId !== event.pointerId) return;
-        const { deltaY, startX } = swipe;
+        const { deltaY, startX, startY } = swipe;
         swipe = null;
         content().forEach(element => {
             if (element) element.style.transform = '';
         });
-        if (deltaY > SNAP_VIEWER_CLOSE_SWIPE && Math.abs(event.clientX - startX) < deltaY) closeSecureSnapViewer();
+        const deltaX = event.clientX - startX;
+        const rawY = event.clientY - startY;
+        if (deltaY > SNAP_VIEWER_CLOSE_SWIPE && Math.abs(deltaX) < deltaY) {
+            closeSecureSnapViewer();
+            return;
+        }
+        if (state.secureSnapViewing?.mode !== 'replay') return;
+        const gesture = state.snapSettings.nextGesture;
+        const tapped = Math.hypot(deltaX, rawY) < 10;
+        if (gesture === 'swipe' && Math.abs(deltaX) > SNAP_VIEWER_NEXT_SWIPE && Math.abs(deltaX) > Math.abs(rawY)) {
+            advanceReplaySnap();
+        } else if (gesture === 'swipeup' && -rawY > SNAP_VIEWER_NEXT_SWIPE && Math.abs(rawY) > Math.abs(deltaX)) {
+            advanceReplaySnap();
+        } else if (gesture === 'doubletap' && tapped) {
+            const now = Date.now();
+            if (now - lastTap < 300) {
+                lastTap = 0;
+                advanceReplaySnap();
+            } else {
+                lastTap = now;
+            }
+        }
     };
     viewer.addEventListener('pointerup', finish);
     viewer.addEventListener('pointercancel', finish);

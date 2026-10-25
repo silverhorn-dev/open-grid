@@ -54,11 +54,18 @@ function openReplaySnap(messageId) {
     const message = state.chats[peerId]?.find(item => item.id === messageId);
     if (!message || !isSafeInlineImage(message.snapData)) return;
     const isMine = message.senderId === state.myProfile.id;
+    // Die Ansicht zaehlt schon beim Oeffnen: Neu laden oder Schliessen der App waehrend des Ansehens
+    // gibt keine zusaetzliche Ansicht.
+    if (!isMine && !message.snapSaved) {
+        message.snapViews = (message.snapViews || 0) + 1;
+        persistChatMessage(peerId, message).catch(logBackgroundError('openReplaySnap'));
+    }
     openSecureSnapViewer('');
     state.secureSnapViewing = { mode: 'replay', peerId, messageId, isMine };
     const image = document.getElementById('secure-snap-image');
     drawSecureImage(image, message.snapData).catch(logBackgroundError('openReplaySnap'));
     image.classList.remove('hidden');
+    renderReplayQueueLabel();
     // Auch der Sender kann seinen eigenen Snap behalten.
     const save = document.getElementById('secure-snap-save');
     save.classList.remove('hidden');
@@ -97,20 +104,64 @@ async function sendSnapSaved(peerId, messageId) {
 }
 
 // Wird beim Schliessen des Viewers aufgerufen: zaehlt die Ansicht, nach der Wiederholung ist der Snap weg.
+// Ungesehene Einmal-Snaps des Chat-Partners, aelteste zuerst (fuer "weiter zum naechsten").
+function unseenReplaySnaps(peerId) {
+    return (state.chats[peerId] || [])
+        .filter(message => message.snapMode === 'replay' && message.senderId === peerId && !message.snapSaved
+            && !message.deleted && isSafeInlineImage(message.snapData) && !(message.snapViews > 0))
+        .sort((left, right) => (left.createdAt || 0) - (right.createdAt || 0));
+}
+
+function renderReplayQueueLabel() {
+    const label = document.getElementById('secure-snap-queue');
+    const viewing = state.secureSnapViewing;
+    if (!label) return;
+    const remaining = viewing?.mode === 'replay' && !viewing.isMine ? unseenReplaySnaps(viewing.peerId).length : 0;
+    const hint = { doubletap: 'Doppeltippen', swipe: 'Seitlich wischen', swipeup: 'Nach oben wischen' }[state.snapSettings.nextGesture] || 'Doppeltippen';
+    label.textContent = remaining ? `Noch ${remaining} Snap${remaining > 1 ? 's' : ''} · ${hint}: weiter` : '';
+    label.classList.toggle('hidden', !remaining);
+}
+
+// Naechster ungesehener Snap im selben Viewer; ohne weitere schliesst der Viewer.
+async function advanceReplaySnap() {
+    const viewing = state.secureSnapViewing;
+    if (viewing?.mode !== 'replay') return;
+    // Zeitlich der naechste nach dem aktuellen, sonst der aelteste noch ungesehene.
+    const current = (state.chats[viewing.peerId] || []).find(message => message.id === viewing.messageId);
+    const others = unseenReplaySnaps(viewing.peerId).filter(message => message.id !== viewing.messageId);
+    const next = others.find(message => (message.createdAt || 0) >= (current?.createdAt || 0)) || others[0];
+    if (!next) {
+        closeSecureSnapViewer();
+        return;
+    }
+    hapticTick();
+    await finishReplaySnapView(viewing);
+    openReplaySnap(next.id);
+}
+
 async function finishReplaySnapView(viewing) {
     if (viewing.isMine || viewing.saved) return;
     const message = state.chats[viewing.peerId]?.find(item => item.id === viewing.messageId);
     if (!message || message.snapSaved) return;
-    message.snapViews = (message.snapViews || 0) + 1;
-    const consumed = message.snapViews >= REPLAY_SNAP_MAX_VIEWS;
-    if (consumed) {
-        message.snapData = undefined;
-        await removeSnapFromOperation(message.id);
-    }
-    await persistChatMessage(viewing.peerId, message);
-    if (state.activeChatPeerId === viewing.peerId) renderChatHistory();
-    // Dem Sender mitteilen, dass der Snap verbraucht ist: er loescht dann seine Kopie.
-    if (consumed) await sendSnapConsumed(viewing.peerId, message.id);
+    if ((message.snapViews || 0) >= REPLAY_SNAP_MAX_VIEWS) await consumeReplaySnap(viewing.peerId, message);
+    else if (state.activeChatPeerId === viewing.peerId) renderChatHistory();
+}
+
+// Letzte Ansicht vorbei: Bild loeschen und dem Sender melden (er loescht dann seine Kopie).
+async function consumeReplaySnap(peerId, message) {
+    message.snapData = undefined;
+    await removeSnapFromOperation(message.id);
+    await persistChatMessage(peerId, message);
+    if (state.activeChatPeerId === peerId) renderChatHistory();
+    await sendSnapConsumed(peerId, message.id);
+}
+
+// War die App waehrend der letzten Ansicht weg (neu geladen, geschlossen), wird der Snap beim
+// naechsten Oeffnen des Chats aufgeraeumt.
+async function expireUsedReplaySnaps(peerId) {
+    const used = (state.chats[peerId] || []).filter(message => message.snapMode === 'replay' && message.senderId === peerId
+        && !message.snapSaved && message.snapData && (message.snapViews || 0) >= REPLAY_SNAP_MAX_VIEWS);
+    for (const message of used) await consumeReplaySnap(peerId, message);
 }
 
 async function sendSnapConsumed(peerId, messageId) {
@@ -299,8 +350,13 @@ async function encodeSnapDraft(peerId) {
 }
 
 async function pickSnapImage(input) {
-    const file = input.files?.[0];
+    const files = Array.from(input.files || []);
     input.value = '';
+    if (files.length > 1) {
+        await sendPickedImages(files);
+        return;
+    }
+    const file = files[0];
     if (!file) return;
     try {
         const bitmap = await createImageBitmap(file);
@@ -311,6 +367,44 @@ async function pickSnapImage(input) {
         logDebug(`Snap image failed: ${error.message}`);
         showToast('Bild konnte nicht geladen werden.', 'error');
     }
+}
+
+// Mehrfachauswahl aus der Galerie: jedes Bild wird ein eigener Snap (bzw. Bild oder Foto-Status),
+// ohne Editor. Secure Snaps und Wasserzeichen gelten wie beim einzelnen Senden.
+const MAX_PICKED_IMAGES = 20;
+
+async function sendPickedImages(files) {
+    const target = state.snapTarget;
+    const peerId = state.activeChatPeerId;
+    const asImage = state.snapSendMode === 'image';
+    const secure = state.snapSettings.secureSnaps && !asImage;
+    closeSnapModal();
+    let sent = 0;
+    for (const file of files.slice(0, MAX_PICKED_IMAGES)) {
+        try {
+            const bitmap = await createImageBitmap(file);
+            const base = captureSnapBase(bitmap, bitmap.width, bitmap.height, false);
+            bitmap.close?.();
+            if (target === 'status') {
+                const image = encodeSnap(base, base.width, base.height, false, null);
+                if (image) await postPhotoStatus(image, '');
+            } else if (peerId) {
+                const bits = isTraceWatermarkEnabled() ? await watermarkTag(peerId) : null;
+                const data = encodeSnap(base, base.width, base.height, false, bits);
+                if (!data) continue;
+                if (secure) {
+                    await sendChatMessage(null, '', null, await createSecureSnap(data, peerId, state.snapSettings.views, state.snapSettings.seconds));
+                } else {
+                    await sendChatMessage(data, '', null, null, { asImage });
+                }
+            }
+            sent += 1;
+        } catch (error) {
+            logDebug(`Picked image failed: ${error.message}`);
+        }
+    }
+    const kind = target === 'status' ? 'Status' : asImage ? 'Bilder' : 'Snaps';
+    showToast(`${sent} ${kind} gesendet${files.length > MAX_PICKED_IMAGES ? ` (hoechstens ${MAX_PICKED_IMAGES})` : ''}.`, sent ? 'success' : 'error');
 }
 
 async function retakeSnap() {

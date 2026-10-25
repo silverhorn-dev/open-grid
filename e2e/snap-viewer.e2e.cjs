@@ -35,9 +35,9 @@ async function main() {
             canvas.width = 300;
             canvas.height = 400;
             canvas.getContext('2d').fillRect(0, 0, 300, 400);
-            window.loadChatHistory = async () => {};
+            const snap = { id: 'snap1', peerId: 'node_snap', senderId: 'node_snap', text: '', snapData: canvas.toDataURL('image/jpeg'), snapMode: 'replay', timestamp: '10:00', createdAt: 1 };
+            await persistChatMessage('node_snap', snap);
             state.chatPeerIds.push('node_snap');
-            state.chats.node_snap = [{ id: 'snap1', senderId: 'node_snap', text: '', snapData: canvas.toDataURL('image/jpeg'), snapMode: 'replay', timestamp: '10:00', createdAt: 1 }];
             await openChatWithPeer('node_snap');
             window.__noReload = true;
             openReplaySnap('snap1');
@@ -55,6 +55,17 @@ async function main() {
         await waitFor(page, () => document.getElementById('secure-snap-viewer').classList.contains('hidden'), null, 5000);
         assert.equal(await page.evaluate(() => window.__noReload), true, 'page was not reloaded');
         assert.equal(await page.evaluate(() => state.chats.node_snap[0].snapViews), 1, 'the view was counted');
+
+        // Zweite Ansicht zaehlt schon beim Oeffnen: neu laden waehrend des Ansehens gibt keine dritte.
+        await page.evaluate(() => openReplaySnap('snap1'));
+        await waitFor(page, () => !document.getElementById('secure-snap-viewer').classList.contains('hidden'));
+        assert.equal(await page.evaluate(() => state.chats.node_snap[0].snapViews), 2, 'counted when opened');
+        await page.waitForTimeout(500);
+        assert.equal(await page.evaluate(async () => (await getAllDatabaseRecords('messages')).find(message => message.id === 'snap1')?.snapViews), 2, 'stored right away');
+        await page.reload();
+        await waitFor(page, () => Boolean(state.ws && state.ws.readyState === 1));
+        await page.evaluate(() => openChatWithPeer('node_snap'));
+        await waitFor(page, () => state.chats.node_snap?.[0] && !state.chats.node_snap[0].snapData, null, 10000);
 
         assert.deepEqual(pageErrors, [], 'no uncaught page errors');
         console.log('E2E OK (snap viewer, mobile)');

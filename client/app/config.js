@@ -131,6 +131,8 @@ const state = {
     pendingInvite: null,
     // Online-Status der Chat-Partner (nur gegenseitig, vom Server per PRESENCE gemeldet).
     peerPresence: {},
+    // Verschluesselte Nachrichten, die vor dem eigenen Sitzungsschluessel ankamen (p2p.client.js).
+    earlyEnvelopes: {},
     // Profil-Editor: ungespeicherte Felder (profile.js, Leiste unten) und Stand beim letzten Speichern.
     profileDirty: false,
     profileSnapshot: null,

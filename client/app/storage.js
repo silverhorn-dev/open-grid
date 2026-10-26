@@ -343,7 +343,18 @@ function requestMissingProfile(peerId) {
     if (isPeerOnline(peerId) && now - last.direct >= PROFILE_REQUEST_INTERVAL_MS) {
         last.direct = now;
         logDebug(`Profil von ${peerId} fehlt, frage direkt an.`);
-        sendSecurePayload(peerId, { type: 'PROFILE_REQUEST' }).catch(logBackgroundError('requestMissingProfile'));
+        const request = () => sendSecurePayload(peerId, { type: 'PROFILE_REQUEST' }).catch(logBackgroundError('requestMissingProfile'));
+        // Fehlt beiden das Profil des anderen, wuerden beide gleichzeitig verbinden. Die hoefliche Seite
+        // wartet kurz; steht dann schon eine Verbindung, kommt das Profil ohnehin beim Schluesselaustausch.
+        if (typeof isPolitePeer === 'function' && isPolitePeer(peerId)) {
+            setTimeout(() => {
+                if (state.cachedProfiles?.[peerId]) return;
+                if (hasConnectionInProgress(peerId)) return;
+                request();
+            }, 1500);
+        } else {
+            request();
+        }
     }
     const swarmPeers = Object.keys(state.dataChannels || {})
         .filter(id => id !== peerId && state.dataChannels[id].readyState === 'open' && state.sessionKeys[id]);

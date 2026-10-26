@@ -179,6 +179,7 @@ function cleanupPeerConnection(peerId, connection) {
         delete state.webrtcConnections[peerId];
         delete state.dataChannels[peerId];
         delete state.sessionKeys[peerId];
+        delete state.earlyEnvelopes[peerId];
         delete state.pendingIceCandidates[peerId];
         delete state.peerChatFocus[peerId];
         delete state.peerTransport[peerId];
@@ -302,7 +303,7 @@ async function handleSignalingMessage(message) {
     const connection = getOrCreatePeerConnection(peerId);
 
     if (message.type === 'SDP_OFFER') {
-        const polite = state.myProfile.id.localeCompare(peerId) > 0;
+        const polite = isPolitePeer(peerId);
         const offerCollision = state.makingOffer[peerId] || connection.signalingState !== 'stable';
         state.ignoreOffer[peerId] = !polite && offerCollision;
         if (state.ignoreOffer[peerId]) {
@@ -495,10 +496,37 @@ function watchConnectionAttempt(peerId, connection) {
         cleanupPeerConnection(peerId, connection);
         if (stalled >= MAX_STALLED_OFFERS || isPeerBlocked(peerId)) return;
         state.stalledOffers[peerId] = stalled + 1;
-        initiateP2PConnection(peerId).catch(logBackgroundError('watchConnectionAttempt'));
+        // Haengen beide Seiten (gleichzeitige Angebote), wuerden beide Wachhunde im selben Moment neu
+        // anbieten und wieder kollidieren. Die hoefliche Seite wartet deshalb zufaellig 1-3 s und laesst
+        // es ganz, wenn die andere Seite inzwischen eine neue Verbindung begonnen hat.
+        retryConnectionAfterStall(peerId);
     };
     const startedAt = Date.now();
     state.connectionWatchdogs[peerId] = setTimeout(check, OFFER_ANSWER_TIMEOUT_MS);
+}
+
+function isPolitePeer(peerId) {
+    return state.myProfile.id.localeCompare(peerId) > 0;
+}
+
+// Laeuft schon ein Aufbau (eigenes Angebot oder Angebot der Gegenseite angenommen)?
+function hasConnectionInProgress(peerId) {
+    if (state.connectionAttempts[peerId]) return true;
+    const connection = state.webrtcConnections[peerId];
+    if (!connection) return false;
+    return connection.signalingState !== 'stable' || ['connecting', 'connected'].includes(connection.connectionState)
+        || ['connecting', 'open'].includes(state.dataChannels[peerId]?.readyState);
+}
+
+function retryConnectionAfterStall(peerId) {
+    if (!isPolitePeer(peerId)) {
+        initiateP2PConnection(peerId).catch(logBackgroundError('watchConnectionAttempt'));
+        return;
+    }
+    setTimeout(() => {
+        if (hasConnectionInProgress(peerId) || isPeerBlocked(peerId)) return;
+        initiateP2PConnection(peerId).catch(logBackgroundError('watchConnectionAttempt'));
+    }, 1000 + Math.random() * 2000);
 }
 
 async function initiateP2PConnection(peerId) {
@@ -694,12 +722,34 @@ async function handleDataChannelMessage(peerId, rawMessage) {
             logDebug(`Sitzungsschluessel fuer ${peerId} bereit.`);
             // Die Gegenseite fragt erneut (unser KEY_HELLO ging verloren): antworten.
             if (hadKey) sendKeyHello(peerId, state.dataChannels[peerId], 0, true);
+            await drainEarlyEnvelopes(peerId);
             return;
         }
-        if (message.type !== 'SECURE_ENVELOPE' || !state.sessionKeys[peerId]) return;
+        if (message.type !== 'SECURE_ENVELOPE') return;
+        // Die Gegenseite ist mit ihrem Schluessel schon fertig, wir noch nicht (beide leiten gleichzeitig
+        // ab): kurz zurueckhalten statt verwerfen, sonst gehen z. B. Profil-Anfragen verloren.
+        if (!state.sessionKeys[peerId]) {
+            const early = state.earlyEnvelopes[peerId] || (state.earlyEnvelopes[peerId] = []);
+            if (early.length < MAX_EARLY_ENVELOPES) early.push(message);
+            return;
+        }
         await handleSecurePayload(peerId, await decryptSecurePayload(peerId, message));
     } catch (error) {
         logDebug(`Rejected P2P message from ${peerId}: ${error.message}`);
+    }
+}
+
+const MAX_EARLY_ENVELOPES = 50;
+
+async function drainEarlyEnvelopes(peerId) {
+    const early = state.earlyEnvelopes[peerId] || [];
+    delete state.earlyEnvelopes[peerId];
+    for (const envelope of early) {
+        try {
+            await handleSecurePayload(peerId, await decryptSecurePayload(peerId, envelope));
+        } catch (error) {
+            logDebug(`Rejected early P2P message from ${peerId}: ${error.message}`);
+        }
     }
 }
 

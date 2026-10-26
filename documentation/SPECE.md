@@ -1097,6 +1097,11 @@ Ein Klick auf die Benachrichtigung fokussiert die App und oeffnet den Chat
   `Referrer-Policy: no-referrer`, `Permissions-Policy` (Kamera, Mikrofon und
   Standort nur same-origin), `Cross-Origin-Opener-Policy`, `X-Frame-Options`. Keine
   CORS-Header: die App laeuft same-origin.
+- Einstellungen (`#view-keys`): Bereiche als Tabs (`data-settings-tab` an den
+  Karten, `switchSettingsTab` in `settings.js`, letzter Tab in `localStorage`
+  `opengrid-settings-tab`; "Debug" nur im Debug-Modus). Zeilen `.setting-row`
+  mit Titel, kurzer Beschreibung und rechts einem Schalter (`input.switch`,
+  weiter ein echtes Kontrollkaestchen) oder einer Auswahl (`.setting-select`).
 - Keine Inline-Handler im Markup: Elemente tragen `data-click`,
   `data-change`, `data-input` oder `data-enter` (Enter-Taste) mit dem Namen
   einer globalen Funktion, Argumente als JSON in `data-args` (Platzhalter

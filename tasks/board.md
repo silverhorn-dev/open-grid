@@ -65,8 +65,10 @@
   - 2026-10-26 bestandsaufnahme (screenshots mobil/desktop, hell/dunkel), nutzer waehlt aus:
     - plan: U1 sprache einheitlich deutsch: profil-felder "Display Name", "Age", "Position / Role", "About Me" + englische beispielwerte ("Privacy-first tech enthusiast!"), grid "6 peers • Updated 01:54:30 PM", "Enable Notifications", kontaktleiste "offline"
     - plan: U2 zeitformat einheitlich: chatliste "01:54 PM" (locale des browsers), nachrichten "21:01", grid mit sekunden -> ueberall 24h ohne sekunden (bzw. "gestern", datum)
-    - plan: U3 einstellungen: eine sehr lange seite (~9 bildschirme) -> abschnitte mit sprungleiste/tabs (Konto & Modus, Chat, Privatsphaere, Medien & Snaps, Benachrichtigungen, Darstellung); chat-wechsel-optionen stehen unter "Darstellung", wasserzeichen unter "Secure Snaps"
-    - plan: U4 interne codes sichtbar: "1 - Alles fuer alle", "A - Alle" -> nur klartext
+    - [x] U3 einstellungen: eine sehr lange seite (~9 bildschirme) -> abschnitte mit sprungleiste/tabs (Konto & Modus, Chat, Privatsphaere, Medien & Snaps, Benachrichtigungen, Darstellung); chat-wechsel-optionen stehen unter "Darstellung", wasserzeichen unter "Secure Snaps"
+      - nutzer 2026-10-26: schalter statt checkboxen, auf dem smartphone angenehmer
+      - done: tabs Allgemein/Privatsphaere/Chat/Medien/Darstellung/Debug (sticky unter der kopfzeile, letzter tab gemerkt), zeilen mit titel + kurzer beschreibung und schalter/auswahl rechts, `.switch`, `.setting-row`, `.btn-primary`/`.btn-secondary` (styles.css); U4 gleich mit erledigt (keine "1 -"/"A -"-codes mehr)
+    - [x] U4 interne codes sichtbar: "1 - Alles fuer alle", "A - Alle" -> nur klartext (mit U3)
     - plan: U5 buttons: gleiche hoehe/form in der eingabeleiste (snap/video/mic unterschiedlich hoch), ein primaer-stil, ein sekundaer-stil, ein icon-knopf-stil als wiederverwendbare klassen (statt langer tailwind-ketten pro knopf)
     - plan: U6 desktop: avatar-leiste im chat doppelt zur sichtbaren chatliste -> auf desktop ausblenden; aktionen-pfeil auf desktop nur beim hovern
     - plan: U7 leere zustaende/ladeanzeigen einheitlich (grid leer, chatliste leer, "Chat wird geladen", album leer) mit gleichem icon+text-muster

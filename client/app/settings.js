@@ -160,10 +160,12 @@ function toggleDebugMode() {
 
     if (CONFIG.DEBUG_MODE) {
         switchTab('keys');
+        switchSettingsTab('debug');
         closeMenu();
         logDebug('Debug logging enabled.');
     } else {
         console.info('[OpenGrid] Debug logging disabled.');
+        if (state.settingsTab === 'debug') switchSettingsTab('general');
     }
 }
 
@@ -306,6 +308,7 @@ function switchTab(tabName) {
     window.scrollTo(0, 0);
     syncRoute(tabName);
     syncChatFocus();
+    measureAppChrome();
     if (tabName === 'chat') fitChatListPanel();
     // "Nur Liste ansehen" gilt bis zum Verlassen des Chat-Tabs.
     else if (state.chatListScopeOverride) {
@@ -325,13 +328,52 @@ function fitChatListPanel() {
     }
     // Die Liste ist per CSS fest zwischen Kopfzeile und unterer Navigation; hier nur deren Hoehen.
     requestAnimationFrame(() => {
-        const header = document.querySelector('header.app-header');
-        const nav = document.querySelector('nav.bottom-nav');
-        const navHeight = nav && getComputedStyle(nav).display !== 'none' ? nav.getBoundingClientRect().height : 0;
-        if (header) document.documentElement.style.setProperty('--app-header-height', `${Math.round(header.getBoundingClientRect().height)}px`);
-        document.documentElement.style.setProperty('--bottom-nav-height', `${Math.round(navHeight)}px`);
+        measureAppChrome();
         panel.style.maxHeight = '';
     });
+}
+
+// Hoehe von Kopfzeile und unterer Navigation als CSS-Variablen (feste Chatliste, Tabs der Einstellungen).
+function measureAppChrome() {
+    const header = document.querySelector('header.app-header');
+    const nav = document.querySelector('nav.bottom-nav');
+    const navHeight = nav && getComputedStyle(nav).display !== 'none' ? nav.getBoundingClientRect().height : 0;
+    if (header) document.documentElement.style.setProperty('--app-header-height', `${Math.round(header.getBoundingClientRect().height)}px`);
+    document.documentElement.style.setProperty('--bottom-nav-height', `${Math.round(navHeight)}px`);
+}
+
+// ----- Einstellungen: Bereiche als Tabs -----
+const SETTINGS_TABS = ['general', 'privacy', 'chat', 'media', 'appearance', 'debug'];
+const SETTINGS_TAB_STORAGE_KEY = 'opengrid-settings-tab';
+
+function switchSettingsTab(name) {
+    const tab = SETTINGS_TABS.includes(name) && (name !== 'debug' || CONFIG.DEBUG_MODE) ? name : 'general';
+    state.settingsTab = tab;
+    document.querySelectorAll('[data-settings-tab]').forEach(card => {
+        card.classList.toggle('settings-off', card.dataset.settingsTab !== tab);
+    });
+    document.querySelectorAll('[data-settings-tab-btn]').forEach(button => {
+        const active = button.dataset.settingsTabBtn === tab;
+        button.classList.toggle('is-active', active);
+        button.setAttribute('aria-selected', String(active));
+        if (active) button.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+    });
+    try {
+        window.localStorage.setItem(SETTINGS_TAB_STORAGE_KEY, tab);
+    } catch {
+        // Ohne localStorage startet die Seite wieder bei "Allgemein".
+    }
+    if (!document.getElementById('view-keys')?.classList.contains('hidden')) window.scrollTo(0, 0);
+}
+
+function initSettingsTabs() {
+    let stored = null;
+    try {
+        stored = window.localStorage.getItem(SETTINGS_TAB_STORAGE_KEY);
+    } catch {
+        stored = null;
+    }
+    switchSettingsTab(stored || 'general');
 }
 
 window.addEventListener('resize', fitChatListPanel);

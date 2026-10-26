@@ -142,6 +142,7 @@ function unregisterFromMenu() {
 
 function openInviteCard() {
     switchTab('keys');
+    switchSettingsTab('general');
     document.getElementById('invite-card')?.scrollIntoView({ behavior: 'smooth' });
 }
 

@@ -2,7 +2,12 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 121 · 2026-10-26
+## Build 123 · 2026-10-26
+- Einstellungen neu: Bereiche als Tabs (Allgemein, Privatsphaere, Chat, Medien, Darstellung), Schalter statt Kaestchen, jede Option mit kurzer Erklaerung; auf dem Smartphone deutlich kuerzer und besser zu bedienen
+- Auswahlfelder ohne interne Kuerzel ("Alles fuer alle" statt "1 - Alles fuer alle")
+- Behoben: nach einem Verbindungsabbruch kamen Videos, Originalbilder und der Rest langer Sprachnachrichten erst nach einer Minute; auf der neuen Verbindung werden sie jetzt sofort angefragt
+
+## Build 122 · 2026-10-26 · `458a67f`
 - Videos spielen jetzt im Vollbild wie der Bildbetrachter (Absender, Zeit und Laenge oben; nach unten wischen schliesst) statt im kleinen Fenster
 
 ## Build 120 · 2026-10-26 · `90af994`

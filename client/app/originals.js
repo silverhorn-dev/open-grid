@@ -48,10 +48,12 @@ async function requestMissingOriginals(peerId) {
     if (!isSecureChannelOpen(peerId)) return;
     const messages = await getDatabaseRecordsByIndex('messages', 'peerId', peerId).catch(() => []);
     for (const message of messages.filter(entry => wantsOriginal(peerId, entry))) {
-        // Laufende Uebertragung nicht doppelt anstossen; haengt sie (Kanal weg), nach einer Minute neu.
+        // Laufende Uebertragung nicht doppelt anstossen; haengt sie, nach einer Minute neu. Auf einem
+        // neuen Kanal (Verbindung neu aufgebaut) sofort neu: die alte Anfrage ging mit dem Kanal verloren.
+        const channel = state.dataChannels[peerId];
         const running = state.originalTransfers[message.id];
-        if (running && Date.now() - running.startedAt < 60000) continue;
-        state.originalTransfers[message.id] = { peerId, chunks: [], received: 0, total: 0, startedAt: Date.now() };
+        if (running && running.channel === channel && Date.now() - running.startedAt < 60000) continue;
+        state.originalTransfers[message.id] = { peerId, channel, chunks: [], received: 0, total: 0, startedAt: Date.now() };
         await sendSecurePayload(peerId, { type: 'ORIGINAL_REQUEST', messageId: message.id });
     }
 }

@@ -401,177 +401,183 @@
         </section>
 
         <!-- ==================== TAB 5: CONFIG, KEYS & DEBUG CONSOLE ==================== -->
-        <section id="view-keys" class="hidden space-y-4">
-            <h2 class="text-base font-bold text-slate-100 flex items-center gap-2">
+        <section id="view-keys" class="hidden">
+            <div class="settings-panel">
+            <h2 class="text-base font-bold text-slate-100 flex items-center gap-2 mb-1">
                 <i class="fa-solid fa-gear text-slate-400"></i> Einstellungen
             </h2>
-            <div id="debug-console-panel" class="debug-only bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
-                <div class="flex flex-wrap gap-2 justify-between items-center">
-                    <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
-                        <i class="fa-solid fa-terminal text-amber-400"></i> Live PWA Protocol Log
-                    </h3>
-                    <div class="flex flex-wrap items-center gap-2">
-                        <span class="text-[10px] text-slate-500 bg-slate-950 px-2 py-1 rounded border border-slate-800">Build: {{timestamp}}</span>
-                        <button data-click="copyDebugLogs" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded flex items-center gap-1.5" title="Vollstaendiges Protokoll in die Zwischenablage kopieren">
-                            <i class="fa-solid fa-copy text-sky-400"></i> Copy Logs
-                        </button>
-                        <button data-click="runConnectivityDiagnostics" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded flex items-center gap-1.5" title="STUN/TURN-Erreichbarkeit pruefen">
-                            <i class="fa-solid fa-stethoscope text-emerald-400"></i> Test ICE
-                        </button>
-                        <button data-click="clearDebugLogs" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded">Clear Logs</button>
-                    </div>
-                </div>
-                <div id="debug-log-output" class="bg-slate-950 p-3 rounded-lg border border-slate-800 font-mono text-xs text-emerald-400 h-40 overflow-y-auto space-y-1">
-                    <div>[System] Debug Console initialized.</div>
-                </div>
-            </div>
+            <nav class="settings-tabs" role="tablist" aria-label="Bereiche der Einstellungen">
+                <button type="button" class="settings-tab" role="tab" data-settings-tab-btn="general" data-click="switchSettingsTab" data-args='["general"]'><i class="fa-solid fa-sliders"></i> Allgemein</button>
+                <button type="button" class="settings-tab" role="tab" data-settings-tab-btn="privacy" data-click="switchSettingsTab" data-args='["privacy"]'><i class="fa-solid fa-user-shield"></i> Privatsphaere</button>
+                <button type="button" class="settings-tab" role="tab" data-settings-tab-btn="chat" data-click="switchSettingsTab" data-args='["chat"]'><i class="fa-solid fa-comments"></i> Chat</button>
+                <button type="button" class="settings-tab" role="tab" data-settings-tab-btn="media" data-click="switchSettingsTab" data-args='["media"]'><i class="fa-solid fa-camera"></i> Medien</button>
+                <button type="button" class="settings-tab" role="tab" data-settings-tab-btn="appearance" data-click="switchSettingsTab" data-args='["appearance"]'><i class="fa-solid fa-palette"></i> Darstellung</button>
+                <button type="button" class="settings-tab debug-only" role="tab" data-settings-tab-btn="debug" data-click="switchSettingsTab" data-args='["debug"]'><i class="fa-solid fa-bug"></i> Debug</button>
+            </nav>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="debug-only bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
-                    <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
-                        <i class="fa-solid fa-sliders text-brand-400"></i> Dynamic Profile Schema
-                    </h3>
-                    <p class="text-xs text-slate-400">Die Profilfelder werden aus dieser JSON-Konfiguration erzeugt.</p>
-                    <textarea id="schema-json-input" rows="10" spellcheck="false" class="w-full bg-slate-950 p-2.5 rounded-lg border border-slate-800 font-mono text-xs text-slate-300 focus:outline-none focus:border-brand-500"></textarea>
-                    <button data-click="updateProfileSchemaFromJSON" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-200 px-3 py-2 rounded-lg font-semibold transition">
-                        Apply Schema
-                    </button>
-                </div>
-
-                <div class="debug-only bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
-                    <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
-                        <i class="fa-solid fa-fingerprint text-amber-400"></i> Wasserzeichen pruefen
-                    </h3>
-                    <p class="text-xs text-slate-400">Snaps und Albumbilder tragen unsichtbar die ID des Empfaengers. Lade einen 1:1-Screenshot oder das Bild hoch, um herauszufinden, an wen es ging.</p>
-                    <label class="inline-block bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-200 px-3 py-2 rounded-lg font-semibold cursor-pointer">
-                        Bild auswaehlen
-                        <input type="file" accept="image/*" class="hidden" data-change="checkWatermarkFile" data-args='["$el"]'>
-                    </label>
-                    <div id="watermark-check-result" class="text-xs font-mono text-slate-300"></div>
-                </div>
-
-                <div class="debug-only bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
-                    <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
-                        <i class="fa-solid fa-key text-emerald-400"></i> E2EE Identity Keys (ECDH / P-256)
-                    </h3>
-                    <p class="text-xs text-slate-400">Das Schluesselpaar wird lokal mit Web Crypto erzeugt. Nur der oeffentliche Schluessel wird beim Routing-Server registriert.</p>
-                    <div class="space-y-2">
-                        <label class="text-xs font-mono text-slate-400">Public Key Fingerprint (SHA-256)</label>
-                        <div id="inspect-pubkey-fingerprint" class="bg-slate-950 p-2 rounded border border-slate-800 font-mono text-xs text-emerald-400 break-all">Generating...</div>
-                    </div>
-                    <button id="regenerate-key-btn" data-click="generateUserIdentityKeys" data-args='[true]' class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-200 px-3 py-2 rounded-lg font-semibold transition">
-                        Regenerate Keypair
-                    </button>
-                </div>
-
-                <div id="app-mode-card" class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3 md:col-span-2">
-                    <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
-                        <i class="fa-solid fa-sliders text-brand-400"></i> App-Modus
-                    </h3>
-                    <div id="app-mode-options" class="grid gap-2 sm:grid-cols-2"></div>
-                    <div id="event-settings" class="space-y-2 border-t border-slate-800 pt-3">
-                        <div class="text-xs text-slate-300">Event beitreten (der Server sieht nur einen Hash des Codes):</div>
+            <div class="settings-cards">
+                <!-- ===== Allgemein ===== -->
+                <div id="app-mode-card" class="settings-card" data-settings-tab="general">
+                    <h3 class="settings-card-title"><i class="fa-solid fa-sliders text-brand-400"></i> App-Modus</h3>
+                    <div id="app-mode-options" class="grid gap-2 sm:grid-cols-2 pb-3"></div>
+                    <div id="event-settings" class="setting-block">
+                        <div class="setting-desc mb-2">Event beitreten (der Server sieht nur einen Hash des Codes):</div>
                         <div class="flex gap-2">
-                            <input id="event-code-input" type="text" maxlength="64" placeholder="Event-Code, z. B. PRIDE24" data-enter="joinEvent" class="flex-1 min-w-0 bg-slate-950 border border-slate-700 rounded px-2 py-1.5 text-base md:text-xs text-slate-200 uppercase">
-                            <button data-click="joinEvent" class="bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg">Beitreten</button>
+                            <input id="event-code-input" type="text" maxlength="64" placeholder="Event-Code, z. B. PRIDE24" data-enter="joinEvent" class="setting-input flex-1 min-w-0 uppercase">
+                            <button data-click="joinEvent" class="btn-primary">Beitreten</button>
                         </div>
-                        <div id="event-status" class="text-[11px] text-slate-500">Kein Event aktiv.</div>
+                        <div id="event-status" class="setting-desc mt-2">Kein Event aktiv.</div>
                     </div>
                 </div>
 
-                <div id="invite-card" class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
-                    <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
-                        <i class="fa-solid fa-user-plus text-brand-400"></i> Kontakt einladen
-                    </h3>
-                    <p class="text-xs text-slate-400">Wer diesen Link oeffnet oder den QR-Code scannt, kann dir schreiben. Der Link enthaelt deinen Schluessel-Fingerprint, so faellt ein Abfangen auf.</p>
-                    <img id="invite-qr" alt="QR-Code mit deinem Einladungslink" class="hidden w-40 h-40 rounded-lg bg-white p-1 [image-rendering:pixelated]">
-                    <input id="invite-link-output" type="text" readonly class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1.5 text-[11px] font-mono text-slate-300">
-                    <div class="flex gap-2">
-                        <button data-click="copyInviteLink" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-200 px-3 py-1.5 rounded-lg font-semibold"><i class="fa-regular fa-copy"></i> Kopieren</button>
-                        <button data-click="shareInviteLink" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-200 px-3 py-1.5 rounded-lg font-semibold"><i class="fa-solid fa-share-nodes"></i> Teilen</button>
+                <div id="invite-card" class="settings-card" data-settings-tab="general">
+                    <h3 class="settings-card-title"><i class="fa-solid fa-user-plus text-brand-400"></i> Kontakt einladen</h3>
+                    <div class="setting-block space-y-3">
+                        <p class="setting-desc">Wer diesen Link oeffnet oder den QR-Code scannt, kann dir schreiben. Der Link enthaelt deinen Schluessel-Fingerprint, so faellt ein Abfangen auf.</p>
+                        <img id="invite-qr" alt="QR-Code mit deinem Einladungslink" class="hidden w-40 h-40 rounded-lg bg-white p-1 [image-rendering:pixelated]">
+                        <input id="invite-link-output" type="text" readonly class="setting-input w-full text-[11px] font-mono">
+                        <div class="flex gap-2">
+                            <button data-click="copyInviteLink" class="btn-secondary"><i class="fa-regular fa-copy"></i> Kopieren</button>
+                            <button data-click="shareInviteLink" class="btn-secondary"><i class="fa-solid fa-share-nodes"></i> Teilen</button>
+                        </div>
                     </div>
                 </div>
 
-                <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
-                    <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
-                        <i class="fa-solid fa-fire text-orange-400"></i> Matching &amp; Privatsphaere
-                    </h3>
-                    <label class="flex flex-wrap items-center gap-2 text-xs text-slate-300">
-                        <span>Profil sichtbar:</span>
-                        <select id="profile-visibility-select" data-change="updateMatchingSetting" data-args='["visibility", "$value"]' class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200">
-                            <option value="1">1 - Alles fuer alle</option>
-                            <option value="2">2 - Teilweise (markierte Felder + Galerie nur fuer Matches)</option>
-                            <option value="3">3 - Verborgen (alles erst nach Match)</option>
+                <!-- ===== Privatsphaere ===== -->
+                <div class="settings-card" data-settings-tab="privacy">
+                    <h3 class="settings-card-title"><i class="fa-solid fa-fire text-orange-400"></i> Matching</h3>
+                    <label class="setting-row">
+                        <span class="setting-text"><span class="setting-title">Profil sichtbar</span><span class="setting-desc">Ein Match entsteht, wenn ihr euch gegenseitig eine Flamme schickt. Bei "Teilweise" markierst du im Profil, welche Felder nur Matches sehen.</span></span>
+                        <select id="profile-visibility-select" data-change="updateMatchingSetting" data-args='["visibility", "$value"]' class="setting-select">
+                            <option value="1">Alles fuer alle</option>
+                            <option value="2">Teilweise (markierte Felder und Galerie nur fuer Matches)</option>
+                            <option value="3">Verborgen (alles erst nach Match)</option>
                         </select>
                     </label>
-                    <label class="flex flex-wrap items-center gap-2 text-xs text-slate-300">
-                        <span>Wer darf schreiben:</span>
-                        <select id="chat-mode-select" data-change="updateMatchingSetting" data-args='["chatMode", "$value"]' class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200">
-                            <option value="A">A - Alle</option>
-                            <option value="B">B - Begrenzt bis zum Match</option>
-                            <option value="C">C - Nur Matches</option>
+                    <label class="setting-row">
+                        <span class="setting-text"><span class="setting-title">Wer darf schreiben</span></span>
+                        <select id="chat-mode-select" data-change="updateMatchingSetting" data-args='["chatMode", "$value"]' class="setting-select">
+                            <option value="A">Alle</option>
+                            <option value="B">Begrenzt bis zum Match</option>
+                            <option value="C">Nur Matches</option>
                         </select>
                     </label>
-                    <div id="chat-limit-options" class="hidden flex flex-wrap items-center gap-3 text-xs text-slate-300">
-                        <label class="flex items-center gap-2">Max.
-                            <select id="chat-limit-select" data-change="updateMatchingSetting" data-args='["chatLimit", "$value"]' class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-slate-200">
+                    <div id="chat-limit-options" class="hidden">
+                        <label class="setting-row setting-sub">
+                            <span class="setting-text"><span class="setting-title">Nachrichten bis zum Match</span></span>
+                            <select id="chat-limit-select" data-change="updateMatchingSetting" data-args='["chatLimit", "$value"]' class="setting-select">
                                 <option value="1">1</option>
                                 <option value="3">3</option>
                                 <option value="5">5</option>
                                 <option value="10">10</option>
                             </select>
-                            Nachrichten bis zum Match
                         </label>
-                        <label class="flex items-center gap-2 cursor-pointer">
-                            <input type="checkbox" id="chat-images-toggle" data-change="updateMatchingSetting" data-args='["chatImages", "$checked"]' class="accent-brand-500">
-                            Bilder erlaubt
+                        <label class="setting-row setting-sub">
+                            <span class="setting-text"><span class="setting-title">Bilder erlaubt</span></span>
+                            <input type="checkbox" role="switch" id="chat-images-toggle" data-change="updateMatchingSetting" data-args='["chatImages", "$checked"]' class="switch">
                         </label>
                     </div>
-                    <label class="flex items-start gap-2 text-xs text-slate-300 cursor-pointer">
-                        <input type="checkbox" id="match-friends-toggle" checked data-change="updateMatchingSetting" data-args='["matchFriends", "$checked"]' class="accent-brand-500 mt-0.5">
-                        <span>Matches koennen mich adden (Chat wandert dann nach "Chat &amp; Freunde"). Aus: deine Matches sehen keinen "Adden"-Knopf.</span>
+                    <label class="setting-row">
+                        <span class="setting-text"><span class="setting-title">Matches koennen mich adden</span><span class="setting-desc">Der Chat wandert dann nach "Chat &amp; Freunde". Aus: deine Matches sehen keinen "Adden"-Knopf.</span></span>
+                        <input type="checkbox" role="switch" id="match-friends-toggle" checked data-change="updateMatchingSetting" data-args='["matchFriends", "$checked"]' class="switch">
                     </label>
-                    <p class="text-[11px] text-slate-500">Ein Match entsteht, wenn ihr euch gegenseitig eine Flamme schickt. Bei Stufe 2 markierst du im Profil, welche Felder nur Matches sehen.</p>
                 </div>
 
-                <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
-                    <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
-                        <i class="fa-solid fa-hard-drive text-sky-400"></i> Speicher
-                    </h3>
-                    <div id="storage-usage" class="text-xs text-slate-300">Wird berechnet...</div>
-                    <button id="storage-cleanup-btn" data-click="cleanupUnusedMedia" class="bg-slate-800 hover:bg-slate-700 disabled:opacity-60 border border-slate-700 text-xs text-slate-200 px-3 py-2 rounded-lg font-semibold">
-                        Nicht mehr benoetigte Medien entfernen
-                    </button>
+                <div class="settings-card" data-settings-tab="privacy">
+                    <h3 class="settings-card-title"><i class="fa-solid fa-eye-slash text-sky-400"></i> Sichtbarkeit im Grid</h3>
+                    <label class="setting-row">
+                        <span class="setting-text"><span class="setting-title">Silent-Modus</span><span class="setting-desc">Nicht im Grid sichtbar, aber fuer bestehende Chats erreichbar.</span></span>
+                        <input type="checkbox" role="switch" id="silent-mode-toggle" data-change="updateGridSetting" data-args='["silent", "$checked"]' class="switch">
+                    </label>
+                    <label class="setting-row">
+                        <span class="setting-text"><span class="setting-title">Sichtbar nach dem Schliessen</span></span>
+                        <select id="grid-ttl-select" data-change="updateGridSetting" data-args='["ttlMinutes", "$number"]' class="setting-select">
+                            <option value="1">1 Minute</option>
+                            <option value="10">10 Minuten</option>
+                            <option value="30">30 Minuten</option>
+                            <option value="60">60 Minuten</option>
+                        </select>
+                    </label>
+                    <label class="setting-row">
+                        <span class="setting-text"><span class="setting-title">Live-Grid</span><span class="setting-desc">Nur Profile zeigen, die gerade online sind.</span></span>
+                        <input type="checkbox" role="switch" id="live-grid-toggle" data-change="updateGridSetting" data-args='["liveGrid", "$checked"]' class="switch">
+                    </label>
                 </div>
 
-                <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
-                    <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
-                        <i class="fa-solid fa-text-height text-brand-400"></i> Darstellung
-                    </h3>
-                    <div class="flex flex-wrap items-center gap-2 text-xs text-slate-300">
-                        <label class="flex items-center gap-2 cursor-pointer">
-                            <input type="checkbox" id="chat-switch-toggle" checked data-change="updateChatSwitchSetting" data-args='["enabled", "$checked"]' class="accent-brand-500">
-                            Im Chat schnell zum naechsten Chat wechseln
-                        </label>
-                        <select id="chat-switch-style" data-change="updateChatSwitchSetting" data-args='["style", "$value"]' aria-label="Art des Wechsels" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200">
+                <div class="settings-card" data-settings-tab="privacy">
+                    <h3 class="settings-card-title"><i class="fa-solid fa-location-dot text-sky-400"></i> Standort</h3>
+                    <label class="setting-row">
+                        <span class="setting-text"><span class="setting-title">Geraetestandort verwenden</span><span class="setting-desc">Nur als Zelle von ca. 1 km an den Router.</span></span>
+                        <input type="checkbox" role="switch" id="use-location-toggle" data-change="updateGridSetting" data-args='["useLocation", "$checked"]' class="switch">
+                    </label>
+                    <div class="setting-block">
+                        <div class="setting-title mb-0.5">Oder Adresse angeben</div>
+                        <div class="setting-desc mb-2">Wird einmalig an OpenStreetMap Nominatim gesendet, der Router sieht nur die Zelle.</div>
+                        <div class="flex gap-2">
+                            <input id="address-input" type="text" autocomplete="street-address" placeholder="Strasse, Ort" data-enter="searchAddressLocation" class="setting-input flex-1 min-w-0">
+                            <button id="address-search-btn" data-click="searchAddressLocation" class="btn-secondary">Suchen</button>
+                        </div>
+                        <div id="location-label" class="setting-desc mt-2 truncate">Aktuell: kein Standort gesetzt</div>
+                    </div>
+                    <div class="setting-block">
+                        <div class="setting-title mb-0.5">Safe Zones</div>
+                        <div class="setting-desc mb-2">An diesen Orten bist du automatisch unsichtbar.</div>
+                        <ul id="safe-zone-list" class="space-y-1 mb-2"></ul>
+                        <button id="add-safe-zone-btn" data-click="addCurrentSafeZone" class="btn-secondary">Aktuellen Ort als Safe Zone speichern</button>
+                    </div>
+                </div>
+
+                <div class="settings-card" data-settings-tab="privacy">
+                    <h3 class="settings-card-title"><i class="fa-solid fa-network-wired text-sky-400"></i> Verbindung</h3>
+                    <label class="setting-row">
+                        <span class="setting-text"><span class="setting-title">Cloud-Cache</span><span class="setting-desc">Eigene Nachrichten verschluesselt auf dem Server zwischenspeichern, wenn keine direkte Verbindung besteht. Eingehende Nachrichten kommen weiterhin an.</span></span>
+                        <input type="checkbox" role="switch" id="cache-enabled-toggle" checked data-change="updateGridSetting" data-args='["cacheEnabled", "$checked"]' class="switch">
+                    </label>
+                    <label class="setting-row">
+                        <span class="setting-text"><span class="setting-title">Nur lokales Netz (Club-Modus)</span><span class="setting-desc">Verbindungen nur im selben WLAN, ohne STUN/TURN-Server. Chats mit Leuten ausserhalb laufen dann ueber den verschluesselten Zwischenspeicher.</span></span>
+                        <input type="checkbox" role="switch" id="lan-only-toggle" data-change="updateGridSetting" data-args='["lanOnly", "$checked"]' class="switch">
+                    </label>
+                </div>
+
+                <div class="settings-card" data-settings-tab="privacy">
+                    <h3 class="settings-card-title"><i class="fa-solid fa-user-slash text-red-400"></i> Blockierte Peers</h3>
+                    <div class="setting-block">
+                        <p class="setting-desc mb-2">Hier kannst du blockierte Verbindungen verwalten und wieder freigeben.</p>
+                        <div id="blocked-peers-list" class="space-y-2 max-h-60 overflow-y-auto">
+                            <div class="text-xs text-slate-500 italic">Keine Peers blockiert.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===== Chat ===== -->
+                <div class="settings-card" data-settings-tab="chat">
+                    <h3 class="settings-card-title"><i class="fa-solid fa-comments text-brand-400"></i> Chats wechseln</h3>
+                    <label class="setting-row">
+                        <span class="setting-text"><span class="setting-title">Schnell zum naechsten Chat</span><span class="setting-desc">Im offenen Chat zwischen den Chats der Liste wechseln.</span></span>
+                        <input type="checkbox" role="switch" id="chat-switch-toggle" checked data-change="updateChatSwitchSetting" data-args='["enabled", "$checked"]' class="switch">
+                    </label>
+                    <label class="setting-row setting-sub">
+                        <span class="setting-text"><span class="setting-title">Art des Wechsels</span></span>
+                        <select id="chat-switch-style" data-change="updateChatSwitchSetting" data-args='["style", "$value"]' class="setting-select">
                             <option value="bar">Leiste mit Avataren</option>
                             <option value="arrows">Pfeile in der Kontaktleiste</option>
                             <option value="swipe">Wischen auf der Kontaktleiste</option>
                         </select>
-                    </div>
-                    <div class="flex flex-wrap items-center gap-2 text-xs text-slate-300">
-                        <label class="flex items-center gap-2 cursor-pointer">
-                            <input type="checkbox" id="list-switch-toggle" checked data-change="updateListSwitchSetting" data-args='["enabled", "$checked"]' class="accent-brand-500">
-                            Knopf zum Wechseln zwischen "Grid &amp; Event" und "Chat &amp; Freunde"
-                        </label>
-                        <select id="list-switch-behavior" data-change="updateListSwitchSetting" data-args='["behavior", "$value"]' aria-label="Art des Listen-Wechsels" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200">
+                    </label>
+                    <label class="setting-row">
+                        <span class="setting-text"><span class="setting-title">Knopf zum Listen-Wechsel</span><span class="setting-desc">Zwischen "Grid &amp; Event" und "Chat &amp; Freunde".</span></span>
+                        <input type="checkbox" role="switch" id="list-switch-toggle" checked data-change="updateListSwitchSetting" data-args='["enabled", "$checked"]' class="switch">
+                    </label>
+                    <label class="setting-row setting-sub">
+                        <span class="setting-text"><span class="setting-title">Der Knopf</span></span>
+                        <select id="list-switch-behavior" data-change="updateListSwitchSetting" data-args='["behavior", "$value"]' class="setting-select">
                             <option value="mode">wechselt den App-Modus</option>
                             <option value="view">zeigt nur die andere Liste</option>
                         </select>
-                    </div>
-                    <label class="flex flex-wrap items-center gap-2 text-xs text-slate-300">
-                        <span>Im Chat am Ende hochziehen:</span>
-                        <select id="pullup-action-select" data-change="updatePullUpSetting" data-args='["$value"]' class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200">
+                    </label>
+                    <label class="setting-row">
+                        <span class="setting-text"><span class="setting-title">Am Ende hochziehen</span><span class="setting-desc">Was passiert, wenn du im Chat ganz unten weiter nach oben ziehst.</span></span>
+                        <select id="pullup-action-select" data-change="updatePullUpSetting" data-args='["$value"]' class="setting-select">
                             <option value="reload">Seite neu laden</option>
                             <option value="next">Naechster Chat</option>
                             <option value="switcher">Chat auswaehlen (Quick-Switcher)</option>
@@ -579,103 +585,66 @@
                             <option value="album">Album teilen</option>
                         </select>
                     </label>
-                    <label class="flex items-center gap-2 text-xs text-slate-300">
-                        <span>Schriftgroesse im Chat:</span>
-                        <select id="chat-font-size-select" data-change="setChatFontSize" data-args='["$value"]' class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200">
-                            <option value="small">Klein</option>
-                            <option value="normal">Normal</option>
-                            <option value="large">Gross</option>
-                            <option value="xlarge">Sehr gross</option>
-                        </select>
-                    </label>
-                    <div class="flex flex-wrap items-center gap-2 text-xs text-slate-300">
-                        <span>Thema:</span>
-                        <div class="flex gap-1 p-1 rounded-xl bg-slate-950 border border-slate-800" role="group" aria-label="Thema">
-                            <button type="button" data-theme-mode="system" data-click="setThemeMode" data-args='["system"]' class="px-3 py-1.5 rounded-lg font-semibold">System</button>
-                            <button type="button" data-theme-mode="light" data-click="setThemeMode" data-args='["light"]' class="px-3 py-1.5 rounded-lg font-semibold">Hell</button>
-                            <button type="button" data-theme-mode="dark" data-click="setThemeMode" data-args='["dark"]' class="px-3 py-1.5 rounded-lg font-semibold">Dunkel</button>
-                        </div>
-                    </div>
-                    <div class="flex flex-wrap items-center gap-4">
-                        <div id="accent-wheel" class="accent-wheel relative w-32 h-32 rounded-full cursor-crosshair shadow-inner border border-slate-700" role="slider" aria-label="Akzentfarbe waehlen">
-                            <span id="accent-wheel-handle" class="absolute w-6 h-6 -ml-3 -mt-3 rounded-full border-[3px] border-white shadow-lg pointer-events-none"></span>
-                        </div>
-                        <div class="space-y-2">
-                            <div class="text-xs text-slate-300">Akzentfarbe: im Kreis ziehen oder waehlen</div>
-                            <div id="accent-presets" class="grid grid-cols-4 gap-2"></div>
-                            <button type="button" data-click="setAccent" data-args='[null]' class="text-[11px] text-slate-400 hover:text-slate-200 underline">Standard</button>
-                        </div>
-                    </div>
                 </div>
 
-                <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
-                    <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
-                        <i class="fa-solid fa-eye-slash text-sky-400"></i> Sichtbarkeit &amp; Speicher
-                    </h3>
-                    <label class="flex items-start gap-2 text-xs text-slate-300 cursor-pointer">
-                        <input type="checkbox" id="silent-mode-toggle" data-change="updateGridSetting" data-args='["silent", "$checked"]' class="accent-brand-500 mt-0.5">
-                        <span>Silent-Modus: nicht im Grid sichtbar, aber fuer bestehende Chats erreichbar</span>
+                <div class="settings-card" data-settings-tab="chat">
+                    <h3 class="settings-card-title"><i class="fa-solid fa-circle-notch text-brand-400"></i> Status</h3>
+                    <label class="setting-row">
+                        <span class="setting-text"><span class="setting-title">Status nur direkt (P2P)</span><span class="setting-desc">Der Server sieht dann nicht, an wen du Status schickst; Freunde bekommen ihn erst, wenn ihr gleichzeitig online seid.</span></span>
+                        <input type="checkbox" role="switch" id="status-direct-toggle" data-change="updateStatusSetting" data-args='["directOnly", "$checked"]' class="switch">
                     </label>
-                    <label class="flex items-center gap-2 text-xs text-slate-300">
-                        <span>Im Grid sichtbar nach dem Schliessen:</span>
-                        <select id="grid-ttl-select" data-change="updateGridSetting" data-args='["ttlMinutes", "$number"]' class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200">
-                            <option value="1">1 Minute</option>
-                            <option value="10">10 Minuten</option>
-                            <option value="30">30 Minuten</option>
-                            <option value="60">60 Minuten</option>
-                        </select>
-                    </label>
-                    <label class="flex items-start gap-2 text-xs text-slate-300 cursor-pointer">
-                        <input type="checkbox" id="lan-only-toggle" data-change="updateGridSetting" data-args='["lanOnly", "$checked"]' class="accent-brand-500 mt-0.5">
-                        <span>Nur lokales Netz (Club-Modus): Verbindungen nur im selben WLAN, ohne STUN/TURN-Server. Chats mit Leuten ausserhalb des Netzes laufen dann ueber den verschluesselten Zwischenspeicher.</span>
-                    </label>
-                    <label class="flex items-start gap-2 text-xs text-slate-300 cursor-pointer">
-                        <input type="checkbox" id="live-grid-toggle" data-change="updateGridSetting" data-args='["liveGrid", "$checked"]' class="accent-brand-500 mt-0.5">
-                        <span>Live-Grid: nur Profile zeigen, die gerade online sind</span>
-                    </label>
-                    <label class="flex items-start gap-2 text-xs text-slate-300 cursor-pointer">
-                        <input type="checkbox" id="use-location-toggle" data-change="updateGridSetting" data-args='["useLocation", "$checked"]' class="accent-brand-500 mt-0.5">
-                        <span>Geraetestandort verwenden (nur als Zelle von ca. 1 km an den Router)</span>
-                    </label>
-                    <div class="space-y-1.5">
-                        <div class="text-xs text-slate-300">Oder Adresse angeben (wird einmalig an OpenStreetMap Nominatim gesendet, der Router sieht nur die Zelle):</div>
-                        <div class="flex gap-2">
-                            <input id="address-input" type="text" autocomplete="street-address" placeholder="Strasse, Ort" data-enter="searchAddressLocation" class="flex-1 min-w-0 bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200">
-                            <button id="address-search-btn" data-click="searchAddressLocation" class="bg-slate-800 hover:bg-slate-700 disabled:opacity-60 border border-slate-700 text-xs text-slate-200 px-3 py-1.5 rounded-lg font-semibold transition">Suchen</button>
-                        </div>
-                        <div id="location-label" class="text-[11px] text-slate-500 truncate">Aktuell: kein Standort gesetzt</div>
+                    <p class="setting-note">Status (Text oder Foto) sehen nur Freunde, 24 Stunden lang. Danach werden sie auf allen Geraeten geloescht.</p>
+                </div>
+
+                <div class="settings-card" data-settings-tab="chat">
+                    <h3 class="settings-card-title"><i class="fa-solid fa-bell text-amber-400"></i> Push-Benachrichtigungen</h3>
+                    <div class="setting-block">
+                        <p class="setting-desc mb-2">Weckt die App bei neuen Nachrichten, auch wenn sie geschlossen ist. Der Push enthaelt nur verschluesselte Daten.</p>
+                        <div id="push-status" class="debug-only text-xs font-mono text-slate-400 mb-2">Checking...</div>
+                        <button id="push-toggle-btn" data-click="togglePushNotifications" class="btn-secondary">Benachrichtigungen einschalten</button>
                     </div>
-                    <div class="space-y-1.5">
-                        <div class="text-xs text-slate-300">Safe Zones: an diesen Orten automatisch unsichtbar</div>
-                        <ul id="safe-zone-list" class="space-y-1"></ul>
-                        <button id="add-safe-zone-btn" data-click="addCurrentSafeZone" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-200 px-3 py-1.5 rounded-lg font-semibold transition">
-                            Aktuellen Ort als Safe Zone speichern
-                        </button>
-                    </div>
-                    <label class="flex items-start gap-2 text-xs text-slate-300 cursor-pointer">
-                        <input type="checkbox" id="cache-enabled-toggle" checked data-change="updateGridSetting" data-args='["cacheEnabled", "$checked"]' class="accent-brand-500 mt-0.5">
-                        <span>Cloud-Cache: eigene Nachrichten verschluesselt auf dem Server zwischenspeichern, wenn keine direkte Verbindung besteht (eingehende Nachrichten kommen weiterhin an)</span>
+                    <label class="setting-row">
+                        <span class="setting-text"><span class="setting-title">Kompakte Meldung</span><span class="setting-desc">Nur "Neue Nachrichten", ohne Name und Text.</span></span>
+                        <input type="checkbox" role="switch" id="push-compact-toggle" checked data-change="setCompactPushNotifications" data-args='["$checked"]' class="switch">
                     </label>
                 </div>
 
-                <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
-                    <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
-                        <i class="fa-solid fa-lock text-amber-400"></i> Secure Snaps
-                    </h3>
-                    <label class="flex items-start gap-2 text-xs text-slate-300 cursor-pointer">
-                        <input type="checkbox" id="secure-snaps-toggle" data-change="updateSnapSetting" data-args='["secureSnaps", "$checked"]' class="accent-brand-500 mt-0.5">
-                        <span>Snaps nur mit Freigabe ansehen lassen: begrenzte Ansichten und Dauer, live gestreamt, wenn moeglich. Der Empfaenger braucht dafuer deine Verbindung (du musst online sein).</span>
+                <!-- ===== Medien ===== -->
+                <div class="settings-card" data-settings-tab="media">
+                    <h3 class="settings-card-title"><i class="fa-solid fa-bolt text-amber-400"></i> Snaps</h3>
+                    <label class="setting-row">
+                        <span class="setting-text"><span class="setting-title">Einmal-Snaps laufen ab nach</span><span class="setting-desc">Gerechnet ab dem ersten Ansehen beim Empfaenger.</span></span>
+                        <select id="snap-expiry-select" data-change="updateSnapSetting" data-args='["expiry", "$value"]' class="setting-select">
+                            <option value="15m">15 min</option>
+                            <option value="30m">30 min</option>
+                            <option value="60m">60 min</option>
+                            <option value="off">nie (nur Ansichten zaehlen)</option>
+                        </select>
                     </label>
-                    <div id="secure-snap-defaults" class="hidden flex flex-wrap items-center gap-3 text-xs text-slate-300">
-                        <label class="flex items-center gap-2">Standard:
-                            <select id="secure-snap-default-views" data-change="updateSnapSetting" data-args='["views", "$number"]' class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-slate-200">
+                    <label class="setting-row">
+                        <span class="setting-text"><span class="setting-title">Mehrere Snaps: weiter mit</span></span>
+                        <select id="snap-next-gesture" data-change="updateSnapSetting" data-args='["nextGesture", "$value"]' class="setting-select">
+                            <option value="doubletap">Doppeltippen</option>
+                            <option value="swipe">Seitlich wischen</option>
+                            <option value="swipeup">Nach oben wischen</option>
+                        </select>
+                    </label>
+                    <label class="setting-row">
+                        <span class="setting-text"><span class="setting-title">Secure Snaps</span><span class="setting-desc">Nur mit Freigabe ansehen: begrenzte Ansichten und Dauer, live gestreamt, wenn moeglich. Du musst dafuer online sein.</span></span>
+                        <input type="checkbox" role="switch" id="secure-snaps-toggle" data-change="updateSnapSetting" data-args='["secureSnaps", "$checked"]' class="switch">
+                    </label>
+                    <div id="secure-snap-defaults" class="hidden">
+                        <label class="setting-row setting-sub">
+                            <span class="setting-text"><span class="setting-title">Ansichten</span></span>
+                            <select id="secure-snap-default-views" data-change="updateSnapSetting" data-args='["views", "$number"]' class="setting-select">
                                 <option value="1">1x</option>
                                 <option value="2">2x</option>
                                 <option value="3">3x</option>
                             </select>
                         </label>
-                        <label class="flex items-center gap-2">je
-                            <select id="secure-snap-default-seconds" data-change="updateSnapSetting" data-args='["seconds", "$number"]' class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-slate-200">
+                        <label class="setting-row setting-sub">
+                            <span class="setting-text"><span class="setting-title">Dauer je Ansicht</span></span>
+                            <select id="secure-snap-default-seconds" data-change="updateSnapSetting" data-args='["seconds", "$number"]' class="setting-select">
                                 <option value="5">5 s</option>
                                 <option value="10">10 s</option>
                                 <option value="30">30 s</option>
@@ -683,65 +652,105 @@
                             </select>
                         </label>
                     </div>
-                    <label class="flex flex-wrap items-center gap-2 text-xs text-slate-300">
-                        <span>Meine Einmal-Snaps laufen nach dem ersten Ansehen ab nach</span>
-                        <select id="snap-expiry-select" data-change="updateSnapSetting" data-args='["expiry", "$value"]' class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-slate-200">
-                            <option value="15m">15 min</option>
-                            <option value="30m">30 min</option>
-                            <option value="60m">60 min</option>
-                            <option value="off">nie (nur Ansichten zaehlen)</option>
-                        </select>
-                    </label>
-                    <label class="flex flex-wrap items-center gap-2 text-xs text-slate-300">
-                        <span>Mehrere Snaps hintereinander: weiter mit</span>
-                        <select id="snap-next-gesture" data-change="updateSnapSetting" data-args='["nextGesture", "$value"]' class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-slate-200">
-                            <option value="doubletap">Doppeltippen</option>
-                            <option value="swipe">Seitlich wischen</option>
-                            <option value="swipeup">Nach oben wischen</option>
-                        </select>
-                    </label>
-                    <label class="flex items-start gap-2 text-xs text-slate-300 cursor-pointer">
-                        <input type="checkbox" id="trace-watermark-toggle" checked data-change="updateTraceWatermark" data-args='["$checked"]' class="accent-brand-500 mt-0.5">
-                        <span>Spur-Wasserzeichen: eigene Snaps und Albumbilder tragen unsichtbar die ID des Empfaengers. So laesst sich ein Leak (z. B. Screenshot) zuordnen.</span>
-                    </label>
-                    <p class="text-[11px] text-slate-500">Screenshots lassen sich im Browser nicht verhindern. Bilder werden nur angezeigt, nicht als Datei bereitgestellt; speichern lassen sich nur Chat-Bilder im Chat- und Freunde-Modus.</p>
                 </div>
 
-                <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
-                    <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
-                        <i class="fa-solid fa-circle-notch text-brand-400"></i> Status
-                    </h3>
-                    <label class="flex items-start gap-2 text-xs text-slate-300 cursor-pointer">
-                        <input type="checkbox" id="status-direct-toggle" data-change="updateStatusSetting" data-args='["directOnly", "$checked"]' class="accent-brand-500 mt-0.5">
-                        <span>Status nur direkt (P2P) verteilen. Der Server sieht dann nicht, an wen du Status schickst; Freunde bekommen ihn erst, wenn ihr gleichzeitig online seid.</span>
+                <div class="settings-card" data-settings-tab="media">
+                    <h3 class="settings-card-title"><i class="fa-solid fa-fingerprint text-amber-400"></i> Schutz</h3>
+                    <label class="setting-row">
+                        <span class="setting-text"><span class="setting-title">Spur-Wasserzeichen</span><span class="setting-desc">Eigene Snaps und Albumbilder tragen unsichtbar die ID des Empfaengers. So laesst sich ein Leak (z. B. Screenshot) zuordnen.</span></span>
+                        <input type="checkbox" role="switch" id="trace-watermark-toggle" checked data-change="updateTraceWatermark" data-args='["$checked"]' class="switch">
                     </label>
-                    <p class="text-[11px] text-slate-500">Status (Text oder Foto) sehen nur Freunde, 24 Stunden lang. Danach werden sie auf allen Geraeten geloescht.</p>
+                    <p class="setting-note">Screenshots lassen sich im Browser nicht verhindern. Bilder werden nur angezeigt, nicht als Datei bereitgestellt; speichern lassen sich nur Chat-Bilder im Chat- und Freunde-Modus.</p>
                 </div>
 
-                <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
-                    <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
-                        <i class="fa-solid fa-bell text-amber-400"></i> Push-Benachrichtigungen
-                    </h3>
-                    <p class="text-xs text-slate-400">Weckt die App bei neuen Nachrichten, auch wenn sie geschlossen ist. Der Push enthaelt nur verschluesselte Daten.</p>
-                    <div id="push-status" class="debug-only text-xs font-mono text-slate-400">Checking...</div>
-                    <button id="push-toggle-btn" data-click="togglePushNotifications" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-200 px-3 py-2 rounded-lg font-semibold transition">
-                        Enable Notifications
-                    </button>
-                    <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
-                        <input type="checkbox" id="push-compact-toggle" checked data-change="setCompactPushNotifications" data-args='["$checked"]' class="accent-brand-500">
-                        Nur eine Meldung "Neue Nachrichten" (ohne Name und Text)
-                    </label>
-                </div>
-
-                <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3 md:col-span-2">
-                    <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
-                        <i class="fa-solid fa-user-slash text-red-400"></i> Blockierte Peers
-                    </h3>
-                    <p class="text-xs text-slate-400">Hier kannst du blockierte Verbindungen verwalten und wieder freigeben.</p>
-                    <div id="blocked-peers-list" class="space-y-2 mt-2 max-h-40 overflow-y-auto">
-                        <div class="text-xs text-slate-500 italic">Keine Peers blockiert.</div>
+                <div class="settings-card" data-settings-tab="media">
+                    <h3 class="settings-card-title"><i class="fa-solid fa-hard-drive text-sky-400"></i> Speicher</h3>
+                    <div class="setting-block">
+                        <div id="storage-usage" class="setting-desc mb-2">Wird berechnet...</div>
+                        <button id="storage-cleanup-btn" data-click="cleanupUnusedMedia" class="btn-secondary">Nicht mehr benoetigte Medien entfernen</button>
                     </div>
                 </div>
+
+                <!-- ===== Darstellung ===== -->
+                <div class="settings-card" data-settings-tab="appearance">
+                    <h3 class="settings-card-title"><i class="fa-solid fa-palette text-brand-400"></i> Darstellung</h3>
+                    <div class="setting-row">
+                        <span class="setting-text"><span class="setting-title">Thema</span></span>
+                        <div class="flex gap-1 p-1 rounded-xl bg-slate-950 border border-slate-800 text-xs" role="group" aria-label="Thema">
+                            <button type="button" data-theme-mode="system" data-click="setThemeMode" data-args='["system"]' class="px-3 py-1.5 rounded-lg font-semibold">System</button>
+                            <button type="button" data-theme-mode="light" data-click="setThemeMode" data-args='["light"]' class="px-3 py-1.5 rounded-lg font-semibold">Hell</button>
+                            <button type="button" data-theme-mode="dark" data-click="setThemeMode" data-args='["dark"]' class="px-3 py-1.5 rounded-lg font-semibold">Dunkel</button>
+                        </div>
+                    </div>
+                    <label class="setting-row">
+                        <span class="setting-text"><span class="setting-title">Schriftgroesse im Chat</span></span>
+                        <select id="chat-font-size-select" data-change="setChatFontSize" data-args='["$value"]' class="setting-select">
+                            <option value="small">Klein</option>
+                            <option value="normal">Normal</option>
+                            <option value="large">Gross</option>
+                            <option value="xlarge">Sehr gross</option>
+                        </select>
+                    </label>
+                    <div class="setting-block flex flex-wrap items-center gap-4">
+                        <div id="accent-wheel" class="accent-wheel relative w-32 h-32 rounded-full cursor-crosshair shadow-inner border border-slate-700" role="slider" aria-label="Akzentfarbe waehlen">
+                            <span id="accent-wheel-handle" class="absolute w-6 h-6 -ml-3 -mt-3 rounded-full border-[3px] border-white shadow-lg pointer-events-none"></span>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="setting-title">Akzentfarbe</div>
+                            <div class="setting-desc">Im Kreis ziehen oder waehlen</div>
+                            <div id="accent-presets" class="grid grid-cols-4 gap-2"></div>
+                            <button type="button" data-click="setAccent" data-args='[null]' class="text-[11px] text-slate-400 hover:text-slate-200 underline">Standard</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===== Debug ===== -->
+                <div id="debug-console-panel" class="debug-only settings-card" data-settings-tab="debug">
+                    <h3 class="settings-card-title"><i class="fa-solid fa-terminal text-amber-400"></i> Live PWA Protocol Log</h3>
+                    <div class="setting-block space-y-3">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="text-[10px] text-slate-500 bg-slate-950 px-2 py-1 rounded border border-slate-800">Build: {{timestamp}}</span>
+                            <button data-click="copyDebugLogs" class="btn-secondary" title="Vollstaendiges Protokoll in die Zwischenablage kopieren"><i class="fa-solid fa-copy text-sky-400"></i> Copy Logs</button>
+                            <button data-click="runConnectivityDiagnostics" class="btn-secondary" title="STUN/TURN-Erreichbarkeit pruefen"><i class="fa-solid fa-stethoscope text-emerald-400"></i> Test ICE</button>
+                            <button data-click="clearDebugLogs" class="btn-secondary">Clear Logs</button>
+                        </div>
+                        <div id="debug-log-output" class="bg-slate-950 p-3 rounded-lg border border-slate-800 font-mono text-xs text-emerald-400 h-60 overflow-y-auto space-y-1">
+                            <div>[System] Debug Console initialized.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="debug-only settings-card" data-settings-tab="debug">
+                    <h3 class="settings-card-title"><i class="fa-solid fa-sliders text-brand-400"></i> Dynamic Profile Schema</h3>
+                    <div class="setting-block space-y-3">
+                        <p class="setting-desc">Die Profilfelder werden aus dieser JSON-Konfiguration erzeugt.</p>
+                        <textarea id="schema-json-input" rows="10" spellcheck="false" class="w-full bg-slate-950 p-2.5 rounded-lg border border-slate-800 font-mono text-xs text-slate-300 focus:outline-none focus:border-brand-500"></textarea>
+                        <button data-click="updateProfileSchemaFromJSON" class="btn-secondary">Apply Schema</button>
+                    </div>
+                </div>
+
+                <div class="debug-only settings-card" data-settings-tab="debug">
+                    <h3 class="settings-card-title"><i class="fa-solid fa-fingerprint text-amber-400"></i> Wasserzeichen pruefen</h3>
+                    <div class="setting-block space-y-3">
+                        <p class="setting-desc">Snaps und Albumbilder tragen unsichtbar die ID des Empfaengers. Lade einen 1:1-Screenshot oder das Bild hoch, um herauszufinden, an wen es ging.</p>
+                        <label class="btn-secondary inline-flex cursor-pointer">
+                            Bild auswaehlen
+                            <input type="file" accept="image/*" class="hidden" data-change="checkWatermarkFile" data-args='["$el"]'>
+                        </label>
+                        <div id="watermark-check-result" class="text-xs font-mono text-slate-300"></div>
+                    </div>
+                </div>
+
+                <div class="debug-only settings-card" data-settings-tab="debug">
+                    <h3 class="settings-card-title"><i class="fa-solid fa-key text-emerald-400"></i> E2EE Identity Keys (ECDH / P-256)</h3>
+                    <div class="setting-block space-y-3">
+                        <p class="setting-desc">Das Schluesselpaar wird lokal mit Web Crypto erzeugt. Nur der oeffentliche Schluessel wird beim Routing-Server registriert.</p>
+                        <div class="text-xs font-mono text-slate-400">Public Key Fingerprint (SHA-256)</div>
+                        <div id="inspect-pubkey-fingerprint" class="bg-slate-950 p-2 rounded border border-slate-800 font-mono text-xs text-emerald-400 break-all">Generating...</div>
+                        <button id="regenerate-key-btn" data-click="generateUserIdentityKeys" data-args='[true]' class="btn-secondary">Regenerate Keypair</button>
+                    </div>
+                </div>
+            </div>
             </div>
         </section>
 

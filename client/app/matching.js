@@ -327,7 +327,7 @@ function renderMatchingSettings() {
     if (images) images.checked = policy.allowImages;
     document.getElementById('chat-limit-options')?.classList.toggle('hidden', policy.mode !== 'B');
     const matchFriends = document.getElementById('match-friends-toggle');
-    if (matchFriends) matchFriends.checked = allowsMatchFriends();
+    if (matchFriends) matchFriends.checked = state.myProfile.allowMatchFriends !== false;
 }
 
 // ----- UI -----

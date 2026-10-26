@@ -146,7 +146,7 @@ Version ist `Build <Commit-Anzahl> (<Hash>)`.
 | `LAN_MODE` | `false` | `true` = Club-/LAN-Betrieb: keine STUN/TURN-Server, nur Verbindungen im selben Netz |
 | `VAPID_SUBJECT` | `mailto:admin@localhost` | Kontaktadresse fuer Push-Dienste (`mailto:` oder `https:`); Apple lehnt den Standardwert ab |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | generiert | Optional feste VAPID-Schluessel (base64url); sonst einmalig erzeugt und in SQLite gespeichert |
-| `APP_MODES` | alle | Erlaubte App-Modi, kommagetrennt: `discovery`, `chat`, `friends`, `event`. Z. B. `chat` fuer einen reinen Chat-Server |
+| `APP_MODES` | alle | Erlaubte App-Modi, kommagetrennt: `discovery`, `chat`, `friends`, `event`. Z. B. `chat` fuer einen reinen Chat-Server. Sind nur Modi eines Bereichs erlaubt (Entdecken: `discovery`/`event`, Social: `chat`/`friends`), entfaellt die Bereichswahl beim Onboarding |
 | `DEFAULT_APP_MODE` | erster erlaubter | Vorauswahl fuer neue Nutzer |
 | `MEDIA_KEY_EPOCH_MINUTES` | `5` | Laenge einer Schluessel-Epoche fuer Alben und View-once-Snaps (1 bis 10080). 5 ist ein Testwert, im echten Betrieb `180` (3 Stunden). Album-Besitzer koennen pro Album eine eigene Laenge waehlen |
 

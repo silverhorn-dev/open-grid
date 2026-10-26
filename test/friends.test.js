@@ -163,6 +163,22 @@ test('grid matches can be added only after a match and only if allowed, silently
     assert.equal(sender.canAddMatch('shy'), true);
 });
 
+test('just exploring: no adding after a match, the stored switch stays for later', async () => {
+    const me = loadFriends({ appMode: 'discovery' });
+    me.scopeIncludes = area => area === 'discovery';
+    await me.ensureChatScope('dating', 'discovery');
+    me.state.matchState.dating = { sentAt: 2, receivedAt: 3, resetAt: 0 };
+    me.state.cachedProfiles.dating = { allowMatchFriends: true };
+    assert.equal(me.canAddMatch('dating'), false);
+    assert.equal(me.buildProfilePayloadFor('dating').allowMatchFriends, false, 'others see no add button for me');
+    await me.applyFriendOperation('dating', { operationId: 'friend:1', type: 'FRIEND_PING', actorId: 'dating', createdAt: 10 });
+    assert.equal(me.hasFriendRequest('dating'), false, 'requests stay invisible');
+    assert.notEqual(me.state.myProfile.allowMatchFriends, false, 'own switch value is not overwritten');
+
+    me.scopeIncludes = () => true;
+    assert.equal(me.canAddMatch('dating'), true, 'back with exploring & friends');
+});
+
 function loadStatus() {
     const context = loadFriends({ appMode: 'chat' });
     Object.assign(context.state, { statuses: {}, statusSettings: { directOnly: false }, statusPushes: {}, storageKey: null });

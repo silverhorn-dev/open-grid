@@ -287,7 +287,9 @@ function renderListSwitch() {
     const settings = state.listSwitchSettings;
     const target = otherChatScope();
     // Im Modus-Wechsel braucht die andere Seite einen erlaubten Modus.
-    const possible = settings.enabled && (settings.behavior === 'view' || Boolean(modeForChatScope(target)));
+    // Nur bei "Entdecken & Freunde" gibt es eine zweite Liste.
+    const bothAreas = typeof effectiveModeScope !== 'function' || effectiveModeScope() === 'all';
+    const possible = bothAreas && settings.enabled && (settings.behavior === 'view' || Boolean(modeForChatScope(target)));
     button.classList.toggle('hidden', !possible);
     button.title = target === 'social' ? t('chat.toChatFriends') : t('chat.toGridEvent');
     button.setAttribute('aria-label', button.title);

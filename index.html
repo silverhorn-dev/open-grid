@@ -450,6 +450,21 @@
                         </div>
                         <div data-i18n="common.noEventActive" id="event-status" class="setting-desc mt-2">Kein Event aktiv.</div>
                     </div>
+                    <details id="mode-scope-settings" class="setting-details hidden">
+                        <summary data-i18n="settings.advanced" class="setting-details-summary">Erweitert</summary>
+                        <label class="setting-row">
+                            <span class="setting-text"><span data-i18n="settings.area" class="setting-title">Bereich</span><span data-i18n="settings.areaDescription" class="setting-desc">Welche Modi du nutzt. Einstellungen anderer Bereiche werden ausgeblendet.</span></span>
+                            <select id="mode-scope-select" data-change="setModeScope" data-args='["$value"]' class="setting-select">
+                                <option data-i18n="modes.scopeDiscovery" value="discovery">Nur Entdecken</option>
+                                <option data-i18n="modes.scopeSocial" value="social">Social</option>
+                                <option data-i18n="modes.scopeAll" value="all">Entdecken &amp; Freunde</option>
+                            </select>
+                        </label>
+                        <label class="setting-row">
+                            <span class="setting-text"><span data-i18n="settings.showAllModes" class="setting-title">Alle Modi anzeigen</span><span data-i18n="settings.showAllModesDescription" class="setting-desc">Entdecken, Event, Chat und Freunde gleichzeitig.</span></span>
+                            <input type="checkbox" role="switch" id="all-modes-toggle" data-change="setAllModesVisible" data-args='["$checked"]' class="switch">
+                        </label>
+                    </details>
                 </div>
 
                 <div class="settings-card" data-settings-tab="general">
@@ -478,7 +493,7 @@
                 </div>
 
                 <!-- ===== Privatsphaere ===== -->
-                <div class="settings-card" data-settings-tab="privacy">
+                <div class="settings-card" data-settings-tab="privacy" data-scope="discovery">
                     <h3 class="settings-card-title"><i class="fa-solid fa-fire text-orange-400"></i> <span data-i18n="settings.matching">Matching</span></h3>
                     <label class="setting-row">
                         <span class="setting-text"><span data-i18n="settings.profileVisible" class="setting-title">Profil sichtbar</span><span data-i18n="settings.matchHappensWhenYouSend" class="setting-desc">Ein Match entsteht, wenn ihr euch gegenseitig eine Flamme schickt. Bei "Teilweise" markierst du im Profil, welche Felder nur Matches sehen.</span></span>
@@ -511,7 +526,7 @@
                             <input type="checkbox" role="switch" id="chat-images-toggle" data-change="updateMatchingSetting" data-args='["chatImages", "$checked"]' class="switch">
                         </label>
                     </div>
-                    <label class="setting-row">
+                    <label class="setting-row" data-scope="all">
                         <span class="setting-text"><span data-i18n="settings.matchesCanAddMe" class="setting-title">Matches können mich adden</span><span data-i18n="settings.chatThenMovesToChat" class="setting-desc">Der Chat wandert dann nach "Chat &amp; Freunde". Aus: deine Matches sehen keinen "Adden"-Knopf.</span></span>
                         <input type="checkbox" role="switch" id="match-friends-toggle" checked data-change="updateMatchingSetting" data-args='["matchFriends", "$checked"]' class="switch">
                     </label>
@@ -532,7 +547,7 @@
                             <option data-i18n="settings.60Minutes" value="60">60 Minuten</option>
                         </select>
                     </label>
-                    <label class="setting-row">
+                    <label class="setting-row" data-scope="discovery">
                         <span class="setting-text"><span data-i18n="settings.liveGrid" class="setting-title">Live-Grid</span><span data-i18n="settings.onlyShowProfilesThatAre" class="setting-desc">Nur Profile zeigen, die gerade online sind.</span></span>
                         <input type="checkbox" role="switch" id="live-grid-toggle" data-change="updateGridSetting" data-args='["liveGrid", "$checked"]' class="switch">
                     </label>
@@ -598,11 +613,11 @@
                             <option data-i18n="chat.swipeOnContactBar" value="swipe">Wischen auf der Kontaktleiste</option>
                         </select>
                     </label>
-                    <label class="setting-row">
+                    <label class="setting-row" data-scope="all">
                         <span class="setting-text"><span data-i18n="settings.listSwitchButton" class="setting-title">Knopf zum Listen-Wechsel</span><span data-i18n="settings.betweenGridEventAndChat" class="setting-desc">Zwischen "Grid &amp; Event" und "Chat &amp; Freunde".</span></span>
                         <input type="checkbox" role="switch" id="list-switch-toggle" checked data-change="updateListSwitchSetting" data-args='["enabled", "$checked"]' class="switch">
                     </label>
-                    <label class="setting-row setting-sub">
+                    <label class="setting-row setting-sub" data-scope="all">
                         <span class="setting-text"><span data-i18n="settings.button" class="setting-title">Der Knopf</span></span>
                         <select id="list-switch-behavior" data-change="updateListSwitchSetting" data-args='["behavior", "$value"]' class="setting-select">
                             <option data-i18n="settings.switchesAppMode" value="mode">wechselt den App-Modus</option>
@@ -621,7 +636,7 @@
                     </label>
                 </div>
 
-                <div class="settings-card" data-settings-tab="chat">
+                <div class="settings-card" data-settings-tab="chat" data-scope="social">
                     <h3 class="settings-card-title"><i class="fa-solid fa-circle-notch text-brand-400"></i> <span data-i18n="common.status">Status</span></h3>
                     <label class="setting-row">
                         <span class="setting-text"><span data-i18n="settings.statusDirectOnlyP2P" class="setting-title">Status nur direkt (P2P)</span><span data-i18n="settings.serverThenCantSeeWho" class="setting-desc">Der Server sieht dann nicht, an wen du Status schickst; Freunde bekommen ihn erst, wenn ihr gleichzeitig online seid.</span></span>
@@ -804,6 +819,10 @@
                     <a data-info-link href="/info" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 mt-2 text-xs font-semibold text-brand-400 hover:text-brand-300"><i class="fa-solid fa-circle-question"></i> <span data-i18n="onboarding.whatIsOpengrid">Was ist OpenGrid?</span></a>
             </div>
             <div class="p-5 space-y-5">
+                <div id="onboarding-scope" class="hidden space-y-2">
+                    <div data-i18n="onboarding.whatDoYouWant" class="text-xs font-bold text-slate-400">Was möchtest du mit OpenGrid machen?</div>
+                    <div id="onboarding-scope-options" class="grid gap-2"></div>
+                </div>
                 <div id="onboarding-mode" class="hidden space-y-2">
                     <div data-i18n="onboarding.howDoYouWantTo" class="text-xs font-bold text-slate-400">Wie möchtest du OpenGrid nutzen?</div>
                     <div id="onboarding-mode-options" class="grid gap-2"></div>

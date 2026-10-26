@@ -536,6 +536,16 @@ html.debug-on .debug-off-only {
     cursor: pointer;
 }
 .setting-row.setting-sub { padding-left: 1rem; }
+.setting-details { border-top: 1px solid rgb(var(--slate-800)); }
+.setting-details-summary {
+    padding: 0.75rem 0;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: rgb(var(--slate-400));
+    cursor: pointer;
+}
+/* Einstellungen eines nicht gewaehlten Bereichs (data-scope, modes.js). */
+.scope-hidden { display: none !important; }
 .setting-block,
 .setting-note {
     padding: 0.875rem 0;

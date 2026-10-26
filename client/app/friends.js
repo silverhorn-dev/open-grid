@@ -21,8 +21,10 @@ function isFriend(peerId) {
     return entry.sentAt > entry.resetAt && entry.receivedAt > entry.resetAt;
 }
 
-// Eigene, nicht veroeffentlichte Einstellung: duerfen Matches aus Grid/Event mich adden?
+// Eigene Einstellung: duerfen Matches aus Grid/Event mich adden? Bei "Nur Entdecken" nie
+// (der gespeicherte Schalterwert bleibt fuer einen spaeteren Wechsel erhalten).
 function allowsMatchFriends() {
+    if (typeof scopeIncludes === 'function' && !scopeIncludes('social')) return false;
     return state.myProfile.allowMatchFriends !== false;
 }
 
@@ -39,6 +41,7 @@ function canAddMatch(peerId) {
 // Anfragen aus "Grid & Event" zaehlen nur nach einem Match und wenn man es erlaubt (Schutz gegen
 // Clients, die den Knopf trotz Profil-Flag anbieten): sonst keine Meldung und kein "Annehmen".
 function acceptsFriendRequestFrom(peerId) {
+    if (typeof scopeIncludes === 'function' && !scopeIncludes('social')) return false;
     if (chatScopeOf(peerId) !== 'discovery') return true;
     return isMatched(peerId) && allowsMatchFriends();
 }

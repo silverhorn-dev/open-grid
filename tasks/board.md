@@ -12,7 +12,7 @@
 # Runde T (2026-10-26)
 
 ## T1 Bereich beim Onboarding: Nur Entdecken / Social / Entdecken & Freunde
-- [ ] Wenn man sich initial einloggt sollte man zwischen social, entdecken und beides auswählen können und dann erst in einer ganz verschachtelten Einstellung enable all wieder alle anschalten können.
+- [x] Wenn man sich initial einloggt sollte man zwischen social, entdecken und beides auswählen können und dann erst in einer ganz verschachtelten Einstellung enable all wieder alle anschalten können.
   - entschieden 2026-10-26 (nutzer):
     - Nur Entdecken = Grid + Event; Flamme -> Match -> Chat; kein Adden, auch nicht nach einem Match; nur Liste "Grid & Event", kein Listen-Wechsel
     - Social = Chat + Freunde; Grid ja (Freunde-Grid, nur Kontakte), kein Matching (keine Flamme); nur Adden; nur Liste "Chat & Freunde"
@@ -26,6 +26,7 @@
   - plan: nur Entdecken -> `canAddMatch()` immer false, eigenes profil sendet `allowMatchFriends: false` (gespeicherter schalterwert bleibt fuer spaeter)
   - plan: Einstellungen > Allgemein > Erweitert: bereich aendern + schalter "Alle Modi anzeigen" (= Entdecken & Freunde)
   - plan: tests (erlaubte modi je bereich, canAddMatch, payload-flag), e2e onboarding + ausgeblendete einstellungen; SPECE/USE-CASE/README
+  - done 2026-10-26: `scope` in `keys`/`app-mode`, `effectiveModeScope`/`scopeIncludes`/`setModeScope` (modes.js), `data-scope` + `.scope-hidden`, onboarding-karten, Erweitert in der App-Modus-karte; tests `test/modes.test.js`, `test/friends.test.js`, e2e `mode-scope`; UC-45
 
 ## T2 Alter / E-Mail pruefen (erst besprechen)
 - [ ] for security reasons we need to verify email or age, what u think

@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 133 · 2026-10-26
+## Build 135 · 2026-10-26
+- Beim ersten Start waehlst du, was du willst: "Nur Entdecken", "Social" oder "Entdecken & Freunde". Einstellungen und Knoepfe anderer Bereiche verschwinden; bei "Nur Entdecken" gibt es kein Adden, auch nicht nach einem Match
+- Bereich aendern oder alle Modi wieder einschalten: Einstellungen > Allgemein > App-Modus > Erweitert
+
+## Build 133 · 2026-10-26 · `7cc0f6e`
 - Deutsche Texte in der App mit echten Umlauten (ä, ö, ü, ß)
 - Push-Benachrichtigungen erscheinen in der Sprache des Browsers (Deutsch oder Englisch)
 

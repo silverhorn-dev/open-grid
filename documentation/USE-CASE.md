@@ -765,3 +765,21 @@ Akzeptanzkriterien:
   beide Varianten grammatikalisch stimmig.
 - Knopfnamen der App erscheinen genau wie in der App.
 - Erreichbar aus dem Menue ("Hilfe & Info") und beim Einrichten des Profils.
+
+## UC-45: Bereich beim Onboarding waehlen
+
+**Als neuer Nutzer** moechte ich festlegen, ob ich nur Leute entdecken, nur mit
+Freunden schreiben oder beides will, damit die App nur zeigt, was ich brauche.
+
+Akzeptanzkriterien:
+
+- Beim ersten Start drei Karten: "Nur Entdecken", "Social", "Entdecken &
+  Freunde"; erlaubt der Betreiber nur einen Bereich, entfaellt die Frage.
+- Nur Entdecken: Grid und Event, Flamme und Match, nirgends ein
+  "Adden"-Knopf, keine Status- und Freunde-Einstellungen, kein Listen-Wechsel.
+- Social: Chat und Freunde-Grid, nur Adden, keine Flamme und keine
+  Matching-Einstellungen.
+- Entdecken & Freunde: alles wie bisher.
+- Unter Einstellungen > Allgemein > Erweitert laesst sich der Bereich aendern;
+  "Alle Modi anzeigen" schaltet alles wieder ein.
+- Bestehende Nutzer behalten alle Modi.

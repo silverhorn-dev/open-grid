@@ -76,3 +76,57 @@ test('invite links carry the key fingerprint and are verified on first contact',
     assert.equal(records.has('invite-expect:peer'), false);
     assert.equal(await context.verifyInvitedPeerKey('stranger', { crv: 'P-256', x: 'x', y: 'y' }), true, 'no invite, no check');
 });
+
+function loadScoped(routerModes, stored = {}) {
+    const loaded = loadModes(stored.mode || 'discovery');
+    const { context } = loaded;
+    context.state.appConfig = { routerModes, modes: routerModes, defaultMode: 'discovery' };
+    context.state.appModeSettings = stored;
+    Object.assign(context, {
+        document: { getElementById: () => null, querySelectorAll: () => [] },
+        syncAlbumCardVisibility: () => {},
+        updateChatAlbumButton: () => {},
+        applyProfileSchemaForMode: () => {}
+    });
+    context.applyModeScope();
+    return loaded;
+}
+
+test('the chosen area limits the modes, existing users keep all of them', () => {
+    const all = ['discovery', 'chat', 'friends', 'event'];
+    assert.equal(loadScoped(all).context.effectiveModeScope(), 'all', 'no stored scope = everything as before');
+    assert.deepEqual([...loadScoped(all).context.state.appConfig.modes], all);
+
+    const discovery = loadScoped(all, { scope: 'discovery' }).context;
+    assert.deepEqual([...discovery.state.appConfig.modes], ['discovery', 'event']);
+    assert.equal(discovery.scopeIncludes('social'), false);
+    assert.equal(discovery.scopeIncludes('discovery'), true);
+
+    const social = loadScoped(all, { scope: 'social' }).context;
+    assert.deepEqual([...social.state.appConfig.modes], ['chat', 'friends']);
+    assert.equal(social.scopeIncludes('discovery'), false);
+
+    // Erlaubt der Betreiber nur einen Bereich, gilt dieser (die Frage entfaellt).
+    const operator = loadScoped(['chat', 'friends'], { scope: 'discovery' }).context;
+    assert.equal(operator.effectiveModeScope(), 'social');
+    assert.deepEqual([...operator.state.appConfig.modes], ['chat', 'friends']);
+    assert.deepEqual([...operator.availableModeAreas()], ['social']);
+});
+
+test('changing the area moves out of a mode that is no longer available', async () => {
+    const all = ['discovery', 'chat', 'friends', 'event'];
+    const { context, records } = loadScoped(all, { scope: 'all', mode: 'discovery' });
+    await context.setModeScope('social');
+    assert.equal(context.state.appMode, 'friends', 'friends grid instead of the public grid');
+    assert.equal(records.get('app-mode').scope, 'social');
+
+    // "Alle Modi anzeigen" an und wieder aus: zurueck zum vorherigen Bereich.
+    await context.setAllModesVisible(true);
+    assert.equal(context.effectiveModeScope(), 'all');
+    assert.equal(context.state.appMode, 'friends', 'mode stays when it is still allowed');
+    await context.setAllModesVisible(false);
+    assert.equal(context.effectiveModeScope(), 'social');
+
+    await context.setModeScope('bogus');
+    assert.equal(context.effectiveModeScope(), 'social', 'unknown areas are ignored');
+});

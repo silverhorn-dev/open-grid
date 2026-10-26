@@ -10,6 +10,12 @@ const APP_MODE_INFO = {
     friends: { label: t('modes.friendsNearby'), icon: 'fa-user-group', description: t('modes.onlyYourContactsSeeYou') },
     event: { label: t('modes.event'), icon: 'fa-champagne-glasses', description: t('modes.onlyPeopleWithSameEvent') }
 };
+// Bereich, den der Nutzer beim Onboarding waehlt (keys/app-mode.scope). Fehlt er (bestehende Nutzer) = 'all'.
+//   discovery: Nur Entdecken (Grid + Event, Flamme/Match, kein Adden)
+//   social:    Social (Chat + Freunde, Freunde-Grid, nur Adden)
+//   all:       Entdecken & Freunde (alle Modi)
+const MODE_SCOPE_MODES = { discovery: ['discovery', 'event'], social: ['chat', 'friends'] };
+const MODE_SCOPES = ['discovery', 'social', 'all'];
 const APP_MODE_RECORD_ID = 'app-mode';
 const APP_CONFIG_RECORD_ID = 'app-config';
 const EVENT_DURATION_MS = 12 * 60 * 60 * 1000;
@@ -28,6 +34,8 @@ async function loadAppMode() {
     }
     const modes = (config?.modes || []).filter(mode => APP_MODE_INFO[mode]);
     state.appConfig = {
+        // Vom Betreiber erlaubt; `modes` ist davon der Teil im gewaehlten Bereich (applyModeScope).
+        routerModes: modes.length ? modes : Object.keys(APP_MODE_INFO),
         modes: modes.length ? modes : Object.keys(APP_MODE_INFO),
         defaultMode: config?.defaultMode,
         // Standards des Betreibers fuer Client-Einstellungen (gelten, solange nichts Eigenes gespeichert ist).
@@ -40,6 +48,7 @@ async function loadAppMode() {
     rememberRouterLanguageDefault(state.appConfig.clientDefaults.language);
     const stored = await databaseRequest('keys', 'readonly', store => store.get(APP_MODE_RECORD_ID)).catch(() => null);
     state.appModeSettings = stored || {};
+    applyModeScope();
     state.appMode = state.appConfig.modes.includes(stored?.mode)
         ? stored.mode
         : (state.appConfig.modes.includes(state.appConfig.defaultMode) ? state.appConfig.defaultMode : state.appConfig.modes[0]);
@@ -69,8 +78,90 @@ function applyProfileSchemaForMode() {
 
 function fallbackMode() {
     const { modes, defaultMode } = state.appConfig;
-    const preferred = [defaultMode, 'discovery', 'chat', 'friends'].find(mode => mode && mode !== 'event' && modes.includes(mode));
+    const preferred = [defaultMode, 'discovery', 'friends', 'chat'].find(mode => mode && mode !== 'event' && modes.includes(mode));
     return preferred || modes[0];
+}
+
+// ----- Bereich (Nur Entdecken / Social / Entdecken & Freunde) -----
+// Bereiche, fuer die der Betreiber mindestens einen Modus erlaubt.
+function availableModeAreas(routerModes = state.appConfig.routerModes) {
+    return Object.keys(MODE_SCOPE_MODES).filter(area => MODE_SCOPE_MODES[area].some(mode => routerModes.includes(mode)));
+}
+
+// Wirksamer Bereich: erlaubt der Betreiber nur einen, gilt dieser, egal was gespeichert ist.
+function effectiveModeScope() {
+    const areas = availableModeAreas();
+    if (areas.length === 1) return areas[0];
+    const stored = state.appModeSettings?.scope;
+    return MODE_SCOPES.includes(stored) ? stored : 'all';
+}
+
+function modesForScope(scope, routerModes) {
+    if (scope === 'all') return [...routerModes];
+    const modes = routerModes.filter(mode => MODE_SCOPE_MODES[scope]?.includes(mode));
+    return modes.length ? modes : [...routerModes];
+}
+
+// true, wenn der Bereich ('discovery' | 'social') im gewaehlten Umfang enthalten ist.
+function scopeIncludes(area) {
+    const scope = effectiveModeScope();
+    return scope === 'all' || scope === area;
+}
+
+function applyModeScope() {
+    state.appConfig.modes = modesForScope(effectiveModeScope(), state.appConfig.routerModes);
+}
+
+// Einstellungen und Knoepfe mit data-scope: "discovery"/"social" = nur, wenn der Bereich dabei ist,
+// "all" = nur bei Entdecken & Freunde (z. B. Listen-Wechsel, Adden nach Match).
+function applyModeScopeVisibility() {
+    const scope = effectiveModeScope();
+    document.querySelectorAll('[data-scope]').forEach(element => {
+        const wanted = element.dataset.scope;
+        const visible = wanted === 'all' ? scope === 'all' : scopeIncludes(wanted);
+        element.classList.toggle('scope-hidden', !visible);
+    });
+}
+
+async function setModeScope(scope) {
+    if (!MODE_SCOPES.includes(scope)) return;
+    await saveAppModeSettings({ scope });
+    applyModeScope();
+    state.chatListScopeOverride = null;
+    if (!state.appConfig.modes.includes(state.appMode) || (state.appMode === 'event' && !hasActiveEvent())) {
+        state.appMode = fallbackMode();
+        await saveAppModeSettings({ mode: state.appMode });
+        applyProfileSchemaForMode();
+    }
+    applyAppModeUi();
+    if (typeof renderMatchingSettings === 'function') renderMatchingSettings();
+    if (typeof renderListSwitch === 'function') renderListSwitch();
+    if (typeof renderActivePeerList === 'function') renderActivePeerList();
+    if (state.myProfile?.id && typeof refreshPresenceAndGrid === 'function') await refreshPresenceAndGrid();
+}
+
+// Schalter "Alle Modi anzeigen" (Einstellungen > Allgemein > Erweitert).
+async function setAllModesVisible(enabled) {
+    const previous = state.appModeSettings.scopeBeforeAll;
+    if (enabled) {
+        const current = effectiveModeScope();
+        if (current !== 'all') await saveAppModeSettings({ scopeBeforeAll: current });
+        await setModeScope('all');
+    } else {
+        await setModeScope(MODE_SCOPES.includes(previous) && previous !== 'all' ? previous : 'discovery');
+    }
+}
+
+function renderModeScopeSettings() {
+    const card = document.getElementById('mode-scope-settings');
+    if (!card) return;
+    const areas = availableModeAreas();
+    card.classList.toggle('hidden', areas.length < 2);
+    const scope = effectiveModeScope();
+    const select = document.getElementById('mode-scope-select');
+    if (select) select.value = scope;
+    const toggle = document.getElementById('all-modes-toggle');
+    if (toggle) toggle.checked = scope === 'all';
 }
 
 async function saveAppModeSettings(changes) {
@@ -163,24 +254,7 @@ function renderModeChooser(container, onChoose) {
     if (!container) return;
     container.innerHTML = '';
     state.appConfig.modes.forEach(mode => {
-        const info = APP_MODE_INFO[mode];
-        const button = document.createElement('button');
-        button.type = 'button';
-        const active = mode === state.appMode;
-        button.className = `w-full flex items-start gap-3 text-left p-3 rounded-xl border transition ${active ? 'border-brand-500 bg-brand-500/10' : 'border-slate-800 bg-slate-950/40 hover:border-slate-600'}`;
-        const icon = document.createElement('i');
-        icon.className = `fa-solid ${info.icon} text-brand-400 mt-0.5`;
-        const text = document.createElement('div');
-        const label = document.createElement('div');
-        label.className = 'text-sm font-semibold text-slate-100';
-        label.textContent = info.label;
-        const description = document.createElement('div');
-        description.className = 'text-xs text-slate-400';
-        description.textContent = info.description;
-        text.append(label, description);
-        button.append(icon, text);
-        button.onclick = () => onChoose(mode);
-        container.appendChild(button);
+        container.appendChild(renderChoiceButton(APP_MODE_INFO[mode], mode === state.appMode, () => onChoose(mode)));
     });
 }
 
@@ -197,12 +271,64 @@ function renderAppModeSettings() {
             : t('common.noEventActive');
     }
     document.getElementById('invite-card')?.classList.toggle('hidden', !['chat', 'friends'].some(mode => state.appConfig.modes.includes(mode)));
+    renderModeScopeSettings();
+    applyModeScopeVisibility();
 }
 
-// Erster Start: Modus waehlen, falls mehrere erlaubt sind.
+// Erster Start: erst den Bereich waehlen (wenn der Betreiber beide erlaubt), dann ggf. den Modus darin.
+const MODE_SCOPE_INFO = {
+    discovery: { label: t('modes.scopeDiscovery'), icon: 'fa-location-crosshairs', description: t('modes.scopeDiscoveryDescription') },
+    social: { label: t('modes.scopeSocial'), icon: 'fa-user-group', description: t('modes.scopeSocialDescription') },
+    all: { label: t('modes.scopeAll'), icon: 'fa-layer-group', description: t('modes.scopeAllDescription') }
+};
+
+function renderChoiceButton(info, active, onClick) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `w-full flex items-start gap-3 text-left p-3 rounded-xl border transition ${active ? 'border-brand-500 bg-brand-500/10' : 'border-slate-800 bg-slate-950/40 hover:border-slate-600'}`;
+    button.setAttribute('aria-pressed', String(active));
+    const icon = document.createElement('i');
+    icon.className = `fa-solid ${info.icon} text-brand-400 mt-0.5`;
+    const text = document.createElement('div');
+    const label = document.createElement('div');
+    label.className = 'text-sm font-semibold text-slate-100';
+    label.textContent = info.label;
+    const description = document.createElement('div');
+    description.className = 'text-xs text-slate-400';
+    description.textContent = info.description;
+    text.append(label, description);
+    button.append(icon, text);
+    button.onclick = onClick;
+    return button;
+}
+
 function renderOnboardingModeChooser() {
+    if (!state.appConfig) return;
+    const scopeWrapper = document.getElementById('onboarding-scope');
+    const scopeContainer = document.getElementById('onboarding-scope-options');
+    const showScopes = availableModeAreas().length > 1;
+    scopeWrapper?.classList.toggle('hidden', !showScopes);
+    if (scopeContainer) {
+        const current = effectiveModeScope();
+        scopeContainer.replaceChildren(...MODE_SCOPES.map(scope => renderChoiceButton(MODE_SCOPE_INFO[scope], scope === current, () => {
+            saveAppModeSettings({ scope }).then(() => {
+                applyModeScope();
+                if (!state.appConfig.modes.includes(state.appMode) || state.appMode === 'event') {
+                    state.appMode = fallbackMode();
+                    return saveAppModeSettings({ mode: state.appMode });
+                }
+                return undefined;
+            }).then(() => {
+                applyProfileSchemaForMode();
+                renderProfileForm('onboarding-profile-form');
+                applyAppModeUi();
+                renderOnboardingModeChooser();
+            }).catch(logBackgroundError('renderOnboardingModeChooser'));
+        })));
+    }
     const wrapper = document.getElementById('onboarding-mode');
-    if (!wrapper || !state.appConfig) return;
+    if (!wrapper) return;
+    // Event braucht einen Code und wird spaeter in den Einstellungen betreten.
     const selectable = state.appConfig.modes.filter(mode => mode !== 'event');
     wrapper.classList.toggle('hidden', selectable.length < 2);
     const container = document.getElementById('onboarding-mode-options');
@@ -214,7 +340,6 @@ function renderOnboardingModeChooser() {
         renderOnboardingModeChooser();
     };
     renderModeChooser(container, choose);
-    // Event braucht einen Code und wird spaeter in den Einstellungen betreten.
     container?.querySelectorAll('button').forEach((button, index) => {
         if (state.appConfig.modes[index] === 'event') button.remove();
     });

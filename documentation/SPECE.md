@@ -259,7 +259,25 @@ Der Betreiber erlaubt Modi per `APP_MODES` (kommagetrennt aus `discovery`,
 `GET /api/config` liefert `{ modes, defaultMode, profileSchemas }`; der Client merkt sich die
 Antwort fuer den Offline-Start (`keys`/`app-config`). Der Nutzer waehlt beim
 Onboarding (falls mehrere erlaubt) und in den Einstellungen
-(`keys`/`app-mode = { mode, eventCode, eventHash, eventJoinedAt, modeBeforeEvent }`).
+(`keys`/`app-mode = { mode, scope, scopeBeforeAll, eventCode, eventHash, eventJoinedAt, modeBeforeEvent }`).
+
+Bereich (`scope`, `client/app/modes.js`): beim Onboarding waehlt der Nutzer
+zuerst `discovery` (Nur Entdecken: `discovery` + `event`), `social` (Social:
+`chat` + `friends`) oder `all` (Entdecken & Freunde, alle Modi). Fehlt `scope`
+(bestehende Nutzer), gilt `all`. Wirksam sind nur Modi aus `APP_MODES` im
+Bereich (`state.appConfig.routerModes` -> `state.appConfig.modes`); erlaubt
+der Betreiber nur Modi eines Bereichs, gilt dieser und die Frage entfaellt.
+
+- Nur Entdecken: kein Adden, auch nicht nach einem Match (`allowsMatchFriends()`
+  ist `false`, das eigene Profil sendet `allowMatchFriends: false`, Anfragen
+  bleiben unsichtbar); der gespeicherte Schalterwert bleibt erhalten.
+- Social: Freunde-Grid ja, Flamme/Match nein.
+- Listen-Wechsel nur bei `all`.
+- Einstellungen und Knoepfe mit `data-scope="discovery|social"` erscheinen nur,
+  wenn der Bereich enthalten ist, `data-scope="all"` nur bei `all`
+  (Klasse `.scope-hidden`).
+- Aendern unter Einstellungen > Allgemein > App-Modus > Erweitert (Auswahl
+  Bereich, Schalter "Alle Modi anzeigen"; aus = zurueck zu `scopeBeforeAll`).
 
 | Modus | Registrierung | Grid |
 |---|---|---|

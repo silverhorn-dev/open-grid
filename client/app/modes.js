@@ -41,7 +41,13 @@ async function loadAppMode() {
         // Standards des Betreibers fuer Client-Einstellungen (gelten, solange nichts Eigenes gespeichert ist).
         clientDefaults: config?.clientDefaults && typeof config.clientDefaults === 'object' ? config.clientDefaults : {},
         // Info-Seite fuer alle (eigene Subdomain oder /info), vom Router vorgegeben.
-        infoUrl: typeof config?.infoUrl === 'string' && /^(https:\/\/|\/)/.test(config.infoUrl) ? config.infoUrl : '/info'
+        infoUrl: typeof config?.infoUrl === 'string' && /^(https:\/\/|\/)/.test(config.infoUrl) ? config.infoUrl : '/info',
+        // Nachweis-Pflichten des Routers (T2), standardmaessig aus.
+        safety: {
+            ageCheck: ['confirm', 'provider'].includes(config?.safety?.ageCheck) ? config.safety.ageCheck : 'off',
+            ageProvider: typeof config?.safety?.ageProvider === 'string' ? config.safety.ageProvider : null,
+            emailCheck: config?.safety?.emailCheck === 'required' ? 'required' : 'off'
+        }
     };
     document.querySelectorAll('[data-info-link]').forEach(link => { link.href = state.appConfig.infoUrl; });
     // Sprache: Standard des Betreibers gilt ab dem naechsten Start (oder sofort, wenn noch nichts gewaehlt).
@@ -222,6 +228,8 @@ function buildGridQuery() {
         query.set('ring', String(state.gridRing));
         if (state.gridSettings.liveGrid) query.set('live', '1');
     }
+    // Mit Nachweis-Pflicht will der Router wissen, wer fragt (Bearer-Token dazu in fetchGridRing).
+    if (typeof isSafetyGateActive === 'function' && isSafetyGateActive() && !query.has('peerId')) query.set('peerId', state.myProfile.id);
     return query;
 }
 
@@ -273,6 +281,7 @@ function renderAppModeSettings() {
     document.getElementById('invite-card')?.classList.toggle('hidden', !['chat', 'friends'].some(mode => state.appConfig.modes.includes(mode)));
     renderModeScopeSettings();
     applyModeScopeVisibility();
+    if (typeof renderSafetyCard === 'function') renderSafetyCard();
 }
 
 // Erster Start: erst den Bereich waehlen (wenn der Betreiber beide erlaubt), dann ggf. den Modus darin.

@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 135 · 2026-10-26
+## Build 136 · 2026-10-26
+- Fuer Betreiber (standardmaessig aus): Alters- oder E-Mail-Nachweis, bevor jemand im Grid sichtbar wird; Sperren und ein kurzes IP-Protokoll fuer Anfragen der Strafverfolgung
+- Neue Einstellung "Nacktbilder unscharf" (Medien > Schutz, standardmaessig aus): moegliche Nacktbilder erscheinen unscharf, bis du tippst; geprueft wird nur auf deinem Geraet. Das Erkennungsmodell folgt noch
+
+## Build 135 · 2026-10-26 · `46bdceb`
 - Beim ersten Start waehlst du, was du willst: "Nur Entdecken", "Social" oder "Entdecken & Freunde". Einstellungen und Knoepfe anderer Bereiche verschwinden; bei "Nur Entdecken" gibt es kein Adden, auch nicht nach einem Match
 - Bereich aendern oder alle Modi wieder einschalten: Einstellungen > Allgemein > App-Modus > Erweitert
 

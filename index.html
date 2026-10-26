@@ -598,6 +598,14 @@
                     </div>
                 </div>
 
+                <div id="safety-card" class="settings-card hidden" data-settings-tab="privacy">
+                    <h3 class="settings-card-title"><i class="fa-solid fa-user-shield text-brand-400"></i> <span data-i18n="safety.cardTitle">Nachweise</span></h3>
+                    <div class="setting-block space-y-2">
+                        <p data-i18n="safety.allVerified" id="safety-card-status" class="setting-desc">Alles nachgewiesen.</p>
+                        <button data-i18n="safety.verifyNow" id="safety-card-btn" data-click="reopenSafetyGate" class="btn-secondary hidden">Jetzt nachweisen</button>
+                    </div>
+                </div>
+
                 <!-- ===== Chat ===== -->
                 <div class="settings-card" data-settings-tab="chat">
                     <h3 class="settings-card-title"><i class="fa-solid fa-comments text-brand-400"></i> <span data-i18n="common.switchingChats">Chats wechseln</span></h3>
@@ -708,6 +716,10 @@
                     <label class="setting-row">
                         <span class="setting-text"><span data-i18n="settings.traceWatermark" class="setting-title">Spur-Wasserzeichen</span><span data-i18n="settings.yourSnapsAndAlbumImages" class="setting-desc">Eigene Snaps und Albumbilder tragen unsichtbar die ID des Empfängers. So lässt sich ein Leak (z. B. Screenshot) zuordnen.</span></span>
                         <input type="checkbox" role="switch" id="trace-watermark-toggle" checked data-change="updateTraceWatermark" data-args='["$checked"]' class="switch">
+                    </label>
+                    <label class="setting-row">
+                        <span class="setting-text"><span data-i18n="nudity.filter" class="setting-title">Nacktbilder unscharf</span><span data-i18n="nudity.filterDescription" class="setting-desc">Eingehende Bilder werden auf deinem Gerät geprüft; mögliche Nacktbilder erscheinen unscharf, bis du tippst. Kein Bild verlässt dabei dein Gerät.</span><span data-i18n="nudity.noModel" id="nudity-filter-no-model" class="setting-desc text-amber-300">Auf diesem Server ist noch kein Erkennungsmodell installiert, der Filter wirkt noch nicht.</span></span>
+                        <input type="checkbox" role="switch" id="nudity-filter-toggle" data-change="updateNudityFilter" data-args='["$checked"]' class="switch">
                     </label>
                     <p data-i18n="settings.screenshotsCantBePreventedIn" class="setting-note">Screenshots lassen sich im Browser nicht verhindern. Bilder werden nur angezeigt, nicht als Datei bereitgestellt; speichern lassen sich nur Chat-Bilder im Chat- und Freunde-Modus.</p>
                 </div>
@@ -838,6 +850,43 @@
     </div>
 
     <!-- Detailed Profile View Modal -->
+    <div id="safety-modal" class="hidden fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[62] flex items-center justify-center p-4 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="safety-modal-title">
+        <div class="bg-slate-900 border border-brand-500/40 rounded-2xl max-w-md w-full shadow-2xl my-8">
+            <div class="p-5 border-b border-slate-800 flex items-start gap-3">
+                <div class="w-11 h-11 shrink-0 rounded-xl bg-brand-500/15 border border-brand-500/30 text-brand-400 flex items-center justify-center"><i class="fa-solid fa-user-shield"></i></div>
+                <div class="flex-1 min-w-0">
+                    <h2 data-i18n="safety.title" id="safety-modal-title" class="text-lg font-bold text-slate-100">Kurz bestätigen</h2>
+                    <p data-i18n="safety.intro" class="text-xs text-slate-400 mt-1">Dieser Server verlangt einen Nachweis, bevor du im Grid sichtbar wirst. Gespeichert wird nur, dass er erbracht ist.</p>
+                </div>
+                <button data-i18n-attr="aria-label:profileModal.close" data-click="closeSafetyGate" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center" aria-label="Schließen"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="p-5 space-y-5">
+                <div id="safety-age-confirm" class="hidden space-y-3">
+                    <label class="setting-row">
+                        <span class="setting-text"><span data-i18n="safety.iAmAtLeast18" class="setting-title">Ich bin mindestens 18 Jahre alt.</span></span>
+                        <input type="checkbox" role="switch" id="safety-age-checkbox" class="switch">
+                    </label>
+                    <button data-i18n="safety.confirm" data-click="confirmAgeSelf" class="btn-primary w-full">Bestätigen</button>
+                </div>
+                <div id="safety-age-provider" class="hidden space-y-3">
+                    <p data-i18n="safety.providerIntro" class="setting-desc">Der Nachweis läuft über einen Anbieter. Der Server erfährt nur „ab 18: ja“, nie deinen Namen oder dein Geburtsdatum.</p>
+                    <button data-i18n="safety.proveAge" data-click="startAgeProviderCheck" class="btn-primary w-full">Alter nachweisen</button>
+                </div>
+                <div id="safety-email" class="hidden space-y-3">
+                    <p data-i18n="safety.emailIntro" class="setting-desc">Deine E-Mail-Adresse wird verschlüsselt beim Betreiber gespeichert und nur auf richterlichen Beschluss herausgegeben. Andere Nutzer sehen sie nie.</p>
+                    <div class="flex gap-2">
+                        <input data-i18n-attr="placeholder:safety.emailPlaceholder" id="safety-email-input" type="email" autocomplete="email" maxlength="254" placeholder="name@beispiel.de" data-enter="sendEmailCode" class="setting-input flex-1 min-w-0">
+                        <button data-i18n="safety.sendCode" data-click="sendEmailCode" class="btn-secondary">Code senden</button>
+                    </div>
+                    <div id="safety-email-code-row" class="hidden flex gap-2">
+                        <input data-i18n-attr="placeholder:safety.codePlaceholder" id="safety-email-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6-stelliger Code" data-enter="confirmEmailCode" class="setting-input flex-1 min-w-0">
+                        <button data-i18n="safety.confirm" data-click="confirmEmailCode" class="btn-primary">Bestätigen</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="profile-detail-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
         <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full overflow-hidden shadow-2xl space-y-0 my-8">
             <div class="relative h-64 bg-slate-950">
@@ -1098,6 +1147,7 @@
     <script src="/client/app/snap-editor.js?v={{assetVersion}}"></script>
     <script src="/client/app/snap-camera.js?v={{assetVersion}}"></script>
     <script src="/client/app/secure-canvas.js?v={{assetVersion}}"></script>
+    <script src="/client/app/nudity.js?v={{assetVersion}}"></script>
     <script src="/client/app/viewer.js?v={{assetVersion}}"></script>
     <script src="/client/app/watermark.js?v={{assetVersion}}"></script>
     <script src="/client/app/albums.js?v={{assetVersion}}"></script>
@@ -1113,6 +1163,7 @@
     <script src="/client/app/router.js?v={{assetVersion}}"></script>
     <script src="/client/app/actions.js?v={{assetVersion}}"></script>
     <script src="/client/app/push.js?v={{assetVersion}}"></script>
+    <script src="/client/app/safety.js?v={{assetVersion}}"></script>
     <script src="/client/app/main.js?v={{assetVersion}}"></script>
 </body>
 </html>

@@ -25,10 +25,14 @@ async function drawSecureImage(canvas, source) {
     if (!blob) return false;
     const bitmap = await createImageBitmap(blob);
     try {
+        // Nacktbild-Filter (nudity.js): nur fremde Bilder, eigene tragen data-own-image.
+        const blur = canvas.dataset.ownImage !== 'true' && typeof shouldBlurImage === 'function'
+            && await shouldBlurImage(bitmap, source);
         if (secureImageDrawTokens.get(canvas) !== token) return false;
         canvas.width = bitmap.width;
         canvas.height = bitmap.height;
-        canvas.getContext('2d').drawImage(bitmap, 0, 0);
+        if (blur) drawBlurredImage(canvas, bitmap, source, () => drawSecureImage(canvas, source).catch(logBackgroundError('drawSecureImage')));
+        else canvas.getContext('2d').drawImage(bitmap, 0, 0);
         return true;
     } finally {
         bitmap.close?.();
@@ -46,8 +50,9 @@ function clearSecureCanvas(canvas, invalidate = true) {
 // size ({ w, h }, wenn bekannt): der Canvas bekommt sofort die richtigen Proportionen und haelt den
 // Platz frei, bevor das Bild gezeichnet ist (sonst springt der Inhalt darunter). Ohne Groesse haelt
 // ein 4:3-Platzhalter den Platz, bis das Bild da ist.
-function createSecureImage(dataUrl, className, size = null) {
+function createSecureImage(dataUrl, className, size = null, { own = false } = {}) {
     const canvas = document.createElement('canvas');
+    if (own) canvas.dataset.ownImage = 'true';
     canvas.className = `secure-image ${className || ''}`.trim();
     canvas.setAttribute('role', 'img');
     canvas.setAttribute('aria-label', t('common.image'));

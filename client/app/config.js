@@ -117,6 +117,11 @@ const state = {
     // Listen-Wechsel Grid & Event <-> Chat & Freunde (chat-switch.js); override = nur angesehene Liste.
     listSwitchSettings: { enabled: true, behavior: 'mode' },
     chatListScopeOverride: null,
+    // Fehlende Nachweise ('age', 'email') laut Router und ob das Fenster dazu weggeklickt wurde (safety.js).
+    verificationRequired: [],
+    // Nacktbild-Filter fuer eingehende Bilder (nudity.js), standardmaessig aus.
+    nudityFilter: false,
+    safetyGateDismissed: false,
     // Originalbilder im Empfang (originals.js), pro Nachrichten-ID.
     originalTransfers: {},
     // Snap-Kamera: als Einmal-Snap oder als normales Bild senden.

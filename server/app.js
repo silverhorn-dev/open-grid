@@ -8,6 +8,7 @@ import { createStore } from './database.js';
 import { registerSignalingRoute } from './signaling.js';
 import { loadTranslations, translationScript } from './i18n.js';
 import { infoSiteUrl, registerInfoSite } from './info-site.js';
+import { createSafety, parseSafetyConfig, registerSafetyRoutes } from './safety.js';
 import {
     GRID_PRECISION,
     MAX_GRID_RING,
@@ -66,6 +67,7 @@ const CLIENT_DEFAULT_RULES = {
     listSwitchBehavior: ['mode', 'view'],
     statusDirectOnly: 'boolean',
     traceWatermark: 'boolean',
+    nudityFilter: 'boolean',
     secureSnaps: 'boolean',
     snapNextGesture: ['doubletap', 'swipe', 'swipeup'],
     snapExpiry: ['15m', '30m', '60m', 'off'],
@@ -136,6 +138,7 @@ const clientAssetFiles = [
     'app/viewer.js',
     'app/watermark.js',
     'app/secure-canvas.js',
+    'app/nudity.js',
     'app/albums.js',
     'app/swarm.js',
     'app/secure-snaps.js',
@@ -148,6 +151,7 @@ const clientAssetFiles = [
     'app/router.js',
     'app/actions.js',
     'app/push.js',
+    'app/safety.js',
     'app/main.js'
 ];
 const defaultSchema = [
@@ -504,6 +508,22 @@ export async function buildApp(options = {}) {
         return true;
     }
 
+    // Alters-/E-Mail-Nachweis, Sperren, IP-Protokoll (server/safety.js); standardmaessig alles aus.
+    const safety = createSafety({
+        config: parseSafetyConfig(options.safety ?? {
+            ageCheck: process.env.AGE_CHECK,
+            ageProvider: process.env.AGE_PROVIDER,
+            emailCheck: process.env.EMAIL_CHECK,
+            emailTransport: process.env.EMAIL_TRANSPORT,
+            abuseLogDays: process.env.ABUSE_LOG_DAYS,
+            safetyKey: process.env.SAFETY_KEY
+        }),
+        store,
+        log: app.log,
+        now
+    });
+    registerSafetyRoutes(app, { safety, allowRequest, requirePeerAuth, isString });
+
     function verifyRegistrationProof(peerId, registrationId, authToken, proof) {
         if (!proof?.publicKey || !isString(proof.signature, 512)) return false;
         try {
@@ -569,6 +589,9 @@ export async function buildApp(options = {}) {
         if (!existingTokenMatches && !verifyRegistrationProof(peerId, registrationId, authToken, registrationProof)) {
             return reply.code(400).send({ error: 'Invalid registration proof' });
         }
+        if (safety.isPeerBanned(peerId)) return reply.code(403).send({ error: 'Banned' });
+        // Fehlt ein verlangter Nachweis, ist der Peer registriert (Token fuer /api/safety), aber unsichtbar.
+        const missingVerification = safety.missing(peerId);
         const session = {
             peerId,
             registrationId,
@@ -580,7 +603,7 @@ export async function buildApp(options = {}) {
             geohash: geohash.substring(0, GRID_PRECISION),
             thumbnail: thumbnail ? thumbnail.substring(0, 150000) : null,
             name: typeof name === 'string' ? name.substring(0, 100) : 'Peer',
-            silent: silent === true,
+            silent: silent === true || missingVerification.length > 0,
             ttlMs: ttlMinutes != null ? ttlMinutes * 60 * 1000 : undefined,
             scope: peerScope,
             eventHash: peerScope === 'event' ? eventHash : null
@@ -589,11 +612,13 @@ export async function buildApp(options = {}) {
             return reply.code(403).send({ error: 'Peer identity is already registered' });
         }
         signaling.updatePeerCell(peerId, session.geohash, session.silent || peerScope !== 'public');
+        safety.logAccess(peerId, request.ip);
         return {
             status: 'registered',
             geohash: session.geohash,
             peerId,
-            authToken
+            authToken,
+            ...(missingVerification.length ? { verificationRequired: missingVerification } : {})
         };
     });
 
@@ -611,7 +636,7 @@ export async function buildApp(options = {}) {
     app.delete('/api/register', unregister);
     app.post('/api/unregister', unregister);
 
-    app.get('/api/config', async () => ({ modes: appModes, defaultMode: defaultAppMode, profileSchemas, lanMode: isLanMode, clientDefaults, infoUrl: infoSiteUrl(infoHost) }));
+    app.get('/api/config', async () => ({ modes: appModes, defaultMode: defaultAppMode, profileSchemas, lanMode: isLanMode, clientDefaults, infoUrl: infoSiteUrl(infoHost), safety: safety.publicConfig() }));
 
     const toGridPeer = (origin) => ({ peer, km }) => ({
         id: peer.peerId,
@@ -632,6 +657,15 @@ export async function buildApp(options = {}) {
         }
         const normalizedGeohash = geohash.substring(0, GRID_PRECISION);
         const origin = decodeGeohash(normalizedGeohash);
+
+        // Mit Nachweis-Pflicht sieht das Grid nur, wer angemeldet und nachgewiesen ist.
+        if (safety.active) {
+            const { peerId } = request.query;
+            if (!isString(peerId, 200)) return reply.code(401).send({ error: 'Peer authentication required' });
+            if (!requirePeerAuth(request, reply, peerId)) return;
+            const missing = safety.missing(peerId);
+            if (missing.length) return reply.code(403).send({ error: 'Verification required', verificationRequired: missing });
+        }
 
         // Freunde in der Naehe: nur gegenseitige Kontakte des anfragenden Peers.
         if (scope === 'friends') {

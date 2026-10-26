@@ -656,7 +656,7 @@ function renderChatHistory() {
             renderVideoMessage(bubble, message, isMine);
         } else if (message.snapData) {
             if (isSafeInlineImage(message.snapData)) {
-                const image = createSecureImage(message.snapData, 'w-48 sm:w-64 rounded-xl mb-1.5 border border-slate-900/50 cursor-zoom-in', message.imageSize);
+                const image = createSecureImage(message.snapData, 'w-48 sm:w-64 rounded-xl mb-1.5 border border-slate-900/50 cursor-zoom-in', message.imageSize, { own: isMine });
                 image.onclick = event => {
                     event.stopPropagation();
                     openChatImageViewer(message.id);

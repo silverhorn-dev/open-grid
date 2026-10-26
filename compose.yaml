@@ -21,6 +21,13 @@ services:
       VAPID_SUBJECT: ${VAPID_SUBJECT:-}
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      # Nachweise und IP-Protokoll (standardmaessig aus), siehe README "Nachweise und Sperren".
+      AGE_CHECK: ${AGE_CHECK:-off}
+      AGE_PROVIDER: ${AGE_PROVIDER:-}
+      EMAIL_CHECK: ${EMAIL_CHECK:-off}
+      EMAIL_TRANSPORT: ${EMAIL_TRANSPORT:-log}
+      SAFETY_KEY: ${SAFETY_KEY:-}
+      ABUSE_LOG_DAYS: ${ABUSE_LOG_DAYS:-0}
       PORT: 3000
       # STUN: ohne Angabe dient der eigene TURN-Server als STUN. "none" = kein STUN.
       # STUN_SERVER: none

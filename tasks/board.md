@@ -55,12 +55,27 @@
     - Snapchat: konto per e-mail/telefon, geburtstag selbst angegeben + alters-erkennung aus signalen; AU (seit 11/2025, unter-16-verbot): bankkonto (ConnectID), ausweis oder selfie-schaetzung (k-ID), ~415k konten gesperrt; UK: "highly effective age assurance", >1 mio als 18+ bestaetigt (09/2026); behoerden bekommen bestandsdaten (nutzername, e-mail, telefon) + IP-daten per rechtsweg, sicherung 90 tage (+90)
     - IP-speicherung DE: kabinettsentwurf 22.04.2026, provider speichern IP + port 3 monate, nur zuordnung IP -> anschlussinhaber; anhoerung rechtsausschuss 07.10.2026, noch nicht beschlossen -> mit kurzem eigenem ip-protokoll waere rueckverfolgung ueber den normalen rechtsweg moeglich
 
+- gebaut 2026-10-26 auf branch `feature/safety-checks` (nicht gemerged), alles standardmaessig aus:
+  - [x] router-konfig `AGE_CHECK=off|confirm|provider`, `AGE_PROVIDER` (nur `dev` zum testen), `EMAIL_CHECK=off|required`, `EMAIL_TRANSPORT` (nur `log`), `SAFETY_KEY`, `ABUSE_LOG_DAYS` (`server/safety.js`, `server/safety-store.js`)
+  - [x] sperre: ohne nachweis registriert, aber unsichtbar und kein grid; gesperrte peers/e-mails/pseudonyme (HMAC); ip-protokoll mit loeschfrist
+  - [x] client: nachweis-fenster (18+ bestaetigen, anbieter-knopf, e-mail-code), karte unter Privatsphaere (`client/app/safety.js`)
+  - [x] betreiber-werkzeug `scripts/safety-admin.mjs` (sperren, ip-protokoll, e-mail entschluesseln)
+  - [x] tests `test/safety.test.js`, e2e `safety-gate` (nur mit `E2E_SAFETY=1` gegen `AGE_CHECK=confirm`)
+  - [ ] echter anbieter (EU-Altersnachweis per OpenID4VP oder KJM-anbieter) -> entscheidung
+  - [ ] SMTP-versand der codes (mailserver des betreibers) -> entscheidung
+  - [ ] meldeweg mit wasserzeichen-nachweis -> sperre (nur werkzeug da, kein UI)
+
 ## T3 Nacktbild-Erkennung beim Empfaenger (idee 2026-10-26, besprechen)
 - [ ] lokales modell auf dem geraet des empfaengers erkennt nacktbilder in chat-bildern/snaps/alben -> unscharf + "trotzdem ansehen"; bild verlaesst das geraet nie (passt zu E2EE)
   - kontext: app ist nicht fuer nacktbilder gedacht (galerien, normale fotos) -> JMStV-pflichten fuer jugendgefaehrdende inhalte greifen wohl nicht; schutz gegen ungefragte bilder trotzdem sinnvoll
   - vorbild: Bumble "Private Detector" (2022 open source, kommerziell nutzbar; lizenz/framework im repo pruefen), Apple Communication Safety, Instagram-Nacktschutz
   - offen: modell selbst ausliefern (keine CDN, regel 1), groesse (einige MB, lazy laden, im SW-cache), tf.js/onnx im browser + leistung auf alten handys, standard an/aus, auch absender-seitig warnen?
   - grenze: nur schutz, keine durchsetzung (eigener client kann es abschalten); kein melden an den server
+  - gebaut 2026-10-26 auf branch `feature/safety-checks` (nicht gemerged), standardmaessig aus:
+    - [x] `client/app/nudity.js`: einstellung Medien > Schutz (`keys`/`nudity-settings`, `CLIENT_DEFAULTS.nudityFilter`), modell-schnittstelle `registerNudityClassifier`, unscharf + "Tippen zum Ansehen" in `drawSecureImage` (chat, snaps, alben, status, viewer), eigene bilder nie
+    - [x] tests `test/nudity.test.js`, e2e `nudity-filter` (test-modell)
+    - [ ] modell auswaehlen und ausliefern (Bumble Private Detector o. ae., lizenz/groesse/browser) -> entscheidung
+    - [ ] absender-warnung vor dem senden -> entscheidung
 
 ## Eigene rotierende Verschluesselung (geparkt, erst besprechen)
 - [ ] gestohlene album-schluessel sollen nach der epoche wertlos sein; idee: eigener, vom server getakteter algorithmus -> `tasks/feature-request-rotating-encryption.md`

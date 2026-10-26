@@ -275,8 +275,13 @@ async function fetchGridRing() {
 
     try {
         const query = buildGridQuery();
-        const headers = state.appMode === 'friends' ? peerAuthHeaders() : {};
+        const headers = state.appMode === 'friends' || isSafetyGateActive() ? peerAuthHeaders() : {};
         const res = await fetch(`${API_BASE}/api/grid?${query}`, { cache: 'no-store', headers });
+        if (res.status === 403 && isSafetyGateActive()) {
+            const problem = await res.json().catch(() => null);
+            handleVerificationRequired(problem?.verificationRequired);
+            return false;
+        }
         if (!res.ok) throw new Error('Worker offline');
         const data = await res.json();
 
@@ -462,6 +467,7 @@ async function registerWithWorkerGrid() {
         state.routerAuthToken = registration.authToken;
         window.localStorage.setItem('opengrid-router-auth-token', registration.authToken);
         onRouterAuthUpdated();
+        handleVerificationRequired(registration.verificationRequired);
         logDebug('Registered in Worker Spatial Grid');
         return true;
     } catch (error) {

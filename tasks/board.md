@@ -1,65 +1,8 @@
-# Routing
+# bugs
 
-# general
+- [ ] discovering of new social chats happens just on klick on profile?
 
-# Grid
 
-# Chat
-
-## status
-
-## Snapping 
-
-## Bugs 
-
-# Debug
-
-# Self-hosting
-
-# Onboarding
-
-# Chat synchronization
-
-# Path C
-
-# Push (feature request)
-
-# Media & Albums (Access Control)
-
-# Advanced Encryption (Media & Performance)
-
-# Privacy & Location (Anti-Triangulation)
-
-# E2E View-Once & Watermarking
-
-# Matching & Chat-Modi
-
-# Hyperlocal Mesh (Festival/Club Mode)
-- P7 erledigt, weitere ideen (naechste iteration) -> `tasks/backlog.md`
-
-# Hardening (H1-H4, geplant 2026-10-23)
-## H1 Sicherheit Server (kritisch zuerst)
-
-## H2 Eingaben und Daten im Client
-
-## H3 Robustheit
-
-## H4 Wartbarkeit und Tests
-
-# Runde R (FRQs vom 2026-10-24, geplant)
-Quellen: `tasks/feature-bug-requests.md` (FBR), `tasks/feature-req-snap.md`, `tasks/feature-request-secure-image-rendering.md`, `tasks/feature-req-chats-and-friends.md`
-
-## R0 Aufraeumen
-
-## R1 UI-Bugs
-
-## R2 Album-Schluessel-TTL (FBR 2)
-
-## R3 Schwarm-Abruf fuer Galerie + Alben (FBR 4)
-
-## R4 Secure Image Rendering (canvas)
-
-## R5 Snap-Kamera (feature-req-snap)
 
 ## Eigene rotierende Verschluesselung (geparkt, erst besprechen)
 - [ ] gestohlene album-schluessel sollen nach der epoche wertlos sein; idee: eigener, vom server getakteter algorithmus -> `tasks/feature-request-rotating-encryption.md`

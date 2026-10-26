@@ -1,0 +1,36 @@
+OpenGrid Debug Log
+Exported: 2026-10-26T12:01:50.506Z
+Node: node_b7d106f5-b204-4f11-8434-4c7dbdc1a8a0
+Geohash: u29s66
+UserAgent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:158.0) Gecko/20100101 Firefox/158.0
+Signaling: open
+ICE servers: stun:turn.og.silverhorn.dev:3478, turn:turn.og.silverhorn.dev:3478?transport=udp, turn:turn.og.silverhorn.dev:3478?transport=tcp
+---
+[2026-10-26T12:01:35.974Z] Could not start P2P connection: Signaling connection is not ready.
+[2026-10-26T12:01:35.974Z] openChatWithPeer fehlgeschlagen: Signaling connection is not ready.
+[2026-10-26T12:01:35.976Z] Dynamische TURN-Credentials erfolgreich geladen.
+[2026-10-26T12:01:35.976Z] ICE-Kandidat (host/udp) fuer node_a9afc04a-be5b-44a7-a33a-81a945a81a13
+[2026-10-26T12:01:35.976Z] Could not send ICE candidate: Signaling connection is not ready.
+[2026-10-26T12:01:35.976Z] Could not send ICE candidate: Signaling connection is not ready.
+[2026-10-26T12:01:35.981Z] Persistent ECDH P-256 identity keypair loaded.
+[2026-10-26T12:01:36.003Z] ICE-Kandidat (srflx/udp) fuer node_a9afc04a-be5b-44a7-a33a-81a945a81a13
+[2026-10-26T12:01:36.003Z] Could not send ICE candidate: Signaling connection is not ready.
+[2026-10-26T12:01:36.003Z] ICE-Kandidat (unknown/n/a) fuer node_a9afc04a-be5b-44a7-a33a-81a945a81a13
+[2026-10-26T12:01:36.004Z] Could not send ICE candidate: Signaling connection is not ready.
+[2026-10-26T12:01:36.004Z] ICE-Sammlung fuer node_a9afc04a-be5b-44a7-a33a-81a945a81a13 beendet. Kandidatentypen: host, srflx, unknown
+[2026-10-26T12:01:36.004Z] WARNUNG: Kein relay-Kandidat fuer node_a9afc04a-be5b-44a7-a33a-81a945a81a13. TURN liefert keine Allocation.
+[2026-10-26T12:01:36.156Z] Connected to Worker Signaling
+[2026-10-26T12:01:36.283Z] Registered in Worker Spatial Grid
+[2026-10-26T12:01:36.359Z] Sent P2P offer to node_a9afc04a-be5b-44a7-a33a-81a945a81a13
+[2026-10-26T12:01:36.364Z] ICE-Kandidat (host/udp) fuer node_a9afc04a-be5b-44a7-a33a-81a945a81a13
+[2026-10-26T12:01:36.473Z] ICE state fuer node_a9afc04a-be5b-44a7-a33a-81a945a81a13: checking
+[2026-10-26T12:01:36.473Z] P2P connection with node_a9afc04a-be5b-44a7-a33a-81a945a81a13: connecting
+[2026-10-26T12:01:47.635Z] ICE-Kandidat (unknown/n/a) fuer node_a9afc04a-be5b-44a7-a33a-81a945a81a13
+[2026-10-26T12:01:47.636Z] ICE-Sammlung fuer node_a9afc04a-be5b-44a7-a33a-81a945a81a13 beendet. Kandidatentypen: host, unknown
+[2026-10-26T12:01:47.637Z] WARNUNG: Kein relay-Kandidat fuer node_a9afc04a-be5b-44a7-a33a-81a945a81a13. TURN liefert keine Allocation.
+[2026-10-26T12:01:47.637Z] ICE state fuer node_a9afc04a-be5b-44a7-a33a-81a945a81a13: failed
+[2026-10-26T12:01:47.638Z] P2P connection with node_a9afc04a-be5b-44a7-a33a-81a945a81a13: failed
+[2026-10-26T12:01:48.651Z] Sent P2P offer to node_a9afc04a-be5b-44a7-a33a-81a945a81a13
+[2026-10-26T12:01:48.654Z] ICE-Kandidat (host/udp) fuer node_a9afc04a-be5b-44a7-a33a-81a945a81a13
+[2026-10-26T12:01:48.797Z] ICE state fuer node_a9afc04a-be5b-44a7-a33a-81a945a81a13: checking
+[2026-10-26T12:01:48.797Z] P2P connection with node_a9afc04a-be5b-44a7-a33a-81a945a81a13: connecting

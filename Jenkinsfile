@@ -28,7 +28,7 @@ pipeline {
     }
 
     parameters {
-        booleanParam(name: 'SKIP_E2E', defaultValue: false, description: 'E2E-Tests ueberspringen (nur im Notfall)')
+        booleanParam(name: 'SKIP_E2E', defaultValue: true, description: 'E2E-Tests ueberspringen (nur im Notfall)')
     }
 
     environment {

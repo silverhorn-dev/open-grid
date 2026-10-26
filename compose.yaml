@@ -30,8 +30,9 @@ services:
       MEDIA_KEY_EPOCH_MINUTES: 5
       # Echter Betrieb: 3 Stunden
       # MEDIA_KEY_EPOCH_MINUTES: 180
-    ports:
-      - "${OPEN_GRID_PORT:-3000}:3000"
+#    disabled b'cause we are in the service net
+#    ports:
+#      - "${OPEN_GRID_PORT:-3000}:3000"
     volumes:
       - open-grid-data:/app/data
 

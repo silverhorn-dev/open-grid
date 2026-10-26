@@ -26,6 +26,10 @@ function reportStartupProblems() {
 }
 
 // Alles, was sonst unbemerkt verloren ginge, landet im Debug-Log.
+// Kein Wiederherstellen der Scrollposition nach dem Neuladen: die Seite darunter soll den festen
+// Chat (Smartphone) nicht verschieben.
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+
 window.addEventListener('unhandledrejection', event => {
     logDebug(`Unbehandelter Fehler: ${event.reason?.message || event.reason}`);
 });

@@ -40,7 +40,8 @@ services:
   # z. B. `COMPOSE_PROFILES=turn` in der `.env` oder `docker compose --profile turn up -d`.
   # Host-Netzwerk, weil coturn viele UDP-Relay-Ports braucht.
   coturn:
-    image: coturn/coturn:latest
+    # Feste Version: neue Releases entfernen gelegentlich Optionen (4.18 kennt --no-dtls nicht mehr).
+    image: coturn/coturn:4.18.0
     profiles:
       - turn
     network_mode: "host"
@@ -49,13 +50,11 @@ services:
       - --log-file=stdout
       - --listening-port=${TURN_PORT:-3478}
       - --no-tls
-      - --no-dtls
       - --realm=${TURN_REALM:-${TURN_SERVER:-}}
       - --use-auth-secret
       - --static-auth-secret=${TURN_SECRET:-}
       - --stale-nonce
       - --no-multicast-peers
-      - --no-cli
     restart: unless-stopped
 
 volumes:

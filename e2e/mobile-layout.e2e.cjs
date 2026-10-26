@@ -60,6 +60,26 @@ async function main() {
         assert.ok(Math.abs(head.top - head.header) <= 2, `list head stays pinned below the app header (${head.top} vs ${head.header})`);
         await page.evaluate(() => { document.body.style.paddingBottom = ''; window.scrollTo(0, 0); });
 
+        // Offener Chat (fest ueber dem Bildschirm): auch wenn die Seite darunter gescrollt war und die
+        // Kontaktleiste den aktuellen Chat in die Mitte holt, bleibt das Eingabefeld ganz sichtbar.
+        await page.evaluate(async () => {
+            document.body.style.paddingBottom = '600px';
+            window.scrollTo(0, 300);
+            await openChatWithPeer('node_fake_20');
+        });
+        await waitFor(page, () => document.querySelectorAll('#chat-switch-bar button').length > 5);
+        await page.waitForTimeout(300);
+        const chatBox = await page.evaluate(() => {
+            const bar = document.querySelector('#chat-window-panel .chat-input-bar').getBoundingClientRect();
+            return { top: bar.top, bottom: bar.bottom, height: window.innerHeight, offset: window.visualViewport ? window.visualViewport.offsetTop : 0 };
+        });
+        assert.ok(chatBox.top >= 0 && chatBox.bottom <= chatBox.height + 1, `chat input bar inside the screen (${chatBox.top}-${chatBox.bottom} of ${chatBox.height})`);
+        assert.equal(chatBox.offset, 0, 'visual viewport not shifted');
+        await page.evaluate(() => { document.body.style.paddingBottom = ''; window.scrollTo(0, 0); });
+        await page.reload();
+        await waitFor(page, () => Boolean(state.ws && state.ws.readyState === 1));
+        assert.equal(await page.evaluate(() => history.scrollRestoration), 'manual', 'no scroll restoration after reload');
+
         // Alben-Karte: im Chat-Modus ohne eigene Alben versteckt, mit Album sichtbar.
         await page.evaluate(() => switchTab('editprofile'));
         assert.equal(await page.isVisible('#album-manager-card'), false);

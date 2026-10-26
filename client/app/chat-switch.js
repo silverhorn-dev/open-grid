@@ -113,7 +113,21 @@ function renderChatSwitcher() {
         button.onclick = () => switchToChat(peerId).catch(logBackgroundError('renderChatSwitcher'));
         return button;
     }));
-    bar.querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'nearest', inline: 'center' });
+    centerInScroller(bar, bar.querySelector('[aria-current="true"]'), 'x');
+}
+
+// Scrollt nur den Container selbst. `scrollIntoView` wuerde auch alle Vorfahren samt Seite bzw.
+// Visual Viewport verschieben: auf dem Smartphone rutschte so der feste Chat (mit Eingabefeld)
+// nach dem Neuladen teilweise aus dem Bild.
+function centerInScroller(container, element, axis) {
+    if (!container || !element) return;
+    const box = container.getBoundingClientRect();
+    const target = element.getBoundingClientRect();
+    if (axis === 'x') {
+        container.scrollLeft += (target.left + target.width / 2) - (box.left + box.width / 2);
+    } else {
+        container.scrollTop += (target.top + target.height / 2) - (box.top + box.height / 2);
+    }
 }
 
 // Wischen nur auf der Kontaktleiste.
@@ -184,7 +198,7 @@ function openChatSwitcherSheet() {
         list.appendChild(button);
     });
     content.appendChild(list);
-    list.querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'nearest' });
+    centerInScroller(content, list.querySelector('[aria-current="true"]'), 'y');
 }
 
 // ----- Listen-Wechsel: "Grid & Event" <-> "Chat & Freunde" -----

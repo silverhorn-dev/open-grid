@@ -2,7 +2,12 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 108 · 2026-10-26
+## Build 113 · 2026-10-26
+- Behoben: auf dem Smartphone rutschte das Nachrichtenfeld nach dem Neuladen manchmal aus dem Bild (Kontaktleiste scrollte die ganze Seite mit, Scrollposition wurde wiederhergestellt); die Tastatur verkleinert jetzt den Chat statt ihn zu verdecken
+- Behoben: der mitgelieferte coturn startete nicht (`--no-dtls` gibt es in coturn 4.18 nicht mehr), daher keine TURN-Relays; Image jetzt fest auf 4.18.0
+- Betrieb: TURN-Pruefung direkt im Container (`docker compose exec open-grid node scripts/turn-check.mjs`)
+
+## Build 108 · 2026-10-26 · `855be2c`
 - Behoben: Deployment brach auf Jenkins-Agents ohne Docker-CLI ab; die Pipeline laedt sie jetzt bei Bedarf selbst und nutzt den eingehaengten Docker-Socket des Hosts statt TCP
 
 ## Build 107 · 2026-10-26 · `96ee539`

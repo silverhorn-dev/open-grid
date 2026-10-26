@@ -114,11 +114,14 @@ es entstehen also keine Relay-Kandidaten. Stimmt das Secret nicht mit dem
 `static-auth-secret` des coturn ueberein, antwortet der TURN-Server mit `401`
 und die Verbindung faellt ebenfalls auf STUN zurueck.
 
-TURN laesst sich unabhaengig vom Browser pruefen:
+TURN laesst sich unabhaengig vom Browser pruefen, am einfachsten im laufenden
+Container (nutzt dessen `TURN_SERVER`, `TURN_PORT` und `TURN_SECRET`):
 
-```powershell
-npm.cmd run turn:check -- turn.example.org 3478 <secret>
+```sh
+docker compose exec open-grid node scripts/turn-check.mjs
 ```
+
+Lokal mit Node geht auch `npm run turn:check -- turn.example.org 3478 <secret>`.
 
 Das Skript fuehrt einen echten Allocate-Request ueber UDP und TCP aus und meldet
 die zugeteilte Relay-Adresse, einen Credential-Fehler (`401`/`403`) oder einen

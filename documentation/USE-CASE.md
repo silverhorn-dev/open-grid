@@ -738,3 +738,16 @@ Akzeptanzkriterien:
   im Leerraum neben der Nachricht oder auf dem kleinen Aktionen-Pfeil (der dabei
   nicht aufklappt).
 - Die Kontaktleiste nach unten ziehen oeffnet das Profil des Kontakts.
+
+## UC-43: Sprache der App
+
+**Als Nutzer** moechte ich die App in meiner Sprache benutzen.
+
+Akzeptanzkriterien:
+
+- Deutsch und Englisch; ohne eigene Wahl folgt die App der Sprache des Geraets
+  (der Betreiber kann einen Standard vorgeben).
+- Umstellen unter Einstellungen > Allgemein > Sprache; die App laedt neu und
+  merkt sich die Wahl.
+- Alle Texte der Oberflaeche, auch Profilfelder und Uhrzeiten (immer 24 h),
+  folgen der Sprache; Chatnachrichten bleiben unveraendert.

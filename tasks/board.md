@@ -63,8 +63,12 @@
     - modularerere gestaltung
   - besseres UX
   - 2026-10-26 bestandsaufnahme (screenshots mobil/desktop, hell/dunkel), nutzer waehlt aus:
-    - plan: U1 sprache einheitlich deutsch: profil-felder "Display Name", "Age", "Position / Role", "About Me" + englische beispielwerte ("Privacy-first tech enthusiast!"), grid "6 peers • Updated 01:54:30 PM", "Enable Notifications", kontaktleiste "offline"
-    - plan: U2 zeitformat einheitlich: chatliste "01:54 PM" (locale des browsers), nachrichten "21:01", grid mit sekunden -> ueberall 24h ohne sekunden (bzw. "gestern", datum)
+    - [x] U1 sprache einheitlich deutsch: profil-felder "Display Name", "Age", "Position / Role", "About Me" + englische beispielwerte ("Privacy-first tech enthusiast!"), grid "6 peers • Updated 01:54:30 PM", "Enable Notifications", kontaktleiste "offline"
+      - nutzer 2026-10-26: uebersetzungsdateien, sprache umschaltbar
+      - done: `client/i18n.js` (`t()`, deutsch = schluessel), `client/i18n/en.js` (510 eintraege), statisches markup beim start uebersetzt, einstellung Allgemein > Sprache (auto/de/en, `CLIENT_DEFAULTS.language`), schema-labels `{de,en}`, englische quelltexte auf deutsch umgestellt; `scripts/i18n-keys.mjs`, tests `test/i18n.test.js`, e2e `i18n`
+      - offen: service worker (push-texte) noch nur deutsch
+    - [x] U2 zeitformat einheitlich: chatliste "01:54 PM" (locale des browsers), nachrichten "21:01", grid mit sekunden -> ueberall 24h ohne sekunden (bzw. "gestern", datum)
+      - done mit U1: `formatClockTime` (24 h ohne sekunden), chatliste "Gestern" bzw. datum
     - [x] U3 einstellungen: eine sehr lange seite (~9 bildschirme) -> abschnitte mit sprungleiste/tabs (Konto & Modus, Chat, Privatsphaere, Medien & Snaps, Benachrichtigungen, Darstellung); chat-wechsel-optionen stehen unter "Darstellung", wasserzeichen unter "Secure Snaps"
       - nutzer 2026-10-26: schalter statt checkboxen, auf dem smartphone angenehmer
       - done: tabs Allgemein/Privatsphaere/Chat/Medien/Darstellung/Debug (sticky unter der kopfzeile, letzter tab gemerkt), zeilen mit titel + kurzer beschreibung und schalter/auswahl rechts, `.switch`, `.setting-row`, `.btn-primary`/`.btn-secondary` (styles.css); U4 gleich mit erledigt (keine "1 -"/"A -"-codes mehr)

@@ -26,7 +26,8 @@ async function fetchIceConfig() {
     }
 }
 
-fetchIceConfig();
+// Erst, wenn alle Skripte geladen sind (sonst kann die Antwort vor settings.js/logDebug da sein).
+document.addEventListener('DOMContentLoaded', () => fetchIceConfig());
 
 // Club-/LAN-Modus (Server LAN_MODE oder Einstellung "Nur lokales Netz"): keine STUN/TURN-Server,
 // nur lokale host/mDNS-Kandidaten. Verbindungen klappen dann nur im selben Netz.
@@ -59,7 +60,7 @@ async function detectPeerTransport(peerId, connection) {
         logDebug(`Verbindung zu ${peerId}: ${state.peerTransport[peerId]} (${local?.candidateType}/${remote?.candidateType})`);
         if (state.activeChatPeerId === peerId) {
             renderChatPeerIndicator();
-            document.getElementById('chat-connection-type').textContent = `Encrypted WebRTC DataChannel (${state.peerTransport[peerId]})`;
+            document.getElementById('chat-connection-type').textContent = t('Verschluesselter WebRTC-Kanal ({value})', { value: state.peerTransport[peerId] });
         }
     } catch (error) {
         logDebug(`Could not read connection stats: ${error.message}`);
@@ -129,11 +130,11 @@ function getOrCreatePeerConnection(peerId) {
             const secured = Boolean(state.sessionKeys[peerId]);
             updateChatConnectionStatus(
                 peerId,
-                secured ? 'E2EE connected' : 'Securing channel...',
+                secured ? t('E2EE verbunden') : t('Kanal wird gesichert...'),
                 secured ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-sky-500/10 text-sky-400 border-sky-500/30'
             );
         } else if (status === 'failed') {
-            updateChatConnectionStatus(peerId, 'Disconnected', 'bg-red-500/10 text-red-400 border-red-500/30');
+            updateChatConnectionStatus(peerId, t('Getrennt'), 'bg-red-500/10 text-red-400 border-red-500/30');
             reportConnectionFailure(peerId, connection, seenCandidateTypes);
             recoverPeerConnection(peerId, connection);
         } else if (status === 'disconnected') {
@@ -229,7 +230,7 @@ async function handleSignalingMessage(message) {
 
     if (message.type === 'SOCKET_REGISTERED') {
         document.getElementById('network-indicator').className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse';
-        document.getElementById('network-status-text').textContent = 'Worker connected';
+        document.getElementById('network-status-text').textContent = t('Mit dem Router verbunden');
         refreshChatControls()
             .then(() => {
                 subscribePresence();
@@ -283,7 +284,7 @@ async function handleSignalingMessage(message) {
         flushPeerQueueToCache(message.targetPeerId).catch(error => {
             logDebug(`Path C fallback failed: ${error.message}`);
         });
-        updateChatConnectionStatus(message.targetPeerId, 'Peer unavailable', 'bg-amber-500/10 text-amber-400 border-amber-500/30');
+        updateChatConnectionStatus(message.targetPeerId, t('Nicht erreichbar'), 'bg-amber-500/10 text-amber-400 border-amber-500/30');
         showDebugToast('Peer is currently unavailable for a direct P2P connection.', 'warning');
         return;
     }
@@ -435,7 +436,7 @@ function setupDataChannel(peerId, channel) {
         clearTimeout(state.connectionWatchdogs[peerId]);
         delete state.stalledOffers[peerId];
         logDebug(`DataChannel opened with ${peerId}. Starting key handshake.`);
-        updateChatConnectionStatus(peerId, 'Securing channel...', 'bg-sky-500/10 text-sky-400 border-sky-500/30');
+        updateChatConnectionStatus(peerId, t('Kanal wird gesichert...'), 'bg-sky-500/10 text-sky-400 border-sky-500/30');
         renderActivePeerList();
         sendKeyHello(peerId, channel, 0);
     };
@@ -444,12 +445,12 @@ function setupDataChannel(peerId, channel) {
         if (state.dataChannels[peerId] === channel) {
             delete state.dataChannels[peerId];
             delete state.sessionKeys[peerId];
-            updateChatConnectionStatus(peerId, 'Disconnected', 'bg-red-500/10 text-red-400 border-red-500/30');
+            updateChatConnectionStatus(peerId, t('Getrennt'), 'bg-red-500/10 text-red-400 border-red-500/30');
             renderActivePeerList();
         }
     };
     channel.onerror = () => {
-        updateChatConnectionStatus(peerId, 'Channel error', 'bg-red-500/10 text-red-400 border-red-500/30');
+        updateChatConnectionStatus(peerId, t('Kanalfehler'), 'bg-red-500/10 text-red-400 border-red-500/30');
     };
 }
 
@@ -530,7 +531,7 @@ async function initiateP2PConnection(peerId) {
     try {
         await state.connectionAttempts[peerId];
     } catch (error) {
-        updateChatConnectionStatus(peerId, 'Connection failed', 'bg-red-500/10 text-red-400 border-red-500/30');
+        updateChatConnectionStatus(peerId, t('Verbindung fehlgeschlagen'), 'bg-red-500/10 text-red-400 border-red-500/30');
         showDebugToast(`Could not start P2P connection: ${error.message}`, 'error');
         throw error;
     } finally {

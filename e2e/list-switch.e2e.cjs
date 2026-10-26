@@ -19,7 +19,7 @@ async function main() {
     const browser = await chromium.launch();
     const pageErrors = [];
     try {
-        const page = await (await browser.newContext({ viewport: { width: 1200, height: 800 } })).newPage();
+        const page = await (await browser.newContext({ locale: 'de-DE', viewport: { width: 1200, height: 800 } })).newPage();
         page.on('pageerror', error => pageErrors.push(error.message));
         // Betreiber-Standards: Quick-Switcher beim Hochziehen, Listen-Wechsel "nur ansehen".
         await page.route('**/api/config', async route => {

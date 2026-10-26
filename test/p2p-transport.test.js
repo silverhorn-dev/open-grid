@@ -8,6 +8,7 @@ function loadP2p(gridSettings = { lanOnly: false }, serverLanMode = false) {
         state: { gridSettings, serverLanMode },
         API_BASE: '',
         fetch: () => Promise.reject(new Error('offline')),
+        document: { addEventListener: () => {} },
         logDebug: () => {}
     };
     vm.runInNewContext(readFileSync(new URL('../client/p2p.client.js', import.meta.url), 'utf8'), context);

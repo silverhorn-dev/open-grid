@@ -106,7 +106,7 @@ function createUnreadBadge(count, extraClass = '') {
     const badge = document.createElement('span');
     badge.className = `unread-badge ${extraClass}`.trim();
     badge.textContent = formatUnreadCount(count);
-    badge.setAttribute('aria-label', `${count} ungelesen`);
+    badge.setAttribute('aria-label', t('{count} ungelesen', { count }));
     return badge;
 }
 

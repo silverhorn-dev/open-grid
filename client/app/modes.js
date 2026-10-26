@@ -5,10 +5,10 @@
 //   friends:   Grid nur mit gegenseitigen Kontakten, fuer Fremde unsichtbar
 //   event:     Grid nur mit Teilnehmern desselben Event-Codes (Server sieht nur den Hash)
 const APP_MODE_INFO = {
-    discovery: { label: 'Entdecken', icon: 'fa-location-crosshairs', description: 'Leute in der Naehe sehen, Flammen und Matches.' },
-    chat: { label: 'Nur Chat', icon: 'fa-comments', description: 'Kein Grid, fuer niemanden sichtbar. Kontakte per Einladungslink.' },
-    friends: { label: 'Freunde in der Naehe', icon: 'fa-user-group', description: 'Nur deine Kontakte sehen dich und du sie.' },
-    event: { label: 'Event', icon: 'fa-champagne-glasses', description: 'Nur Leute mit demselben Event-Code, endet nach 12 Stunden.' }
+    discovery: { label: t('Entdecken'), icon: 'fa-location-crosshairs', description: t('Leute in der Naehe sehen, Flammen und Matches.') },
+    chat: { label: t('Nur Chat'), icon: 'fa-comments', description: t('Kein Grid, fuer niemanden sichtbar. Kontakte per Einladungslink.') },
+    friends: { label: t('Freunde in der Naehe'), icon: 'fa-user-group', description: t('Nur deine Kontakte sehen dich und du sie.') },
+    event: { label: t('Event'), icon: 'fa-champagne-glasses', description: t('Nur Leute mit demselben Event-Code, endet nach 12 Stunden.') }
 };
 const APP_MODE_RECORD_ID = 'app-mode';
 const APP_CONFIG_RECORD_ID = 'app-config';
@@ -33,6 +33,8 @@ async function loadAppMode() {
         // Standards des Betreibers fuer Client-Einstellungen (gelten, solange nichts Eigenes gespeichert ist).
         clientDefaults: config?.clientDefaults && typeof config.clientDefaults === 'object' ? config.clientDefaults : {}
     };
+    // Sprache: Standard des Betreibers gilt ab dem naechsten Start (oder sofort, wenn noch nichts gewaehlt).
+    rememberRouterLanguageDefault(state.appConfig.clientDefaults.language);
     const stored = await databaseRequest('keys', 'readonly', store => store.get(APP_MODE_RECORD_ID)).catch(() => null);
     state.appModeSettings = stored || {};
     state.appMode = state.appConfig.modes.includes(stored?.mode)
@@ -143,10 +145,10 @@ function applyAppModeUi() {
     const title = document.getElementById('grid-title');
     if (title) {
         title.textContent = state.appMode === 'friends'
-            ? 'Freunde in der Naehe'
+            ? t('Freunde in der Naehe')
             : state.appMode === 'event'
                 ? `Event: ${state.appModeSettings.eventCode || ''}`
-                : 'In deiner Naehe';
+                : t('In deiner Naehe');
     }
     document.getElementById('grid-load-more-btn')?.classList.toggle('hidden', state.appMode !== 'discovery' || !state.gridHasMore);
     document.getElementById('leave-event-btn')?.classList.toggle('hidden', state.appMode !== 'event');
@@ -187,8 +189,8 @@ function renderAppModeSettings() {
     const status = document.getElementById('event-status');
     if (status) {
         status.textContent = hasActiveEvent()
-            ? `Aktiv: ${state.appModeSettings.eventCode} (endet ${new Date(state.appModeSettings.eventJoinedAt + EVENT_DURATION_MS).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`
-            : 'Kein Event aktiv.';
+            ? t('Aktiv: {code} (endet {time})', { code: state.appModeSettings.eventCode, time: formatClockTime(state.appModeSettings.eventJoinedAt + EVENT_DURATION_MS) })
+            : t('Kein Event aktiv.');
     }
     document.getElementById('invite-card')?.classList.toggle('hidden', !['chat', 'friends'].some(mode => state.appConfig.modes.includes(mode)));
 }
@@ -245,7 +247,7 @@ async function joinEvent() {
     if (input) input.value = '';
     scheduleEventExpiry();
     await setAppMode('event');
-    showToast(`Du bist im Event ${code}.`, 'success');
+    showToast(t('Du bist im Event {code}.', { code }), 'success');
 }
 
 async function leaveEvent() {

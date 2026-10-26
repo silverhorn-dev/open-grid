@@ -1097,6 +1097,18 @@ Ein Klick auf die Benachrichtigung fokussiert die App und oeffnet den Chat
   `Referrer-Policy: no-referrer`, `Permissions-Policy` (Kamera, Mikrofon und
   Standort nur same-origin), `Cross-Origin-Opener-Policy`, `X-Frame-Options`. Keine
   CORS-Header: die App laeuft same-origin.
+- Sprachen (`client/i18n.js`, Woerterbuecher `client/i18n/<sprache>.js`): der
+  deutsche Quelltext ist der Schluessel (`t('Neue Nachricht')`, Platzhalter
+  `{name}`), fehlende Uebersetzungen zeigen Deutsch. Das statische Markup wird
+  einmal bei `DOMContentLoaded` uebersetzt (Textknoten und `placeholder`,
+  `title`, `aria-label`, `alt`; nie `#debug-log-output`, `textarea`, `code`),
+  bevor Nutzerinhalte im DOM stehen. Sprache: eigene Wahl (`localStorage`
+  `opengrid-language`: `auto`/`de`/`en`) vor Router-Standard
+  (`CLIENT_DEFAULTS.language`, zuletzt bekannter Wert in
+  `opengrid-language-router-default`) vor Sprache des Geraets; Wechsel laedt
+  die Seite neu. Uhrzeiten immer 24 h (`formatClockTime`). Profil-Schema:
+  `label`/`default` als Text oder `{ de, en }` (`localizedText`). Der Service
+  Worker zeigt seine Benachrichtigungen weiterhin auf Deutsch.
 - Einstellungen (`#view-keys`): Bereiche als Tabs (`data-settings-tab` an den
   Karten, `switchSettingsTab` in `settings.js`, letzter Tab in `localStorage`
   `opengrid-settings-tab`; "Debug" nur im Debug-Modus). Zeilen `.setting-row`

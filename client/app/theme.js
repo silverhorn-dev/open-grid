@@ -150,7 +150,7 @@ function initThemeSettings() {
             dot.type = 'button';
             dot.className = 'w-7 h-7 rounded-full border-2 border-slate-700 hover:scale-110 transition';
             dot.style.backgroundColor = `rgb(${hslToRgb(preset.hue, preset.saturation, 57).join(' ')})`;
-            dot.setAttribute('aria-label', `Akzentfarbe ${preset.hue}`);
+            dot.setAttribute('aria-label', t('Akzentfarbe {hue}', { hue: preset.hue }));
             dot.onclick = () => setAccent(preset);
             presets.appendChild(dot);
         });

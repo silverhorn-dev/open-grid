@@ -2,7 +2,13 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 123 · 2026-10-26
+## Build 124 · 2026-10-26
+- Englisch als zweite Sprache: Einstellungen > Allgemein > Sprache (Automatisch folgt dem Geraet); Betreiber koennen einen Standard vorgeben (`CLIENT_DEFAULTS.language`)
+- Deutsche Oberflaeche jetzt durchgehend deutsch (Profilfelder, Grid, Benachrichtigungs-Knopf u. a. waren englisch)
+- Uhrzeiten ueberall im 24-Stunden-Format; in der Chatliste "Gestern" statt Datum
+- Behoben: beim Start konnte selten ein Skriptfehler auftreten, wenn die TURN-Konfiguration sehr schnell geladen war
+
+## Build 123 · 2026-10-26 · `6d92cad`
 - Einstellungen neu: Bereiche als Tabs (Allgemein, Privatsphaere, Chat, Medien, Darstellung), Schalter statt Kaestchen, jede Option mit kurzer Erklaerung; auf dem Smartphone deutlich kuerzer und besser zu bedienen
 - Auswahlfelder ohne interne Kuerzel ("Alles fuer alle" statt "1 - Alles fuer alle")
 - Behoben: nach einem Verbindungsabbruch kamen Videos, Originalbilder und der Rest langer Sprachnachrichten erst nach einer Minute; auf der neuen Verbindung werden sie jetzt sofort angefragt

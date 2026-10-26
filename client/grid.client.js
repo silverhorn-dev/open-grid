@@ -32,9 +32,9 @@ function renderDiscoveryGrid() {
     const hiddenList = JSON.parse(localStorage.getItem('hiddenByPeers') || '[]');
     const visiblePeers = state.peers.filter(peer => !isPeerBlocked(peer.id) && !hiddenList.includes(peer.id));
     container.innerHTML = '';
-    document.getElementById('grid-peer-count').textContent = `${visiblePeers.length} ${visiblePeers.length === 1 ? 'peer' : 'peers'}`;
+    document.getElementById('grid-peer-count').textContent = visiblePeers.length === 1 ? t('1 Person') : t('{count} Personen', { count: visiblePeers.length });
     const geohashLabel = document.getElementById('current-geohash');
-    if (geohashLabel) geohashLabel.textContent = `${state.myProfile.geohash} · Ring ${state.gridRing}`;
+    if (geohashLabel) geohashLabel.textContent = t('{geohash} · Ring {gridRing}', { geohash: state.myProfile.geohash, gridRing: state.gridRing });
     document.getElementById('grid-load-more-btn')?.classList.toggle('hidden', state.appMode !== 'discovery' || !state.gridHasMore);
     renderActivePeerList();
 
@@ -43,10 +43,10 @@ function renderDiscoveryGrid() {
         emptyState.className = 'col-span-full text-center py-12 text-slate-500 text-sm border border-dashed border-slate-800 rounded-2xl bg-slate-900/40';
         emptyState.innerHTML = '<i class="fa-solid fa-satellite-dish text-2xl text-slate-600 mb-3"></i><div></div>';
         emptyState.lastChild.textContent = state.appMode === 'friends'
-            ? 'Gerade ist keiner deiner Kontakte online. Lade Freunde mit deinem Einladungslink ein.'
+            ? t('Gerade ist keiner deiner Kontakte online. Lade Freunde mit deinem Einladungslink ein.')
             : state.appMode === 'event'
-                ? 'Noch niemand sonst in diesem Event.'
-                : 'Gerade ist niemand in deiner Naehe sichtbar.';
+                ? t('Noch niemand sonst in diesem Event.')
+                : t('Gerade ist niemand in deiner Naehe sichtbar.');
         container.appendChild(emptyState);
         return;
     }
@@ -76,14 +76,14 @@ function renderDiscoveryGrid() {
         } else {
             const image = document.createElement('img');
             image.src = avatarSrc;
-            image.alt = `${peer.name || 'Peer'} profile thumbnail`;
+            image.alt = t('Profilbild von {name}', { name: peer.name || HIDDEN_PEER_NAME });
             image.className = 'w-full h-full object-cover group-hover:scale-105 transition duration-500';
             imageWrapper.appendChild(image);
         }
         if (isMatched(peer.id) || hasReceivedFlame(peer.id)) {
             const flame = document.createElement('span');
             flame.className = `absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center text-sm ${isMatched(peer.id) ? 'bg-orange-500 text-white' : 'bg-black/60 text-orange-300'}`;
-            flame.title = isMatched(peer.id) ? 'Match' : 'Hat dir eine Flamme geschickt';
+            flame.title = isMatched(peer.id) ? t('Match') : t('Hat dir eine Flamme geschickt');
             flame.innerHTML = '<i class="fa-solid fa-fire"></i>';
             imageWrapper.appendChild(flame);
         }
@@ -109,13 +109,14 @@ function renderDiscoveryGrid() {
     });
 }
 
-// Heute: Uhrzeit, sonst Datum.
+// Heute: Uhrzeit (immer 24 h), gestern: "Gestern", sonst Datum.
 function formatChatListTime(timestamp) {
     const date = new Date(timestamp);
     const today = new Date();
-    return date.toDateString() === today.toDateString()
-        ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        : date.toLocaleDateString([], { day: '2-digit', month: '2-digit' });
+    const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+    if (date.toDateString() === today.toDateString()) return formatClockTime(timestamp);
+    if (date.toDateString() === yesterday.toDateString()) return t('Gestern');
+    return date.toLocaleDateString(i18nLocale(), { day: '2-digit', month: '2-digit' });
 }
 
 // Chats der aktuellen Liste (Grid & Event oder Chat & Freunde), neueste oben. Der aktive Chat bleibt
@@ -147,7 +148,7 @@ function renderActivePeerList() {
     renderStatusBar();
     renderChatSwitcher();
     const scopeLabel = document.getElementById('chat-list-scope');
-    if (scopeLabel) scopeLabel.textContent = currentChatScope() === 'social' ? '· Chat & Freunde' : '· Grid & Event';
+    if (scopeLabel) scopeLabel.textContent = currentChatScope() === 'social' ? t('· Chat & Freunde') : t('· Grid & Event');
     renderListSwitch();
     container.innerHTML = '';
     peerIds.forEach(peerId => {
@@ -168,7 +169,7 @@ function renderActivePeerList() {
         if (!blocked && isPeerOnline(peer.id)) {
             const dot = document.createElement('span');
             dot.className = 'absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-slate-900';
-            dot.title = 'Online';
+            dot.title = t('Online');
             avatar.appendChild(dot);
         }
         const details = document.createElement('div');
@@ -180,12 +181,12 @@ function renderActivePeerList() {
         if (socialList && (isFriend(peer.id) || hasFriendRequest(peer.id))) {
             const friend = document.createElement('i');
             friend.className = `fa-solid ${isFriend(peer.id) ? 'fa-user-check text-emerald-400' : 'fa-user-plus text-brand-400'} ml-1.5`;
-            friend.title = isFriend(peer.id) ? 'Befreundet' : 'Moechte dich adden';
+            friend.title = isFriend(peer.id) ? t('Befreundet') : t('Moechte dich adden');
             name.appendChild(friend);
         } else if (!socialList && (isMatched(peer.id) || hasReceivedFlame(peer.id))) {
             const flame = document.createElement('i');
             flame.className = `fa-solid fa-fire ml-1.5 ${isMatched(peer.id) ? 'text-orange-400' : 'text-orange-300/60'}`;
-            flame.title = isMatched(peer.id) ? 'Match' : 'Hat dir eine Flamme geschickt';
+            flame.title = isMatched(peer.id) ? t('Match') : t('Hat dir eine Flamme geschickt');
             name.appendChild(flame);
         }
         const status = document.createElement('div');
@@ -205,9 +206,9 @@ function renderActivePeerList() {
         const previewText = document.createElement('span');
         previewText.className = 'truncate flex-1';
         const pendingNote = socialList
-            ? (hasFriendRequest(peer.id) ? 'Moechte dich adden' : '')
-            : (hasReceivedFlame(peer.id) ? 'Hat dir eine Flamme geschickt' : '');
-        previewText.textContent = preview ? `${preview.mine ? 'Du: ' : ''}${preview.text}` : pendingNote;
+            ? (hasFriendRequest(peer.id) ? t('Moechte dich adden') : '')
+            : (hasReceivedFlame(peer.id) ? t('Hat dir eine Flamme geschickt') : '');
+        previewText.textContent = preview ? `${preview.mine ? t('Du: ') : ''}${preview.text}` : pendingNote;
         const unread = unreadCountOf(peer.id);
         if (unread) previewText.classList.add('font-semibold', 'text-slate-100');
         previewLine.appendChild(previewText);
@@ -292,12 +293,12 @@ async function fetchGridRing() {
             await Promise.all(state.peers.map(cacheGridPeer));
             retryVisiblePeerConnections();
             renderDiscoveryGrid();
-            document.getElementById('grid-last-updated').textContent = `Updated ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+            document.getElementById('grid-last-updated').textContent = t('Aktualisiert {time}', { time: formatClockTime(Date.now()) });
             return true;
         }
     } catch (err) {
         logDebug(`Grid sync failed: ${err.message}`);
-        document.getElementById('grid-last-updated').textContent = 'Refresh failed';
+        document.getElementById('grid-last-updated').textContent = t('Aktualisieren fehlgeschlagen');
         return false;
     } finally {
         state.gridFetchInFlight = false;
@@ -371,7 +372,7 @@ function connectWorkerWebSocket() {
             updateConnectivityIndicator();
             const registered = await registerWithWorkerGrid();
             if (!registered) {
-                document.getElementById('network-status-text').textContent = 'Registration failed';
+                document.getElementById('network-status-text').textContent = t('Registrierung fehlgeschlagen');
                 state.ws.close();
                 return;
             }
@@ -391,12 +392,12 @@ function connectWorkerWebSocket() {
         };
         state.ws.onerror = () => {
             document.getElementById('network-indicator').className = 'w-2.5 h-2.5 rounded-full bg-red-500';
-            document.getElementById('network-status-text').textContent = 'Signaling error';
+            document.getElementById('network-status-text').textContent = t('Signaling-Fehler');
         };
         state.ws.onclose = () => {
             updateConnectivityIndicator();
             document.getElementById('network-indicator').className = 'w-2.5 h-2.5 rounded-full bg-red-500';
-            document.getElementById('network-status-text').textContent = 'Reconnecting';
+            document.getElementById('network-status-text').textContent = t('Verbinde neu...');
             if (state.shouldReconnect) setTimeout(connectWorkerWebSocket, 5000);
         };
     } catch (error) {
@@ -475,7 +476,7 @@ async function gracefulUnregister() {
         if (state.ws) state.ws.close();
         showToast('Erfolgreich vom Routing-Server abgemeldet.', 'success');
         document.getElementById('network-indicator').className = 'w-2.5 h-2.5 rounded-full bg-red-500';
-        document.getElementById('network-status-text').textContent = 'Abgemeldet';
+        document.getElementById('network-status-text').textContent = t('Abgemeldet');
     } catch (error) {
         showToast('Abmeldung fehlgeschlagen.', 'error');
     }

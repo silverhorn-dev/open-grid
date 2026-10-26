@@ -21,7 +21,7 @@ async function main() {
     const browser = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
     const pageErrors = [];
     async function user(name) {
-        const context = await browser.newContext({ viewport: { width: 420, height: 860 }, permissions: ['camera'] });
+        const context = await browser.newContext({ locale: 'de-DE', viewport: { width: 420, height: 860 }, permissions: ['camera'] });
         const page = await context.newPage();
         page.on('pageerror', error => pageErrors.push(`[${name}] ${error.message}`));
         page.on('console', message => { if (message.text().startsWith('[OpenGrid]')) debugLogs.push(`${Date.now() % 1000000} [${name}] ${message.text().slice(11, 200)}`); });

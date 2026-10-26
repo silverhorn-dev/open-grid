@@ -45,7 +45,7 @@ async function copyDebugLogs() {
         const copied = document.execCommand('copy');
         textarea.remove();
         showToast(
-            copied ? 'Protokoll in die Zwischenablage kopiert.' : 'Kopieren fehlgeschlagen.',
+            copied ? t('Protokoll in die Zwischenablage kopiert.') : t('Kopieren fehlgeschlagen.'),
             copied ? 'success' : 'error'
         );
     }
@@ -90,7 +90,7 @@ async function runConnectivityDiagnostics() {
         }
     } catch (error) {
         logDebug(`ICE-Diagnose fehlgeschlagen: ${error.message}`);
-        showToast(`ICE-Diagnose fehlgeschlagen: ${error.message}`, 'error');
+        showToast(t('ICE-Diagnose fehlgeschlagen: {message}', { message: error.message }), 'error');
     } finally {
         probe.close();
         logDebug('--- ICE-Diagnose beendet ---');
@@ -104,7 +104,7 @@ function updateDebugButtonState() {
     if (!button || !status) return;
 
     button.setAttribute('aria-checked', String(CONFIG.DEBUG_MODE));
-    status.textContent = CONFIG.DEBUG_MODE ? 'AN' : 'AUS';
+    status.textContent = CONFIG.DEBUG_MODE ? t('AN') : t('AUS');
     status.classList.toggle('is-on', CONFIG.DEBUG_MODE);
 }
 
@@ -115,7 +115,7 @@ function renderBlockedPeers() {
     const blockedIds = Object.values(state.chatControls).filter(c => c.blockedAt).map(c => c.peerId);
 
     if (blockedIds.length === 0) {
-        container.innerHTML = '<div class="text-xs text-slate-500 italic">Keine Peers blockiert.</div>';
+        container.innerHTML = `<div class="text-xs text-slate-500 italic">${t('Keine Peers blockiert.')}</div>`;
         return;
     }
     blockedIds.forEach(peerId => {
@@ -127,7 +127,7 @@ function renderBlockedPeers() {
         nameDiv.textContent = peer.name || peerId;
         const unblockBtn = document.createElement('button');
         unblockBtn.className = 'text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded transition';
-        unblockBtn.textContent = 'Entblocken';
+        unblockBtn.textContent = t('Entblocken');
         unblockBtn.onclick = () => unblockPeerFromSettings(peerId);
         row.append(nameDiv, unblockBtn);
         container.appendChild(row);
@@ -146,7 +146,7 @@ async function unblockPeerFromSettings(peerId) {
         const operation = { operationId: `unhide:${window.crypto.randomUUID()}`, type: 'PEER_UNHIDE', actorId: state.myProfile.id, createdAt: Date.now() };
         sendSecurePayload(peerId, { type: 'CHAT_OPERATION', operation }).catch(()=>{});
         showToast('Peer wurde entblockt.', 'success');
-    } catch (error) { showToast(`Fehler: ${error.message}`, 'error'); }
+    } catch (error) { showToast(t('Fehler: {message}', { message: error.message }), 'error'); }
 }
 
 function toggleDebugMode() {
@@ -173,7 +173,7 @@ async function generateUserIdentityKeys(showNotification = false) {
     const fingerprintOutput = document.getElementById('inspect-pubkey-fingerprint');
     const regenerateButton = document.getElementById('regenerate-key-btn');
     if (regenerateButton) regenerateButton.disabled = true;
-    if (fingerprintOutput) fingerprintOutput.textContent = 'Generating...';
+    if (fingerprintOutput) fingerprintOutput.textContent = t('Generating...');
 
     try {
         const storedIdentity = !showNotification && db
@@ -235,7 +235,7 @@ async function generateUserIdentityKeys(showNotification = false) {
         if (showNotification) showToast('New E2EE identity keypair generated.', 'success');
     } catch (error) {
         console.error('Identity key generation failed.', error);
-        if (fingerprintOutput) fingerprintOutput.textContent = 'Key generation failed';
+        if (fingerprintOutput) fingerprintOutput.textContent = t('Key generation failed');
         showDebugToast('E2EE key generation failed.', 'error');
     } finally {
         if (regenerateButton) regenerateButton.disabled = false;
@@ -523,7 +523,7 @@ function renderSafeZones() {
         const item = document.createElement('li');
         item.className = 'flex items-center justify-between gap-2 text-xs bg-slate-950/60 border border-slate-800 rounded-lg px-2 py-1';
         const label = document.createElement('span');
-        label.textContent = zone === state.myProfile.geohash ? `Zone ${index + 1} (hier)` : `Zone ${index + 1}`;
+        label.textContent = zone === state.myProfile.geohash ? t('Zone {value} (hier)', { value: index + 1 }) : t('Zone {value}', { value: index + 1 });
         const code = document.createElement('span');
         code.className = 'debug-only font-mono text-slate-500';
         code.textContent = zone;
@@ -531,7 +531,7 @@ function renderSafeZones() {
         const remove = document.createElement('button');
         remove.type = 'button';
         remove.className = 'text-red-400 hover:text-red-300';
-        remove.textContent = 'Entfernen';
+        remove.textContent = t('Entfernen');
         remove.onclick = () => removeSafeZone(zone);
         item.append(label, remove);
         list.appendChild(item);
@@ -557,14 +557,14 @@ function renderGridSettings() {
     if (locationLabel) {
         locationLabel.textContent = settings.useLocation
             ? 'Aktuell: Geraetestandort'
-            : settings.locationLabel ? `Aktuell: ${settings.locationLabel}` : 'Aktuell: kein Standort gesetzt';
+            : settings.locationLabel ? t('Aktuell: {place}', { place: settings.locationLabel }) : t('Aktuell: kein Standort gesetzt');
     }
     const hint = document.getElementById('silent-mode-hint');
     if (hint) {
         hint.classList.toggle('hidden', !isEffectivelySilent());
         hint.lastChild.textContent = settings.silent
-            ? ' Silent-Modus aktiv: du bist fuer andere nicht im Grid sichtbar.'
-            : ' Safe Zone: hier bist du fuer andere nicht im Grid sichtbar.';
+            ? ` ${t('Silent-Modus aktiv: du bist fuer andere nicht im Grid sichtbar.')}`
+            : ` ${t('Safe Zone: hier bist du fuer andere nicht im Grid sichtbar.')}`;
     }
     renderSafeZones();
 }

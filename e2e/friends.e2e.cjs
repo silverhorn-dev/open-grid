@@ -21,7 +21,7 @@ async function main() {
     const browser = await chromium.launch();
     const pageErrors = [];
     async function user(name) {
-        const page = await (await browser.newContext()).newPage();
+        const page = await (await browser.newContext({ locale: 'de-DE' })).newPage();
         page.on('pageerror', error => pageErrors.push(`[${name}] ${error.message}`));
         page.on('console', message => { if (message.text().startsWith('[OpenGrid]')) debugLogs.push(`${Date.now() % 1000000} [${name}] ${message.text().slice(11, 200)}`); });
         page.on('dialog', dialog => dialog.accept());

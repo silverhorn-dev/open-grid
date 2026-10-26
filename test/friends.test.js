@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import vm from 'node:vm';
+import { I18N_STUBS } from './i18n-stubs.js';
 
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -55,8 +56,8 @@ function loadFriends({ appMode = 'chat' } = {}) {
         records.set(`chatOperations:${operation.operationId}`, { ...operation, peerId });
         return context.applyFriendOperation(peerId, operation);
     };
-    vm.runInNewContext(read('client/app/matching.js'), context);
-    vm.runInNewContext(read('client/app/friends.js'), context);
+    vm.runInNewContext(read('client/app/matching.js'), Object.assign(context, I18N_STUBS));
+    vm.runInNewContext(read('client/app/friends.js'), Object.assign(context, I18N_STUBS));
     return context;
 }
 
@@ -173,7 +174,7 @@ function loadStatus() {
     context.closeMediaModal = () => {};
     context.setInterval = setInterval;
     context.clearInterval = clearInterval;
-    vm.runInNewContext(read('client/app/status.js'), context);
+    vm.runInNewContext(read('client/app/status.js'), Object.assign(context, I18N_STUBS));
     context.renderStatusBar = () => {};
     return context;
 }

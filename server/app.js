@@ -56,6 +56,7 @@ export function parseAppModes(value) {
 // Standardwerte fuer Client-Einstellungen (CLIENT_DEFAULTS, JSON). Nur bekannte Schluessel mit
 // erlaubten Werten; der Client nimmt sie, solange der Nutzer nichts Eigenes gespeichert hat.
 const CLIENT_DEFAULT_RULES = {
+    language: ['auto', 'de', 'en'],
     chatSwitchEnabled: 'boolean',
     chatSwitchStyle: ['bar', 'arrows', 'swipe'],
     pullUpAction: ['reload', 'next', 'switcher', 'snap', 'album'],
@@ -103,6 +104,8 @@ const serverDirectory = dirname(fileURLToPath(import.meta.url));
 const projectDirectory = join(serverDirectory, '..');
 // Feste Liste statt Verzeichnis-Scan: nur diese Dateien unter /client werden ausgeliefert.
 const clientAssetFiles = [
+    'i18n.js',
+    'i18n/en.js',
     'crypto.client.js',
     'geohash.client.js',
     'app/payload-validation.js',
@@ -144,16 +147,16 @@ const clientAssetFiles = [
     'app/main.js'
 ];
 const defaultSchema = [
-    { key: 'displayName', label: 'Display Name', type: 'string', required: true, default: 'Alex' },
-    { key: 'age', label: 'Age', type: 'number', min: 18, max: 99, default: 26 },
-    { key: 'role', label: 'Position / Role', type: 'select', options: ['Top', 'Bottom', 'Versatile', 'Side'], default: 'Versatile' },
-    { key: 'bio', label: 'About Me', type: 'description', default: 'Privacy-first tech enthusiast!' }
+    { key: 'displayName', label: { de: 'Anzeigename', en: 'Display name' }, type: 'string', required: true, default: 'Alex' },
+    { key: 'age', label: { de: 'Alter', en: 'Age' }, type: 'number', min: 18, max: 99, default: 26 },
+    { key: 'role', label: { de: 'Position / Rolle', en: 'Position / Role' }, type: 'select', options: ['Top', 'Bottom', 'Versatile', 'Side'], default: 'Versatile' },
+    { key: 'bio', label: { de: 'Ueber mich', en: 'About me' }, type: 'description', default: { de: 'Hey, ich nutze OpenGrid.', en: 'Hey, I am using OpenGrid.' } }
 ];
 
 // Im Modus "Nur Chat" reicht ein schlankes Profil: Name und Status.
 const defaultChatSchema = [
-    { key: 'displayName', label: 'Display Name', type: 'string', required: true, default: 'Alex' },
-    { key: 'status', label: 'Status', type: 'string', default: 'Hey, ich nutze OpenGrid.' }
+    { key: 'displayName', label: { de: 'Anzeigename', en: 'Display name' }, type: 'string', required: true, default: 'Alex' },
+    { key: 'status', label: { de: 'Status', en: 'Status' }, type: 'string', default: { de: 'Hey, ich nutze OpenGrid.', en: 'Hey, I am using OpenGrid.' } }
 ];
 
 function parseProfileSchema(value) {

@@ -19,7 +19,7 @@ async function main() {
     const browser = await chromium.launch();
     const pageErrors = [];
     try {
-        const page = await (await browser.newContext(process.env.MOBILE ? { ...devices['iPhone 13'] } : { viewport: { width: 1200, height: 800 } })).newPage();
+        const page = await (await browser.newContext({ locale: 'de-DE', ...(process.env.MOBILE ? devices['iPhone 13'] : { viewport: { width: 1200, height: 800 } }) })).newPage();
         page.on('pageerror', error => pageErrors.push(error.message));
         await page.goto(`${BASE_URL}/`);
         await page.waitForSelector('#complete-onboarding-btn', { state: 'visible', timeout: 20000 });

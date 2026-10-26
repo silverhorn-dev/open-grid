@@ -21,8 +21,8 @@ async function runStartupStep(name, step) {
 function reportStartupProblems() {
     if (!state.startupProblems.length) return;
     showToast(CONFIG.DEBUG_MODE
-        ? `Teilweise gestartet, Fehler in: ${state.startupProblems.join(', ')}`
-        : 'Einige Funktionen konnten nicht geladen werden. Bitte spaeter neu laden.', 'warning');
+        ? t('Teilweise gestartet, Fehler in: {parts}', { parts: state.startupProblems.join(', ') })
+        : t('Einige Funktionen konnten nicht geladen werden. Bitte spaeter neu laden.'), 'warning');
 }
 
 // Alles, was sonst unbemerkt verloren ginge, landet im Debug-Log.
@@ -177,6 +177,6 @@ window.onload = async () => {
 
     } catch (error) {
         console.error('OpenGrid startup failed.', error);
-        showToast(CONFIG.DEBUG_MODE ? `Startup failed: ${error.message}` : 'Die App konnte nicht gestartet werden. Bitte neu laden.', 'error');
+        showToast(CONFIG.DEBUG_MODE ? t('Start fehlgeschlagen: {message}', { message: error.message }) : t('Die App konnte nicht gestartet werden. Bitte neu laden.'), 'error');
     }
 };

@@ -157,7 +157,7 @@ async function checkWatermarkFile(input) {
     input.value = '';
     const output = document.getElementById('watermark-check-result');
     if (!file || !output) return;
-    output.textContent = 'Pruefe...';
+    output.textContent = t('Pruefe...');
     try {
         const dataUrl = await new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -170,8 +170,8 @@ async function checkWatermarkFile(input) {
         const match = await identifyWatermark(dataUrl, [...candidates]);
         output.textContent = match
             ? `Treffer: ${getPeerPresentation(match.peerId).name || 'Peer'} (${match.peerId}), ${match.matches}/32 Bits`
-            : 'Kein Wasserzeichen eines bekannten Peers gefunden.';
+            : t('Kein Wasserzeichen eines bekannten Peers gefunden.');
     } catch (error) {
-        output.textContent = `Pruefung fehlgeschlagen: ${error.message}`;
+        output.textContent = t('Pruefung fehlgeschlagen: {message}', { message: error.message });
     }
 }

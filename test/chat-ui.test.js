@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import vm from 'node:vm';
+import { I18N_STUBS } from './i18n-stubs.js';
 
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -48,7 +49,7 @@ function loadStorage() {
         queueMicrotask,
         Date
     };
-    vm.runInNewContext(read('client/app/storage.js'), context);
+    vm.runInNewContext(read('client/app/storage.js'), Object.assign(context, I18N_STUBS));
     return { context, stores };
 }
 
@@ -96,7 +97,7 @@ test('SNAP_SAVED from the receiver marks the sender copy as saved', async () => 
 
 test('grid auto-expand stops at ring 3 and when nobody else is around', () => {
     const context = { state: {} };
-    vm.runInNewContext(read('client/grid.client.js'), context);
+    vm.runInNewContext(read('client/grid.client.js'), Object.assign(context, I18N_STUBS));
     const expand = options => context.shouldAutoExpandGrid({ appMode: 'discovery', hasMore: true, peerCount: 0, ring: 0, ...options });
     assert.equal(expand({}), true);
     assert.equal(expand({ ring: 3 }), false);

@@ -57,6 +57,16 @@ Umstieg vom frueheren separaten `turn/compose.yml`: alten coturn stoppen
 (`docker compose -f turn/compose.yml down`), Inhalt von `turn/.env` in die `.env`
 uebernehmen (`TURN_SERVER` ergaenzen), dann `docker compose up -d --build`.
 
+### Sprachen
+
+Die Oberflaeche gibt es auf Deutsch und Englisch (Einstellungen > Allgemein >
+Sprache, Standard: Sprache des Geraets, per `CLIENT_DEFAULTS.language`
+vorgebbar). Deutsche Texte sind zugleich die Schluessel; die Uebersetzungen
+liegen in `client/i18n/<sprache>.js`. `node scripts/i18n-keys.mjs --missing en`
+listet fehlende Eintraege, `test/i18n.test.js` prueft die Vollstaendigkeit.
+Profilfelder im eigenen `PROFILE_SCHEMA` koennen `label` und `default` als Text
+oder als Objekt pro Sprache angeben, z. B. `{"de": "Alter", "en": "Age"}`.
+
 ### Automatisches Deployment (Jenkins)
 
 Das `Jenkinsfile` baut bei jedem Push auf `main`: Syntax-Check und Unit-Tests
@@ -98,7 +108,7 @@ Version ist `Build <Commit-Anzahl> (<Hash>)`.
 | `TURN_TLS_PORT` | – | Optional, aktiviert zusaetzlich eine `turns:`-URL |
 | `STUN_SERVER` | eigener TURN-Server | STUN-Server (`host:port`) oder `none`. Ohne Angabe dient der eigene coturn auch als STUN; erst ohne TURN wird der oeffentliche Google-STUN genutzt |
 | `PUSH_HOST_ALLOWLIST` | – | Zusaetzliche erlaubte Push-Hosts, kommagetrennt (z. B. ein eigener UnifiedPush-/ntfy-Server). Standard: Google, Mozilla, Apple, Microsoft |
-| `CLIENT_DEFAULTS` | - | JSON mit Standardwerten fuer Client-Einstellungen, solange ein Nutzer nichts Eigenes gespeichert hat. Erlaubt: `chatSwitchEnabled`, `chatSwitchStyle` (`bar`/`arrows`/`swipe`), `pullUpAction` (`reload`/`next`/`switcher`/`snap`/`album`), `listSwitchEnabled`, `listSwitchBehavior` (`mode`/`view`), `statusDirectOnly`, `traceWatermark`, `secureSnaps`, `snapNextGesture` (`doubletap`/`swipe`/`swipeup`), `snapExpiry` (Ablauf von Einmal-Snaps nach der ersten Ansicht: `15m`/`30m`/`60m`/`off`, ohne Angabe `30m`), `albumKeyEpochMinutes` (0/15/60/180/1440), `albumKeyEpochsAhead` (1-3). Unbekanntes wird ignoriert. Beispiel: `{"pullUpAction":"switcher","statusDirectOnly":true}` |
+| `CLIENT_DEFAULTS` | - | JSON mit Standardwerten fuer Client-Einstellungen, solange ein Nutzer nichts Eigenes gespeichert hat. Erlaubt: `language` (`auto`/`de`/`en`, Sprache fuer alle ohne eigene Wahl), `chatSwitchEnabled`, `chatSwitchStyle` (`bar`/`arrows`/`swipe`), `pullUpAction` (`reload`/`next`/`switcher`/`snap`/`album`), `listSwitchEnabled`, `listSwitchBehavior` (`mode`/`view`), `statusDirectOnly`, `traceWatermark`, `secureSnaps`, `snapNextGesture` (`doubletap`/`swipe`/`swipeup`), `snapExpiry` (Ablauf von Einmal-Snaps nach der ersten Ansicht: `15m`/`30m`/`60m`/`off`, ohne Angabe `30m`), `albumKeyEpochMinutes` (0/15/60/180/1440), `albumKeyEpochsAhead` (1-3). Unbekanntes wird ignoriert. Beispiel: `{"pullUpAction":"switcher","statusDirectOnly":true}` |
 | `RATE_LIMIT_SCALE` | `1` | Faktor fuer alle Rate-Limits (1 bis 100), nur fuer Tests mit vielen Clients hinter einer IP (die E2E-Tests nutzen 20) |
 | `CREDENTIAL_RETENTION_DAYS` | `180` | Nach so vielen Tagen ohne Registrierung werden Zugangsdaten, Push-Abo, eigene Chat-Kontrollen und wartende Nachrichten eines Peers geloescht (mindestens 7) |
 | `TRUST_PROXY` | private Netze | Welchen Proxies `X-Forwarded-For` geglaubt wird: `true`, `false`, Anzahl Hops oder Adressen/Netze. Standard: Loopback und private Netze |

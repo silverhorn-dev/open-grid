@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import vm from 'node:vm';
+import { I18N_STUBS } from './i18n-stubs.js';
 
 function loadModes(appMode = 'discovery') {
     const records = new Map();
@@ -23,7 +24,7 @@ function loadModes(appMode = 'discovery') {
         showToast: () => {},
         Date
     };
-    vm.runInNewContext(readFileSync(new URL('../client/app/modes.js', import.meta.url), 'utf8'), context);
+    vm.runInNewContext(readFileSync(new URL('../client/app/modes.js', import.meta.url), 'utf8'), Object.assign(context, I18N_STUBS));
     return { context, records };
 }
 

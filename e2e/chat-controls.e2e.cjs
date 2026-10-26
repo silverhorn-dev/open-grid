@@ -35,7 +35,7 @@ async function main() {
     const pageErrors = [];
 
     async function user(name) {
-        const context = await browser.newContext(MOBILE ? { ...devices['iPhone 13'] } : {});
+        const context = await browser.newContext({ locale: 'de-DE', ...(MOBILE ? devices['iPhone 13'] : {}) });
         const page = await context.newPage();
         page.on('pageerror', error => pageErrors.push(`[${name}] ${error.message}`));
         page.on('dialog', dialog => dialog.accept());

@@ -23,7 +23,7 @@ async function main() {
     const browser = await chromium.launch({ args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', '--autoplay-policy=no-user-gesture-required'] });
     const pageErrors = [];
     async function user(name) {
-        const context = await browser.newContext({ permissions: ['microphone'] });
+        const context = await browser.newContext({ locale: 'de-DE', permissions: ['microphone'] });
         const page = await context.newPage();
         page.on('pageerror', error => pageErrors.push(`[${name}] ${error.message}`));
         await page.goto(`${BASE_URL}/`);

@@ -21,7 +21,7 @@ async function main() {
     const browser = await chromium.launch();
     const pageErrors = [];
     async function user(name) {
-        const page = await (await browser.newContext()).newPage();
+        const page = await (await browser.newContext({ locale: 'de-DE' })).newPage();
         page.on('pageerror', error => pageErrors.push(`[${name}] ${error.message}`));
         await page.goto(`${BASE_URL}/`);
         await page.waitForSelector('#complete-onboarding-btn', { state: 'visible', timeout: 20000 });

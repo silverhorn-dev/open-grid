@@ -20,7 +20,7 @@ async function main() {
     const browser = await chromium.launch();
     const pageErrors = [];
     try {
-        const page = await (await browser.newContext({ ...devices['Pixel 7'] })).newPage();
+        const page = await (await browser.newContext({ locale: 'de-DE', ...devices['Pixel 7'] })).newPage();
         page.on('pageerror', error => pageErrors.push(error.message));
         await page.goto(`${BASE_URL}/`);
         await page.waitForSelector('#complete-onboarding-btn', { state: 'visible', timeout: 20000 });

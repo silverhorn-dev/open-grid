@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import vm from 'node:vm';
+import { I18N_STUBS } from './i18n-stubs.js';
 
 async function createIdentity() {
     const keyPair = await globalThis.crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveKey', 'deriveBits']);
@@ -81,13 +82,13 @@ function loadAlbums({ identity = null, peerKeys = {}, signingKeys = {}, withSwar
         document: { getElementById: () => null },
         Date
     };
-    vm.runInNewContext(readFileSync(new URL('../client/app/albums.js', import.meta.url), 'utf8'), context);
+    vm.runInNewContext(readFileSync(new URL('../client/app/albums.js', import.meta.url), 'utf8'), Object.assign(context, I18N_STUBS));
     if (withSwarm) {
         Object.assign(context.state, { dataChannels: {}, pendingSwarmImages: {}, pendingSwarmAlbums: {}, cachedProfiles: {} });
         context.sha256Base64 = async text => Buffer.from(await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))).toString('base64');
         context.cacheMedia = async (id, data, version) => records.set(`media:${id}`, { data, version });
         context.isProfileShareable = profile => !profile?.audience || profile.audience === 'public';
-        vm.runInNewContext(readFileSync(new URL('../client/app/swarm.js', import.meta.url), 'utf8'), context);
+        vm.runInNewContext(readFileSync(new URL('../client/app/swarm.js', import.meta.url), 'utf8'), Object.assign(context, I18N_STUBS));
     }
     return { context, sent, records, clock, openChannels, swarmRequests };
 }

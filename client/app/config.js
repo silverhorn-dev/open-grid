@@ -33,10 +33,10 @@ function applyChatFontSize(size) {
 applyChatFontSize(loadChatFontSize());
 
 const DEFAULT_PROFILE_SCHEMA = [
-    { key: 'displayName', label: 'Display Name', type: 'string', required: true, default: 'Alex' },
-    { key: 'age', label: 'Age', type: 'number', min: 18, max: 99, default: 26 },
-    { key: 'role', label: 'Position / Role', type: 'select', options: ['Top', 'Bottom', 'Versatile', 'Side'], default: 'Versatile' },
-    { key: 'bio', label: 'About Me', type: 'description', default: 'Privacy-first tech enthusiast!' }
+    { key: 'displayName', label: { de: 'Anzeigename', en: 'Display name' }, type: 'string', required: true, default: 'Alex' },
+    { key: 'age', label: { de: 'Alter', en: 'Age' }, type: 'number', min: 18, max: 99, default: 26 },
+    { key: 'role', label: { de: 'Position / Rolle', en: 'Position / Role' }, type: 'select', options: ['Top', 'Bottom', 'Versatile', 'Side'], default: 'Versatile' },
+    { key: 'bio', label: { de: 'Ueber mich', en: 'About me' }, type: 'description', default: { de: 'Hey, ich nutze OpenGrid.', en: 'Hey, I am using OpenGrid.' } }
 ];
 // Der Router liefert ein Schema pro App-Modus; aktiv ist das des gewaehlten Modus (modes.js).
 let PROFILE_SCHEMAS = loadInjectedProfileSchemas();
@@ -51,7 +51,7 @@ const state = {
         id: null,
         geohash: CONFIG.DEFAULT_GEOHASH,
         avatar: null,
-        fields: { displayName: 'Alex', age: 26, role: 'Versatile', bio: 'Privacy-first tech enthusiast!' },
+        fields: { displayName: 'Alex', age: 26, role: 'Versatile', bio: t('Hey, ich nutze OpenGrid.') },
         gallery: [],
         version: 1,
         updatedAt: Date.now(),

@@ -449,7 +449,7 @@ function updateChatPreview(peerId, message, render = true) {
         id: message.id,
         at,
         mine: message.senderId === state.myProfile.id,
-        text: message.deleted ? 'Nachricht geloescht' : messagePreview(message)
+        text: message.deleted ? t('Nachricht geloescht') : messagePreview(message)
     };
     if (render) renderActivePeerList();
 }
@@ -681,7 +681,7 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
         const target = state.chats[peerId]?.find(item => item.id === ownMessage.id) || ownMessage;
         target.savedByPeer = true;
         await persistChatMessage(peerId, target);
-        showToast(`${getPeerPresentation(peerId).name || 'Jemand'} hat deinen Snap gespeichert.`, 'info');
+        showToast(t('{name} hat deinen Snap gespeichert.', { name: getPeerPresentation(peerId).name || t('Jemand') }), 'info');
     } else if (localOperation.type === 'MATCH_PING' || localOperation.type === 'MATCH_RESET') {
         if (!await applyMatchOperation(peerId, localOperation)) return false;
     } else if (localOperation.type === 'FRIEND_PING' || localOperation.type === 'FRIEND_RESET') {
@@ -806,7 +806,7 @@ async function requestPersistentStorage() {
 async function renderStorageUsage(warn = false) {
     const output = document.getElementById('storage-usage');
     if (!navigator.storage?.estimate) {
-        if (output) output.textContent = 'Speicherangaben werden von diesem Browser nicht unterstuetzt.';
+        if (output) output.textContent = t('Speicherangaben werden von diesem Browser nicht unterstuetzt.');
         return;
     }
     try {
@@ -815,8 +815,8 @@ async function renderStorageUsage(warn = false) {
         const ratio = quota ? usage / quota : 0;
         const megabytes = value => (value / (1024 * 1024)).toFixed(1);
         if (output) {
-            output.textContent = `${megabytes(usage)} MB von ${megabytes(quota)} MB belegt (${Math.round(ratio * 100)} %)`
-                + (persisted ? ' · dauerhaft gespeichert' : ' · kann vom Browser geloescht werden');
+            output.textContent = t('{value} MB von {value2} MB belegt ({value3} %)', { value: megabytes(usage), value2: megabytes(quota), value3: Math.round(ratio * 100) })
+                + (persisted ? t(' · dauerhaft gespeichert') : t(' · kann vom Browser geloescht werden'));
             output.classList.toggle('text-amber-400', ratio >= STORAGE_WARNING_RATIO);
         }
         if (warn && ratio >= STORAGE_WARNING_RATIO) {
@@ -849,10 +849,10 @@ async function cleanupUnusedMedia() {
         const keys = await databaseRequest('media', 'readonly', store => store.getAllKeys());
         const unused = keys.filter(key => !referenced.has(key));
         await Promise.all(unused.map(key => deleteDatabaseRecord('media', key)));
-        showToast(unused.length ? `${unused.length} nicht mehr benoetigte Medien entfernt.` : 'Nichts aufzuraeumen.', 'success');
+        showToast(unused.length ? t('{length} nicht mehr benoetigte Medien entfernt.', { length: unused.length }) : t('Nichts aufzuraeumen.'), 'success');
         await renderStorageUsage();
     } catch (error) {
-        showToast(`Aufraeumen fehlgeschlagen: ${error.message}`, 'error');
+        showToast(t('Aufraeumen fehlgeschlagen: {message}', { message: error.message }), 'error');
     } finally {
         if (button) button.disabled = false;
     }

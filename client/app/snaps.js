@@ -21,15 +21,15 @@ function renderReplaySnapMessage(bubble, message, isMine) {
     details.className = 'min-w-0';
     const title = document.createElement('div');
     title.className = 'font-semibold';
-    title.textContent = 'Snap';
+    title.textContent = t('Snap');
     const meta = document.createElement('div');
     meta.className = 'opacity-75 text-[11px]';
     if (isMine) {
-        meta.textContent = available ? 'Gesendet · Tippen zum Ansehen' : 'Angesehen';
-        if (message.savedByPeer) meta.textContent += ' · vom Empfaenger gespeichert';
+        meta.textContent = available ? t('Gesendet · Tippen zum Ansehen') : t('Angesehen');
+        if (message.savedByPeer) meta.textContent += t(' · vom Empfaenger gespeichert');
     }
-    else if (!available) meta.textContent = 'Abgelaufen';
-    else meta.textContent = views === 0 ? 'Tippen zum Ansehen' : 'Tippen zum Wiederholen (1x)';
+    else if (!available) meta.textContent = t('Abgelaufen');
+    else meta.textContent = views === 0 ? t('Tippen zum Ansehen') : t('Tippen zum Wiederholen (1x)');
     details.append(title, meta);
     card.append(icon, details);
     if (available) {
@@ -73,7 +73,7 @@ function openReplaySnap(messageId) {
     const save = document.getElementById('secure-snap-save');
     save.classList.remove('hidden');
     save.disabled = false;
-    save.textContent = 'Speichern';
+    save.textContent = t('Speichern');
 }
 
 async function saveReplaySnap() {
@@ -86,7 +86,7 @@ async function saveReplaySnap() {
     await persistChatMessage(viewing.peerId, message);
     const save = document.getElementById('secure-snap-save');
     save.disabled = true;
-    save.textContent = 'Gespeichert';
+    save.textContent = t('Gespeichert');
     renderChatHistory();
     // Der Absender erfaehrt, dass sein Snap gespeichert wurde (wie bei Snapchat).
     if (message.senderId === viewing.peerId) await sendSnapSaved(viewing.peerId, message.id);
@@ -120,8 +120,9 @@ function renderReplayQueueLabel() {
     const viewing = state.secureSnapViewing;
     if (!label) return;
     const remaining = viewing?.mode === 'replay' && !viewing.isMine ? unseenReplaySnaps(viewing.peerId).length : 0;
-    const hint = { doubletap: 'Doppeltippen', swipe: 'Seitlich wischen', swipeup: 'Nach oben wischen' }[state.snapSettings.nextGesture] || 'Doppeltippen';
-    label.textContent = remaining ? `Noch ${remaining} Snap${remaining > 1 ? 's' : ''} · ${hint}: weiter` : '';
+    const hint = { doubletap: t('Doppeltippen'), swipe: t('Seitlich wischen'), swipeup: t('Nach oben wischen') }[state.snapSettings.nextGesture] || t('Doppeltippen');
+    label.textContent = !remaining ? ''
+        : remaining > 1 ? t('Noch {count} Snaps · {hint}: weiter', { count: remaining, hint }) : t('Noch 1 Snap · {hint}: weiter', { hint });
     label.classList.toggle('hidden', !remaining);
 }
 
@@ -248,7 +249,7 @@ async function startSnapCamera() {
     const status = document.getElementById('snap-camera-status');
     status.classList.add('hidden');
     if (!navigator.mediaDevices?.getUserMedia) {
-        showSnapCameraProblem('Keine Kamera verfuegbar. Du kannst ein Bild auswaehlen.');
+        showSnapCameraProblem(t('Keine Kamera verfuegbar. Du kannst ein Bild auswaehlen.'));
         return;
     }
     try {
@@ -274,8 +275,8 @@ async function startSnapCamera() {
     } catch (error) {
         logDebug(`Camera error: ${error.name}: ${error.message}`);
         showSnapCameraProblem(error.name === 'NotAllowedError'
-            ? 'Kamera-Zugriff verweigert. Du kannst ein Bild auswaehlen.'
-            : 'Kamera nicht verfuegbar. Du kannst ein Bild auswaehlen.');
+            ? t('Kamera-Zugriff verweigert. Du kannst ein Bild auswaehlen.')
+            : t('Kamera nicht verfuegbar. Du kannst ein Bild auswaehlen.'));
     }
 }
 
@@ -436,8 +437,10 @@ async function sendPickedImages(files) {
             logDebug(`Picked image failed: ${error.message}`);
         }
     }
-    const kind = target === 'status' ? 'Status' : asImage ? 'Bilder' : 'Snaps';
-    showToast(`${sent} ${kind} gesendet${files.length > MAX_PICKED_IMAGES ? ` (hoechstens ${MAX_PICKED_IMAGES})` : ''}.`, sent ? 'success' : 'error');
+    const message = target === 'status' ? t('{count} Status gesendet', { count: sent })
+        : asImage ? t('{count} Bilder gesendet', { count: sent }) : t('{count} Snaps gesendet', { count: sent });
+    const limit = files.length > MAX_PICKED_IMAGES ? t(' (hoechstens {max})', { max: MAX_PICKED_IMAGES }) : '';
+    showToast(`${message}${limit}.`, sent ? 'success' : 'error');
 }
 
 async function retakeSnap() {

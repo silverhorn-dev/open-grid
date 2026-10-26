@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import vm from 'node:vm';
+import { I18N_STUBS } from './i18n-stubs.js';
 
 const source = readFileSync(new URL('../client/app/gestures.js', import.meta.url), 'utf8');
 
@@ -45,7 +46,7 @@ function setup({ isMine = false } = {}) {
         Date,
         Math
     };
-    vm.runInNewContext(source, context);
+    vm.runInNewContext(source, Object.assign(context, I18N_STUBS));
     const pointer = (x, y) => ({ pointerType: 'touch', pointerId: 1, clientX: x, clientY: y, target });
     const runTimers = () => timers.filter(timer => !timer.cleared).forEach(timer => timer.callback());
     return { context, calls, pointer, runTimers, wrap };

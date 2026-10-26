@@ -98,7 +98,7 @@ function renderChatSwitcher() {
         const current = peerId === state.activeChatPeerId;
         button.className = `relative shrink-0 w-10 h-10 rounded-full p-0.5 ${current ? 'bg-brand-500' : 'bg-transparent hover:bg-slate-700'}`;
         button.title = peer.name || HIDDEN_PEER_NAME;
-        button.setAttribute('aria-label', `Chat mit ${peer.name || HIDDEN_PEER_NAME}`);
+        button.setAttribute('aria-label', t('Chat mit {value}', { value: peer.name || HIDDEN_PEER_NAME }));
         if (current) button.setAttribute('aria-current', 'true');
         const image = document.createElement('img');
         image.src = localAvatar(peer.avatar);
@@ -180,9 +180,9 @@ function initChatSwitchSwipe() {
 // Quick-Switcher: alle Chats der aktuellen Liste zur Auswahl (z. B. per Hochziehen im Chat).
 function openChatSwitcherSheet() {
     const peerIds = visibleChatPeerIds();
-    const content = openMediaModal('Chat wechseln');
+    const content = openMediaModal(t('Chat wechseln'));
     if (peerIds.length < 2) {
-        renderMediaModalMessage('Keine weiteren Chats in dieser Liste.');
+        renderMediaModalMessage(t('Keine weiteren Chats in dieser Liste.'));
         return;
     }
     const list = document.createElement('div');
@@ -214,7 +214,7 @@ function openChatSwitcherSheet() {
         const preview = document.createElement('div');
         preview.className = 'text-xs text-slate-400 truncate';
         const last = state.chatPreviews[peerId];
-        preview.textContent = last ? `${last.mine ? 'Du: ' : ''}${last.text}` : '';
+        preview.textContent = last ? `${last.mine ? t('Du: ') : ''}${last.text}` : '';
         details.append(name, preview);
         button.append(avatar, details);
         const unread = unreadCountOf(peerId);
@@ -289,7 +289,7 @@ function renderListSwitch() {
     // Im Modus-Wechsel braucht die andere Seite einen erlaubten Modus.
     const possible = settings.enabled && (settings.behavior === 'view' || Boolean(modeForChatScope(target)));
     button.classList.toggle('hidden', !possible);
-    button.title = target === 'social' ? 'Zu "Chat & Freunde"' : 'Zu "Grid & Event"';
+    button.title = target === 'social' ? t('Zu "Chat & Freunde"') : t('Zu "Grid & Event"');
     button.setAttribute('aria-label', button.title);
     const viewingOther = Boolean(state.chatListScopeOverride) && state.chatListScopeOverride !== modeChatScope();
     modeButton?.classList.toggle('hidden', !viewingOther || !modeForChatScope(state.chatListScopeOverride));

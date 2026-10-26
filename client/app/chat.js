@@ -3,10 +3,10 @@ function updateProfilePresence(peerId, status) {
     if (state.activeModalPeerId !== peerId) return;
     const badge = document.getElementById('modal-online-badge');
     const styles = {
-        checking: ['Checking...', 'bg-sky-500/10 text-sky-400 border-sky-500/30'],
-        online: ['Online', 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'],
-        absent: ['Abwesend', 'bg-amber-500/10 text-amber-400 border-amber-500/30'],
-        offline: ['Offline', 'bg-slate-800 text-slate-400 border-slate-700']
+        checking: [t('Wird geprueft...'), 'bg-sky-500/10 text-sky-400 border-sky-500/30'],
+        online: [t('Online'), 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'],
+        absent: [t('Abwesend'), 'bg-amber-500/10 text-amber-400 border-amber-500/30'],
+        offline: [t('Offline'), 'bg-slate-800 text-slate-400 border-slate-700']
     };
     const [label, classes] = styles[status];
     badge.textContent = label;
@@ -58,7 +58,7 @@ function openProfileModal(peerId) {
 
     updateProfilePresence(peerId, 'checking');
     const container = document.getElementById('modal-rendered-fields');
-    container.innerHTML = '<div class="col-span-2 text-slate-500 text-center py-4"><i class="fa-solid fa-lock text-brand-500 mr-1"></i> Connecting securely to request full profile...</div>';
+    container.innerHTML = `<div class="col-span-2 text-slate-500 text-center py-4" data-profile-connecting><i class="fa-solid fa-lock text-brand-500 mr-1"></i> ${t('Verbinde sicher, um das volle Profil anzufragen...')}</div>`;
 
     if (peer.fullProfile) {
         renderProfileModalData(peer.fullProfile);
@@ -77,7 +77,7 @@ function openProfileModal(peerId) {
     setTimeout(() => {
         if (state.activeModalPeerId !== peerId) return;
         const container = document.getElementById('modal-rendered-fields');
-        if (container && container.innerHTML.includes('Connecting securely')) {
+        if (container?.querySelector('[data-profile-connecting]')) {
            const activePeers = Object.keys(state.dataChannels).filter(id => state.dataChannels[id].readyState === 'open');
            if (!activePeers.length) {
                logDebug(`Peer ${peerId} antwortet nicht und es gibt keinen offenen Kanal fuer eine Swarm-Suche.`);
@@ -104,8 +104,8 @@ function renderProfileModalData(profile) {
         notice.className = 'col-span-2 bg-slate-800/60 border border-slate-700 p-2 rounded text-slate-300 flex items-center gap-2';
         notice.innerHTML = '<i class="fa-solid fa-lock text-orange-300"></i>';
         notice.appendChild(document.createTextNode(profile.visibility === 3
-            ? 'Dieses Profil ist verborgen. Nach einem Match siehst du alles.'
-            : 'Weitere Angaben und Bilder siehst du nach einem Match.'));
+            ? t('Dieses Profil ist verborgen. Nach einem Match siehst du alles.')
+            : t('Weitere Angaben und Bilder siehst du nach einem Match.')));
         container.appendChild(notice);
     }
 
@@ -130,7 +130,7 @@ function renderProfileModalData(profile) {
         card.className = field.type === 'description' ? 'col-span-2 bg-slate-800 p-2 rounded' : 'bg-slate-800 p-2 rounded';
         const label = document.createElement('div');
         label.className = 'text-slate-400 font-bold';
-        label.textContent = field.label;
+        label.textContent = localizedText(field.label);
         const content = document.createElement('div');
         content.className = 'text-slate-200';
         content.textContent = Array.isArray(value) ? value.join(', ') : String(value);
@@ -190,7 +190,7 @@ function renderModalGalleryImage(imageId, base64) {
     const imgEl = document.getElementById(`modal-img-${imageId}`);
     if (!imgEl) return;
     if (!isSafeInlineImage(base64)) {
-        imgEl.textContent = 'Invalid image';
+        imgEl.textContent = t('Ungueltiges Bild');
         return;
     }
     imgEl.className = 'h-24 w-24 rounded-xl border border-slate-700 shrink-0 cursor-pointer hover:border-brand-500 transition overflow-hidden';
@@ -238,7 +238,7 @@ async function openChatWithPeer(peerId) {
     switchTab('chat');
     renderChatPeerIndicator();
     renderChatPeerHeader(peerId);
-    document.getElementById('chat-connection-type').textContent = 'Encrypted WebRTC DataChannel';
+    document.getElementById('chat-connection-type').textContent = t('Verschluesselter WebRTC-Kanal');
     renderActivePeerList();
     renderChatHistory();
     updateChatActionButtons();
@@ -247,7 +247,7 @@ async function openChatWithPeer(peerId) {
 }
 
 // Auf Smartphones zeigt der Chat-Tab entweder die Liste oder den Vollbild-Chat.
-const CHAT_LOADING_TEXT = 'Chat wird geladen...';
+const CHAT_LOADING_TEXT = t('Chat wird geladen...');
 
 function isChatPlaceholderShown() {
     return document.getElementById('chat-peer-name')?.textContent === CHAT_LOADING_TEXT;
@@ -259,7 +259,7 @@ function showChatLoadingPlaceholder() {
     const name = document.getElementById('chat-peer-name');
     if (name) name.textContent = CHAT_LOADING_TEXT;
     const messages = document.getElementById('chat-messages');
-    if (messages) messages.innerHTML = '<div class="text-center text-xs text-slate-500 my-8"><i class="fa-solid fa-spinner fa-spin"></i> Chat wird geladen...</div>';
+    if (messages) messages.innerHTML = `<div class="text-center text-xs text-slate-500 my-8"><i class="fa-solid fa-spinner fa-spin"></i> ${t('Chat wird geladen...')}</div>`;
 }
 
 function updateChatLayout() {
@@ -270,8 +270,8 @@ function updateChatLayout() {
 function resetActiveChat(placeholderText) {
     state.activeChatPeerId = null;
     resetChatTools();
-    document.getElementById('chat-peer-name').textContent = 'Kein Chat ausgewaehlt';
-    document.getElementById('chat-connection-type').textContent = 'Select a conversation';
+    document.getElementById('chat-peer-name').textContent = t('Kein Chat ausgewaehlt');
+    document.getElementById('chat-connection-type').textContent = t('Chat auswaehlen');
     document.getElementById('chat-peer-avatar').textContent = '?';
     const messages = document.getElementById('chat-messages');
     messages.innerHTML = '';
@@ -313,12 +313,12 @@ function updateChatActionButtons() {
     const blocked = isPeerBlocked(peerId);
     deleteButton.classList.toggle('hidden', blocked);
     blockButton.classList.remove('hidden');
-    document.getElementById('block-peer-label').textContent = blocked ? 'Entblocken' : 'Blockieren';
+    document.getElementById('block-peer-label').textContent = blocked ? t('Entblocken') : t('Blockieren');
     input.disabled = blocked;
     sendButton.disabled = blocked;
     updateChatAlbumButton();
     if (blocked) {
-        updateChatConnectionStatus(peerId, 'Blocked', 'bg-red-500/10 text-red-400 border-red-500/30');
+        updateChatConnectionStatus(peerId, t('Blockiert'), 'bg-red-500/10 text-red-400 border-red-500/30');
         return;
     }
     renderChatAllowance();
@@ -326,7 +326,7 @@ function updateChatActionButtons() {
 
 async function deleteActiveChat() {
     const peerId = state.activeChatPeerId;
-    if (!peerId || !window.confirm('Diesen Chat lokal und aus dem Router-Cache loeschen?')) return;
+    if (!peerId || !window.confirm(t('Diesen Chat lokal und aus dem Router-Cache loeschen?'))) return;
     try {
         // Sende den Wipe-Befehl an den Peer, bevor wir den Chat lokal schliessen
         const operation = {
@@ -345,7 +345,7 @@ async function deleteActiveChat() {
         resetActiveChat('Chat geloescht.');
         showToast('Chat und zwischengespeicherte Router-Nachrichten wurden geloescht.', 'success');
     } catch (error) {
-        showToast(`Chat konnte nicht geloescht werden: ${error.message}`, 'error');
+        showToast(t('Chat konnte nicht geloescht werden: {message}', { message: error.message }), 'error');
     }
 }
 
@@ -374,7 +374,7 @@ async function toggleActivePeerBlock() {
             initiateP2PConnection(peerId).catch(logBackgroundError('toggleActivePeerBlock'));
             showToast('Peer wurde entblockt.', 'success');
         } else {
-            if (!window.confirm('Diesen Peer blockieren und den Chat loeschen?')) return;
+            if (!window.confirm(t('Diesen Peer blockieren und den Chat loeschen?'))) return;
 
             // Sende Wipe-Befehl an den Peer, bevor die lokale Blockierung weitere P2P-Payloads verhindert
             const operation = {
@@ -395,7 +395,7 @@ async function toggleActivePeerBlock() {
         }
         updateChatActionButtons();
     } catch (error) {
-        showToast(`Blockierung konnte nicht aktualisiert werden: ${error.message}`, 'error');
+        showToast(t('Blockierung konnte nicht aktualisiert werden: {message}', { message: error.message }), 'error');
     }
 }
 
@@ -434,7 +434,7 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
     // Chat-Berechtigungen des anderen (nur Anzeige; der Empfaenger setzt sie selbst durch).
     const allowance = state.activeChatPeerId ? getPeerChatAllowance(state.activeChatPeerId) : null;
     if (allowance && (!allowance.allowed || (hasAttachment && !allowance.images))) {
-        showToast(allowance.reason || 'Bilder sind erst nach einem Match erlaubt.', 'info');
+        showToast(allowance.reason || t('Bilder sind erst nach einem Match erlaubt.'), 'info');
         return;
     }
     const text = hasAttachment ? String(caption || '').trim() : input.value.trim();
@@ -466,7 +466,7 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
         video: options.video,
         // Liste dieses Chats (Grid & Event oder Chat & Freunde), der Empfaenger uebernimmt sie fuer neue Chats.
         scope: chatScopeOf(peerId) || currentChatScope(),
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        timestamp: formatClockTime(Date.now()),
         createdAt: Date.now(),
         deliveredVia: 'Establishing secure channel...'
     };
@@ -522,7 +522,7 @@ async function receiveChatMessage(peerId, payload) {
     };
     const applied = await applyChatOperation(peerId, operation);
     if (applied) {
-        showToast(`New encrypted message from ${state.peers.find(peer => peer.id === peerId)?.name || 'peer'}.`, 'info');
+        showToast(t('Neue verschluesselte Nachricht von {name}.', { name: state.peers.find(peer => peer.id === peerId)?.name || HIDDEN_PEER_NAME }), 'info');
     }
 }
 
@@ -618,11 +618,11 @@ function renderChatHistory() {
     const previousScrollTop = container.scrollTop;
     container.innerHTML = '';
     if (allMessages.length === 0) {
-        container.innerHTML = '<div class="text-center text-xs text-slate-500 my-8">Noch keine Nachrichten. Sag hallo!</div>';
+        container.innerHTML = `<div class="text-center text-xs text-slate-500 my-8">${t('Noch keine Nachrichten. Sag hallo!')}</div>`;
         return;
     }
     if (msgs.length === 0) {
-        container.innerHTML = '<div class="text-center text-xs text-slate-500 my-8">Keine passenden Nachrichten.</div>';
+        container.innerHTML = `<div class="text-center text-xs text-slate-500 my-8">${t('Keine passenden Nachrichten.')}</div>`;
         return;
     }
     const filtering = Boolean(state.chatSearch) || state.chatStarredOnly;
@@ -636,7 +636,7 @@ function renderChatHistory() {
         bubble.className = `chat-bubble whitespace-pre-wrap break-words max-w-[80%] rounded-2xl px-4 py-2 overflow-hidden ${message.deleted ? 'bg-slate-900 text-slate-500 border border-slate-800 italic' : isMine ? 'bg-brand-600 text-white rounded-br-none' : 'bg-slate-800 text-slate-100 rounded-bl-none'}`;
 
         if (message.deleted) {
-            bubble.textContent = 'Nachricht geloescht';
+            bubble.textContent = t('Nachricht geloescht');
         } else if (message.secureSnap) {
             renderSecureSnapMessage(bubble, message, isMine);
             if (message.text) {
@@ -676,14 +676,14 @@ function renderChatHistory() {
                 const badge = document.createElement('div');
                 badge.className = 'text-[11px] opacity-75';
                 badge.dataset.originalBadge = message.id;
-                badge.textContent = isMine || message.originalReady ? 'Original' : 'Original folgt bei direkter Verbindung';
+                badge.textContent = isMine || message.originalReady ? t('Original') : t('Original folgt bei direkter Verbindung');
                 bubble.appendChild(badge);
                 if (!isMine && !message.originalReady) renderOriginalProgress(message.id);
             }
             if (isMine && message.savedByPeer) {
                 const saved = document.createElement('div');
                 saved.className = 'text-[11px] opacity-75';
-                saved.innerHTML = '<i class="fa-solid fa-bookmark"></i> vom Empfaenger gespeichert';
+                saved.innerHTML = `<i class="fa-solid fa-bookmark"></i> ${t('vom Empfaenger gespeichert')}`;
                 bubble.appendChild(saved);
             }
         } else {
@@ -730,8 +730,8 @@ function renderChatHistory() {
 function describePendingDelivery(message, isMine) {
     if (!isMine || message.deleted || message.deliveryConfirmed) return null;
     if (message.cacheExpiresAt && Date.now() > message.cacheExpiresAt) {
-        return 'Nicht abgeholt - wird bei der naechsten direkten Verbindung zugestellt';
+        return t('Nicht abgeholt - wird bei der naechsten direkten Verbindung zugestellt');
     }
-    if (message.deliveredVia === 'Pending') return 'Wartet auf Verbindung';
+    if (message.deliveredVia === 'Pending') return t('Wartet auf Verbindung');
     return null;
 }

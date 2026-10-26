@@ -8,7 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
     <title>OpenGrid - Decentralized LGBTQ+ Discovery Platform</title>
     <meta name="theme-color" content="#0f172a">
-    <meta name="description" content="Zero-Server E2EE P2P LGBTQ+ Discovery Platform">
+    <meta name="description" content="Datenschutzfreundliche P2P-Discovery- und Chat-App mit Ende-zu-Ende-Verschluesselung">
 
     <!-- PWA Web App Manifest (Inline Data URI) -->
     <link rel="manifest" href="data:application/manifest+json;utf8,%7B%22name%22%3A%22OpenGrid%22%2C%22short_name%22%3A%22OpenGrid%22%2C%22start_url%22%3A%22%2Fgrid%22%2C%22scope%22%3A%22%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230f172a%22%2C%22theme_color%22%3A%22%230f172a%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22%2Fclient%2Ficon-192.png%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fpng%22%7D%2C%7B%22src%22%3A%22%2Fclient%2Ficon-512.png%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fpng%22%7D%2C%7B%22src%22%3A%22%2Fclient%2Ficon.svg%22%2C%22sizes%22%3A%22any%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%2C%22purpose%22%3A%22any%22%7D%5D%7D">
@@ -21,6 +21,8 @@
 
     <link rel="stylesheet" href="/client/styles.css?v={{assetVersion}}">
     <!-- Thema und Akzentfarbe vor dem ersten Rendern setzen (kein Aufflackern) -->
+    <script src="/client/i18n.js?v={{assetVersion}}"></script>
+    <script src="/client/i18n/en.js?v={{assetVersion}}"></script>
     <script src="/client/app/theme.js?v={{assetVersion}}"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col antialiased select-none">
@@ -47,7 +49,7 @@
                         OpenGrid
                         <span class="debug-only text-[10px] bg-brand-500/20 text-brand-400 border border-brand-500/30 px-2 py-0.5 rounded-full font-mono">{{versionTag}}</span>
                     </h1>
-                    <p class="debug-only text-xs text-slate-400 hidden sm:block">Zero-Server E2EE P2P Discovery Platform</p>
+                    <p class="debug-only text-xs text-slate-400 hidden sm:block">P2P-Discovery mit Ende-zu-Ende-Verschluesselung</p>
                 </div>
             </div>
 
@@ -135,9 +137,9 @@
                     <div>
                         <div class="text-sm font-semibold"><span id="grid-title">In deiner Naehe</span> <span class="debug-only">· Geohash-Zelle <span id="current-geohash" class="font-mono text-brand-400">u10j2k</span></span></div>
                         <p class="text-xs text-slate-400">
-                            <span id="grid-peer-count">0 peers</span>
+                            <span id="grid-peer-count">0 Personen</span>
                             <span class="text-slate-600">•</span>
-                            <span id="grid-last-updated">Not synchronized yet</span>
+                            <span id="grid-last-updated">Noch nicht synchronisiert</span>
                         </p>
                         <p id="silent-mode-hint" class="hidden text-xs text-sky-400 mt-0.5">
                             <i class="fa-solid fa-eye-slash"></i> Silent-Modus aktiv: du bist fuer andere nicht im Grid sichtbar.
@@ -211,13 +213,13 @@
                             <div class="min-w-0">
                                 <div id="chat-peer-name" class="font-bold text-sm text-slate-200 truncate">Kein Chat ausgewaehlt</div>
                                 <div id="chat-peer-status" class="debug-off-only text-xs text-slate-400 truncate" aria-live="polite"></div>
-                                <div id="chat-connection-type" class="debug-only text-xs font-mono text-slate-400 truncate">Select a peer from the Grid</div>
+                                <div id="chat-connection-type" class="debug-only text-xs font-mono text-slate-400 truncate">Waehle jemanden im Grid aus</div>
                             </div>
                         </div>
                     </div>
                     <div class="flex items-center gap-1 shrink-0">
                         <div id="connection-status-pill" class="debug-only text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-400 font-mono">
-                            Disconnected
+                            Getrennt
                         </div>
                         <button data-click="switchChat" data-args='[1]' data-direction="1" class="chat-switch-arrow hidden w-8 h-9 shrink-0 rounded-lg text-slate-300 hover:bg-slate-800 items-center justify-center disabled:opacity-30" aria-label="Naechster Chat">
                             <i class="fa-solid fa-chevron-down"></i>
@@ -392,10 +394,10 @@
         <section id="view-cloud" class="hidden space-y-4">
             <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
                 <h2 class="text-base font-bold text-slate-200 mb-1 flex items-center gap-2">
-                    <i class="fa-solid fa-cloud text-sky-400"></i> Ephemeral Store-and-Forward Cloud Cache (Pfad C)
+                    <i class="fa-solid fa-cloud text-sky-400"></i> Kurzzeit-Zwischenspeicher (Pfad C)
                 </h2>
                 <p class="text-xs text-slate-400 leading-relaxed">
-                    Messages queued for offline/sleeping peers are E2EE encrypted with AES-256-GCM. The self-hosted queue stores only ciphertext with a limited TTL.
+                    Nachrichten fuer gerade nicht erreichbare Kontakte sind Ende-zu-Ende mit AES-256-GCM verschluesselt. Der eigene Server speichert nur Geheimtext und nur fuer begrenzte Zeit.
                 </p>
             </div>
         </section>
@@ -428,6 +430,18 @@
                         </div>
                         <div id="event-status" class="setting-desc mt-2">Kein Event aktiv.</div>
                     </div>
+                </div>
+
+                <div class="settings-card" data-settings-tab="general">
+                    <h3 class="settings-card-title"><i class="fa-solid fa-language text-brand-400"></i> Sprache</h3>
+                    <label class="setting-row">
+                        <span class="setting-text"><span class="setting-title">Sprache der App</span><span class="setting-desc">Automatisch folgt der Sprache des Geraets.</span></span>
+                        <select id="language-select" data-change="setLanguage" data-args='["$value"]' class="setting-select">
+                            <option value="auto">Automatisch</option>
+                            <option value="de">Deutsch</option>
+                            <option value="en">English</option>
+                        </select>
+                    </label>
                 </div>
 
                 <div id="invite-card" class="settings-card" data-settings-tab="general">
@@ -600,7 +614,7 @@
                     <h3 class="settings-card-title"><i class="fa-solid fa-bell text-amber-400"></i> Push-Benachrichtigungen</h3>
                     <div class="setting-block">
                         <p class="setting-desc mb-2">Weckt die App bei neuen Nachrichten, auch wenn sie geschlossen ist. Der Push enthaelt nur verschluesselte Daten.</p>
-                        <div id="push-status" class="debug-only text-xs font-mono text-slate-400 mb-2">Checking...</div>
+                        <div id="push-status" class="debug-only text-xs font-mono text-slate-400 mb-2">Wird geprueft...</div>
                         <button id="push-toggle-btn" data-click="togglePushNotifications" class="btn-secondary">Benachrichtigungen einschalten</button>
                     </div>
                     <label class="setting-row">
@@ -798,7 +812,7 @@
             </div>
 
             <div class="p-5 space-y-4">
-                <h2 id="modal-profile-name" class="text-xl font-bold text-slate-100">Loading...</h2>
+                <h2 id="modal-profile-name" class="text-xl font-bold text-slate-100">Wird geladen...</h2>
                 <p id="modal-profile-id" class="debug-only text-xs font-mono text-slate-500 break-all"></p>
                 
                 <div id="modal-gallery-container" class="hidden flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
@@ -816,7 +830,7 @@
                     <button data-click="launchChatFromModal" class="flex-1 bg-brand-600 hover:bg-brand-500 text-white font-semibold py-2.5 px-4 rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-lg pulse-glow">
                         <i class="fa-solid fa-comments"></i> Chat starten
                     </button>
-                    <button data-click="closeProfileModal" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-2.5 px-4 rounded-xl text-xs transition border border-slate-700">Close</button>
+                    <button data-click="closeProfileModal" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-2.5 px-4 rounded-xl text-xs transition border border-slate-700">Schliessen</button>
                 </div>
             </div>
         </div>

@@ -130,7 +130,7 @@ async function createOwnStatus(fields) {
     await persistStatus(status);
     renderStatusBar();
     await distributeStatus(status);
-    showToast(friendIds().length ? 'Status geteilt.' : 'Status gespeichert. Du hast noch keine Freunde, die ihn sehen.', 'success');
+    showToast(friendIds().length ? t('Status geteilt.') : t('Status gespeichert. Du hast noch keine Freunde, die ihn sehen.'), 'success');
     return status;
 }
 
@@ -246,7 +246,7 @@ function renderStatusBar() {
     const items = [];
     const mine = statusAvatar(state.myProfile.id, {
         ring: own.length ? 'bg-gradient-to-tr from-brand-500 to-amber-400' : 'bg-slate-800',
-        label: 'Dein Status',
+        label: t('Dein Status'),
         onClick: () => (own.length ? openStatusViewer(state.myProfile.id) : openStatusComposer())
     });
     const plus = document.createElement('span');
@@ -267,7 +267,7 @@ function renderStatusBar() {
             const unseen = statuses.some(status => !status.seen);
             items.push(statusAvatar(peerId, {
                 ring: unseen ? 'bg-gradient-to-tr from-brand-500 to-amber-400' : 'bg-slate-700',
-                label: getPeerPresentation(peerId).name || 'Freund',
+                label: getPeerPresentation(peerId).name || t('Freund'),
                 onClick: () => openStatusViewer(peerId)
             }).button);
         });
@@ -276,7 +276,7 @@ function renderStatusBar() {
 
 // ----- Verfassen -----
 function openStatusComposer() {
-    const content = openMediaModal('Status');
+    const content = openMediaModal(t('Status'));
     const wrapper = document.createElement('div');
     wrapper.className = 'space-y-4';
     wrapper.innerHTML = `
@@ -307,7 +307,7 @@ function openStatusComposer() {
         swatch.className = 'w-7 h-7 rounded-full border-2 border-transparent aria-checked:border-white';
         swatch.style.backgroundColor = color;
         swatch.setAttribute('role', 'radio');
-        swatch.setAttribute('aria-label', `Farbe ${index + 1}`);
+        swatch.setAttribute('aria-label', t('Farbe {value}', { value: index + 1 }));
         swatch.setAttribute('aria-checked', String(index === 0));
         swatch.onclick = () => colors.querySelectorAll('button').forEach(button => button.setAttribute('aria-checked', String(button === swatch)));
         colors.appendChild(swatch);
@@ -344,7 +344,7 @@ function showStatusAt(index) {
     clearTimeout(viewing.timer);
     const status = viewing.statuses[index];
     const isMine = viewing.peerId === state.myProfile.id;
-    document.getElementById('status-viewer-name').textContent = isMine ? 'Dein Status' : (getPeerPresentation(viewing.peerId).name || 'Freund');
+    document.getElementById('status-viewer-name').textContent = isMine ? t('Dein Status') : (getPeerPresentation(viewing.peerId).name || t('Freund'));
     document.getElementById('status-viewer-time').textContent = formatChatListTime(status.createdAt);
     document.getElementById('status-viewer-delete').classList.toggle('hidden', !isMine);
     const progress = document.getElementById('status-viewer-progress');
@@ -390,7 +390,7 @@ function stepStatus(direction) {
 function deleteViewedStatus() {
     const viewing = state.statusViewer;
     const status = viewing?.statuses[viewing.index];
-    if (status && window.confirm('Diesen Status loeschen?')) deleteOwnStatus(status.id).catch(logBackgroundError('deleteViewedStatus'));
+    if (status && window.confirm(t('Diesen Status loeschen?'))) deleteOwnStatus(status.id).catch(logBackgroundError('deleteViewedStatus'));
 }
 
 function closeStatusViewer() {

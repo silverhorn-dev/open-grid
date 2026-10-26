@@ -30,7 +30,7 @@ async function main() {
     const browser = await chromium.launch();
     const pageErrors = [];
     try {
-        const context = await browser.newContext({ ...devices['iPhone 13'] });
+        const context = await browser.newContext({ locale: 'de-DE', ...devices['iPhone 13'] });
         const page = await context.newPage();
         page.on('pageerror', error => pageErrors.push(error.message));
         const session = await context.newCDPSession(page);

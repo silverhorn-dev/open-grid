@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import vm from 'node:vm';
+import { I18N_STUBS } from './i18n-stubs.js';
 
 function loadMatching({ visibility = 1, chatPolicy, privateFields = [], stored = [] } = {}) {
     const context = {
@@ -33,8 +34,8 @@ function loadMatching({ visibility = 1, chatPolicy, privateFields = [], stored =
         Object,
         Set
     };
-    vm.runInNewContext(readFileSync(new URL('../client/app/matching.js', import.meta.url), 'utf8'), context);
-    vm.runInNewContext(readFileSync(new URL('../client/app/friends.js', import.meta.url), 'utf8'), context);
+    vm.runInNewContext(readFileSync(new URL('../client/app/matching.js', import.meta.url), 'utf8'), Object.assign(context, I18N_STUBS));
+    vm.runInNewContext(readFileSync(new URL('../client/app/friends.js', import.meta.url), 'utf8'), Object.assign(context, I18N_STUBS));
     return context;
 }
 

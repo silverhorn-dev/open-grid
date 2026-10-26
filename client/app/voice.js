@@ -95,7 +95,7 @@ async function startVoiceRecording() {
     // Sprachnachrichten zaehlen wie Bilder (Chat-Berechtigungen des anderen).
     const allowance = getPeerChatAllowance(peerId);
     if (allowance && (!allowance.allowed || !allowance.images)) {
-        showToast(allowance.reason || 'Sprachnachrichten sind erst nach einem Match erlaubt.', 'info');
+        showToast(allowance.reason || t('Sprachnachrichten sind erst nach einem Match erlaubt.'), 'info');
         return;
     }
     if (!isVoiceSupported()) {
@@ -291,7 +291,7 @@ function renderVoiceMessage(bubble, message, isMine) {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = `voice-play w-9 h-9 shrink-0 rounded-full flex items-center justify-center ${isMine ? 'bg-white/20' : 'bg-slate-700'}`;
-    button.setAttribute('aria-label', 'Sprachnachricht abspielen');
+    button.setAttribute('aria-label', t('Sprachnachricht abspielen'));
     button.innerHTML = '<i class="fa-solid fa-play"></i>';
     button.onclick = event => {
         event.stopPropagation();
@@ -319,7 +319,7 @@ function renderVoiceMessage(bubble, message, isMine) {
         const badge = document.createElement('div');
         badge.className = 'voice-rest-hint text-[11px] opacity-75 mt-0.5';
         badge.dataset.originalBadge = message.id;
-        badge.textContent = `Ab ${formatVoiceDuration(message.audioSplitAt)} folgt der Rest bei direkter Verbindung`;
+        badge.textContent = t('Ab {value} folgt der Rest bei direkter Verbindung', { value: formatVoiceDuration(message.audioSplitAt) });
         bubble.appendChild(badge);
         renderOriginalProgress(message.id);
     }

@@ -115,17 +115,17 @@ async function updatePushStatus() {
     const button = document.getElementById('push-toggle-btn');
     if (!status || !button) return;
     if (!isPushSupported() || !state.serviceWorkerRegistration) {
-        status.textContent = 'Nicht unterstuetzt (auf iOS nur als installierte App).';
+        status.textContent = t('Nicht unterstuetzt (auf iOS nur als installierte App).');
         button.disabled = true;
         return;
     }
     const subscription = await getPushSubscription().catch(() => null);
     const active = Boolean(subscription) && Notification.permission === 'granted';
     status.textContent = Notification.permission === 'denied'
-        ? 'Im Browser blockiert.'
-        : active ? 'Aktiv.' : 'Aus.';
+        ? t('Im Browser blockiert.')
+        : active ? t('Aktiv.') : t('Aus.');
     button.disabled = Notification.permission === 'denied';
-    button.textContent = active ? 'Disable Notifications' : 'Enable Notifications';
+    button.textContent = active ? t('Benachrichtigungen ausschalten') : t('Benachrichtigungen einschalten');
 }
 
 async function togglePushNotifications() {

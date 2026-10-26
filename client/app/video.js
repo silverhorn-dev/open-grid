@@ -17,7 +17,7 @@ function pickChatVideo() {
     if (!peerId) return;
     const allowance = getPeerChatAllowance(peerId);
     if (allowance && (!allowance.allowed || !allowance.images)) {
-        showToast(allowance.reason || 'Videos sind erst nach einem Match erlaubt.', 'info');
+        showToast(allowance.reason || t('Videos sind erst nach einem Match erlaubt.'), 'info');
         return;
     }
     const input = document.createElement('input');
@@ -39,7 +39,7 @@ async function sendVideoFile(file) {
         return;
     }
     if (file.size > VIDEO_MAX_BYTES) {
-        showToast(`Video zu gross (hoechstens ${Math.round(VIDEO_MAX_BYTES / 1024 / 1024)} MB).`, 'error');
+        showToast(t('Video zu gross (hoechstens {value} MB).', { value: Math.round(VIDEO_MAX_BYTES / 1024 / 1024) }), 'error');
         return;
     }
     showToast('Video wird vorbereitet...', 'info');
@@ -128,7 +128,7 @@ function renderVideoMessage(bubble, message, isMine) {
         const badge = document.createElement('div');
         badge.className = 'text-[11px] opacity-75';
         badge.dataset.originalBadge = message.id;
-        badge.textContent = 'Video kommt bei direkter Verbindung';
+        badge.textContent = t('Video kommt bei direkter Verbindung');
         bubble.appendChild(badge);
         renderOriginalProgress(message.id);
     }

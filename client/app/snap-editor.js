@@ -100,7 +100,7 @@ function renderSnapColorRow() {
         swatch.style.backgroundColor = color;
         swatch.setAttribute('role', 'radio');
         swatch.setAttribute('aria-checked', String(color === snapEditor.color));
-        swatch.setAttribute('aria-label', `Farbe ${color}`);
+        swatch.setAttribute('aria-label', t('Farbe {color}', { color }));
         swatch.onclick = () => {
             snapEditor.color = color;
             renderSnapColorRow();

@@ -87,17 +87,17 @@ async function applyFriendOperation(peerId, operation) {
     rememberChatPeer(peerId);
     const nowFriend = isFriend(peerId);
     if (wasFriend !== nowFriend) syncChatGate();
-    const name = getPeerPresentation(peerId).name || 'Peer';
+    const name = getPeerPresentation(peerId).name || HIDDEN_PEER_NAME;
     if (!wasFriend && nowFriend) {
         await setChatScope(peerId, 'social');
         await releaseHeldMessages(peerId);
         pushStatusesToPeer(peerId).catch(logBackgroundError('applyFriendOperation'));
-        if (operation.actorId === peerId) showToast(`${name} und du seid jetzt befreundet.`, 'success');
+        if (operation.actorId === peerId) showToast(t('{name} und du seid jetzt befreundet.', { name }), 'success');
         sendSecurePayload(peerId, { type: 'PROFILE_REQUEST' }).catch(logBackgroundError('applyFriendOperation'));
     } else if (operation.type === 'FRIEND_PING' && operation.actorId === peerId && !nowFriend) {
         // Neue Kontakte (noch ohne Liste) gehoeren nach "Chat & Freunde"; Grid-Kontakte nur nach Match.
         await ensureChatScope(peerId, 'social');
-        if (acceptsFriendRequestFrom(peerId)) showToast(`${name} moechte dich adden.`, 'info');
+        if (acceptsFriendRequestFrom(peerId)) showToast(t('{name} moechte dich adden.', { name }), 'info');
     }
     if (wasFriend && !nowFriend) {
         delete state.statusPushes[peerId];
@@ -128,13 +128,13 @@ async function addFriend(peerId) {
     if (!peerId || isPeerBlocked(peerId) || isFriend(peerId) || hasSentFriendRequest(peerId)) return;
     if (chatScopeOf(peerId) === 'discovery' && !canAddMatch(peerId)) return;
     await sendFriendOperation(peerId, 'FRIEND_PING');
-    showToast(isFriend(peerId) ? 'Ihr seid jetzt befreundet.' : 'Anfrage gesendet.', 'success');
+    showToast(isFriend(peerId) ? t('Ihr seid jetzt befreundet.') : t('Anfrage gesendet.'), 'success');
 }
 
 // Ablehnen, zurueckziehen oder entfernen: alles setzt die Beziehung zurueck.
 async function resetFriendship(peerId) {
     if (!peerId) return;
-    if (isFriend(peerId) && !window.confirm('Freundschaft wirklich beenden? Status und volles Profil sind dann nicht mehr sichtbar.')) return;
+    if (isFriend(peerId) && !window.confirm(t('Freundschaft wirklich beenden? Status und volles Profil sind dann nicht mehr sichtbar.'))) return;
     await sendFriendOperation(peerId, 'FRIEND_RESET');
 }
 
@@ -208,19 +208,19 @@ function renderProfileFriendActions(container, peerId) {
     const secondary = 'border border-slate-700 text-slate-300 hover:bg-slate-800';
     if (isFriend(peerId)) {
         status.innerHTML = '<i class="fa-solid fa-user-check text-emerald-400"></i>';
-        status.appendChild(document.createTextNode(' Ihr seid befreundet'));
-        actions.appendChild(friendButton('Entfernen', 'fa-user-minus', secondary, () => resetFriendship(peerId)));
+        status.appendChild(document.createTextNode(` ${t('Ihr seid befreundet')}`));
+        actions.appendChild(friendButton(t('Entfernen'), 'fa-user-minus', secondary, () => resetFriendship(peerId)));
     } else if (hasFriendRequest(peerId)) {
-        status.textContent = 'Moechte dich adden';
+        status.textContent = t('Moechte dich adden');
         actions.append(
-            friendButton('Annehmen', 'fa-user-plus', primary, () => addFriend(peerId)),
-            friendButton('Ablehnen', 'fa-xmark', secondary, () => resetFriendship(peerId))
+            friendButton(t('Annehmen'), 'fa-user-plus', primary, () => addFriend(peerId)),
+            friendButton(t('Ablehnen'), 'fa-xmark', secondary, () => resetFriendship(peerId))
         );
     } else if (hasSentFriendRequest(peerId)) {
-        status.textContent = 'Anfrage gesendet';
-        actions.appendChild(friendButton('Zurueckziehen', 'fa-rotate-left', secondary, () => resetFriendship(peerId)));
+        status.textContent = t('Anfrage gesendet');
+        actions.appendChild(friendButton(t('Zurueckziehen'), 'fa-rotate-left', secondary, () => resetFriendship(peerId)));
     } else {
-        actions.appendChild(friendButton('Adden', 'fa-user-plus', primary, () => addFriend(peerId)));
+        actions.appendChild(friendButton(t('Adden'), 'fa-user-plus', primary, () => addFriend(peerId)));
     }
     container.append(status, actions);
 }

@@ -71,7 +71,7 @@ async function renderEditGallery() {
         const remove = document.createElement('button');
         remove.type = 'button';
         remove.className = 'absolute top-1 right-1 w-6 h-6 bg-red-600 hover:bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition shadow-lg flex items-center justify-center text-xs';
-        remove.setAttribute('aria-label', 'Bild entfernen');
+        remove.setAttribute('aria-label', t('Bild entfernen'));
         remove.innerHTML = '<i class="fa-solid fa-xmark"></i>';
         remove.onclick = () => removeGalleryImage(meta.id);
         tile.append(image, remove);
@@ -113,7 +113,7 @@ function renderProfileForm(containerId = 'dynamic-profile-form') {
 
         const label = document.createElement('label');
         label.className = 'text-xs font-bold text-slate-400';
-        label.textContent = field.label + (field.required ? ' *' : '');
+        label.textContent = localizedText(field.label) + (field.required ? ' *' : '');
         wrapper.appendChild(label);
         // Sichtbarkeitsstufe 2: einzelne Felder nur fuer Matches.
         if (containerId === 'dynamic-profile-form' && getMyVisibility() === 2) {
@@ -124,11 +124,11 @@ function renderProfileForm(containerId = 'dynamic-profile-form') {
             checkbox.className = 'accent-brand-500';
             checkbox.checked = (state.myProfile.privateFields || []).includes(field.key);
             checkbox.onchange = () => togglePrivateField(field.key, checkbox.checked);
-            privacy.append(checkbox, document.createTextNode('nur fuer Matches'));
+            privacy.append(checkbox, document.createTextNode(t('nur fuer Matches')));
             wrapper.appendChild(privacy);
         }
 
-        const currentValue = state.myProfile.fields[field.key] ?? field.default ?? '';
+        const currentValue = state.myProfile.fields[field.key] ?? localizedText(field.default) ?? '';
         if (state.myProfile.fields[field.key] === undefined && field.default !== undefined) {
             state.myProfile.fields[field.key] = currentValue;
         }
@@ -208,7 +208,7 @@ async function completeProfileOnboarding() {
             || (Array.isArray(value) && value.length === 0);
     });
     if (missingField) {
-        errorOutput.textContent = `Bitte fuelle das Pflichtfeld "${missingField.label}" aus.`;
+        errorOutput.textContent = t('Bitte fuelle das Pflichtfeld "{label}" aus.', { label: localizedText(missingField.label) });
         errorOutput.classList.remove('hidden');
         return;
     }
@@ -219,7 +219,7 @@ async function completeProfileOnboarding() {
     state.myProfile.updatedAt = Date.now();
     const persisted = await cacheOwnProfile();
     if (!persisted) {
-        errorOutput.textContent = 'Das Profil konnte nicht verschluesselt gespeichert werden. Lokaler Speicher ist nicht verfuegbar.';
+        errorOutput.textContent = t('Das Profil konnte nicht verschluesselt gespeichert werden. Lokaler Speicher ist nicht verfuegbar.');
         errorOutput.classList.remove('hidden');
         button.disabled = false;
         return;
@@ -240,7 +240,7 @@ function updateProfileSchemaFromJSON() {
         showToast('Profile schema applied.', 'success');
         logDebug('Dynamic profile schema updated.');
     } catch (error) {
-        showToast(`Invalid profile schema: ${error.message}`, 'error');
+        showToast(t('Ungueltiges Profil-Schema: {message}', { message: error.message }), 'error');
     }
 }
 
@@ -251,8 +251,8 @@ async function saveUserProfile() {
     await registerWithWorkerGrid();
     showToast(
         persisted
-            ? 'Profile saved & broadcasted!'
-            : 'Profile broadcasted for this session; encrypted local storage is unavailable.',
+            ? t('Profil gespeichert und verteilt.')
+            : t('Profil fuer diese Sitzung verteilt; verschluesselter lokaler Speicher ist nicht verfuegbar.'),
         persisted ? 'success' : 'warning'
     );
 }

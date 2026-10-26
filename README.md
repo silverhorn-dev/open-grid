@@ -57,6 +57,28 @@ Umstieg vom frueheren separaten `turn/compose.yml`: alten coturn stoppen
 (`docker compose -f turn/compose.yml down`), Inhalt von `turn/.env` in die `.env`
 uebernehmen (`TURN_SERVER` ergaenzen), dann `docker compose up -d --build`.
 
+### Automatisches Deployment (Jenkins)
+
+Das `Jenkinsfile` baut bei jedem Push auf `main`: Syntax-Check und Unit-Tests
+(`Dockerfile.test`), E2E-Tests (`scripts/e2e.sh`), danach
+`docker compose up -d --build` und Warten auf den Healthcheck. Die angezeigte
+Version ist `Build <Commit-Anzahl> (<Hash>)`.
+
+- Jenkins laeuft als Container auf demselben Host und spricht den Docker-Daemon
+  per TCP an (`DOCKER_HOST=tcp://host.docker.internal:2375`). Deshalb gibt es
+  keine Bind-Mounts aus dem Workspace; Tests und E2E kopieren die Dateien in die
+  Container.
+- Im Jenkins-Container werden Docker-CLI und Compose-Plugin gebraucht.
+- Die Produktions-`.env` liegt als Credential `open-grid-env` (Secret file) in
+  Jenkins und wird per `--env-file` uebergeben.
+- `COMPOSE_PROJECT_NAME` ist `open-grid`, damit das bestehende Projekt samt
+  Volume weiterverwendet wird (pruefen mit `docker compose ls`).
+- Ausloeser: GitHub-Webhook (`/github-webhook/`), sonst Abfrage alle 5 Minuten.
+  Parameter `SKIP_E2E` nur fuer Notfaelle.
+- Sicherheit: Port 2375 ist unverschluesselt und gibt vollen Zugriff auf den
+  Host. Der Daemon darf nur auf der Docker-Bridge lauschen (nicht auf `0.0.0.0`
+  bzw. nicht von aussen erreichbar).
+
 ### Konfiguration
 
 | Variable | Standard | Beschreibung |

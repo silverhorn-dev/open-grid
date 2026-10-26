@@ -1,0 +1,8 @@
+# Nur fuer CI (Jenkinsfile): `docker build -f Dockerfile.test .` fuehrt Syntax-Check und Unit-Tests aus.
+# Ohne Bind-Mount, damit es auch gegen einen entfernten Docker-Daemon laeuft.
+FROM node:22-bookworm-slim
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY . .
+RUN npm run check && npm test

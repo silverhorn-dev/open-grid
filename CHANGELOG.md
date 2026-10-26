@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 106 · 2026-10-26
+## Build 107 · 2026-10-26
+- Betrieb: automatisches Deployment per Jenkins (`Jenkinsfile`): bei jedem Push auf `main` Unit- und E2E-Tests, danach `docker compose up`; die App zeigt Build-Nummer und Commit an
+
+## Build 106 · 2026-10-26 · `3be65f7`
 - Betrieb: der TURN-Server (coturn) steckt jetzt mit in der `compose.yaml` (Profil `turn`), eine gemeinsame `.env` fuer beide; das separate `turn/compose.yml` entfaellt
 
 ## Build 105 · 2026-10-26 · `53229ee`

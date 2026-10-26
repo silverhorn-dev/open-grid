@@ -70,14 +70,14 @@ function openChangelogFromMenu() {
 }
 
 async function showChangelog() {
-    const content = openMediaModal(t('Changelog'));
-    content.textContent = t('Wird geladen...');
+    const content = openMediaModal(t('common.changelog'));
+    content.textContent = t('app.loading');
     try {
         const response = await fetch('/changelog.md', { cache: 'no-store' });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         content.replaceChildren(renderChangelog(await response.text()));
     } catch (error) {
-        content.textContent = t('Changelog nicht verfuegbar ({message}).', { message: error.message });
+        content.textContent = t('app.changelogNotAvailable', { message: error.message });
     }
 }
 

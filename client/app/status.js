@@ -130,7 +130,7 @@ async function createOwnStatus(fields) {
     await persistStatus(status);
     renderStatusBar();
     await distributeStatus(status);
-    showToast(friendIds().length ? t('Status geteilt.') : t('Status gespeichert. Du hast noch keine Freunde, die ihn sehen.'), 'success');
+    showToast(friendIds().length ? t('status.shared') : t('status.savedYouDontHave'), 'success');
     return status;
 }
 
@@ -246,7 +246,7 @@ function renderStatusBar() {
     const items = [];
     const mine = statusAvatar(state.myProfile.id, {
         ring: own.length ? 'bg-gradient-to-tr from-brand-500 to-amber-400' : 'bg-slate-800',
-        label: t('Dein Status'),
+        label: t('status.yourStatus'),
         onClick: () => (own.length ? openStatusViewer(state.myProfile.id) : openStatusComposer())
     });
     const plus = document.createElement('span');
@@ -267,7 +267,7 @@ function renderStatusBar() {
             const unseen = statuses.some(status => !status.seen);
             items.push(statusAvatar(peerId, {
                 ring: unseen ? 'bg-gradient-to-tr from-brand-500 to-amber-400' : 'bg-slate-700',
-                label: getPeerPresentation(peerId).name || t('Freund'),
+                label: getPeerPresentation(peerId).name || t('status.friend'),
                 onClick: () => openStatusViewer(peerId)
             }).button);
         });
@@ -276,7 +276,7 @@ function renderStatusBar() {
 
 // ----- Verfassen -----
 function openStatusComposer() {
-    const content = openMediaModal(t('Status'));
+    const content = openMediaModal(t('common.status'));
     const wrapper = document.createElement('div');
     wrapper.className = 'space-y-4';
     wrapper.innerHTML = `
@@ -307,7 +307,7 @@ function openStatusComposer() {
         swatch.className = 'w-7 h-7 rounded-full border-2 border-transparent aria-checked:border-white';
         swatch.style.backgroundColor = color;
         swatch.setAttribute('role', 'radio');
-        swatch.setAttribute('aria-label', t('Farbe {value}', { value: index + 1 }));
+        swatch.setAttribute('aria-label', t('status.colour', { value: index + 1 }));
         swatch.setAttribute('aria-checked', String(index === 0));
         swatch.onclick = () => colors.querySelectorAll('button').forEach(button => button.setAttribute('aria-checked', String(button === swatch)));
         colors.appendChild(swatch);
@@ -315,7 +315,7 @@ function openStatusComposer() {
     document.getElementById('status-post-text-btn').onclick = () => postTextStatus().catch(logBackgroundError('postTextStatus'));
     document.getElementById('status-photo-btn').onclick = () => replaceModal(closeMediaModal, () => openSnapCamera('status'));
     document.getElementById('status-presence-btn').onclick = () => savePresenceText()
-        .then(() => showToast(t('Kurzstatus gespeichert.'), 'success'))
+        .then(() => showToast(t('status.shortStatusSaved'), 'success'))
         .catch(logBackgroundError('savePresenceText'));
 }
 
@@ -344,7 +344,7 @@ function showStatusAt(index) {
     clearTimeout(viewing.timer);
     const status = viewing.statuses[index];
     const isMine = viewing.peerId === state.myProfile.id;
-    document.getElementById('status-viewer-name').textContent = isMine ? t('Dein Status') : (getPeerPresentation(viewing.peerId).name || t('Freund'));
+    document.getElementById('status-viewer-name').textContent = isMine ? t('status.yourStatus') : (getPeerPresentation(viewing.peerId).name || t('status.friend'));
     document.getElementById('status-viewer-time').textContent = formatChatListTime(status.createdAt);
     document.getElementById('status-viewer-delete').classList.toggle('hidden', !isMine);
     const progress = document.getElementById('status-viewer-progress');
@@ -390,7 +390,7 @@ function stepStatus(direction) {
 function deleteViewedStatus() {
     const viewing = state.statusViewer;
     const status = viewing?.statuses[viewing.index];
-    if (status && window.confirm(t('Diesen Status loeschen?'))) deleteOwnStatus(status.id).catch(logBackgroundError('deleteViewedStatus'));
+    if (status && window.confirm(t('status.deleteThisStatus'))) deleteOwnStatus(status.id).catch(logBackgroundError('deleteViewedStatus'));
 }
 
 function closeStatusViewer() {

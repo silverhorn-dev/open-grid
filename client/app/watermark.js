@@ -26,9 +26,9 @@ async function updateTraceWatermark(enabled) {
         await putDatabaseRecord('keys', { id: PRIVACY_SETTINGS_RECORD_ID, traceWatermark: state.traceWatermark });
     } catch (error) {
         logDebug(`Could not store privacy settings: ${error.message}`);
-        showToast(t('Einstellung konnte nicht gespeichert werden.'), 'error');
+        showToast(t('common.settingCouldNotBeSaved'), 'error');
     }
-    if (!state.traceWatermark) showToast(t('Neue Snaps und Albumbilder tragen kein Wasserzeichen mehr.'), 'info');
+    if (!state.traceWatermark) showToast(t('watermark.newSnapsAndAlbumImages'), 'info');
 }
 
 async function watermarkTag(peerId) {
@@ -157,7 +157,7 @@ async function checkWatermarkFile(input) {
     input.value = '';
     const output = document.getElementById('watermark-check-result');
     if (!file || !output) return;
-    output.textContent = t('Pruefe...');
+    output.textContent = t('watermark.checking');
     try {
         const dataUrl = await new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -170,8 +170,8 @@ async function checkWatermarkFile(input) {
         const match = await identifyWatermark(dataUrl, [...candidates]);
         output.textContent = match
             ? `Treffer: ${getPeerPresentation(match.peerId).name || 'Peer'} (${match.peerId}), ${match.matches}/32 Bits`
-            : t('Kein Wasserzeichen eines bekannten Peers gefunden.');
+            : t('watermark.noWatermarkOfKnownPeer');
     } catch (error) {
-        output.textContent = t('Pruefung fehlgeschlagen: {message}', { message: error.message });
+        output.textContent = t('watermark.checkFailed', { message: error.message });
     }
 }

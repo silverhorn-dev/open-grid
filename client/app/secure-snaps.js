@@ -57,7 +57,7 @@ async function updateSnapSetting(key, value) {
         await putDatabaseRecord('keys', { id: SNAP_SETTINGS_RECORD_ID, ...state.snapSettings });
     } catch (error) {
         logDebug(`Could not store snap settings: ${error.message}`);
-        showToast(t('Einstellung konnte nicht gespeichert werden.'), 'error');
+        showToast(t('common.settingCouldNotBeSaved'), 'error');
     }
     renderSnapSettings();
 }
@@ -83,7 +83,7 @@ function renderSnapSettings() {
 }
 
 function secureSnapDurationLabel(seconds) {
-    return seconds ? `${seconds} s` : t('bis zum Schliessen');
+    return seconds ? `${seconds} s` : t('snaps.untilClosed');
 }
 
 // ----- Sender -----
@@ -281,16 +281,16 @@ async function requestSecureSnapView(messageId) {
     const message = state.chats[peerId]?.find(item => item.id === messageId);
     const snap = message?.secureSnap;
     if (!snap || snap.expired || !snap.encrypted || message.senderId === state.myProfile.id) return;
-    openSecureSnapViewer(t('Verbinde mit dem Absender...'));
+    openSecureSnapViewer(t('snaps.connectingToSender'));
     state.secureSnapViewing = { peerId, snapId: snap.snapId, messageId, phase: 'requesting' };
     if (!await waitForSecureChannel(peerId)) {
         if (state.secureSnapViewing?.snapId === snap.snapId) {
-            setSecureSnapStatus(t('Der Absender ist gerade offline. Secure Snaps lassen sich nur ansehen, wenn der Absender online ist.'));
+            setSecureSnapStatus(t('snaps.senderIsOfflineRightNow'));
             state.secureSnapViewing = null;
         }
         return;
     }
-    setSecureSnapStatus(t('Warte auf Freigabe...'));
+    setSecureSnapStatus(t('snaps.waitingForApproval'));
     await sendSecurePayload(peerId, { type: 'SNAP_VIEW_REQUEST', snapId: snap.snapId });
 }
 
@@ -311,7 +311,7 @@ async function handleSnapStreamStart(peerId, payload) {
         seconds: Number(payload.seconds) || 0,
         viewsLeft: Number(payload.viewsLeft) || 0
     });
-    setSecureSnapStatus(t('Live-Snap wird geladen...'));
+    setSecureSnapStatus(t('snaps.loadingLiveSnap'));
     const pendingTrack = state.pendingSnapTracks[payload.streamId];
     if (pendingTrack) attachSecureSnapStream(pendingTrack);
 }
@@ -370,7 +370,7 @@ async function handleSnapViewGrant(peerId, payload) {
         blob = new Blob([bytes], { type: 'image/jpeg' });
     } catch (error) {
         logDebug(`Secure snap decryption failed: ${error.message}`);
-        setSecureSnapStatus(t('Snap konnte nicht entschluesselt werden.'));
+        setSecureSnapStatus(t('snaps.couldNotBeDecrypted'));
         return;
     } finally {
         // Best effort: den entschluesselten Puffer sofort ueberschreiben.
@@ -392,7 +392,7 @@ async function handleSnapViewDenied(peerId, payload) {
         if (state.activeChatPeerId === peerId) renderChatHistory();
     }
     if (isAwaitingSnap(peerId, payload.snapId)) {
-        setSecureSnapStatus(t('Dieser Snap ist abgelaufen.'));
+        setSecureSnapStatus(t('snaps.thisSnapHasExpired'));
         state.secureSnapViewing = null;
     }
 }
@@ -556,20 +556,20 @@ function renderSecureSnapMessage(bubble, message, isMine) {
     details.className = 'min-w-0';
     const title = document.createElement('div');
     title.className = 'font-semibold';
-    title.textContent = t('Secure Snap');
+    title.textContent = t('common.secureSnap');
     const meta = document.createElement('div');
     meta.className = 'opacity-75 text-[11px]';
     const views = Number.isInteger(snap.views) ? snap.views : 1;
     if (isMine) {
         const used = snap.viewsUsed || 0;
-        meta.textContent = used >= views ? t('Gesehen ({used}/{views})', { used, views }) : t('{used}/{views} angesehen · {duration}', { used, views, duration: secureSnapDurationLabel(snap.seconds) });
+        meta.textContent = used >= views ? t('snaps.seen', { used, views }) : t('snaps.viewed2', { used, views, duration: secureSnapDurationLabel(snap.seconds) });
         card.disabled = true;
     } else if (snap.expired || !snap.encrypted) {
-        meta.textContent = t('Abgelaufen');
+        meta.textContent = t('snaps.expired');
         card.disabled = true;
     } else {
         const left = Number.isInteger(snap.viewsLeft) ? snap.viewsLeft : views;
-        meta.textContent = t('Tippen zum Ansehen · noch {left}x · {value}', { left, value: secureSnapDurationLabel(snap.seconds) });
+        meta.textContent = t('snaps.tapToViewXLeft', { left, value: secureSnapDurationLabel(snap.seconds) });
         card.onclick = event => {
             event.stopPropagation();
             requestSecureSnapView(message.id);

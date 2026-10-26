@@ -160,7 +160,8 @@ async function main() {
         assert.match(videoMessage.snapData, /^data:image\/jpeg/, 'poster image');
         assert.match(videoMessage.original.mime, /^video\/webm/);
         await waitFor(bob, () => Object.values(state.chats).flat().some(message => message.video && message.originalReady), null, 40000);
-        await bob.click(`[data-video="${videoMessage.id}"]`);
+        // Per Ereignis: unter Last zeichnet der Chat laufend neu, das Element steht nie ganz still.
+        await bob.dispatchEvent(`[data-video="${videoMessage.id}"]`, 'click');
         await waitFor(bob, () => !document.getElementById('video-viewer').classList.contains('hidden')
             && document.getElementById('video-viewer-video').src.startsWith('blob:'));
         assert.match(await bob.textContent('#video-viewer-title'), /Alice/);

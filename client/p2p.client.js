@@ -60,7 +60,7 @@ async function detectPeerTransport(peerId, connection) {
         logDebug(`Verbindung zu ${peerId}: ${state.peerTransport[peerId]} (${local?.candidateType}/${remote?.candidateType})`);
         if (state.activeChatPeerId === peerId) {
             renderChatPeerIndicator();
-            document.getElementById('chat-connection-type').textContent = t('Verschluesselter WebRTC-Kanal ({value})', { value: state.peerTransport[peerId] });
+            document.getElementById('chat-connection-type').textContent = t('connection.encryptedWebrtcChannel', { value: state.peerTransport[peerId] });
         }
     } catch (error) {
         logDebug(`Could not read connection stats: ${error.message}`);
@@ -130,11 +130,11 @@ function getOrCreatePeerConnection(peerId) {
             const secured = Boolean(state.sessionKeys[peerId]);
             updateChatConnectionStatus(
                 peerId,
-                secured ? t('E2EE verbunden') : t('Kanal wird gesichert...'),
+                secured ? t('connection.e2eeConnected') : t('connection.securingChannel'),
                 secured ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-sky-500/10 text-sky-400 border-sky-500/30'
             );
         } else if (status === 'failed') {
-            updateChatConnectionStatus(peerId, t('Getrennt'), 'bg-red-500/10 text-red-400 border-red-500/30');
+            updateChatConnectionStatus(peerId, t('common.disconnected'), 'bg-red-500/10 text-red-400 border-red-500/30');
             reportConnectionFailure(peerId, connection, seenCandidateTypes);
             recoverPeerConnection(peerId, connection);
         } else if (status === 'disconnected') {
@@ -198,11 +198,11 @@ function recoverPeerConnection(peerId, connection) {
     } else if (state.secureMessageQueues[peerId]?.length) {
         flushPeerQueueToCache(peerId).then(() => {
             if (state.secureMessageQueues[peerId]?.length) {
-                showToast(t('Nachricht konnte noch nicht zugestellt werden. Sie wird spaeter erneut gesendet.'), 'warning');
+                showToast(t('connection.messageCouldNotBeDelivered'), 'warning');
             }
         }).catch(error => {
             logDebug(`Path C recovery failed: ${error.message}`);
-            showToast(t('Nachricht konnte noch nicht zugestellt werden. Sie wird spaeter erneut gesendet.'), 'warning');
+            showToast(t('connection.messageCouldNotBeDelivered'), 'warning');
         });
     }
 }
@@ -231,7 +231,7 @@ async function handleSignalingMessage(message) {
 
     if (message.type === 'SOCKET_REGISTERED') {
         document.getElementById('network-indicator').className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse';
-        document.getElementById('network-status-text').textContent = t('Mit dem Router verbunden');
+        document.getElementById('network-status-text').textContent = t('connection.connectedToRouter');
         refreshChatControls()
             .then(() => {
                 subscribePresence();
@@ -285,7 +285,7 @@ async function handleSignalingMessage(message) {
         flushPeerQueueToCache(message.targetPeerId).catch(error => {
             logDebug(`Path C fallback failed: ${error.message}`);
         });
-        updateChatConnectionStatus(message.targetPeerId, t('Nicht erreichbar'), 'bg-amber-500/10 text-amber-400 border-amber-500/30');
+        updateChatConnectionStatus(message.targetPeerId, t('connection.unavailable'), 'bg-amber-500/10 text-amber-400 border-amber-500/30');
         showDebugToast('Peer is currently unavailable for a direct P2P connection.', 'warning');
         return;
     }
@@ -437,7 +437,7 @@ function setupDataChannel(peerId, channel) {
         clearTimeout(state.connectionWatchdogs[peerId]);
         delete state.stalledOffers[peerId];
         logDebug(`DataChannel opened with ${peerId}. Starting key handshake.`);
-        updateChatConnectionStatus(peerId, t('Kanal wird gesichert...'), 'bg-sky-500/10 text-sky-400 border-sky-500/30');
+        updateChatConnectionStatus(peerId, t('connection.securingChannel'), 'bg-sky-500/10 text-sky-400 border-sky-500/30');
         renderActivePeerList();
         sendKeyHello(peerId, channel, 0);
     };
@@ -446,12 +446,12 @@ function setupDataChannel(peerId, channel) {
         if (state.dataChannels[peerId] === channel) {
             delete state.dataChannels[peerId];
             delete state.sessionKeys[peerId];
-            updateChatConnectionStatus(peerId, t('Getrennt'), 'bg-red-500/10 text-red-400 border-red-500/30');
+            updateChatConnectionStatus(peerId, t('common.disconnected'), 'bg-red-500/10 text-red-400 border-red-500/30');
             renderActivePeerList();
         }
     };
     channel.onerror = () => {
-        updateChatConnectionStatus(peerId, t('Kanalfehler'), 'bg-red-500/10 text-red-400 border-red-500/30');
+        updateChatConnectionStatus(peerId, t('connection.channelError'), 'bg-red-500/10 text-red-400 border-red-500/30');
     };
 }
 
@@ -559,7 +559,7 @@ async function initiateP2PConnection(peerId) {
     try {
         await state.connectionAttempts[peerId];
     } catch (error) {
-        updateChatConnectionStatus(peerId, t('Verbindung fehlgeschlagen'), 'bg-red-500/10 text-red-400 border-red-500/30');
+        updateChatConnectionStatus(peerId, t('connection.failed'), 'bg-red-500/10 text-red-400 border-red-500/30');
         showDebugToast(`Could not start P2P connection: ${error.message}`, 'error');
         throw error;
     } finally {
@@ -578,7 +578,7 @@ async function deriveSessionKey(peerId, publicJwk, profileSigningKey) {
     }
     // Per Einladungslink angelegter Kontakt: der Schluessel muss zum Fingerprint im Link passen.
     if (!await verifyInvitedPeerKey(peerId, profileSigningKey)) {
-        showToast(t('Achtung: Dieser Kontakt hat nicht den Schluessel aus der Einladung. Verbindung abgebrochen.'), 'error');
+        showToast(t('connection.warningThisContactDoesNot'), 'error');
         const connection = state.webrtcConnections[peerId];
         if (connection) cleanupPeerConnection(peerId, connection);
         throw new Error('Peer key does not match the invite fingerprint.');

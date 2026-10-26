@@ -61,11 +61,16 @@ uebernehmen (`TURN_SERVER` ergaenzen), dann `docker compose up -d --build`.
 
 Die Oberflaeche gibt es auf Deutsch und Englisch (Einstellungen > Allgemein >
 Sprache, Standard: Sprache des Geraets, per `CLIENT_DEFAULTS.language`
-vorgebbar). Deutsche Texte sind zugleich die Schluessel; die Uebersetzungen
-liegen in `client/i18n/<sprache>.js`. `node scripts/i18n-keys.mjs --missing en`
-listet fehlende Eintraege, `test/i18n.test.js` prueft die Vollstaendigkeit.
-Profilfelder im eigenen `PROFILE_SCHEMA` koennen `label` und `default` als Text
-oder als Objekt pro Sprache angeben, z. B. `{"de": "Alter", "en": "Age"}`.
+vorgebbar). Alle Texte stehen unter Schluesseln (`bereich.name`, z. B.
+`settings.tab.privacy`) in `i18n/de.properties` und `i18n/en.properties`
+(UTF-8, Platzhalter `{name}`). Der Server liest die Dateien beim Start und
+liefert pro Sprache `/client/i18n/<sprache>.js`; der Browser laedt nur die
+aktive Sprache. Im Code `t('chat.send')`, im Markup `data-i18n="..."` bzw.
+`data-i18n-attr="placeholder:..."`. `node scripts/i18n-keys.mjs` meldet
+fehlende, ungenutzte Schluessel und abweichende Platzhalter; `test/i18n.test.js`
+prueft das bei jedem Testlauf. Profilfelder im eigenen `PROFILE_SCHEMA` koennen
+`label` und `default` als Text oder als Objekt pro Sprache angeben, z. B.
+`{"de": "Alter", "en": "Age"}`.
 
 ### Automatisches Deployment (Jenkins)
 

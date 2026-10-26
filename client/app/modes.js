@@ -5,10 +5,10 @@
 //   friends:   Grid nur mit gegenseitigen Kontakten, fuer Fremde unsichtbar
 //   event:     Grid nur mit Teilnehmern desselben Event-Codes (Server sieht nur den Hash)
 const APP_MODE_INFO = {
-    discovery: { label: t('Entdecken'), icon: 'fa-location-crosshairs', description: t('Leute in der Naehe sehen, Flammen und Matches.') },
-    chat: { label: t('Nur Chat'), icon: 'fa-comments', description: t('Kein Grid, fuer niemanden sichtbar. Kontakte per Einladungslink.') },
-    friends: { label: t('Freunde in der Naehe'), icon: 'fa-user-group', description: t('Nur deine Kontakte sehen dich und du sie.') },
-    event: { label: t('Event'), icon: 'fa-champagne-glasses', description: t('Nur Leute mit demselben Event-Code, endet nach 12 Stunden.') }
+    discovery: { label: t('modes.discover'), icon: 'fa-location-crosshairs', description: t('modes.seePeopleNearbyFlamesAnd') },
+    chat: { label: t('modes.chatOnly'), icon: 'fa-comments', description: t('modes.noGridInvisibleToEveryone') },
+    friends: { label: t('modes.friendsNearby'), icon: 'fa-user-group', description: t('modes.onlyYourContactsSeeYou') },
+    event: { label: t('modes.event'), icon: 'fa-champagne-glasses', description: t('modes.onlyPeopleWithSameEvent') }
 };
 const APP_MODE_RECORD_ID = 'app-mode';
 const APP_CONFIG_RECORD_ID = 'app-config';
@@ -79,7 +79,7 @@ async function setAppMode(mode) {
     if (!state.appConfig.modes.includes(mode)) return;
     if (mode === 'event' && !hasActiveEvent()) {
         document.getElementById('event-code-input')?.focus();
-        showToast(t('Gib zuerst einen Event-Code ein.'), 'info');
+        showToast(t('modes.enterEventCodeFirst'), 'info');
         renderAppModeSettings();
         return;
     }
@@ -146,10 +146,10 @@ function applyAppModeUi() {
     const title = document.getElementById('grid-title');
     if (title) {
         title.textContent = state.appMode === 'friends'
-            ? t('Freunde in der Naehe')
+            ? t('modes.friendsNearby')
             : state.appMode === 'event'
                 ? `Event: ${state.appModeSettings.eventCode || ''}`
-                : t('In deiner Naehe');
+                : t('common.nearYou');
     }
     document.getElementById('grid-load-more-btn')?.classList.toggle('hidden', state.appMode !== 'discovery' || !state.gridHasMore);
     document.getElementById('leave-event-btn')?.classList.toggle('hidden', state.appMode !== 'event');
@@ -190,8 +190,8 @@ function renderAppModeSettings() {
     const status = document.getElementById('event-status');
     if (status) {
         status.textContent = hasActiveEvent()
-            ? t('Aktiv: {code} (endet {time})', { code: state.appModeSettings.eventCode, time: formatClockTime(state.appModeSettings.eventJoinedAt + EVENT_DURATION_MS) })
-            : t('Kein Event aktiv.');
+            ? t('modes.activeEnds', { code: state.appModeSettings.eventCode, time: formatClockTime(state.appModeSettings.eventJoinedAt + EVENT_DURATION_MS) })
+            : t('common.noEventActive');
     }
     document.getElementById('invite-card')?.classList.toggle('hidden', !['chat', 'friends'].some(mode => state.appConfig.modes.includes(mode)));
 }
@@ -236,7 +236,7 @@ async function joinEvent() {
     const input = document.getElementById('event-code-input');
     const code = normalizeEventCode(input?.value);
     if (code.length < 3) {
-        showToast(t('Der Event-Code braucht mindestens 3 Zeichen.'), 'warning');
+        showToast(t('modes.eventCodeNeedsAtLeast'), 'warning');
         return;
     }
     await saveAppModeSettings({
@@ -248,7 +248,7 @@ async function joinEvent() {
     if (input) input.value = '';
     scheduleEventExpiry();
     await setAppMode('event');
-    showToast(t('Du bist im Event {code}.', { code }), 'success');
+    showToast(t('modes.youAreInEvent', { code }), 'success');
 }
 
 async function leaveEvent() {
@@ -264,7 +264,7 @@ function scheduleEventExpiry() {
     if (!hasActiveEvent()) return;
     const remaining = state.appModeSettings.eventJoinedAt + EVENT_DURATION_MS - Date.now();
     state.eventExpiryTimer = setTimeout(() => {
-        showToast(t('Das Event ist vorbei.'), 'info');
+        showToast(t('modes.eventIsOver'), 'info');
         leaveEvent().catch(logBackgroundError('scheduleEventExpiry'));
     }, Math.min(remaining, 2147483647));
 }
@@ -299,9 +299,9 @@ async function renderInviteCard() {
 async function copyInviteLink() {
     try {
         await navigator.clipboard.writeText(await getMyInviteLink());
-        showToast(t('Einladungslink kopiert.'), 'success');
+        showToast(t('modes.inviteLinkCopied'), 'success');
     } catch {
-        showToast(t('Kopieren nicht moeglich.'), 'error');
+        showToast(t('common.copyingIsNotPossible'), 'error');
     }
 }
 
@@ -328,22 +328,22 @@ function parseInvite(fragment) {
 async function acceptInvite(fragment) {
     const invite = parseInvite(fragment);
     if (!invite) {
-        showToast(t('Der Einladungslink ist ungueltig.'), 'error');
+        showToast(t('modes.inviteLinkIsInvalid'), 'error');
         return;
     }
     if (invite.peerId === state.myProfile.id) {
-        showToast(t('Das ist dein eigener Einladungslink.'), 'info');
+        showToast(t('modes.thisIsYourOwnInvite'), 'info');
         return;
     }
     const known = await getPeerIdentity(invite.peerId).catch(() => null);
     if (known?.profileSigningKey && await keyFingerprint(known.profileSigningKey) !== invite.fingerprint) {
-        showToast(t('Achtung: Der Schluessel dieses Kontakts passt nicht zur Einladung.'), 'error');
+        showToast(t('modes.warningThisContactsKeyDoes'), 'error');
         return;
     }
     await putDatabaseRecord('keys', { id: `invite-expect:${invite.peerId}`, fingerprint: invite.fingerprint });
     rememberChatPeer(invite.peerId);
     await openChatWithPeer(invite.peerId);
-    showToast(t('Kontakt hinzugefuegt. Die Verbindung wird beim ersten Kontakt geprueft.'), 'success');
+    showToast(t('modes.contactAddedConnectionIsVerified'), 'success');
 }
 
 // Wird beim ersten KEY_HELLO aufgerufen: false = Schluessel passt nicht zur Einladung.
@@ -353,7 +353,7 @@ async function verifyInvitedPeerKey(peerId, profileSigningKey) {
     const matches = await keyFingerprint(profileSigningKey) === expected.fingerprint;
     if (matches) {
         await deleteDatabaseRecord('keys', `invite-expect:${peerId}`);
-        showToast(t('Kontakt verifiziert.'), 'success');
+        showToast(t('modes.contactVerified'), 'success');
     }
     return matches;
 }

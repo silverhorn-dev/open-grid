@@ -60,7 +60,7 @@ async function createAlbum() {
     const input = document.getElementById('new-album-name');
     const name = input?.value.trim();
     if (!name) {
-        showToast(t('Bitte einen Albumnamen eingeben.'), 'warning');
+        showToast(t('albums.pleaseEnterAlbumName'), 'warning');
         return;
     }
     await saveAlbum({
@@ -90,7 +90,7 @@ async function addAlbumImages(albumId, input) {
             album.items.push({ id: imageId, version: 1 });
         } catch (error) {
             logDebug(`Album image failed: ${error.message}`);
-            showToast(t('Ein Bild konnte nicht hinzugefuegt werden.'), 'error');
+            showToast(t('albums.imageCouldNotBeAdded'), 'error');
         }
     }
     await saveAlbum(album);
@@ -107,7 +107,7 @@ async function removeAlbumImage(albumId, imageId) {
 
 async function deleteAlbum(albumId) {
     const album = state.albums[albumId];
-    if (!album || !window.confirm(t('Album "{name}" wirklich loeschen?', { name: album.name }))) return;
+    if (!album || !window.confirm(t('albums.reallyDeleteAlbum', { name: album.name }))) return;
     album.acl.forEach(peerId => notifyAlbumRevoked(peerId, albumId));
     await Promise.all(album.items.map(item => deleteDatabaseRecord('media', item.id)));
     await deleteDatabaseRecord('albums', albumId);
@@ -152,7 +152,7 @@ async function shareAlbumInChat(albumId) {
     const album = state.albums[albumId];
     if (!peerId || !album || isPeerBlocked(peerId)) return;
     if (!album.items.length) {
-        showToast(t('Das Album ist leer.'), 'warning');
+        showToast(t('albums.isEmpty'), 'warning');
         return;
     }
     if (!album.acl.includes(peerId)) {
@@ -255,14 +255,14 @@ async function forgetReceivedAlbum(peerId, albumId) {
     delete state.albums[albumId];
     expireAlbumKeys(albumId, false);
     if (state.albumViewer?.albumId === albumId) {
-        renderMediaModalMessage(t('Du hast keinen Zugriff mehr auf dieses Album.'), 'fa-lock');
+        renderMediaModalMessage(t('albums.youNoLongerHaveAccess'), 'fa-lock');
     }
 }
 
 async function handleAlbumDenied(peerId, albumId) {
     delete state.pendingAlbumRequests[`${peerId}:${albumId}`];
     await forgetReceivedAlbum(peerId, albumId);
-    if (state.albumViewer?.albumId === albumId) renderMediaModalMessage(t('Du hast keinen Zugriff (mehr) auf dieses Album.'), 'fa-lock');
+    if (state.albumViewer?.albumId === albumId) renderMediaModalMessage(t('albums.youDontHaveAccessTo'), 'fa-lock');
 }
 
 // ----- Medien-Modal (Album, Medienuebersicht, Albumauswahl) -----
@@ -325,11 +325,11 @@ function createThumbnail(dataUrl, onClick) {
 async function openAlbumViewer(albumId, reference = null) {
     const album = state.albums[albumId];
     const ownerId = album?.ownerId || reference?.ownerId;
-    openMediaModal(album?.name || reference?.name || t('Album'));
+    openMediaModal(album?.name || reference?.name || t('albums.album'));
     state.albumViewer = { albumId, ownerId };
     if (album) await renderAlbumViewer(album);
     if (ownerId && ownerId !== state.myProfile.id) {
-        if (!album) renderMediaModalMessage(t('Album wird geladen... vom Besitzer oder von anderen Betrachtern.'), 'fa-spinner');
+        if (!album) renderMediaModalMessage(t('albums.loadingAlbumFromOwnerOr'), 'fa-spinner');
         state.pendingAlbumRequests[`${ownerId}:${albumId}`] = true;
         await sendSecurePayload(ownerId, { type: 'ALBUM_REQUEST', albumId });
         await requestAlbumKeys(ownerId, albumId);
@@ -343,7 +343,7 @@ async function renderAlbumViewer(album) {
     const content = document.getElementById('media-modal-content');
     content.innerHTML = '';
     if (!album.items.length) {
-        renderMediaModalMessage(t('Dieses Album ist leer.'));
+        renderMediaModalMessage(t('albums.thisAlbumIsEmpty'));
         return;
     }
     const isOwn = album.ownerId === state.myProfile.id;
@@ -365,7 +365,7 @@ async function renderAlbumViewer(album) {
         remove.type = 'button';
         remove.className = 'absolute top-1 right-1 w-6 h-6 bg-red-600 hover:bg-red-500 text-white rounded-full text-xs';
         remove.innerHTML = '<i class="fa-solid fa-xmark"></i>';
-        remove.setAttribute('aria-label', t('Bild entfernen'));
+        remove.setAttribute('aria-label', t('common.removeImage'));
         remove.onclick = () => removeAlbumImage(album.id, item.id);
         wrapper.append(tile, remove);
         grid.appendChild(wrapper);
@@ -395,22 +395,22 @@ async function renderReceivedAlbumTile(album, item) {
 function createLockedTile() {
     const tile = document.createElement('div');
     tile.className = 'aspect-square rounded-xl border border-slate-800 bg-slate-900 flex flex-col items-center justify-center gap-1 text-slate-500 text-[10px] text-center p-1';
-    tile.innerHTML = `<i class="fa-solid fa-lock text-lg"></i><span>${t('Schluessel abgelaufen')}</span>`;
+    tile.innerHTML = `<i class="fa-solid fa-lock text-lg"></i><span>${t('albums.keyExpired')}</span>`;
     return tile;
 }
 
 // Medienuebersicht des aktiven Chats: alle Snaps und geteilten Alben.
 const MEDIA_FILTERS = [
-    { id: 'all', label: t('Beide') },
-    { id: 'mine', label: t('Eigene') },
-    { id: 'theirs', label: t('Andere') }
+    { id: 'all', label: t('albums.both') },
+    { id: 'mine', label: t('albums.mine') },
+    { id: 'theirs', label: t('albums.others') }
 ];
 
 function openChatMediaOverview(filter = state.mediaOverviewFilter || 'all') {
     const peerId = state.activeChatPeerId;
     if (!peerId) return;
     state.mediaOverviewFilter = filter;
-    const content = openMediaModal(t('Medien im Chat'));
+    const content = openMediaModal(t('albums.mediaInChat'));
     // Filter: alle, nur eigene oder nur die des Chat-Partners.
     const switcher = document.createElement('div');
     switcher.className = 'flex gap-1 p-1 mb-3 rounded-xl bg-slate-950 border border-slate-800 text-xs w-fit';
@@ -428,7 +428,7 @@ function openChatMediaOverview(filter = state.mediaOverviewFilter || 'all') {
     const snaps = messages.filter(isInlineSnap);
     const albums = messages.filter(message => message.album);
     if (!snaps.length && !albums.length) {
-        const note = createEmptyState({ icon: 'fa-images', text: filter === 'all' ? t('In diesem Chat wurden noch keine Bilder geteilt.') : t('Keine Bilder in dieser Auswahl.') });
+        const note = createEmptyState({ icon: 'fa-images', text: filter === 'all' ? t('albums.noImagesHaveBeenShared') : t('albums.noImagesInThisSelection') });
         content.appendChild(note);
         return;
     }
@@ -461,10 +461,10 @@ function openChatMediaOverview(filter = state.mediaOverviewFilter || 'all') {
 
 function openAlbumPicker() {
     if (!state.activeChatPeerId) return;
-    const content = openMediaModal(t('Album teilen'));
+    const content = openMediaModal(t('common.shareAlbum'));
     const albums = getOwnAlbums().filter(album => album.items.length);
     if (!albums.length) {
-        renderMediaModalMessage(t('Du hast noch kein Album mit Bildern. Lege eins im Profil an.'));
+        renderMediaModalMessage(t('albums.youDontHaveAlbumWith'));
         return;
     }
     albums.forEach(album => {
@@ -476,7 +476,7 @@ function openAlbumPicker() {
         name.textContent = album.name;
         const meta = document.createElement('span');
         meta.className = 'text-xs text-slate-500 shrink-0';
-        meta.textContent = `${t('{count} Bilder', { count: album.items.length })}${album.acl.includes(state.activeChatPeerId) ? t(' · bereits geteilt') : ''}`;
+        meta.textContent = `${t('albums.images2', { count: album.items.length })}${album.acl.includes(state.activeChatPeerId) ? t('albums.alreadyShared') : ''}`;
         button.append(name, meta);
         button.onclick = () => shareAlbumInChat(album.id);
         content.appendChild(button);
@@ -497,7 +497,7 @@ function renderAlbumMessage(bubble, album) {
     title.appendChild(document.createTextNode(album.name));
     const meta = document.createElement('div');
     meta.className = 'opacity-75 text-[11px]';
-    meta.textContent = Number.isInteger(album.count) ? t('{count} Bilder · Antippen zum Oeffnen', { count: album.count }) : t('Antippen zum Oeffnen');
+    meta.textContent = Number.isInteger(album.count) ? t('albums.imagesTapToOpen', { count: album.count }) : t('albums.tapToOpen');
     card.append(title, meta);
     card.onclick = event => {
         event.stopPropagation();
@@ -538,7 +538,7 @@ function renderAlbumManager() {
         actions.className = 'flex items-center gap-2 shrink-0';
         const add = document.createElement('label');
         add.className = 'text-xs px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-800 text-slate-200 cursor-pointer hover:bg-slate-700';
-        add.innerHTML = `<i class="fa-solid fa-plus"></i> ${t('Bilder')}`;
+        add.innerHTML = `<i class="fa-solid fa-plus"></i> ${t('albums.images')}`;
         const fileInput = document.createElement('input');
         fileInput.type = 'file';
         fileInput.accept = 'image/*';
@@ -549,7 +549,7 @@ function renderAlbumManager() {
         const remove = document.createElement('button');
         remove.type = 'button';
         remove.className = 'text-xs px-2.5 py-1.5 rounded-lg border border-red-900 text-red-300 hover:bg-red-950';
-        remove.textContent = t('Loeschen');
+        remove.textContent = t('common.delete');
         remove.onclick = () => deleteAlbum(album.id);
         actions.append(add, remove);
         header.append(title, actions);
@@ -559,7 +559,7 @@ function renderAlbumManager() {
         const access = document.createElement('div');
         access.className = 'flex flex-wrap gap-1.5 text-xs';
         if (!album.acl.length) {
-            access.innerHTML = `<span class="text-slate-500">${t('Mit niemandem geteilt')}</span>`;
+            access.innerHTML = `<span class="text-slate-500">${t('albums.notSharedWithAnyone')}</span>`;
         } else {
             album.acl.forEach(peerId => {
                 const chip = document.createElement('span');
@@ -568,8 +568,8 @@ function renderAlbumManager() {
                 const revoke = document.createElement('button');
                 revoke.type = 'button';
                 revoke.className = 'w-5 h-5 rounded-full hover:bg-red-900 text-red-300';
-                revoke.title = t('Zugriff entziehen');
-                revoke.setAttribute('aria-label', t('Zugriff entziehen'));
+                revoke.title = t('albums.revokeAccess');
+                revoke.setAttribute('aria-label', t('albums.revokeAccess'));
                 revoke.innerHTML = '<i class="fa-solid fa-xmark"></i>';
                 revoke.onclick = () => revokeAlbumAccess(album.id, peerId);
                 chip.appendChild(revoke);
@@ -825,7 +825,7 @@ async function updateAlbumDefault(key, value) {
         await putDatabaseRecord('keys', { id: ALBUM_DEFAULTS_RECORD_ID, ...state.albumDefaults });
     } catch (error) {
         logDebug(`Could not store album defaults: ${error.message}`);
-        showToast(t('Einstellung konnte nicht gespeichert werden.'), 'error');
+        showToast(t('common.settingCouldNotBeSaved'), 'error');
     }
     renderAlbumDefaults();
 }
@@ -875,13 +875,13 @@ function createAlbumKeyTimingControls(album) {
         return element;
     };
     row.append(
-        document.createTextNode(t('Schluessel gilt')),
+        document.createTextNode(t('albums.keyValidFor')),
         select(ALBUM_KEY_EPOCH_OPTIONS.map(minutes => ({ value: minutes, text: albumEpochLabel(minutes) })),
-            ALBUM_KEY_EPOCH_OPTIONS.includes(album.keyEpochMinutes) ? album.keyEpochMinutes : 0, t('Gueltigkeit der Albumschluessel'),
+            ALBUM_KEY_EPOCH_OPTIONS.includes(album.keyEpochMinutes) ? album.keyEpochMinutes : 0, t('albums.keyValidity'),
             value => updateAlbumKeyTiming(album.id, 'keyEpochMinutes', value)),
         document.createTextNode('vorab'),
         select(ALBUM_KEY_AHEAD_OPTIONS.map(count => ({ value: count, text: `${count} Epoche${count > 1 ? 'n' : ''}` })),
-            albumEpochsAhead(album), t('Vorab gelieferte Epochen'),
+            albumEpochsAhead(album), t('albums.epochsDeliveredInAdvance'),
             value => updateAlbumKeyTiming(album.id, 'keyEpochsAhead', value))
     );
     return row;

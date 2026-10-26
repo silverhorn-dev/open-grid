@@ -4,7 +4,7 @@
 // wenn beide Seiten nach der letzten Aufloesung eine Flamme gesendet haben. Der Server weiss nichts.
 const FLAME_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const CHAT_LIMIT_OPTIONS = [1, 3, 5, 10];
-const HIDDEN_PEER_NAME = t('Jemand in der Naehe');
+const HIDDEN_PEER_NAME = t('matching.someoneNearby');
 
 const DEFAULT_CHAT_POLICY = { mode: 'A', limit: 5, allowImages: true };
 
@@ -85,11 +85,11 @@ async function applyMatchOperation(peerId, operation) {
     if (wasMatched !== nowMatched) syncChatGate();
     if (!wasMatched && nowMatched) {
         await releaseHeldMessages(peerId);
-        if (operation.actorId === peerId) showToast(t('Match mit {name}!', { name: getPeerPresentation(peerId).name || HIDDEN_PEER_NAME }), 'success');
+        if (operation.actorId === peerId) showToast(t('matching.matchWith', { name: getPeerPresentation(peerId).name || HIDDEN_PEER_NAME }), 'success');
         // Das Profil ist jetzt fuer diesen Peer vollstaendig: neu anfragen.
         sendSecurePayload(peerId, { type: 'PROFILE_REQUEST' }).catch(logBackgroundError('applyMatchOperation'));
     } else if (operation.type === 'MATCH_PING' && operation.actorId === peerId && !nowMatched) {
-        showToast(t('{value} hat dir eine Flamme geschickt.', { value: getPeerPresentation(peerId).name || HIDDEN_PEER_NAME }), 'info');
+        showToast(t('matching.sentYouFlame', { value: getPeerPresentation(peerId).name || HIDDEN_PEER_NAME }), 'info');
     }
     if (wasMatched && !nowMatched) sendSecurePayload(peerId, { type: 'PROFILE_REQUEST' }).catch(logBackgroundError('applyMatchOperation'));
     renderMatchUi(peerId);
@@ -119,15 +119,15 @@ async function sendFlame(peerId) {
     if (!peerId || isPeerBlocked(peerId)) return;
     if (isMatched(peerId)) return;
     if (flameCooldownLeft(peerId) > 0) {
-        showToast(t('Du hast schon eine Flamme geschickt. Die naechste geht in 24 Stunden.'), 'info');
+        showToast(t('matching.youAlreadySentFlameNext'), 'info');
         return;
     }
     await sendMatchOperation(peerId, 'MATCH_PING');
-    showToast(isMatched(peerId) ? t('Match!') : t('Flamme gesendet.'), 'success');
+    showToast(isMatched(peerId) ? t('matching.match') : t('matching.flameSent2'), 'success');
 }
 
 async function dissolveMatch(peerId) {
-    if (!isMatched(peerId) || !window.confirm(t('Match wirklich loesen? Danach gelten wieder die Einschraenkungen.'))) return;
+    if (!isMatched(peerId) || !window.confirm(t('matching.reallyUndoMatchRestrictionsWill'))) return;
     await sendMatchOperation(peerId, 'MATCH_RESET');
 }
 
@@ -168,8 +168,8 @@ async function releaseHeldMessages(peerId) {
 // Texte je Bereich: Grid/Event sprechen von Match und Flamme, Chat/Freunde von Freundschaft und Adden.
 function connectionWording() {
     return isSocialMode()
-        ? { single: t('Adden'), plural: t('Freunde'), action: t('Adde die Person'), social: true }
-        : { single: t('Match'), plural: t('Matches'), action: t('Sende eine Flamme'), social: false };
+        ? { single: t('common.add'), plural: t('matching.friends'), action: t('matching.addPerson'), social: true }
+        : { single: t('common.match'), plural: t('matching.matches'), action: t('matching.sendFlame2'), social: false };
 }
 
 // Absender-Sicht: was erlaubt die Einstellung des anderen? (nur Anzeige, durchgesetzt wird beim Empfaenger)
@@ -182,7 +182,7 @@ function getPeerChatAllowance(peerId) {
     if (policy.mode === 'A') return { allowed: true, remaining: Infinity, images: true };
     const wording = connectionWording();
     if (policy.mode === 'C') {
-        const reason = wording.social ? t('Nur Freunde koennen schreiben. Adde die Person.') : t('Nur Matches koennen schreiben. Sende eine Flamme.');
+        const reason = wording.social ? t('matching.onlyFriendsCanWriteAdd') : t('matching.onlyMatchesCanWriteSend');
         return { allowed: false, remaining: 0, images: false, reason };
     }
     const sent = (state.chats[peerId] || []).filter(message => message.senderId === state.myProfile.id && !message.deleted).length;
@@ -192,8 +192,8 @@ function getPeerChatAllowance(peerId) {
         remaining,
         images: policy.allowImages,
         reason: remaining > 0 ? null : wording.social
-            ? t('Nachrichtenlimit bis zum Adden erreicht. Adde die Person.')
-            : t('Nachrichtenlimit bis zum Match erreicht. Sende eine Flamme.')
+            ? t('matching.messageLimitUntilAddingReached')
+            : t('matching.messageLimitUntilMatchReached')
     };
 }
 
@@ -356,9 +356,9 @@ function renderProfileMatchActions(peerId) {
     button.type = 'button';
     if (isMatched(peerId)) {
         status.innerHTML = '<i class="fa-solid fa-fire text-orange-400"></i>';
-        status.appendChild(document.createTextNode(` ${t('Ihr habt ein Match')}`));
+        status.appendChild(document.createTextNode(` ${t('matching.itsMatch')}`));
         button.className = 'text-xs px-3 py-1.5 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800';
-        button.textContent = t('Match loesen');
+        button.textContent = t('matching.undoMatch');
         button.onclick = () => dissolveMatch(peerId);
         // Nach einem Match auch adden, wenn beide es erlauben.
         if (canAddMatch(peerId)) {
@@ -370,11 +370,11 @@ function renderProfileMatchActions(peerId) {
             return;
         }
     } else {
-        if (hasReceivedFlame(peerId)) status.textContent = t('Hat dir eine Flamme geschickt');
-        else if (hasSentFlame(peerId)) status.textContent = t('Flamme gesendet');
+        if (hasReceivedFlame(peerId)) status.textContent = t('common.sentYouFlame');
+        else if (hasSentFlame(peerId)) status.textContent = t('matching.flameSent');
         button.className = 'text-xs px-3 py-1.5 rounded-lg bg-orange-500/20 border border-orange-500/40 text-orange-300 hover:bg-orange-500/30 font-semibold flex items-center gap-1.5 disabled:opacity-50';
         button.innerHTML = '<i class="fa-solid fa-fire"></i>';
-        button.appendChild(document.createTextNode(` ${hasReceivedFlame(peerId) ? t('Zurueck-flammen') : t('Flamme senden')}`));
+        button.appendChild(document.createTextNode(` ${hasReceivedFlame(peerId) ? t('matching.flameBack') : t('matching.sendFlame')}`));
         button.disabled = flameCooldownLeft(peerId) > 0;
         button.onclick = () => sendFlame(peerId);
     }
@@ -407,16 +407,16 @@ function renderChatAllowance() {
     const text = document.createElement('span');
     const social = connectionWording().social;
     const remainingText = allowance.remaining === 1
-        ? (social ? t('Noch 1 Nachricht bis zum Adden') : t('Noch 1 Nachricht bis zum Match'))
-        : (social ? t('Noch {count} Nachrichten bis zum Adden', { count: allowance.remaining }) : t('Noch {count} Nachrichten bis zum Match', { count: allowance.remaining }));
-    text.textContent = allowance.reason || `${remainingText}${allowance.images ? '' : t(' (ohne Bilder)')}.`;
+        ? (social ? t('matching.1MoreMessageUntilAdding') : t('matching.1MoreMessageUntilMatch'))
+        : (social ? t('matching.moreMessagesUntilAdding', { count: allowance.remaining }) : t('matching.moreMessagesUntilMatch', { count: allowance.remaining }));
+    text.textContent = allowance.reason || `${remainingText}${allowance.images ? '' : t('matching.noImages')}.`;
     hint.appendChild(text);
     if (isSocialMode()) {
         if (!hasSentFriendRequest(peerId) && !isFriend(peerId)) {
             const add = document.createElement('button');
             add.type = 'button';
             add.className = 'ml-2 text-brand-400 font-semibold';
-            add.innerHTML = `<i class="fa-solid fa-user-plus"></i> ${t('Adden')}`;
+            add.innerHTML = `<i class="fa-solid fa-user-plus"></i> ${t('common.add')}`;
             add.onclick = () => addFriend(peerId);
             hint.appendChild(add);
         }
@@ -424,7 +424,7 @@ function renderChatAllowance() {
         const flame = document.createElement('button');
         flame.type = 'button';
         flame.className = 'ml-2 text-orange-300 font-semibold';
-        flame.innerHTML = `<i class="fa-solid fa-fire"></i> ${t('Flamme senden')}`;
+        flame.innerHTML = `<i class="fa-solid fa-fire"></i> ${t('matching.sendFlame')}`;
         flame.onclick = () => sendFlame(peerId);
         hint.appendChild(flame);
     }

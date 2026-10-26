@@ -36,7 +36,7 @@ async function main() {
         await page.evaluate(() => switchTab('keys'));
         assert.equal((await page.textContent('[data-settings-tab-btn="privacy"]')).trim(), 'Privacy');
         assert.equal(await page.inputValue('#language-select'), 'auto');
-        await page.evaluate(() => showToast(t('Ihr seid jetzt befreundet.'), 'success'));
+        await page.evaluate(() => showToast(t('friends.youAreFriendsNow'), 'success'));
         assert.match(await page.textContent('body'), /You are friends now\./);
 
         // Auf Deutsch umstellen: Neuladen, danach deutsch und die Wahl bleibt.

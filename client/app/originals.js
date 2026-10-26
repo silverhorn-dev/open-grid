@@ -96,7 +96,7 @@ function renderOriginalProgress(messageId) {
     const badge = document.querySelector(`[data-original-badge="${messageId}"]`);
     const transfer = state.originalTransfers[messageId];
     if (!badge || !transfer?.total) return;
-    badge.textContent = t('Original {value} %', { value: Math.floor((transfer.received / transfer.total) * 100) });
+    badge.textContent = t('snaps.original', { value: Math.floor((transfer.received / transfer.total) * 100) });
 }
 
 // ----- Absender -----

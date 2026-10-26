@@ -50,7 +50,7 @@ function createSecureImage(dataUrl, className, size = null) {
     const canvas = document.createElement('canvas');
     canvas.className = `secure-image ${className || ''}`.trim();
     canvas.setAttribute('role', 'img');
-    canvas.setAttribute('aria-label', t('Bild'));
+    canvas.setAttribute('aria-label', t('common.image'));
     canvas.setAttribute('data-no-context-menu', '');
     if (isValidImageSize(size)) {
         canvas.width = size.w;

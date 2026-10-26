@@ -48,7 +48,7 @@ function initDatabase() {
             finish();
         };
         req.onblocked = () => {
-            showToast(t('Bitte schliesse andere OpenGrid-Tabs, damit die App aktualisiert werden kann.'), 'warning');
+            showToast(t('app.pleaseCloseOtherOpengridTabs'), 'warning');
             setTimeout(() => finish(), 3000);
         };
     });
@@ -460,7 +460,7 @@ function updateChatPreview(peerId, message, render = true) {
         id: message.id,
         at,
         mine: message.senderId === state.myProfile.id,
-        text: message.deleted ? t('Nachricht geloescht') : messagePreview(message)
+        text: message.deleted ? t('common.messageDeleted') : messagePreview(message)
     };
     if (render) renderActivePeerList();
 }
@@ -692,7 +692,7 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
         const target = state.chats[peerId]?.find(item => item.id === ownMessage.id) || ownMessage;
         target.savedByPeer = true;
         await persistChatMessage(peerId, target);
-        showToast(t('{name} hat deinen Snap gespeichert.', { name: getPeerPresentation(peerId).name || t('Jemand') }), 'info');
+        showToast(t('app.savedYourSnap', { name: getPeerPresentation(peerId).name || t('app.someone') }), 'info');
     } else if (localOperation.type === 'MATCH_PING' || localOperation.type === 'MATCH_RESET') {
         if (!await applyMatchOperation(peerId, localOperation)) return false;
     } else if (localOperation.type === 'FRIEND_PING' || localOperation.type === 'FRIEND_RESET') {
@@ -735,7 +735,7 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
         if (state.activeChatPeerId === peerId) {
             resetActiveChat('Der Chat wurde vom Chat-Partner geloescht.');
         }
-        showToast(t('Ein Chat-Partner hat den Chat-Verlauf geloescht.'), 'info');
+        showToast(t('app.chatPartnerDeletedChatHistory'), 'info');
         return true; // Return true, damit der Wipe nicht als endloser Sync gespeichert wird
     } else if (localOperation.type === 'PEER_UNHIDE') {
         if (localOperation.actorId !== peerId) return false;
@@ -817,7 +817,7 @@ async function requestPersistentStorage() {
 async function renderStorageUsage(warn = false) {
     const output = document.getElementById('storage-usage');
     if (!navigator.storage?.estimate) {
-        if (output) output.textContent = t('Speicherangaben werden von diesem Browser nicht unterstuetzt.');
+        if (output) output.textContent = t('app.thisBrowserDoesNotReport');
         return;
     }
     try {
@@ -826,12 +826,12 @@ async function renderStorageUsage(warn = false) {
         const ratio = quota ? usage / quota : 0;
         const megabytes = value => (value / (1024 * 1024)).toFixed(1);
         if (output) {
-            output.textContent = t('{value} MB von {value2} MB belegt ({value3} %)', { value: megabytes(usage), value2: megabytes(quota), value3: Math.round(ratio * 100) })
-                + (persisted ? t(' · dauerhaft gespeichert') : t(' · kann vom Browser geloescht werden'));
+            output.textContent = t('app.mbOfMbUsed', { value: megabytes(usage), value2: megabytes(quota), value3: Math.round(ratio * 100) })
+                + (persisted ? t('app.storedPermanently') : t('app.mayBeClearedByBrowser'));
             output.classList.toggle('text-amber-400', ratio >= STORAGE_WARNING_RATIO);
         }
         if (warn && ratio >= STORAGE_WARNING_RATIO) {
-            showToast(t('Der Speicher ist fast voll. In den Einstellungen kannst du aufraeumen.'), 'warning');
+            showToast(t('app.storageIsAlmostFullYou'), 'warning');
         }
     } catch (error) {
         logDebug(`Storage estimate failed: ${error.message}`);
@@ -860,10 +860,10 @@ async function cleanupUnusedMedia() {
         const keys = await databaseRequest('media', 'readonly', store => store.getAllKeys());
         const unused = keys.filter(key => !referenced.has(key));
         await Promise.all(unused.map(key => deleteDatabaseRecord('media', key)));
-        showToast(unused.length ? t('{length} nicht mehr benoetigte Medien entfernt.', { length: unused.length }) : t('Nichts aufzuraeumen.'), 'success');
+        showToast(unused.length ? t('app.removedMediaFilesThatWere', { length: unused.length }) : t('app.nothingToCleanUp'), 'success');
         await renderStorageUsage();
     } catch (error) {
-        showToast(t('Aufraeumen fehlgeschlagen: {message}', { message: error.message }), 'error');
+        showToast(t('app.cleanUpFailed', { message: error.message }), 'error');
     } finally {
         if (button) button.disabled = false;
     }

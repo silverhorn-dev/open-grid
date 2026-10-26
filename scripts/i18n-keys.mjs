@@ -1,48 +1,17 @@
 #!/usr/bin/env node
 /**
- * Sammelt alle uebersetzbaren Quelltexte (deutsch):
- *   - statisches Markup in index.html (Textknoten und placeholder/title/aria-label/alt)
- *   - t('...')-Aufrufe in client/*.js und client/app/*.js
- * Aufruf: node scripts/i18n-keys.mjs [--missing en]  -> listet Schluessel (bzw. fehlende Uebersetzungen)
+ * Prueft die Uebersetzungen (i18n/<sprache>.properties) gegen die Nutzung:
+ *   - t('bereich.name')-Aufrufe in client/*.js und client/app/*.js
+ *   - data-i18n="..." und data-i18n-attr="attr:schluessel;..." in index.html
+ * Aufruf: node scripts/i18n-keys.mjs           -> Bericht (fehlend, ungenutzt, Platzhalter)
  * Wird auch von test/i18n.test.js genutzt.
  */
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import vm from 'node:vm';
+import { parseProperties } from '../server/i18n.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const SKIP_BLOCKS = /<(script|style|textarea|code|pre)\b[\s\S]*?<\/\1>/gi;
-
-function decodeEntities(text) {
-    return text
-        .replace(/&nbsp;/g, ' ')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&quot;/g, '"')
-        .replace(/&#39;/g, "'")
-        .replace(/&amp;/g, '&');
-}
-
-const normalize = value => value.replace(/\s+/g, ' ').trim();
-const isText = value => /[A-Za-zÄÖÜäöüß]{2}/.test(value) && !/\{\{|\}\}/.test(value);
-
-export function markupKeys() {
-    let html = readFileSync(join(root, 'index.html'), 'utf8');
-    html = html.slice(html.indexOf('<body'));
-    // Bereiche, die nie uebersetzt werden (wie I18N_SKIP_SELECTOR in client/i18n.js).
-    html = html.replace(SKIP_BLOCKS, '').replace(/<div id="debug-log-output"[\s\S]*?<\/div>\s*<\/div>/, '');
-    const keys = new Set();
-    for (const match of html.matchAll(/>([^<>]+)</g)) {
-        const key = normalize(decodeEntities(match[1]));
-        if (isText(key)) keys.add(key);
-    }
-    for (const match of html.matchAll(/\s(?:placeholder|title|aria-label|alt)="([^"]*)"/g)) {
-        const key = normalize(decodeEntities(match[1]));
-        if (isText(key)) keys.add(key);
-    }
-    return keys;
-}
 
 function clientFiles() {
     const files = [];
@@ -54,34 +23,46 @@ function clientFiles() {
     return files;
 }
 
-export function codeKeys() {
+export function usedKeys() {
     const keys = new Set();
     for (const file of clientFiles()) {
-        const source = readFileSync(file, 'utf8');
-        for (const match of source.matchAll(/\bt\('((?:[^'\\\n]|\\.)*)'/g)) {
-            keys.add(match[1].replace(/\\'/g, "'").replace(/\\\\/g, '\\'));
-        }
+        for (const match of readFileSync(file, 'utf8').matchAll(/\bt\('([a-zA-Z0-9_.]+)'/g)) keys.add(match[1]);
+    }
+    const html = readFileSync(join(root, 'index.html'), 'utf8');
+    for (const match of html.matchAll(/\sdata-i18n="([^"]+)"/g)) keys.add(match[1]);
+    for (const match of html.matchAll(/\sdata-i18n-attr="([^"]+)"/g)) {
+        for (const pair of match[1].split(';')) keys.add(pair.split(':')[1]);
     }
     return keys;
 }
 
-export function allKeys() {
-    return new Set([...markupKeys(), ...codeKeys()]);
+export function languages() {
+    return readdirSync(join(root, 'i18n')).filter(file => /^[a-z]{2}\.properties$/.test(file)).map(file => file.slice(0, 2)).sort();
 }
 
 export function loadMessages(language) {
-    const context = { I18N_MESSAGES: {} };
-    vm.runInNewContext(readFileSync(join(root, 'client', 'i18n', `${language}.js`), 'utf8'), context);
-    return context.I18N_MESSAGES[language] || {};
+    return parseProperties(readFileSync(join(root, 'i18n', `${language}.properties`), 'utf8'));
+}
+
+export const placeholders = text => [...String(text).matchAll(/\{(\w+)\}/g)].map(match => match[1]).sort();
+
+export function report() {
+    const used = usedKeys();
+    const result = {};
+    const base = loadMessages('de');
+    for (const language of languages()) {
+        const messages = loadMessages(language);
+        result[language] = {
+            missing: [...used].filter(key => !(key in messages)).sort(),
+            unused: Object.keys(messages).filter(key => !used.has(key)).sort(),
+            placeholderMismatch: Object.keys(messages)
+                .filter(key => key in base && placeholders(messages[key]).join() !== placeholders(base[key]).join())
+                .sort()
+        };
+    }
+    return result;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-    const index = process.argv.indexOf('--missing');
-    const keys = [...allKeys()].sort();
-    if (index > 0) {
-        const messages = loadMessages(process.argv[index + 1]);
-        keys.filter(key => !(key in messages)).forEach(key => console.log(JSON.stringify(key)));
-    } else {
-        keys.forEach(key => console.log(JSON.stringify(key)));
-    }
+    console.log(JSON.stringify(report(), null, 2));
 }

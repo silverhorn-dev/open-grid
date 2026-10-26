@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 129 · 2026-10-26
+## Build 130 · 2026-10-26
+- Uebersetzungen jetzt mit festen Schluesseln in `i18n/de.properties` und `i18n/en.properties`; die App laedt nur noch die eingestellte Sprache
+- Behoben: Platzhalter im Nachrichtenfeld und einige Texte (Profil einrichten, Bildbetrachter, Snap-Kamera) blieben im Englischen deutsch
+
+## Build 129 · 2026-10-26 · `91a2aa8`
 - Behoben: bauten beide Seiten gleichzeitig eine direkte Verbindung auf und hing der erste Versuch, kollidierten die Wiederholungen immer wieder; jetzt wartet eine Seite kurz
 - Behoben: Nachrichten, die direkt nach dem Verbindungsaufbau ankamen, bevor der eigene Schluessel fertig war, gingen verloren (z. B. Profil-Anfragen, dann fehlten Name und Bild)
 

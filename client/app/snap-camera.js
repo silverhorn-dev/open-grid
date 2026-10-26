@@ -6,8 +6,8 @@ const SNAP_SWIPE_MODE = 80;
 function setSnapSendMode(mode) {
     state.snapSendMode = mode === 'image' ? 'image' : 'snap';
     const image = state.snapSendMode === 'image';
-    document.getElementById('snap-mode-pill').textContent = image ? t('Bild') : t('Snap');
-    document.getElementById('snap-mode-switch-label').textContent = image ? t('Als Snap senden') : t('Als Bild senden');
+    document.getElementById('snap-mode-pill').textContent = image ? t('common.image') : t('common.snap');
+    document.getElementById('snap-mode-switch-label').textContent = image ? t('snaps.sendAsSnap') : t('snaps.sendAsImage');
     const switchButton = document.getElementById('snap-mode-switch');
     switchButton.querySelector('i').className = `fa-solid ${image ? 'fa-chevron-left' : 'fa-chevron-right'}`;
     // Status-Fotos kennen den Unterschied nicht.

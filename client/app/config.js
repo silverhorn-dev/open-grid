@@ -51,7 +51,7 @@ const state = {
         id: null,
         geohash: CONFIG.DEFAULT_GEOHASH,
         avatar: null,
-        fields: { displayName: 'Alex', age: 26, role: 'Versatile', bio: t('Hey, ich nutze OpenGrid.') },
+        fields: { displayName: 'Alex', age: 26, role: 'Versatile', bio: t('profile.heyIAmUsingOpengrid') },
         gallery: [],
         version: 1,
         updatedAt: Date.now(),

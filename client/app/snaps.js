@@ -21,15 +21,15 @@ function renderReplaySnapMessage(bubble, message, isMine) {
     details.className = 'min-w-0';
     const title = document.createElement('div');
     title.className = 'font-semibold';
-    title.textContent = t('Snap');
+    title.textContent = t('common.snap');
     const meta = document.createElement('div');
     meta.className = 'opacity-75 text-[11px]';
     if (isMine) {
-        meta.textContent = available ? t('Gesendet · Tippen zum Ansehen') : t('Angesehen');
-        if (message.savedByPeer) meta.textContent += t(' · vom Empfaenger gespeichert');
+        meta.textContent = available ? t('snaps.sentTapToView') : t('snaps.viewed');
+        if (message.savedByPeer) meta.textContent += t('snaps.savedByRecipient');
     }
-    else if (!available) meta.textContent = t('Abgelaufen');
-    else meta.textContent = views === 0 ? t('Tippen zum Ansehen') : t('Tippen zum Wiederholen (1x)');
+    else if (!available) meta.textContent = t('snaps.expired');
+    else meta.textContent = views === 0 ? t('snaps.tapToView') : t('snaps.tapToReplay1x');
     details.append(title, meta);
     card.append(icon, details);
     if (available) {
@@ -73,7 +73,7 @@ function openReplaySnap(messageId) {
     const save = document.getElementById('secure-snap-save');
     save.classList.remove('hidden');
     save.disabled = false;
-    save.textContent = t('Speichern');
+    save.textContent = t('common.save');
 }
 
 async function saveReplaySnap() {
@@ -86,7 +86,7 @@ async function saveReplaySnap() {
     await persistChatMessage(viewing.peerId, message);
     const save = document.getElementById('secure-snap-save');
     save.disabled = true;
-    save.textContent = t('Gespeichert');
+    save.textContent = t('snaps.saved');
     renderChatHistory();
     // Der Absender erfaehrt, dass sein Snap gespeichert wurde (wie bei Snapchat).
     if (message.senderId === viewing.peerId) await sendSnapSaved(viewing.peerId, message.id);
@@ -120,9 +120,9 @@ function renderReplayQueueLabel() {
     const viewing = state.secureSnapViewing;
     if (!label) return;
     const remaining = viewing?.mode === 'replay' && !viewing.isMine ? unseenReplaySnaps(viewing.peerId).length : 0;
-    const hint = { doubletap: t('Doppeltippen'), swipe: t('Seitlich wischen'), swipeup: t('Nach oben wischen') }[state.snapSettings.nextGesture] || t('Doppeltippen');
+    const hint = { doubletap: t('snaps.doubleTap'), swipe: t('snaps.swipeSideways'), swipeup: t('snaps.swipeUp') }[state.snapSettings.nextGesture] || t('snaps.doubleTap');
     label.textContent = !remaining ? ''
-        : remaining > 1 ? t('Noch {count} Snaps · {hint}: weiter', { count: remaining, hint }) : t('Noch 1 Snap · {hint}: weiter', { hint });
+        : remaining > 1 ? t('snaps.moreSnapsNext', { count: remaining, hint }) : t('snaps.1MoreSnapNext', { hint });
     label.classList.toggle('hidden', !remaining);
 }
 
@@ -217,7 +217,7 @@ const SNAP_MAX_DATA_URL_LENGTH = 70000;
 
 async function openSnapUploadModal() {
     if (!state.activeChatPeerId || isPeerBlocked(state.activeChatPeerId)) {
-        showToast(t('Bitte waehle zuerst einen aktiven Chat aus.'), 'warning');
+        showToast(t('snaps.pleaseChooseActiveChatFirst'), 'warning');
         return;
     }
     await openSnapCamera('chat');
@@ -249,7 +249,7 @@ async function startSnapCamera() {
     const status = document.getElementById('snap-camera-status');
     status.classList.add('hidden');
     if (!navigator.mediaDevices?.getUserMedia) {
-        showSnapCameraProblem(t('Keine Kamera verfuegbar. Du kannst ein Bild auswaehlen.'));
+        showSnapCameraProblem(t('snaps.noCameraAvailableYouCan'));
         return;
     }
     try {
@@ -275,8 +275,8 @@ async function startSnapCamera() {
     } catch (error) {
         logDebug(`Camera error: ${error.name}: ${error.message}`);
         showSnapCameraProblem(error.name === 'NotAllowedError'
-            ? t('Kamera-Zugriff verweigert. Du kannst ein Bild auswaehlen.')
-            : t('Kamera nicht verfuegbar. Du kannst ein Bild auswaehlen.'));
+            ? t('snaps.cameraAccessDeniedYouCan')
+            : t('snaps.cameraNotAvailableYouCan'));
     }
 }
 
@@ -399,7 +399,7 @@ async function pickSnapImage(input) {
         showSnapReview(base);
     } catch (error) {
         logDebug(`Snap image failed: ${error.message}`);
-        showToast(t('Bild konnte nicht geladen werden.'), 'error');
+        showToast(t('snaps.imageCouldNotBeLoaded'), 'error');
     }
 }
 
@@ -437,9 +437,9 @@ async function sendPickedImages(files) {
             logDebug(`Picked image failed: ${error.message}`);
         }
     }
-    const message = target === 'status' ? t('{count} Status gesendet', { count: sent })
-        : asImage ? t('{count} Bilder gesendet', { count: sent }) : t('{count} Snaps gesendet', { count: sent });
-    const limit = files.length > MAX_PICKED_IMAGES ? t(' (hoechstens {max})', { max: MAX_PICKED_IMAGES }) : '';
+    const message = target === 'status' ? t('snaps.statusesSent', { count: sent })
+        : asImage ? t('snaps.imagesSent', { count: sent }) : t('snaps.sent', { count: sent });
+    const limit = files.length > MAX_PICKED_IMAGES ? t('snaps.atMost', { max: MAX_PICKED_IMAGES }) : '';
     showToast(`${message}${limit}.`, sent ? 'success' : 'error');
 }
 
@@ -454,21 +454,21 @@ async function sendSnapDraft() {
         const caption = document.getElementById('snap-caption-input').value;
         closeSnapModal();
         if (image) await postPhotoStatus(image, caption);
-        else showToast(t('Status konnte nicht erstellt werden.'), 'error');
+        else showToast(t('snaps.statusCouldNotBeCreated'), 'error');
         return;
     }
     const peerId = state.activeChatPeerId;
     if (!hasSnapDraft() || !peerId) return;
     const snapData = await encodeSnapDraft(peerId);
     if (!snapData) {
-        showToast(t('Snap konnte nicht erstellt werden.'), 'error');
+        showToast(t('snaps.couldNotBeCreated'), 'error');
         return;
     }
     const caption = document.getElementById('snap-caption-input').value;
     if (state.snapSendMode === 'image') {
         const wantsOriginal = document.getElementById('snap-original-toggle')?.checked;
         const original = wantsOriginal ? await createOriginalImage(flattenSnapDraft(), peerId) : null;
-        if (wantsOriginal && !original) showToast(t('Original ist zu gross, es geht nur die Vorschau.'), 'warning');
+        if (wantsOriginal && !original) showToast(t('snaps.originalIsTooLargeOnly'), 'warning');
         closeSnapModal();
         await sendChatMessage(snapData, caption, null, null, { asImage: true, original });
         return;

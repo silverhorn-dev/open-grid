@@ -34,7 +34,7 @@ test('every declarative action points to an existing function with valid argumen
 });
 
 test('chat input is a multiline field and offline state is an icon, not a banner', () => {
-    assert.match(markup, /<textarea id="chat-input" rows="1"/);
+    assert.match(markup, /<textarea[^>]* id="chat-input" rows="1"/);
     assert.doesNotMatch(markup, /id="offline-banner"/);
     // Nur im Chat-Kopf; in der Kopfzeile zeigt der Punkt den Verbindungsstatus.
     assert.equal((markup.match(/offline-indicator hidden/g) || []).length, 1, 'only in the chat header');
@@ -42,7 +42,7 @@ test('chat input is a multiline field and offline state is an icon, not a banner
 
 test('viewers draw images into canvases and only chat images can be saved', () => {
     for (const id of ['image-viewer-image', 'image-viewer-prev-image', 'image-viewer-next-image', 'secure-snap-image']) {
-        assert.match(markup, new RegExp(`<canvas id="${id}"`), id);
+        assert.match(markup, new RegExp(`<canvas[^>]* id="${id}"`), id);
     }
     assert.match(markup, /id="image-viewer-save"[^>]*class="hidden/);
     assert.match(markup, /id="trace-watermark-toggle"/);

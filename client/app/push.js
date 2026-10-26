@@ -101,7 +101,7 @@ async function setCompactPushNotifications(enabled) {
         await putDatabaseRecord('keys', { id: 'push-settings', compactNotifications: enabled });
     } catch (error) {
         logDebug(`Could not store push settings: ${error.message}`);
-        showToast(t('Einstellung konnte nicht gespeichert werden.'), 'error');
+        showToast(t('common.settingCouldNotBeSaved'), 'error');
     }
 }
 
@@ -115,17 +115,17 @@ async function updatePushStatus() {
     const button = document.getElementById('push-toggle-btn');
     if (!status || !button) return;
     if (!isPushSupported() || !state.serviceWorkerRegistration) {
-        status.textContent = t('Nicht unterstuetzt (auf iOS nur als installierte App).');
+        status.textContent = t('push.notSupportedOnIosOnly');
         button.disabled = true;
         return;
     }
     const subscription = await getPushSubscription().catch(() => null);
     const active = Boolean(subscription) && Notification.permission === 'granted';
     status.textContent = Notification.permission === 'denied'
-        ? t('Im Browser blockiert.')
-        : active ? t('Aktiv.') : t('Aus.');
+        ? t('push.blockedInBrowser')
+        : active ? t('push.active') : t('push.off');
     button.disabled = Notification.permission === 'denied';
-    button.textContent = active ? t('Benachrichtigungen ausschalten') : t('Benachrichtigungen einschalten');
+    button.textContent = active ? t('push.turnOffNotifications') : t('common.turnOnNotifications');
 }
 
 async function togglePushNotifications() {
@@ -139,12 +139,12 @@ async function togglePushNotifications() {
                 method: 'DELETE',
                 headers: peerAuthHeaders()
             });
-            showToast(t('Push-Benachrichtigungen deaktiviert.'), 'info');
+            showToast(t('push.notificationsTurnedOff'), 'info');
             return;
         }
         const permission = await Notification.requestPermission();
         if (permission !== 'granted') {
-            showToast(t('Benachrichtigungen wurden nicht erlaubt.'), 'warning');
+            showToast(t('push.notificationsWereNotAllowed'), 'warning');
             return;
         }
         const keyResponse = await fetch(`${API_BASE}/api/push/vapid-public-key`);
@@ -156,10 +156,10 @@ async function togglePushNotifications() {
             applicationServerKey: base64UrlToBytes(publicKey)
         });
         await uploadPushSubscription(subscription);
-        showToast(t('Push-Benachrichtigungen aktiviert.'), 'success');
+        showToast(t('push.notificationsTurnedOn'), 'success');
     } catch (error) {
         logDebug(`Push toggle failed: ${error.message}`);
-        showToast(t('Push-Benachrichtigungen konnten nicht geaendert werden.'), 'error');
+        showToast(t('push.notificationsCouldNotBe'), 'error');
     } finally {
         button.disabled = false;
         updatePushStatus();

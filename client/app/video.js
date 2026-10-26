@@ -17,7 +17,7 @@ function pickChatVideo() {
     if (!peerId) return;
     const allowance = getPeerChatAllowance(peerId);
     if (allowance && (!allowance.allowed || !allowance.images)) {
-        showToast(allowance.reason || t('Videos sind erst nach einem Match erlaubt.'), 'info');
+        showToast(allowance.reason || t('video.videosAreOnlyAllowedAfter'), 'info');
         return;
     }
     const input = document.createElement('input');
@@ -27,7 +27,7 @@ function pickChatVideo() {
         const file = input.files?.[0];
         if (file) sendVideoFile(file).catch(error => {
             logDebug(`Video senden fehlgeschlagen: ${error.message}`);
-            showToast(t('Video konnte nicht gesendet werden.'), 'error');
+            showToast(t('video.couldNotBeSent'), 'error');
         });
     };
     input.click();
@@ -35,14 +35,14 @@ function pickChatVideo() {
 
 async function sendVideoFile(file) {
     if (!VIDEO_MIME_TYPES.includes(file.type)) {
-        showToast(t('Dieses Videoformat wird nicht unterstuetzt.'), 'error');
+        showToast(t('video.thisVideoFormatIsNot'), 'error');
         return;
     }
     if (file.size > VIDEO_MAX_BYTES) {
-        showToast(t('Video zu gross (hoechstens {value} MB).', { value: Math.round(VIDEO_MAX_BYTES / 1024 / 1024) }), 'error');
+        showToast(t('video.tooLargeAtMost', { value: Math.round(VIDEO_MAX_BYTES / 1024 / 1024) }), 'error');
         return;
     }
-    showToast(t('Video wird vorbereitet...'), 'info');
+    showToast(t('video.preparingVideo'), 'info');
     const url = URL.createObjectURL(file);
     let poster;
     try {
@@ -128,7 +128,7 @@ function renderVideoMessage(bubble, message, isMine) {
         const badge = document.createElement('div');
         badge.className = 'text-[11px] opacity-75';
         badge.dataset.originalBadge = message.id;
-        badge.textContent = t('Video kommt bei direkter Verbindung');
+        badge.textContent = t('video.arrivesOverDirectConnection');
         bubble.appendChild(badge);
         renderOriginalProgress(message.id);
     }
@@ -136,7 +136,7 @@ function renderVideoMessage(bubble, message, isMine) {
 
 async function openChatVideo(message) {
     if (!isVideoAvailable(message)) {
-        showToast(t('Das Video wird nur direkt uebertragen und kommt, sobald ihr verbunden seid.'), 'info');
+        showToast(t('video.isOnlySentDirectly'), 'info');
         const peerId = state.activeChatPeerId;
         if (peerId) {
             if (!isSecureChannelOpen(peerId)) initiateP2PConnection(peerId).catch(logBackgroundError('openChatVideo'));
@@ -146,7 +146,7 @@ async function openChatVideo(message) {
     }
     const data = await loadOriginal(message.id);
     if (!isSafeInlineVideo(data)) {
-        showToast(t('Video nicht gefunden.'), 'error');
+        showToast(t('video.notFound'), 'error');
         return;
     }
     const sender = message.senderId === state.myProfile.id ? 'Du' : getPeerPresentation(message.senderId).name || HIDDEN_PEER_NAME;

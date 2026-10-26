@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import crypto, { createHash, randomBytes } from 'node:crypto';
 import { createStore } from './database.js';
 import { registerSignalingRoute } from './signaling.js';
+import { loadTranslations, translationScript } from './i18n.js';
 import {
     GRID_PRECISION,
     MAX_GRID_RING,
@@ -105,7 +106,6 @@ const projectDirectory = join(serverDirectory, '..');
 // Feste Liste statt Verzeichnis-Scan: nur diese Dateien unter /client werden ausgeliefert.
 const clientAssetFiles = [
     'i18n.js',
-    'i18n/en.js',
     'crypto.client.js',
     'geohash.client.js',
     'app/payload-validation.js',
@@ -269,11 +269,16 @@ export async function buildApp(options = {}) {
         ...clientAssetFiles.map(file => readFile(join(projectDirectory, 'client', file), 'utf8'))
     ]);
     const vendorAssets = await loadVendorAssets();
+    // Uebersetzungen (i18n/*.properties) als ein Skript pro Sprache.
+    const translations = await loadTranslations(join(projectDirectory, 'i18n'));
+    const translationAssets = Object.entries(translations)
+        .map(([language, messages]) => [`/client/i18n/${language}.js`, translationScript(language, messages)]);
     // Alles, was die App-Shell offline braucht. Der Service Worker laedt die Liste beim
     // Installieren in einen eigenen Cache und prueft jede Antwort.
     const precacheUrls = [
         '/',
         ...clientAssetFiles.map(file => `/client/${file}?v=${assetVersion}`),
+        ...translationAssets.map(([path]) => `${path}?v=${assetVersion}`),
         // Schriften: nur woff2, die ttf-Varianten laedt kein aktueller Browser.
         ...[...vendorAssets.keys()].filter(path => !path.endsWith('.ttf'))
     ];
@@ -293,7 +298,10 @@ export async function buildApp(options = {}) {
         subject: vapidSubject,
         logger: app.log
     });
-    const clientAssets = new Map(clientAssetFiles.map((file, index) => [`/client/${file}`, clientAssetSources[index]]));
+    const clientAssets = new Map([
+        ...clientAssetFiles.map((file, index) => [`/client/${file}`, clientAssetSources[index]]),
+        ...translationAssets
+    ]);
 
     await app.register(websocket, {
         options: {

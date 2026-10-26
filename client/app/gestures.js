@@ -253,11 +253,11 @@ function attachSwipeToClose(scrollContainer, card, close) {
 // keys/pullup-settings: 'reload' (Tab neu laden, Standard), 'next' (naechster Chat der Liste),
 // 'switcher' (Auswahl aller Chats der Liste), 'snap' (Snap-Kamera), 'album' (Album teilen).
 const PULL_UP_ACTIONS = {
-    reload: t('Loslassen zum Neuladen'),
-    next: t('Loslassen: naechster Chat'),
-    switcher: t('Loslassen: Chat auswaehlen'),
-    snap: t('Loslassen: Snap aufnehmen'),
-    album: t('Loslassen: Album teilen')
+    reload: t('gestures.releaseToReload'),
+    next: t('gestures.releaseNextChat'),
+    switcher: t('gestures.releaseChooseChat'),
+    snap: t('gestures.releaseTakeSnap'),
+    album: t('gestures.releaseShareAlbum')
 };
 const PULL_UP_RECORD_ID = 'pullup-settings';
 
@@ -305,7 +305,7 @@ function attachPullUpRefresh(container) {
         indicator.classList.toggle('is-ready', distance >= PULL_REFRESH_TRIGGER);
         indicator.querySelector('span').textContent = distance >= PULL_REFRESH_TRIGGER
             ? PULL_UP_ACTIONS[state.pullUpAction] || PULL_UP_ACTIONS.reload
-            : t('Weiter ziehen');
+            : t('common.keepPulling');
     };
     container.addEventListener('touchstart', event => {
         gesture = event.touches.length === 1 && state.activeChatPeerId && isAtBottom()

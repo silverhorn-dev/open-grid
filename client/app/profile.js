@@ -27,8 +27,8 @@ async function handleAvatarUpload(input) {
         state.myProfile.avatar = base64;
         document.getElementById('edit-avatar-preview').src = base64;
         await saveUserProfile();
-        showToast(t('Profilbild aktualisiert.'), 'success');
-    } catch (e) { showToast(t('Fehler bei Avatar-Upload.'), 'error'); }
+        showToast(t('profile.pictureUpdated'), 'success');
+    } catch (e) { showToast(t('profile.pictureUploadFailed'), 'error'); }
 }
 
 async function handleGalleryUpload(input) {
@@ -41,8 +41,8 @@ async function handleGalleryUpload(input) {
         state.myProfile.gallery.push({ id: imgId, version: 1, sha256: await sha256Base64(base64) });
         renderEditGallery();
         await saveUserProfile();
-        showToast(t('Bild zur Galerie hinzugefuegt.'), 'success');
-    } catch (e) { showToast(t('Fehler beim Upload.'), 'error'); }
+        showToast(t('profile.imageAddedToGallery'), 'success');
+    } catch (e) { showToast(t('profile.uploadFailed'), 'error'); }
     input.value = '';
 }
 
@@ -71,7 +71,7 @@ async function renderEditGallery() {
         const remove = document.createElement('button');
         remove.type = 'button';
         remove.className = 'absolute top-1 right-1 w-6 h-6 bg-red-600 hover:bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition shadow-lg flex items-center justify-center text-xs';
-        remove.setAttribute('aria-label', t('Bild entfernen'));
+        remove.setAttribute('aria-label', t('common.removeImage'));
         remove.innerHTML = '<i class="fa-solid fa-xmark"></i>';
         remove.onclick = () => removeGalleryImage(meta.id);
         tile.append(image, remove);
@@ -151,7 +151,7 @@ function renderProfileForm(containerId = 'dynamic-profile-form') {
             checkbox.className = 'accent-brand-500';
             checkbox.checked = (state.myProfile.privateFields || []).includes(field.key);
             checkbox.onchange = () => togglePrivateField(field.key, checkbox.checked);
-            privacy.append(checkbox, document.createTextNode(t('nur fuer Matches')));
+            privacy.append(checkbox, document.createTextNode(t('profile.matchesOnly')));
             wrapper.appendChild(privacy);
         }
 
@@ -235,7 +235,7 @@ async function completeProfileOnboarding() {
             || (Array.isArray(value) && value.length === 0);
     });
     if (missingField) {
-        errorOutput.textContent = t('Bitte fuelle das Pflichtfeld "{label}" aus.', { label: localizedText(missingField.label) });
+        errorOutput.textContent = t('profile.pleaseFillInRequiredField', { label: localizedText(missingField.label) });
         errorOutput.classList.remove('hidden');
         return;
     }
@@ -246,7 +246,7 @@ async function completeProfileOnboarding() {
     state.myProfile.updatedAt = Date.now();
     const persisted = await cacheOwnProfile();
     if (!persisted) {
-        errorOutput.textContent = t('Das Profil konnte nicht verschluesselt gespeichert werden. Lokaler Speicher ist nicht verfuegbar.');
+        errorOutput.textContent = t('profile.couldNotBeStored');
         errorOutput.classList.remove('hidden');
         button.disabled = false;
         return;
@@ -264,10 +264,10 @@ function updateProfileSchemaFromJSON() {
         const schemaInput = document.getElementById('schema-json-input');
         PROFILE_SCHEMA = validateProfileSchema(JSON.parse(schemaInput.value));
         renderProfileForm();
-        showToast(t('Profil-Schema uebernommen.'), 'success');
+        showToast(t('profile.schemaApplied'), 'success');
         logDebug('Dynamic profile schema updated.');
     } catch (error) {
-        showToast(t('Ungueltiges Profil-Schema: {message}', { message: error.message }), 'error');
+        showToast(t('profile.invalidProfileSchema', { message: error.message }), 'error');
     }
 }
 
@@ -278,8 +278,8 @@ async function saveUserProfile() {
     await registerWithWorkerGrid();
     showToast(
         persisted
-            ? t('Profil gespeichert und verteilt.')
-            : t('Profil fuer diese Sitzung verteilt; verschluesselter lokaler Speicher ist nicht verfuegbar.'),
+            ? t('profile.savedAndShared')
+            : t('profile.sharedForThisSession'),
         persisted ? 'success' : 'warning'
     );
     snapshotProfileFields();

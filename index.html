@@ -22,7 +22,6 @@
     <link rel="stylesheet" href="/client/styles.css?v={{assetVersion}}">
     <!-- Thema und Akzentfarbe vor dem ersten Rendern setzen (kein Aufflackern) -->
     <script src="/client/i18n.js?v={{assetVersion}}"></script>
-    <script src="/client/i18n/en.js?v={{assetVersion}}"></script>
     <script src="/client/app/theme.js?v={{assetVersion}}"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col antialiased select-none">
@@ -30,8 +29,8 @@
     <!-- Verbindungs- und Update-Hinweise -->
     <div class="fixed top-0 inset-x-0 z-[58] flex flex-col items-center gap-2 px-4 pointer-events-none" style="padding-top: max(0.5rem, env(safe-area-inset-top));">
         <div id="update-banner" class="hidden pointer-events-auto max-w-md w-full bg-slate-900/95 border border-brand-500/50 text-slate-100 text-xs rounded-xl px-3 py-2 shadow-lg flex items-center justify-between gap-3">
-            <span><i class="fa-solid fa-arrows-rotate text-brand-400"></i> Eine neue Version ist bereit.</span>
-            <button data-click="activateServiceWorkerUpdate" class="bg-brand-600 hover:bg-brand-500 text-white font-semibold px-3 py-1.5 rounded-lg">Aktualisieren</button>
+            <span><i class="fa-solid fa-arrows-rotate text-brand-400"></i> <span data-i18n="common.newVersionIsReady">Eine neue Version ist bereit.</span></span>
+            <button data-i18n="common.refresh" data-click="activateServiceWorkerUpdate" class="bg-brand-600 hover:bg-brand-500 text-white font-semibold px-3 py-1.5 rounded-lg">Aktualisieren</button>
         </div>
     </div>
 
@@ -41,39 +40,39 @@
     <header class="app-header bg-slate-900/90 backdrop-blur border-b border-slate-800 sticky top-0 z-40 px-4 py-3">
         <div class="max-w-7xl mx-auto flex items-center justify-between gap-3">
             <div class="flex items-center gap-3 min-w-0">
-                <div class="w-9 h-9 shrink-0 rounded-xl bg-gradient-to-tr from-brand-600 to-purple-600 flex items-center justify-center font-black text-white shadow-lg pulse-glow">
+                <div data-i18n="nav.og" class="w-9 h-9 shrink-0 rounded-xl bg-gradient-to-tr from-brand-600 to-purple-600 flex items-center justify-center font-black text-white shadow-lg pulse-glow">
                     OG
                 </div>
                 <div class="min-w-0">
                     <h1 class="font-bold text-lg leading-tight tracking-wide flex items-center gap-2">
-                        OpenGrid
+                        <span data-i18n="nav.opengrid">OpenGrid</span>
                         <span class="debug-only text-[10px] bg-brand-500/20 text-brand-400 border border-brand-500/30 px-2 py-0.5 rounded-full font-mono">{{versionTag}}</span>
                     </h1>
-                    <p class="debug-only text-xs text-slate-400 hidden sm:block">P2P-Discovery mit Ende-zu-Ende-Verschluesselung</p>
+                    <p data-i18n="nav.p2pDiscoveryWithEndTo" class="debug-only text-xs text-slate-400 hidden sm:block">P2P-Discovery mit Ende-zu-Ende-Verschluesselung</p>
                 </div>
             </div>
 
             <!-- Desktop Navigation -->
-            <nav class="hidden md:flex items-center gap-1 text-sm" aria-label="Hauptnavigation">
+            <nav data-i18n-attr="aria-label:nav.mainNavigation" class="hidden md:flex items-center gap-1 text-sm" aria-label="Hauptnavigation">
                 <button data-tab-btn="grid" data-nav="top" data-click="switchTab" data-args='["grid"]' class="nav-top-btn">
-                    <i class="fa-solid fa-border-all"></i> Grid
+                    <i class="fa-solid fa-border-all"></i> <span data-i18n="nav.grid">Grid</span>
                 </button>
                 <button data-tab-btn="chat" data-nav="top" data-click="switchTab" data-args='["chat"]' class="nav-top-btn">
-                    <i class="fa-solid fa-comments"></i> Chat
+                    <i class="fa-solid fa-comments"></i> <span data-i18n="common.chat">Chat</span>
                     <span data-unread-total class="unread-badge hidden">0</span>
                 </button>
                 <button data-tab-btn="editprofile" data-nav="top" data-click="switchTab" data-args='["editprofile"]' class="nav-top-btn">
-                    <i class="fa-solid fa-user"></i> Profil
+                    <i class="fa-solid fa-user"></i> <span data-i18n="common.profile">Profil</span>
                 </button>
             </nav>
 
             <!-- Header Actions & Status -->
             <div class="flex items-center gap-2 text-xs font-mono shrink-0">
-                <div class="flex items-center gap-1.5 bg-slate-800 border border-slate-700 px-2.5 py-1.5 rounded-lg" title="Verbindungsstatus">
+                <div data-i18n-attr="title:nav.connectionStatus" class="flex items-center gap-1.5 bg-slate-800 border border-slate-700 px-2.5 py-1.5 rounded-lg" title="Verbindungsstatus">
                     <span id="network-indicator" class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span id="network-status-text" class="debug-only text-slate-200">Online</span>
+                    <span data-i18n="common.online" id="network-status-text" class="debug-only text-slate-200">Online</span>
                 </div>
-                <button data-click="openMenu" class="w-9 h-9 flex items-center justify-center bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-lg transition" title="Menue" aria-label="Menue oeffnen" aria-controls="app-menu">
+                <button data-i18n-attr="title:common.menu;aria-label:nav.openMenu" data-click="openMenu" class="w-9 h-9 flex items-center justify-center bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-lg transition" title="Menue" aria-label="Menue oeffnen" aria-controls="app-menu">
                     <i class="fa-solid fa-bars"></i>
                 </button>
             </div>
@@ -81,53 +80,53 @@
     </header>
 
     <!-- Mobile Bottom Navigation -->
-    <nav class="bottom-nav md:hidden fixed bottom-0 inset-x-0 z-40 bg-slate-900/95 backdrop-blur border-t border-slate-800 grid grid-cols-3" aria-label="Hauptnavigation">
+    <nav data-i18n-attr="aria-label:nav.mainNavigation" class="bottom-nav md:hidden fixed bottom-0 inset-x-0 z-40 bg-slate-900/95 backdrop-blur border-t border-slate-800 grid grid-cols-3" aria-label="Hauptnavigation">
         <button data-tab-btn="grid" data-nav="bottom" data-click="switchTab" data-args='["grid"]' class="nav-bottom-btn">
-            <i class="fa-solid fa-border-all text-lg"></i><span>Grid</span>
+            <i class="fa-solid fa-border-all text-lg"></i><span data-i18n="nav.grid">Grid</span>
         </button>
         <button data-tab-btn="chat" data-nav="bottom" data-click="switchTab" data-args='["chat"]' class="nav-bottom-btn">
-            <span class="relative"><i class="fa-solid fa-comments text-lg"></i><span data-unread-total class="unread-badge unread-badge-nav hidden">0</span></span><span>Chat</span>
+            <span class="relative"><i class="fa-solid fa-comments text-lg"></i><span data-unread-total class="unread-badge unread-badge-nav hidden">0</span></span><span data-i18n="common.chat">Chat</span>
         </button>
         <button data-tab-btn="editprofile" data-nav="bottom" data-click="switchTab" data-args='["editprofile"]' class="nav-bottom-btn">
-            <i class="fa-solid fa-user text-lg"></i><span>Profil</span>
+            <i class="fa-solid fa-user text-lg"></i><span data-i18n="common.profile">Profil</span>
         </button>
     </nav>
 
     <!-- Menu Drawer (technical settings) -->
     <div id="app-menu-backdrop" data-click="closeMenu" class="hidden fixed inset-0 z-[55] bg-slate-950/70 backdrop-blur-sm"></div>
-    <aside id="app-menu" class="menu-drawer fixed top-0 right-0 bottom-0 z-[56] w-72 max-w-[85vw] bg-slate-900 border-l border-slate-800 shadow-2xl flex flex-col" aria-label="Menue" aria-hidden="true">
+    <aside data-i18n-attr="aria-label:common.menu" id="app-menu" class="menu-drawer fixed top-0 right-0 bottom-0 z-[56] w-72 max-w-[85vw] bg-slate-900 border-l border-slate-800 shadow-2xl flex flex-col" aria-label="Menue" aria-hidden="true">
         <div class="flex items-center justify-between px-4 py-4 border-b border-slate-800">
-            <span class="font-bold text-slate-100">Menue</span>
-            <button data-click="closeMenu" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center" aria-label="Menue schliessen">
+            <span data-i18n="common.menu" class="font-bold text-slate-100">Menue</span>
+            <button data-i18n-attr="aria-label:menu.closeMenu" data-click="closeMenu" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center" aria-label="Menue schliessen">
                 <i class="fa-solid fa-xmark"></i>
             </button>
         </div>
         <div class="flex-1 overflow-y-auto p-3 text-sm">
             <div id="menu-mode-section" class="px-1 pb-3">
-                <div class="px-2 pb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">Modus</div>
-                <div id="menu-modes" class="menu-modes" role="group" aria-label="Modus"></div>
+                <div data-i18n="menu.mode" class="px-2 pb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">Modus</div>
+                <div data-i18n-attr="aria-label:menu.mode" id="menu-modes" class="menu-modes" role="group" aria-label="Modus"></div>
             </div>
             <div class="menu-section">
                 <button data-click="openSettingsFromMenu" class="menu-item">
-                    <i class="fa-solid fa-gear text-slate-400"></i> Einstellungen
+                    <i class="fa-solid fa-gear text-slate-400"></i> <span data-i18n="common.settings">Einstellungen</span>
                 </button>
             </div>
             <div class="menu-section">
                 <button data-click="openChangelogFromMenu" class="menu-item">
-                    <i class="fa-solid fa-clipboard-list text-slate-400"></i> Changelog
+                    <i class="fa-solid fa-clipboard-list text-slate-400"></i> <span data-i18n="common.changelog">Changelog</span>
                 </button>
                 <button data-click="openCloudFromMenu" class="menu-item debug-only">
-                    <i class="fa-solid fa-cloud-arrow-up text-sky-400"></i> Cloud Cache (Pfad C)
+                    <i class="fa-solid fa-cloud-arrow-up text-sky-400"></i> <span data-i18n="menu.cloudCachePathC">Cloud Cache (Pfad C)</span>
                 </button>
                 <button id="toggle-debug-btn" data-click="toggleDebugMode" class="menu-item justify-between" role="switch" aria-checked="false">
-                    <span class="flex items-center gap-3"><i class="fa-solid fa-bug text-amber-400"></i> Debug-Modus</span>
-                    <span id="debug-status-text" class="toggle-pill">AUS</span>
+                    <span class="flex items-center gap-3"><i class="fa-solid fa-bug text-amber-400"></i> <span data-i18n="menu.debugMode">Debug-Modus</span></span>
+                    <span data-i18n="common.off" id="debug-status-text" class="toggle-pill">AUS</span>
                 </button>
             </div>
         </div>
         <div class="p-3 border-t border-slate-800 space-y-2">
-            <button data-click="unregisterFromMenu" class="menu-item text-red-300" title="Abmelden vom Routing-Server (Graceful Leave)">
-                <i class="fa-solid fa-power-off text-red-400"></i> Abmelden
+            <button data-i18n-attr="title:menu.signOutFromRoutingServer" data-click="unregisterFromMenu" class="menu-item text-red-300" title="Abmelden vom Routing-Server (Graceful Leave)">
+                <i class="fa-solid fa-power-off text-red-400"></i> <span data-i18n="menu.signOut">Abmelden</span>
             </button>
             <div class="px-3 text-[10px] font-mono text-slate-500">OpenGrid {{versionTag}}<span class="debug-only"> · Build: {{timestamp}}</span></div>
         </div>
@@ -143,27 +142,27 @@
                         <i class="fa-solid fa-location-crosshairs text-xl"></i>
                     </div>
                     <div>
-                        <div class="text-sm font-semibold"><span id="grid-title">In deiner Naehe</span> <span class="debug-only">· Geohash-Zelle <span id="current-geohash" class="font-mono text-brand-400">u10j2k</span></span></div>
+                        <div class="text-sm font-semibold"><span data-i18n="common.nearYou" id="grid-title">In deiner Naehe</span> <span class="debug-only"><span data-i18n="grid.geohashCell">· Geohash-Zelle</span> <span id="current-geohash" class="font-mono text-brand-400">u10j2k</span></span></div>
                         <p class="text-xs text-slate-400">
-                            <span id="grid-peer-count">0 Personen</span>
+                            <span data-i18n="grid.0People" id="grid-peer-count">0 Personen</span>
                             <span class="text-slate-600">•</span>
-                            <span id="grid-last-updated">Noch nicht synchronisiert</span>
+                            <span data-i18n="grid.notSynchronisedYet" id="grid-last-updated">Noch nicht synchronisiert</span>
                         </p>
                         <p id="silent-mode-hint" class="hidden text-xs text-sky-400 mt-0.5">
-                            <i class="fa-solid fa-eye-slash"></i> Silent-Modus aktiv: du bist fuer andere nicht im Grid sichtbar.
+                            <i class="fa-solid fa-eye-slash"></i> <span data-i18n="common.silentModeActiveYouAre">Silent-Modus aktiv: du bist fuer andere nicht im Grid sichtbar.</span>
                         </p>
                     </div>
                 </div>
 
                 <div class="flex items-center gap-2">
                     <button id="use-location-btn" data-click="updateGridSetting" data-args='["useLocation", true]' class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
-                        <i class="fa-solid fa-location-arrow"></i> Standort verwenden
+                        <i class="fa-solid fa-location-arrow"></i> <span data-i18n="grid.useLocation">Standort verwenden</span>
                     </button>
                     <button id="leave-event-btn" data-click="leaveEvent" class="hidden bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
-                        <i class="fa-solid fa-right-from-bracket"></i> Event verlassen
+                        <i class="fa-solid fa-right-from-bracket"></i> <span data-i18n="grid.leaveEvent">Event verlassen</span>
                     </button>
                     <button id="refresh-grid-btn" data-click="refreshGrid" class="bg-brand-600 hover:bg-brand-500 disabled:opacity-60 text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
-                        <i id="refresh-grid-icon" class="fa-solid fa-rotate"></i> Aktualisieren
+                        <i id="refresh-grid-icon" class="fa-solid fa-rotate"></i> <span data-i18n="common.refresh">Aktualisieren</span>
                     </button>
                 </div>
             </div>
@@ -174,7 +173,7 @@
             </div>
             <div class="flex justify-center">
                 <button id="grid-load-more-btn" data-click="loadMoreGrid" class="hidden bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 px-4 py-2 rounded-lg flex items-center gap-1.5 transition">
-                    <i class="fa-solid fa-expand"></i> Mehr laden
+                    <i class="fa-solid fa-expand"></i> <span data-i18n="grid.loadMore">Mehr laden</span>
                 </button>
             </div>
         </section>
@@ -187,18 +186,18 @@
                 <div id="chat-list-head" class="shrink-0">
                     <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 px-1 flex items-center justify-between">
                         <span class="flex items-center gap-1.5">
-                            Chats <span id="chat-list-scope" class="normal-case tracking-normal font-medium text-slate-500"></span>
-                            <button id="chat-list-switch" data-click="switchChatList" class="hidden w-7 h-7 rounded-lg normal-case tracking-normal text-slate-400 hover:text-brand-400 hover:bg-slate-800 flex items-center justify-center" aria-label="Liste wechseln">
-                                <span class="relative"><i class="fa-solid fa-right-left"></i><span id="chat-list-switch-dot" class="unread-dot hidden" title="Ungelesen in der anderen Liste"></span></span>
+                            <span data-i18n="chat.chats">Chats</span> <span id="chat-list-scope" class="normal-case tracking-normal font-medium text-slate-500"></span>
+                            <button data-i18n-attr="aria-label:chat.switchList" id="chat-list-switch" data-click="switchChatList" class="hidden w-7 h-7 rounded-lg normal-case tracking-normal text-slate-400 hover:text-brand-400 hover:bg-slate-800 flex items-center justify-center" aria-label="Liste wechseln">
+                                <span class="relative"><i class="fa-solid fa-right-left"></i><span data-i18n-attr="title:chat.unreadInOtherList" id="chat-list-switch-dot" class="unread-dot hidden" title="Ungelesen in der anderen Liste"></span></span>
                             </button>
-                            <button id="chat-list-mode-btn" data-click="switchModeToViewedList" class="hidden normal-case tracking-normal text-[11px] font-semibold text-brand-400 hover:text-brand-300">Modus wechseln</button>
+                            <button data-i18n="chat.switchMode" id="chat-list-mode-btn" data-click="switchModeToViewedList" class="hidden normal-case tracking-normal text-[11px] font-semibold text-brand-400 hover:text-brand-300">Modus wechseln</button>
                         </span>
-                        <button data-click="openInviteCard" class="ml-auto mr-2 normal-case tracking-normal text-brand-400 hover:text-brand-300 font-semibold" title="Kontakt einladen">
-                            <i class="fa-solid fa-user-plus"></i> Einladen
+                        <button data-i18n-attr="title:common.inviteContact" data-click="openInviteCard" class="ml-auto mr-2 normal-case tracking-normal text-brand-400 hover:text-brand-300 font-semibold" title="Kontakt einladen">
+                            <i class="fa-solid fa-user-plus"></i> <span data-i18n="chat.invite">Einladen</span>
                         </button>
                         <span id="active-peers-count" class="bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full text-xs">0</span>
                     </h3>
-                    <div id="status-bar" class="hidden flex gap-2 overflow-x-auto pb-3 mb-2 border-b border-slate-800" data-no-tab-swipe aria-label="Status"></div>
+                    <div data-i18n-attr="aria-label:common.status" id="status-bar" class="hidden flex gap-2 overflow-x-auto pb-3 mb-2 border-b border-slate-800" data-no-tab-swipe aria-label="Status"></div>
                 </div>
                 <div id="active-peers-list" class="flex-1 min-h-0 space-y-2 overflow-y-auto"></div>
             </div>
@@ -207,69 +206,69 @@
             <div id="chat-window-panel" class="md:col-span-2 bg-slate-900 border border-slate-800 rounded-xl flex flex-col h-full min-h-0">
                 <div id="chat-header" class="chat-header p-3 border-b border-slate-800 flex items-center justify-between gap-2 bg-slate-900/50">
                     <div class="flex flex-1 items-center gap-2 min-w-0">
-                        <button data-click="switchChat" data-args='[-1]' data-direction="-1" class="chat-switch-arrow hidden w-8 h-9 shrink-0 rounded-lg text-slate-300 hover:bg-slate-800 items-center justify-center disabled:opacity-30" aria-label="Vorheriger Chat">
+                        <button data-i18n-attr="aria-label:chat.previousChat" data-click="switchChat" data-args='[-1]' data-direction="-1" class="chat-switch-arrow hidden w-8 h-9 shrink-0 rounded-lg text-slate-300 hover:bg-slate-800 items-center justify-center disabled:opacity-30" aria-label="Vorheriger Chat">
                             <i class="fa-solid fa-chevron-up"></i>
                         </button>
-                        <button data-click="leaveActiveChat" class="md:hidden w-9 h-9 shrink-0 rounded-lg text-slate-300 hover:bg-slate-800 flex items-center justify-center" aria-label="Zurueck zur Chatliste">
+                        <button data-i18n-attr="aria-label:chat.backToChatList" data-click="leaveActiveChat" class="md:hidden w-9 h-9 shrink-0 rounded-lg text-slate-300 hover:bg-slate-800 flex items-center justify-center" aria-label="Zurueck zur Chatliste">
                             <i class="fa-solid fa-arrow-left"></i>
                         </button>
-                        <div class="flex items-center gap-3 min-w-0 cursor-pointer hover:opacity-80 transition" data-click="openActiveChatProfile" title="Profil anzeigen">
+                        <div data-i18n-attr="title:chat.showProfile" class="flex items-center gap-3 min-w-0 cursor-pointer hover:opacity-80 transition" data-click="openActiveChatProfile" title="Profil anzeigen">
                             <div class="relative shrink-0">
                                 <div id="chat-peer-avatar" class="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-slate-400 overflow-hidden">?</div>
-                                <span id="chat-peer-online-dot" class="hidden absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-slate-900" title="Online"></span>
+                                <span data-i18n-attr="title:common.online" id="chat-peer-online-dot" class="hidden absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-slate-900" title="Online"></span>
                             </div>
                             <div class="min-w-0">
-                                <div id="chat-peer-name" class="font-bold text-sm text-slate-200 truncate">Kein Chat ausgewaehlt</div>
+                                <div data-i18n="chat.noChatSelected" id="chat-peer-name" class="font-bold text-sm text-slate-200 truncate">Kein Chat ausgewaehlt</div>
                                 <div id="chat-peer-status" class="debug-off-only text-xs text-slate-400 truncate" aria-live="polite"></div>
-                                <div id="chat-connection-type" class="debug-only text-xs font-mono text-slate-400 truncate">Waehle jemanden im Grid aus</div>
+                                <div data-i18n="chat.chooseSomeoneInGrid" id="chat-connection-type" class="debug-only text-xs font-mono text-slate-400 truncate">Waehle jemanden im Grid aus</div>
                             </div>
                         </div>
                     </div>
                     <div class="flex items-center gap-1 shrink-0">
-                        <div id="connection-status-pill" class="debug-only text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-400 font-mono">
+                        <div data-i18n="common.disconnected" id="connection-status-pill" class="debug-only text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-400 font-mono">
                             Getrennt
                         </div>
-                        <button data-click="switchChat" data-args='[1]' data-direction="1" class="chat-switch-arrow hidden w-8 h-9 shrink-0 rounded-lg text-slate-300 hover:bg-slate-800 items-center justify-center disabled:opacity-30" aria-label="Naechster Chat">
+                        <button data-i18n-attr="aria-label:common.nextChat" data-click="switchChat" data-args='[1]' data-direction="1" class="chat-switch-arrow hidden w-8 h-9 shrink-0 rounded-lg text-slate-300 hover:bg-slate-800 items-center justify-center disabled:opacity-30" aria-label="Naechster Chat">
                             <i class="fa-solid fa-chevron-down"></i>
                         </button>
-                        <span class="offline-indicator hidden w-9 h-9 items-center justify-center text-amber-400" role="img" title="Offline - Chats sind lokal verfuegbar, neue Nachrichten kommen, sobald du wieder verbunden bist" aria-label="Offline"><i class="fa-solid fa-wifi wifi-off"></i></span>
-                        <button data-click="toggleChatSearch" class="w-9 h-9 rounded-lg text-slate-300 hover:bg-slate-800 flex items-center justify-center" title="Im Chat suchen" aria-label="Im Chat suchen">
+                        <span data-i18n-attr="title:chat.offlineChatsAreAvailableLocally;aria-label:chat.offline" class="offline-indicator hidden w-9 h-9 items-center justify-center text-amber-400" role="img" title="Offline - Chats sind lokal verfuegbar, neue Nachrichten kommen, sobald du wieder verbunden bist" aria-label="Offline"><i class="fa-solid fa-wifi wifi-off"></i></span>
+                        <button data-i18n-attr="title:chat.searchInChat;aria-label:chat.searchInChat" data-click="toggleChatSearch" class="w-9 h-9 rounded-lg text-slate-300 hover:bg-slate-800 flex items-center justify-center" title="Im Chat suchen" aria-label="Im Chat suchen">
                             <i class="fa-solid fa-magnifying-glass"></i>
                         </button>
                         <div class="relative">
-                            <button id="chat-header-menu-btn" data-click="toggleChatHeaderMenu" data-args='["$event"]' class="w-9 h-9 rounded-lg text-slate-300 hover:bg-slate-800 flex items-center justify-center" title="Mehr" aria-label="Weitere Aktionen" aria-haspopup="menu" aria-expanded="false">
+                            <button data-i18n-attr="title:chat.more;aria-label:chat.moreActions" id="chat-header-menu-btn" data-click="toggleChatHeaderMenu" data-args='["$event"]' class="w-9 h-9 rounded-lg text-slate-300 hover:bg-slate-800 flex items-center justify-center" title="Mehr" aria-label="Weitere Aktionen" aria-haspopup="menu" aria-expanded="false">
                                 <i class="fa-solid fa-ellipsis-vertical"></i>
                             </button>
                             <div id="chat-header-menu" class="hidden absolute right-0 top-full mt-1 z-30 w-48 py-1 rounded-xl border border-slate-700 bg-slate-900 shadow-xl" role="menu">
-                                <button data-click="chatMenuMedia" class="chat-menu-item" role="menuitem"><i class="fa-regular fa-images"></i> Medien</button>
-                                <button data-click="chatMenuProfile" class="chat-menu-item" role="menuitem"><i class="fa-regular fa-user"></i> Profil</button>
-                                <button id="delete-chat-btn" data-click="chatMenuDeleteChat" class="hidden chat-menu-item text-red-300" role="menuitem"><i class="fa-solid fa-trash"></i> Chat loeschen</button>
-                                <button id="block-peer-btn" data-click="chatMenuToggleBlock" class="hidden chat-menu-item text-red-300" role="menuitem"><i class="fa-solid fa-ban"></i> <span id="block-peer-label">Blockieren</span></button>
+                                <button data-click="chatMenuMedia" class="chat-menu-item" role="menuitem"><i class="fa-regular fa-images"></i> <span data-i18n="common.media">Medien</span></button>
+                                <button data-click="chatMenuProfile" class="chat-menu-item" role="menuitem"><i class="fa-regular fa-user"></i> <span data-i18n="common.profile">Profil</span></button>
+                                <button id="delete-chat-btn" data-click="chatMenuDeleteChat" class="hidden chat-menu-item text-red-300" role="menuitem"><i class="fa-solid fa-trash"></i> <span data-i18n="chat.deleteChat">Chat loeschen</span></button>
+                                <button id="block-peer-btn" data-click="chatMenuToggleBlock" class="hidden chat-menu-item text-red-300" role="menuitem"><i class="fa-solid fa-ban"></i> <span data-i18n="chat.block" id="block-peer-label">Blockieren</span></button>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div id="chat-switch-bar" class="hidden flex gap-1.5 px-3 py-2 border-b border-slate-800 overflow-x-auto" data-no-tab-swipe aria-label="Chats wechseln"></div>
+                <div data-i18n-attr="aria-label:common.switchingChats" id="chat-switch-bar" class="hidden flex gap-1.5 px-3 py-2 border-b border-slate-800 overflow-x-auto" data-no-tab-swipe aria-label="Chats wechseln"></div>
 
                 <div id="chat-search-bar" class="hidden px-4 py-2 border-b border-slate-800 flex items-center gap-3">
-                    <input id="chat-search-input" type="search" placeholder="Im Chat suchen..." data-input="setChatSearch" data-args='["$value"]' class="flex-1 min-w-0 bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-base md:text-sm text-slate-100 focus:outline-none focus:border-brand-500">
+                    <input data-i18n-attr="placeholder:chat.searchInChat2" id="chat-search-input" type="search" placeholder="Im Chat suchen..." data-input="setChatSearch" data-args='["$value"]' class="flex-1 min-w-0 bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-base md:text-sm text-slate-100 focus:outline-none focus:border-brand-500">
                     <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer whitespace-nowrap">
                         <input type="checkbox" id="chat-starred-toggle" data-change="setChatStarredOnly" data-args='["$checked"]' class="accent-brand-500">
-                        <i class="fa-solid fa-star text-amber-400"></i> Nur markierte
+                        <i class="fa-solid fa-star text-amber-400"></i> <span data-i18n="chat.starredOnly">Nur markierte</span>
                     </label>
                 </div>
 
                 <div class="relative flex-1 min-h-0 flex flex-col">
                     <div id="chat-messages" class="flex-1 min-h-0 p-4 overflow-y-auto space-y-3">
-                        <div class="empty-state"><span class="empty-state-icon" aria-hidden="true"><i class="fa-solid fa-comments"></i></span><div class="empty-state-title">Kein Chat ausgewaehlt</div><div class="empty-state-text">Waehle einen Chat aus oder starte einen im Grid.</div></div>
+                        <div class="empty-state"><span class="empty-state-icon" aria-hidden="true"><i class="fa-solid fa-comments"></i></span><div data-i18n="chat.noChatSelected" class="empty-state-title">Kein Chat ausgewaehlt</div><div data-i18n="chat.chooseChatOrStartOne" class="empty-state-text">Waehle einen Chat aus oder starte einen im Grid.</div></div>
                     </div>
-                    <button id="chat-jump-bottom" data-click="scrollChatToBottom" data-args='[true]' class="hidden absolute bottom-3 right-3 z-10 w-11 h-11 rounded-full bg-slate-800 border border-slate-700 text-slate-200 shadow-lg flex items-center justify-center hover:bg-slate-700" aria-label="Nach unten">
+                    <button data-i18n-attr="aria-label:chat.scrollDown" id="chat-jump-bottom" data-click="scrollChatToBottom" data-args='[true]' class="hidden absolute bottom-3 right-3 z-10 w-11 h-11 rounded-full bg-slate-800 border border-slate-700 text-slate-200 shadow-lg flex items-center justify-center hover:bg-slate-700" aria-label="Nach unten">
                         <i class="fa-solid fa-arrow-down"></i>
                     </button>
                 </div>
                 <div id="chat-pull-refresh" class="h-0 overflow-hidden flex items-center justify-center gap-2 text-xs text-slate-400 transition-colors" aria-hidden="true">
-                    <i class="fa-solid fa-arrow-up"></i><span>Weiter ziehen</span>
+                    <i class="fa-solid fa-arrow-up"></i><span data-i18n="common.keepPulling">Weiter ziehen</span>
                 </div>
 
                 <div class="chat-input-bar p-3 border-t border-slate-800 bg-slate-900/80 flex flex-col gap-2">
@@ -279,37 +278,37 @@
                             <div id="chat-reply-author" class="text-[11px] font-semibold text-brand-400"></div>
                             <div id="chat-reply-preview" class="text-xs text-slate-400 truncate"></div>
                         </div>
-                        <button data-click="cancelReply" class="w-7 h-7 rounded-lg text-slate-400 hover:bg-slate-800 flex items-center justify-center" aria-label="Antwort abbrechen">
+                        <button data-i18n-attr="aria-label:chat.cancelReply" data-click="cancelReply" class="w-7 h-7 rounded-lg text-slate-400 hover:bg-slate-800 flex items-center justify-center" aria-label="Antwort abbrechen">
                             <i class="fa-solid fa-xmark"></i>
                         </button>
                     </div>
                     <div id="chat-voice-bar" class="hidden flex items-center gap-3">
-                        <button data-click="cancelVoiceRecording" class="compose-btn compose-btn-icon" aria-label="Aufnahme verwerfen" title="Verwerfen">
+                        <button data-i18n-attr="title:common.discard;aria-label:chat.discardRecording" data-click="cancelVoiceRecording" class="compose-btn compose-btn-icon" aria-label="Aufnahme verwerfen" title="Verwerfen">
                             <i class="fa-solid fa-trash"></i>
                         </button>
                         <span id="chat-voice-dot" class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" aria-hidden="true"></span>
                         <span id="chat-voice-time" class="text-sm tabular-nums text-slate-200">0:00</span>
-                        <span id="chat-voice-direct-hint" class="hidden text-[11px] text-amber-400" title="Die erste Minute geht auch ueber den Router-Cache, der Rest nur ueber eine direkte Verbindung"><i class="fa-solid fa-tower-broadcast"></i> Rest nur direkt</span>
-                        <span id="chat-voice-transcript-hint" class="hidden text-[11px] text-slate-400" title="Wird nur auf diesem Geraet verschriftlicht"><i class="fa-solid fa-closed-captioning"></i> lokal</span>
-                        <button data-click="sendVoiceRecording" class="compose-btn compose-btn-primary ml-auto" aria-label="Sprachnachricht senden">
-                            <i class="fa-solid fa-paper-plane"></i><span class="hidden sm:inline">Senden</span>
+                        <span data-i18n-attr="title:chat.firstMinuteCanAlsoGo" id="chat-voice-direct-hint" class="hidden text-[11px] text-amber-400" title="Die erste Minute geht auch ueber den Router-Cache, der Rest nur ueber eine direkte Verbindung"><i class="fa-solid fa-tower-broadcast"></i> <span data-i18n="chat.restDirectOnly">Rest nur direkt</span></span>
+                        <span data-i18n-attr="title:chat.transcribedOnThisDeviceOnly" id="chat-voice-transcript-hint" class="hidden text-[11px] text-slate-400" title="Wird nur auf diesem Geraet verschriftlicht"><i class="fa-solid fa-closed-captioning"></i> <span data-i18n="chat.local">lokal</span></span>
+                        <button data-i18n-attr="aria-label:chat.sendVoiceMessage" data-click="sendVoiceRecording" class="compose-btn compose-btn-primary ml-auto" aria-label="Sprachnachricht senden">
+                            <i class="fa-solid fa-paper-plane"></i><span data-i18n="chat.send" class="hidden sm:inline">Senden</span>
                         </button>
                     </div>
                     <div id="chat-compose-row" class="flex items-end gap-2">
-                        <button id="chat-snap-btn" data-chat-image-action data-click="openSnapUploadModal" class="compose-btn" title="Snap senden" aria-label="Snap senden">
-                            <i class="fa-solid fa-bolt text-amber-400"></i><span class="hidden sm:inline">Snap</span>
+                        <button data-i18n-attr="title:chat.sendSnap;aria-label:chat.sendSnap" id="chat-snap-btn" data-chat-image-action data-click="openSnapUploadModal" class="compose-btn" title="Snap senden" aria-label="Snap senden">
+                            <i class="fa-solid fa-bolt text-amber-400"></i><span data-i18n="common.snap" class="hidden sm:inline">Snap</span>
                         </button>
-                        <button id="chat-album-btn" data-chat-image-action data-click="openAlbumPicker" class="compose-btn compose-btn-icon" title="Album teilen" aria-label="Album teilen">
+                        <button data-i18n-attr="title:common.shareAlbum;aria-label:common.shareAlbum" id="chat-album-btn" data-chat-image-action data-click="openAlbumPicker" class="compose-btn compose-btn-icon" title="Album teilen" aria-label="Album teilen">
                             <i class="fa-solid fa-images"></i>
                         </button>
-                        <button id="chat-video-btn" data-chat-image-action data-click="pickChatVideo" class="compose-btn compose-btn-icon" title="Video senden (nur direkt)" aria-label="Video senden">
+                        <button data-i18n-attr="title:chat.sendVideoDirectOnly;aria-label:chat.sendVideo" id="chat-video-btn" data-chat-image-action data-click="pickChatVideo" class="compose-btn compose-btn-icon" title="Video senden (nur direkt)" aria-label="Video senden">
                             <i class="fa-solid fa-film"></i>
                         </button>
-                        <textarea id="chat-input" rows="1" placeholder="Nachricht schreiben..." class="chat-input flex-1 min-w-0 text-base md:text-sm"></textarea>
-                        <button id="send-chat-btn" data-click="sendChatMessage" class="compose-btn compose-btn-primary" title="Senden" aria-label="Senden">
-                            <i class="fa-solid fa-paper-plane"></i><span class="hidden sm:inline">Senden</span>
+                        <textarea data-i18n-attr="placeholder:chat.writeMessage" id="chat-input" rows="1" placeholder="Nachricht schreiben..." class="chat-input flex-1 min-w-0 text-base md:text-sm"></textarea>
+                        <button data-i18n-attr="title:chat.send;aria-label:chat.send" id="send-chat-btn" data-click="sendChatMessage" class="compose-btn compose-btn-primary" title="Senden" aria-label="Senden">
+                            <i class="fa-solid fa-paper-plane"></i><span data-i18n="chat.send" class="hidden sm:inline">Senden</span>
                         </button>
-                        <button id="chat-voice-btn" data-chat-image-action data-click="startVoiceRecording" class="compose-btn compose-btn-primary compose-btn-icon hidden" title="Sprachnachricht aufnehmen" aria-label="Sprachnachricht aufnehmen">
+                        <button data-i18n-attr="title:chat.recordVoiceMessage;aria-label:chat.recordVoiceMessage" id="chat-voice-btn" data-chat-image-action data-click="startVoiceRecording" class="compose-btn compose-btn-primary compose-btn-icon hidden" title="Sprachnachricht aufnehmen" aria-label="Sprachnachricht aufnehmen">
                             <i class="fa-solid fa-microphone"></i>
                         </button>
                     </div>
@@ -323,11 +322,11 @@
                 <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
                     <div>
                         <h2 class="text-base font-bold text-slate-100 flex items-center gap-2">
-                            <i class="fa-solid fa-id-card text-brand-400"></i> Mein Profil
+                            <i class="fa-solid fa-id-card text-brand-400"></i> <span data-i18n="profile.myProfile">Mein Profil</span>
                         </h2>
-                        <p class="text-xs text-slate-400">Bearbeite dein Profil und deine Galerie. <span class="debug-only">Die Felder kommen aus dem Profil-Schema.</span></p>
+                        <p class="text-xs text-slate-400"><span data-i18n="profile.editYourProfileAndGallery">Bearbeite dein Profil und deine Galerie.</span> <span data-i18n="profile.fieldsComeFromProfileSchema" class="debug-only">Die Felder kommen aus dem Profil-Schema.</span></p>
                     </div>
-                    <button id="profile-settings-btn" data-click="openSettings" class="compose-btn compose-btn-icon" title="Einstellungen" aria-label="Einstellungen oeffnen">
+                    <button data-i18n-attr="title:common.settings;aria-label:profile.openSettings" id="profile-settings-btn" data-click="openSettings" class="compose-btn compose-btn-icon" title="Einstellungen" aria-label="Einstellungen oeffnen">
                         <i class="fa-solid fa-gear"></i>
                     </button>
                 </div>
@@ -335,23 +334,23 @@
                 <!-- Media & Gallery Editor -->
                 <div class="border-b border-slate-800 pb-5 space-y-4">
                     <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
-                        <i class="fa-solid fa-camera text-brand-400"></i> Avatar & Galerie
+                        <i class="fa-solid fa-camera text-brand-400"></i> <span data-i18n="profile.avatarGallery">Avatar & Galerie</span>
                     </h3>
                     <div class="flex flex-col sm:flex-row gap-6 items-start">
                         <div class="space-y-2">
-                            <label class="text-xs font-bold text-slate-400">Profilbild (Avatar)</label>
+                            <label data-i18n="profile.pictureAvatar" class="text-xs font-bold text-slate-400">Profilbild (Avatar)</label>
                             <div class="w-24 h-24 rounded-xl bg-slate-950 border border-slate-800 overflow-hidden relative group shrink-0">
                                 <img id="edit-avatar-preview" src="" class="w-full h-full object-cover">
                                 <span class="absolute bottom-1 right-1 w-7 h-7 rounded-full bg-brand-600 text-white text-xs flex items-center justify-center shadow-lg pointer-events-none" aria-hidden="true"><i class="fa-solid fa-camera"></i></span>
-                                <label class="absolute inset-0 bg-black/60 flex flex-col items-center justify-center cursor-pointer text-white transition opacity-0 hover:opacity-100 focus-within:opacity-100" aria-label="Profilbild aendern">
+                                <label data-i18n-attr="aria-label:profile.changeProfilePicture" class="absolute inset-0 bg-black/60 flex flex-col items-center justify-center cursor-pointer text-white transition opacity-0 hover:opacity-100 focus-within:opacity-100" aria-label="Profilbild aendern">
                                     <i class="fa-solid fa-upload text-xl mb-1"></i>
-                                    <span class="text-[9px] uppercase tracking-wider font-bold">Aendern</span>
+                                    <span data-i18n="profile.change" class="text-[9px] uppercase tracking-wider font-bold">Aendern</span>
                                     <input type="file" accept="image/*" class="hidden" data-change="handleAvatarUpload" data-args='["$el"]'>
                                 </label>
                             </div>
                         </div>
                         <div class="flex-1 space-y-2 w-full min-w-0">
-                            <label class="text-xs font-bold text-slate-400">Galerie <span class="debug-only">(Unlimitiert, P2P Chunked)</span></label>
+                            <label class="text-xs font-bold text-slate-400"><span data-i18n="profile.gallery">Galerie</span> <span data-i18n="profile.unlimitedP2PChunked" class="debug-only">(Unlimitiert, P2P Chunked)</span></label>
                             <div id="edit-gallery-container" class="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
                                 <!-- JS injects thumbnails here -->
                                 <label id="add-gallery-btn" class="w-20 h-20 rounded-xl bg-slate-950 border border-dashed border-slate-700 flex flex-col items-center justify-center cursor-pointer hover:border-brand-500 hover:text-brand-400 text-slate-500 transition shrink-0">
@@ -368,10 +367,10 @@
 
                 <!-- Erscheint bei ungespeicherten Aenderungen und bleibt unten stehen -->
                 <div id="profile-save-bar" class="profile-save-bar hidden" role="status">
-                    <span class="flex items-center gap-2 text-xs text-slate-200 min-w-0"><i class="fa-solid fa-circle-exclamation text-amber-400"></i> <span class="truncate">Nicht gespeichert</span></span>
+                    <span class="flex items-center gap-2 text-xs text-slate-200 min-w-0"><i class="fa-solid fa-circle-exclamation text-amber-400"></i> <span data-i18n="profile.notSaved" class="truncate">Nicht gespeichert</span></span>
                     <div class="flex gap-2 shrink-0">
-                        <button data-click="discardProfileChanges" class="btn-secondary">Verwerfen</button>
-                        <button id="profile-save-btn" data-click="saveUserProfile" class="btn-primary"><i class="fa-solid fa-floppy-disk"></i> Speichern</button>
+                        <button data-i18n="common.discard" data-click="discardProfileChanges" class="btn-secondary">Verwerfen</button>
+                        <button id="profile-save-btn" data-click="saveUserProfile" class="btn-primary"><i class="fa-solid fa-floppy-disk"></i> <span data-i18n="common.save">Speichern</span></button>
                     </div>
                 </div>
             </div>
@@ -379,31 +378,31 @@
             <div id="album-manager-card" class="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-3">
                 <div>
                     <h2 class="text-base font-bold text-slate-100 flex items-center gap-2">
-                        <i class="fa-solid fa-images text-brand-400"></i> Private Alben
+                        <i class="fa-solid fa-images text-brand-400"></i> <span data-i18n="albums.privateAlbums">Private Alben</span>
                     </h2>
-                    <p class="text-xs text-slate-400">Alben sind nicht im Profil sichtbar. Du teilst sie im Chat und kannst den Zugriff jederzeit entziehen.</p>
+                    <p data-i18n="albums.areNotVisibleIn" class="text-xs text-slate-400">Alben sind nicht im Profil sichtbar. Du teilst sie im Chat und kannst den Zugriff jederzeit entziehen.</p>
                 </div>
                 <div class="flex gap-2">
-                    <input id="new-album-name" type="text" maxlength="80" placeholder="Neues Album" data-enter="createAlbum" class="flex-1 min-w-0 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-base md:text-sm text-slate-200">
-                    <button data-click="createAlbum" class="bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-lg text-xs font-semibold">Anlegen</button>
+                    <input data-i18n-attr="placeholder:albums.newAlbum" id="new-album-name" type="text" maxlength="80" placeholder="Neues Album" data-enter="createAlbum" class="flex-1 min-w-0 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-base md:text-sm text-slate-200">
+                    <button data-i18n="albums.create" data-click="createAlbum" class="bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-lg text-xs font-semibold">Anlegen</button>
                 </div>
                 <div class="flex flex-wrap items-center gap-2 text-xs text-slate-400">
-                    <span>Standard fuer neue Alben: Schluessel gilt</span>
-                    <select id="album-default-epoch" data-change="updateAlbumDefault" data-args='["epochMinutes", "$number"]' aria-label="Standard-Gueltigkeit der Albumschluessel" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-slate-200">
-                        <option value="0">Server-Standard</option>
-                        <option value="15">15 min</option>
+                    <span data-i18n="albums.defaultForNewAlbumsKey">Standard fuer neue Alben: Schluessel gilt</span>
+                    <select data-i18n-attr="aria-label:albums.defaultAlbumKeyValidity" id="album-default-epoch" data-change="updateAlbumDefault" data-args='["epochMinutes", "$number"]' aria-label="Standard-Gueltigkeit der Albumschluessel" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-slate-200">
+                        <option data-i18n="albums.serverDefault" value="0">Server-Standard</option>
+                        <option data-i18n="common.15Min" value="15">15 min</option>
                         <option value="60">1 h</option>
                         <option value="180">3 h</option>
                         <option value="1440">24 h</option>
                     </select>
-                    <span>vorab</span>
-                    <select id="album-default-ahead" data-change="updateAlbumDefault" data-args='["epochsAhead", "$number"]' aria-label="Standard fuer vorab gelieferte Epochen" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-slate-200">
-                        <option value="1">1 Epoche</option>
-                        <option value="2">2 Epochen</option>
-                        <option value="3">3 Epochen</option>
+                    <span data-i18n="albums.inAdvance">vorab</span>
+                    <select data-i18n-attr="aria-label:albums.defaultForEpochsDeliveredIn" id="album-default-ahead" data-change="updateAlbumDefault" data-args='["epochsAhead", "$number"]' aria-label="Standard fuer vorab gelieferte Epochen" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-slate-200">
+                        <option data-i18n="albums.1Epoch" value="1">1 Epoche</option>
+                        <option data-i18n="albums.2Epochs" value="2">2 Epochen</option>
+                        <option data-i18n="albums.3Epochs" value="3">3 Epochen</option>
                     </select>
                 </div>
-                <p class="text-[11px] text-slate-500">Kurz = entzogener Zugriff endet schneller, Betrachter brauchen aber oefter neue Schluessel von dir. Vorab-Epochen halten Alben lesbar, wenn du offline bist.</p>
+                <p data-i18n="albums.shortRevokedAccessEndsSooner" class="text-[11px] text-slate-500">Kurz = entzogener Zugriff endet schneller, Betrachter brauchen aber oefter neue Schluessel von dir. Vorab-Epochen halten Alben lesbar, wenn du offline bist.</p>
                 <div id="album-manager-list" class="space-y-2"></div>
             </div>
         </section>
@@ -412,9 +411,9 @@
         <section id="view-cloud" class="hidden space-y-4">
             <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
                 <h2 class="text-base font-bold text-slate-200 mb-1 flex items-center gap-2">
-                    <i class="fa-solid fa-cloud text-sky-400"></i> Kurzzeit-Zwischenspeicher (Pfad C)
+                    <i class="fa-solid fa-cloud text-sky-400"></i> <span data-i18n="cloud.shortTermCachePathC">Kurzzeit-Zwischenspeicher (Pfad C)</span>
                 </h2>
-                <p class="text-xs text-slate-400 leading-relaxed">
+                <p data-i18n="cloud.messagesForContactsWhoCant" class="text-xs text-slate-400 leading-relaxed">
                     Nachrichten fuer gerade nicht erreichbare Kontakte sind Ende-zu-Ende mit AES-256-GCM verschluesselt. Der eigene Server speichert nur Geheimtext und nur fuer begrenzte Zeit.
                 </p>
             </div>
@@ -424,79 +423,79 @@
         <section id="view-keys" class="hidden">
             <div class="settings-panel">
             <h2 class="text-base font-bold text-slate-100 flex items-center gap-2 mb-1">
-                <i class="fa-solid fa-gear text-slate-400"></i> Einstellungen
+                <i class="fa-solid fa-gear text-slate-400"></i> <span data-i18n="common.settings">Einstellungen</span>
             </h2>
-            <nav class="settings-tabs" role="tablist" aria-label="Bereiche der Einstellungen" data-no-tab-swipe>
-                <button type="button" class="settings-tab" role="tab" data-settings-tab-btn="general" data-click="switchSettingsTab" data-args='["general"]'><i class="fa-solid fa-sliders"></i> Allgemein</button>
-                <button type="button" class="settings-tab" role="tab" data-settings-tab-btn="privacy" data-click="switchSettingsTab" data-args='["privacy"]'><i class="fa-solid fa-user-shield"></i> Privatsphaere</button>
-                <button type="button" class="settings-tab" role="tab" data-settings-tab-btn="chat" data-click="switchSettingsTab" data-args='["chat"]'><i class="fa-solid fa-comments"></i> Chat</button>
-                <button type="button" class="settings-tab" role="tab" data-settings-tab-btn="media" data-click="switchSettingsTab" data-args='["media"]'><i class="fa-solid fa-camera"></i> Medien</button>
-                <button type="button" class="settings-tab" role="tab" data-settings-tab-btn="appearance" data-click="switchSettingsTab" data-args='["appearance"]'><i class="fa-solid fa-palette"></i> Darstellung</button>
-                <button type="button" class="settings-tab debug-only" role="tab" data-settings-tab-btn="debug" data-click="switchSettingsTab" data-args='["debug"]'><i class="fa-solid fa-bug"></i> Debug</button>
+            <nav data-i18n-attr="aria-label:settings.sections" class="settings-tabs" role="tablist" aria-label="Bereiche der Einstellungen" data-no-tab-swipe>
+                <button type="button" class="settings-tab" role="tab" data-settings-tab-btn="general" data-click="switchSettingsTab" data-args='["general"]'><i class="fa-solid fa-sliders"></i> <span data-i18n="settings.general">Allgemein</span></button>
+                <button type="button" class="settings-tab" role="tab" data-settings-tab-btn="privacy" data-click="switchSettingsTab" data-args='["privacy"]'><i class="fa-solid fa-user-shield"></i> <span data-i18n="settings.privacy">Privatsphaere</span></button>
+                <button type="button" class="settings-tab" role="tab" data-settings-tab-btn="chat" data-click="switchSettingsTab" data-args='["chat"]'><i class="fa-solid fa-comments"></i> <span data-i18n="common.chat">Chat</span></button>
+                <button type="button" class="settings-tab" role="tab" data-settings-tab-btn="media" data-click="switchSettingsTab" data-args='["media"]'><i class="fa-solid fa-camera"></i> <span data-i18n="common.media">Medien</span></button>
+                <button type="button" class="settings-tab" role="tab" data-settings-tab-btn="appearance" data-click="switchSettingsTab" data-args='["appearance"]'><i class="fa-solid fa-palette"></i> <span data-i18n="settings.appearance">Darstellung</span></button>
+                <button type="button" class="settings-tab debug-only" role="tab" data-settings-tab-btn="debug" data-click="switchSettingsTab" data-args='["debug"]'><i class="fa-solid fa-bug"></i> <span data-i18n="settings.debug">Debug</span></button>
             </nav>
 
             <div class="settings-cards">
                 <!-- ===== Allgemein ===== -->
                 <div id="app-mode-card" class="settings-card" data-settings-tab="general">
-                    <h3 class="settings-card-title"><i class="fa-solid fa-sliders text-brand-400"></i> App-Modus</h3>
+                    <h3 class="settings-card-title"><i class="fa-solid fa-sliders text-brand-400"></i> <span data-i18n="settings.appMode">App-Modus</span></h3>
                     <div id="app-mode-options" class="grid gap-2 sm:grid-cols-2 pb-3"></div>
                     <div id="event-settings" class="setting-block">
-                        <div class="setting-desc mb-2">Event beitreten (der Server sieht nur einen Hash des Codes):</div>
+                        <div data-i18n="settings.joinEventServerOnlySees" class="setting-desc mb-2">Event beitreten (der Server sieht nur einen Hash des Codes):</div>
                         <div class="flex gap-2">
-                            <input id="event-code-input" type="text" maxlength="64" placeholder="Event-Code, z. B. PRIDE24" data-enter="joinEvent" class="setting-input flex-1 min-w-0 uppercase">
-                            <button data-click="joinEvent" class="btn-primary">Beitreten</button>
+                            <input data-i18n-attr="placeholder:settings.eventCodeEGPride24" id="event-code-input" type="text" maxlength="64" placeholder="Event-Code, z. B. PRIDE24" data-enter="joinEvent" class="setting-input flex-1 min-w-0 uppercase">
+                            <button data-i18n="settings.join" data-click="joinEvent" class="btn-primary">Beitreten</button>
                         </div>
-                        <div id="event-status" class="setting-desc mt-2">Kein Event aktiv.</div>
+                        <div data-i18n="common.noEventActive" id="event-status" class="setting-desc mt-2">Kein Event aktiv.</div>
                     </div>
                 </div>
 
                 <div class="settings-card" data-settings-tab="general">
-                    <h3 class="settings-card-title"><i class="fa-solid fa-language text-brand-400"></i> Sprache</h3>
+                    <h3 class="settings-card-title"><i class="fa-solid fa-language text-brand-400"></i> <span data-i18n="settings.language">Sprache</span></h3>
                     <label class="setting-row">
-                        <span class="setting-text"><span class="setting-title">Sprache der App</span><span class="setting-desc">Automatisch folgt der Sprache des Geraets.</span></span>
+                        <span class="setting-text"><span data-i18n="settings.appLanguage" class="setting-title">Sprache der App</span><span data-i18n="settings.automaticFollowsLanguageOfYour" class="setting-desc">Automatisch folgt der Sprache des Geraets.</span></span>
                         <select id="language-select" data-change="setLanguage" data-args='["$value"]' class="setting-select">
-                            <option value="auto">Automatisch</option>
-                            <option value="de">Deutsch</option>
-                            <option value="en">English</option>
+                            <option data-i18n="settings.automatic" value="auto">Automatisch</option>
+                            <option data-i18n="settings.deutsch" value="de">Deutsch</option>
+                            <option data-i18n="settings.english" value="en">English</option>
                         </select>
                     </label>
                 </div>
 
                 <div id="invite-card" class="settings-card" data-settings-tab="general">
-                    <h3 class="settings-card-title"><i class="fa-solid fa-user-plus text-brand-400"></i> Kontakt einladen</h3>
+                    <h3 class="settings-card-title"><i class="fa-solid fa-user-plus text-brand-400"></i> <span data-i18n="common.inviteContact">Kontakt einladen</span></h3>
                     <div class="setting-block space-y-3">
-                        <p class="setting-desc">Wer diesen Link oeffnet oder den QR-Code scannt, kann dir schreiben. Der Link enthaelt deinen Schluessel-Fingerprint, so faellt ein Abfangen auf.</p>
-                        <img id="invite-qr" alt="QR-Code mit deinem Einladungslink" class="hidden w-40 h-40 rounded-lg bg-white p-1 [image-rendering:pixelated]">
+                        <p data-i18n="settings.anyoneWhoOpensThisLink" class="setting-desc">Wer diesen Link oeffnet oder den QR-Code scannt, kann dir schreiben. Der Link enthaelt deinen Schluessel-Fingerprint, so faellt ein Abfangen auf.</p>
+                        <img data-i18n-attr="alt:settings.qrCodeWithYourInvite" id="invite-qr" alt="QR-Code mit deinem Einladungslink" class="hidden w-40 h-40 rounded-lg bg-white p-1 [image-rendering:pixelated]">
                         <input id="invite-link-output" type="text" readonly class="setting-input w-full text-[11px] font-mono">
                         <div class="flex gap-2">
-                            <button data-click="copyInviteLink" class="btn-secondary"><i class="fa-regular fa-copy"></i> Kopieren</button>
-                            <button data-click="shareInviteLink" class="btn-secondary"><i class="fa-solid fa-share-nodes"></i> Teilen</button>
+                            <button data-click="copyInviteLink" class="btn-secondary"><i class="fa-regular fa-copy"></i> <span data-i18n="common.copy">Kopieren</span></button>
+                            <button data-click="shareInviteLink" class="btn-secondary"><i class="fa-solid fa-share-nodes"></i> <span data-i18n="settings.share">Teilen</span></button>
                         </div>
                     </div>
                 </div>
 
                 <!-- ===== Privatsphaere ===== -->
                 <div class="settings-card" data-settings-tab="privacy">
-                    <h3 class="settings-card-title"><i class="fa-solid fa-fire text-orange-400"></i> Matching</h3>
+                    <h3 class="settings-card-title"><i class="fa-solid fa-fire text-orange-400"></i> <span data-i18n="settings.matching">Matching</span></h3>
                     <label class="setting-row">
-                        <span class="setting-text"><span class="setting-title">Profil sichtbar</span><span class="setting-desc">Ein Match entsteht, wenn ihr euch gegenseitig eine Flamme schickt. Bei "Teilweise" markierst du im Profil, welche Felder nur Matches sehen.</span></span>
+                        <span class="setting-text"><span data-i18n="settings.profileVisible" class="setting-title">Profil sichtbar</span><span data-i18n="settings.matchHappensWhenYouSend" class="setting-desc">Ein Match entsteht, wenn ihr euch gegenseitig eine Flamme schickt. Bei "Teilweise" markierst du im Profil, welche Felder nur Matches sehen.</span></span>
                         <select id="profile-visibility-select" data-change="updateMatchingSetting" data-args='["visibility", "$value"]' class="setting-select">
-                            <option value="1">Alles fuer alle</option>
-                            <option value="2">Teilweise (markierte Felder und Galerie nur fuer Matches)</option>
-                            <option value="3">Verborgen (alles erst nach Match)</option>
+                            <option data-i18n="settings.everythingForEveryone" value="1">Alles fuer alle</option>
+                            <option data-i18n="settings.partialStarredFieldsAndGallery" value="2">Teilweise (markierte Felder und Galerie nur fuer Matches)</option>
+                            <option data-i18n="settings.hiddenEverythingOnlyAfterMatch" value="3">Verborgen (alles erst nach Match)</option>
                         </select>
                     </label>
                     <label class="setting-row">
-                        <span class="setting-text"><span class="setting-title">Wer darf schreiben</span></span>
+                        <span class="setting-text"><span data-i18n="settings.whoCanWrite" class="setting-title">Wer darf schreiben</span></span>
                         <select id="chat-mode-select" data-change="updateMatchingSetting" data-args='["chatMode", "$value"]' class="setting-select">
-                            <option value="A">Alle</option>
-                            <option value="B">Begrenzt bis zum Match</option>
-                            <option value="C">Nur Matches</option>
+                            <option data-i18n="chat.everyone" value="A">Alle</option>
+                            <option data-i18n="chat.limitedUntilMatch" value="B">Begrenzt bis zum Match</option>
+                            <option data-i18n="chat.matchesOnly" value="C">Nur Matches</option>
                         </select>
                     </label>
                     <div id="chat-limit-options" class="hidden">
                         <label class="setting-row setting-sub">
-                            <span class="setting-text"><span class="setting-title">Nachrichten bis zum Match</span></span>
+                            <span class="setting-text"><span data-i18n="chat.messagesUntilMatch" class="setting-title">Nachrichten bis zum Match</span></span>
                             <select id="chat-limit-select" data-change="updateMatchingSetting" data-args='["chatLimit", "$value"]' class="setting-select">
                                 <option value="1">1</option>
                                 <option value="3">3</option>
@@ -505,169 +504,169 @@
                             </select>
                         </label>
                         <label class="setting-row setting-sub">
-                            <span class="setting-text"><span class="setting-title">Bilder erlaubt</span></span>
+                            <span class="setting-text"><span data-i18n="chat.imagesAllowed" class="setting-title">Bilder erlaubt</span></span>
                             <input type="checkbox" role="switch" id="chat-images-toggle" data-change="updateMatchingSetting" data-args='["chatImages", "$checked"]' class="switch">
                         </label>
                     </div>
                     <label class="setting-row">
-                        <span class="setting-text"><span class="setting-title">Matches koennen mich adden</span><span class="setting-desc">Der Chat wandert dann nach "Chat &amp; Freunde". Aus: deine Matches sehen keinen "Adden"-Knopf.</span></span>
+                        <span class="setting-text"><span data-i18n="settings.matchesCanAddMe" class="setting-title">Matches koennen mich adden</span><span data-i18n="settings.chatThenMovesToChat" class="setting-desc">Der Chat wandert dann nach "Chat &amp; Freunde". Aus: deine Matches sehen keinen "Adden"-Knopf.</span></span>
                         <input type="checkbox" role="switch" id="match-friends-toggle" checked data-change="updateMatchingSetting" data-args='["matchFriends", "$checked"]' class="switch">
                     </label>
                 </div>
 
                 <div class="settings-card" data-settings-tab="privacy">
-                    <h3 class="settings-card-title"><i class="fa-solid fa-eye-slash text-sky-400"></i> Sichtbarkeit im Grid</h3>
+                    <h3 class="settings-card-title"><i class="fa-solid fa-eye-slash text-sky-400"></i> <span data-i18n="settings.visibilityInGrid">Sichtbarkeit im Grid</span></h3>
                     <label class="setting-row">
-                        <span class="setting-text"><span class="setting-title">Silent-Modus</span><span class="setting-desc">Nicht im Grid sichtbar, aber fuer bestehende Chats erreichbar.</span></span>
+                        <span class="setting-text"><span data-i18n="settings.silentMode" class="setting-title">Silent-Modus</span><span data-i18n="settings.notVisibleInGridBut" class="setting-desc">Nicht im Grid sichtbar, aber fuer bestehende Chats erreichbar.</span></span>
                         <input type="checkbox" role="switch" id="silent-mode-toggle" data-change="updateGridSetting" data-args='["silent", "$checked"]' class="switch">
                     </label>
                     <label class="setting-row">
-                        <span class="setting-text"><span class="setting-title">Sichtbar nach dem Schliessen</span></span>
+                        <span class="setting-text"><span data-i18n="settings.visibleAfterClosing" class="setting-title">Sichtbar nach dem Schliessen</span></span>
                         <select id="grid-ttl-select" data-change="updateGridSetting" data-args='["ttlMinutes", "$number"]' class="setting-select">
-                            <option value="1">1 Minute</option>
-                            <option value="10">10 Minuten</option>
-                            <option value="30">30 Minuten</option>
-                            <option value="60">60 Minuten</option>
+                            <option data-i18n="settings.1Minute" value="1">1 Minute</option>
+                            <option data-i18n="settings.10Minutes" value="10">10 Minuten</option>
+                            <option data-i18n="settings.30Minutes" value="30">30 Minuten</option>
+                            <option data-i18n="settings.60Minutes" value="60">60 Minuten</option>
                         </select>
                     </label>
                     <label class="setting-row">
-                        <span class="setting-text"><span class="setting-title">Live-Grid</span><span class="setting-desc">Nur Profile zeigen, die gerade online sind.</span></span>
+                        <span class="setting-text"><span data-i18n="settings.liveGrid" class="setting-title">Live-Grid</span><span data-i18n="settings.onlyShowProfilesThatAre" class="setting-desc">Nur Profile zeigen, die gerade online sind.</span></span>
                         <input type="checkbox" role="switch" id="live-grid-toggle" data-change="updateGridSetting" data-args='["liveGrid", "$checked"]' class="switch">
                     </label>
                 </div>
 
                 <div class="settings-card" data-settings-tab="privacy">
-                    <h3 class="settings-card-title"><i class="fa-solid fa-location-dot text-sky-400"></i> Standort</h3>
+                    <h3 class="settings-card-title"><i class="fa-solid fa-location-dot text-sky-400"></i> <span data-i18n="settings.location">Standort</span></h3>
                     <label class="setting-row">
-                        <span class="setting-text"><span class="setting-title">Geraetestandort verwenden</span><span class="setting-desc">Nur als Zelle von ca. 1 km an den Router.</span></span>
+                        <span class="setting-text"><span data-i18n="settings.useDeviceLocation" class="setting-title">Geraetestandort verwenden</span><span data-i18n="settings.onlyAsCellOfAbout" class="setting-desc">Nur als Zelle von ca. 1 km an den Router.</span></span>
                         <input type="checkbox" role="switch" id="use-location-toggle" data-change="updateGridSetting" data-args='["useLocation", "$checked"]' class="switch">
                     </label>
                     <div class="setting-block">
-                        <div class="setting-title mb-0.5">Oder Adresse angeben</div>
-                        <div class="setting-desc mb-2">Wird einmalig an OpenStreetMap Nominatim gesendet, der Router sieht nur die Zelle.</div>
+                        <div data-i18n="settings.orEnterAddress" class="setting-title mb-0.5">Oder Adresse angeben</div>
+                        <div data-i18n="settings.sentOnceToOpenstreetmapNominatim" class="setting-desc mb-2">Wird einmalig an OpenStreetMap Nominatim gesendet, der Router sieht nur die Zelle.</div>
                         <div class="flex gap-2">
-                            <input id="address-input" type="text" autocomplete="street-address" placeholder="Strasse, Ort" data-enter="searchAddressLocation" class="setting-input flex-1 min-w-0">
-                            <button id="address-search-btn" data-click="searchAddressLocation" class="btn-secondary">Suchen</button>
+                            <input data-i18n-attr="placeholder:settings.streetCity" id="address-input" type="text" autocomplete="street-address" placeholder="Strasse, Ort" data-enter="searchAddressLocation" class="setting-input flex-1 min-w-0">
+                            <button data-i18n="settings.search" id="address-search-btn" data-click="searchAddressLocation" class="btn-secondary">Suchen</button>
                         </div>
-                        <div id="location-label" class="setting-desc mt-2 truncate">Aktuell: kein Standort gesetzt</div>
+                        <div data-i18n="settings.currentlyNoLocationSet" id="location-label" class="setting-desc mt-2 truncate">Aktuell: kein Standort gesetzt</div>
                     </div>
                     <div class="setting-block">
-                        <div class="setting-title mb-0.5">Safe Zones</div>
-                        <div class="setting-desc mb-2">An diesen Orten bist du automatisch unsichtbar.</div>
+                        <div data-i18n="settings.safeZones" class="setting-title mb-0.5">Safe Zones</div>
+                        <div data-i18n="settings.atThesePlacesYouAre" class="setting-desc mb-2">An diesen Orten bist du automatisch unsichtbar.</div>
                         <ul id="safe-zone-list" class="space-y-1 mb-2"></ul>
-                        <button id="add-safe-zone-btn" data-click="addCurrentSafeZone" class="btn-secondary">Aktuellen Ort als Safe Zone speichern</button>
+                        <button data-i18n="settings.saveCurrentLocationAsSafe" id="add-safe-zone-btn" data-click="addCurrentSafeZone" class="btn-secondary">Aktuellen Ort als Safe Zone speichern</button>
                     </div>
                 </div>
 
                 <div class="settings-card" data-settings-tab="privacy">
-                    <h3 class="settings-card-title"><i class="fa-solid fa-network-wired text-sky-400"></i> Verbindung</h3>
+                    <h3 class="settings-card-title"><i class="fa-solid fa-network-wired text-sky-400"></i> <span data-i18n="settings.connection">Verbindung</span></h3>
                     <label class="setting-row">
-                        <span class="setting-text"><span class="setting-title">Cloud-Cache</span><span class="setting-desc">Eigene Nachrichten verschluesselt auf dem Server zwischenspeichern, wenn keine direkte Verbindung besteht. Eingehende Nachrichten kommen weiterhin an.</span></span>
+                        <span class="setting-text"><span data-i18n="settings.cloudCache" class="setting-title">Cloud-Cache</span><span data-i18n="settings.storeYourOwnMessagesEncrypted" class="setting-desc">Eigene Nachrichten verschluesselt auf dem Server zwischenspeichern, wenn keine direkte Verbindung besteht. Eingehende Nachrichten kommen weiterhin an.</span></span>
                         <input type="checkbox" role="switch" id="cache-enabled-toggle" checked data-change="updateGridSetting" data-args='["cacheEnabled", "$checked"]' class="switch">
                     </label>
                     <label class="setting-row">
-                        <span class="setting-text"><span class="setting-title">Nur lokales Netz (Club-Modus)</span><span class="setting-desc">Verbindungen nur im selben WLAN, ohne STUN/TURN-Server. Chats mit Leuten ausserhalb laufen dann ueber den verschluesselten Zwischenspeicher.</span></span>
+                        <span class="setting-text"><span data-i18n="settings.localNetworkOnlyClubMode" class="setting-title">Nur lokales Netz (Club-Modus)</span><span data-i18n="settings.connectionsOnlyOnSameWi" class="setting-desc">Verbindungen nur im selben WLAN, ohne STUN/TURN-Server. Chats mit Leuten ausserhalb laufen dann ueber den verschluesselten Zwischenspeicher.</span></span>
                         <input type="checkbox" role="switch" id="lan-only-toggle" data-change="updateGridSetting" data-args='["lanOnly", "$checked"]' class="switch">
                     </label>
                 </div>
 
                 <div class="settings-card" data-settings-tab="privacy">
-                    <h3 class="settings-card-title"><i class="fa-solid fa-user-slash text-red-400"></i> Blockierte Peers</h3>
+                    <h3 class="settings-card-title"><i class="fa-solid fa-user-slash text-red-400"></i> <span data-i18n="settings.blockedPeers">Blockierte Peers</span></h3>
                     <div class="setting-block">
-                        <p class="setting-desc mb-2">Hier kannst du blockierte Verbindungen verwalten und wieder freigeben.</p>
+                        <p data-i18n="settings.manageBlockedConnectionsHereAnd" class="setting-desc mb-2">Hier kannst du blockierte Verbindungen verwalten und wieder freigeben.</p>
                         <div id="blocked-peers-list" class="space-y-2 max-h-60 overflow-y-auto">
-                            <div class="text-xs text-slate-500 italic">Keine Peers blockiert.</div>
+                            <div data-i18n="settings.noPeersBlocked" class="text-xs text-slate-500 italic">Keine Peers blockiert.</div>
                         </div>
                     </div>
                 </div>
 
                 <!-- ===== Chat ===== -->
                 <div class="settings-card" data-settings-tab="chat">
-                    <h3 class="settings-card-title"><i class="fa-solid fa-comments text-brand-400"></i> Chats wechseln</h3>
+                    <h3 class="settings-card-title"><i class="fa-solid fa-comments text-brand-400"></i> <span data-i18n="common.switchingChats">Chats wechseln</span></h3>
                     <label class="setting-row">
-                        <span class="setting-text"><span class="setting-title">Schnell zum naechsten Chat</span><span class="setting-desc">Im offenen Chat zwischen den Chats der Liste wechseln.</span></span>
+                        <span class="setting-text"><span data-i18n="settings.quickSwitchToNextChat" class="setting-title">Schnell zum naechsten Chat</span><span data-i18n="settings.switchBetweenChatsOfList" class="setting-desc">Im offenen Chat zwischen den Chats der Liste wechseln.</span></span>
                         <input type="checkbox" role="switch" id="chat-switch-toggle" checked data-change="updateChatSwitchSetting" data-args='["enabled", "$checked"]' class="switch">
                     </label>
                     <label class="setting-row setting-sub">
-                        <span class="setting-text"><span class="setting-title">Art des Wechsels</span></span>
+                        <span class="setting-text"><span data-i18n="settings.howToSwitch" class="setting-title">Art des Wechsels</span></span>
                         <select id="chat-switch-style" data-change="updateChatSwitchSetting" data-args='["style", "$value"]' class="setting-select">
-                            <option value="bar">Leiste mit Avataren</option>
-                            <option value="arrows">Pfeile in der Kontaktleiste</option>
-                            <option value="swipe">Wischen auf der Kontaktleiste</option>
+                            <option data-i18n="chat.barWithAvatars" value="bar">Leiste mit Avataren</option>
+                            <option data-i18n="chat.arrowsInContactBar" value="arrows">Pfeile in der Kontaktleiste</option>
+                            <option data-i18n="chat.swipeOnContactBar" value="swipe">Wischen auf der Kontaktleiste</option>
                         </select>
                     </label>
                     <label class="setting-row">
-                        <span class="setting-text"><span class="setting-title">Knopf zum Listen-Wechsel</span><span class="setting-desc">Zwischen "Grid &amp; Event" und "Chat &amp; Freunde".</span></span>
+                        <span class="setting-text"><span data-i18n="settings.listSwitchButton" class="setting-title">Knopf zum Listen-Wechsel</span><span data-i18n="settings.betweenGridEventAndChat" class="setting-desc">Zwischen "Grid &amp; Event" und "Chat &amp; Freunde".</span></span>
                         <input type="checkbox" role="switch" id="list-switch-toggle" checked data-change="updateListSwitchSetting" data-args='["enabled", "$checked"]' class="switch">
                     </label>
                     <label class="setting-row setting-sub">
-                        <span class="setting-text"><span class="setting-title">Der Knopf</span></span>
+                        <span class="setting-text"><span data-i18n="settings.button" class="setting-title">Der Knopf</span></span>
                         <select id="list-switch-behavior" data-change="updateListSwitchSetting" data-args='["behavior", "$value"]' class="setting-select">
-                            <option value="mode">wechselt den App-Modus</option>
-                            <option value="view">zeigt nur die andere Liste</option>
+                            <option data-i18n="settings.switchesAppMode" value="mode">wechselt den App-Modus</option>
+                            <option data-i18n="settings.onlyShowsOtherList" value="view">zeigt nur die andere Liste</option>
                         </select>
                     </label>
                     <label class="setting-row">
-                        <span class="setting-text"><span class="setting-title">Am Ende hochziehen</span><span class="setting-desc">Was passiert, wenn du im Chat ganz unten weiter nach oben ziehst.</span></span>
+                        <span class="setting-text"><span data-i18n="settings.pullUpAtEnd" class="setting-title">Am Ende hochziehen</span><span data-i18n="settings.whatHappensWhenYouKeep" class="setting-desc">Was passiert, wenn du im Chat ganz unten weiter nach oben ziehst.</span></span>
                         <select id="pullup-action-select" data-change="updatePullUpSetting" data-args='["$value"]' class="setting-select">
-                            <option value="reload">Seite neu laden</option>
-                            <option value="next">Naechster Chat</option>
-                            <option value="switcher">Chat auswaehlen (Quick-Switcher)</option>
-                            <option value="snap">Snap aufnehmen</option>
-                            <option value="album">Album teilen</option>
+                            <option data-i18n="settings.reloadPage" value="reload">Seite neu laden</option>
+                            <option data-i18n="common.nextChat" value="next">Naechster Chat</option>
+                            <option data-i18n="settings.chooseChatQuickSwitcher" value="switcher">Chat auswaehlen (Quick-Switcher)</option>
+                            <option data-i18n="settings.takeSnap" value="snap">Snap aufnehmen</option>
+                            <option data-i18n="common.shareAlbum" value="album">Album teilen</option>
                         </select>
                     </label>
                 </div>
 
                 <div class="settings-card" data-settings-tab="chat">
-                    <h3 class="settings-card-title"><i class="fa-solid fa-circle-notch text-brand-400"></i> Status</h3>
+                    <h3 class="settings-card-title"><i class="fa-solid fa-circle-notch text-brand-400"></i> <span data-i18n="common.status">Status</span></h3>
                     <label class="setting-row">
-                        <span class="setting-text"><span class="setting-title">Status nur direkt (P2P)</span><span class="setting-desc">Der Server sieht dann nicht, an wen du Status schickst; Freunde bekommen ihn erst, wenn ihr gleichzeitig online seid.</span></span>
+                        <span class="setting-text"><span data-i18n="settings.statusDirectOnlyP2P" class="setting-title">Status nur direkt (P2P)</span><span data-i18n="settings.serverThenCantSeeWho" class="setting-desc">Der Server sieht dann nicht, an wen du Status schickst; Freunde bekommen ihn erst, wenn ihr gleichzeitig online seid.</span></span>
                         <input type="checkbox" role="switch" id="status-direct-toggle" data-change="updateStatusSetting" data-args='["directOnly", "$checked"]' class="switch">
                     </label>
-                    <p class="setting-note">Status (Text oder Foto) sehen nur Freunde, 24 Stunden lang. Danach werden sie auf allen Geraeten geloescht.</p>
+                    <p data-i18n="settings.onlyFriendsSeeYourStatus" class="setting-note">Status (Text oder Foto) sehen nur Freunde, 24 Stunden lang. Danach werden sie auf allen Geraeten geloescht.</p>
                 </div>
 
                 <div class="settings-card" data-settings-tab="chat">
-                    <h3 class="settings-card-title"><i class="fa-solid fa-bell text-amber-400"></i> Push-Benachrichtigungen</h3>
+                    <h3 class="settings-card-title"><i class="fa-solid fa-bell text-amber-400"></i> <span data-i18n="settings.pushNotifications">Push-Benachrichtigungen</span></h3>
                     <div class="setting-block">
-                        <p class="setting-desc mb-2">Weckt die App bei neuen Nachrichten, auch wenn sie geschlossen ist. Der Push enthaelt nur verschluesselte Daten.</p>
-                        <div id="push-status" class="debug-only text-xs font-mono text-slate-400 mb-2">Wird geprueft...</div>
-                        <button id="push-toggle-btn" data-click="togglePushNotifications" class="btn-secondary">Benachrichtigungen einschalten</button>
+                        <p data-i18n="settings.wakesAppForNewMessages" class="setting-desc mb-2">Weckt die App bei neuen Nachrichten, auch wenn sie geschlossen ist. Der Push enthaelt nur verschluesselte Daten.</p>
+                        <div data-i18n="common.checking" id="push-status" class="debug-only text-xs font-mono text-slate-400 mb-2">Wird geprueft...</div>
+                        <button data-i18n="common.turnOnNotifications" id="push-toggle-btn" data-click="togglePushNotifications" class="btn-secondary">Benachrichtigungen einschalten</button>
                     </div>
                     <label class="setting-row">
-                        <span class="setting-text"><span class="setting-title">Kompakte Meldung</span><span class="setting-desc">Nur "Neue Nachrichten", ohne Name und Text.</span></span>
+                        <span class="setting-text"><span data-i18n="settings.compactNotification" class="setting-title">Kompakte Meldung</span><span data-i18n="settings.onlyNewMessagesWithoutName" class="setting-desc">Nur "Neue Nachrichten", ohne Name und Text.</span></span>
                         <input type="checkbox" role="switch" id="push-compact-toggle" checked data-change="setCompactPushNotifications" data-args='["$checked"]' class="switch">
                     </label>
                 </div>
 
                 <!-- ===== Medien ===== -->
                 <div class="settings-card" data-settings-tab="media">
-                    <h3 class="settings-card-title"><i class="fa-solid fa-bolt text-amber-400"></i> Snaps</h3>
+                    <h3 class="settings-card-title"><i class="fa-solid fa-bolt text-amber-400"></i> <span data-i18n="settings.snaps">Snaps</span></h3>
                     <label class="setting-row">
-                        <span class="setting-text"><span class="setting-title">Einmal-Snaps laufen ab nach</span><span class="setting-desc">Gerechnet ab dem ersten Ansehen beim Empfaenger.</span></span>
+                        <span class="setting-text"><span data-i18n="settings.oneTimeSnapsExpireAfter" class="setting-title">Einmal-Snaps laufen ab nach</span><span data-i18n="settings.countedFromRecipientsFirstView" class="setting-desc">Gerechnet ab dem ersten Ansehen beim Empfaenger.</span></span>
                         <select id="snap-expiry-select" data-change="updateSnapSetting" data-args='["expiry", "$value"]' class="setting-select">
-                            <option value="15m">15 min</option>
-                            <option value="30m">30 min</option>
-                            <option value="60m">60 min</option>
-                            <option value="off">nie (nur Ansichten zaehlen)</option>
+                            <option data-i18n="common.15Min" value="15m">15 min</option>
+                            <option data-i18n="snaps.30Min" value="30m">30 min</option>
+                            <option data-i18n="snaps.60Min" value="60m">60 min</option>
+                            <option data-i18n="snaps.neverOnlyViewsCount" value="off">nie (nur Ansichten zaehlen)</option>
                         </select>
                     </label>
                     <label class="setting-row">
-                        <span class="setting-text"><span class="setting-title">Mehrere Snaps: weiter mit</span></span>
+                        <span class="setting-text"><span data-i18n="settings.severalSnapsNextWith" class="setting-title">Mehrere Snaps: weiter mit</span></span>
                         <select id="snap-next-gesture" data-change="updateSnapSetting" data-args='["nextGesture", "$value"]' class="setting-select">
-                            <option value="doubletap">Doppeltippen</option>
-                            <option value="swipe">Seitlich wischen</option>
-                            <option value="swipeup">Nach oben wischen</option>
+                            <option data-i18n="snaps.doubleTap" value="doubletap">Doppeltippen</option>
+                            <option data-i18n="snaps.swipeSideways" value="swipe">Seitlich wischen</option>
+                            <option data-i18n="snaps.swipeUp" value="swipeup">Nach oben wischen</option>
                         </select>
                     </label>
                     <label class="setting-row">
-                        <span class="setting-text"><span class="setting-title">Secure Snaps</span><span class="setting-desc">Nur mit Freigabe ansehen: begrenzte Ansichten und Dauer, live gestreamt, wenn moeglich. Du musst dafuer online sein.</span></span>
+                        <span class="setting-text"><span data-i18n="settings.secureSnaps" class="setting-title">Secure Snaps</span><span data-i18n="settings.viewOnlyWithYourApproval" class="setting-desc">Nur mit Freigabe ansehen: begrenzte Ansichten und Dauer, live gestreamt, wenn moeglich. Du musst dafuer online sein.</span></span>
                         <input type="checkbox" role="switch" id="secure-snaps-toggle" data-change="updateSnapSetting" data-args='["secureSnaps", "$checked"]' class="switch">
                     </label>
                     <div id="secure-snap-defaults" class="hidden">
                         <label class="setting-row setting-sub">
-                            <span class="setting-text"><span class="setting-title">Ansichten</span></span>
+                            <span class="setting-text"><span data-i18n="snaps.views" class="setting-title">Ansichten</span></span>
                             <select id="secure-snap-default-views" data-change="updateSnapSetting" data-args='["views", "$number"]' class="setting-select">
                                 <option value="1">1x</option>
                                 <option value="2">2x</option>
@@ -675,76 +674,76 @@
                             </select>
                         </label>
                         <label class="setting-row setting-sub">
-                            <span class="setting-text"><span class="setting-title">Dauer je Ansicht</span></span>
+                            <span class="setting-text"><span data-i18n="snaps.durationPerView" class="setting-title">Dauer je Ansicht</span></span>
                             <select id="secure-snap-default-seconds" data-change="updateSnapSetting" data-args='["seconds", "$number"]' class="setting-select">
                                 <option value="5">5 s</option>
                                 <option value="10">10 s</option>
                                 <option value="30">30 s</option>
-                                <option value="0">bis zum Schliessen</option>
+                                <option data-i18n="snaps.untilClosed" value="0">bis zum Schliessen</option>
                             </select>
                         </label>
                     </div>
                 </div>
 
                 <div class="settings-card" data-settings-tab="media">
-                    <h3 class="settings-card-title"><i class="fa-solid fa-fingerprint text-amber-400"></i> Schutz</h3>
+                    <h3 class="settings-card-title"><i class="fa-solid fa-fingerprint text-amber-400"></i> <span data-i18n="settings.protection">Schutz</span></h3>
                     <label class="setting-row">
-                        <span class="setting-text"><span class="setting-title">Spur-Wasserzeichen</span><span class="setting-desc">Eigene Snaps und Albumbilder tragen unsichtbar die ID des Empfaengers. So laesst sich ein Leak (z. B. Screenshot) zuordnen.</span></span>
+                        <span class="setting-text"><span data-i18n="settings.traceWatermark" class="setting-title">Spur-Wasserzeichen</span><span data-i18n="settings.yourSnapsAndAlbumImages" class="setting-desc">Eigene Snaps und Albumbilder tragen unsichtbar die ID des Empfaengers. So laesst sich ein Leak (z. B. Screenshot) zuordnen.</span></span>
                         <input type="checkbox" role="switch" id="trace-watermark-toggle" checked data-change="updateTraceWatermark" data-args='["$checked"]' class="switch">
                     </label>
-                    <p class="setting-note">Screenshots lassen sich im Browser nicht verhindern. Bilder werden nur angezeigt, nicht als Datei bereitgestellt; speichern lassen sich nur Chat-Bilder im Chat- und Freunde-Modus.</p>
+                    <p data-i18n="settings.screenshotsCantBePreventedIn" class="setting-note">Screenshots lassen sich im Browser nicht verhindern. Bilder werden nur angezeigt, nicht als Datei bereitgestellt; speichern lassen sich nur Chat-Bilder im Chat- und Freunde-Modus.</p>
                 </div>
 
                 <div class="settings-card" data-settings-tab="media">
-                    <h3 class="settings-card-title"><i class="fa-solid fa-hard-drive text-sky-400"></i> Speicher</h3>
+                    <h3 class="settings-card-title"><i class="fa-solid fa-hard-drive text-sky-400"></i> <span data-i18n="settings.storage">Speicher</span></h3>
                     <div class="setting-block">
-                        <div id="storage-usage" class="setting-desc mb-2">Wird berechnet...</div>
-                        <button id="storage-cleanup-btn" data-click="cleanupUnusedMedia" class="btn-secondary">Nicht mehr benoetigte Medien entfernen</button>
+                        <div data-i18n="settings.calculating" id="storage-usage" class="setting-desc mb-2">Wird berechnet...</div>
+                        <button data-i18n="settings.removeMediaThatIsNo" id="storage-cleanup-btn" data-click="cleanupUnusedMedia" class="btn-secondary">Nicht mehr benoetigte Medien entfernen</button>
                     </div>
                 </div>
 
                 <!-- ===== Darstellung ===== -->
                 <div class="settings-card" data-settings-tab="appearance">
-                    <h3 class="settings-card-title"><i class="fa-solid fa-palette text-brand-400"></i> Darstellung</h3>
+                    <h3 class="settings-card-title"><i class="fa-solid fa-palette text-brand-400"></i> <span data-i18n="settings.appearance">Darstellung</span></h3>
                     <div class="setting-row">
-                        <span class="setting-text"><span class="setting-title">Thema</span></span>
-                        <div class="flex gap-1 p-1 rounded-xl bg-slate-950 border border-slate-800 text-xs" role="group" aria-label="Thema">
-                            <button type="button" data-theme-mode="system" data-click="setThemeMode" data-args='["system"]' class="px-3 py-1.5 rounded-lg font-semibold">System</button>
-                            <button type="button" data-theme-mode="light" data-click="setThemeMode" data-args='["light"]' class="px-3 py-1.5 rounded-lg font-semibold">Hell</button>
-                            <button type="button" data-theme-mode="dark" data-click="setThemeMode" data-args='["dark"]' class="px-3 py-1.5 rounded-lg font-semibold">Dunkel</button>
+                        <span class="setting-text"><span data-i18n="settings.theme" class="setting-title">Thema</span></span>
+                        <div data-i18n-attr="aria-label:settings.theme" class="flex gap-1 p-1 rounded-xl bg-slate-950 border border-slate-800 text-xs" role="group" aria-label="Thema">
+                            <button data-i18n="settings.system" type="button" data-theme-mode="system" data-click="setThemeMode" data-args='["system"]' class="px-3 py-1.5 rounded-lg font-semibold">System</button>
+                            <button data-i18n="settings.light" type="button" data-theme-mode="light" data-click="setThemeMode" data-args='["light"]' class="px-3 py-1.5 rounded-lg font-semibold">Hell</button>
+                            <button data-i18n="settings.dark" type="button" data-theme-mode="dark" data-click="setThemeMode" data-args='["dark"]' class="px-3 py-1.5 rounded-lg font-semibold">Dunkel</button>
                         </div>
                     </div>
                     <label class="setting-row">
-                        <span class="setting-text"><span class="setting-title">Schriftgroesse im Chat</span></span>
+                        <span class="setting-text"><span data-i18n="settings.chatFontSize" class="setting-title">Schriftgroesse im Chat</span></span>
                         <select id="chat-font-size-select" data-change="setChatFontSize" data-args='["$value"]' class="setting-select">
-                            <option value="small">Klein</option>
-                            <option value="normal">Normal</option>
-                            <option value="large">Gross</option>
-                            <option value="xlarge">Sehr gross</option>
+                            <option data-i18n="chat.small" value="small">Klein</option>
+                            <option data-i18n="chat.normal" value="normal">Normal</option>
+                            <option data-i18n="chat.large" value="large">Gross</option>
+                            <option data-i18n="chat.veryLarge" value="xlarge">Sehr gross</option>
                         </select>
                     </label>
                     <div class="setting-block flex flex-wrap items-center gap-4">
-                        <div id="accent-wheel" class="accent-wheel relative w-32 h-32 rounded-full cursor-crosshair shadow-inner border border-slate-700" role="slider" aria-label="Akzentfarbe waehlen">
+                        <div data-i18n-attr="aria-label:settings.chooseAccentColour" id="accent-wheel" class="accent-wheel relative w-32 h-32 rounded-full cursor-crosshair shadow-inner border border-slate-700" role="slider" aria-label="Akzentfarbe waehlen">
                             <span id="accent-wheel-handle" class="absolute w-6 h-6 -ml-3 -mt-3 rounded-full border-[3px] border-white shadow-lg pointer-events-none"></span>
                         </div>
                         <div class="space-y-2">
-                            <div class="setting-title">Akzentfarbe</div>
-                            <div class="setting-desc">Im Kreis ziehen oder waehlen</div>
+                            <div data-i18n="settings.accentColour" class="setting-title">Akzentfarbe</div>
+                            <div data-i18n="settings.dragInCircleOrPick" class="setting-desc">Im Kreis ziehen oder waehlen</div>
                             <div id="accent-presets" class="grid grid-cols-4 gap-2"></div>
-                            <button type="button" data-click="setAccent" data-args='[null]' class="text-[11px] text-slate-400 hover:text-slate-200 underline">Standard</button>
+                            <button data-i18n="settings.default" type="button" data-click="setAccent" data-args='[null]' class="text-[11px] text-slate-400 hover:text-slate-200 underline">Standard</button>
                         </div>
                     </div>
                 </div>
 
                 <!-- ===== Debug ===== -->
                 <div id="debug-console-panel" class="debug-only settings-card" data-settings-tab="debug">
-                    <h3 class="settings-card-title"><i class="fa-solid fa-terminal text-amber-400"></i> Live PWA Protocol Log</h3>
+                    <h3 class="settings-card-title"><i class="fa-solid fa-terminal text-amber-400"></i> <span data-i18n="settings.livePwaProtocolLog">Live PWA Protocol Log</span></h3>
                     <div class="setting-block space-y-3">
                         <div class="flex flex-wrap items-center gap-2">
                             <span class="text-[10px] text-slate-500 bg-slate-950 px-2 py-1 rounded border border-slate-800">Build: {{timestamp}}</span>
-                            <button data-click="copyDebugLogs" class="btn-secondary" title="Vollstaendiges Protokoll in die Zwischenablage kopieren"><i class="fa-solid fa-copy text-sky-400"></i> Copy Logs</button>
-                            <button data-click="runConnectivityDiagnostics" class="btn-secondary" title="STUN/TURN-Erreichbarkeit pruefen"><i class="fa-solid fa-stethoscope text-emerald-400"></i> Test ICE</button>
-                            <button data-click="clearDebugLogs" class="btn-secondary">Clear Logs</button>
+                            <button data-i18n-attr="title:settings.copyFullLogToClipboard" data-click="copyDebugLogs" class="btn-secondary" title="Vollstaendiges Protokoll in die Zwischenablage kopieren"><i class="fa-solid fa-copy text-sky-400"></i> <span data-i18n="settings.copyLogs">Copy Logs</span></button>
+                            <button data-i18n-attr="title:settings.checkStunTurnReachability" data-click="runConnectivityDiagnostics" class="btn-secondary" title="STUN/TURN-Erreichbarkeit pruefen"><i class="fa-solid fa-stethoscope text-emerald-400"></i> <span data-i18n="settings.testIce">Test ICE</span></button>
+                            <button data-i18n="settings.clearLogs" data-click="clearDebugLogs" class="btn-secondary">Clear Logs</button>
                         </div>
                         <div id="debug-log-output" class="bg-slate-950 p-3 rounded-lg border border-slate-800 font-mono text-xs text-emerald-400 h-60 overflow-y-auto space-y-1">
                             <div>[System] Debug Console initialized.</div>
@@ -753,20 +752,20 @@
                 </div>
 
                 <div class="debug-only settings-card" data-settings-tab="debug">
-                    <h3 class="settings-card-title"><i class="fa-solid fa-sliders text-brand-400"></i> Dynamic Profile Schema</h3>
+                    <h3 class="settings-card-title"><i class="fa-solid fa-sliders text-brand-400"></i> <span data-i18n="settings.dynamicProfileSchema">Dynamic Profile Schema</span></h3>
                     <div class="setting-block space-y-3">
-                        <p class="setting-desc">Die Profilfelder werden aus dieser JSON-Konfiguration erzeugt.</p>
+                        <p data-i18n="settings.profileFieldsAreGeneratedFrom" class="setting-desc">Die Profilfelder werden aus dieser JSON-Konfiguration erzeugt.</p>
                         <textarea id="schema-json-input" rows="10" spellcheck="false" class="w-full bg-slate-950 p-2.5 rounded-lg border border-slate-800 font-mono text-xs text-slate-300 focus:outline-none focus:border-brand-500"></textarea>
-                        <button data-click="updateProfileSchemaFromJSON" class="btn-secondary">Apply Schema</button>
+                        <button data-i18n="settings.applySchema" data-click="updateProfileSchemaFromJSON" class="btn-secondary">Apply Schema</button>
                     </div>
                 </div>
 
                 <div class="debug-only settings-card" data-settings-tab="debug">
-                    <h3 class="settings-card-title"><i class="fa-solid fa-fingerprint text-amber-400"></i> Wasserzeichen pruefen</h3>
+                    <h3 class="settings-card-title"><i class="fa-solid fa-fingerprint text-amber-400"></i> <span data-i18n="settings.checkWatermark">Wasserzeichen pruefen</span></h3>
                     <div class="setting-block space-y-3">
-                        <p class="setting-desc">Snaps und Albumbilder tragen unsichtbar die ID des Empfaengers. Lade einen 1:1-Screenshot oder das Bild hoch, um herauszufinden, an wen es ging.</p>
+                        <p data-i18n="settings.snapsAndAlbumImagesInvisibly" class="setting-desc">Snaps und Albumbilder tragen unsichtbar die ID des Empfaengers. Lade einen 1:1-Screenshot oder das Bild hoch, um herauszufinden, an wen es ging.</p>
                         <label class="btn-secondary inline-flex cursor-pointer">
-                            Bild auswaehlen
+                            <span data-i18n="settings.chooseImage">Bild auswaehlen</span>
                             <input type="file" accept="image/*" class="hidden" data-change="checkWatermarkFile" data-args='["$el"]'>
                         </label>
                         <div id="watermark-check-result" class="text-xs font-mono text-slate-300"></div>
@@ -774,12 +773,12 @@
                 </div>
 
                 <div class="debug-only settings-card" data-settings-tab="debug">
-                    <h3 class="settings-card-title"><i class="fa-solid fa-key text-emerald-400"></i> E2EE Identity Keys (ECDH / P-256)</h3>
+                    <h3 class="settings-card-title"><i class="fa-solid fa-key text-emerald-400"></i> <span data-i18n="settings.e2eeIdentityKeysEcdhP">E2EE Identity Keys (ECDH / P-256)</span></h3>
                     <div class="setting-block space-y-3">
-                        <p class="setting-desc">Das Schluesselpaar wird lokal mit Web Crypto erzeugt. Nur der oeffentliche Schluessel wird beim Routing-Server registriert.</p>
-                        <div class="text-xs font-mono text-slate-400">Public Key Fingerprint (SHA-256)</div>
-                        <div id="inspect-pubkey-fingerprint" class="bg-slate-950 p-2 rounded border border-slate-800 font-mono text-xs text-emerald-400 break-all">Generating...</div>
-                        <button id="regenerate-key-btn" data-click="generateUserIdentityKeys" data-args='[true]' class="btn-secondary">Regenerate Keypair</button>
+                        <p data-i18n="settings.keyPairIsGeneratedLocally" class="setting-desc">Das Schluesselpaar wird lokal mit Web Crypto erzeugt. Nur der oeffentliche Schluessel wird beim Routing-Server registriert.</p>
+                        <div data-i18n="settings.publicKeyFingerprintSha256" class="text-xs font-mono text-slate-400">Public Key Fingerprint (SHA-256)</div>
+                        <div data-i18n="settings.generating" id="inspect-pubkey-fingerprint" class="bg-slate-950 p-2 rounded border border-slate-800 font-mono text-xs text-emerald-400 break-all">Generating...</div>
+                        <button data-i18n="settings.regenerateKeypair" id="regenerate-key-btn" data-click="generateUserIdentityKeys" data-args='[true]' class="btn-secondary">Regenerate Keypair</button>
                     </div>
                 </div>
             </div>
@@ -795,21 +794,21 @@
                 <div class="w-11 h-11 rounded-xl bg-brand-500/15 border border-brand-500/30 text-brand-400 flex items-center justify-center mb-3">
                     <i class="fa-solid fa-user-plus"></i>
                 </div>
-                <h2 class="text-xl font-bold text-slate-100">Profil einrichten</h2>
-                <p class="text-sm text-slate-400 mt-1">
+                <h2 data-i18n="onboarding.setUpProfile" class="text-xl font-bold text-slate-100">Profil einrichten</h2>
+                <p data-i18n="onboarding.yourDataIsStoredEncrypted" class="text-sm text-slate-400 mt-1">
                     Deine Daten werden verschluesselt in diesem Browser gespeichert. Erst danach wirst du im Grid registriert.
                 </p>
             </div>
             <div class="p-5 space-y-5">
                 <div id="onboarding-mode" class="hidden space-y-2">
-                    <div class="text-xs font-bold text-slate-400">Wie moechtest du OpenGrid nutzen?</div>
+                    <div data-i18n="onboarding.howDoYouWantTo" class="text-xs font-bold text-slate-400">Wie moechtest du OpenGrid nutzen?</div>
                     <div id="onboarding-mode-options" class="grid gap-2"></div>
-                    <p class="text-[11px] text-slate-500">Das kannst du jederzeit in den Einstellungen aendern.</p>
+                    <p data-i18n="onboarding.youCanChangeThisAt" class="text-[11px] text-slate-500">Das kannst du jederzeit in den Einstellungen aendern.</p>
                 </div>
                 <div id="onboarding-profile-form" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
                 <div id="onboarding-profile-error" class="hidden text-xs text-red-300 bg-red-950/50 border border-red-800 rounded-lg p-3"></div>
                 <button id="complete-onboarding-btn" data-click="completeProfileOnboarding" class="w-full bg-brand-600 hover:bg-brand-500 disabled:opacity-60 text-white font-semibold py-3 px-4 rounded-xl transition flex items-center justify-center gap-2 shadow-lg pulse-glow">
-                    <i class="fa-solid fa-shield-halved"></i> Profil verschluesselt speichern
+                    <i class="fa-solid fa-shield-halved"></i> <span data-i18n="onboarding.saveProfileEncrypted">Profil verschluesselt speichern</span>
                 </button>
             </div>
         </div>
@@ -830,7 +829,7 @@
             </div>
 
             <div class="p-5 space-y-4">
-                <h2 id="modal-profile-name" class="text-xl font-bold text-slate-100">Wird geladen...</h2>
+                <h2 data-i18n="app.loading" id="modal-profile-name" class="text-xl font-bold text-slate-100">Wird geladen...</h2>
                 <p id="modal-profile-id" class="debug-only text-xs font-mono text-slate-500 break-all"></p>
                 
                 <div id="modal-gallery-container" class="hidden flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
@@ -841,14 +840,14 @@
 
                 <div id="modal-rendered-fields" class="grid grid-cols-2 gap-2 text-xs">
                     <div class="col-span-2 text-slate-500 text-center py-4">
-                        <i class="fa-solid fa-circle-notch fa-spin text-brand-500"></i> Profil wird geladen...
+                        <i class="fa-solid fa-circle-notch fa-spin text-brand-500"></i> <span data-i18n="profileModal.loadingProfile">Profil wird geladen...</span>
                     </div>
                 </div>
                 <div class="pt-2 flex gap-2">
                     <button data-click="launchChatFromModal" class="flex-1 bg-brand-600 hover:bg-brand-500 text-white font-semibold py-2.5 px-4 rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-lg pulse-glow">
-                        <i class="fa-solid fa-comments"></i> Chat starten
+                        <i class="fa-solid fa-comments"></i> <span data-i18n="profileModal.startChat">Chat starten</span>
                     </button>
-                    <button data-click="closeProfileModal" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-2.5 px-4 rounded-xl text-xs transition border border-slate-700">Schliessen</button>
+                    <button data-i18n="profileModal.close" data-click="closeProfileModal" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-2.5 px-4 rounded-xl text-xs transition border border-slate-700">Schliessen</button>
                 </div>
             </div>
         </div>
@@ -858,8 +857,8 @@
     <div id="media-modal" class="hidden fixed inset-0 z-[65] bg-slate-950/90 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="media-modal-title">
         <div class="bg-slate-900 border border-slate-800 w-full sm:max-w-2xl max-h-[90dvh] rounded-t-2xl sm:rounded-2xl flex flex-col overflow-hidden">
             <div class="flex items-center justify-between gap-3 p-4 border-b border-slate-800">
-                <h3 id="media-modal-title" class="font-bold text-sm text-slate-100 truncate">Medien</h3>
-                <button data-click="closeMediaModal" class="w-8 h-8 rounded-lg text-slate-300 hover:bg-slate-800 flex items-center justify-center" aria-label="Schliessen">
+                <h3 data-i18n="common.media" id="media-modal-title" class="font-bold text-sm text-slate-100 truncate">Medien</h3>
+                <button data-i18n-attr="aria-label:profileModal.close" data-click="closeMediaModal" class="w-8 h-8 rounded-lg text-slate-300 hover:bg-slate-800 flex items-center justify-center" aria-label="Schliessen">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
@@ -868,39 +867,39 @@
     </div>
 
     <!-- Bildbetrachter (Vollbild) -->
-    <div id="image-viewer" class="hidden fixed inset-0 z-[80] bg-black flex flex-col select-none" data-no-context-menu role="dialog" aria-modal="true" aria-label="Bildbetrachter">
+    <div data-i18n-attr="aria-label:viewer.imageViewer" id="image-viewer" class="hidden fixed inset-0 z-[80] bg-black flex flex-col select-none" data-no-context-menu role="dialog" aria-modal="true" aria-label="Bildbetrachter">
         <div class="absolute top-0 inset-x-0 z-10 p-4 flex items-center justify-between bg-gradient-to-b from-black/70 to-transparent" style="padding-top: max(1rem, env(safe-area-inset-top));">
             <span id="image-viewer-counter" class="text-sm font-semibold text-white/90"></span>
-            <button id="image-viewer-save" data-click="saveViewerImage" class="hidden ml-auto mr-2 h-11 px-4 rounded-full bg-black/50 text-white text-sm font-semibold flex items-center gap-2" aria-label="Bild speichern">
-                <i class="fa-solid fa-download"></i><span class="hidden sm:inline">Speichern</span>
+            <button data-i18n-attr="aria-label:viewer.saveImage" id="image-viewer-save" data-click="saveViewerImage" class="hidden ml-auto mr-2 h-11 px-4 rounded-full bg-black/50 text-white text-sm font-semibold flex items-center gap-2" aria-label="Bild speichern">
+                <i class="fa-solid fa-download"></i><span data-i18n="common.save" class="hidden sm:inline">Speichern</span>
             </button>
-            <button data-click="closeImageViewer" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Schliessen">
+            <button data-i18n-attr="aria-label:profileModal.close" data-click="closeImageViewer" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Schliessen">
                 <i class="fa-solid fa-xmark"></i>
             </button>
         </div>
         <div id="image-viewer-stage" class="relative flex-1 min-h-0 flex items-center justify-center overflow-hidden touch-none">
             <div id="image-viewer-track" class="absolute inset-y-0 left-0 flex will-change-transform" style="width: 300%; transform: translate3d(-33.3333%, 0, 0);">
-                <div class="viewer-slide w-1/3 h-full flex items-center justify-center"><canvas id="image-viewer-prev-image" role="img" aria-label="Bild" class="secure-image max-w-full max-h-full object-contain"></canvas></div>
-                <div class="viewer-slide w-1/3 h-full flex items-center justify-center"><canvas id="image-viewer-image" role="img" aria-label="Bild" class="secure-image max-w-full max-h-full object-contain will-change-transform"></canvas></div>
-                <div class="viewer-slide w-1/3 h-full flex items-center justify-center"><canvas id="image-viewer-next-image" role="img" aria-label="Bild" class="secure-image max-w-full max-h-full object-contain"></canvas></div>
+                <div class="viewer-slide w-1/3 h-full flex items-center justify-center"><canvas data-i18n-attr="aria-label:common.image" id="image-viewer-prev-image" role="img" aria-label="Bild" class="secure-image max-w-full max-h-full object-contain"></canvas></div>
+                <div class="viewer-slide w-1/3 h-full flex items-center justify-center"><canvas data-i18n-attr="aria-label:common.image" id="image-viewer-image" role="img" aria-label="Bild" class="secure-image max-w-full max-h-full object-contain will-change-transform"></canvas></div>
+                <div class="viewer-slide w-1/3 h-full flex items-center justify-center"><canvas data-i18n-attr="aria-label:common.image" id="image-viewer-next-image" role="img" aria-label="Bild" class="secure-image max-w-full max-h-full object-contain"></canvas></div>
             </div>
-            <button id="image-viewer-prev" data-click="stepImageViewer" data-args='[-1]' class="hidden sm:flex absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/50 hover:bg-black/70 text-white items-center justify-center" aria-label="Vorheriges Bild">
+            <button data-i18n-attr="aria-label:viewer.previousImage" id="image-viewer-prev" data-click="stepImageViewer" data-args='[-1]' class="hidden sm:flex absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/50 hover:bg-black/70 text-white items-center justify-center" aria-label="Vorheriges Bild">
                 <i class="fa-solid fa-chevron-left"></i>
             </button>
-            <button id="image-viewer-next" data-click="stepImageViewer" data-args='[1]' class="hidden sm:flex absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/50 hover:bg-black/70 text-white items-center justify-center" aria-label="Naechstes Bild">
+            <button data-i18n-attr="aria-label:viewer.nextImage" id="image-viewer-next" data-click="stepImageViewer" data-args='[1]' class="hidden sm:flex absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/50 hover:bg-black/70 text-white items-center justify-center" aria-label="Naechstes Bild">
                 <i class="fa-solid fa-chevron-right"></i>
             </button>
         </div>
     </div>
 
     <!-- Video-Viewer (video.js): wie der Bildbetrachter; nach unten wischen schliesst -->
-    <div id="video-viewer" class="hidden fixed inset-0 z-[80] bg-black flex flex-col select-none" data-no-context-menu role="dialog" aria-modal="true" aria-label="Video">
+    <div data-i18n-attr="aria-label:chat.video" id="video-viewer" class="hidden fixed inset-0 z-[80] bg-black flex flex-col select-none" data-no-context-menu role="dialog" aria-modal="true" aria-label="Video">
         <div class="absolute top-0 inset-x-0 z-10 p-4 flex items-center justify-between gap-3 bg-gradient-to-b from-black/70 to-transparent pointer-events-none" style="padding-top: max(1rem, env(safe-area-inset-top));">
             <div class="min-w-0">
                 <div id="video-viewer-title" class="text-sm font-semibold text-white/90 truncate"></div>
                 <div id="video-viewer-meta" class="text-[11px] text-white/60"></div>
             </div>
-            <button data-click="closeVideoViewer" class="pointer-events-auto w-11 h-11 shrink-0 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Schliessen">
+            <button data-i18n-attr="aria-label:profileModal.close" data-click="closeVideoViewer" class="pointer-events-auto w-11 h-11 shrink-0 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Schliessen">
                 <i class="fa-solid fa-xmark"></i>
             </button>
         </div>
@@ -910,13 +909,13 @@
     </div>
 
     <!-- Status-Viewer (status.js): links/rechts tippen = zurueck/weiter -->
-    <div id="status-viewer" class="hidden fixed inset-0 z-[82] bg-black select-none" data-no-context-menu role="dialog" aria-modal="true" aria-label="Status">
+    <div data-i18n-attr="aria-label:common.status" id="status-viewer" class="hidden fixed inset-0 z-[82] bg-black select-none" data-no-context-menu role="dialog" aria-modal="true" aria-label="Status">
         <div id="status-viewer-content" class="absolute inset-0 flex items-center justify-center">
-            <canvas id="status-viewer-image" role="img" aria-label="Status" class="secure-image hidden max-w-full max-h-full object-contain"></canvas>
+            <canvas data-i18n-attr="aria-label:common.status" id="status-viewer-image" role="img" aria-label="Status" class="secure-image hidden max-w-full max-h-full object-contain"></canvas>
             <div id="status-viewer-text"></div>
         </div>
-        <button data-click="stepStatus" data-args='[-1]' class="absolute inset-y-0 left-0 w-1/3" aria-label="Vorheriger Status"></button>
-        <button data-click="stepStatus" data-args='[1]' class="absolute inset-y-0 right-0 w-2/3" aria-label="Naechster Status"></button>
+        <button data-i18n-attr="aria-label:common.previousStatus" data-click="stepStatus" data-args='[-1]' class="absolute inset-y-0 left-0 w-1/3" aria-label="Vorheriger Status"></button>
+        <button data-i18n-attr="aria-label:common.nextStatus" data-click="stepStatus" data-args='[1]' class="absolute inset-y-0 right-0 w-2/3" aria-label="Naechster Status"></button>
         <div class="absolute top-0 inset-x-0 p-3 space-y-3 bg-gradient-to-b from-black/60 to-transparent" style="padding-top: max(0.75rem, env(safe-area-inset-top));">
             <div id="status-viewer-progress" class="flex gap-1"></div>
             <div class="flex items-center justify-between gap-2">
@@ -925,10 +924,10 @@
                     <div id="status-viewer-time" class="text-[11px] text-white/70"></div>
                 </div>
                 <div class="flex items-center gap-2">
-                    <button id="status-viewer-delete" data-click="deleteViewedStatus" class="hidden w-10 h-10 rounded-full bg-black/50 text-white flex items-center justify-center" aria-label="Status loeschen">
+                    <button data-i18n-attr="aria-label:status.deleteStatus" id="status-viewer-delete" data-click="deleteViewedStatus" class="hidden w-10 h-10 rounded-full bg-black/50 text-white flex items-center justify-center" aria-label="Status loeschen">
                         <i class="fa-solid fa-trash"></i>
                     </button>
-                    <button data-click="closeStatusViewer" class="w-10 h-10 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Schliessen">
+                    <button data-i18n-attr="aria-label:profileModal.close" data-click="closeStatusViewer" class="w-10 h-10 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Schliessen">
                         <i class="fa-solid fa-xmark"></i>
                     </button>
                 </div>
@@ -937,9 +936,9 @@
     </div>
 
     <!-- Secure-Snap-Viewer -->
-    <div id="secure-snap-viewer" class="hidden fixed inset-0 z-[85] bg-black flex items-center justify-center select-none touch-none overscroll-none" style="-webkit-touch-callout: none;" data-no-context-menu role="dialog" aria-modal="true" aria-label="Secure Snap">
+    <div data-i18n-attr="aria-label:common.secureSnap" id="secure-snap-viewer" class="hidden fixed inset-0 z-[85] bg-black flex items-center justify-center select-none touch-none overscroll-none" style="-webkit-touch-callout: none;" data-no-context-menu role="dialog" aria-modal="true" aria-label="Secure Snap">
         <video id="secure-snap-video" class="hidden max-w-full max-h-full object-contain pointer-events-none" playsinline muted disablepictureinpicture></video>
-        <canvas id="secure-snap-image" role="img" aria-label="Snap" class="secure-image hidden max-w-full max-h-full object-contain pointer-events-none"></canvas>
+        <canvas data-i18n-attr="aria-label:common.snap" id="secure-snap-image" role="img" aria-label="Snap" class="secure-image hidden max-w-full max-h-full object-contain pointer-events-none"></canvas>
         <div id="secure-snap-status" class="absolute inset-x-8 top-1/2 -translate-y-1/2 text-center text-sm text-slate-200"></div>
         <div id="secure-snap-queue" class="hidden pointer-events-none absolute bottom-6 inset-x-6 text-center text-xs text-white/80" style="bottom: max(1.5rem, env(safe-area-inset-bottom));"></div>
         <div class="absolute top-0 inset-x-0 p-4 flex items-center justify-between" style="padding-top: max(1rem, env(safe-area-inset-top));">
@@ -947,15 +946,15 @@
                 <circle cx="20" cy="20" r="16" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="4"></circle>
                 <circle id="secure-snap-countdown-progress" cx="20" cy="20" r="16" fill="none" stroke="#fbbf24" stroke-width="4" stroke-linecap="round"></circle>
             </svg>
-            <button id="secure-snap-save" data-click="saveReplaySnap" class="hidden px-4 py-2 rounded-full bg-black/50 text-white text-sm font-semibold disabled:opacity-60">Speichern</button>
-            <button data-click="closeSecureSnapViewer" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Schliessen">
+            <button data-i18n="common.save" id="secure-snap-save" data-click="saveReplaySnap" class="hidden px-4 py-2 rounded-full bg-black/50 text-white text-sm font-semibold disabled:opacity-60">Speichern</button>
+            <button data-i18n-attr="aria-label:profileModal.close" data-click="closeSecureSnapViewer" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Schliessen">
                 <i class="fa-solid fa-xmark"></i>
             </button>
         </div>
     </div>
 
     <!-- Snap-Kamera (Vollbild) -->
-    <div id="snap-capture-modal" class="hidden fixed inset-0 z-[70] bg-black select-none" role="dialog" aria-modal="true" aria-label="Snap aufnehmen">
+    <div data-i18n-attr="aria-label:settings.takeSnap" id="snap-capture-modal" class="hidden fixed inset-0 z-[70] bg-black select-none" role="dialog" aria-modal="true" aria-label="Snap aufnehmen">
         <!-- Live-Kamera: Vollbild, Gesten (snap-camera.js): runter = schliessen, doppelt tippen = Kamera wechseln, zwei Finger = Zoom -->
         <div id="snap-camera-stage" class="absolute inset-0 overflow-hidden touch-none">
             <video id="snap-video-preview" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover"></video>
@@ -971,81 +970,81 @@
         </div>
         <div id="snap-camera-status" class="hidden absolute inset-x-6 top-1/2 -translate-y-1/2 text-center text-sm text-slate-200 bg-black/60 rounded-xl p-4"></div>
         <!-- Snap oder Bild (snap-camera.js): seitlich wischen oder diesen Knopf antippen -->
-        <div id="snap-mode-pill" class="pointer-events-none absolute top-4 left-1/2 -translate-x-1/2 z-10 px-3 py-1 rounded-full bg-black/50 text-white text-xs font-semibold" style="top: max(1.25rem, calc(env(safe-area-inset-top) + 0.5rem));">Snap</div>
-        <button id="snap-mode-switch" data-click="toggleSnapSendMode" class="absolute right-0 top-1/2 -translate-y-1/2 z-10 flex items-center gap-1 pl-3 pr-2 py-2 rounded-l-full bg-black/50 text-white text-xs font-semibold" aria-label="Zwischen Snap und Bild wechseln">
-            <span id="snap-mode-switch-label">Als Bild senden</span><i class="fa-solid fa-chevron-right"></i>
+        <div data-i18n="common.snap" id="snap-mode-pill" class="pointer-events-none absolute top-4 left-1/2 -translate-x-1/2 z-10 px-3 py-1 rounded-full bg-black/50 text-white text-xs font-semibold" style="top: max(1.25rem, calc(env(safe-area-inset-top) + 0.5rem));">Snap</div>
+        <button data-i18n-attr="aria-label:snaps.switchBetweenSnapAndImage" id="snap-mode-switch" data-click="toggleSnapSendMode" class="absolute right-0 top-1/2 -translate-y-1/2 z-10 flex items-center gap-1 pl-3 pr-2 py-2 rounded-l-full bg-black/50 text-white text-xs font-semibold" aria-label="Zwischen Snap und Bild wechseln">
+            <span data-i18n="snaps.sendAsImage" id="snap-mode-switch-label">Als Bild senden</span><i class="fa-solid fa-chevron-right"></i>
         </button>
 
         <div class="absolute top-0 inset-x-0 p-4 flex items-start justify-between bg-gradient-to-b from-black/60 to-transparent" style="padding-top: max(1rem, env(safe-area-inset-top));">
-            <button data-click="closeSnapModal" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Schliessen">
+            <button data-i18n-attr="aria-label:profileModal.close" data-click="closeSnapModal" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Schliessen">
                 <i class="fa-solid fa-xmark"></i>
             </button>
             <div id="snap-live-tools" class="flex flex-col gap-2">
-                <button data-click="switchSnapCamera" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Kamera wechseln">
+                <button data-i18n-attr="aria-label:snaps.switchCamera" data-click="switchSnapCamera" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Kamera wechseln">
                     <i class="fa-solid fa-camera-rotate"></i>
                 </button>
-                <button id="snap-torch-btn" data-click="toggleSnapTorch" class="hidden w-11 h-11 rounded-full bg-black/50 text-white text-lg items-center justify-center" aria-label="Licht" aria-pressed="false">
+                <button data-i18n-attr="aria-label:snaps.torch" id="snap-torch-btn" data-click="toggleSnapTorch" class="hidden w-11 h-11 rounded-full bg-black/50 text-white text-lg items-center justify-center" aria-label="Licht" aria-pressed="false">
                     <i class="fa-solid fa-bolt"></i>
                 </button>
             </div>
             <div id="snap-edit-tools" class="hidden flex flex-col items-end gap-2">
                 <div class="flex gap-2">
-                    <button id="snap-tool-draw" data-click="setSnapEditTool" data-args='["draw"]' class="snap-tool w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Zeichnen" aria-pressed="false">
+                    <button data-i18n-attr="aria-label:snaps.draw" id="snap-tool-draw" data-click="setSnapEditTool" data-args='["draw"]' class="snap-tool w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Zeichnen" aria-pressed="false">
                         <i class="fa-solid fa-pen"></i>
                     </button>
-                    <button data-click="startSnapText" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg font-bold flex items-center justify-center" aria-label="Text">Aa</button>
-                    <button id="snap-tool-emoji" data-click="toggleSnapEmojiPicker" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Emoji">
+                    <button data-i18n="snaps.aa" data-i18n-attr="aria-label:snaps.text" data-click="startSnapText" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg font-bold flex items-center justify-center" aria-label="Text">Aa</button>
+                    <button data-i18n-attr="aria-label:snaps.emoji" id="snap-tool-emoji" data-click="toggleSnapEmojiPicker" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Emoji">
                         <i class="fa-regular fa-face-smile"></i>
                     </button>
-                    <button data-click="undoSnapEdit" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Rueckgaengig">
+                    <button data-i18n-attr="aria-label:snaps.undo" data-click="undoSnapEdit" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Rueckgaengig">
                         <i class="fa-solid fa-rotate-left"></i>
                     </button>
                 </div>
-                <div id="snap-color-row" class="flex gap-2" role="radiogroup" aria-label="Farbe"></div>
+                <div data-i18n-attr="aria-label:snaps.colour2" id="snap-color-row" class="flex gap-2" role="radiogroup" aria-label="Farbe"></div>
                 <div id="snap-emoji-row" class="hidden flex flex-wrap justify-end gap-1 max-w-[16rem] p-2 rounded-2xl bg-black/60"></div>
                 <div id="snap-text-entry" class="hidden flex gap-2 w-72 max-w-[80vw]">
-                    <input id="snap-text-input" type="text" maxlength="80" placeholder="Text" data-enter="commitSnapText" class="flex-1 min-w-0 bg-black/60 border border-white/30 rounded-full px-4 py-2 text-base text-white placeholder:text-slate-400 focus:outline-none">
-                    <button data-click="commitSnapText" class="px-4 rounded-full bg-brand-600 text-white text-sm font-semibold">OK</button>
+                    <input data-i18n-attr="placeholder:snaps.text" id="snap-text-input" type="text" maxlength="80" placeholder="Text" data-enter="commitSnapText" class="flex-1 min-w-0 bg-black/60 border border-white/30 rounded-full px-4 py-2 text-base text-white placeholder:text-slate-400 focus:outline-none">
+                    <button data-i18n="snaps.ok" data-click="commitSnapText" class="px-4 rounded-full bg-brand-600 text-white text-sm font-semibold">OK</button>
                 </div>
             </div>
         </div>
 
         <div class="absolute bottom-0 inset-x-0 px-5 pt-10 flex flex-col gap-3 bg-gradient-to-t from-black/70 to-transparent" style="padding-bottom: max(1.25rem, env(safe-area-inset-bottom));">
             <div id="snap-live-controls" class="flex items-center justify-center gap-10 touch-none">
-                <label class="w-11 h-11 rounded-full bg-white/10 text-white flex items-center justify-center cursor-pointer" aria-label="Bild auswaehlen">
+                <label data-i18n-attr="aria-label:settings.chooseImage" class="w-11 h-11 rounded-full bg-white/10 text-white flex items-center justify-center cursor-pointer" aria-label="Bild auswaehlen">
                     <i class="fa-regular fa-image text-lg"></i>
                     <input id="snap-file-input" type="file" accept="image/*" multiple class="hidden" data-change="pickSnapImage" data-args='["$el"]'>
                 </label>
-                <button data-click="captureSnap" class="w-20 h-20 rounded-full border-4 border-white bg-white/20 active:bg-white/60 transition" aria-label="Ausloesen"></button>
+                <button data-i18n-attr="aria-label:snaps.takePhoto" data-click="captureSnap" class="w-20 h-20 rounded-full border-4 border-white bg-white/20 active:bg-white/60 transition" aria-label="Ausloesen"></button>
                 <span class="w-11 h-11"></span>
             </div>
-            <p id="snap-gesture-hint" class="text-center text-[11px] text-white/60">Hochwischen: Galerie · Doppelt tippen: Kamera wechseln</p>
+            <p data-i18n="snaps.swipeUpGalleryDoubleTap" id="snap-gesture-hint" class="text-center text-[11px] text-white/60">Hochwischen: Galerie · Doppelt tippen: Kamera wechseln</p>
             <div id="snap-review-controls" class="hidden flex flex-col gap-3">
-                <input id="snap-caption-input" type="text" maxlength="200" placeholder="Bildunterschrift (optional)" class="w-full bg-white/10 border border-white/20 rounded-full px-4 py-2.5 text-base text-white placeholder:text-slate-400 focus:outline-none">
+                <input data-i18n-attr="placeholder:snaps.captionOptional" id="snap-caption-input" type="text" maxlength="200" placeholder="Bildunterschrift (optional)" class="w-full bg-white/10 border border-white/20 rounded-full px-4 py-2.5 text-base text-white placeholder:text-slate-400 focus:outline-none">
                 <label id="snap-original-option" class="hidden flex items-center justify-center gap-2 text-xs text-white cursor-pointer">
                     <input type="checkbox" id="snap-original-toggle" class="accent-brand-500">
-                    <span>Original senden (volle Qualitaet, nur direkt per P2P, nie ueber den Server)</span>
+                    <span data-i18n="snaps.sendOriginalFullQualityOnly">Original senden (volle Qualitaet, nur direkt per P2P, nie ueber den Server)</span>
                 </label>
                 <div id="snap-review-secure-options" class="hidden flex items-center justify-center gap-3 text-xs text-white">
                     <i class="fa-solid fa-lock text-amber-300"></i>
-                    <select id="snap-review-views" class="bg-white/10 border border-white/20 rounded-full px-3 py-1.5 text-white" aria-label="Ansichten">
-                        <option value="1">1x ansehen</option>
-                        <option value="2">2x ansehen</option>
-                        <option value="3">3x ansehen</option>
+                    <select data-i18n-attr="aria-label:snaps.views" id="snap-review-views" class="bg-white/10 border border-white/20 rounded-full px-3 py-1.5 text-white" aria-label="Ansichten">
+                        <option data-i18n="snaps.viewOnce" value="1">1x ansehen</option>
+                        <option data-i18n="snaps.viewTwice" value="2">2x ansehen</option>
+                        <option data-i18n="snaps.view3Times" value="3">3x ansehen</option>
                     </select>
-                    <select id="snap-review-seconds" class="bg-white/10 border border-white/20 rounded-full px-3 py-1.5 text-white" aria-label="Anzeigedauer">
+                    <select data-i18n-attr="aria-label:snaps.displayTime" id="snap-review-seconds" class="bg-white/10 border border-white/20 rounded-full px-3 py-1.5 text-white" aria-label="Anzeigedauer">
                         <option value="5">5 s</option>
                         <option value="10">10 s</option>
                         <option value="30">30 s</option>
-                        <option value="0">bis zum Schliessen</option>
+                        <option data-i18n="snaps.untilClosed" value="0">bis zum Schliessen</option>
                     </select>
                 </div>
                 <div class="flex items-center justify-between">
                     <button data-click="retakeSnap" class="px-4 py-2.5 rounded-full bg-white/10 text-white text-sm font-semibold">
-                        <i class="fa-solid fa-rotate-left"></i> Nochmal
+                        <i class="fa-solid fa-rotate-left"></i> <span data-i18n="snaps.retake">Nochmal</span>
                     </button>
                     <button id="snap-send-btn" data-click="sendSnapDraft" class="px-5 py-2.5 rounded-full bg-brand-600 hover:bg-brand-500 text-white text-sm font-semibold">
-                        Senden <i class="fa-solid fa-paper-plane"></i>
+                        <span data-i18n="chat.send">Senden</span> <i class="fa-solid fa-paper-plane"></i>
                     </button>
                 </div>
             </div>

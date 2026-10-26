@@ -95,11 +95,11 @@ async function startVoiceRecording() {
     // Sprachnachrichten zaehlen wie Bilder (Chat-Berechtigungen des anderen).
     const allowance = getPeerChatAllowance(peerId);
     if (allowance && (!allowance.allowed || !allowance.images)) {
-        showToast(allowance.reason || t('Sprachnachrichten sind erst nach einem Match erlaubt.'), 'info');
+        showToast(allowance.reason || t('voice.messagesAreOnlyAllowed'), 'info');
         return;
     }
     if (!isVoiceSupported()) {
-        showToast(t('Aufnehmen wird von diesem Browser nicht unterstuetzt.'), 'error');
+        showToast(t('voice.thisBrowserDoesNotSupport'), 'error');
         return;
     }
     let stream;
@@ -107,7 +107,7 @@ async function startVoiceRecording() {
         stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
     } catch (error) {
         logDebug(`Mikrofon nicht verfuegbar: ${error.message}`);
-        showToast(t('Kein Zugriff auf das Mikrofon.'), 'error');
+        showToast(t('voice.noAccessToMicrophone'), 'error');
         return;
     }
     const recording = {
@@ -135,7 +135,7 @@ async function tickVoiceRecording(recording) {
         // Maximum: nur anhalten, senden entscheidet der Nutzer.
         await finishVoiceCapture(recording);
         hapticTick(20);
-        showToast(t('Maximale Laenge erreicht. Senden oder verwerfen.'), 'info');
+        showToast(t('voice.maximumLengthReachedSendOr'), 'info');
     } else if (recording.segments.length === 1 && elapsed >= VOICE_LIMITS.inlineSeconds) {
         // Ab hier ein eigener zweiter Teil (geht nur per P2P).
         recording.switching = true;
@@ -178,13 +178,13 @@ async function sendVoiceRecording() {
     const duration = Math.min(VOICE_LIMITS.maxSeconds, Math.round(voiceElapsedSeconds(recording) * 10) / 10);
     const [first, rest] = recording.segments;
     if (duration < 1 || !first?.chunks.length) {
-        showToast(t('Zu kurz, nichts gesendet.'), 'info');
+        showToast(t('voice.tooShortNothingSent'), 'info');
         return;
     }
     const dataUrl = await mediaBlobToDataUrl(voiceSegmentBlob(first));
     if (!isSafeInlineAudio(dataUrl)) {
         logDebug(`Sprachnachricht abgelehnt (${dataUrl.length} Zeichen).`);
-        showToast(t('Sprachnachricht zu gross oder Format nicht unterstuetzt.'), 'error');
+        showToast(t('voice.messageTooLargeOr'), 'error');
         return;
     }
     let original;
@@ -291,7 +291,7 @@ function renderVoiceMessage(bubble, message, isMine) {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = `voice-play w-9 h-9 shrink-0 rounded-full flex items-center justify-center ${isMine ? 'bg-white/20' : 'bg-slate-700'}`;
-    button.setAttribute('aria-label', t('Sprachnachricht abspielen'));
+    button.setAttribute('aria-label', t('voice.playVoiceMessage'));
     button.innerHTML = '<i class="fa-solid fa-play"></i>';
     button.onclick = event => {
         event.stopPropagation();
@@ -319,7 +319,7 @@ function renderVoiceMessage(bubble, message, isMine) {
         const badge = document.createElement('div');
         badge.className = 'voice-rest-hint text-[11px] opacity-75 mt-0.5';
         badge.dataset.originalBadge = message.id;
-        badge.textContent = t('Ab {value} folgt der Rest bei direkter Verbindung', { value: formatVoiceDuration(message.audioSplitAt) });
+        badge.textContent = t('voice.fromOnRestFollowsOver', { value: formatVoiceDuration(message.audioSplitAt) });
         bubble.appendChild(badge);
         renderOriginalProgress(message.id);
     }
@@ -383,7 +383,7 @@ function playVoicePart(playback, dataUrl, part) {
     audio.onended = () => continueVoicePlayback(playback).catch(logBackgroundError('continueVoicePlayback'));
     audio.play().catch(error => {
         logDebug(`Wiedergabe fehlgeschlagen: ${error.message}`);
-        showToast(t('Sprachnachricht kann nicht abgespielt werden.'), 'error');
+        showToast(t('voice.messageCannotBePlayed'), 'error');
         stopVoicePlayback();
     });
     updateVoicePlayer(playback.messageId);

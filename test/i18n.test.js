@@ -2,24 +2,26 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import vm from 'node:vm';
-import { allKeys, loadMessages } from '../scripts/i18n-keys.mjs';
+import { parseProperties } from '../server/i18n.js';
+import { languages, report } from '../scripts/i18n-keys.mjs';
 
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
-const placeholders = text => [...text.matchAll(/\{(\w+)\}/g)].map(match => match[1]).sort();
 
-function loadI18n({ stored = null, routerDefault = null, languages = ['de-DE'], messages = {} } = {}) {
+function loadI18n({ stored = null, routerDefault = null, languages: deviceLanguages = ['de-DE'], messages = {} } = {}) {
     const storage = new Map();
     if (stored) storage.set('opengrid-language', stored);
     if (routerDefault) storage.set('opengrid-language-router-default', routerDefault);
+    const written = [];
     const context = {
         window: {
             localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) },
             location: { reload: () => { context.reloaded = true; } }
         },
-        navigator: { languages, language: languages[0] },
-        document: { addEventListener: () => {}, documentElement: {} },
+        navigator: { languages: deviceLanguages, language: deviceLanguages[0] },
+        document: { addEventListener: () => {}, documentElement: {}, currentScript: { src: '/client/i18n.js?v=42' }, write: html => written.push(html) },
         Date,
-        reloaded: false
+        reloaded: false,
+        written
     };
     vm.createContext(context);
     vm.runInContext(read('client/i18n.js'), context);
@@ -29,31 +31,30 @@ function loadI18n({ stored = null, routerDefault = null, languages = ['de-DE'], 
     return context;
 }
 
-test('every German source text has an English translation', () => {
-    const english = loadMessages('en');
-    const missing = [...allKeys()].filter(key => !(key in english));
-    assert.deepEqual(missing, [], `missing in client/i18n/en.js: ${missing.join(' | ')}`);
-});
-
-test('the English dictionary has no stale entries', () => {
-    const keys = allKeys();
-    const stale = Object.keys(loadMessages('en')).filter(key => !keys.has(key));
-    assert.deepEqual(stale, [], `no longer used: ${stale.join(' | ')}`);
-});
-
-test('translations keep the same placeholders', () => {
-    const english = loadMessages('en');
-    for (const [source, translation] of Object.entries(english)) {
-        assert.deepEqual(placeholders(translation), placeholders(source), `placeholders differ: ${source}`);
+test('every used key exists in every language, nothing unused, placeholders match', () => {
+    const result = report();
+    assert.deepEqual(languages(), ['de', 'en']);
+    for (const [language, problems] of Object.entries(result)) {
+        assert.deepEqual(problems, { missing: [], unused: [], placeholderMismatch: [] }, `${language}: ${JSON.stringify(problems)}`);
     }
 });
 
-test('t() fills placeholders and falls back to the German source', () => {
-    const i18n = loadI18n({ stored: 'en', messages: { en: { 'Hallo {name}': 'Hello {name}' } } });
-    assert.equal(i18n.t('Hallo {name}', { name: 'Alex' }), 'Hello Alex');
-    assert.equal(i18n.t('Nicht uebersetzt'), 'Nicht uebersetzt');
+test('properties parser: separators, escapes, leading spaces, continuation', () => {
+    const parsed = parseProperties('# comment\na.b=Hallo {name}\nc.d : Wert\ne.f=\\ · mit Leerzeichen\ng.h=Zeile\\\n    weiter\ni.j=Gr\\u00fc\\u00dfe\nk.l=echtes ü\n');
+    assert.deepEqual(parsed, { 'a.b': 'Hallo {name}', 'c.d': 'Wert', 'e.f': ' · mit Leerzeichen', 'g.h': 'Zeileweiter', 'i.j': 'Grüße', 'k.l': 'echtes ü' });
+});
+
+test('only the active language bundle is loaded, with the asset version', () => {
+    const i18n = loadI18n({ stored: 'en' });
+    assert.deepEqual(i18n.written, ['<script src="/client/i18n/en.js?v=42"></script>']);
+});
+
+test('t() fills placeholders and shows the key when missing', () => {
+    const i18n = loadI18n({ stored: 'en', messages: { en: { 'demo.hello': 'Hello {name}' } } });
+    assert.equal(i18n.t('demo.hello', { name: 'Alex' }), 'Hello Alex');
+    assert.equal(i18n.t('demo.missing'), 'demo.missing');
     assert.equal(i18n.localizedText({ de: 'Alter', en: 'Age' }), 'Age');
-    assert.equal(i18n.localizedText(26), 26);
+    assert.equal(i18n.localizedText('Status'), 'Status', 'operator texts stay as they are');
 });
 
 test('language: own choice before router default before device', () => {

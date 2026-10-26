@@ -1108,18 +1108,22 @@ Ein Klick auf die Benachrichtigung fokussiert die App und oeffnet den Chat
   `Referrer-Policy: no-referrer`, `Permissions-Policy` (Kamera, Mikrofon und
   Standort nur same-origin), `Cross-Origin-Opener-Policy`, `X-Frame-Options`. Keine
   CORS-Header: die App laeuft same-origin.
-- Sprachen (`client/i18n.js`, Woerterbuecher `client/i18n/<sprache>.js`): der
-  deutsche Quelltext ist der Schluessel (`t('Neue Nachricht')`, Platzhalter
-  `{name}`), fehlende Uebersetzungen zeigen Deutsch. Das statische Markup wird
-  einmal bei `DOMContentLoaded` uebersetzt (Textknoten und `placeholder`,
-  `title`, `aria-label`, `alt`; nie `#debug-log-output`, `textarea`, `code`),
-  bevor Nutzerinhalte im DOM stehen. Sprache: eigene Wahl (`localStorage`
-  `opengrid-language`: `auto`/`de`/`en`) vor Router-Standard
-  (`CLIENT_DEFAULTS.language`, zuletzt bekannter Wert in
-  `opengrid-language-router-default`) vor Sprache des Geraets; Wechsel laedt
-  die Seite neu. Uhrzeiten immer 24 h (`formatClockTime`). Profil-Schema:
-  `label`/`default` als Text oder `{ de, en }` (`localizedText`). Der Service
-  Worker zeigt seine Benachrichtigungen weiterhin auf Deutsch.
+- Sprachen (`client/i18n.js`, `server/i18n.js`): Texte unter Schluesseln
+  `bereich.name` in `i18n/<sprache>.properties` (UTF-8, Untermenge des
+  Java-Formats: `#` Kommentar, `=`/`:` trennt, `\` setzt fort, `\ ` am Anfang
+  erhaelt ein Leerzeichen, `\uXXXX`). Der Server kompiliert sie beim Start zu
+  `/client/i18n/<sprache>.js` (`I18N_MESSAGES[sprache] = {...}`, im
+  Service-Worker-Precache). `i18n.js` waehlt die Sprache (eigene Wahl in
+  `localStorage` `opengrid-language`, sonst Router-Standard
+  `CLIENT_DEFAULTS.language`, sonst Geraet) und laedt per `document.write`
+  synchron nur dieses Woerterbuch (gleiche Herkunft, CSP-konform), weil
+  App-Skripte `t()` schon beim Laden nutzen. `t(key, params)`; fehlt ein
+  Schluessel, erscheint er selbst. Markup: `data-i18n="schluessel"` (Text) und
+  `data-i18n-attr="attr:schluessel;..."`, einmal bei `DOMContentLoaded`
+  gefuellt (das deutsche Markup ist nur Rueckfall). Uhrzeiten immer 24 h
+  (`formatClockTime`). Profil-Schema: `label`/`default` als Text (bleibt
+  unveraendert) oder `{ de, en }` (`localizedText`). Der Service Worker zeigt
+  seine Benachrichtigungen weiterhin auf Deutsch.
 - Navigation: unten Grid, Chat, Profil. Die Einstellungen haben keinen eigenen
   Knopf: Zahnrad im Profil-Kopf, Eintrag im Menue, oder vom Profil nach links
   wischen (`TAB_ORDER` grid, chat, editprofile, keys); dabei bleibt "Profil"

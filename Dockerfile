@@ -22,6 +22,7 @@ COPY --chown=opengrid:opengrid package.json index.html CHANGELOG.md ./
 COPY --chown=opengrid:opengrid client ./client
 COPY --from=dependencies --chown=opengrid:opengrid /app/client/tailwind.css ./client/tailwind.css
 COPY --chown=opengrid:opengrid server ./server
+COPY --chown=opengrid:opengrid i18n ./i18n
 # TURN-Pruefung im laufenden Container: `docker compose exec open-grid node scripts/turn-check.mjs`
 COPY --chown=opengrid:opengrid scripts/turn-check.mjs ./scripts/turn-check.mjs
 USER opengrid

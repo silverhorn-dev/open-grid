@@ -22,7 +22,7 @@ async function loadMoreGrid() {
 
 async function refreshGrid() {
     const refreshed = await fetchPeersFromWorkerGrid();
-    if (refreshed) showToast(t('Grid aktualisiert.'), 'info');
+    if (refreshed) showToast(t('grid.refreshed'), 'info');
 }
 
 function renderDiscoveryGrid() {
@@ -32,9 +32,9 @@ function renderDiscoveryGrid() {
     const hiddenList = JSON.parse(localStorage.getItem('hiddenByPeers') || '[]');
     const visiblePeers = state.peers.filter(peer => !isPeerBlocked(peer.id) && !hiddenList.includes(peer.id));
     container.innerHTML = '';
-    document.getElementById('grid-peer-count').textContent = visiblePeers.length === 1 ? t('1 Person') : t('{count} Personen', { count: visiblePeers.length });
+    document.getElementById('grid-peer-count').textContent = visiblePeers.length === 1 ? t('grid.1Person') : t('grid.people', { count: visiblePeers.length });
     const geohashLabel = document.getElementById('current-geohash');
-    if (geohashLabel) geohashLabel.textContent = t('{geohash} · Ring {gridRing}', { geohash: state.myProfile.geohash, gridRing: state.gridRing });
+    if (geohashLabel) geohashLabel.textContent = t('grid.ring', { geohash: state.myProfile.geohash, gridRing: state.gridRing });
     document.getElementById('grid-load-more-btn')?.classList.toggle('hidden', state.appMode !== 'discovery' || !state.gridHasMore);
     renderActivePeerList();
 
@@ -44,10 +44,10 @@ function renderDiscoveryGrid() {
         emptyState.appendChild(createEmptyState({
             icon: 'fa-satellite-dish',
             text: state.appMode === 'friends'
-                ? t('Gerade ist keiner deiner Kontakte online. Lade Freunde mit deinem Einladungslink ein.')
+                ? t('grid.noneOfYourContactsIs')
                 : state.appMode === 'event'
-                    ? t('Noch niemand sonst in diesem Event.')
-                    : t('Gerade ist niemand in deiner Naehe sichtbar.')
+                    ? t('grid.nobodyElseInThisEvent')
+                    : t('grid.nobodyNearYouIsVisible')
         }));
         container.appendChild(emptyState);
         return;
@@ -78,14 +78,14 @@ function renderDiscoveryGrid() {
         } else {
             const image = document.createElement('img');
             image.src = avatarSrc;
-            image.alt = t('Profilbild von {name}', { name: peer.name || HIDDEN_PEER_NAME });
+            image.alt = t('grid.profilePictureOf', { name: peer.name || HIDDEN_PEER_NAME });
             image.className = 'w-full h-full object-cover group-hover:scale-105 transition duration-500';
             imageWrapper.appendChild(image);
         }
         if (isMatched(peer.id) || hasReceivedFlame(peer.id)) {
             const flame = document.createElement('span');
             flame.className = `absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center text-sm ${isMatched(peer.id) ? 'bg-orange-500 text-white' : 'bg-black/60 text-orange-300'}`;
-            flame.title = isMatched(peer.id) ? t('Match') : t('Hat dir eine Flamme geschickt');
+            flame.title = isMatched(peer.id) ? t('common.match') : t('common.sentYouFlame');
             flame.innerHTML = '<i class="fa-solid fa-fire"></i>';
             imageWrapper.appendChild(flame);
         }
@@ -117,7 +117,7 @@ function formatChatListTime(timestamp) {
     const today = new Date();
     const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
     if (date.toDateString() === today.toDateString()) return formatClockTime(timestamp);
-    if (date.toDateString() === yesterday.toDateString()) return t('Gestern');
+    if (date.toDateString() === yesterday.toDateString()) return t('grid.yesterday');
     return date.toLocaleDateString(i18nLocale(), { day: '2-digit', month: '2-digit' });
 }
 
@@ -150,16 +150,16 @@ function renderActivePeerList() {
     renderStatusBar();
     renderChatSwitcher();
     const scopeLabel = document.getElementById('chat-list-scope');
-    if (scopeLabel) scopeLabel.textContent = currentChatScope() === 'social' ? t('· Chat & Freunde') : t('· Grid & Event');
+    if (scopeLabel) scopeLabel.textContent = currentChatScope() === 'social' ? t('grid.chatFriends') : t('grid.event');
     renderListSwitch();
     container.innerHTML = '';
     if (!peerIds.length) {
         const social = currentChatScope() === 'social';
         container.appendChild(createEmptyState({
             icon: 'fa-comments',
-            title: t('Noch keine Chats'),
-            text: social ? t('Lade jemanden mit deinem Einladungslink ein.') : t('Tippe im Grid auf ein Profil, um einen Chat zu starten.'),
-            action: social ? { label: t('Kontakt einladen'), icon: 'fa-user-plus', onClick: () => openInviteCard() } : null
+            title: t('grid.noChatsYet'),
+            text: social ? t('grid.inviteSomeoneWithYourInvite') : t('grid.tapProfileInGridTo'),
+            action: social ? { label: t('common.inviteContact'), icon: 'fa-user-plus', onClick: () => openInviteCard() } : null
         }));
     }
     peerIds.forEach(peerId => {
@@ -180,7 +180,7 @@ function renderActivePeerList() {
         if (!blocked && isPeerOnline(peer.id)) {
             const dot = document.createElement('span');
             dot.className = 'absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-slate-900';
-            dot.title = t('Online');
+            dot.title = t('common.online');
             avatar.appendChild(dot);
         }
         const details = document.createElement('div');
@@ -192,12 +192,12 @@ function renderActivePeerList() {
         if (socialList && (isFriend(peer.id) || hasFriendRequest(peer.id))) {
             const friend = document.createElement('i');
             friend.className = `fa-solid ${isFriend(peer.id) ? 'fa-user-check text-emerald-400' : 'fa-user-plus text-brand-400'} ml-1.5`;
-            friend.title = isFriend(peer.id) ? t('Befreundet') : t('Moechte dich adden');
+            friend.title = isFriend(peer.id) ? t('grid.friends') : t('common.wantsToAddYou');
             name.appendChild(friend);
         } else if (!socialList && (isMatched(peer.id) || hasReceivedFlame(peer.id))) {
             const flame = document.createElement('i');
             flame.className = `fa-solid fa-fire ml-1.5 ${isMatched(peer.id) ? 'text-orange-400' : 'text-orange-300/60'}`;
-            flame.title = isMatched(peer.id) ? t('Match') : t('Hat dir eine Flamme geschickt');
+            flame.title = isMatched(peer.id) ? t('common.match') : t('common.sentYouFlame');
             name.appendChild(flame);
         }
         const status = document.createElement('div');
@@ -217,9 +217,9 @@ function renderActivePeerList() {
         const previewText = document.createElement('span');
         previewText.className = 'truncate flex-1';
         const pendingNote = socialList
-            ? (hasFriendRequest(peer.id) ? t('Moechte dich adden') : '')
-            : (hasReceivedFlame(peer.id) ? t('Hat dir eine Flamme geschickt') : '');
-        previewText.textContent = preview ? `${preview.mine ? t('Du: ') : ''}${preview.text}` : pendingNote;
+            ? (hasFriendRequest(peer.id) ? t('common.wantsToAddYou') : '')
+            : (hasReceivedFlame(peer.id) ? t('common.sentYouFlame') : '');
+        previewText.textContent = preview ? `${preview.mine ? t('common.you') : ''}${preview.text}` : pendingNote;
         const unread = unreadCountOf(peer.id);
         if (unread) previewText.classList.add('font-semibold', 'text-slate-100');
         previewLine.appendChild(previewText);
@@ -304,12 +304,12 @@ async function fetchGridRing() {
             await Promise.all(state.peers.map(cacheGridPeer));
             retryVisiblePeerConnections();
             renderDiscoveryGrid();
-            document.getElementById('grid-last-updated').textContent = t('Aktualisiert {time}', { time: formatClockTime(Date.now()) });
+            document.getElementById('grid-last-updated').textContent = t('grid.updated', { time: formatClockTime(Date.now()) });
             return true;
         }
     } catch (err) {
         logDebug(`Grid sync failed: ${err.message}`);
-        document.getElementById('grid-last-updated').textContent = t('Aktualisieren fehlgeschlagen');
+        document.getElementById('grid-last-updated').textContent = t('grid.refreshFailed');
         return false;
     } finally {
         state.gridFetchInFlight = false;
@@ -383,7 +383,7 @@ function connectWorkerWebSocket() {
             updateConnectivityIndicator();
             const registered = await registerWithWorkerGrid();
             if (!registered) {
-                document.getElementById('network-status-text').textContent = t('Registrierung fehlgeschlagen');
+                document.getElementById('network-status-text').textContent = t('grid.registrationFailed');
                 state.ws.close();
                 return;
             }
@@ -403,12 +403,12 @@ function connectWorkerWebSocket() {
         };
         state.ws.onerror = () => {
             document.getElementById('network-indicator').className = 'w-2.5 h-2.5 rounded-full bg-red-500';
-            document.getElementById('network-status-text').textContent = t('Signaling-Fehler');
+            document.getElementById('network-status-text').textContent = t('grid.signalingError');
         };
         state.ws.onclose = () => {
             updateConnectivityIndicator();
             document.getElementById('network-indicator').className = 'w-2.5 h-2.5 rounded-full bg-red-500';
-            document.getElementById('network-status-text').textContent = t('Verbinde neu...');
+            document.getElementById('network-status-text').textContent = t('grid.reconnecting');
             if (state.shouldReconnect) setTimeout(connectWorkerWebSocket, 5000);
         };
     } catch (error) {
@@ -485,10 +485,10 @@ async function gracefulUnregister() {
         });
         if (!response.ok) throw new Error(`Unregister failed with status ${response.status}`);
         if (state.ws) state.ws.close();
-        showToast(t('Erfolgreich vom Routing-Server abgemeldet.'), 'success');
+        showToast(t('grid.signedOutFromRoutingServer'), 'success');
         document.getElementById('network-indicator').className = 'w-2.5 h-2.5 rounded-full bg-red-500';
-        document.getElementById('network-status-text').textContent = t('Abgemeldet');
+        document.getElementById('network-status-text').textContent = t('grid.signedOut');
     } catch (error) {
-        showToast(t('Abmeldung fehlgeschlagen.'), 'error');
+        showToast(t('grid.signOutFailed'), 'error');
     }
 }

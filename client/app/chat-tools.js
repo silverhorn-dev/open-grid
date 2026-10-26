@@ -2,13 +2,13 @@
 // und Chat-Fokus. Ausgelagert aus chat.js (klassisches Skript, globale Funktionen).
 // ================= CHAT-FUNKTIONEN: ANTWORTEN, REAGIEREN, MARKIEREN, SUCHEN =================
 function messagePreview(message) {
-    if (message.secureSnap) return t('Secure Snap');
-    if (message.album) return t('Album: {name}', { name: message.album.name });
-    if (message.audioData) return t('Sprachnachricht ({duration})', { duration: formatVoiceDuration(message.audioDuration) });
-    if (message.video) return message.text ? t('Video: {text}', { text: message.text }) : t('Video');
+    if (message.secureSnap) return t('common.secureSnap');
+    if (message.album) return t('chat.album', { name: message.album.name });
+    if (message.audioData) return t('chat.voiceMessage', { duration: formatVoiceDuration(message.audioDuration) });
+    if (message.video) return message.text ? t('chat.video2', { text: message.text }) : t('chat.video');
     // Ohne snapMode ist es ein normales Bild ("Als Bild senden") oder ein gespeicherter alter Snap.
-    if (message.snapData && !message.snapMode) return message.text ? t('Bild: {text}', { text: message.text }) : t('Bild');
-    if (message.snapData || message.snapMode) return message.text ? t('Snap: {text}', { text: message.text }) : t('Snap');
+    if (message.snapData && !message.snapMode) return message.text ? t('chat.image', { text: message.text }) : t('common.image');
+    if (message.snapData || message.snapMode) return message.text ? t('chat.snap', { text: message.text }) : t('common.snap');
     const text = String(message.text || '');
     return text.length > REPLY_PREVIEW_LENGTH ? `${text.slice(0, REPLY_PREVIEW_LENGTH)}...` : text;
 }
@@ -36,8 +36,8 @@ function renderReplyBar() {
     const reference = buildReplyReference(state.activeChatPeerId, state.replyToMessageId);
     bar.classList.toggle('hidden', !reference);
     if (!reference) return;
-    const author = reference.senderId === state.myProfile.id ? t('dir selbst') : getPeerPresentation(reference.senderId).name || HIDDEN_PEER_NAME;
-    document.getElementById('chat-reply-author').textContent = t('Antwort an {author}', { author });
+    const author = reference.senderId === state.myProfile.id ? t('chat.yourself') : getPeerPresentation(reference.senderId).name || HIDDEN_PEER_NAME;
+    document.getElementById('chat-reply-author').textContent = t('chat.replyTo', { author });
     document.getElementById('chat-reply-preview').textContent = reference.preview;
 }
 
@@ -45,7 +45,7 @@ function renderReplyQuote(replyTo, isMine) {
     const quote = document.createElement('button');
     quote.type = 'button';
     quote.className = `max-w-[80%] mb-0.5 px-3 py-1 rounded-xl border-l-2 border-brand-400 bg-slate-800/60 text-[11px] text-slate-400 text-left truncate ${isMine ? 'self-end' : 'self-start'}`;
-    const author = replyTo.senderId === state.myProfile.id ? t('Du') : getPeerPresentation(replyTo.senderId).name || HIDDEN_PEER_NAME;
+    const author = replyTo.senderId === state.myProfile.id ? t('chat.you') : getPeerPresentation(replyTo.senderId).name || HIDDEN_PEER_NAME;
     quote.textContent = `${author}: ${replyTo.preview}`;
     quote.onclick = () => scrollToChatMessage(replyTo.messageId);
     return quote;
@@ -91,7 +91,7 @@ function renderMessageActions(message, isMine, row) {
     const toggle = document.createElement('button');
     toggle.type = 'button';
     toggle.className = 'message-actions-toggle w-6 h-6 rounded-full items-center justify-center text-[10px] text-slate-200 bg-black/25';
-    toggle.setAttribute('aria-label', t('Aktionen ein- oder ausblenden'));
+    toggle.setAttribute('aria-label', t('chat.showOrHideActions'));
     toggle.innerHTML = '<i class="fa-solid fa-chevron-down transition-transform"></i>';
     toggle.onclick = event => {
         event.stopPropagation();
@@ -113,11 +113,11 @@ function renderMessageActions(message, isMine, row) {
         button.appendChild(icon);
         actions.appendChild(button);
     };
-    addAction('fa-solid fa-reply', t('Antworten'), () => startReply(message.id));
-    if (message.text) addAction('fa-regular fa-copy', t('Kopieren'), () => copyMessageText(message));
-    addAction('fa-regular fa-face-smile', t('Reagieren'), event => toggleReactionPicker(event.currentTarget, message.id));
-    addAction(message.starred ? 'fa-solid fa-star text-amber-400' : 'fa-regular fa-star', message.starred ? t('Markierung entfernen') : t('Fuer dich markieren'), () => toggleMessageStar(message.id));
-    if (isMine) addAction('fa-solid fa-trash', t('Loeschen'), () => deleteChatMessage(message.id), 'text-red-400 hover:text-red-300 hover:bg-slate-800');
+    addAction('fa-solid fa-reply', t('chat.reply'), () => startReply(message.id));
+    if (message.text) addAction('fa-regular fa-copy', t('common.copy'), () => copyMessageText(message));
+    addAction('fa-regular fa-face-smile', t('chat.react'), event => toggleReactionPicker(event.currentTarget, message.id));
+    addAction(message.starred ? 'fa-solid fa-star text-amber-400' : 'fa-regular fa-star', message.starred ? t('chat.removeStar') : t('chat.starForYourself'), () => toggleMessageStar(message.id));
+    if (isMine) addAction('fa-solid fa-trash', t('common.delete'), () => deleteChatMessage(message.id), 'text-red-400 hover:text-red-300 hover:bg-slate-800');
     if (isMine) actions.appendChild(toggle);
     return actions;
 }
@@ -125,9 +125,9 @@ function renderMessageActions(message, isMine, row) {
 async function copyMessageText(message) {
     try {
         await navigator.clipboard.writeText(message.text || '');
-        showToast(t('Text kopiert.'), 'success');
+        showToast(t('chat.textCopied'), 'success');
     } catch {
-        showToast(t('Kopieren nicht moeglich.'), 'error');
+        showToast(t('common.copyingIsNotPossible'), 'error');
     }
     closeMessageActions();
 }
@@ -291,10 +291,10 @@ function renderChatPeerIndicator() {
     const online = Boolean(peerId) && isPeerOnline(peerId) && !isPeerBlocked(peerId);
     const watching = online && isSecureChannelOpen(peerId) && Boolean(state.peerChatFocus[peerId]);
     dot.classList.toggle('hidden', !online);
-    const sameNetwork = online && state.peerTransport[peerId] === 'lan' ? t(' · im selben WLAN') : '';
+    const sameNetwork = online && state.peerTransport[peerId] === 'lan' ? t('chat.onSameWiFi') : '';
     const presence = peerId ? presenceTextOf(peerId) : '';
     const presenceSuffix = presence ? ` · ${presence}` : '';
-    const state_ = !peerId ? '' : watching ? `\u{1F440} ${t('hat den Chat offen')}` : online ? t('online') : t('offline');
+    const state_ = !peerId ? '' : watching ? `\u{1F440} ${t('chat.hasChatOpen')}` : online ? t('chat.online') : t('chat.offline2');
     status.textContent = peerId ? `${state_}${online ? sameNetwork : ''}${presenceSuffix}` : '';
     status.classList.toggle('text-emerald-400', online);
     status.classList.toggle('text-slate-400', !online);

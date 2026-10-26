@@ -1,17 +1,15 @@
 // ================= SPRACHEN (i18n) =================
-// Quelltexte sind deutsch und dienen als Schluessel: t('Neue Nachricht') liefert in Deutsch den Text
-// selbst, in anderen Sprachen den Eintrag aus I18N_MESSAGES[lang] (client/i18n/<lang>.js), sonst den
-// deutschen Text. Platzhalter: t('Video zu gross (hoechstens {max} MB).', { max: 25 }).
-// Das statische Markup (index.html) wird einmal beim Start uebersetzt, bevor Nutzerinhalte im DOM
-// stehen; Texte aus JavaScript gehen ueber t(). Ein Sprachwechsel laedt die Seite neu.
+// Texte stehen unter Schluesseln (`bereich.name`) in i18n/<sprache>.properties. Der Server macht daraus
+// /client/i18n/<sprache>.js; hier wird nur die aktive Sprache geladen. t('chat.send') liefert den Text,
+// Platzhalter: t('video.tooLargeAtMost', { value: 25 }). Fehlt ein Schluessel, erscheint er selbst (Tests
+// verhindern das). Statisches Markup traegt `data-i18n="schluessel"` bzw.
+// `data-i18n-attr="placeholder:schluessel;title:schluessel"` und wird einmal beim Start gefuellt,
+// bevor Nutzerinhalte im DOM stehen. Ein Sprachwechsel laedt die Seite neu.
 // Sprache: Einstellung "Automatisch" (Sprache des Geraets), "de" oder "en"; Standard vom Router
 // (CLIENT_DEFAULTS.language), lokal in localStorage `opengrid-language`.
 const I18N_LANGUAGES = ['de', 'en'];
 const I18N_STORAGE_KEY = 'opengrid-language';
 const I18N_MESSAGES = {};
-const I18N_ATTRIBUTES = ['placeholder', 'title', 'aria-label', 'alt'];
-// Bereiche, deren Inhalt nie uebersetzt wird (Protokolle, technische Ausgaben).
-const I18N_SKIP_SELECTOR = 'script, style, textarea, code, pre, [data-no-i18n], #debug-log-output';
 
 function storedLanguagePreference() {
     try {
@@ -42,8 +40,15 @@ function initialLanguage() {
 
 let currentLanguage = initialLanguage();
 
-function t(source, params) {
-    const text = currentLanguage === 'de' ? source : (I18N_MESSAGES[currentLanguage]?.[source] ?? source);
+// Woerterbuch der aktiven Sprache: synchron per document.write, damit es vor den App-Skripten da ist
+// (die nutzen t() teils schon beim Laden). Gleiche Herkunft, also mit der CSP `script-src 'self'` erlaubt.
+function loadLanguageBundle() {
+    const version = (document.currentScript?.src.match(/[?&]v=([^&]+)/) || [])[1] || '';
+    document.write(`<script src="/client/i18n/${currentLanguage}.js${version ? `?v=${version}` : ''}"><\/script>`);
+}
+
+function t(key, params) {
+    const text = I18N_MESSAGES[currentLanguage]?.[key] ?? key;
     if (!params) return text;
     return text.replace(/\{(\w+)\}/g, (match, name) => (params[name] === undefined ? match : String(params[name])));
 }
@@ -57,46 +62,24 @@ function formatClockTime(timestamp) {
     return new Date(timestamp).toLocaleTimeString(i18nLocale(), { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 }
 
-// Texte aus dem Profil-Schema: Zeichenkette (wird wie ein Quelltext behandelt) oder { de, en, ... }.
+// Texte aus dem Profil-Schema (vom Betreiber): Zeichenkette (bleibt wie sie ist) oder { de, en, ... }.
 function localizedText(value) {
     if (value && typeof value === 'object' && !Array.isArray(value)) {
         return value[currentLanguage] ?? value.de ?? value.en ?? Object.values(value)[0] ?? '';
     }
-    return typeof value === 'string' ? t(value) : value;
+    return value;
 }
 
-// Markup-Texte: Zeilenumbrueche und Einrueckung zaehlen nicht (Schluessel mit einfachen Leerzeichen).
-function normalizeI18nKey(value) {
-    return value.replace(/\s+/g, ' ').trim();
-}
-
-function translateTextValue(value) {
-    const key = normalizeI18nKey(value);
-    if (!key) return value;
-    const translated = t(key);
-    if (translated === key) return value;
-    const leading = value.match(/^\s*/)[0];
-    const trailing = value.match(/\s*$/)[0];
-    return `${leading}${translated}${trailing}`;
-}
-
-// Einmal beim Start: Textknoten und Attribute des statischen Markups.
-function translateStaticMarkup(root = document.body) {
+// Einmal beim Start: alle markierten Elemente und Attribute des statischen Markups.
+function translateStaticMarkup(root = document) {
     document.documentElement.lang = currentLanguage;
-    if (currentLanguage === 'de' || !root) return;
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-        acceptNode: node => (node.parentElement?.closest(I18N_SKIP_SELECTOR) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT)
+    root.querySelectorAll('[data-i18n]').forEach(element => {
+        element.textContent = t(element.dataset.i18n);
     });
-    const nodes = [];
-    while (walker.nextNode()) nodes.push(walker.currentNode);
-    nodes.forEach(node => {
-        node.nodeValue = translateTextValue(node.nodeValue);
-    });
-    root.querySelectorAll(I18N_ATTRIBUTES.map(name => `[${name}]`).join(',')).forEach(element => {
-        if (element.closest(I18N_SKIP_SELECTOR)) return;
-        I18N_ATTRIBUTES.forEach(name => {
-            const value = element.getAttribute(name);
-            if (value) element.setAttribute(name, translateTextValue(value));
+    root.querySelectorAll('[data-i18n-attr]').forEach(element => {
+        element.dataset.i18nAttr.split(';').forEach(pair => {
+            const [attribute, key] = pair.split(':');
+            if (attribute && key) element.setAttribute(attribute.trim(), t(key.trim()));
         });
     });
 }
@@ -141,7 +124,9 @@ function renderLanguageSetting() {
     if (select) select.value = languagePreference();
 }
 
-// Alle Skripte stehen am Ende von <body>: hier ist das Markup komplett, die Woerterbuecher sind geladen
+loadLanguageBundle();
+
+// Alle Skripte stehen am Ende von <body>: hier ist das Markup komplett, das Woerterbuch ist geladen
 // und es gibt noch keine Nutzerinhalte im DOM.
 document.addEventListener('DOMContentLoaded', () => {
     translateStaticMarkup();

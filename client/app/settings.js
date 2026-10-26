@@ -33,7 +33,7 @@ async function copyDebugLogs() {
     const report = buildDebugLogReport();
     try {
         await navigator.clipboard.writeText(report);
-        showToast(t('Protokoll in die Zwischenablage kopiert.'), 'success');
+        showToast(t('settings.logCopiedToClipboard'), 'success');
     } catch (error) {
         const textarea = document.createElement('textarea');
         textarea.value = report;
@@ -45,7 +45,7 @@ async function copyDebugLogs() {
         const copied = document.execCommand('copy');
         textarea.remove();
         showToast(
-            copied ? t('Protokoll in die Zwischenablage kopiert.') : t('Kopieren fehlgeschlagen.'),
+            copied ? t('settings.logCopiedToClipboard') : t('settings.copyingFailed'),
             copied ? 'success' : 'error'
         );
     }
@@ -80,17 +80,17 @@ async function runConnectivityDiagnostics() {
 
         if (!found.size) {
             logDebug('ERGEBNIS: Keine ICE-Kandidaten. Netzwerk blockiert UDP/TCP vollstaendig.');
-            showToast(t('Keine ICE-Kandidaten gefunden.'), 'error');
+            showToast(t('settings.noIceCandidatesFound'), 'error');
         } else if (!found.has('relay')) {
             logDebug(`ERGEBNIS: Keine relay-Kandidaten. TURN liefert keine Allocation (gefunden: ${[...found].join(', ')}).`);
-            showToast(t('TURN liefert keine relay-Kandidaten.'), 'error');
+            showToast(t('settings.turnReturnsNoRelayCandidates'), 'error');
         } else {
             logDebug(`ERGEBNIS: TURN funktioniert, relay-Kandidaten vorhanden (gefunden: ${[...found].join(', ')}).`);
-            showToast(t('TURN liefert relay-Kandidaten.'), 'success');
+            showToast(t('settings.turnReturnsRelayCandidates'), 'success');
         }
     } catch (error) {
         logDebug(`ICE-Diagnose fehlgeschlagen: ${error.message}`);
-        showToast(t('ICE-Diagnose fehlgeschlagen: {message}', { message: error.message }), 'error');
+        showToast(t('settings.iceDiagnosticsFailed', { message: error.message }), 'error');
     } finally {
         probe.close();
         logDebug('--- ICE-Diagnose beendet ---');
@@ -104,7 +104,7 @@ function updateDebugButtonState() {
     if (!button || !status) return;
 
     button.setAttribute('aria-checked', String(CONFIG.DEBUG_MODE));
-    status.textContent = CONFIG.DEBUG_MODE ? t('AN') : t('AUS');
+    status.textContent = CONFIG.DEBUG_MODE ? t('settings.on') : t('common.off');
     status.classList.toggle('is-on', CONFIG.DEBUG_MODE);
 }
 
@@ -115,7 +115,7 @@ function renderBlockedPeers() {
     const blockedIds = Object.values(state.chatControls).filter(c => c.blockedAt).map(c => c.peerId);
 
     if (blockedIds.length === 0) {
-        showEmptyState(container, { icon: 'fa-user-check', text: t('Keine Peers blockiert.'), compact: true });
+        showEmptyState(container, { icon: 'fa-user-check', text: t('settings.noPeersBlocked'), compact: true });
         return;
     }
     blockedIds.forEach(peerId => {
@@ -127,7 +127,7 @@ function renderBlockedPeers() {
         nameDiv.textContent = peer.name || peerId;
         const unblockBtn = document.createElement('button');
         unblockBtn.className = 'text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded transition';
-        unblockBtn.textContent = t('Entblocken');
+        unblockBtn.textContent = t('common.unblock');
         unblockBtn.onclick = () => unblockPeerFromSettings(peerId);
         row.append(nameDiv, unblockBtn);
         container.appendChild(row);
@@ -145,8 +145,8 @@ async function unblockPeerFromSettings(peerId) {
         subscribePresence();
         const operation = { operationId: `unhide:${window.crypto.randomUUID()}`, type: 'PEER_UNHIDE', actorId: state.myProfile.id, createdAt: Date.now() };
         sendSecurePayload(peerId, { type: 'CHAT_OPERATION', operation }).catch(()=>{});
-        showToast(t('Peer wurde entblockt.'), 'success');
-    } catch (error) { showToast(t('Fehler: {message}', { message: error.message }), 'error'); }
+        showToast(t('common.peerUnblocked'), 'success');
+    } catch (error) { showToast(t('settings.error', { message: error.message }), 'error'); }
 }
 
 function toggleDebugMode() {
@@ -173,7 +173,7 @@ async function generateUserIdentityKeys(showNotification = false) {
     const fingerprintOutput = document.getElementById('inspect-pubkey-fingerprint');
     const regenerateButton = document.getElementById('regenerate-key-btn');
     if (regenerateButton) regenerateButton.disabled = true;
-    if (fingerprintOutput) fingerprintOutput.textContent = t('Generating...');
+    if (fingerprintOutput) fingerprintOutput.textContent = t('settings.generating');
 
     try {
         const storedIdentity = !showNotification && db
@@ -232,10 +232,10 @@ async function generateUserIdentityKeys(showNotification = false) {
         if (state.ws?.readyState === WebSocket.OPEN) {
             await registerWithWorkerGrid();
         }
-        if (showNotification) showToast(t('Neues Schluesselpaar erzeugt.'), 'success');
+        if (showNotification) showToast(t('settings.newKeyPairGenerated'), 'success');
     } catch (error) {
         console.error('Identity key generation failed.', error);
-        if (fingerprintOutput) fingerprintOutput.textContent = t('Key generation failed');
+        if (fingerprintOutput) fingerprintOutput.textContent = t('settings.keyGenerationFailed');
         showDebugToast('E2EE key generation failed.', 'error');
     } finally {
         if (regenerateButton) regenerateButton.disabled = false;
@@ -480,7 +480,7 @@ async function updateDeviceLocation(notify = true) {
         geohash = encodeGeohash(position.coords.latitude, position.coords.longitude, GRID_PRECISION);
     } catch (error) {
         logDebug(`Geolocation failed: ${error.message}`);
-        if (notify) showToast(t('Standort nicht verfuegbar oder nicht erlaubt.'), 'warning');
+        if (notify) showToast(t('settings.locationNotAvailableOrNot'), 'warning');
         return false;
     }
     await applyLocationCell(geohash);
@@ -516,7 +516,7 @@ async function searchAddressLocation() {
         const latitude = Number(result?.lat);
         const longitude = Number(result?.lon);
         if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-            showToast(t('Adresse nicht gefunden.'), 'warning');
+            showToast(t('settings.addressNotFound'), 'warning');
             return;
         }
         const geohash = encodeGeohash(latitude, longitude, GRID_PRECISION);
@@ -524,10 +524,10 @@ async function searchAddressLocation() {
         await applyLocationCell(geohash);
         await updateGridSetting('locationLabel', result.display_name ? String(result.display_name).substring(0, 200) : query);
         if (state.gridSettings.useLocation) await updateGridSetting('useLocation', false);
-        showToast(t('Standort aus Adresse uebernommen.'), 'success');
+        showToast(t('settings.locationTakenFromAddress'), 'success');
     } catch (error) {
         logDebug(`Address lookup failed: ${error.message}`);
-        showToast(t('Adresssuche fehlgeschlagen.'), 'error');
+        showToast(t('settings.addressSearchFailed'), 'error');
     } finally {
         if (button) button.disabled = false;
     }
@@ -535,7 +535,7 @@ async function searchAddressLocation() {
 
 async function addCurrentSafeZone() {
     if (!state.gridSettings.useLocation) {
-        showToast(t('Bitte zuerst den Geraetestandort aktivieren.'), 'warning');
+        showToast(t('settings.pleaseTurnOnDeviceLocation'), 'warning');
         return;
     }
     if (!await updateDeviceLocation()) return;
@@ -555,7 +555,7 @@ function renderSafeZones() {
         const item = document.createElement('li');
         item.className = 'flex items-center justify-between gap-2 text-xs bg-slate-950/60 border border-slate-800 rounded-lg px-2 py-1';
         const label = document.createElement('span');
-        label.textContent = zone === state.myProfile.geohash ? t('Zone {value} (hier)', { value: index + 1 }) : t('Zone {value}', { value: index + 1 });
+        label.textContent = zone === state.myProfile.geohash ? t('settings.zoneHere', { value: index + 1 }) : t('settings.zone', { value: index + 1 });
         const code = document.createElement('span');
         code.className = 'debug-only font-mono text-slate-500';
         code.textContent = zone;
@@ -563,7 +563,7 @@ function renderSafeZones() {
         const remove = document.createElement('button');
         remove.type = 'button';
         remove.className = 'text-red-400 hover:text-red-300';
-        remove.textContent = t('Entfernen');
+        remove.textContent = t('common.remove');
         remove.onclick = () => removeSafeZone(zone);
         item.append(label, remove);
         list.appendChild(item);
@@ -589,14 +589,14 @@ function renderGridSettings() {
     if (locationLabel) {
         locationLabel.textContent = settings.useLocation
             ? 'Aktuell: Geraetestandort'
-            : settings.locationLabel ? t('Aktuell: {place}', { place: settings.locationLabel }) : t('Aktuell: kein Standort gesetzt');
+            : settings.locationLabel ? t('settings.currently', { place: settings.locationLabel }) : t('settings.currentlyNoLocationSet');
     }
     const hint = document.getElementById('silent-mode-hint');
     if (hint) {
         hint.classList.toggle('hidden', !isEffectivelySilent());
         hint.lastChild.textContent = settings.silent
-            ? ` ${t('Silent-Modus aktiv: du bist fuer andere nicht im Grid sichtbar.')}`
-            : ` ${t('Safe Zone: hier bist du fuer andere nicht im Grid sichtbar.')}`;
+            ? ` ${t('common.silentModeActiveYouAre')}`
+            : ` ${t('settings.safeZoneHereYouAre')}`;
     }
     renderSafeZones();
 }
@@ -609,7 +609,7 @@ async function updateGridSetting(key, value) {
     } catch (error) {
         state.gridSettings = previous;
         logDebug(`Could not store grid settings: ${error.message}`);
-        showToast(t('Einstellung konnte nicht gespeichert werden.'), 'error');
+        showToast(t('common.settingCouldNotBeSaved'), 'error');
         renderGridSettings();
         return;
     }

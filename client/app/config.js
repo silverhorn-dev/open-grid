@@ -131,6 +131,9 @@ const state = {
     pendingInvite: null,
     // Online-Status der Chat-Partner (nur gegenseitig, vom Server per PRESENCE gemeldet).
     peerPresence: {},
+    // Ungelesen (unread.js): Lesestand je Chat (Zeitstempel, '*' = Stand beim ersten Start) und Anzahl.
+    chatReads: {},
+    unreadCounts: {},
     // Letzte aktive Profil-Anfrage je Peer ({ direct, swarm } als Zeitstempel), siehe requestMissingProfile.
     profileRequests: {},
     presenceSubscription: [],

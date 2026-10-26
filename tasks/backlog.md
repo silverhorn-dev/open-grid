@@ -11,6 +11,7 @@ Ideen ohne festen Termin. Neue Phasen werden von hier auf `tasks/board.md` gehol
   - plan: naechste iteration: PWA hat keine lokale discovery API -> signaling server muss im LAN laufen (limitation)
 
 # feat
-- [ ] chat badges
-  - [ ] chat needs a badge
-  - [ ] chats in chatoverview need a badge
+- [x] chat badges
+  - [x] chat needs a badge
+  - [x] chats in chatoverview need a badge
+  - done 2026-10-26: `client/app/unread.js`; zahl je chat (liste, kontaktleiste, schnellwechsel), summe am chat-tab, seitentitel, app-symbol; punkt am listen-wechsel; lesestand nur lokal (`keys`/`chat-reads`); tests `test/unread.test.js`, e2e `unread-badges`

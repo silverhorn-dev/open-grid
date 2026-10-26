@@ -325,6 +325,7 @@ async function loadChatPeerIds() {
 
             .map(control => control.peerId)
     ].filter(Boolean)));
+    if (typeof recountAllUnread === 'function') recountAllUnread(activeMessages);
     renderActivePeerList();
 }
 
@@ -734,6 +735,7 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
     state.chats[peerId].sort((left, right) => left.createdAt - right.createdAt);
     rememberChatPeer(peerId);
     if (state.activeChatPeerId === peerId) renderChatHistory();
+    if (typeof refreshUnread === 'function') refreshUnread(peerId).catch(logBackgroundError('applyChatOperation'));
     return true;
 }
 

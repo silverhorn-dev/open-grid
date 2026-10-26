@@ -369,3 +369,42 @@ html.debug-on .debug-off-only {
     .album-reveal { animation: none; }
 }
 
+
+/* Ungelesen (unread.js): Zahl als Pille, am Tab-Symbol und an Avataren oben rechts angeheftet */
+.unread-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.15rem;
+    height: 1.15rem;
+    padding: 0 0.3rem;
+    border-radius: 9999px;
+    background: rgb(var(--brand-500));
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    line-height: 1;
+}
+.unread-badge.hidden { display: none; }
+.unread-badge-corner {
+    position: absolute;
+    top: -0.35rem;
+    right: -0.45rem;
+    border: 2px solid rgb(var(--slate-900));
+}
+.unread-badge-nav {
+    position: absolute;
+    top: -0.4rem;
+    left: 0.85rem;
+    border: 2px solid rgb(var(--slate-900));
+}
+.unread-dot {
+    position: absolute;
+    top: -0.2rem;
+    right: -0.3rem;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 9999px;
+    background: rgb(var(--brand-500));
+}
+.unread-dot.hidden { display: none; }

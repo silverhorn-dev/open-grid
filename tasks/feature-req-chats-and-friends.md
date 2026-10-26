@@ -21,9 +21,15 @@ Um die Bindung zwischen Nutzern zu stärken, ohne den offenen Discovery-Aspekt (
 - **Datenbankschema & Garbage Collection:** Neue IndexedDB-Tabelle `statusUpdates` (`id, peerId, payload, expiresAt`). Ein Background-Intervall (z.B. alle 15 Min) löscht abgelaufene Einträge (Zeroing).
 
 ## ? Akzeptanzkriterien
-- [ ] UI besitzt einen Toggle/Navigation für die 4 Modi (Grid, Chat, Freunde, Event).
-- [ ] Status-Feed wird ausschließlich in den Modi "Chat" und "Freunde" gerendert.
-- [ ] Das Grid im Modus "Freunde" filtert alle Peers heraus, die nicht in der lokalen Add-Liste/Chat-Historie stehen.
-- [ ] "Add"-Button im Profil schaltet erweiterte Felder für den jeweiligen Peer frei (via E2EE Payload/Sync).
-- [ ] Neue Status-Updates werden kryptografisch sicher nur an geaddete Peers verteilt.
-- [ ] Status-Medien verschwinden nach exakt 24 Stunden restlos aus der IndexedDB.
+- [x] UI besitzt einen Toggle/Navigation für die 4 Modi (Grid, Chat, Freunde, Event).
+  - geprueft 2026-10-26: Karte "App-Modus" (`#app-mode-card`, `setAppMode` in `modes.js`), Router `APP_MODES`; zusaetzlich Listen-Wechsel am Chatlisten-Titel
+- [x] Status-Feed wird ausschließlich in den Modi "Chat" und "Freunde" gerendert.
+  - geprueft: `renderStatusBar` (status.js) nur bei `currentChatScope() === 'social'`
+- [x] Das Grid im Modus "Freunde" filtert alle Peers heraus, die nicht in der lokalen Add-Liste/Chat-Historie stehen.
+  - geprueft: `grid.client.js` filtert mit `isFriend` (Server-Scope `friends`)
+- [x] "Add"-Button im Profil schaltet erweiterte Felder für den jeweiligen Peer frei (via E2EE Payload/Sync).
+  - geprueft: `FRIEND_PING`/`FRIEND_RESET` (friends.js, verschluesselte Chat-Operationen), volles Profil per `buildProfilePayloadFor` nur fuer `isConnectedPeer`; Tests `test/friends.test.js`, e2e `friends`
+- [x] Neue Status-Updates werden kryptografisch sicher nur an geaddete Peers verteilt.
+  - geprueft: `pushStatusesToPeer` nur bei `isFriend`, per `sendSecurePayload` (P2P oder Pfad C); e2e `status`
+- [x] Status-Medien verschwinden nach exakt 24 Stunden restlos aus der IndexedDB.
+  - geprueft: `STATUS_TTL_MS` = 24 h, `removeExpiredStatuses` (Datensatz + Bild) per Intervall; eingehende Status werden auf hoechstens 24 h gekappt

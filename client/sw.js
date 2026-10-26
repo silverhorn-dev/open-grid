@@ -194,7 +194,13 @@ async function receivePathCPush(data) {
     }
 }
 
+// App-Symbol: Punkt ohne Zahl (die genaue Anzahl setzt die Seite beim naechsten Oeffnen).
+function markAppBadge() {
+    if ('setAppBadge' in self.navigator) self.navigator.setAppBadge().catch(() => {});
+}
+
 function showChatNotification(title, body, senderId) {
+    markAppBadge();
     return self.registration.showNotification(title, {
         body,
         tag: senderId ? `chat-${senderId}` : 'chat',
@@ -210,6 +216,7 @@ function showGenericNotification(senderId) {
 // Kompaktmodus: immer dieselbe Benachrichtigung ohne Name und Text. Der feste
 // Tag ersetzt eine vorhandene, auch bei mehreren Absendern bleibt es eine.
 function showCompactNotification() {
+    markAppBadge();
     return self.registration.showNotification('Neue Nachrichten', {
         body: 'Tippe zum Oeffnen.',
         tag: 'opengrid-messages',

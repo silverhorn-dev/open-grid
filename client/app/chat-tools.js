@@ -329,6 +329,7 @@ function sendChatFocus(peerId, open) {
 
 function syncChatFocus() {
     const focusedPeerId = isChatVisibleFor(state.activeChatPeerId) ? state.activeChatPeerId : null;
+    if (focusedPeerId) markChatRead(focusedPeerId).catch(logBackgroundError('syncChatFocus'));
     const previousPeerId = state.chatFocusPeerId;
     if (previousPeerId === focusedPeerId) return;
     if (previousPeerId) sendChatFocus(previousPeerId, false);

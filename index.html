@@ -58,6 +58,7 @@
                 </button>
                 <button data-tab-btn="chat" data-nav="top" data-click="switchTab" data-args='["chat"]' class="nav-top-btn">
                     <i class="fa-solid fa-comments"></i> Chat
+                    <span data-unread-total class="unread-badge hidden">0</span>
                 </button>
                 <button data-tab-btn="editprofile" data-nav="top" data-click="switchTab" data-args='["editprofile"]' class="nav-top-btn">
                     <i class="fa-solid fa-user"></i> Profil
@@ -83,7 +84,7 @@
             <i class="fa-solid fa-border-all text-lg"></i><span>Grid</span>
         </button>
         <button data-tab-btn="chat" data-nav="bottom" data-click="switchTab" data-args='["chat"]' class="nav-bottom-btn">
-            <i class="fa-solid fa-comments text-lg"></i><span>Chat</span>
+            <span class="relative"><i class="fa-solid fa-comments text-lg"></i><span data-unread-total class="unread-badge unread-badge-nav hidden">0</span></span><span>Chat</span>
         </button>
         <button data-tab-btn="editprofile" data-nav="bottom" data-click="switchTab" data-args='["editprofile"]' class="nav-bottom-btn">
             <i class="fa-solid fa-user text-lg"></i><span>Profil</span>
@@ -178,7 +179,7 @@
                         <span class="flex items-center gap-1.5">
                             Chats <span id="chat-list-scope" class="normal-case tracking-normal font-medium text-slate-500"></span>
                             <button id="chat-list-switch" data-click="switchChatList" class="hidden w-7 h-7 rounded-lg normal-case tracking-normal text-slate-400 hover:text-brand-400 hover:bg-slate-800 flex items-center justify-center" aria-label="Liste wechseln">
-                                <i class="fa-solid fa-right-left"></i>
+                                <span class="relative"><i class="fa-solid fa-right-left"></i><span id="chat-list-switch-dot" class="unread-dot hidden" title="Ungelesen in der anderen Liste"></span></span>
                             </button>
                             <button id="chat-list-mode-btn" data-click="switchModeToViewedList" class="hidden normal-case tracking-normal text-[11px] font-semibold text-brand-400 hover:text-brand-300">Modus wechseln</button>
                         </span>
@@ -990,6 +991,7 @@
     <script src="/client/app/chat.js?v={{assetVersion}}"></script>
     <script src="/client/app/chat-tools.js?v={{assetVersion}}"></script>
     <script src="/client/app/chat-switch.js?v={{assetVersion}}"></script>
+    <script src="/client/app/unread.js?v={{assetVersion}}"></script>
     <script src="/client/app/snaps.js?v={{assetVersion}}"></script>
     <script src="/client/app/originals.js?v={{assetVersion}}"></script>
     <script src="/client/app/snap-editor.js?v={{assetVersion}}"></script>

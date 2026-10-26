@@ -482,7 +482,7 @@ Worker (Abschnitt 6.0). Der Datensatz `grid-settings` speichert `silent`, `ttlMi
 (Liste von Geohash-Zellen). Ein fehlender Datensatz entspricht den Standardwerten.
 Safe Zones verlassen nie das Geraet: Liegt die eigene Zelle in einer Safe
 Zone, registriert sich der Client als `silent`. Weitere Datensaetze:
-`chat-scopes` (Chatlisten, 6.0), `album-defaults`, `album-ticket:<albumId>`
+`chat-scopes` (Chatlisten, 6.0), `chat-reads` (Lesestand fuer Ungelesen-Badges, 6.0), `album-defaults`, `album-ticket:<albumId>`
 (5.1), `privacy-settings` (Spur-Wasserzeichen) und `status-settings`
 (`directOnly`, Status).
 
@@ -787,6 +787,20 @@ Nachrichtenaustausch: eigene erste Nachricht = aktueller Modus, eingehende
 erste Nachricht = `message.scope` des Absenders (Feld im verschluesselten
 `MESSAGE_PUT`). Freunde sind immer `social`. Chats ohne Zuordnung (aeltere
 Versionen) erscheinen in beiden Listen.
+
+**Ungelesen-Badges** (`client/app/unread.js`): Lesestand je Chat in
+`keys`/`chat-reads` (`{ reads: { <peerId>: ms, '*': ms } }`), nur lokal, geht
+weder an den Server noch an den Partner (keine Lesebestaetigung). Ungelesen =
+Nachricht des Partners mit `createdAt` nach dem Lesestand, nicht geloescht,
+nicht zurueckgehalten, Chat nicht blockiert. `'*'` ist der Stand beim ersten
+Start mit Badges (bis dahin gilt alles als gelesen). Gelesen wird, wenn der
+Chat sichtbar offen ist (`isChatVisibleFor`); der Lesestand ist dann
+`max(jetzt, neuestes createdAt)`, damit Nachrichten mit vorgehender Uhr des
+Absenders nicht spaeter erneut zaehlen. Anzeige: Zahl am Chat in Liste,
+Kontaktleiste und Schnellwechsel, Summe am Chat-Tab, im Seitentitel und am
+App-Symbol (Badging API), Punkt am Listen-Wechsel bei Ungelesenem in der
+anderen Liste. Der Service Worker setzt bei einer Push-Benachrichtigung nur
+einen Punkt am App-Symbol.
 
 **Chat-Berechtigungen** (`myProfile.chatPolicy = { mode, limit, allowImages }`,
 im signierten Profil):

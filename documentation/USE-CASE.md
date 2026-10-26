@@ -680,3 +680,20 @@ Akzeptanzkriterien:
   fuer STUN statt eines fremden Dienstes.
 - Die Grenzen sind dokumentiert: HTTPS ist Pflicht, ein Mesh ohne Server ist
   in einer PWA nicht moeglich.
+
+## UC-39: Ungelesene Nachrichten
+
+**Als Nutzer** moechte ich sehen, in welchen Chats neue Nachrichten auf mich
+warten und wie viele.
+
+Akzeptanzkriterien:
+
+- Jeder Chat in der Liste (auch in Kontaktleiste und Schnellwechsel) zeigt die
+  Zahl ungelesener Nachrichten, ab 100 "99+".
+- Der Chat-Tab, der Seitentitel und das App-Symbol zeigen die Summe.
+- Hat die andere Liste ("Grid & Event" bzw. "Chat & Freunde") Ungelesenes,
+  zeigt der Listen-Wechsel einen Punkt.
+- Oeffnen des Chats setzt ihn auf gelesen; Nachrichten in den offenen Chat
+  zaehlen nicht. Der Stand bleibt nach dem Neuladen erhalten.
+- Der Lesestand bleibt auf dem Geraet; der Partner bekommt keine
+  Lesebestaetigung.

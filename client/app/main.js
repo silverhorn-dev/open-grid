@@ -89,7 +89,10 @@ window.onload = async () => {
             await loadStatuses();
             startStatusCleanup();
         });
-        await runStartupStep('Chatliste', loadChatPeerIds);
+        await runStartupStep('Chatliste', async () => {
+            await loadChatReads();
+            await loadChatPeerIds();
+        });
         await runStartupStep('Chat-Wechsel', async () => {
             await loadChatSwitchSettings();
             await loadPullUpSetting();

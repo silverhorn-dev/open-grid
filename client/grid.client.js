@@ -143,6 +143,7 @@ function renderActivePeerList() {
     const peerIds = visibleChatPeerIds();
 
     count.textContent = peerIds.length;
+    renderUnreadBadges();
     renderStatusBar();
     renderChatSwitcher();
     const scopeLabel = document.getElementById('chat-list-scope');
@@ -207,13 +208,16 @@ function renderActivePeerList() {
             ? (hasFriendRequest(peer.id) ? 'Moechte dich adden' : '')
             : (hasReceivedFlame(peer.id) ? 'Hat dir eine Flamme geschickt' : '');
         previewText.textContent = preview ? `${preview.mine ? 'Du: ' : ''}${preview.text}` : pendingNote;
+        const unread = unreadCountOf(peer.id);
+        if (unread) previewText.classList.add('font-semibold', 'text-slate-100');
         previewLine.appendChild(previewText);
         if (preview?.at) {
             const time = document.createElement('span');
-            time.className = 'shrink-0 text-slate-500';
+            time.className = `shrink-0 ${unread ? 'text-brand-400 font-semibold' : 'text-slate-500'}`;
             time.textContent = formatChatListTime(preview.at);
             previewLine.appendChild(time);
         }
+        if (unread) previewLine.appendChild(createUnreadBadge(unread, 'shrink-0'));
         // Kurzstatus in eigener Zeile, damit lange Namen ihn auf dem Smartphone nicht abschneiden.
         const presence = presenceTextOf(peer.id);
         const presenceLine = document.createElement('div');

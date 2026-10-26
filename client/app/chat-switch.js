@@ -110,6 +110,8 @@ function renderChatSwitcher() {
             dot.className = 'absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-slate-900';
             button.appendChild(dot);
         }
+        const unread = unreadCountOf(peerId);
+        if (unread && !current) button.appendChild(createUnreadBadge(unread, 'unread-badge-corner'));
         button.onclick = () => switchToChat(peerId).catch(logBackgroundError('renderChatSwitcher'));
         return button;
     }));
@@ -194,6 +196,8 @@ function openChatSwitcherSheet() {
         preview.textContent = last ? `${last.mine ? 'Du: ' : ''}${last.text}` : '';
         details.append(name, preview);
         button.append(avatar, details);
+        const unread = unreadCountOf(peerId);
+        if (unread) button.appendChild(createUnreadBadge(unread, 'shrink-0'));
         button.onclick = () => replaceModal(closeMediaModal, () => switchToChat(peerId));
         list.appendChild(button);
     });

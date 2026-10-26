@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 114 · 2026-10-26
+## Build 116 · 2026-10-26
+- Ungelesen-Badges: Zahl neuer Nachrichten an jedem Chat (Liste, Kontaktleiste, Schnellwechsel), Summe am Chat-Tab, im Seitentitel und am App-Symbol; Punkt am Listen-Wechsel, wenn die andere Liste Neues hat. Der Lesestand bleibt auf dem Geraet (keine Lesebestaetigung)
+
+## Build 114 · 2026-10-26 · `509011e`
 - Behoben: neue Chats (z. B. erste Nachricht ueber den Router-Cache) zeigten Name und Bild erst nach einem Klick aufs Profil; das Profil wird jetzt automatisch geholt, sobald der Absender online ist (sonst ueber andere verbundene Teilnehmer)
 
 ## Build 113 · 2026-10-26 · `bc1bc97`

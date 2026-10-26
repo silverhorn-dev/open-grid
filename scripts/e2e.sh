@@ -18,6 +18,6 @@ until docker exec "$NAME" wget -qO- http://127.0.0.1:3000/health >/dev/null 2>&1
 done
 
 for variant in DESKTOP MOBILE OFFLINE; do
-    docker run --rm --network "container:$NAME" -e "$variant=1" -v "$PWD/e2e":/e2e:ro "$PLAYWRIGHT_IMAGE" sh -c \
+    docker run --rm --network "container:$NAME" -e "$variant=1" -e "E2E_DEBUG=${E2E_DEBUG:-}" -v "$PWD/e2e":/e2e:ro "$PLAYWRIGHT_IMAGE" sh -c \
         'mkdir -p /run-e2e && cd /run-e2e && npm init -y >/dev/null && npm i playwright@1.48.2 --silent >/dev/null && cp /e2e/*.cjs . && for f in *.e2e.cjs; do node "$f" || exit 1; done'
 done

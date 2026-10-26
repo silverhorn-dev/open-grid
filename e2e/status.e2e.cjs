@@ -107,7 +107,9 @@ async function main() {
 
         assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log('E2E OK (status)');
+        if (process.env.E2E_DEBUG) console.log(debugLogs.filter(entry => /KEY_HELLO|Schluessel|haengt|Path C skipped/.test(entry)).join('\n'));
     } finally {
+        if (process.env.E2E_DEBUG) console.log(debugLogs.join('\n'));
         await browser.close();
     }
 }

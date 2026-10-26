@@ -28,6 +28,7 @@ function isValidMessage(message) {
         && isOptionalString(message.timestamp, 40)
         && (message.scope === undefined || ['discovery', 'social'].includes(message.scope))
         && (message.original === undefined || isValidOriginalMeta(message.original))
+        && (message.snapExpiry === undefined || ['15m', '30m', '60m', 'off'].includes(message.snapExpiry))
         && (message.imageSize === undefined || (Number.isInteger(message.imageSize?.w) && Number.isInteger(message.imageSize?.h)
             && message.imageSize.w > 0 && message.imageSize.h > 0 && message.imageSize.w <= 10000 && message.imageSize.h <= 10000))
         && isTimestamp(message.createdAt);

@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 103 · 2026-10-25
+## Build 105 · 2026-10-26
+- Einmal-Snaps laufen nach dem ersten Ansehen ab: der Absender waehlt 15, 30 oder 60 Minuten oder "nie" (Standard 30 Minuten, vom Betreiber per `CLIENT_DEFAULTS` einstellbar); der Empfaenger sieht keine Restzeit
+
+## Build 103 · 2026-10-25 · `fbf8733`
 - Behoben: gelegentlich blieb der Schluesselaustausch nach dem Verbindungsaufbau haengen (Kanal offen, aber nicht verschluesselt nutzbar); KEY_HELLO wird jetzt bis zu viermal wiederholt
 - Behoben: Freundschaftsanfragen und Flammen kamen ohne direkte Verbindung erst beim naechsten Chat-Abgleich an; jetzt wie Nachrichten nach 10 Sekunden ueber den Router-Cache
 - Behoben: Nachrichten ueber den Router-Cache kamen bei offener App ohne Push erst nach dem Neuladen an; der Server gibt einem online Empfaenger jetzt sofort Bescheid (`CACHE_WAITING`, ohne Inhalt), beim Zurueckkehren in die App wird ebenfalls abgeholt

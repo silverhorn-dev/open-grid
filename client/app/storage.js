@@ -520,6 +520,7 @@ function createPutOperation(peerId, message) {
             text: message.text,
             snapData: message.snapData,
             snapMode: message.snapMode,
+            snapExpiry: message.snapExpiry,
             album: message.album,
             secureSnap: message.secureSnap ? {
                 snapId: message.secureSnap.snapId,
@@ -570,6 +571,8 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
                 // Ein Secure Snap darf nie zusaetzlich als Klartext-Snap ankommen.
                 snapData: localOperation.message.secureSnap ? undefined : localOperation.message.snapData,
                 snapMode: localOperation.message.snapMode === 'replay' ? 'replay' : undefined,
+                snapExpiry: localOperation.message.snapMode === 'replay' && ['15m', '30m', '60m', 'off'].includes(localOperation.message.snapExpiry)
+                    ? localOperation.message.snapExpiry : undefined,
                 peerId,
                 deliveredVia
             };

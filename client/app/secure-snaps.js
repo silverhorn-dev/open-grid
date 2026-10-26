@@ -13,6 +13,14 @@ const SECURE_SNAP_UNLIMITED_CAP_MS = 5 * 60 * 1000;
 const SECURE_SNAP_CONNECT_TIMEOUT_MS = 10000;
 const SECURE_SNAP_STREAM_TIMEOUT_MS = 6000;
 const SNAP_SETTINGS_RECORD_ID = 'snap-settings';
+// Einmal-Snaps laufen nach der ersten Ansicht ab (Einstellung des Absenders, geht als Enum mit dem
+// Snap mit). 'off' = nur die Ansichten zaehlen. Standard 30 min, vom Router per CLIENT_DEFAULTS.snapExpiry.
+const SNAP_EXPIRY_OPTIONS = { '15m': 15 * 60 * 1000, '30m': 30 * 60 * 1000, '60m': 60 * 60 * 1000, off: 0 };
+
+function defaultSnapExpiry() {
+    const value = clientDefault('snapExpiry', '30m');
+    return SNAP_EXPIRY_OPTIONS[value] !== undefined ? value : '30m';
+}
 
 // ----- Einstellungen -----
 async function loadSnapSettings() {
@@ -23,14 +31,16 @@ async function loadSnapSettings() {
                 secureSnaps: stored.secureSnaps === true,
                 views: SECURE_SNAP_VIEW_OPTIONS.includes(stored.views) ? stored.views : 1,
                 seconds: SECURE_SNAP_SECOND_OPTIONS.includes(stored.seconds) ? stored.seconds : 10,
-                nextGesture: SNAP_NEXT_GESTURES.includes(stored.nextGesture) ? stored.nextGesture : 'doubletap'
+                nextGesture: SNAP_NEXT_GESTURES.includes(stored.nextGesture) ? stored.nextGesture : 'doubletap',
+                expiry: SNAP_EXPIRY_OPTIONS[stored.expiry] !== undefined ? stored.expiry : defaultSnapExpiry()
             };
         } else {
             const gesture = clientDefault('snapNextGesture', 'doubletap');
             state.snapSettings = {
                 ...state.snapSettings,
                 secureSnaps: clientDefault('secureSnaps', false) === true,
-                nextGesture: SNAP_NEXT_GESTURES.includes(gesture) ? gesture : 'doubletap'
+                nextGesture: SNAP_NEXT_GESTURES.includes(gesture) ? gesture : 'doubletap',
+                expiry: defaultSnapExpiry()
             };
         }
     } catch (error) {
@@ -41,6 +51,7 @@ async function loadSnapSettings() {
 
 async function updateSnapSetting(key, value) {
     if (key === 'nextGesture' && !SNAP_NEXT_GESTURES.includes(value)) return;
+    if (key === 'expiry' && SNAP_EXPIRY_OPTIONS[value] === undefined) return;
     state.snapSettings = { ...state.snapSettings, [key]: value };
     try {
         await putDatabaseRecord('keys', { id: SNAP_SETTINGS_RECORD_ID, ...state.snapSettings });
@@ -65,6 +76,8 @@ function renderSnapSettings() {
     });
     const nextGesture = document.getElementById('snap-next-gesture');
     if (nextGesture) nextGesture.value = settings.nextGesture;
+    const expiry = document.getElementById('snap-expiry-select');
+    if (expiry) expiry.value = settings.expiry;
     document.getElementById('secure-snap-defaults')?.classList.toggle('hidden', !settings.secureSnaps);
     document.getElementById('snap-review-secure-options')?.classList.toggle('hidden', !settings.secureSnaps);
 }

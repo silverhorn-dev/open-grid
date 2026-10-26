@@ -344,6 +344,9 @@ Akzeptanzkriterien:
   Verbindung besteht. Originale gehen nie ueber den Server.
 - Speichert der Empfaenger einen Einmal-Snap, sieht der Absender das.
 - Eine Ansicht zaehlt schon beim Oeffnen des Snaps.
+- Der Absender stellt ein, wie lange ein Einmal-Snap nach dem ersten Ansehen
+  noch wiederholt werden kann (15, 30, 60 min oder unbegrenzt; Standard 30 min).
+  Danach ist er bei beiden weg. Der Empfaenger sieht keine Restzeit.
 - In der Galerie lassen sich mehrere Bilder auswaehlen; jedes wird ein eigener
   Snap (bzw. Bild oder Foto-Status).
 - Mehrere ungesehene Snaps lassen sich hintereinander ansehen: weiter per

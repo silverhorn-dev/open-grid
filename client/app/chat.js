@@ -451,6 +451,8 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
         snapData,
         // Neue normale Snaps: einmal ansehen, einmal wiederholen, nur gespeichert bleibt er.
         snapMode: snapData && !options.asImage ? 'replay' : undefined,
+        // Ablauf nach der ersten Ansicht (Einstellung des Absenders), nur bei Einmal-Snaps.
+        snapExpiry: snapData && !options.asImage ? state.snapSettings.expiry : undefined,
         album: album || undefined,
         secureSnap: secureSnap || undefined,
         replyTo: buildReplyReference(peerId, state.replyToMessageId),

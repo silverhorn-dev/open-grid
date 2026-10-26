@@ -79,6 +79,13 @@
   prueft der Empfaenger Laenge und SHA-256 und speichert es verschluesselt
   (`originalReady`). Haengt eine Uebertragung, wird nach 60 s neu angefragt
   (bei jedem Verbindungsaufbau).
+- Ablauf nach der ersten Ansicht: der Absender legt `snapSettings.expiry` fest
+  (Enum `'15m' | '30m' | '60m' | 'off'`, Standard `30m` bzw.
+  `CLIENT_DEFAULTS.snapExpiry`), es geht als `message.snapExpiry` mit dem Snap.
+  Der Empfaenger merkt sich `firstViewedAt` bei der ersten Ansicht; nach Ablauf
+  wird der Snap geloescht und `SNAP_CONSUMED` gesendet (Timer im offenen Chat,
+  sonst beim naechsten Oeffnen). Der Empfaenger zeigt keine Restzeit an.
+  Snaps ohne Angabe gelten als `30m`.
 - Einmal-Snaps: die Ansicht zaehlt beim Oeffnen (`snapViews` sofort
   gespeichert); nach der letzten Ansicht wird beim Schliessen geloescht und
   `SNAP_CONSUMED` gesendet, war die App weg, beim naechsten Oeffnen des Chats

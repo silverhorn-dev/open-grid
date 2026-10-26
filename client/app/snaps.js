@@ -58,7 +58,10 @@ function openReplaySnap(messageId) {
     // gibt keine zusaetzliche Ansicht.
     if (!isMine && !message.snapSaved) {
         message.snapViews = (message.snapViews || 0) + 1;
+        // Ab der ersten Ansicht laeuft die Frist des Absenders (ohne Anzeige beim Empfaenger).
+        if (!message.firstViewedAt) message.firstViewedAt = Date.now();
         persistChatMessage(peerId, message).catch(logBackgroundError('openReplaySnap'));
+        scheduleReplaySnapExpiry(peerId);
     }
     openSecureSnapViewer('');
     state.secureSnapViewing = { mode: 'replay', peerId, messageId, isMine };
@@ -143,7 +146,7 @@ async function finishReplaySnapView(viewing) {
     if (viewing.isMine || viewing.saved) return;
     const message = state.chats[viewing.peerId]?.find(item => item.id === viewing.messageId);
     if (!message || message.snapSaved) return;
-    if ((message.snapViews || 0) >= REPLAY_SNAP_MAX_VIEWS) await consumeReplaySnap(viewing.peerId, message);
+    if (isReplaySnapUsedUp(message)) await consumeReplaySnap(viewing.peerId, message);
     else if (state.activeChatPeerId === viewing.peerId) renderChatHistory();
 }
 
@@ -156,12 +159,42 @@ async function consumeReplaySnap(peerId, message) {
     await sendSnapConsumed(peerId, message.id);
 }
 
-// War die App waehrend der letzten Ansicht weg (neu geladen, geschlossen), wird der Snap beim
-// naechsten Oeffnen des Chats aufgeraeumt.
+// Frist nach der ersten Ansicht (Enum vom Absender); aeltere Snaps ohne Angabe: Standard 30 min.
+function replaySnapExpiresAt(message) {
+    if (!message.firstViewedAt) return null;
+    const duration = SNAP_EXPIRY_OPTIONS[message.snapExpiry ?? '30m'];
+    return duration ? message.firstViewedAt + duration : null;
+}
+
+function isReplaySnapUsedUp(message, now = Date.now()) {
+    if ((message.snapViews || 0) >= REPLAY_SNAP_MAX_VIEWS) return true;
+    const expiresAt = replaySnapExpiresAt(message);
+    return expiresAt !== null && now >= expiresAt;
+}
+
+// Verbrauchte oder abgelaufene Snaps aufraeumen (auch nach Neu laden oder Schliessen der App waehrend
+// des Ansehens). Ein gerade offener Snap wird erst beim Schliessen geloescht.
 async function expireUsedReplaySnaps(peerId) {
+    const viewing = state.secureSnapViewing;
     const used = (state.chats[peerId] || []).filter(message => message.snapMode === 'replay' && message.senderId === peerId
-        && !message.snapSaved && message.snapData && (message.snapViews || 0) >= REPLAY_SNAP_MAX_VIEWS);
+        && !message.snapSaved && message.snapData && isReplaySnapUsedUp(message)
+        && !(viewing?.mode === 'replay' && viewing.messageId === message.id));
     for (const message of used) await consumeReplaySnap(peerId, message);
+    scheduleReplaySnapExpiry(peerId);
+}
+
+// Timer bis zum naechsten Ablauf im offenen Chat (die Liste prueft sonst beim Oeffnen).
+function scheduleReplaySnapExpiry(peerId) {
+    clearTimeout(state.snapExpiryTimer);
+    if (state.activeChatPeerId !== peerId) return;
+    const next = (state.chats[peerId] || [])
+        .filter(message => message.snapMode === 'replay' && message.senderId === peerId && !message.snapSaved && message.snapData)
+        .map(replaySnapExpiresAt)
+        .filter(at => at !== null)
+        .sort((left, right) => left - right)[0];
+    if (!next) return;
+    state.snapExpiryTimer = setTimeout(() => expireUsedReplaySnaps(peerId).catch(logBackgroundError('scheduleReplaySnapExpiry')),
+        Math.min(Math.max(0, next - Date.now()) + 50, 2147483647));
 }
 
 async function sendSnapConsumed(peerId, messageId) {

@@ -102,6 +102,8 @@ const state = {
     wsPingTimer: null,
     wsPingNonce: null,
     wsOpenedAt: 0,
+    // Naechster Ablauf eines angesehenen Einmal-Snaps im offenen Chat (snaps.js).
+    snapExpiryTimer: null,
     // Abruf des Router-Caches nach CACHE_WAITING (delivery.client.js).
     cacheFetchTimer: null,
     // Album-Knopf in sozialen Chats per langem Druck auf "Snap" gezeigt (chat-tools.js).
@@ -163,7 +165,7 @@ const state = {
     // Alben v2: zuletzt gepushte Schluessel-Buendel pro Betrachter/Album und Timer fuer den Epochenwechsel.
     albumKeyPushes: {},
     albumKeyPushTimer: null,
-    snapSettings: { secureSnaps: false, views: 1, seconds: 10, nextGesture: 'doubletap' },
+    snapSettings: { secureSnaps: false, views: 1, seconds: 10, nextGesture: 'doubletap', expiry: '30m' },
     // Spur-Wasserzeichen in eigenen Snaps und Albumbildern (keys/privacy-settings).
     traceWatermark: true,
     // Standard fuer neue Alben: Epochenlaenge in Minuten (0 = Server-Wert) und vorab gelieferte Epochen.

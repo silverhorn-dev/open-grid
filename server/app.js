@@ -63,6 +63,7 @@ const CLIENT_DEFAULT_RULES = {
     traceWatermark: 'boolean',
     secureSnaps: 'boolean',
     snapNextGesture: ['doubletap', 'swipe', 'swipeup'],
+    snapExpiry: ['15m', '30m', '60m', 'off'],
     albumKeyEpochMinutes: [0, 15, 60, 180, 1440],
     albumKeyEpochsAhead: [1, 2, 3]
 };

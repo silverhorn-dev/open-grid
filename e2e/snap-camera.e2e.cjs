@@ -181,6 +181,33 @@ async function main() {
         await waitFor(bob, () => document.getElementById('secure-snap-viewer').classList.contains('hidden'), null, 5000);
         assert.deepEqual(await bob.evaluate(ids => ids.map(id => state.chats[state.activeChatPeerId].find(message => message.id === id).snapViews), queue), [1, 1, 1, 1], 'each counted once');
 
+        // Ablauf nach der ersten Ansicht: Alice stellt 15 min ein, das geht als Enum mit dem Snap mit.
+        await alice.evaluate(() => updateSnapSetting('expiry', '15m'));
+        const expiringId = await alice.evaluate(async () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 120;
+            canvas.height = 120;
+            canvas.getContext('2d').fillRect(0, 0, 120, 120);
+            await sendChatMessage(canvas.toDataURL('image/jpeg'), '');
+            return state.chats[state.activeChatPeerId].at(-1).id;
+        });
+        const aliceIdForExpiry = await alice.evaluate(() => state.myProfile.id);
+        await waitFor(bob, id => Object.values(state.chats).flat().some(message => message.id === id), expiringId, 30000);
+        await bob.evaluate(id => openChatWithPeer(id), aliceIdForExpiry);
+        assert.equal(await bob.evaluate(id => state.chats[state.activeChatPeerId].find(message => message.id === id).snapExpiry, expiringId), '15m');
+        await bob.evaluate(id => openReplaySnap(id), expiringId);
+        await bob.evaluate(() => closeSecureSnapViewer());
+        await bob.waitForTimeout(300);
+        // Kein Restzeit-Hinweis beim Empfaenger.
+        assert.doesNotMatch(await bob.textContent('#chat-messages'), /\d+\s*min|verbleib|noch \d/i, 'no time-left label for the receiver');
+        // 16 Minuten spaeter: weg, auch beim Absender.
+        await bob.evaluate(async ([peerId, id]) => {
+            state.chats[peerId].find(message => message.id === id).firstViewedAt -= 16 * 60 * 1000;
+            await expireUsedReplaySnaps(peerId);
+        }, [aliceIdForExpiry, expiringId]);
+        assert.equal(await bob.evaluate(id => Boolean(state.chats[state.activeChatPeerId].find(message => message.id === id).snapData), expiringId), false, 'expired at the receiver');
+        await waitFor(alice, id => !state.chats[state.activeChatPeerId].find(message => message.id === id).snapData, expiringId, 30000);
+
         // Bob speichert einen Einmal-Snap: Alice erfaehrt es.
         const snapId = await alice.evaluate(async () => {
             const canvas = document.createElement('canvas');
@@ -201,7 +228,9 @@ async function main() {
 
         assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log('E2E OK (snap camera)');
+        if (process.env.E2E_DEBUG) console.log(debugLogs.filter(entry => /KEY_HELLO|Schluessel|haengt|Path C skipped/.test(entry)).join('\n'));
     } finally {
+        if (process.env.E2E_DEBUG) console.log(debugLogs.join('\n'));
         await browser.close();
     }
 }

@@ -64,20 +64,24 @@ Das `Jenkinsfile` baut bei jedem Push auf `main`: Syntax-Check und Unit-Tests
 `docker compose up -d --build` und Warten auf den Healthcheck. Die angezeigte
 Version ist `Build <Commit-Anzahl> (<Hash>)`.
 
-- Jenkins laeuft als Container auf demselben Host und spricht den Docker-Daemon
-  per TCP an (`DOCKER_HOST=tcp://host.docker.internal:2375`). Deshalb gibt es
-  keine Bind-Mounts aus dem Workspace; Tests und E2E kopieren die Dateien in die
-  Container.
-- Im Jenkins-Container werden Docker-CLI und Compose-Plugin gebraucht.
+- Der Jenkins-Agent laeuft als Container auf demselben Host und nutzt den
+  Docker-Daemon des Hosts ueber den eingehaengten Socket
+  (`-v /var/run/docker.sock:/var/run/docker.sock`). Workspace-Pfade gibt es auf
+  dem Host nicht, deshalb keine Bind-Mounts: Tests und E2E kopieren die Dateien
+  in die Container. Der Agent-Nutzer braucht Zugriff auf den Socket
+  (`--group-add <GID der docker-Gruppe>`).
+- Fehlt auf dem Jenkins-Agent die Docker-CLI, laedt `scripts/ci-env.sh` sie
+  samt Compose- und Buildx-Plugin einmalig nach `<workspace>@tools` (statische
+  Binaries von docker.com/GitHub, braucht `curl` oder `wget`).
 - Die Produktions-`.env` liegt als Credential `open-grid-env` (Secret file) in
   Jenkins und wird per `--env-file` uebergeben.
 - `COMPOSE_PROJECT_NAME` ist `open-grid`, damit das bestehende Projekt samt
   Volume weiterverwendet wird (pruefen mit `docker compose ls`).
 - Ausloeser: GitHub-Webhook (`/github-webhook/`), sonst Abfrage alle 5 Minuten.
   Parameter `SKIP_E2E` nur fuer Notfaelle.
-- Sicherheit: Port 2375 ist unverschluesselt und gibt vollen Zugriff auf den
-  Host. Der Daemon darf nur auf der Docker-Bridge lauschen (nicht auf `0.0.0.0`
-  bzw. nicht von aussen erreichbar).
+- Sicherheit: wer den Docker-Socket hat, hat Root auf dem Host. Der Agent
+  sollte nur vertrauenswuerdige Jobs (eigene Repos, keine fremden Pull Requests)
+  bauen.
 
 ### Konfiguration
 

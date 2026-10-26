@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 107 · 2026-10-26
+## Build 108 · 2026-10-26
+- Behoben: Deployment brach auf Jenkins-Agents ohne Docker-CLI ab; die Pipeline laedt sie jetzt bei Bedarf selbst und nutzt den eingehaengten Docker-Socket des Hosts statt TCP
+
+## Build 107 · 2026-10-26 · `96ee539`
 - Betrieb: automatisches Deployment per Jenkins (`Jenkinsfile`): bei jedem Push auf `main` Unit- und E2E-Tests, danach `docker compose up`; die App zeigt Build-Nummer und Commit an
 
 ## Build 106 · 2026-10-26 · `3be65f7`

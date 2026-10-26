@@ -2,7 +2,7 @@
 # Startet den Server (Node 22) und die Playwright-E2E-Tests in Docker; lokal ist kein Node noetig.
 # Der Browser laeuft im Netz des Server-Containers, damit die App auf 127.0.0.1 (sicherer Kontext) laeuft.
 # Dateien kommen per `docker cp` statt Bind-Mount in die Container: so laeuft das Skript auch gegen einen
-# entfernten Docker-Daemon (DOCKER_HOST, z. B. aus dem Jenkins-Container).
+# Docker-Daemon des Hosts aus einem Container heraus (Jenkins-Agent mit eingehaengtem Socket).
 set -eu
 cd "$(dirname "$0")/.."
 NAME="opengrid-e2e-$$"

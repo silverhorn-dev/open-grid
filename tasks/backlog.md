@@ -2,6 +2,16 @@
 > move things to board when implementing them
 Ideen ohne festen Termin. Neue Phasen werden von hier auf `tasks/board.md` geholt.
 
+# client security
+
+- [ ] lets build a real application for android
+  - [ ] a special browser for displaying the pwa webapp
+  - [ ] signs the requests securely to ensure no manipulated client was used
+  - [ ] prevents screenshots/recordings
+  - [ ] in the settings there is an option to just send video and image files, if the other client is signed
+    - [ ] not for profile data, audio files, and secure streaming snaps.
+    - this whole setting/feature (i mean the checking if the other client is signed) can be disabled on the router per DEFAULT config
+
 ## Hyperlocal Mesh (Festival/Club Mode)
 - [x] WebRTC over LAN: mDNS und lokale Host-Kandidaten aggressiv priorisieren
   - done P7: `LAN_MODE` (server) und "nur lokales netz" (geraet) -> keine STUN/TURN, nur host/mDNS; verbindungsart per `getStats()` ("im selben WLAN"); STUN standardmaessig ueber den eigenen coturn statt google (`STUN_SERVER`)
@@ -15,6 +25,7 @@ Ideen ohne festen Termin. Neue Phasen werden von hier auf `tasks/board.md` gehol
   - [x] chat needs a badge
   - [x] chats in chatoverview need a badge
   - done 2026-10-26: `client/app/unread.js`; zahl je chat (liste, kontaktleiste, schnellwechsel), summe am chat-tab, seitentitel, app-symbol; punkt am listen-wechsel; lesestand nur lokal (`keys`/`chat-reads`); tests `test/unread.test.js`, e2e `unread-badges`
+
 ## chat improvements
 
 # bugs

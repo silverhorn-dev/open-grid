@@ -15,19 +15,6 @@ Ideen ohne festen Termin. Neue Phasen werden von hier auf `tasks/board.md` gehol
   - [x] chat needs a badge
   - [x] chats in chatoverview need a badge
   - done 2026-10-26: `client/app/unread.js`; zahl je chat (liste, kontaktleiste, schnellwechsel), summe am chat-tab, seitentitel, app-symbol; punkt am listen-wechsel; lesestand nur lokal (`keys`/`chat-reads`); tests `test/unread.test.js`, e2e `unread-badges`
-- [ ] new swipe actions in chat
-  - [ ] swipe header (the one with the contact info) down opens contact
-  - [ ] swipe right for chats works for incomming chats also on the empty space besides the message
 ## chat improvements
-- [ ] audio messages
-  - if there is a lokal api for audio to text this function too, if not leave it
-- [ ] videos?
-  - only via __p2p__
-- [ ] ui ux improvement
-  - einheitlichkeit & modularität
-    - modularerere gestaltung
-  - besseres UX
-  - 
 
 # bugs
-- [ ] u can swipe a message but the animation just comes at the first time?

@@ -116,7 +116,7 @@ export function securityHeaders(host) {
         ].join('; '),
         'X-Content-Type-Options': 'nosniff',
         'Referrer-Policy': 'no-referrer',
-        'Permissions-Policy': 'camera=(self), geolocation=(self), microphone=()',
+        'Permissions-Policy': 'camera=(self), geolocation=(self), microphone=(self)',
         'Cross-Origin-Opener-Policy': 'same-origin',
         'X-Frame-Options': 'DENY'
     };

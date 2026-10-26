@@ -38,11 +38,16 @@ function messageIdFromRow(row) {
 // ----- Nachrichten: wischen, lange druecken, doppelt tippen -----
 const messageGesture = { active: null, lastTap: null, frame: 0 };
 
+// Wischen startet in der ganzen Zeile, auch im Leerraum neben der Nachricht und auf dem kleinen
+// Aktionen-Pfeil (er sitzt genau dort, wo der Daumen beim Wischen nach rechts ansetzt). Andere
+// Knoepfe, Links und Medien bleiben ausgenommen.
 function handleMessagePointerDown(event) {
     if (event.pointerType !== 'touch') return;
-    const wrap = event.target.closest('.chat-bubble-wrap');
-    if (!wrap || event.target.closest('button, a, input, img, video')) return;
-    const row = wrap.closest('[id^="chat-message-"]');
+    const row = event.target.closest('[id^="chat-message-"]');
+    const wrap = row?.querySelector('.chat-bubble-wrap');
+    if (!wrap) return;
+    const control = event.target.closest('button, a, input, img, video, canvas');
+    if (control && !control.classList.contains('message-actions-toggle')) return;
     const messageId = messageIdFromRow(row);
     if (!messageId) return;
     const gesture = {
@@ -93,6 +98,14 @@ function handleMessagePointerMove(event) {
         if (Math.hypot(deltaX, deltaY) < GESTURE_LOCK_DISTANCE) return;
         clearTimeout(gesture.longPressTimer);
         gesture.axis = Math.abs(deltaX) > Math.abs(deltaY) ? 'x' : 'y';
+        // Ab jetzt gehoert der Finger uns, auch wenn sich das Layout verschiebt (z. B. Tastatur).
+        if (gesture.axis === 'x') {
+            try {
+                gesture.row.setPointerCapture(event.pointerId);
+            } catch {
+                // Pointer schon weg.
+            }
+        }
     }
     if (gesture.axis !== 'x') return;
     // Nur weg vom Bildschirmrand: fremde Nachrichten nach rechts, eigene nach links.
@@ -107,6 +120,8 @@ function finishMessageGesture(event, cancelled) {
     messageGesture.active = null;
     clearTimeout(gesture.longPressTimer);
     if (gesture.axis === 'x') {
+        // Der Klick nach dem Wischen (z. B. auf dem Pfeil) soll nichts aufklappen.
+        messageGesture.suppressClickUntil = Date.now() + 400;
         if (!cancelled && Math.abs(gesture.offset) >= REPLY_SWIPE_TRIGGER) {
             hapticTick();
             startReply(gesture.messageId);
@@ -321,6 +336,12 @@ function initGestures() {
         messages.addEventListener('pointermove', handleMessagePointerMove);
         messages.addEventListener('pointerup', event => finishMessageGesture(event, false));
         messages.addEventListener('pointercancel', event => finishMessageGesture(event, true));
+        messages.addEventListener('click', event => {
+            if (Date.now() < (messageGesture.suppressClickUntil || 0)) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+        }, true);
         attachPullUpRefresh(messages);
     }
     const main = document.querySelector('main.app-main');

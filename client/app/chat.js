@@ -430,7 +430,7 @@ function isCoarsePointer() {
 // options.asImage: Bild statt Einmal-Snap (dauerhaft im Chat).
 async function sendChatMessage(snapData = null, caption = '', album = null, secureSnap = null, options = {}) {
     const input = document.getElementById('chat-input');
-    const hasAttachment = Boolean(snapData || album || secureSnap);
+    const hasAttachment = Boolean(snapData || album || secureSnap || options.audio);
     // Chat-Berechtigungen des anderen (nur Anzeige; der Empfaenger setzt sie selbst durch).
     const allowance = state.activeChatPeerId ? getPeerChatAllowance(state.activeChatPeerId) : null;
     if (allowance && (!allowance.allowed || (hasAttachment && !allowance.images))) {
@@ -458,6 +458,11 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
         replyTo: buildReplyReference(peerId, state.replyToMessageId),
         original: options.original?.meta,
         imageSize: snapData ? await measureImage(snapData) : undefined,
+        // Sprachnachricht (voice.js) bzw. Video-Infos (video.js, das Video selbst kommt als Original).
+        audioData: options.audio?.data,
+        audioDuration: options.audio?.duration,
+        transcript: options.audio?.transcript,
+        video: options.video,
         // Liste dieses Chats (Grid & Event oder Chat & Freunde), der Empfaenger uebernimmt sie fuer neue Chats.
         scope: chatScopeOf(peerId) || currentChatScope(),
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -476,6 +481,7 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
     if (!hasAttachment) {
         input.value = '';
         fitChatInput(input);
+        updateComposeButtons();
     }
     state.replyToMessageId = null;
     renderReplyBar();
@@ -648,6 +654,10 @@ function renderChatHistory() {
             }
         } else if (message.snapMode === 'replay' && !message.snapSaved) {
             renderReplaySnapMessage(bubble, message, isMine);
+        } else if (message.audioData) {
+            renderVoiceMessage(bubble, message, isMine);
+        } else if (message.video) {
+            renderVideoMessage(bubble, message, isMine);
         } else if (message.snapData) {
             if (isSafeInlineImage(message.snapData)) {
                 const image = createSecureImage(message.snapData, 'w-48 sm:w-64 rounded-xl mb-1.5 border border-slate-900/50 cursor-zoom-in', message.imageSize);

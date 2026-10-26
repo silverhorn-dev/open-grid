@@ -2,7 +2,15 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 117 · 2026-10-26
+## Build 119 · 2026-10-26
+- Sprachnachrichten: bei leerem Eingabefeld Mikrofon statt "Senden", bis 60 Sekunden, kommen auch offline ueber den Router-Cache an; Text darunter nur, wenn das Geraet lokal verschriftlichen kann
+- Videos senden (bis 25 MB): der andere sieht sofort ein Vorschaubild, das Video selbst kommt nur ueber eine direkte Verbindung, nie ueber den Server
+- Kontaktleiste im Chat nach unten ziehen oeffnet das Profil
+- Wischen zum Antworten klappt auch im Leerraum neben der Nachricht
+- Behoben: Wischen zum Antworten klappte oft nicht (Start auf dem kleinen Pfeil der Nachricht wurde ignoriert)
+- Aufgaben-Skript: `scripts/archive-tasks.sh --open` holt offene Aufgaben aus dem Backlog aufs Board
+
+## Build 117 · 2026-10-26 · `374c090`
 - Behoben: ging die direkte Verbindung kurz vor dem Senden verloren (Kanal noch scheinbar offen), hing die Nachricht bis zum naechsten Abgleich; der Empfaenger bestaetigt jetzt jede direkte Nachricht, ohne Bestaetigung geht sie nach 5 Sekunden ueber den Router-Cache (meldet der Server den Partner offline, sofort)
 
 ## Build 116 · 2026-10-26 · `ba35ae7`

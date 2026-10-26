@@ -529,9 +529,12 @@ function isValidImageSize(size) {
     return Boolean(size) && Number.isInteger(size.w) && Number.isInteger(size.h) && size.w > 0 && size.h > 0 && size.w <= 10000 && size.h <= 10000;
 }
 
+const ORIGINAL_VIDEO_MIME_TYPES = ['video/mp4', 'video/webm', 'video/quicktime', 'video/ogg'];
+
 function sanitizeOriginalMeta(original) {
     if (!original || !Number.isInteger(original.size) || typeof original.sha256 !== 'string') return undefined;
-    return { size: original.size, sha256: original.sha256.substring(0, 64), mime: 'image/jpeg' };
+    const mime = ORIGINAL_VIDEO_MIME_TYPES.includes(original.mime) ? original.mime : 'image/jpeg';
+    return { size: original.size, sha256: original.sha256.substring(0, 64), mime };
 }
 
 function createPutOperation(peerId, message) {
@@ -559,6 +562,10 @@ function createPutOperation(peerId, message) {
             replyTo: message.replyTo,
             original: message.original,
             imageSize: message.imageSize,
+            audioData: message.audioData,
+            audioDuration: message.audioDuration,
+            transcript: message.transcript,
+            video: message.video,
             scope: message.scope,
             timestamp: message.timestamp,
             createdAt: message.createdAt

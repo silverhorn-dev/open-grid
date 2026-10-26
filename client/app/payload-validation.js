@@ -5,6 +5,7 @@ const MAX_SECURE_MESSAGE_LENGTH = 4 * 1024 * 1024;
 const MAX_ID_LENGTH = 200;
 const MAX_TEXT_LENGTH = 10000;
 const MAX_INLINE_IMAGE_LENGTH = 3 * 1024 * 1024;
+const MAX_AUDIO_LENGTH = 160000;
 const MAX_PROFILE_FIELDS = 50;
 const MAX_PROFILE_VALUE_LENGTH = 5000;
 const MAX_SYNC_IDS = 50;
@@ -29,13 +30,27 @@ function isValidMessage(message) {
         && (message.scope === undefined || ['discovery', 'social'].includes(message.scope))
         && (message.original === undefined || isValidOriginalMeta(message.original))
         && (message.snapExpiry === undefined || ['15m', '30m', '60m', 'off'].includes(message.snapExpiry))
+        // Sprachnachricht (voice.js): kleine Data-URL, Laenge in Sekunden, optional lokaler Text.
+        && (message.audioData === undefined || (isOptionalString(message.audioData, MAX_AUDIO_LENGTH) && message.audioData.startsWith('data:audio/')))
+        && (message.audioDuration === undefined || (Number.isFinite(message.audioDuration) && message.audioDuration >= 0 && message.audioDuration <= 600))
+        && isOptionalString(message.transcript, 2000)
+        // Video (video.js): nur Infos, das Video kommt als Original ueber P2P.
+        && (message.video === undefined || (isPlainVideoInfo(message.video) && message.original !== undefined))
         && (message.imageSize === undefined || (Number.isInteger(message.imageSize?.w) && Number.isInteger(message.imageSize?.h)
             && message.imageSize.w > 0 && message.imageSize.h > 0 && message.imageSize.w <= 10000 && message.imageSize.h <= 10000))
         && isTimestamp(message.createdAt);
 }
 
+function isPlainVideoInfo(video) {
+    return Boolean(video) && typeof video === 'object'
+        && Number.isFinite(video.duration) && video.duration >= 0 && video.duration <= 3600
+        && Number.isInteger(video.w) && Number.isInteger(video.h)
+        && video.w > 0 && video.h > 0 && video.w <= 10000 && video.h <= 10000;
+}
+
 function isValidOriginalMeta(original) {
-    return Boolean(original) && Number.isInteger(original.size) && original.size > 0 && original.size <= 15 * 1024 * 1024
+    const maxSize = String(original?.mime || '').startsWith('video/') ? 36 * 1024 * 1024 : 15 * 1024 * 1024;
+    return Boolean(original) && Number.isInteger(original.size) && original.size > 0 && original.size <= maxSize
         && typeof original.sha256 === 'string' && original.sha256.length <= 64 && isOptionalString(original.mime, 40);
 }
 

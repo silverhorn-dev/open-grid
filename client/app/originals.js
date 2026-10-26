@@ -7,8 +7,10 @@
 // Neu kodiert per Canvas (JPEG 0.95, max. ORIGINAL_MAX_EDGE): keine EXIF-/Standortdaten.
 const ORIGINAL_MAX_EDGE = 4096;
 const ORIGINAL_MAX_LENGTH = 15 * 1024 * 1024;
+// Videos (video.js) nutzen denselben Weg; als Data-URL bis 25 MB Datei.
+const ORIGINAL_VIDEO_MAX_LENGTH = 36 * 1024 * 1024;
 const ORIGINAL_CHUNK_LENGTH = 64 * 1024;
-const ORIGINAL_MAX_CHUNKS = Math.ceil(ORIGINAL_MAX_LENGTH / ORIGINAL_CHUNK_LENGTH);
+const ORIGINAL_MAX_CHUNKS = Math.ceil(ORIGINAL_VIDEO_MAX_LENGTH / ORIGINAL_CHUNK_LENGTH);
 const ORIGINAL_BUFFER_LIMIT = 1024 * 1024;
 const ORIGINAL_QUALITY = 0.95;
 
@@ -33,7 +35,7 @@ async function storeOwnOriginal(messageId, dataUrl) {
 
 async function loadOriginal(messageId) {
     const media = await loadMedia(originalMediaId(messageId)).catch(() => null);
-    return isSafeInlineImage(media?.data) ? media.data : null;
+    return isSafeInlineImage(media?.data) || isSafeInlineVideo(media?.data) ? media.data : null;
 }
 
 // ----- Empfaenger -----
@@ -73,7 +75,8 @@ async function finishOriginal(peerId, messageId, dataUrl) {
     const message = (state.chats[peerId] || []).find(entry => entry.id === messageId)
         || await databaseRequest('messages', 'readonly', store => store.get(messageId)).catch(() => null);
     if (!message || !wantsOriginal(peerId, message)) return;
-    if (!isSafeInlineImage(dataUrl) || dataUrl.length !== message.original.size || await sha256Base64(dataUrl) !== message.original.sha256) {
+    const safe = message.video ? isSafeInlineVideo(dataUrl) : isSafeInlineImage(dataUrl);
+    if (!safe || dataUrl.length !== message.original.size || await sha256Base64(dataUrl) !== message.original.sha256) {
         logDebug(`Original ${messageId} von ${peerId} passt nicht zur Vorschau, verworfen.`);
         return;
     }
@@ -119,6 +122,8 @@ async function handleOriginalRequest(peerId, payload) {
 
 // Bildbetrachter: Original statt Vorschau, wenn vorhanden.
 async function bestImageFor(message) {
+    // Bei Videos ist das "Original" das Video selbst, im Bildbetrachter bleibt die Vorschau.
+    if (message.video) return message.snapData;
     if (message.original && (message.originalReady || message.senderId === state.myProfile.id)) {
         const original = await loadOriginal(message.id);
         if (original) return original;

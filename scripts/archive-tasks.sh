@@ -1,26 +1,32 @@
 #!/usr/bin/env bash
-# Move fully completed tasks from one markdown checklist to another.
+# Move tasks from one markdown checklist to another.
 #
-# Usage: archive-tasks.sh [-n|--dry-run] <source.md> <target.md>
+# Usage: archive-tasks.sh [-n|--dry-run] [-o|--open] <source.md> <target.md>
 #
 # A task is a top-level checkbox item ("- [x] ...") together with everything
-# indented below it (subtasks, notes, plan bullets). It is moved only when the
-# item itself and every checkbox inside it are checked. Moved tasks are placed
-# under the same heading path in the target ("# Chat" > "## status"); missing
-# headings are created. Source headings are kept even if they become empty.
+# indented below it (subtasks, notes, plan bullets). By default a task is moved
+# only when the item itself and every checkbox inside it are checked (archive
+# done work). With --open, every task whose own checkbox is still open is moved
+# instead (e.g. promote backlog items to the board:
+# `archive-tasks.sh --open tasks/backlog.md tasks/board.md`). Moved tasks are
+# placed under the same heading path in the target ("# Chat" > "## status");
+# missing headings are created. Source headings are kept even if they become
+# empty.
 
 set -euo pipefail
 
 usage() {
-  echo "usage: $(basename "$0") [-n|--dry-run] <source.md> <target.md>" >&2
+  echo "usage: $(basename "$0") [-n|--dry-run] [-o|--open] <source.md> <target.md>" >&2
   exit 2
 }
 
 dry_run=0
+open_tasks=0
 args=()
 for arg in "$@"; do
   case "$arg" in
     -n|--dry-run) dry_run=1 ;;
+    -o|--open) open_tasks=1 ;;
     -h|--help) usage ;;
     -*) echo "unknown option: $arg" >&2; usage ;;
     *) args+=("$arg") ;;
@@ -62,7 +68,7 @@ function is_fence(s) { return s ~ /^[ \t]*(```|~~~)/ }
 
 # Pass 1: split the source into kept lines and moved blocks.
 # Moved blocks are written as "@@PATH <heading>\037<heading>..." + block lines.
-awk -v kept="$tmp/src.new" -v moved="$tmp/moved" -v summary="$tmp/summary" "$common"'
+awk -v kept="$tmp/src.new" -v moved="$tmp/moved" -v summary="$tmp/summary" -v open_tasks="$open_tasks" "$common"'
 {
   if (sub(/\r$/, "")) crlf = 1
   L[++n] = $0
@@ -102,11 +108,15 @@ END {
       last = j
     }
 
-    done = is_checked(L[i])
-    for (j = i + 1; done && j <= last; j++)
-      if (!F[j] && is_box(L[j]) && !is_checked(L[j])) done = 0
+    if (open_tasks) {
+      take = is_box(L[i]) && !is_checked(L[i])
+    } else {
+      take = is_checked(L[i])
+      for (j = i + 1; take && j <= last; j++)
+        if (!F[j] && is_box(L[j]) && !is_checked(L[j])) take = 0
+    }
 
-    if (done) {
+    if (take) {
       path = ""
       for (d = 1; d <= depth; d++) path = path (d > 1 ? "\037" : "") HT[d]
       print "@@PATH " path > moved
@@ -129,7 +139,8 @@ END {
 
 count=$(cat "$tmp/count")
 if [ "$count" -eq 0 ]; then
-  echo "nothing to archive: no fully checked tasks in $src"
+  if [ "$open_tasks" -eq 1 ]; then echo "nothing to move: no open tasks in $src"
+  else echo "nothing to archive: no fully checked tasks in $src"; fi
   exit 0
 fi
 

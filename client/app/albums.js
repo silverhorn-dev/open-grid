@@ -267,6 +267,7 @@ async function handleAlbumDenied(peerId, albumId) {
 
 // ----- Medien-Modal (Album, Medienuebersicht, Albumauswahl) -----
 function openMediaModal(title) {
+    runMediaModalCleanup();
     document.getElementById('media-modal-title').textContent = title;
     document.getElementById('media-modal-content').innerHTML = '';
     const modal = document.getElementById('media-modal');
@@ -282,7 +283,15 @@ function closeMediaModal() {
     dismissModalEntry('media', hideMediaModal);
 }
 
+// Inhalte mit eigenen Ressourcen (z. B. Video als Blob-URL) raeumen beim Schliessen/Ersetzen auf.
+function runMediaModalCleanup() {
+    const cleanup = state.mediaModalCleanup;
+    state.mediaModalCleanup = null;
+    if (cleanup) cleanup();
+}
+
 function hideMediaModal() {
+    runMediaModalCleanup();
     state.albumViewer = null;
     document.getElementById('media-modal').classList.add('hidden');
     document.getElementById('media-modal-content').innerHTML = '';

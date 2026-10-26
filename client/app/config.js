@@ -131,6 +131,10 @@ const state = {
     pendingInvite: null,
     // Online-Status der Chat-Partner (nur gegenseitig, vom Server per PRESENCE gemeldet).
     peerPresence: {},
+    // Laufende Sprachaufnahme bzw. Wiedergabe (voice.js) und Aufraeumen des Medien-Modals (video.js).
+    voiceRecording: null,
+    voicePlayback: null,
+    mediaModalCleanup: null,
     // P2P gesendete Chat-Operationen ohne Empfangsbestaetigung (delivery.client.js, awaitP2PAck).
     pendingP2PAcks: {},
     // Ungelesen (unread.js): Lesestand je Chat (Zeitstempel, '*' = Stand beim ersten Start) und Anzahl.

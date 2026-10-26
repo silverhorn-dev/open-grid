@@ -133,7 +133,11 @@ window.onload = async () => {
         renderInviteCard().catch(error => logDebug(`Invite card failed: ${error.message}`));
         if (state.pendingInvite) acceptPendingInvite().catch(error => logDebug(`Invite failed: ${error.message}`));
         const chatInput = document.getElementById('chat-input');
-        chatInput.addEventListener('input', () => fitChatInput(chatInput));
+        chatInput.addEventListener('input', () => {
+            fitChatInput(chatInput);
+            updateComposeButtons();
+        });
+        updateComposeButtons();
         chatInput.addEventListener('keydown', (event) => {
             // Am Desktop sendet Enter (Shift+Enter = neue Zeile); auf Touch-Tastaturen ist Enter
             // eine neue Zeile und der Senden-Knopf sendet.

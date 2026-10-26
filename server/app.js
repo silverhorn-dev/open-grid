@@ -31,6 +31,8 @@ const MAX_GRID_RESULTS = 100;
 // Quoten fuer den Pfad-C-Zwischenspeicher, damit niemand die Queue eines Empfaengers flutet.
 const MAX_QUEUED_MESSAGES_PER_RECIPIENT = 500;
 const MAX_QUEUED_BYTES_PER_RECIPIENT = 20 * 1024 * 1024;
+const MAX_CACHE_CIPHERTEXT_LENGTH = 256 * 1024;
+const CACHE_BODY_LIMIT = MAX_CACHE_CIPHERTEXT_LENGTH + 32 * 1024;
 const MAX_QUEUED_MESSAGES_PER_SENDER = 200;
 const FALLBACK_STUN_URL = 'stun:stun.l.google.com:19302';
 
@@ -120,6 +122,8 @@ const clientAssetFiles = [
     'app/unread.js',
     'app/snaps.js',
     'app/originals.js',
+    'app/voice.js',
+    'app/video.js',
     'app/snap-editor.js',
     'app/snap-camera.js',
     'app/viewer.js',
@@ -689,9 +693,10 @@ export async function buildApp(options = {}) {
         return { status: 'unsubscribed', peerId, removed };
     });
 
-    app.post('/api/cache', async (request, reply) => {
+    // Groesseres Limit nur hier: Sprachnachrichten (bis 60 s) gehen als Ganzes durch den Cache.
+    app.post('/api/cache', { bodyLimit: CACHE_BODY_LIMIT }, async (request, reply) => {
         const { recipientId, senderId, ciphertextPayload, ivHex, ttlHours, notify } = request.body || {};
-        if (!isString(recipientId, 200) || !isString(ciphertextPayload, 102400)) {
+        if (!isString(recipientId, 200) || !isString(ciphertextPayload, MAX_CACHE_CIPHERTEXT_LENGTH)) {
             return reply.code(400).send({ error: 'Missing or invalid parameters' });
         }
         if (!isString(senderId, 200)) {

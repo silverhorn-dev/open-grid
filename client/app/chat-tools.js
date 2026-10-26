@@ -4,6 +4,8 @@
 function messagePreview(message) {
     if (message.secureSnap) return 'Secure Snap';
     if (message.album) return `Album: ${message.album.name}`;
+    if (message.audioData) return `Sprachnachricht (${formatVoiceDuration(message.audioDuration)})`;
+    if (message.video) return message.text ? `Video: ${message.text}` : 'Video';
     // Ohne snapMode ist es ein normales Bild ("Als Bild senden") oder ein gespeicherter alter Snap.
     if (message.snapData && !message.snapMode) return message.text ? `Bild: ${message.text}` : 'Bild';
     if (message.snapData || message.snapMode) return message.text ? `Snap: ${message.text}` : 'Snap';

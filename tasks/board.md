@@ -3,6 +3,9 @@
 - [x] discovering of new social chats happens just on klick on profile?
   - ursache: profil kommt nur ueber eine P2P-sitzung; erste nachricht ueber router-cache/push baut keine auf, erst der klick (PROFILE_REQUEST) tat es
   - fix 2026-10-26: `requestMissingProfile` (storage.js) bei neuem chat und wenn der peer online kommt (direkt, startet P2P) + schwarm-abfrage; je weg max. 1x/min; e2e `new-chat-profile`
+- [x] u can swipe a message but the animation just comes at the first time?
+  - ursache (wahrscheinlich): der kleine aktionen-pfeil sitzt oben links auf fremden nachrichten, genau wo der daumen ansetzt; ein wischen, das dort startet, wurde komplett ignoriert -> wirkte zufaellig
+  - fix 2026-10-26: wischen startet in der ganzen zeile (auch auf dem pfeil, der dann nicht aufklappt), pointer capture; e2e `chat-gestures` (mobil, echte touch-events, 3x hintereinander)
 
 
 
@@ -39,3 +42,23 @@
 - [ ] tailwind 4 migration (behebt die 3 moderate `npm audit`-funde in dev-abhaengigkeiten)
 
 # test
+
+# feat
+- [x] new swipe actions in chat
+  - [x] swipe header (the one with the contact info) down opens contact
+  - [x] swipe right for chats works for incomming chats also on the empty space besides the message
+  - done 2026-10-26: kontaktleiste nach unten ziehen (>= 60 px) = profil (`initChatSwitchSwipe`, chat-switch.js); wischen ab der ganzen nachrichtenzeile (gestures.js); e2e `chat-gestures`
+
+## chat improvements
+- [x] audio messages
+  - if there is a lokal api for audio to text this function too, if not leave it
+  - done 2026-10-26: `client/app/voice.js`, opus ~12 kbit/s, max 60 s, inline im MESSAGE_PUT (P2P oder pfad C, cache-limit 256 KB); mikrofon statt senden bei leerem feld
+  - verschriftlichung nur lokal: `SpeechRecognition` mit `processLocally` (chrome, sofern `available`); sonst kein text. die normale web speech api schickt audio an google -> verboten
+- [x] videos?
+  - only via __p2p__
+  - done 2026-10-26: `client/app/video.js`, vorschaubild + infos in der nachricht, video ueber den original-weg (originals.js, nur DataChannel), max 25 MB; e2e `voice-video`
+- [ ] ui ux improvement
+  - einheitlichkeit & modularität
+    - modularerere gestaltung
+  - besseres UX
+  - offen 2026-10-26: zu allgemein zum umsetzen -> konkrete punkte/screens vom nutzer abwarten (vorschlag im chat)

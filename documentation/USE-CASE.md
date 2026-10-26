@@ -697,3 +697,40 @@ Akzeptanzkriterien:
   zaehlen nicht. Der Stand bleibt nach dem Neuladen erhalten.
 - Der Lesestand bleibt auf dem Geraet; der Partner bekommt keine
   Lesebestaetigung.
+
+## UC-40: Sprachnachrichten
+
+**Als Nutzer** moechte ich statt zu tippen kurz etwas einsprechen koennen.
+
+Akzeptanzkriterien:
+
+- Ist das Eingabefeld leer, zeigt die Leiste ein Mikrofon statt "Senden".
+- Aufnahme mit Zeitanzeige, verwerfen oder senden; nach 60 s wird automatisch
+  gesendet.
+- Die Nachricht kommt auch an, wenn der andere offline ist (Router-Cache, nur
+  verschluesselt).
+- Kann der Browser lokal verschriftlichen, steht der Text unter der Nachricht;
+  sonst gibt es keinen Text (kein Cloud-Dienst).
+- Sprachnachrichten zaehlen wie Bilder fuer die Chat-Berechtigungen.
+
+## UC-41: Videos (nur direkt)
+
+**Als Nutzer** moechte ich kurze Videos schicken, ohne dass sie ueber den Server
+laufen.
+
+Akzeptanzkriterien:
+
+- Videos bis 25 MB (MP4, WebM, MOV, Ogg) lassen sich aus der Galerie senden.
+- Der andere sieht sofort ein Vorschaubild mit Laenge; das Video selbst kommt
+  nur ueber eine direkte Verbindung (P2P/TURN), mit Fortschritt.
+- Das Video wird vor dem Speichern per SHA-256 geprueft.
+- Abspielen im Vollbild-Fenster, ohne Download-Knopf.
+
+## UC-42: Gesten im Chat
+
+Akzeptanzkriterien:
+
+- Wischen zum Antworten klappt bei jeder Nachricht beliebig oft, auch mit Start
+  im Leerraum neben der Nachricht oder auf dem kleinen Aktionen-Pfeil (der dabei
+  nicht aufklappt).
+- Die Kontaktleiste nach unten ziehen oeffnet das Profil des Kontakts.

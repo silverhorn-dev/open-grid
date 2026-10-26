@@ -133,27 +133,48 @@ function centerInScroller(container, element, axis) {
 }
 
 // Wischen nur auf der Kontaktleiste.
+// Gesten auf der Kontaktleiste (Chat-Kopf): seitlich wischen = Chat wechseln (Stil "swipe"),
+// nach unten ziehen = Profil des Kontakts oeffnen. Der Kopf zieht beim Ziehen leicht mit.
+const HEADER_PULL_TRIGGER = 60;
+const HEADER_PULL_MAX = 28;
+
 function initChatSwitchSwipe() {
     const header = document.getElementById('chat-header');
     if (!header) return;
     let start = null;
+    const reset = () => {
+        header.style.transition = prefersReducedMotion() ? 'none' : 'transform 160ms ease-out';
+        header.style.transform = '';
+        start = null;
+    };
     header.addEventListener('pointerdown', event => {
-        if (!chatSwitchActive() || state.chatSwitchSettings.style !== 'swipe' || event.target.closest('button, input')) return;
+        if (!state.activeChatPeerId || event.target.closest('button, input')) return;
         start = { x: event.clientX, y: event.clientY, pointerId: event.pointerId };
+    });
+    header.addEventListener('pointermove', event => {
+        if (!start || start.pointerId !== event.pointerId) return;
+        const deltaY = event.clientY - start.y;
+        if (deltaY <= 0 || deltaY < Math.abs(event.clientX - start.x)) return;
+        header.style.transition = 'none';
+        header.style.transform = `translate3d(0, ${Math.min(HEADER_PULL_MAX, deltaY * 0.4)}px, 0)`;
     });
     header.addEventListener('pointerup', event => {
         if (!start || start.pointerId !== event.pointerId) return;
         const deltaX = event.clientX - start.x;
         const deltaY = event.clientY - start.y;
-        start = null;
+        reset();
+        if (deltaY >= HEADER_PULL_TRIGGER && deltaY > Math.abs(deltaX) * 1.5) {
+            hapticTick();
+            openProfileModal(state.activeChatPeerId);
+            return;
+        }
+        if (!chatSwitchActive() || state.chatSwitchSettings.style !== 'swipe') return;
         if (Math.abs(deltaX) < CHAT_SWITCH_SWIPE_TRIGGER || Math.abs(deltaX) < Math.abs(deltaY) * 1.5) return;
         hapticTick();
         // Nach links wischen = naechster Chat (wie Blaettern).
         switchChat(deltaX < 0 ? 1 : -1);
     });
-    header.addEventListener('pointercancel', () => {
-        start = null;
-    });
+    header.addEventListener('pointercancel', reset);
 }
 
 // Quick-Switcher: alle Chats der aktuellen Liste zur Auswahl (z. B. per Hochziehen im Chat).

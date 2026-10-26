@@ -408,3 +408,9 @@ html.debug-on .debug-off-only {
     background: rgb(var(--brand-500));
 }
 .unread-dot.hidden { display: none; }
+
+/* Kontaktleiste: Wischen/Ziehen gehoert der App (Chat wechseln, nach unten = Profil), nicht dem
+   Browser (sonst bricht Pull-to-Refresh oder Scrollen die Geste ab). Tippen bleibt normal. */
+#chat-header {
+    touch-action: none;
+}

@@ -242,6 +242,8 @@ async function loadCompactSetting() {
 function previewText(message) {
     if (message.secureSnap) return 'Secure Snap';
     if (message.album) return 'Album';
+    if (message.audioData) return 'Sprachnachricht';
+    if (message.video) return 'Video';
     if (message.snapData) return 'Snap';
     const text = String(message.text || '');
     return text.length > PREVIEW_LENGTH ? `${text.slice(0, PREVIEW_LENGTH)}...` : text;

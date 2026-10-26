@@ -26,8 +26,10 @@ function fakeElement({ classes = [], id = '' } = {}) {
 function setup({ isMine = false } = {}) {
     const row = fakeElement({ id: 'chat-message-m1' });
     const wrap = fakeElement({ classes: ['chat-bubble-wrap', ...(isMine ? ['is-mine'] : [])] });
-    wrap.closest = selector => (selector === '.chat-bubble-wrap' ? wrap : row);
-    const target = { closest: selector => (selector === '.chat-bubble-wrap' ? wrap : null) };
+    row.querySelector = selector => (selector === '.chat-bubble-wrap' ? wrap : null);
+    row.setPointerCapture = () => {};
+    // Das Wischen startet irgendwo in der Zeile (Blase oder Leerraum daneben).
+    const target = { closest: selector => (selector === '[id^="chat-message-"]' ? row : null) };
     const calls = { reply: [], react: [], actions: 0 };
     const timers = [];
     const context = {

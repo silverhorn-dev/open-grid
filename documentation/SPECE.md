@@ -79,6 +79,26 @@
   prueft der Empfaenger Laenge und SHA-256 und speichert es verschluesselt
   (`originalReady`). Haengt eine Uebertragung, wird nach 60 s neu angefragt
   (bei jedem Verbindungsaufbau).
+- Sprachnachrichten (`client/app/voice.js`): Aufnahme per MediaRecorder
+  (Opus, ca. 12 kbit/s, max. 60 s). `message.audioData` ist eine Data-URL
+  `data:audio/...;base64,` (max. 160 000 Zeichen), `audioDuration` in Sekunden,
+  optional `transcript` (max. 2000 Zeichen). Geht wie jede Nachricht per P2P
+  oder Pfad C (dafuer erlaubt `/api/cache` 256 KB Ciphertext). Der Text entsteht
+  nur, wenn der Browser lokal verschriftlichen kann (`SpeechRecognition` mit
+  `processLocally`, vorher `SpeechRecognition.available(...)` = `available`);
+  sonst gibt es keinen Text, nie einen Cloud-Dienst. Abspielen ueber eine
+  Blob-URL (`media-src blob:`). Zaehlt wie Bilder fuer die
+  Chat-Berechtigungen. Bei leerem Eingabefeld ersetzt das Mikrofon den
+  Senden-Knopf.
+- Videos (`client/app/video.js`): nur P2P/TURN. Die Nachricht traegt ein
+  Vorschaubild (`snapData`, JPEG max. 480 px), `video = { duration, w, h }` und
+  `original = { size, sha256, mime }` (`video/mp4|webm|quicktime|ogg`, Datei
+  max. 25 MB, als Data-URL max. 36 MB). Das Video selbst laeuft ueber denselben
+  Weg wie Originalbilder (`ORIGINAL_REQUEST`/`ORIGINAL_CHUNK`, max. 576
+  Stuecke), nie ueber Pfad C; Pruefung per SHA-256, Speicherung verschluesselt.
+  Bis dahin zeigt die Nachricht "Video kommt bei direkter Verbindung" mit
+  Fortschritt. Abspielen im Medien-Modal ueber eine Blob-URL, ohne Download-Knopf
+  und Bild-in-Bild; die Blob-URL wird beim Schliessen freigegeben.
 - Ablauf nach der ersten Ansicht: der Absender legt `snapSettings.expiry` fest
   (Enum `'15m' | '30m' | '60m' | 'off'`, Standard `30m` bzw.
   `CLIENT_DEFAULTS.snapExpiry`), es geht als `message.snapExpiry` mit dem Snap.
@@ -701,7 +721,7 @@ Chats werden als idempotente Operationen synchronisiert:
   dieser Aenderung) bleiben dauerhaft sichtbar.
 - Snaps (`message.snapData`) werden auf max. 1080 px verkleinert und so lange
   komprimiert, bis die Data-URL hoechstens 70 000 Zeichen hat. So passen sie
-  auch in Pfad C (Queue-Limit 100 KB Ciphertext).
+  auch in Pfad C (Queue-Limit 256 KB Ciphertext, wegen Sprachnachrichten).
 - Geht eine eigene Nachricht ueber Pfad C, speichert der Sender
   `cacheExpiresAt` aus der Queue-Antwort. Taucht ihre `put:`-Operation im
   `CHAT_SYNC_HELLO` oder `CHAT_SYNC_INVENTORY` des Peers auf, wird sie als
@@ -1064,8 +1084,8 @@ Ein Klick auf die Benachrichtigung fokussiert die App und oeffnet den Chat
   (`default-src 'self'`, Bilder auch `data:`/`blob:`, `connect-src` nur eigener
   Host inkl. WebSocket und Nominatim, `frame-ancestors 'none'`,
   `script-src 'self'` ohne `'unsafe-inline'`), `X-Content-Type-Options`,
-  `Referrer-Policy: no-referrer`, `Permissions-Policy` (Kamera und Standort nur
-  same-origin), `Cross-Origin-Opener-Policy`, `X-Frame-Options`. Keine
+  `Referrer-Policy: no-referrer`, `Permissions-Policy` (Kamera, Mikrofon und
+  Standort nur same-origin), `Cross-Origin-Opener-Policy`, `X-Frame-Options`. Keine
   CORS-Header: die App laeuft same-origin.
 - Keine Inline-Handler im Markup: Elemente tragen `data-click`,
   `data-change`, `data-input` oder `data-enter` (Enter-Taste) mit dem Namen

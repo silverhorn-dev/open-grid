@@ -359,6 +359,8 @@ function isPeerOnline(peerId) {
 // Kommt ein Partner online, gehen wartende Nachrichten sofort direkt raus.
 function handlePeerCameOnline(peerId) {
     updateProfilePresence(peerId, 'online');
+    // Neuer Chat ohne Profil (z. B. erste Nachricht kam ueber den Router-Cache): jetzt direkt holen.
+    requestMissingProfile(peerId);
     pushAlbumKeysToPeer(peerId).catch(logBackgroundError('handlePeerCameOnline'));
     pushStatusesToPeer(peerId).catch(logBackgroundError('handlePeerCameOnline'));
     const needsConnection = Boolean(state.secureMessageQueues[peerId]?.length) || state.activeChatPeerId === peerId;
@@ -781,6 +783,8 @@ async function handleSecurePayload(peerId, payload, deliveredVia = 'E2EE P2P') {
         if (state.activeModalPeerId === targetNodeId && typeof renderProfileModalData === 'function') {
             renderProfileModalData(acceptedProfile);
         }
+        renderActivePeerList();
+        if (state.activeChatPeerId === targetNodeId) renderChatPeerHeader(targetNodeId);
     } else if (payload.type === 'ALBUM_REQUEST') {
         await handleAlbumRequest(peerId, payload.albumId);
     } else if (payload.type === 'ALBUM_RESPONSE') {

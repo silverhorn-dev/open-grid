@@ -131,6 +131,8 @@ const state = {
     pendingInvite: null,
     // Online-Status der Chat-Partner (nur gegenseitig, vom Server per PRESENCE gemeldet).
     peerPresence: {},
+    // Letzte aktive Profil-Anfrage je Peer ({ direct, swarm } als Zeitstempel), siehe requestMissingProfile.
+    profileRequests: {},
     presenceSubscription: [],
     // Sichtbarkeit und Speicher. Fehlender Datensatz = Standardwerte.
     gridSettings: { silent: false, ttlMinutes: 10, liveGrid: false, cacheEnabled: true, lanOnly: false, useLocation: false, safeZones: [], locationLabel: null },

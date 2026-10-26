@@ -65,6 +65,7 @@ function loadPage(stores, gated) {
         renderActivePeerList: () => {},
         renderChatHistory: () => {},
         subscribePresence: () => {},
+        isPeerOnline: () => false,
         messagePreview: message => message.text || '',
         isSafeInlineImage: () => false,
         setTimeout,

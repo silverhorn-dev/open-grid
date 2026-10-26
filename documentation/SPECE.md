@@ -260,6 +260,12 @@ Profile zeigen auch Felder aus anderen Schemas an.
 Peers im Cache (neuer Kontakt per Einladung oder erste Nachricht), fragt der
 Client es sofort per `PROFILE_REQUEST` an; Chatliste und Kontaktleiste
 uebernehmen Name und Bild, sobald es ankommt.
+Kam der neue Chat ohne P2P-Sitzung (erste Nachricht ueber den Router-Cache
+oder Push), holt `requestMissingProfile` das Profil aktiv: direkt per
+`PROFILE_REQUEST` (startet den P2P-Aufbau), sobald der Peer laut Praesenz online
+ist, und zusaetzlich per `SWARM_PROFILE_REQUEST` ueber andere offene Kanaele.
+Je Weg hoechstens einmal pro Minute und Peer; ein Klick aufs Profil ist nicht
+noetig.
 
 **Einladungslinks** (`chat`, `friends`): `/invite#<peerId>.<fingerprint>`,
 Fingerprint = erste 32 Hex-Zeichen von `SHA-256("<crv>:<x>:<y>")` des

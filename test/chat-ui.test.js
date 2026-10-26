@@ -35,6 +35,7 @@ function loadStorage() {
         showToast: () => {},
         document: { getElementById: () => null },
         subscribePresence: () => {},
+        isPeerOnline: () => false,
         db: fakeDatabase(stores),
         renderActivePeerList: () => {},
         renderChatHistory: () => {},

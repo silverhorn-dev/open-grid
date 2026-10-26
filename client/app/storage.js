@@ -328,11 +328,38 @@ async function loadChatPeerIds() {
     renderActivePeerList();
 }
 
+// Neue Chats (z. B. die erste Nachricht ueber den Router-Cache) haben oft noch kein Profil: es kommt
+// nur ueber eine P2P-Sitzung (PROFILE_REQUEST). Statt auf den Klick aufs Profil zu warten, aktiv
+// anfragen: direkt, sobald der Peer online ist (baut P2P auf), sonst ueber den Schwarm (andere offene
+// Kanaele mit gecachtem, signiertem Profil). Je Weg hoechstens einmal pro Minute und Peer.
+const PROFILE_REQUEST_INTERVAL_MS = 60 * 1000;
+
+function requestMissingProfile(peerId) {
+    if (!peerId || peerId === state.myProfile?.id || state.cachedProfiles?.[peerId] || isPeerBlocked(peerId)) return;
+    const now = Date.now();
+    const requests = state.profileRequests || (state.profileRequests = {});
+    const last = requests[peerId] || { direct: 0, swarm: 0 };
+    if (isPeerOnline(peerId) && now - last.direct >= PROFILE_REQUEST_INTERVAL_MS) {
+        last.direct = now;
+        logDebug(`Profil von ${peerId} fehlt, frage direkt an.`);
+        sendSecurePayload(peerId, { type: 'PROFILE_REQUEST' }).catch(logBackgroundError('requestMissingProfile'));
+    }
+    const swarmPeers = Object.keys(state.dataChannels || {})
+        .filter(id => id !== peerId && state.dataChannels[id].readyState === 'open' && state.sessionKeys[id]);
+    if (swarmPeers.length && now - last.swarm >= PROFILE_REQUEST_INTERVAL_MS) {
+        last.swarm = now;
+        swarmPeers.forEach(id => sendSecurePayload(id, { type: 'SWARM_PROFILE_REQUEST', targetNodeId: peerId })
+            .catch(logBackgroundError('requestMissingProfile')));
+    }
+    requests[peerId] = last;
+}
+
 function rememberChatPeer(peerId) {
     if (!peerId || state.chatPeerIds.includes(peerId)) return;
     state.chatPeerIds.push(peerId);
     renderActivePeerList();
     subscribePresence();
+    requestMissingProfile(peerId);
 }
 
 function getPeerPresentation(peerId) {

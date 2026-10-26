@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 113 · 2026-10-26
+## Build 114 · 2026-10-26
+- Behoben: neue Chats (z. B. erste Nachricht ueber den Router-Cache) zeigten Name und Bild erst nach einem Klick aufs Profil; das Profil wird jetzt automatisch geholt, sobald der Absender online ist (sonst ueber andere verbundene Teilnehmer)
+
+## Build 113 · 2026-10-26 · `bc1bc97`
 - Behoben: auf dem Smartphone rutschte das Nachrichtenfeld nach dem Neuladen manchmal aus dem Bild (Kontaktleiste scrollte die ganze Seite mit, Scrollposition wurde wiederhergestellt); die Tastatur verkleinert jetzt den Chat statt ihn zu verdecken
 - Behoben: der mitgelieferte coturn startete nicht (`--no-dtls` gibt es in coturn 4.18 nicht mehr), daher keine TURN-Relays; Image jetzt fest auf 4.18.0
 - Betrieb: TURN-Pruefung direkt im Container (`docker compose exec open-grid node scripts/turn-check.mjs`)

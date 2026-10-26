@@ -35,7 +35,7 @@ async function storeOwnOriginal(messageId, dataUrl) {
 
 async function loadOriginal(messageId) {
     const media = await loadMedia(originalMediaId(messageId)).catch(() => null);
-    return isSafeInlineImage(media?.data) || isSafeInlineVideo(media?.data) ? media.data : null;
+    return isSafeInlineImage(media?.data) || isSafeInlineVideo(media?.data) || isSafeAudioPart(media?.data) ? media.data : null;
 }
 
 // ----- Empfaenger -----
@@ -75,7 +75,9 @@ async function finishOriginal(peerId, messageId, dataUrl) {
     const message = (state.chats[peerId] || []).find(entry => entry.id === messageId)
         || await databaseRequest('messages', 'readonly', store => store.get(messageId)).catch(() => null);
     if (!message || !wantsOriginal(peerId, message)) return;
-    const safe = message.video ? isSafeInlineVideo(dataUrl) : isSafeInlineImage(dataUrl);
+    const safe = message.video ? isSafeInlineVideo(dataUrl)
+        : message.audioData ? isSafeAudioPart(dataUrl)
+            : isSafeInlineImage(dataUrl);
     if (!safe || dataUrl.length !== message.original.size || await sha256Base64(dataUrl) !== message.original.sha256) {
         logDebug(`Original ${messageId} von ${peerId} passt nicht zur Vorschau, verworfen.`);
         return;
@@ -84,6 +86,8 @@ async function finishOriginal(peerId, messageId, dataUrl) {
     message.originalReady = true;
     await persistChatMessage(peerId, message);
     if (state.activeChatPeerId === peerId) renderChatHistory();
+    // Wartet die Wiedergabe einer Sprachnachricht auf den Rest, geht es jetzt weiter.
+    if (message.audioData) onVoiceRestReady(messageId);
 }
 
 function renderOriginalProgress(messageId) {

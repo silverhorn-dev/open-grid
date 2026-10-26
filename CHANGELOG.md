@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 119 · 2026-10-26
+## Build 120 · 2026-10-26
+- Sprachnachrichten bis 15 Minuten: die erste Minute kommt wie bisher auch offline an, der Rest nur ueber eine direkte Verbindung; beim Abhoeren wird er geholt und es geht nahtlos weiter
+- Am Maximum stoppt die Aufnahme nur, es wird nichts mehr automatisch gesendet
+
+## Build 119 · 2026-10-26 · `c4062d7`
 - Sprachnachrichten: bei leerem Eingabefeld Mikrofon statt "Senden", bis 60 Sekunden, kommen auch offline ueber den Router-Cache an; Text darunter nur, wenn das Geraet lokal verschriftlichen kann
 - Videos senden (bis 25 MB): der andere sieht sofort ein Vorschaubild, das Video selbst kommt nur ueber eine direkte Verbindung, nie ueber den Server
 - Kontaktleiste im Chat nach unten ziehen oeffnet das Profil

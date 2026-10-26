@@ -32,7 +32,10 @@ function isValidMessage(message) {
         && (message.snapExpiry === undefined || ['15m', '30m', '60m', 'off'].includes(message.snapExpiry))
         // Sprachnachricht (voice.js): kleine Data-URL, Laenge in Sekunden, optional lokaler Text.
         && (message.audioData === undefined || (isOptionalString(message.audioData, MAX_AUDIO_LENGTH) && message.audioData.startsWith('data:audio/')))
-        && (message.audioDuration === undefined || (Number.isFinite(message.audioDuration) && message.audioDuration >= 0 && message.audioDuration <= 600))
+        && (message.audioDuration === undefined || (Number.isFinite(message.audioDuration) && message.audioDuration >= 0 && message.audioDuration <= 3600))
+        // Lange Sprachnachricht: ab audioSplitAt kommt der Rest als Original ueber P2P.
+        && (message.audioSplitAt === undefined || (Number.isFinite(message.audioSplitAt) && message.audioSplitAt > 0
+            && message.audioSplitAt <= (message.audioDuration || 0) && message.original !== undefined))
         && isOptionalString(message.transcript, 2000)
         // Video (video.js): nur Infos, das Video kommt als Original ueber P2P.
         && (message.video === undefined || (isPlainVideoInfo(message.video) && message.original !== undefined))
@@ -49,7 +52,8 @@ function isPlainVideoInfo(video) {
 }
 
 function isValidOriginalMeta(original) {
-    const maxSize = String(original?.mime || '').startsWith('video/') ? 36 * 1024 * 1024 : 15 * 1024 * 1024;
+    const mime = String(original?.mime || '');
+    const maxSize = mime.startsWith('video/') ? 36 * 1024 * 1024 : mime.startsWith('audio/') ? 6 * 1024 * 1024 : 15 * 1024 * 1024;
     return Boolean(original) && Number.isInteger(original.size) && original.size > 0 && original.size <= maxSize
         && typeof original.sha256 === 'string' && original.sha256.length <= 64 && isOptionalString(original.mime, 40);
 }

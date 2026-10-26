@@ -461,6 +461,7 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
         // Sprachnachricht (voice.js) bzw. Video-Infos (video.js, das Video selbst kommt als Original).
         audioData: options.audio?.data,
         audioDuration: options.audio?.duration,
+        audioSplitAt: options.audio?.splitAt,
         transcript: options.audio?.transcript,
         video: options.video,
         // Liste dieses Chats (Grid & Event oder Chat & Freunde), der Empfaenger uebernimmt sie fuer neue Chats.

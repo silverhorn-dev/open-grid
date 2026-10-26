@@ -66,9 +66,32 @@ async function main() {
         await bob.click(`[data-voice="${voice.id}"] .voice-play`);
         await waitFor(bob, id => state.voicePlayback?.messageId === id, voice.id);
 
+        await bob.evaluate(() => stopVoicePlayback());
+
+        // Lange Sprachnachricht (Grenzen fuer den Test verkuerzt): am Maximum stoppt die Aufnahme nur.
+        await alice.evaluate(() => { VOICE_LIMITS.inlineSeconds = 2; VOICE_LIMITS.maxSeconds = 4; });
+        const voiceCount = async page => page.evaluate(() => Object.values(state.chats).flat().filter(message => message.audioData).length);
+        const sentBefore = await voiceCount(alice);
+        await alice.click('#chat-voice-btn');
+        await waitFor(alice, () => state.voiceRecording?.finished === true, null, 15000);
+        assert.equal(await alice.isVisible('#chat-voice-direct-hint'), true, 'hint: the rest goes direct only');
+        assert.match(await alice.textContent('#chat-voice-time'), /Maximum/);
+        await alice.waitForTimeout(1500);
+        assert.equal(await voiceCount(alice), sentBefore, 'nothing is sent automatically');
+        await alice.click('#chat-voice-bar button[aria-label="Sprachnachricht senden"]');
+        await waitFor(bob, () => Object.values(state.chats).flat().some(message => message.audioSplitAt && message.originalReady), null, 30000);
+        const long = await bob.evaluate(() => Object.values(state.chats).flat().find(message => message.audioSplitAt));
+        assert.ok(long.audioSplitAt >= 1.8 && long.audioSplitAt <= 3, `split at ${long.audioSplitAt}`);
+        assert.ok(long.audioDuration >= 3.8, `total ${long.audioDuration}`);
+        assert.match(long.original.mime, /^audio\//);
+        await bob.click(`[data-voice="${long.id}"] .voice-play`);
+        await waitFor(bob, () => state.voicePlayback?.part === 1, null, 15000);
+        await bob.evaluate(() => stopVoicePlayback());
+
         // Fast volle Sprachnachricht ueber den Router-Cache (Bobs Kanal halb tot).
         await bob.evaluate(id => {
             const original = handleSignalingMessage;
+            window.restoreSignaling = () => { window.handleSignalingMessage = original; };
             window.handleSignalingMessage = async message => (message.type === 'SDP_OFFER' ? undefined : original(message));
             state.dataChannels[id].onmessage = null;
             state.dataChannels[id].send = () => {};
@@ -78,6 +101,28 @@ async function main() {
         }));
         await waitFor(bob, () => Object.values(state.chats).flat().some(message => message.audioDuration === 58), null, 30000);
         assert.equal(await bob.evaluate(() => Object.values(state.chats).flat().find(message => message.audioDuration === 58).deliveredVia), 'Encrypted Path C', 'long voice message fits the router cache');
+
+        // Lange Sprachnachricht ohne direkte Verbindung: der Anfang kommt ueber den Cache, beim Abspielen
+        // wartet Bob am Ende des Anfangs; sobald P2P wieder steht, kommt der Rest und es geht weiter.
+        await alice.click('#chat-voice-btn');
+        await waitFor(alice, () => state.voiceRecording?.finished === true, null, 15000);
+        await alice.click('#chat-voice-bar button[aria-label="Sprachnachricht senden"]');
+        await waitFor(bob, count => Object.values(state.chats).flat().filter(message => message.audioSplitAt).length === count, 2, 40000);
+        const offline = await bob.evaluate(() => Object.values(state.chats).flat().filter(message => message.audioSplitAt).sort((a, b) => b.createdAt - a.createdAt)[0]);
+        assert.equal(offline.originalReady, undefined, 'rest not there yet');
+        assert.equal(offline.deliveredVia, 'Encrypted Path C');
+        assert.equal(await bob.isVisible(`#chat-message-${offline.id} .voice-rest-hint`), true);
+        await bob.click(`[data-voice="${offline.id}"] .voice-play`);
+        await waitFor(bob, () => state.voicePlayback?.waiting === true, null, 15000);
+        await bob.evaluate(async id => {
+            window.restoreSignaling();
+            Object.values(state.webrtcConnections).forEach(connection => connection.close());
+            delete state.dataChannels[id];
+            delete state.sessionKeys[id];
+            await initiateP2PConnection(id);
+        }, aliceId);
+        await waitFor(bob, () => state.voicePlayback?.part === 1, null, 40000);
+        await bob.evaluate(() => stopVoicePlayback());
 
         // Video (nur P2P): neue, gesunde Verbindung.
         await bob.reload();

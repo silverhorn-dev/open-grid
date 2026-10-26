@@ -80,10 +80,18 @@
   (`originalReady`). Haengt eine Uebertragung, wird nach 60 s neu angefragt
   (bei jedem Verbindungsaufbau).
 - Sprachnachrichten (`client/app/voice.js`): Aufnahme per MediaRecorder
-  (Opus, ca. 12 kbit/s, max. 60 s). `message.audioData` ist eine Data-URL
-  `data:audio/...;base64,` (max. 160 000 Zeichen), `audioDuration` in Sekunden,
-  optional `transcript` (max. 2000 Zeichen). Geht wie jede Nachricht per P2P
-  oder Pfad C (dafuer erlaubt `/api/cache` 256 KB Ciphertext). Der Text entsteht
+  (Opus, ca. 12 kbit/s, max. 15 min). `message.audioData` ist eine Data-URL
+  `data:audio/...;base64,` mit den ersten 60 s (max. 160 000 Zeichen),
+  `audioDuration` die Gesamtlaenge in Sekunden, optional `transcript` (max.
+  2000 Zeichen). Der Anfang geht wie jede Nachricht per P2P oder Pfad C (dafuer
+  erlaubt `/api/cache` 256 KB Ciphertext). Ist die Aufnahme laenger, startet
+  bei 60 s ein zweiter Recorder; dieser Rest ist eine eigene, abspielbare Datei
+  und geht als `original = { size, sha256, mime: 'audio/...' }` (max. 6 MB)
+  ueber den Original-Weg, also nur P2P/TURN; `audioSplitAt` ist die Sekunde des
+  Wechsels. Der Empfaenger spielt den Anfang sofort; fehlt der Rest am Ende des
+  Anfangs, wartet die Wiedergabe, fordert ihn an (baut P2P auf) und spielt
+  weiter, sobald er geprueft gespeichert ist (`onVoiceRestReady`). Am Maximum
+  stoppt die Aufnahme nur, gesendet wird nie automatisch. Der Text entsteht
   nur, wenn der Browser lokal verschriftlichen kann (`SpeechRecognition` mit
   `processLocally`, vorher `SpeechRecognition.available(...)` = `available`);
   sonst gibt es keinen Text, nie einen Cloud-Dienst. Abspielen ueber eine

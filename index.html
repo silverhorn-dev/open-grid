@@ -277,8 +277,9 @@
                         <button data-click="cancelVoiceRecording" class="w-10 h-10 rounded-lg text-slate-300 hover:bg-slate-800 flex items-center justify-center" aria-label="Aufnahme verwerfen" title="Verwerfen">
                             <i class="fa-solid fa-trash"></i>
                         </button>
-                        <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" aria-hidden="true"></span>
-                        <span id="chat-voice-time" class="text-sm tabular-nums text-slate-200">0:00 / 1:00</span>
+                        <span id="chat-voice-dot" class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" aria-hidden="true"></span>
+                        <span id="chat-voice-time" class="text-sm tabular-nums text-slate-200">0:00</span>
+                        <span id="chat-voice-direct-hint" class="hidden text-[11px] text-amber-400" title="Die erste Minute geht auch ueber den Router-Cache, der Rest nur ueber eine direkte Verbindung"><i class="fa-solid fa-tower-broadcast"></i> Rest nur direkt</span>
                         <span id="chat-voice-transcript-hint" class="hidden text-[11px] text-slate-400" title="Wird nur auf diesem Geraet verschriftlicht"><i class="fa-solid fa-closed-captioning"></i> lokal</span>
                         <button data-click="sendVoiceRecording" class="ml-auto bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-1.5" aria-label="Sprachnachricht senden">
                             <i class="fa-solid fa-paper-plane"></i><span class="hidden sm:inline">Senden</span>

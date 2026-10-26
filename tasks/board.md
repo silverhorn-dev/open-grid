@@ -52,7 +52,8 @@
 ## chat improvements
 - [x] audio messages
   - if there is a lokal api for audio to text this function too, if not leave it
-  - done 2026-10-26: `client/app/voice.js`, opus ~12 kbit/s, max 60 s, inline im MESSAGE_PUT (P2P oder pfad C, cache-limit 256 KB); mikrofon statt senden bei leerem feld
+  - done 2026-10-26: `client/app/voice.js`, opus ~12 kbit/s, inline im MESSAGE_PUT (P2P oder pfad C, cache-limit 256 KB); mikrofon statt senden bei leerem feld
+  - 2026-10-26 (wunsch): laenger als 60 s (bis 15 min): ab 60 s zweiter recorder, rest als original nur per P2P, wiedergabe wartet am ende des anfangs und laeuft weiter, sobald der rest da ist; kein auto-senden am maximum; e2e `voice-video`
   - verschriftlichung nur lokal: `SpeechRecognition` mit `processLocally` (chrome, sofern `available`); sonst kein text. die normale web speech api schickt audio an google -> verboten
 - [x] videos?
   - only via __p2p__
@@ -61,4 +62,13 @@
   - einheitlichkeit & modularität
     - modularerere gestaltung
   - besseres UX
-  - offen 2026-10-26: zu allgemein zum umsetzen -> konkrete punkte/screens vom nutzer abwarten (vorschlag im chat)
+  - 2026-10-26 bestandsaufnahme (screenshots mobil/desktop, hell/dunkel), nutzer waehlt aus:
+    - plan: U1 sprache einheitlich deutsch: profil-felder "Display Name", "Age", "Position / Role", "About Me" + englische beispielwerte ("Privacy-first tech enthusiast!"), grid "6 peers • Updated 01:54:30 PM", "Enable Notifications", kontaktleiste "offline"
+    - plan: U2 zeitformat einheitlich: chatliste "01:54 PM" (locale des browsers), nachrichten "21:01", grid mit sekunden -> ueberall 24h ohne sekunden (bzw. "gestern", datum)
+    - plan: U3 einstellungen: eine sehr lange seite (~9 bildschirme) -> abschnitte mit sprungleiste/tabs (Konto & Modus, Chat, Privatsphaere, Medien & Snaps, Benachrichtigungen, Darstellung); chat-wechsel-optionen stehen unter "Darstellung", wasserzeichen unter "Secure Snaps"
+    - plan: U4 interne codes sichtbar: "1 - Alles fuer alle", "A - Alle" -> nur klartext
+    - plan: U5 buttons: gleiche hoehe/form in der eingabeleiste (snap/video/mic unterschiedlich hoch), ein primaer-stil, ein sekundaer-stil, ein icon-knopf-stil als wiederverwendbare klassen (statt langer tailwind-ketten pro knopf)
+    - plan: U6 desktop: avatar-leiste im chat doppelt zur sichtbaren chatliste -> auf desktop ausblenden; aktionen-pfeil auf desktop nur beim hovern
+    - plan: U7 leere zustaende/ladeanzeigen einheitlich (grid leer, chatliste leer, "Chat wird geladen", album leer) mit gleichem icon+text-muster
+    - plan: U8 profil-tab: "Speichern" oben rechts, aenderungen ohne hinweis auf ungespeichert -> sticky speicherleiste unten, sobald etwas geaendert ist
+    - plan: U9 menue: nur 3 punkte, viel leerraum -> modus-wechsel, kontakt einladen und changelog/version mit hinein

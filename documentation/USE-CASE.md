@@ -705,10 +705,13 @@ Akzeptanzkriterien:
 Akzeptanzkriterien:
 
 - Ist das Eingabefeld leer, zeigt die Leiste ein Mikrofon statt "Senden".
-- Aufnahme mit Zeitanzeige, verwerfen oder senden; nach 60 s wird automatisch
-  gesendet.
-- Die Nachricht kommt auch an, wenn der andere offline ist (Router-Cache, nur
-  verschluesselt).
+- Aufnahme mit Zeitanzeige, verwerfen oder senden; bis 15 Minuten. Am Maximum
+  stoppt die Aufnahme, gesendet wird nie automatisch.
+- Die erste Minute kommt auch an, wenn der andere offline ist (Router-Cache, nur
+  verschluesselt); laengere Aufnahmen zeigen ab einer Minute "Rest nur direkt".
+- Der Rest kommt nur ueber eine direkte Verbindung. Der Empfaenger kann den
+  Anfang sofort hoeren; fehlt der Rest beim Abspielen noch, wartet die
+  Wiedergabe und laeuft weiter, sobald er da ist.
 - Kann der Browser lokal verschriftlichen, steht der Text unter der Nachricht;
   sonst gibt es keinen Text (kein Cloud-Dienst).
 - Sprachnachrichten zaehlen wie Bilder fuer die Chat-Berechtigungen.

@@ -131,6 +131,8 @@ const state = {
     pendingInvite: null,
     // Online-Status der Chat-Partner (nur gegenseitig, vom Server per PRESENCE gemeldet).
     peerPresence: {},
+    // P2P gesendete Chat-Operationen ohne Empfangsbestaetigung (delivery.client.js, awaitP2PAck).
+    pendingP2PAcks: {},
     // Ungelesen (unread.js): Lesestand je Chat (Zeitstempel, '*' = Stand beim ersten Start) und Anzahl.
     chatReads: {},
     unreadCounts: {},

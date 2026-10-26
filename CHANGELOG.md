@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 116 · 2026-10-26
+## Build 117 · 2026-10-26
+- Behoben: ging die direkte Verbindung kurz vor dem Senden verloren (Kanal noch scheinbar offen), hing die Nachricht bis zum naechsten Abgleich; der Empfaenger bestaetigt jetzt jede direkte Nachricht, ohne Bestaetigung geht sie nach 5 Sekunden ueber den Router-Cache (meldet der Server den Partner offline, sofort)
+
+## Build 116 · 2026-10-26 · `ba35ae7`
 - Ungelesen-Badges: Zahl neuer Nachrichten an jedem Chat (Liste, Kontaktleiste, Schnellwechsel), Summe am Chat-Tab, im Seitentitel und am App-Symbol; Punkt am Listen-Wechsel, wenn die andere Liste Neues hat. Der Lesestand bleibt auf dem Geraet (keine Lesebestaetigung)
 
 ## Build 114 · 2026-10-26 · `509011e`

@@ -94,6 +94,7 @@ function isValidAlbumManifest(manifest) {
 
 const PAYLOAD_VALIDATORS = {
     CHAT_OPERATION: payload => isValidChatOperation(payload.operation),
+    CHAT_OPERATION_ACK: payload => isId(payload.operationId),
     CHAT_FOCUS: payload => typeof payload.open === 'boolean',
     CHAT_SYNC_HELLO: payload => isIdList(payload.recentOperationIds || [], 20),
     CHAT_SYNC_INVENTORY_REQUEST: payload => payload.cursor === undefined || isSmallInt(payload.cursor),

@@ -86,7 +86,10 @@ async function sendSecurePayload(peerId, payload, onSent = null) {
     if (channel?.readyState === 'open' && state.sessionKeys[peerId]) {
         try {
             channel.send(JSON.stringify(await encryptSecurePayload(peerId, payload)));
-            if (onSent) onSent('p2p');
+            if (onSent) {
+                onSent('p2p');
+                awaitP2PAck(peerId, channel, { payload, onSent, cacheQueued: false });
+            }
             return true;
         } catch (error) {
             logDebug(`P2P send failed: ${error.message}`);
@@ -125,6 +128,73 @@ function scheduleQueueFallback(peerId, item) {
         }
         if (!queued && !item.discarded) item.onSent('pending');
     }, SECURE_QUEUE_FALLBACK_MS);
+}
+
+// Ein offener DataChannel kann halb tot sein: der Partner hat gerade das Netz verloren, ICE merkt es
+// erst nach bis zu 30 s. send() klappt dann, kommt aber nie an. Chat-Operationen mit onSent warten
+// deshalb auf CHAT_OPERATION_ACK. Fehlt sie nach P2P_ACK_TIMEOUT_MS (und der Kanal sendet nicht mehr
+// an einem grossen Paket), gilt der Kanal als tot: neu aufbauen, Operation ueber Pfad C. Kommt sie
+// doch doppelt an, ignoriert der Empfaenger sie anhand der operationId.
+const P2P_ACK_TIMEOUT_MS = 5000;
+const P2P_ACK_MAX_WAIT_MS = 60000;
+
+function awaitP2PAck(peerId, channel, item) {
+    const operationId = item.payload?.type === 'CHAT_OPERATION' ? item.payload.operation?.operationId : null;
+    if (!operationId) return;
+    clearTimeout(state.pendingP2PAcks[operationId]?.timer);
+    const pending = { peerId, channel, item, sentAt: Date.now(), timer: null };
+    const check = () => {
+        // Grosse Nachrichten (Bilder) sind evtl. noch unterwegs: weiter warten, solange gepuffert wird.
+        if (channel.readyState === 'open' && channel.bufferedAmount > 0 && Date.now() - pending.sentAt < P2P_ACK_MAX_WAIT_MS) {
+            pending.timer = setTimeout(check, P2P_ACK_TIMEOUT_MS);
+            return;
+        }
+        handleMissingP2PAck(operationId).catch(error => logDebug(`P2P ack fallback failed: ${error.message}`));
+    };
+    pending.timer = setTimeout(check, P2P_ACK_TIMEOUT_MS);
+    state.pendingP2PAcks[operationId] = pending;
+}
+
+function handleP2PAck(peerId, operationId) {
+    const pending = state.pendingP2PAcks[operationId];
+    if (!pending || pending.peerId !== peerId) return;
+    clearTimeout(pending.timer);
+    delete state.pendingP2PAcks[operationId];
+}
+
+async function handleMissingP2PAck(operationId) {
+    const pending = state.pendingP2PAcks[operationId];
+    if (!pending) return;
+    clearTimeout(pending.timer);
+    delete state.pendingP2PAcks[operationId];
+    const { peerId, channel, item } = pending;
+    logDebug(`Keine Empfangsbestaetigung von ${peerId} fuer ${operationId}: Kanal gilt als tot, nutze Pfad C.`);
+    // Toten Kanal schliessen, damit die naechsten Nachrichten nicht auch hineinlaufen.
+    if (state.dataChannels[peerId] === channel) {
+        const connection = state.webrtcConnections[peerId];
+        if (connection) cleanupPeerConnection(peerId, connection);
+        else channel.close();
+    }
+    let queued = false;
+    try {
+        queued = await queuePayloadInCache(peerId, item);
+    } catch (error) {
+        logDebug(`Path C fallback for ${peerId} failed: ${error.message}`);
+    }
+    if (queued || item.discarded) return;
+    // Auch Pfad C geht nicht: beim naechsten Verbindungsaufbau erneut senden.
+    item.onSent('pending');
+    (state.secureMessageQueues[peerId] = state.secureMessageQueues[peerId] || []).push(item);
+}
+
+// Partner laut Server offline: Unbestaetigtes und Wartendes sofort ueber Pfad C.
+function flushUnconfirmedToCache(peerId) {
+    Object.entries(state.pendingP2PAcks)
+        .filter(([, pending]) => pending.peerId === peerId)
+        .forEach(([operationId]) => handleMissingP2PAck(operationId).catch(error => logDebug(`P2P ack fallback failed: ${error.message}`)));
+    if (state.secureMessageQueues[peerId]?.some(item => item.onSent && !item.cacheQueued)) {
+        flushPeerQueueToCache(peerId).catch(error => logDebug(`Path C fallback failed: ${error.message}`));
+    }
 }
 
 async function flushSecureMessageQueue(peerId) {

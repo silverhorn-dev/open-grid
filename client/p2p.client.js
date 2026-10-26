@@ -255,7 +255,10 @@ async function handleSignalingMessage(message) {
         if (typeof message.peerId !== 'string' || !state.presenceSubscription.includes(message.peerId)) return;
         state.peerPresence[message.peerId] = message.online === true;
         if (message.online === true) handlePeerCameOnline(message.peerId);
-        else updateProfilePresence(message.peerId, 'offline');
+        else {
+            updateProfilePresence(message.peerId, 'offline');
+            flushUnconfirmedToCache(message.peerId);
+        }
         renderPresenceChange(message.peerId);
         return;
     }
@@ -270,6 +273,7 @@ async function handleSignalingMessage(message) {
         updateProfilePresence(offlinePeerId, 'offline');
         const connection = state.webrtcConnections[offlinePeerId];
         if (connection && connection.connectionState !== 'connected') cleanupPeerConnection(offlinePeerId, connection);
+        flushUnconfirmedToCache(offlinePeerId);
         return;
     }
 
@@ -706,7 +710,14 @@ async function handleSecurePayload(peerId, payload, deliveredVia = 'E2EE P2P') {
         return;
     }
     if (payload.type === 'CHAT_OPERATION') {
+        // Direkt angekommen: sofort bestaetigen (siehe awaitP2PAck), noch vor dem Speichern.
+        if (deliveredVia === 'E2EE P2P' && payload.operation?.operationId) {
+            sendSecurePayload(peerId, { type: 'CHAT_OPERATION_ACK', operationId: payload.operation.operationId })
+                .catch(logBackgroundError('handleSecurePayload'));
+        }
         await applyChatOperation(peerId, payload.operation, deliveredVia);
+    } else if (payload.type === 'CHAT_OPERATION_ACK') {
+        handleP2PAck(peerId, payload.operationId);
     } else if (payload.type === 'CHAT_FOCUS') {
         receiveChatFocus(peerId, payload.open);
     } else if (payload.type === 'CHAT_SYNC_HELLO') {

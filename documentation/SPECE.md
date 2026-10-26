@@ -734,6 +734,19 @@ ueber Pfad C eingestellt; schlaegt auch das fehl, wird sie `Pending`. Beim
 Laden eines Chats werden Nachrichten, die laenger als 15 Sekunden auf
 `Establishing secure channel...` stehen, ebenfalls auf `Pending` gesetzt.
 
+**Empfangsbestaetigung (P2P)**: Ein offener DataChannel kann halb tot sein
+(der Partner hat gerade das Netz verloren, ICE merkt es erst nach bis zu 30 s);
+`send()` klappt dann, die Nachricht kommt aber nie an. Der Empfaenger
+bestaetigt jede direkt empfangene `CHAT_OPERATION` sofort mit
+`CHAT_OPERATION_ACK { operationId }`. Fehlt die Bestaetigung nach 5 Sekunden
+(bei noch gepufferten grossen Nachrichten bis zu 60 Sekunden), wird die
+Verbindung abgebaut und die Operation ueber Pfad C eingestellt (sonst
+`Pending` und erneuter Versand beim naechsten Kanal). Meldet der Server den
+Partner offline (`PRESENCE`/`PEER_OFFLINE`), geht Unbestaetigtes und
+Wartendes sofort ueber Pfad C. Doppelt ankommende Operationen erkennt der
+Empfaenger an der `operationId`. Gilt nur fuer Operationen mit
+Pfad-C-Fallback (nicht fuer "Status nur direkt").
+
 Pro Chat bleiben maximal 100 `MESSAGE_DELETE`-Operationen erhalten. Eine
 geloeschte Nachricht bleibt lokal als Platzhalter sichtbar und wird nicht
 durch eine spaeter eintreffende alte Put-Operation wiederhergestellt.

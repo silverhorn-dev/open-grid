@@ -90,6 +90,15 @@ async function main() {
         await page.evaluate(() => setAppMode('discovery'));
         assert.equal(await page.isVisible('#album-manager-card'), true);
 
+        // Menue: eigenes Profil oben, "Kontakt einladen" fuehrt zur Einladung in den Einstellungen.
+        await page.evaluate(() => openMenu());
+        assert.match(await page.textContent('#menu-name'), /Mobile/);
+        assert.match(await page.textContent('#menu-mode'), /Modus: /);
+        await page.click('#menu-invite-btn');
+        await waitFor(page, () => !document.getElementById('app-menu').classList.contains('is-open')
+            && !document.getElementById('invite-card').classList.contains('settings-off'));
+        assert.equal(await page.isVisible('#invite-card'), true);
+
         assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log('E2E OK (mobile layout)');
     } finally {

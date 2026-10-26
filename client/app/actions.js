@@ -130,6 +130,22 @@ function renderChangelog(markdown) {
     return root;
 }
 
+function openProfileFromMenu() {
+    switchTab('editprofile');
+    closeMenu();
+}
+
+function openModeFromMenu() {
+    switchTab('keys');
+    switchSettingsTab('general');
+    closeMenu();
+}
+
+function openInviteFromMenu() {
+    openInviteCard();
+    closeMenu();
+}
+
 function openCloudFromMenu() {
     switchTab('cloud');
     closeMenu();

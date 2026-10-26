@@ -58,7 +58,7 @@
 - [x] videos?
   - only via __p2p__
   - done 2026-10-26: `client/app/video.js`, vorschaubild + infos in der nachricht, video ueber den original-weg (originals.js, nur DataChannel), max 25 MB; e2e `voice-video`
-- [ ] ui ux improvement
+- [x] ui ux improvement
   - einheitlichkeit & modularität
     - modularerere gestaltung
   - besseres UX
@@ -81,4 +81,5 @@
       - done 2026-10-26: `client/app/ui.js` (`createEmptyState`/`showEmptyState`): grid, chatliste (neu, mit "Kontakt einladen"), kein chat, keine nachrichten, suche, laden, medien-fenster, blockierte peers
     - [x] U8 profil-tab: "Speichern" oben rechts, aenderungen ohne hinweis auf ungespeichert -> sticky speicherleiste unten, sobald etwas geaendert ist
       - done 2026-10-26: "Speichern" oben entfernt, leiste "Nicht gespeichert · Verwerfen · Speichern" unten (sticky ueber der navigation), verschwindet beim zuruecksetzen; avatar mit kamera-badge, auf dem smartphone tippbar (vorher nur per hover); e2e `profile-save`
-    - plan: U9 menue: nur 3 punkte, viel leerraum -> modus-wechsel, kontakt einladen und changelog/version mit hinein
+    - [x] U9 menue: nur 3 punkte, viel leerraum -> modus-wechsel, kontakt einladen und changelog/version mit hinein
+      - done 2026-10-26: profilkopf (avatar, name, modus), Modus wechseln, Kontakt einladen, Einstellungen, Changelog (jetzt immer sichtbar), Debug-Modus; Abmelden und version unten abgesetzt

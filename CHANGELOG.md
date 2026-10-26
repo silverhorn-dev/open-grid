@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 126 · 2026-10-26
+## Build 127 · 2026-10-26
+- Menue neu: eigenes Profil und aktueller Modus oben, dazu Modus wechseln, Kontakt einladen, Einstellungen und Changelog (jetzt immer sichtbar); Abmelden und Version unten
+
+## Build 126 · 2026-10-26 · `6c77237`
 - Leere Listen und Ladeanzeigen ueberall im gleichen Stil; leere Chatliste mit Hinweis und "Kontakt einladen"
 - Profil: Aenderungen zeigen unten "Nicht gespeichert" mit Verwerfen und Speichern (statt Knopf oben); Profilbild auf dem Smartphone direkt antippbar
 - Englisch: auch alle Hinweis-Meldungen uebersetzt (fehlten bisher)

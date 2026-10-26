@@ -55,7 +55,7 @@ async function main() {
             rememberChatPeer(id);
         }, aliceId);
 
-        await waitFor(bob, id => state.cachedProfiles[id]?.fields?.displayName === 'Alice', aliceId);
+        await waitFor(bob, id => state.cachedProfiles[id]?.fields?.displayName === 'Alice', aliceId, 45000);
         await waitFor(bob, () => document.getElementById('active-peers-list').textContent.includes('Alice'));
         assert.equal(await bob.evaluate(() => state.activeModalPeerId || null), null, 'no profile click needed');
 

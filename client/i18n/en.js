@@ -320,6 +320,7 @@ I18N_MESSAGES.en = {
     "Mit dem Router verbunden": "Connected to the router",
     "Mit niemandem geteilt": "Not shared with anyone",
     "Modus wechseln": "Switch mode",
+    "Modus: {mode}": "Mode: {mode}",
     "Moechte dich adden": "Wants to add you",
     "Nach oben wischen": "Swipe up",
     "Nach unten": "Scroll down",

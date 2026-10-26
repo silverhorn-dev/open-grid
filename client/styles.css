@@ -708,3 +708,29 @@ html.debug-on .debug-off-only {
     box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.45);
 }
 .profile-save-bar.hidden { display: none; }
+
+/* Menue: Profilkopf und Abschnitte */
+.menu-profile {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.625rem 0.75rem;
+    margin-bottom: 0.5rem;
+    border-radius: 0.875rem;
+    background: rgb(var(--slate-800) / 0.6);
+}
+.menu-profile:hover { background: rgb(var(--slate-800)); }
+.menu-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.5rem 0;
+    border-top: 1px solid rgb(var(--slate-800));
+}
+/* Menue-Symbole gleich breit, damit die Texte buendig stehen */
+.menu-item > i:first-child,
+.menu-item > span > i:first-child {
+    width: 1.25rem;
+    text-align: center;
+}

@@ -378,7 +378,21 @@ function initSettingsTabs() {
 
 window.addEventListener('resize', fitChatListPanel);
 
+// Kopf des Menues: eigenes Profil und aktueller Modus; Eintraege nur, wenn sie hier Sinn ergeben.
+function renderMenu() {
+    const avatar = document.getElementById('menu-avatar');
+    if (avatar) avatar.src = localAvatar(state.myProfile.avatar);
+    const name = document.getElementById('menu-name');
+    if (name) name.textContent = state.myProfile.fields?.displayName || t('Mein Profil');
+    const mode = document.getElementById('menu-mode');
+    if (mode) mode.textContent = t('Modus: {mode}', { mode: APP_MODE_INFO[state.appMode]?.label || '' });
+    const modes = state.appConfig?.modes || [];
+    document.getElementById('menu-mode-btn')?.classList.toggle('hidden', modes.length < 2);
+    document.getElementById('menu-invite-btn')?.classList.toggle('hidden', !['chat', 'friends'].some(entry => modes.includes(entry)));
+}
+
 function openMenu() {
+    renderMenu();
     document.getElementById('app-menu').classList.add('is-open');
     document.getElementById('app-menu').setAttribute('aria-hidden', 'false');
     document.getElementById('app-menu-backdrop').classList.remove('hidden');

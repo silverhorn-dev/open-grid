@@ -102,26 +102,44 @@
                 <i class="fa-solid fa-xmark"></i>
             </button>
         </div>
-        <div class="flex-1 overflow-y-auto p-3 space-y-1 text-sm">
-            <button data-click="openSettingsFromMenu" class="menu-item">
-                <i class="fa-solid fa-gear text-slate-400"></i> Einstellungen
+        <div class="flex-1 overflow-y-auto p-3 text-sm">
+            <button data-click="openProfileFromMenu" class="menu-profile">
+                <img id="menu-avatar" src="" alt="" class="w-12 h-12 rounded-full object-cover border border-slate-700 bg-slate-800">
+                <span class="min-w-0 text-left">
+                    <span id="menu-name" class="block font-semibold text-slate-100 truncate"></span>
+                    <span id="menu-mode" class="block text-xs text-slate-400 truncate"></span>
+                </span>
+                <i class="fa-solid fa-chevron-right ml-auto text-xs text-slate-500"></i>
             </button>
-            <button data-click="openChangelogFromMenu" class="menu-item debug-only">
-                <i class="fa-solid fa-clipboard-list text-slate-400"></i> Changelog
-            </button>
-            <button data-click="openCloudFromMenu" class="menu-item debug-only">
-                <i class="fa-solid fa-cloud-arrow-up text-sky-400"></i> Cloud Cache (Pfad C)
-            </button>
-            <button id="toggle-debug-btn" data-click="toggleDebugMode" class="menu-item justify-between" role="switch" aria-checked="false">
-                <span class="flex items-center gap-3"><i class="fa-solid fa-bug text-amber-400"></i> Debug-Modus</span>
-                <span id="debug-status-text" class="toggle-pill">AUS</span>
-            </button>
+            <div class="menu-section">
+                <button id="menu-mode-btn" data-click="openModeFromMenu" class="menu-item">
+                    <i class="fa-solid fa-sliders text-brand-400"></i> Modus wechseln
+                </button>
+                <button id="menu-invite-btn" data-click="openInviteFromMenu" class="menu-item">
+                    <i class="fa-solid fa-user-plus text-brand-400"></i> Kontakt einladen
+                </button>
+                <button data-click="openSettingsFromMenu" class="menu-item">
+                    <i class="fa-solid fa-gear text-slate-400"></i> Einstellungen
+                </button>
+            </div>
+            <div class="menu-section">
+                <button data-click="openChangelogFromMenu" class="menu-item">
+                    <i class="fa-solid fa-clipboard-list text-slate-400"></i> Changelog
+                </button>
+                <button data-click="openCloudFromMenu" class="menu-item debug-only">
+                    <i class="fa-solid fa-cloud-arrow-up text-sky-400"></i> Cloud Cache (Pfad C)
+                </button>
+                <button id="toggle-debug-btn" data-click="toggleDebugMode" class="menu-item justify-between" role="switch" aria-checked="false">
+                    <span class="flex items-center gap-3"><i class="fa-solid fa-bug text-amber-400"></i> Debug-Modus</span>
+                    <span id="debug-status-text" class="toggle-pill">AUS</span>
+                </button>
+            </div>
+        </div>
+        <div class="p-3 border-t border-slate-800 space-y-2">
             <button data-click="unregisterFromMenu" class="menu-item text-red-300" title="Abmelden vom Routing-Server (Graceful Leave)">
                 <i class="fa-solid fa-power-off text-red-400"></i> Abmelden
             </button>
-        </div>
-        <div class="debug-only px-4 py-3 border-t border-slate-800 text-[10px] font-mono text-slate-500">
-            {{versionTag}} · Build: {{timestamp}}
+            <div class="px-3 text-[10px] font-mono text-slate-500">OpenGrid {{versionTag}}<span class="debug-only"> · Build: {{timestamp}}</span></div>
         </div>
     </aside>
 

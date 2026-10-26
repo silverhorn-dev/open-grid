@@ -112,6 +112,9 @@
                 </button>
             </div>
             <div class="menu-section">
+                <a data-info-link href="/info" target="_blank" rel="noopener" class="menu-item">
+                    <i class="fa-solid fa-circle-question text-brand-400"></i> <span data-i18n="menu.helpInfo">Hilfe &amp; Info</span>
+                </a>
                 <button data-click="openChangelogFromMenu" class="menu-item">
                     <i class="fa-solid fa-clipboard-list text-slate-400"></i> <span data-i18n="common.changelog">Changelog</span>
                 </button>
@@ -798,6 +801,7 @@
                 <p data-i18n="onboarding.yourDataIsStoredEncrypted" class="text-sm text-slate-400 mt-1">
                     Deine Daten werden verschluesselt in diesem Browser gespeichert. Erst danach wirst du im Grid registriert.
                 </p>
+                    <a data-info-link href="/info" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 mt-2 text-xs font-semibold text-brand-400 hover:text-brand-300"><i class="fa-solid fa-circle-question"></i> <span data-i18n="onboarding.whatIsOpengrid">Was ist OpenGrid?</span></a>
             </div>
             <div class="p-5 space-y-5">
                 <div id="onboarding-mode" class="hidden space-y-2">
@@ -1057,6 +1061,7 @@
     <script src="/client/geohash.client.js?v={{assetVersion}}"></script>
     <script src="/client/app/config.js?v={{assetVersion}}"></script>
     <script src="/client/app/ui.js?v={{assetVersion}}"></script>
+    <script src="/client/app/markdown.js?v={{assetVersion}}"></script>
     <script src="/client/app/storage.js?v={{assetVersion}}"></script>
     <script src="/client/app/profile.js?v={{assetVersion}}"></script>
     <script src="/client/app/payload-validation.js?v={{assetVersion}}"></script>

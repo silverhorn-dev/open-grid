@@ -64,7 +64,7 @@ function openSettingsFromMenu() {
     closeMenu();
 }
 
-// Changelog (CHANGELOG.md im Repo): einfaches Markdown (Ueberschriften, Listen) als DOM, ohne innerHTML.
+// Changelog (CHANGELOG.md im Repo), gerendert wie die Info-Seite (markdown.js).
 function openChangelogFromMenu() {
     replaceModal(closeMenu, showChangelog);
 }
@@ -75,59 +75,11 @@ async function showChangelog() {
     try {
         const response = await fetch('/changelog.md', { cache: 'no-store' });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        content.replaceChildren(renderChangelog(await response.text()));
+        // Die erste Ueberschrift ist der Titel des Fensters.
+        content.replaceChildren(renderMarkdown((await response.text()).replace(/^# .*\n/, '')));
     } catch (error) {
         content.textContent = t('app.changelogNotAvailable', { message: error.message });
     }
-}
-
-function renderChangelog(markdown) {
-    const root = document.createElement('div');
-    root.className = 'space-y-2 text-sm text-slate-300';
-    let list = null;
-    const appendInline = (element, text) => {
-        // `code` als Monospace, sonst reiner Text.
-        text.split(/(`[^`]+`)/).forEach(part => {
-            if (part.startsWith('`') && part.endsWith('`') && part.length > 1) {
-                const code = document.createElement('code');
-                code.className = 'px-1 rounded bg-slate-800 text-[12px]';
-                code.textContent = part.slice(1, -1);
-                element.appendChild(code);
-            } else if (part) {
-                element.appendChild(document.createTextNode(part));
-            }
-        });
-    };
-    markdown.split(/\r?\n/).forEach(line => {
-        const heading = line.match(/^(#{1,3})\s+(.*)$/);
-        const item = line.match(/^\s*[-*]\s+(.*)$/);
-        if (item) {
-            if (!list) {
-                list = document.createElement('ul');
-                list.className = 'list-disc pl-5 space-y-1';
-                root.appendChild(list);
-            }
-            const entry = document.createElement('li');
-            appendInline(entry, item[1]);
-            list.appendChild(entry);
-            return;
-        }
-        list = null;
-        if (heading) {
-            const level = heading[1].length;
-            if (level === 1) return;
-            const element = document.createElement(level === 2 ? 'h3' : 'h4');
-            element.className = level === 2 ? 'pt-3 text-sm font-bold text-slate-100' : 'pt-1 text-xs font-bold uppercase tracking-wider text-brand-400';
-            appendInline(element, heading[2]);
-            root.appendChild(element);
-        } else if (line.trim()) {
-            const paragraph = document.createElement('p');
-            paragraph.className = 'text-xs text-slate-500';
-            appendInline(paragraph, line.trim());
-            root.appendChild(paragraph);
-        }
-    });
-    return root;
 }
 
 function openSettings() {

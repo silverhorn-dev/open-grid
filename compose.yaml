@@ -14,6 +14,9 @@ services:
       TURN_SERVER: ${TURN_SERVER:-}
       TURN_SECRET: ${TURN_SECRET:-}
       TURN_PORT: ${TURN_PORT:-3478}
+      # Info-Seite auf eigener Subdomain (leer = unter /info) und Ziel von "Zur App" dort.
+      INFO_HOST: ${INFO_HOST:-}
+      APP_URL: ${APP_URL:-}
       # Web Push
       VAPID_SUBJECT: ${VAPID_SUBJECT:-}
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}

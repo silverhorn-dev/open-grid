@@ -751,3 +751,17 @@ Akzeptanzkriterien:
   merkt sich die Wahl.
 - Alle Texte der Oberflaeche, auch Profilfelder und Uhrzeiten (immer 24 h),
   folgen der Sprache; Chatnachrichten bleiben unveraendert.
+
+## UC-44: Info-Seite fuer alle
+
+**Als interessierte Person** moechte ich verstehen, was OpenGrid ist und wie es
+mit meinen Daten umgeht, ohne Fachwissen.
+
+Akzeptanzkriterien:
+
+- Eigene Seite (Subdomain oder `/info`) mit Ueberblick, Erste Schritte,
+  Funktionen, Privatsphaere, haeufigen Fragen, Selbst betreiben und Neuigkeiten.
+- Deutsch und Englisch; Umschalter "Einfach erklaert" / "Mit Fachbegriffen",
+  beide Varianten grammatikalisch stimmig.
+- Knopfnamen der App erscheinen genau wie in der App.
+- Erreichbar aus dem Menue ("Hilfe & Info") und beim Einrichten des Profils.

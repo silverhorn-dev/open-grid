@@ -31,8 +31,11 @@ async function loadAppMode() {
         modes: modes.length ? modes : Object.keys(APP_MODE_INFO),
         defaultMode: config?.defaultMode,
         // Standards des Betreibers fuer Client-Einstellungen (gelten, solange nichts Eigenes gespeichert ist).
-        clientDefaults: config?.clientDefaults && typeof config.clientDefaults === 'object' ? config.clientDefaults : {}
+        clientDefaults: config?.clientDefaults && typeof config.clientDefaults === 'object' ? config.clientDefaults : {},
+        // Info-Seite fuer alle (eigene Subdomain oder /info), vom Router vorgegeben.
+        infoUrl: typeof config?.infoUrl === 'string' && /^(https:\/\/|\/)/.test(config.infoUrl) ? config.infoUrl : '/info'
     };
+    document.querySelectorAll('[data-info-link]').forEach(link => { link.href = state.appConfig.infoUrl; });
     // Sprache: Standard des Betreibers gilt ab dem naechsten Start (oder sofort, wenn noch nichts gewaehlt).
     rememberRouterLanguageDefault(state.appConfig.clientDefaults.language);
     const stored = await databaseRequest('keys', 'readonly', store => store.get(APP_MODE_RECORD_ID)).catch(() => null);

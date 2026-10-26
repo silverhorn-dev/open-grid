@@ -2,7 +2,12 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 130 · 2026-10-26
+## Build 131 · 2026-10-26
+- Info-Seite fuer alle: was OpenGrid ist, erste Schritte, Funktionen, Privatsphaere, haeufige Fragen und Selbst betreiben, auf Deutsch und Englisch, wahlweise einfach erklaert oder mit Fachbegriffen; im Menue unter "Hilfe & Info" und beim Einrichten des Profils
+- Betreiber koennen die Info-Seite auf eine eigene Subdomain legen (`INFO_HOST`, `APP_URL`)
+- Changelog in der App mit derselben Darstellung wie die Info-Seite
+
+## Build 130 · 2026-10-26 · `1fd59b0`
 - Uebersetzungen jetzt mit festen Schluesseln in `i18n/de.properties` und `i18n/en.properties`; die App laedt nur noch die eingestellte Sprache
 - Behoben: Platzhalter im Nachrichtenfeld und einige Texte (Profil einrichten, Bildbetrachter, Snap-Kamera) blieben im Englischen deutsch
 

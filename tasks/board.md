@@ -49,6 +49,11 @@
   - [x] swipe right for chats works for incomming chats also on the empty space besides the message
   - done 2026-10-26: kontaktleiste nach unten ziehen (>= 60 px) = profil (`initChatSwitchSwipe`, chat-switch.js); wischen ab der ganzen nachrichtenzeile (gestures.js); e2e `chat-gestures`
 
+- [x] info-website aus der doku, fuer nicht-techies, sprachen + fachbegriffe umschaltbar (wunsch 2026-10-26)
+  - done: subdomain per `INFO_HOST` (sonst `/info`), seiten `info-site/pages/<sprache>/*.md`, begriffe `info-site/i18n/*.properties` mit `.plain`-varianten und `${ui:...}`; app-uebersetzungen vorher auf schluessel umgestellt (`i18n/*.properties`); tests `test/info-site.test.js`, e2e `info-site`
+- [ ] echte umlaute in den app-texten (`i18n/de.properties` noch mit ae/oe/ue, auf der info-seite fallen `${ui:...}`-beschriftungen wie "Privatsphaere" auf); e2e-tests pruefen teils diese schreibweise
+- [ ] info-seite: push-texte des service workers sind noch nur deutsch
+
 ## chat improvements
 - [x] audio messages
   - if there is a lokal api for audio to text this function too, if not leave it

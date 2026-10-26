@@ -72,6 +72,23 @@ prueft das bei jedem Testlauf. Profilfelder im eigenen `PROFILE_SCHEMA` koennen
 `label` und `default` als Text oder als Objekt pro Sprache angeben, z. B.
 `{"de": "Alter", "en": "Age"}`.
 
+### Info-Seite
+
+Eine leicht verstaendliche Erklaerseite fuer alle (Erste Schritte, Funktionen,
+Privatsphaere, haeufige Fragen, Selbst betreiben, Neuigkeiten), Deutsch und
+Englisch, mit Umschalter "Einfach erklaert" / "Mit Fachbegriffen".
+
+- Inhalt: `info-site/pages/<sprache>/<seite>.md`; Begriffe und Textbausteine:
+  `info-site/i18n/<sprache>.properties`. Im Text setzt `${begriff}` einen
+  Eintrag ein (verschachtelbar), `begriff.plain` ist die einfache Variante,
+  `${ui:schluessel}` holt eine Beschriftung aus der App.
+- Ohne weitere Einstellung liegt sie unter `/info`. Mit `INFO_HOST`
+  (z. B. `info.og.example.org`) zeigt dieser Host sie unter `/`; DNS bzw. den
+  Cloudflare-Tunnel fuer die Subdomain auf denselben Container zeigen lassen.
+  `APP_URL` ist dann das Ziel von "Zur App".
+- `test/info-site.test.js` prueft, dass alle Seiten in beiden Sprachen und
+  beiden Varianten vollstaendig aufgeloest werden.
+
 ### Automatisches Deployment (Jenkins)
 
 Das `Jenkinsfile` baut bei jedem Push auf `main`: Syntax-Check und Unit-Tests
@@ -107,6 +124,8 @@ Version ist `Build <Commit-Anzahl> (<Hash>)`.
 | `BUILD_TIMESTAMP` | Startzeit | Im UI angezeigter Build-Zeitpunkt |
 | `PROFILE_SCHEMA` | eingebautes Schema | Optionales JSON-Array fuer Profilfelder |
 | `PROFILE_SCHEMAS` | – | Optionales JSON-Objekt mit einem Schema pro App-Modus, z. B. `{"chat": [...]}`; ohne Angabe nutzt "Nur Chat" Name + Status |
+| `INFO_HOST` | – | Eigene Subdomain fuer die Info-Seite (sonst `/info`) |
+| `APP_URL` | – | Adresse der App fuer "Zur App" auf der Info-Seite |
 | `TURN_SERVER` | `turn.deine-domain.de` | Hostname des coturn-Servers |
 | `TURN_SECRET` | – | Muss exakt dem `static-auth-secret` des coturn entsprechen |
 | `TURN_PORT` | `3478` | Port fuer die UDP- und TCP-Relays |

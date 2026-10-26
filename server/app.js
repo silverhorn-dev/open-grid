@@ -7,6 +7,7 @@ import crypto, { createHash, randomBytes } from 'node:crypto';
 import { createStore } from './database.js';
 import { registerSignalingRoute } from './signaling.js';
 import { loadTranslations, translationScript } from './i18n.js';
+import { infoSiteUrl, registerInfoSite } from './info-site.js';
 import {
     GRID_PRECISION,
     MAX_GRID_RING,
@@ -118,6 +119,8 @@ const clientAssetFiles = [
     'app/theme.js',
     'app/config.js',
     'app/ui.js',
+    'app/markdown.js',
+    'info/site.js',
     'app/storage.js',
     'app/profile.js',
     'app/chat.js',
@@ -318,6 +321,15 @@ export async function buildApp(options = {}) {
     // Die App laeuft komplett same-origin: keine CORS-Header, dafuer Sicherheits-Header.
     app.addHook('onRequest', async (request, reply) => {
         reply.headers(securityHeaders(request.headers.host));
+    });
+
+    // Info-Seite fuer alle (info-site/, server/info-site.js), auf eigener Domain oder unter /info.
+    const infoHost = String(options.infoHost ?? process.env.INFO_HOST ?? '').trim().toLowerCase() || null;
+    await registerInfoSite(app, {
+        projectDirectory,
+        assetVersion,
+        infoHost,
+        appUrl: options.appUrl ?? process.env.APP_URL ?? ''
     });
 
     const rateLimiters = Object.fromEntries(Object.entries(limits).map(([name, config]) => [name, createRateLimiter(config)]));
@@ -593,7 +605,7 @@ export async function buildApp(options = {}) {
     app.delete('/api/register', unregister);
     app.post('/api/unregister', unregister);
 
-    app.get('/api/config', async () => ({ modes: appModes, defaultMode: defaultAppMode, profileSchemas, lanMode: isLanMode, clientDefaults }));
+    app.get('/api/config', async () => ({ modes: appModes, defaultMode: defaultAppMode, profileSchemas, lanMode: isLanMode, clientDefaults, infoUrl: infoSiteUrl(infoHost) }));
 
     const toGridPeer = (origin) => ({ peer, km }) => ({
         id: peer.peerId,

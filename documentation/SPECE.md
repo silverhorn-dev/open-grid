@@ -1124,6 +1124,17 @@ Ein Klick auf die Benachrichtigung fokussiert die App und oeffnet den Chat
   (`formatClockTime`). Profil-Schema: `label`/`default` als Text (bleibt
   unveraendert) oder `{ de, en }` (`localizedText`). Der Service Worker zeigt
   seine Benachrichtigungen weiterhin auf Deutsch.
+- Info-Seite (`server/info-site.js`, `client/info/site.js`, `info-site/`):
+  Seiten `info-site/pages/<sprache>/<seite>.md` (feste Liste `INFO_PAGES`,
+  dazu `news` = `CHANGELOG.md`), Begriffe `info-site/i18n/<sprache>.properties`
+  als `INFO_TERMS` (`/info-site/i18n/<sprache>.js`). Aufloesung im Browser:
+  `${schluessel}` rekursiv (max. 8 Ebenen, Schleifen werden zu
+  `[[schluessel]]`), im Modus "Einfach erklaert" (Standard, `localStorage`
+  `opengrid-info-mode`) zuerst `schluessel.plain`, `${ui:schluessel}` aus dem
+  App-Woerterbuch. Links: `page:seite`, `app:` (APP_URL). Ohne `INFO_HOST`
+  unter `/info`; mit `INFO_HOST` liefert ein `onRequest`-Hook auf diesem Host
+  jede Seitenadresse als Info-Seite (App-Routen gelten dort nicht).
+  `/api/config` liefert `infoUrl` fuer die Links in Menue und Onboarding.
 - Navigation: unten Grid, Chat, Profil. Die Einstellungen haben keinen eigenen
   Knopf: Zahnrad im Profil-Kopf, Eintrag im Menue, oder vom Profil nach links
   wischen (`TAB_ORDER` grid, chat, editprofile, keys); dabei bleibt "Profil"

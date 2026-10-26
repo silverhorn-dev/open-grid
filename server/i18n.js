@@ -42,6 +42,6 @@ export async function loadTranslations(directory) {
     return translations;
 }
 
-export function translationScript(language, messages) {
-    return `I18N_MESSAGES[${JSON.stringify(language)}] = ${JSON.stringify(messages)};\n`;
+export function translationScript(language, messages, globalName = 'I18N_MESSAGES') {
+    return `${globalName}[${JSON.stringify(language)}] = ${JSON.stringify(messages)};\n`;
 }

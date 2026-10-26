@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="de" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>OpenGrid</title>
+    <meta name="description" content="OpenGrid: Leute in der Nähe entdecken und chatten, ohne dass ein Server deine Nachrichten sieht.">
+    <meta name="theme-color" content="#0f172a">
+    <link rel="stylesheet" href="/client/tailwind.css?v={{assetVersion}}">
+    <link rel="stylesheet" href="/vendor/fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="/client/styles.css?v={{assetVersion}}">
+    <link rel="icon" href="/client/icon.svg?v={{assetVersion}}" type="image/svg+xml">
+    <!-- Sprache (App-Woerterbuch fuer ${ui:...}), Thema, dann die Begriffe der Info-Seite -->
+    <script src="/client/i18n.js?v={{assetVersion}}"></script>
+    <script src="/client/app/theme.js?v={{assetVersion}}"></script>
+    <script src="/client/app/markdown.js?v={{assetVersion}}"></script>
+    <script src="/client/info/site.js?v={{assetVersion}}"></script>
+</head>
+<body class="info-site bg-slate-950 text-slate-100 font-sans antialiased" data-base="{{basePath}}" data-app-url="{{appUrl}}" data-pages="{{pages}}">
+    <header class="info-header">
+        <a id="info-home" class="info-brand" href="{{basePath}}/">
+            <span class="info-logo">OG</span>
+            <span>OpenGrid</span>
+        </a>
+        <div id="info-controls" class="info-controls"></div>
+    </header>
+    <div class="info-layout">
+        <nav id="info-nav" class="info-nav" aria-label="Seiten"></nav>
+        <main id="info-content" class="info-content"></main>
+    </div>
+    <footer id="info-footer" class="info-footer"></footer>
+</body>
+</html>

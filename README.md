@@ -45,6 +45,18 @@ docker compose up -d --build
 Standardmaessig ist OpenGrid auf `http://localhost:3000` erreichbar. SQLite
 liegt im benannten Volume `open-grid-data` unter `/app/data`.
 
+Alle Einstellungen kommen aus einer `.env` neben `compose.yaml` (Vorlage:
+`.env.example`). Der TURN-Server (coturn) ist als Dienst `coturn` in derselben
+`compose.yaml` enthalten und startet mit dem Profil `turn`
+(`COMPOSE_PROFILES=turn` in der `.env`). OpenGrid und coturn teilen sich
+`TURN_SECRET`; `TURN_SERVER` ist zugleich der coturn-Realm (abweichend per
+`TURN_REALM`). coturn laeuft im Host-Netzwerk (Port `TURN_PORT`, Standard 3478,
+plus UDP-Relay-Ports). Ohne eigenen TURN-Server `COMPOSE_PROFILES` leer lassen.
+
+Umstieg vom frueheren separaten `turn/compose.yml`: alten coturn stoppen
+(`docker compose -f turn/compose.yml down`), Inhalt von `turn/.env` in die `.env`
+uebernehmen (`TURN_SERVER` ergaenzen), dann `docker compose up -d --build`.
+
 ### Konfiguration
 
 | Variable | Standard | Beschreibung |

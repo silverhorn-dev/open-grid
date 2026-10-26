@@ -5,15 +5,15 @@ services:
     restart: unless-stopped
     networks:
       - service_net
-    env_file:
-      - turn/.env
+    # Alle Variablen kommen aus der `.env` neben dieser Datei (Vorlage: `.env.example`).
     environment:
       BUILD_VERSION: ${BUILD_VERSION:-self-hosted}
       BUILD_TIMESTAMP: ${BUILD_TIMESTAMP:-}
       DATABASE_PATH: /app/data/open-grid.sqlite
-      # TURN-Server Konfiguration
-#      TURN_SERVER: turn.og.silverhorn.dev
-#      TURN_SECRET: ${TURN_SECRET:-}
+      # TURN: Hostname + gemeinsames Secret mit dem coturn-Dienst unten.
+      TURN_SERVER: ${TURN_SERVER:-}
+      TURN_SECRET: ${TURN_SECRET:-}
+      TURN_PORT: ${TURN_PORT:-3478}
       # Web Push
       VAPID_SUBJECT: ${VAPID_SUBJECT:-}
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
@@ -34,6 +34,28 @@ services:
       - "${OPEN_GRID_PORT:-3000}:3000"
     volumes:
       - open-grid-data:/app/data
+
+  # TURN/STUN-Server (coturn). Startet nur mit dem Profil "turn",
+  # z. B. `COMPOSE_PROFILES=turn` in der `.env` oder `docker compose --profile turn up -d`.
+  # Host-Netzwerk, weil coturn viele UDP-Relay-Ports braucht.
+  coturn:
+    image: coturn/coturn:latest
+    profiles:
+      - turn
+    network_mode: "host"
+    command:
+      - -n
+      - --log-file=stdout
+      - --listening-port=${TURN_PORT:-3478}
+      - --no-tls
+      - --no-dtls
+      - --realm=${TURN_REALM:-${TURN_SERVER:-}}
+      - --use-auth-secret
+      - --static-auth-secret=${TURN_SECRET:-}
+      - --stale-nonce
+      - --no-multicast-peers
+      - --no-cli
+    restart: unless-stopped
 
 volumes:
   open-grid-data:

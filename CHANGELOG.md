@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 105 · 2026-10-26
+## Build 106 · 2026-10-26
+- Betrieb: der TURN-Server (coturn) steckt jetzt mit in der `compose.yaml` (Profil `turn`), eine gemeinsame `.env` fuer beide; das separate `turn/compose.yml` entfaellt
+
+## Build 105 · 2026-10-26 · `53229ee`
 - Einmal-Snaps laufen nach dem ersten Ansehen ab: der Absender waehlt 15, 30 oder 60 Minuten oder "nie" (Standard 30 Minuten, vom Betreiber per `CLIENT_DEFAULTS` einstellbar); der Empfaenger sieht keine Restzeit
 
 ## Build 103 · 2026-10-25 · `fbf8733`

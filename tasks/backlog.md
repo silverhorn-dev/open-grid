@@ -20,11 +20,17 @@ Ideen ohne festen Termin. Neue Phasen werden von hier auf `tasks/board.md` gehol
   - done P7: README "Club-/LAN-Betrieb": server im event-WLAN mit `LAN_MODE=true`; HTTPS pflicht (lokale CA oder DNS-01); mesh ganz ohne server in einer PWA nicht moeglich (keine lokale geraetesuche)
   - plan: naechste iteration: PWA hat keine lokale discovery API -> signaling server muss im LAN laufen (limitation)
 
+# general
+
+- (2026-10-26 auf das board verschoben: alter/e-mail pruefen)
+
 # feat
 - [x] chat badges
   - [x] chat needs a badge
   - [x] chats in chatoverview need a badge
   - done 2026-10-26: `client/app/unread.js`; zahl je chat (liste, kontaktleiste, schnellwechsel), summe am chat-tab, seitentitel, app-symbol; punkt am listen-wechsel; lesestand nur lokal (`keys`/`chat-reads`); tests `test/unread.test.js`, e2e `unread-badges`
+
+- (2026-10-26 auf das board verschoben: bereich beim onboarding waehlen)
 
 ## chat improvements
 

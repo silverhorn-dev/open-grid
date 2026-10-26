@@ -9,6 +9,58 @@
 
 
 
+# Runde T (2026-10-26)
+
+## T1 Bereich beim Onboarding: Nur Entdecken / Social / Entdecken & Freunde
+- [ ] Wenn man sich initial einloggt sollte man zwischen social, entdecken und beides auswählen können und dann erst in einer ganz verschachtelten Einstellung enable all wieder alle anschalten können.
+  - entschieden 2026-10-26 (nutzer):
+    - Nur Entdecken = Grid + Event; Flamme -> Match -> Chat; kein Adden, auch nicht nach einem Match; nur Liste "Grid & Event", kein Listen-Wechsel
+    - Social = Chat + Freunde; Grid ja (Freunde-Grid, nur Kontakte), kein Matching (keine Flamme); nur Adden; nur Liste "Chat & Freunde"
+    - Entdecken & Freunde = alle 4 Modi, wie heute (Flamme in Grid/Event, Adden nach Match optional)
+  - plan: `keys`/`app-mode` bekommt `scope` (`discovery` | `social` | `all`); fehlt er (bestehende Nutzer) = `all`
+  - plan: onboarding-schritt mit den 3 karten; entfaellt, wenn `APP_MODES` nur einen bereich erlaubt (dann dieser)
+  - plan: erlaubte modi = `APP_MODES` ∩ bereich; menue-chips, modus-auswahl, listen-wechsel und `modeForChatScope` nutzen das
+  - plan: einstellungen und knoepfe mit `data-scope="discovery|social"`; ausgeblendet, wenn der bereich aus ist
+    - nur Entdecken blendet aus: status, freunde-sichtbarkeit, "Matches koennen mich adden", listen-wechsel, chat-&-freunde-einstellungen
+    - Social blendet aus: flamme/match, event-code, "Grid & Event"-chat-einstellungen, grid "mehr laden"; ort/radius/sichtbarkeit bleiben (freunde-grid)
+  - plan: nur Entdecken -> `canAddMatch()` immer false, eigenes profil sendet `allowMatchFriends: false` (gespeicherter schalterwert bleibt fuer spaeter)
+  - plan: Einstellungen > Allgemein > Erweitert: bereich aendern + schalter "Alle Modi anzeigen" (= Entdecken & Freunde)
+  - plan: tests (erlaubte modi je bereich, canAddMatch, payload-flag), e2e onboarding + ausgeblendete einstellungen; SPECE/USE-CASE/README
+
+## T2 Alter / E-Mail pruefen (erst besprechen)
+- [ ] for security reasons we need to verify email or age, what u think
+  - nutzer 2026-10-26:
+    - beides muss auf dem router (betreiber) konfigurierbar sein; in der EU / besonders Deutschland gibt es strenge regeln (jugendschutz)
+    - alters-pruefung ueber einen drittanbieter soll moeglich sein, ohne bezug zu den nutzerdaten (so etwas wie bei OnlyFans gesehen)
+    - e-mail: wenn jemand deine fotos weitergibt und du findest den nutzer (wasserzeichen), hilft dir das heute nichts -> es braucht eine erreichbare/verantwortliche identitaet
+  - offen: welche anbieter (datensparsam, nur "ja, 18+" als signiertes token), wo liegt die e-mail (nur beim betreiber, gehasht?), wie passt das zu "kein konto" und regel 1 (keine externen datendienste)
+  - offen: einfaches 18+-bestaetigen im onboarding als minimum (`REQUIRE_AGE_CONFIRM`)
+  - diskussion 2026-10-26 (stand, noch nicht entschieden):
+    - alter: router-konfig `AGE_CHECK=off|confirm|provider`; `confirm` = "ich bin 18+" im onboarding; `provider` = externer nachweis, router prueft nur ein signiertes "18+"-token und merkt sich "node X geprueft bis Y"
+    - bevorzugt EU-Wallet (EUDI / EU-Altersnachweis): nur "18+" + pseudonym pro seite; das pseudonym entsteht in der wallet, der aussteller erfaehrt nicht, wo es gezeigt wird -> auch per gerichtsbeschluss keine zuordnung zur person (gewollt); bann auf das pseudonym haelt trotzdem (neues konto = gleiches pseudonym)
+    - alternative zur wallet: e-mail als option (`EMAIL_CHECK=off|required`), bestaetigungslink; router speichert die adresse verschluesselt (betreiber-schluessel) + hash fuer bann-abgleich; herausgabe nur per beschluss; schwach gegen wegwerf-adressen
+    - rueckverfolgung im ernstfall (foto-leak): optionales ip-protokoll `ABUSE_LOG_DAYS=0..14` (standard 0 = aus), node-id + ip + zeit, herausgabe nur per beschluss; info-seite nennt es offen
+    - meldeweg: opfer meldet leak mit wasserzeichen-nachweis -> betreiber bannt node + pseudonym bzw. e-mail-hash
+    - offen: anbieter-auswahl, rechtliche pruefung (JMStV/KJM, DSA), wie e-mail ohne externen mail-dienst verschickt wird (regel 1: smtp des betreibers?)
+  - recherche 2026-10-26 (quellen meist sekundaer/anbieter-blogs, rechtlich nicht geprueft):
+    - EU-Altersnachweis (ageverification.dev): mini-wallet bzw. teil der EUDI-Wallet, staaten sollen bis 31.12.2026 eine loesung anbieten (empfehlung, nicht bindend); pilotlaender u. a. FR, DK, GR, IT, ES, CY, IE, deutschland (noch) nicht dabei
+    - liefert nur "ueber 18: ja/nein"; uebertragung per OpenID4VP / W3C Digital Credentials API; open-source verifier-backend vorhanden -> technisch selbst hostbar
+    - ZKP (unverknuepfbarkeit) erst angekuendigt bzw. nur im geschlossenen prototyp; EFF: wiederverwendete tokens koennen verknuepfbar sein, aussteller koennte nutzung protokollieren
+    - korrektur: ein festes pseudonym pro seite liefert der altersnachweis nicht sicher -> "bann haelt per pseudonym" ist offen
+    - einige laender (IE, ES) verlangen eine registrierung als relying party; fuer selbst gehostete instanzen pruefen
+    - DE: JMStV verlangt fuer jugendgefaehrdende inhalte eine geschlossene benutzergruppe mit KJM-anerkannter pruefung (selbstauskunft reicht nicht); keine quelle, dass dating-apps an sich darunter fallen -> haengt an den inhalten (snaps), anwalt fragen
+    - KJM-anerkannte kommerzielle anbieter z. B. AgeGO, Mobbeel (sehen ausweis/gesicht)
+    - Grindr (UK, Online Safety Act seit 25.07.2025): einmalige pruefung ueber FaceTec, video-selfie (alters-schaetzung) oder selfie + ausweis; daten laut Grindr danach geloescht; sonst konto per e-mail/telefon
+    - Snapchat: konto per e-mail/telefon, geburtstag selbst angegeben + alters-erkennung aus signalen; AU (seit 11/2025, unter-16-verbot): bankkonto (ConnectID), ausweis oder selfie-schaetzung (k-ID), ~415k konten gesperrt; UK: "highly effective age assurance", >1 mio als 18+ bestaetigt (09/2026); behoerden bekommen bestandsdaten (nutzername, e-mail, telefon) + IP-daten per rechtsweg, sicherung 90 tage (+90)
+    - IP-speicherung DE: kabinettsentwurf 22.04.2026, provider speichern IP + port 3 monate, nur zuordnung IP -> anschlussinhaber; anhoerung rechtsausschuss 07.10.2026, noch nicht beschlossen -> mit kurzem eigenem ip-protokoll waere rueckverfolgung ueber den normalen rechtsweg moeglich
+
+## T3 Nacktbild-Erkennung beim Empfaenger (idee 2026-10-26, besprechen)
+- [ ] lokales modell auf dem geraet des empfaengers erkennt nacktbilder in chat-bildern/snaps/alben -> unscharf + "trotzdem ansehen"; bild verlaesst das geraet nie (passt zu E2EE)
+  - kontext: app ist nicht fuer nacktbilder gedacht (galerien, normale fotos) -> JMStV-pflichten fuer jugendgefaehrdende inhalte greifen wohl nicht; schutz gegen ungefragte bilder trotzdem sinnvoll
+  - vorbild: Bumble "Private Detector" (2022 open source, kommerziell nutzbar; lizenz/framework im repo pruefen), Apple Communication Safety, Instagram-Nacktschutz
+  - offen: modell selbst ausliefern (keine CDN, regel 1), groesse (einige MB, lazy laden, im SW-cache), tf.js/onnx im browser + leistung auf alten handys, standard an/aus, auch absender-seitig warnen?
+  - grenze: nur schutz, keine durchsetzung (eigener client kann es abschalten); kein melden an den server
+
 ## Eigene rotierende Verschluesselung (geparkt, erst besprechen)
 - [ ] gestohlene album-schluessel sollen nach der epoche wertlos sein; idee: eigener, vom server getakteter algorithmus -> `tasks/feature-request-rotating-encryption.md`
   - offen: konflikt mit regel "crypto nur ueber `crypto.subtle`"; alternative: server-epochen-geheimnis + `CK_e` per HKDF (AES-GCM bleibt)

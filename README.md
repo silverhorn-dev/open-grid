@@ -105,8 +105,15 @@ Version ist `Build <Commit-Anzahl> (<Hash>)`.
 - Fehlt auf dem Jenkins-Agent die Docker-CLI, laedt `scripts/ci-env.sh` sie
   samt Compose- und Buildx-Plugin einmalig nach `<workspace>@tools` (statische
   Binaries von docker.com/GitHub, braucht `curl` oder `wget`).
-- Die Produktions-`.env` liegt als Credential `open-grid-env` (Secret file) in
-  Jenkins und wird per `--env-file` uebergeben.
+- Konfiguration pro Multibranch-Pipeline, ohne `.env`-Datei: normale Werte
+  (`TURN_SERVER`, `COMPOSE_PROFILES`, `INFO_HOST`, `APP_URL`, `VAPID_SUBJECT`,
+  `CLIENT_DEFAULTS`, ...) als Folder Properties des Jobs (Plugin "Folder
+  Properties"), das Geheimnis `TURN_SECRET` als Credential
+  `open-grid-turn-secret` (Secret text) im Credential-Store des Jobs. Compose
+  liest die Werte direkt aus der Umgebung. VAPID-Schluessel sind optional; wer
+  schon feste Schluessel hatte, uebernimmt sie, sonst muessten sich Geraete fuer
+  Push neu anmelden. Uebergangsweise wird ein vorhandenes Credential
+  `open-grid-env` (Secret file mit der `.env`) bevorzugt.
 - `COMPOSE_PROJECT_NAME` ist `open-grid`, damit das bestehende Projekt samt
   Volume weiterverwendet wird (pruefen mit `docker compose ls`).
 - Ausloeser: GitHub-Webhook (`/github-webhook/`), sonst Abfrage alle 5 Minuten.

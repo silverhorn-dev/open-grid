@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 131 · 2026-10-26
+## Build 132 · 2026-10-26
+- Betrieb: Jenkins braucht keine `.env`-Datei mehr; Einstellungen pro Pipeline als Folder Properties, das TURN-Geheimnis als einzelnes Credential (die alte `.env` wird uebergangsweise weiter genutzt)
+
+## Build 131 · 2026-10-26 · `5992b3f`
 - Info-Seite fuer alle: was OpenGrid ist, erste Schritte, Funktionen, Privatsphaere, haeufige Fragen und Selbst betreiben, auf Deutsch und Englisch, wahlweise einfach erklaert oder mit Fachbegriffen; im Menue unter "Hilfe & Info" und beim Einrichten des Profils
 - Betreiber koennen die Info-Seite auf eine eigene Subdomain legen (`INFO_HOST`, `APP_URL`)
 - Changelog in der App mit derselben Darstellung wie die Info-Seite

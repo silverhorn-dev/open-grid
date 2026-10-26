@@ -11,7 +11,12 @@
 //   auf den Socket (z. B. `--group-add <GID der docker-Gruppe des Hosts>`)
 // - Docker-CLI: fehlt sie auf dem Agent, laedt `scripts/ci-env.sh` sie (plus Compose/Buildx) einmalig
 //   nach `<workspace>@tools`; jeder Docker-Schritt bindet das Skript ein
-// - Credential "open-grid-env" (Secret file): die Produktions-.env (TURN_*, VAPID_*, COMPOSE_PROFILES, ...)
+// - Konfiguration pro Multibranch-Pipeline, ohne .env-Datei:
+//   * Plugin "Folder Properties": Job konfigurieren -> Folder Properties, z. B. TURN_SERVER, COMPOSE_PROFILES,
+//     INFO_HOST, APP_URL, VAPID_SUBJECT, CLIENT_DEFAULTS (alle Variablen aus .env.example ausser Geheimnissen)
+//   * Credential "open-grid-turn-secret" (Secret text) im Credential-Store des Jobs: TURN_SECRET.
+//     VAPID-Schluessel sind optional (fehlen sie, erzeugt der Server sie einmalig und speichert sie im Volume).
+//   * Uebergang: gibt es noch das Credential "open-grid-env" (Secret file, die alte .env), wird es genutzt.
 // - GitHub-Webhook auf <jenkins>/github-webhook/ (GitHub-Plugin), sonst greift die Abfrage alle 5 Minuten
 pipeline {
     agent any
@@ -75,12 +80,38 @@ pipeline {
                 expression { (env.BRANCH_NAME ?: env.GIT_BRANCH ?: '').replaceFirst('^origin/', '') == 'main' }
             }
             steps {
-                withCredentials([file(credentialsId: 'open-grid-env', variable: 'OPEN_GRID_ENV')]) {
-                    sh '''
-                        . scripts/ci-env.sh
-                        docker compose --env-file "$OPEN_GRID_ENV" config --quiet
-                        docker compose --env-file "$OPEN_GRID_ENV" up -d --build
-                    '''
+                script {
+                    // Alte Variante zuerst: .env als Secret file. Fehlt das Credential, scheitert withCredentials,
+                    // bevor der Block laeuft; Fehler im Deploy selbst werden normal weitergereicht.
+                    boolean started = false
+                    try {
+                        withCredentials([file(credentialsId: 'open-grid-env', variable: 'OPEN_GRID_ENV')]) {
+                            started = true
+                            echo 'Konfiguration: Credential open-grid-env (.env-Datei)'
+                            sh '''
+                                . scripts/ci-env.sh
+                                docker compose --env-file "$OPEN_GRID_ENV" config --quiet
+                                docker compose --env-file "$OPEN_GRID_ENV" up -d --build
+                            '''
+                        }
+                    } catch (error) {
+                        if (started) throw error
+                        echo 'Konfiguration: Folder Properties + Credential open-grid-turn-secret'
+                        withFolderProperties {
+                            withCredentials([string(credentialsId: 'open-grid-turn-secret', variable: 'TURN_SECRET')]) {
+                                sh '''
+                                    . scripts/ci-env.sh
+                                    if [ -n "${TURN_SERVER:-}" ] && [ -z "${TURN_SECRET:-}" ]; then
+                                        echo "TURN_SERVER ist gesetzt, aber TURN_SECRET fehlt (Credential open-grid-turn-secret)." >&2
+                                        exit 1
+                                    fi
+                                    echo "TURN_SERVER=${TURN_SERVER:-<leer>} COMPOSE_PROFILES=${COMPOSE_PROFILES:-<leer>} INFO_HOST=${INFO_HOST:-<leer>} APP_URL=${APP_URL:-<leer>}"
+                                    docker compose config --quiet
+                                    docker compose up -d --build
+                                '''
+                            }
+                        }
+                    }
                 }
                 // Warten, bis der Healthcheck des neuen Containers gruen ist.
                 sh '''

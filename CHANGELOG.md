@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 124 · 2026-10-26
+## Build 125 · 2026-10-26
+- Eingabeleiste aufgeraeumt: alle Knoepfe gleich gross und gut zu treffen, Eingabefeld gleich hoch, Platzhalter bleibt einzeilig
+- Desktop: keine doppelte Avatar-Leiste mehr im Chat (die Chatliste steht daneben)
+
+## Build 124 · 2026-10-26 · `7a5bea7`
 - Englisch als zweite Sprache: Einstellungen > Allgemein > Sprache (Automatisch folgt dem Geraet); Betreiber koennen einen Standard vorgeben (`CLIENT_DEFAULTS.language`)
 - Deutsche Oberflaeche jetzt durchgehend deutsch (Profilfelder, Grid, Benachrichtigungs-Knopf u. a. waren englisch)
 - Uhrzeiten ueberall im 24-Stunden-Format; in der Chatliste "Gestern" statt Datum

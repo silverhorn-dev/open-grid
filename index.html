@@ -276,32 +276,32 @@
                         </button>
                     </div>
                     <div id="chat-voice-bar" class="hidden flex items-center gap-3">
-                        <button data-click="cancelVoiceRecording" class="w-10 h-10 rounded-lg text-slate-300 hover:bg-slate-800 flex items-center justify-center" aria-label="Aufnahme verwerfen" title="Verwerfen">
+                        <button data-click="cancelVoiceRecording" class="compose-btn compose-btn-icon" aria-label="Aufnahme verwerfen" title="Verwerfen">
                             <i class="fa-solid fa-trash"></i>
                         </button>
                         <span id="chat-voice-dot" class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" aria-hidden="true"></span>
                         <span id="chat-voice-time" class="text-sm tabular-nums text-slate-200">0:00</span>
                         <span id="chat-voice-direct-hint" class="hidden text-[11px] text-amber-400" title="Die erste Minute geht auch ueber den Router-Cache, der Rest nur ueber eine direkte Verbindung"><i class="fa-solid fa-tower-broadcast"></i> Rest nur direkt</span>
                         <span id="chat-voice-transcript-hint" class="hidden text-[11px] text-slate-400" title="Wird nur auf diesem Geraet verschriftlicht"><i class="fa-solid fa-closed-captioning"></i> lokal</span>
-                        <button data-click="sendVoiceRecording" class="ml-auto bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-1.5" aria-label="Sprachnachricht senden">
+                        <button data-click="sendVoiceRecording" class="compose-btn compose-btn-primary ml-auto" aria-label="Sprachnachricht senden">
                             <i class="fa-solid fa-paper-plane"></i><span class="hidden sm:inline">Senden</span>
                         </button>
                     </div>
                     <div id="chat-compose-row" class="flex items-end gap-2">
-                        <button id="chat-snap-btn" data-chat-image-action data-click="openSnapUploadModal" class="disabled:opacity-40 bg-slate-800 hover:bg-slate-700 text-brand-400 border border-slate-700 p-2.5 rounded-lg transition flex items-center gap-1.5 text-xs font-semibold" title="Snap senden">
+                        <button id="chat-snap-btn" data-chat-image-action data-click="openSnapUploadModal" class="compose-btn" title="Snap senden" aria-label="Snap senden">
                             <i class="fa-solid fa-bolt text-amber-400"></i><span class="hidden sm:inline">Snap</span>
                         </button>
-                        <button id="chat-album-btn" data-chat-image-action data-click="openAlbumPicker" class="disabled:opacity-40 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 p-2.5 rounded-lg transition text-xs" title="Album teilen" aria-label="Album teilen">
+                        <button id="chat-album-btn" data-chat-image-action data-click="openAlbumPicker" class="compose-btn compose-btn-icon" title="Album teilen" aria-label="Album teilen">
                             <i class="fa-solid fa-images"></i>
                         </button>
-                        <button id="chat-video-btn" data-chat-image-action data-click="pickChatVideo" class="disabled:opacity-40 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 p-2.5 rounded-lg transition text-xs" title="Video senden (nur direkt)" aria-label="Video senden">
+                        <button id="chat-video-btn" data-chat-image-action data-click="pickChatVideo" class="compose-btn compose-btn-icon" title="Video senden (nur direkt)" aria-label="Video senden">
                             <i class="fa-solid fa-film"></i>
                         </button>
-                        <textarea id="chat-input" rows="1" placeholder="Nachricht schreiben..." class="chat-input flex-1 min-w-0 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-base md:text-sm text-slate-100 focus:outline-none focus:border-brand-500 transition"></textarea>
-                        <button id="send-chat-btn" data-click="sendChatMessage" class="bg-brand-600 hover:bg-brand-500 disabled:bg-slate-700 disabled:text-slate-400 text-white px-3 sm:px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-1.5" title="Senden">
+                        <textarea id="chat-input" rows="1" placeholder="Nachricht schreiben..." class="chat-input flex-1 min-w-0 text-base md:text-sm"></textarea>
+                        <button id="send-chat-btn" data-click="sendChatMessage" class="compose-btn compose-btn-primary" title="Senden" aria-label="Senden">
                             <i class="fa-solid fa-paper-plane"></i><span class="hidden sm:inline">Senden</span>
                         </button>
-                        <button id="chat-voice-btn" data-chat-image-action data-click="startVoiceRecording" class="hidden disabled:opacity-40 bg-brand-600 hover:bg-brand-500 text-white px-3 sm:px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-1.5" title="Sprachnachricht aufnehmen" aria-label="Sprachnachricht aufnehmen">
+                        <button id="chat-voice-btn" data-chat-image-action data-click="startVoiceRecording" class="compose-btn compose-btn-primary compose-btn-icon hidden" title="Sprachnachricht aufnehmen" aria-label="Sprachnachricht aufnehmen">
                             <i class="fa-solid fa-microphone"></i>
                         </button>
                     </div>

@@ -19,7 +19,7 @@ async function main() {
     const browser = await chromium.launch();
     const pageErrors = [];
     try {
-        const page = await (await browser.newContext({ locale: 'de-DE', viewport: { width: 1200, height: 800 } })).newPage();
+        const page = await (await browser.newContext({ locale: 'de-DE', viewport: { width: 420, height: 860 } })).newPage();
         page.on('pageerror', error => pageErrors.push(error.message));
         await page.goto(`${BASE_URL}/`);
         await page.waitForSelector('#complete-onboarding-btn', { state: 'visible', timeout: 20000 });
@@ -85,6 +85,10 @@ async function main() {
         await waitFor(page, () => Boolean(state.ws && state.ws.readyState === 1));
         assert.equal(await page.evaluate(() => state.chatSwitchSettings.enabled), false);
 
+        // Desktop: die Chatliste steht daneben, die Leiste ist ausgeblendet.
+        await page.setViewportSize({ width: 1200, height: 800 });
+        await page.evaluate(() => { state.chatSwitchSettings.style = 'bar'; state.chatSwitchSettings.enabled = true; renderActivePeerList(); });
+        assert.equal(await page.isVisible('#chat-switch-bar'), false, 'desktop hides the bar');
         assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log('E2E OK (chat switch)');
     } finally {

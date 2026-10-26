@@ -234,10 +234,58 @@ html.debug-on .debug-off-only {
 .chat-input {
     resize: none;
     overflow-y: hidden;
+    min-height: 2.75rem;
+    padding: 0.6875rem 0.875rem;
+    border: 1px solid rgb(var(--slate-800));
+    border-radius: 0.75rem;
+    background: rgb(var(--slate-950));
+    color: rgb(var(--slate-100));
     line-height: 1.4;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
+    transition: border-color 150ms ease;
 }
+.chat-input:focus {
+    outline: none;
+    border-color: rgb(var(--brand-500));
+}
+.chat-input:disabled { opacity: 0.6; }
+/* Platzhalter einzeilig: sonst macht er das Feld auf schmalen Bildschirmen zweizeilig. */
+.chat-input::placeholder {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: rgb(var(--slate-500));
+}
+
+/* Eingabeleiste: alle Knoepfe gleich hoch (44 px Touch-Ziel), ein Neben- und ein Hauptstil */
+.compose-btn {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    height: 2.75rem;
+    min-width: 2.75rem;
+    padding: 0 0.875rem;
+    border: 1px solid rgb(var(--slate-700));
+    border-radius: 0.75rem;
+    background: rgb(var(--slate-800));
+    color: rgb(var(--slate-300));
+    font-size: 0.8125rem;
+    font-weight: 600;
+    transition: background-color 150ms ease;
+}
+.compose-btn:hover { background: rgb(var(--slate-700)); }
+.compose-btn:disabled { opacity: 0.4; cursor: default; }
+.compose-btn.hidden { display: none; }
+.compose-btn-icon { width: 2.75rem; padding: 0; }
+.compose-btn-primary {
+    border-color: transparent;
+    background: rgb(var(--brand-600));
+    color: #fff;
+}
+.compose-btn-primary:hover { background: rgb(var(--brand-500)); }
 
 /* Desktop: Chat als begrenzte Box, nur die Nachrichten scrollen, Kontaktleiste bleibt stehen */
 @media (min-width: 768px) {
@@ -598,3 +646,8 @@ html.debug-on .debug-off-only {
 .btn-secondary:hover { background: rgb(var(--slate-700)); }
 .btn-primary:disabled,
 .btn-secondary:disabled { opacity: 0.6; }
+
+/* Desktop: die Chatliste steht direkt daneben, die Avatar-Leiste im Chat waere doppelt. */
+@media (min-width: 768px) {
+    #chat-switch-bar { display: none !important; }
+}

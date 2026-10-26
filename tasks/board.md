@@ -73,8 +73,10 @@
       - nutzer 2026-10-26: schalter statt checkboxen, auf dem smartphone angenehmer
       - done: tabs Allgemein/Privatsphaere/Chat/Medien/Darstellung/Debug (sticky unter der kopfzeile, letzter tab gemerkt), zeilen mit titel + kurzer beschreibung und schalter/auswahl rechts, `.switch`, `.setting-row`, `.btn-primary`/`.btn-secondary` (styles.css); U4 gleich mit erledigt (keine "1 -"/"A -"-codes mehr)
     - [x] U4 interne codes sichtbar: "1 - Alles fuer alle", "A - Alle" -> nur klartext (mit U3)
-    - plan: U5 buttons: gleiche hoehe/form in der eingabeleiste (snap/video/mic unterschiedlich hoch), ein primaer-stil, ein sekundaer-stil, ein icon-knopf-stil als wiederverwendbare klassen (statt langer tailwind-ketten pro knopf)
-    - plan: U6 desktop: avatar-leiste im chat doppelt zur sichtbaren chatliste -> auf desktop ausblenden; aktionen-pfeil auf desktop nur beim hovern
+    - [x] U5 buttons: gleiche hoehe/form in der eingabeleiste (snap/video/mic unterschiedlich hoch), ein primaer-stil, ein sekundaer-stil, ein icon-knopf-stil als wiederverwendbare klassen (statt langer tailwind-ketten pro knopf)
+      - done 2026-10-26: eingabeleiste mit `.compose-btn`/`.compose-btn-primary` (44 px, gleiche form), eingabefeld gleich hoch, platzhalter einzeilig
+    - [x] U6 desktop: avatar-leiste im chat doppelt zur sichtbaren chatliste -> auf desktop ausblenden; aktionen-pfeil auf desktop nur beim hovern
+      - done 2026-10-26: avatar-leiste ab 768 px ausgeblendet; aktionen-pfeil ist auf echtem desktop schon nur beim hovern (headless-chromium meldet hover:none, daher in screenshots sichtbar)
     - plan: U7 leere zustaende/ladeanzeigen einheitlich (grid leer, chatliste leer, "Chat wird geladen", album leer) mit gleichem icon+text-muster
     - plan: U8 profil-tab: "Speichern" oben rechts, aenderungen ohne hinweis auf ungespeichert -> sticky speicherleiste unten, sobald etwas geaendert ist
     - plan: U9 menue: nur 3 punkte, viel leerraum -> modus-wechsel, kontakt einladen und changelog/version mit hinein

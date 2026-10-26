@@ -90,14 +90,38 @@ async function main() {
         await page.evaluate(() => setAppMode('discovery'));
         assert.equal(await page.isVisible('#album-manager-card'), true);
 
-        // Menue: eigenes Profil oben, "Kontakt einladen" fuehrt zur Einladung in den Einstellungen.
+        // Menue: Modus direkt umschalten; Einstellungen ueber das Menue.
         await page.evaluate(() => openMenu());
-        assert.match(await page.textContent('#menu-name'), /Mobile/);
-        assert.match(await page.textContent('#menu-mode'), /Modus: /);
-        await page.click('#menu-invite-btn');
-        await waitFor(page, () => !document.getElementById('app-menu').classList.contains('is-open')
-            && !document.getElementById('invite-card').classList.contains('settings-off'));
-        assert.equal(await page.isVisible('#invite-card'), true);
+        assert.equal(await page.locator('#menu-modes .menu-mode').count() >= 2, true, 'mode chips in the menu');
+        assert.match(await page.textContent('#menu-modes .menu-mode.is-active'), /Entdecken/);
+        await page.click('#menu-modes .menu-mode >> text=Nur Chat');
+        await waitFor(page, () => state.appMode === 'chat');
+        assert.match(await page.textContent('#menu-modes .menu-mode.is-active'), /Nur Chat/);
+        await page.evaluate(() => closeMenu());
+
+        // Zahnrad im Profil oeffnet die Einstellungen; wischen: Profil <-> Einstellungen wie ein vierter Tab.
+        // (Vorher war ein Chat offen: das Wischen zwischen Tabs muss trotzdem gehen.)
+        await page.evaluate(() => switchTab('editprofile'));
+        await page.click('#profile-settings-btn');
+        await waitFor(page, () => !document.getElementById('view-keys').classList.contains('hidden'));
+        assert.equal(await page.evaluate(() => document.querySelector('[data-tab-btn="editprofile"][data-nav="bottom"]').classList.contains('is-active')), true, 'profile stays highlighted');
+        const cdp = await page.context().newCDPSession(page);
+        // Ueber der Ueberschrift der Ansicht (Eingabefelder und Auswahlen nehmen selbst keine Tab-Wischer an).
+        const swipe = async (fromX, toX) => {
+            const heading = await page.locator('main section:not(.hidden) h2').first().boundingBox();
+            const y = heading.y + heading.height / 2;
+            await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: fromX, y }] });
+            for (let step = 1; step <= 8; step++) {
+                await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: fromX + (toX - fromX) * step / 8, y }] });
+                await page.waitForTimeout(16);
+            }
+            await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+            await page.waitForTimeout(300);
+        };
+        await swipe(80, 330);
+        await waitFor(page, () => !document.getElementById('view-editprofile').classList.contains('hidden'));
+        await swipe(330, 80);
+        await waitFor(page, () => !document.getElementById('view-keys').classList.contains('hidden'));
 
         assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log('E2E OK (mobile layout)');

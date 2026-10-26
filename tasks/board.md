@@ -82,4 +82,5 @@
     - [x] U8 profil-tab: "Speichern" oben rechts, aenderungen ohne hinweis auf ungespeichert -> sticky speicherleiste unten, sobald etwas geaendert ist
       - done 2026-10-26: "Speichern" oben entfernt, leiste "Nicht gespeichert · Verwerfen · Speichern" unten (sticky ueber der navigation), verschwindet beim zuruecksetzen; avatar mit kamera-badge, auf dem smartphone tippbar (vorher nur per hover); e2e `profile-save`
     - [x] U9 menue: nur 3 punkte, viel leerraum -> modus-wechsel, kontakt einladen und changelog/version mit hinein
+      - nutzer 2026-10-26: profil-kopf und drei eintraege fuer einstellungen doppelt -> zahnrad im profil, einstellungen per wischen wie 4. tab, menue = modus direkt + einstellungen/changelog/debug/abmelden
       - done 2026-10-26: profilkopf (avatar, name, modus), Modus wechseln, Kontakt einladen, Einstellungen, Changelog (jetzt immer sichtbar), Debug-Modus; Abmelden und version unten abgesetzt

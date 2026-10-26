@@ -764,6 +764,17 @@ ueber Pfad C eingestellt; schlaegt auch das fehl, wird sie `Pending`. Beim
 Laden eines Chats werden Nachrichten, die laenger als 15 Sekunden auf
 `Establishing secure channel...` stehen, ebenfalls auf `Pending` gesetzt.
 
+**Gleichzeitiger Aufbau**: Bieten beide Seiten gleichzeitig an, gilt
+"perfect negotiation" (hoeflich ist die Seite mit der groesseren Node-ID, sie
+nimmt das Angebot der anderen an). Haengt der Aufbau trotzdem, versucht die
+hoefliche Seite es erst nach zufaelligen 1-3 s erneut und gar nicht, wenn die
+andere inzwischen begonnen hat (sonst kollidieren beide Wachhunde wieder).
+Fehlt beiden das Profil des anderen, wartet die hoefliche Seite 1,5 s mit dem
+eigenen Aufbau. Verschluesselte Nachrichten, die vor dem eigenen
+Sitzungsschluessel ankommen (beide leiten gleichzeitig ab), werden bis zu 50
+Stueck zurueckgehalten und danach in Reihenfolge verarbeitet (vorher gingen
+sie verloren, z. B. Profil-Anfragen).
+
 **Empfangsbestaetigung (P2P)**: Ein offener DataChannel kann halb tot sein
 (der Partner hat gerade das Netz verloren, ICE merkt es erst nach bis zu 30 s);
 `send()` klappt dann, die Nachricht kommt aber nie an. Der Empfaenger
@@ -1109,6 +1120,12 @@ Ein Klick auf die Benachrichtigung fokussiert die App und oeffnet den Chat
   die Seite neu. Uhrzeiten immer 24 h (`formatClockTime`). Profil-Schema:
   `label`/`default` als Text oder `{ de, en }` (`localizedText`). Der Service
   Worker zeigt seine Benachrichtigungen weiterhin auf Deutsch.
+- Navigation: unten Grid, Chat, Profil. Die Einstellungen haben keinen eigenen
+  Knopf: Zahnrad im Profil-Kopf, Eintrag im Menue, oder vom Profil nach links
+  wischen (`TAB_ORDER` grid, chat, editprofile, keys); dabei bleibt "Profil"
+  markiert. Das Menue (rechts) schaltet den App-Modus direkt um (Event ohne
+  Code fuehrt zur Code-Eingabe) und enthaelt Einstellungen, Changelog,
+  Debug-Modus, Abmelden und die Version.
 - Einstellungen (`#view-keys`): Bereiche als Tabs (`data-settings-tab` an den
   Karten, `switchSettingsTab` in `settings.js`, letzter Tab in `localStorage`
   `opengrid-settings-tab`; "Debug" nur im Debug-Modus). Zeilen `.setting-row`

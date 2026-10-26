@@ -300,7 +300,8 @@ function switchTab(tabName) {
     });
     // Desktop-Navigation oben und Bottom-Navigation auf Smartphones tragen dieselben data-tab-btn-Werte.
     document.querySelectorAll('[data-tab-btn]').forEach(button => {
-        const active = button.dataset.tabBtn === tabName;
+        // Einstellungen gehoeren zum Profil (Zahnrad dort, Wischen daneben): Profil bleibt markiert.
+        const active = button.dataset.tabBtn === (tabName === 'keys' ? 'editprofile' : tabName);
         button.classList.toggle('is-active', active);
         if (active) button.setAttribute('aria-current', 'page');
         else button.removeAttribute('aria-current');
@@ -378,17 +379,34 @@ function initSettingsTabs() {
 
 window.addEventListener('resize', fitChatListPanel);
 
-// Kopf des Menues: eigenes Profil und aktueller Modus; Eintraege nur, wenn sie hier Sinn ergeben.
+// Modus direkt im Menue umschalten (ohne Umweg ueber die Einstellungen).
 function renderMenu() {
-    const avatar = document.getElementById('menu-avatar');
-    if (avatar) avatar.src = localAvatar(state.myProfile.avatar);
-    const name = document.getElementById('menu-name');
-    if (name) name.textContent = state.myProfile.fields?.displayName || t('Mein Profil');
-    const mode = document.getElementById('menu-mode');
-    if (mode) mode.textContent = t('Modus: {mode}', { mode: APP_MODE_INFO[state.appMode]?.label || '' });
+    const container = document.getElementById('menu-modes');
     const modes = state.appConfig?.modes || [];
-    document.getElementById('menu-mode-btn')?.classList.toggle('hidden', modes.length < 2);
-    document.getElementById('menu-invite-btn')?.classList.toggle('hidden', !['chat', 'friends'].some(entry => modes.includes(entry)));
+    document.getElementById('menu-mode-section')?.classList.toggle('hidden', modes.length < 2);
+    if (!container) return;
+    container.replaceChildren(...modes.map(mode => {
+        const info = APP_MODE_INFO[mode];
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `menu-mode${mode === state.appMode ? ' is-active' : ''}`;
+        button.setAttribute('aria-pressed', String(mode === state.appMode));
+        button.title = info.description;
+        const icon = document.createElement('i');
+        icon.className = `fa-solid ${info.icon}`;
+        button.append(icon, document.createTextNode(info.label));
+        button.onclick = () => chooseModeFromMenu(mode).catch(logBackgroundError('chooseModeFromMenu'));
+        return button;
+    }));
+}
+
+async function chooseModeFromMenu(mode) {
+    if (mode === state.appMode) return;
+    if (mode === 'event' && !hasActiveEvent()) {
+        openModeFromMenu();
+        return;
+    }
+    await setAppMode(mode);
 }
 
 function openMenu() {

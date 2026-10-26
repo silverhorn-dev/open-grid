@@ -103,21 +103,11 @@
             </button>
         </div>
         <div class="flex-1 overflow-y-auto p-3 text-sm">
-            <button data-click="openProfileFromMenu" class="menu-profile">
-                <img id="menu-avatar" src="" alt="" class="w-12 h-12 rounded-full object-cover border border-slate-700 bg-slate-800">
-                <span class="min-w-0 text-left">
-                    <span id="menu-name" class="block font-semibold text-slate-100 truncate"></span>
-                    <span id="menu-mode" class="block text-xs text-slate-400 truncate"></span>
-                </span>
-                <i class="fa-solid fa-chevron-right ml-auto text-xs text-slate-500"></i>
-            </button>
+            <div id="menu-mode-section" class="px-1 pb-3">
+                <div class="px-2 pb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">Modus</div>
+                <div id="menu-modes" class="menu-modes" role="group" aria-label="Modus"></div>
+            </div>
             <div class="menu-section">
-                <button id="menu-mode-btn" data-click="openModeFromMenu" class="menu-item">
-                    <i class="fa-solid fa-sliders text-brand-400"></i> Modus wechseln
-                </button>
-                <button id="menu-invite-btn" data-click="openInviteFromMenu" class="menu-item">
-                    <i class="fa-solid fa-user-plus text-brand-400"></i> Kontakt einladen
-                </button>
                 <button data-click="openSettingsFromMenu" class="menu-item">
                     <i class="fa-solid fa-gear text-slate-400"></i> Einstellungen
                 </button>
@@ -337,6 +327,9 @@
                         </h2>
                         <p class="text-xs text-slate-400">Bearbeite dein Profil und deine Galerie. <span class="debug-only">Die Felder kommen aus dem Profil-Schema.</span></p>
                     </div>
+                    <button id="profile-settings-btn" data-click="openSettings" class="compose-btn compose-btn-icon" title="Einstellungen" aria-label="Einstellungen oeffnen">
+                        <i class="fa-solid fa-gear"></i>
+                    </button>
                 </div>
 
                 <!-- Media & Gallery Editor -->
@@ -433,7 +426,7 @@
             <h2 class="text-base font-bold text-slate-100 flex items-center gap-2 mb-1">
                 <i class="fa-solid fa-gear text-slate-400"></i> Einstellungen
             </h2>
-            <nav class="settings-tabs" role="tablist" aria-label="Bereiche der Einstellungen">
+            <nav class="settings-tabs" role="tablist" aria-label="Bereiche der Einstellungen" data-no-tab-swipe>
                 <button type="button" class="settings-tab" role="tab" data-settings-tab-btn="general" data-click="switchSettingsTab" data-args='["general"]'><i class="fa-solid fa-sliders"></i> Allgemein</button>
                 <button type="button" class="settings-tab" role="tab" data-settings-tab-btn="privacy" data-click="switchSettingsTab" data-args='["privacy"]'><i class="fa-solid fa-user-shield"></i> Privatsphaere</button>
                 <button type="button" class="settings-tab" role="tab" data-settings-tab-btn="chat" data-click="switchSettingsTab" data-args='["chat"]'><i class="fa-solid fa-comments"></i> Chat</button>

@@ -14,7 +14,9 @@ const LONG_PRESS_MS = 450;
 const DOUBLE_TAP_MS = 300;
 const TAB_SWIPE_TRIGGER = 80;
 const TAB_SWIPE_EDGE = 24;
-const TAB_ORDER = ['grid', 'chat', 'editprofile'];
+// Die Einstellungen haben keinen eigenen Knopf in der Navigation, liegen beim Wischen aber rechts
+// neben dem Profil wie ein vierter Tab.
+const TAB_ORDER = ['grid', 'chat', 'editprofile', 'keys'];
 const SHEET_CLOSE_TRIGGER = 100;
 const PULL_REFRESH_TRIGGER = 56;
 const PULL_REFRESH_MAX = 72;
@@ -154,7 +156,10 @@ function currentTab() {
 // Nicht in Bereichen, die selbst horizontal reagieren.
 function blocksTabSwipe(target) {
     if (target.closest('input, textarea, select, [data-no-tab-swipe], #chat-messages, .chat-bubble-wrap')) return true;
-    if (document.getElementById('view-chat')?.classList.contains('chat-open')) return true;
+    // Offener Chat (Smartphone, Vollbild): dort gehoert das seitliche Wischen den Nachrichten. Nur solange
+    // er sichtbar ist; im Hintergrund behaelt die Ansicht "chat-open", andere Tabs wischen trotzdem.
+    const chatView = document.getElementById('view-chat');
+    if (chatView?.classList.contains('chat-open') && !chatView.classList.contains('hidden')) return true;
     for (let element = target; element && element !== document.body; element = element.parentElement) {
         const overflowX = getComputedStyle(element).overflowX;
         if ((overflowX === 'auto' || overflowX === 'scroll') && element.scrollWidth > element.clientWidth) return true;

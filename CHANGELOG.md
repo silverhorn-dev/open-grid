@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 127 · 2026-10-26
+## Build 128 · 2026-10-26
+- Einstellungen ohne Umwege: Zahnrad im Profil, oder vom Profil nach links wischen (wie ein vierter Tab); im Menue den Modus direkt umschalten statt Profil-Kopf und Einladen-Eintrag (doppelt zur Navigation und Chatliste)
+- Behoben: nach dem Oeffnen eines Chats liess sich nicht mehr zwischen den Tabs wischen
+
+## Build 127 · 2026-10-26 · `270baee`
 - Menue neu: eigenes Profil und aktueller Modus oben, dazu Modus wechseln, Kontakt einladen, Einstellungen und Changelog (jetzt immer sichtbar); Abmelden und Version unten
 
 ## Build 126 · 2026-10-26 · `6c77237`

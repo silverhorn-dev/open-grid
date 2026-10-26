@@ -709,18 +709,32 @@ html.debug-on .debug-off-only {
 }
 .profile-save-bar.hidden { display: none; }
 
-/* Menue: Profilkopf und Abschnitte */
-.menu-profile {
+/* Menue: Modus-Auswahl und Abschnitte */
+.menu-modes {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.375rem;
+}
+.menu-mode {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    width: 100%;
-    padding: 0.625rem 0.75rem;
-    margin-bottom: 0.5rem;
-    border-radius: 0.875rem;
-    background: rgb(var(--slate-800) / 0.6);
+    gap: 0.5rem;
+    min-height: 2.75rem;
+    padding: 0.5rem 0.625rem;
+    border: 1px solid rgb(var(--slate-800));
+    border-radius: 0.75rem;
+    background: rgb(var(--slate-950) / 0.4);
+    color: rgb(var(--slate-300));
+    font-size: 0.8125rem;
+    font-weight: 600;
+    text-align: left;
 }
-.menu-profile:hover { background: rgb(var(--slate-800)); }
+.menu-mode i { color: rgb(var(--brand-400)); }
+.menu-mode.is-active {
+    border-color: rgb(var(--brand-500) / 0.6);
+    background: rgb(var(--brand-500) / 0.15);
+    color: rgb(var(--brand-400));
+}
 .menu-section {
     display: flex;
     flex-direction: column;

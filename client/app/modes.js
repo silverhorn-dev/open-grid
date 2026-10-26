@@ -133,6 +133,7 @@ function buildGridQuery() {
 
 // ----- Oberflaeche -----
 function applyAppModeUi() {
+    if (typeof renderMenu === 'function') renderMenu();
     syncAlbumCardVisibility();
     updateChatAlbumButton();
     const gridAvailable = isGridAvailable();

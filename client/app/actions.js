@@ -130,20 +130,16 @@ function renderChangelog(markdown) {
     return root;
 }
 
-function openProfileFromMenu() {
-    switchTab('editprofile');
-    closeMenu();
+function openSettings() {
+    switchTab('keys');
 }
 
+// Event ohne Code: in den Einstellungen den Code eingeben.
 function openModeFromMenu() {
     switchTab('keys');
     switchSettingsTab('general');
     closeMenu();
-}
-
-function openInviteFromMenu() {
-    openInviteCard();
-    closeMenu();
+    document.getElementById('event-code-input')?.focus();
 }
 
 function openCloudFromMenu() {

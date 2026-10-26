@@ -28,7 +28,7 @@ pipeline {
     }
 
     parameters {
-        booleanParam(name: 'DO_E2E', defaultValue: false, description: 'E2E-Tests ueberspringen (nur im Notfall)')
+        booleanParam(name: 'SKIP_E2E', defaultValue: true, description: 'E2E-Tests ueberspringen (nur im Notfall)')
     }
 
     environment {
@@ -63,7 +63,7 @@ pipeline {
 
         stage('E2E-Tests') {
             when {
-                expression { params.DO_E2E }
+                expression { !params.SKIP_E2E }
             }
             steps {
                 sh '. scripts/ci-env.sh && sh scripts/e2e.sh'

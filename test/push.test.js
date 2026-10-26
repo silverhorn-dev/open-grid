@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import crypto, { generateKeyPairSync, randomBytes, sign } from 'node:crypto';
 import { afterEach, beforeEach, test } from 'node:test';
+import vm from 'node:vm';
 import { buildApp } from '../server/app.js';
 import { createStore } from '../server/database.js';
 import {
@@ -299,4 +300,22 @@ test('serves the service worker from the root scope without automatic skipWaitin
     assert.equal(response.body.match(/self\.skipWaiting\(/g).length, 1);
     assert.match(response.body, /if \(event\.data\?\.type === 'ACTIVATE_UPDATE'\) self\.skipWaiting\(\);/);
     assert.doesNotMatch(response.body, /\bwindow\.|\bdocument\./);
+});
+
+test('service worker notification texts come from the properties and follow the browser language', async () => {
+    const response = await app.inject({ method: 'GET', url: '/sw.js' });
+    assert.doesNotMatch(response.body, /__SW_TEXTS__/);
+    const navigator = { languages: ['en-US', 'de'] };
+    const context = {
+        self: { addEventListener: () => {}, registration: {}, clients: {}, location: { origin: '' }, navigator },
+        setTimeout,
+        queueMicrotask,
+        structuredClone
+    };
+    vm.runInNewContext(response.body, context);
+    assert.equal(context.swText('sw.newMessageFrom', { name: 'Alex' }), 'New message from Alex');
+    navigator.languages = ['fr-FR', 'de-AT'];
+    assert.equal(context.swText('sw.newMessages'), 'Neue Nachrichten');
+    navigator.languages = ['fr-FR'];
+    assert.equal(context.swText('sw.voiceMessage'), 'Sprachnachricht', 'unknown languages fall back to German');
 });

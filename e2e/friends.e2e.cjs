@@ -53,7 +53,7 @@ async function main() {
         await alice.click('#modal-match-actions button:has-text("Adden")');
         await waitFor(alice, id => hasSentFriendRequest(id), bobId);
         await waitFor(bob, id => hasFriendRequest(id), aliceId);
-        assert.match(await bob.textContent('#active-peers-list'), /hi bob|Moechte dich adden/);
+        assert.match(await bob.textContent('#active-peers-list'), /hi bob|Möchte dich adden/);
 
         // B nimmt an.
         await bob.evaluate(id => openProfileModal(id), aliceId);

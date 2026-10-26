@@ -46,6 +46,7 @@ function loadServiceWorker() {
     const context = {
         self: { addEventListener: () => {}, registration: {}, clients: {}, location: { origin: '' } },
         __PRECACHE_URLS__: [],
+        __SW_TEXTS__: {},
         setTimeout,
         queueMicrotask,
         structuredClone

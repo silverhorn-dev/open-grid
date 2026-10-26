@@ -1122,8 +1122,12 @@ Ein Klick auf die Benachrichtigung fokussiert die App und oeffnet den Chat
   `data-i18n-attr="attr:schluessel;..."`, einmal bei `DOMContentLoaded`
   gefuellt (das deutsche Markup ist nur Rueckfall). Uhrzeiten immer 24 h
   (`formatClockTime`). Profil-Schema: `label`/`default` als Text (bleibt
-  unveraendert) oder `{ de, en }` (`localizedText`). Der Service Worker zeigt
-  seine Benachrichtigungen weiterhin auf Deutsch.
+  unveraendert) oder `{ de, en }` (`localizedText`). Deutsche Texte mit echten
+  Umlauten. Service Worker: der Server setzt beim Ausliefern von `/sw.js` nur
+  die Schluessel `sw.*` aller Sprachen ein (`__SW_TEXTS__`); `swText(key,
+  params)` waehlt nach der Browsersprache (`navigator.languages`, sonst
+  Deutsch), weil der SW die Spracheinstellung in `localStorage` nicht lesen
+  kann.
 - Info-Seite (`server/info-site.js`, `client/info/site.js`, `info-site/`):
   Seiten `info-site/pages/<sprache>/<seite>.md` (feste Liste `INFO_PAGES`,
   dazu `news` = `CHANGELOG.md`), Begriffe `info-site/i18n/<sprache>.properties`

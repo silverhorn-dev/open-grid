@@ -46,7 +46,7 @@ async function main() {
         ]);
         await waitFor(page, () => document.documentElement.lang === 'de');
         await waitFor(page, () => Boolean(document.querySelector('[data-settings-tab-btn="privacy"]')));
-        assert.equal((await page.textContent('[data-settings-tab-btn="privacy"]')).trim(), 'Privatsphaere');
+        assert.equal((await page.textContent('[data-settings-tab-btn="privacy"]')).trim(), 'Privatsphäre');
         await page.evaluate(() => switchTab('keys'));
         assert.equal(await page.inputValue('#language-select'), 'de');
 

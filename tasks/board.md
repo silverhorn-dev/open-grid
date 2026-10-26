@@ -51,8 +51,10 @@
 
 - [x] info-website aus der doku, fuer nicht-techies, sprachen + fachbegriffe umschaltbar (wunsch 2026-10-26)
   - done: subdomain per `INFO_HOST` (sonst `/info`), seiten `info-site/pages/<sprache>/*.md`, begriffe `info-site/i18n/*.properties` mit `.plain`-varianten und `${ui:...}`; app-uebersetzungen vorher auf schluessel umgestellt (`i18n/*.properties`); tests `test/info-site.test.js`, e2e `info-site`
-- [ ] echte umlaute in den app-texten (`i18n/de.properties` noch mit ae/oe/ue, auf der info-seite fallen `${ui:...}`-beschriftungen wie "Privatsphaere" auf); e2e-tests pruefen teils diese schreibweise
-- [ ] info-seite: push-texte des service workers sind noch nur deutsch
+- [x] echte umlaute in den app-texten (`i18n/de.properties` noch mit ae/oe/ue, auf der info-seite fallen `${ui:...}`-beschriftungen wie "Privatsphaere" auf); e2e-tests pruefen teils diese schreibweise
+  - done 2026-10-26: werte in `de.properties` + rueckfalltexte im markup mit ä/ö/ü/ß (schluessel bleiben ascii), e2e-selektoren angepasst
+- [x] info-seite: push-texte des service workers sind noch nur deutsch
+  - done 2026-10-26: schluessel `sw.*`, server setzt sie in `/sw.js` ein, sprache = browsersprache (nutzer: reicht so); test in `test/push.test.js`
 
 ## chat improvements
 - [x] audio messages
@@ -71,7 +73,7 @@
     - [x] U1 sprache einheitlich deutsch: profil-felder "Display Name", "Age", "Position / Role", "About Me" + englische beispielwerte ("Privacy-first tech enthusiast!"), grid "6 peers • Updated 01:54:30 PM", "Enable Notifications", kontaktleiste "offline"
       - nutzer 2026-10-26: uebersetzungsdateien, sprache umschaltbar
       - done: `client/i18n.js` (`t()`, deutsch = schluessel), `client/i18n/en.js` (510 eintraege), statisches markup beim start uebersetzt, einstellung Allgemein > Sprache (auto/de/en, `CLIENT_DEFAULTS.language`), schema-labels `{de,en}`, englische quelltexte auf deutsch umgestellt; `scripts/i18n-keys.mjs`, tests `test/i18n.test.js`, e2e `i18n`
-      - offen: service worker (push-texte) noch nur deutsch
+      - done 2026-10-26: service worker (push-texte) nach browsersprache
     - [x] U2 zeitformat einheitlich: chatliste "01:54 PM" (locale des browsers), nachrichten "21:01", grid mit sekunden -> ueberall 24h ohne sekunden (bzw. "gestern", datum)
       - done mit U1: `formatClockTime` (24 h ohne sekunden), chatliste "Gestern" bzw. datum
     - [x] U3 einstellungen: eine sehr lange seite (~9 bildschirme) -> abschnitte mit sprungleiste/tabs (Konto & Modus, Chat, Privatsphaere, Medien & Snaps, Benachrichtigungen, Darstellung); chat-wechsel-optionen stehen unter "Darstellung", wasserzeichen unter "Secure Snaps"

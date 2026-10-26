@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 132 · 2026-10-26
+## Build 133 · 2026-10-26
+- Deutsche Texte in der App mit echten Umlauten (ä, ö, ü, ß)
+- Push-Benachrichtigungen erscheinen in der Sprache des Browsers (Deutsch oder Englisch)
+
+## Build 132 · 2026-10-26 · `54406ec`
 - Betrieb: Jenkins braucht keine `.env`-Datei mehr; Einstellungen pro Pipeline als Folder Properties, das TURN-Geheimnis als einzelnes Credential (die alte `.env` wird uebergangsweise weiter genutzt)
 
 ## Build 131 · 2026-10-26 · `5992b3f`

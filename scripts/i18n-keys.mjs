@@ -2,6 +2,7 @@
 /**
  * Prueft die Uebersetzungen (i18n/<sprache>.properties) gegen die Nutzung:
  *   - t('bereich.name')-Aufrufe in client/*.js und client/app/*.js
+ *   - swText('sw.name')-Aufrufe in client/sw.js (Benachrichtigungstexte)
  *   - data-i18n="..." und data-i18n-attr="attr:schluessel;..." in index.html
  * Aufruf: node scripts/i18n-keys.mjs           -> Bericht (fehlend, ungenutzt, Platzhalter)
  * Wird auch von test/i18n.test.js genutzt.
@@ -28,6 +29,7 @@ export function usedKeys() {
     for (const file of clientFiles()) {
         for (const match of readFileSync(file, 'utf8').matchAll(/\bt\('([a-zA-Z0-9_.]+)'/g)) keys.add(match[1]);
     }
+    for (const match of readFileSync(join(root, 'client', 'sw.js'), 'utf8').matchAll(/\bswText\('([a-zA-Z0-9_.]+)'/g)) keys.add(match[1]);
     const html = readFileSync(join(root, 'index.html'), 'utf8');
     for (const match of html.matchAll(/\sdata-i18n="([^"]+)"/g)) keys.add(match[1]);
     for (const match of html.matchAll(/\sdata-i18n-attr="([^"]+)"/g)) {

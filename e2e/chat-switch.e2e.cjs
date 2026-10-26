@@ -56,9 +56,9 @@ async function main() {
         // Pfeile.
         await page.evaluate(() => updateChatSwitchSetting('style', 'arrows'));
         assert.equal(await page.isVisible('#chat-switch-bar'), false);
-        await page.click('[aria-label="Naechster Chat"]');
+        await page.click('[aria-label="Nächster Chat"]');
         await waitFor(page, () => state.activeChatPeerId === 'node_c');
-        assert.equal(await page.isDisabled('[aria-label="Naechster Chat"]'), true, 'end of the list');
+        assert.equal(await page.isDisabled('[aria-label="Nächster Chat"]'), true, 'end of the list');
         await page.click('[aria-label="Vorheriger Chat"]');
         await waitFor(page, () => state.activeChatPeerId === 'node_b');
 
@@ -75,7 +75,7 @@ async function main() {
         await page.evaluate(() => updateChatSwitchSetting('enabled', false));
         await page.evaluate(() => updateChatSwitchSetting('style', 'bar'));
         assert.equal(await page.isVisible('#chat-switch-bar'), false);
-        assert.equal(await page.isVisible('[aria-label="Naechster Chat"]'), false);
+        assert.equal(await page.isVisible('[aria-label="Nächster Chat"]'), false);
         await page.evaluate(() => switchChat(-1));
         assert.equal(await page.evaluate(() => state.activeChatPeerId), 'node_c');
         assert.equal(await page.evaluate(() => visibleChatPeerIds().includes('node_social')), false, 'other list stays separate');

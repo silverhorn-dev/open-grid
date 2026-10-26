@@ -12,6 +12,20 @@ const NAVIGATION_TIMEOUT_MS = 3000;
 const DB_NAME = 'OpenGridDB_Live';
 const NETWORK_TIMEOUT_MS = 5000;
 const PREVIEW_LENGTH = 140;
+// Benachrichtigungstexte (Schluessel sw.* aus i18n/*.properties), vom Server eingesetzt.
+// Der SW kennt die Spracheinstellung der Seite nicht (localStorage), er nimmt die Browsersprache.
+const SW_TEXTS = __SW_TEXTS__;
+
+function swLanguage() {
+    const languages = self.navigator?.languages || [self.navigator?.language];
+    const device = languages.map(language => String(language || '').slice(0, 2).toLowerCase());
+    return device.find(language => SW_TEXTS[language]) || 'de';
+}
+
+function swText(key, params = {}) {
+    const text = SW_TEXTS[swLanguage()]?.[key] ?? SW_TEXTS.de?.[key] ?? key;
+    return String(text).replace(/\{(\w+)\}/g, (match, name) => (name in params ? String(params[name]) : match));
+}
 
 function base64ToBytes(value) {
     return Uint8Array.from(self.atob(value), character => character.charCodeAt(0));
@@ -210,15 +224,15 @@ function showChatNotification(title, body, senderId) {
 }
 
 function showGenericNotification(senderId) {
-    return showChatNotification('Neue Nachricht', 'Du hast eine neue Nachricht erhalten. Tippe zum Oeffnen.', senderId);
+    return showChatNotification(swText('sw.newMessage'), swText('sw.newMessageBody'), senderId);
 }
 
 // Kompaktmodus: immer dieselbe Benachrichtigung ohne Name und Text. Der feste
 // Tag ersetzt eine vorhandene, auch bei mehreren Absendern bleibt es eine.
 function showCompactNotification() {
     markAppBadge();
-    return self.registration.showNotification('Neue Nachrichten', {
-        body: 'Tippe zum Oeffnen.',
+    return self.registration.showNotification(swText('sw.newMessages'), {
+        body: swText('sw.tapToOpen'),
         tag: 'opengrid-messages',
         renotify: true,
         data: { peerId: null }
@@ -242,7 +256,7 @@ async function loadCompactSetting() {
 function previewText(message) {
     if (message.secureSnap) return 'Secure Snap';
     if (message.album) return 'Album';
-    if (message.audioData) return 'Sprachnachricht';
+    if (message.audioData) return swText('sw.voiceMessage');
     if (message.video) return 'Video';
     if (message.snapData) return 'Snap';
     const text = String(message.text || '');
@@ -275,7 +289,7 @@ async function handlePush(event) {
         // Moeglicherweise zurueckgehaltene Nachricht: weder Name noch Text zeigen.
         if (compact || gated) return showCompactNotification();
         return showChatNotification(
-            senderName ? `Neue Nachricht von ${senderName}` : 'Neue Nachricht',
+            senderName ? swText('sw.newMessageFrom', { name: senderName }) : swText('sw.newMessage'),
             previewText(message),
             data.senderId
         );

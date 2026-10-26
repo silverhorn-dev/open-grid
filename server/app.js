@@ -285,9 +285,15 @@ export async function buildApp(options = {}) {
         // Schriften: nur woff2, die ttf-Varianten laedt kein aktueller Browser.
         ...[...vendorAssets.keys()].filter(path => !path.endsWith('.ttf'))
     ];
+    // Nur die Benachrichtigungstexte (sw.*) wandern in den Service Worker.
+    const serviceWorkerTexts = Object.fromEntries(Object.entries(translations).map(([language, messages]) => [
+        language,
+        Object.fromEntries(Object.entries(messages).filter(([key]) => key.startsWith('sw.')))
+    ]));
     const serviceWorker = serviceWorkerTemplate
         .replace('__ASSET_VERSION__', assetVersion)
-        .replace('__PRECACHE_URLS__', JSON.stringify(precacheUrls));
+        .replace('__PRECACHE_URLS__', JSON.stringify(precacheUrls))
+        .replace('__SW_TEXTS__', JSON.stringify(serviceWorkerTexts));
     const vapidKeys = options.vapidKeys || loadVapidKeys(store);
     const vapidSubject = options.vapidSubject || process.env.VAPID_SUBJECT || 'mailto:admin@localhost';
     if (!options.pushSender && !process.env.VAPID_SUBJECT) {

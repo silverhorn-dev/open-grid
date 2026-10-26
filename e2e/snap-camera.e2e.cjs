@@ -69,7 +69,7 @@ async function main() {
         // Aufnehmen und bearbeiten.
         await openCamera();
         assert.equal(await alice.isVisible('#snap-torch-btn'), false, 'fake camera has no torch');
-        await alice.click('[aria-label="Ausloesen"]');
+        await alice.click('[aria-label="Auslösen"]');
         await waitFor(alice, () => hasSnapDraft() && !document.getElementById('snap-editor').classList.contains('hidden'));
         await alice.click('#snap-tool-draw');
         const draw = await alice.locator('#snap-edit-draw').boundingBox();
@@ -85,7 +85,7 @@ async function main() {
         const editState = await alice.evaluate(() => ({ strokes: snapEditor.strokes.length, items: snapEditor.items.map(item => item.kind) }));
         assert.equal(editState.strokes, 1);
         assert.deepEqual(editState.items, ['text', 'emoji']);
-        await alice.click('[aria-label="Rueckgaengig"]');
+        await alice.click('[aria-label="Rückgängig"]');
         assert.equal(await alice.evaluate(() => snapEditor.items.length), 1, 'undo removes the emoji');
         await alice.click('#snap-tool-emoji');
         await alice.click('#snap-emoji-row button >> nth=2');
@@ -111,7 +111,7 @@ async function main() {
         await alice.click('#snap-mode-switch');
         assert.equal(await alice.evaluate(() => state.snapSendMode), 'snap', 'label button switches back');
         await alice.click('#snap-mode-switch');
-        await alice.click('[aria-label="Ausloesen"]');
+        await alice.click('[aria-label="Auslösen"]');
         await waitFor(alice, () => hasSnapDraft());
         assert.match(await alice.textContent('#snap-send-btn'), /Bild senden/);
         await alice.click('#snap-send-btn');
@@ -124,7 +124,7 @@ async function main() {
         // "Original": volle Qualitaet nur ueber P2P, Bob bekommt erst die Vorschau, dann das Original.
         await openCamera();
         await alice.click('#snap-mode-switch');
-        await alice.click('[aria-label="Ausloesen"]');
+        await alice.click('[aria-label="Auslösen"]');
         await waitFor(alice, () => hasSnapDraft());
         assert.equal(await alice.isVisible('#snap-original-option'), true, 'original toggle in image mode');
         await alice.check('#snap-original-toggle');
@@ -224,7 +224,7 @@ async function main() {
         await bob.click('#secure-snap-save');
         await waitFor(alice, id => state.chats[state.activeChatPeerId].find(message => message.id === id)?.savedByPeer === true, snapId, 30000);
         await alice.evaluate(() => renderChatHistory());
-        assert.match(await alice.textContent('#chat-messages'), /vom Empfaenger gespeichert/);
+        assert.match(await alice.textContent('#chat-messages'), /vom Empfänger gespeichert/);
 
         assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log('E2E OK (snap camera)');

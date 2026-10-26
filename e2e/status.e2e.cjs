@@ -70,7 +70,7 @@ async function main() {
         await alice.click('#status-bar button >> nth=0 >> span.absolute');
         await alice.click('#status-photo-btn');
         await waitFor(alice, () => document.getElementById('snap-video-preview').videoWidth > 0);
-        await alice.click('[aria-label="Ausloesen"]');
+        await alice.click('[aria-label="Auslösen"]');
         await waitFor(alice, () => hasSnapDraft());
         assert.match(await alice.textContent('#snap-send-btn'), /Status/);
         await alice.click('#snap-send-btn');
@@ -81,7 +81,7 @@ async function main() {
         await bob.click('#status-bar button >> nth=1');
         await waitFor(bob, () => !document.getElementById('status-viewer').classList.contains('hidden'));
         assert.equal(await bob.textContent('#status-viewer-text'), 'Im Park');
-        await bob.click('[aria-label="Naechster Status"]');
+        await bob.click('[aria-label="Nächster Status"]');
         await waitFor(bob, () => document.getElementById('status-viewer-image').width > 0);
         assert.equal(await bob.isVisible('#status-viewer-delete'), false, 'cannot delete others');
         await bob.evaluate(() => closeStatusViewer());

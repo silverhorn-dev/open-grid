@@ -2,7 +2,12 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 125 · 2026-10-26
+## Build 126 · 2026-10-26
+- Leere Listen und Ladeanzeigen ueberall im gleichen Stil; leere Chatliste mit Hinweis und "Kontakt einladen"
+- Profil: Aenderungen zeigen unten "Nicht gespeichert" mit Verwerfen und Speichern (statt Knopf oben); Profilbild auf dem Smartphone direkt antippbar
+- Englisch: auch alle Hinweis-Meldungen uebersetzt (fehlten bisher)
+
+## Build 125 · 2026-10-26 · `e5d9463`
 - Eingabeleiste aufgeraeumt: alle Knoepfe gleich gross und gut zu treffen, Eingabefeld gleich hoch, Platzhalter bleibt einzeilig
 - Desktop: keine doppelte Avatar-Leiste mehr im Chat (die Chatliste steht daneben)
 

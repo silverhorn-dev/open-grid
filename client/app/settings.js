@@ -33,7 +33,7 @@ async function copyDebugLogs() {
     const report = buildDebugLogReport();
     try {
         await navigator.clipboard.writeText(report);
-        showToast('Protokoll in die Zwischenablage kopiert.', 'success');
+        showToast(t('Protokoll in die Zwischenablage kopiert.'), 'success');
     } catch (error) {
         const textarea = document.createElement('textarea');
         textarea.value = report;
@@ -80,13 +80,13 @@ async function runConnectivityDiagnostics() {
 
         if (!found.size) {
             logDebug('ERGEBNIS: Keine ICE-Kandidaten. Netzwerk blockiert UDP/TCP vollstaendig.');
-            showToast('Keine ICE-Kandidaten gefunden.', 'error');
+            showToast(t('Keine ICE-Kandidaten gefunden.'), 'error');
         } else if (!found.has('relay')) {
             logDebug(`ERGEBNIS: Keine relay-Kandidaten. TURN liefert keine Allocation (gefunden: ${[...found].join(', ')}).`);
-            showToast('TURN liefert keine relay-Kandidaten.', 'error');
+            showToast(t('TURN liefert keine relay-Kandidaten.'), 'error');
         } else {
             logDebug(`ERGEBNIS: TURN funktioniert, relay-Kandidaten vorhanden (gefunden: ${[...found].join(', ')}).`);
-            showToast('TURN liefert relay-Kandidaten.', 'success');
+            showToast(t('TURN liefert relay-Kandidaten.'), 'success');
         }
     } catch (error) {
         logDebug(`ICE-Diagnose fehlgeschlagen: ${error.message}`);
@@ -115,7 +115,7 @@ function renderBlockedPeers() {
     const blockedIds = Object.values(state.chatControls).filter(c => c.blockedAt).map(c => c.peerId);
 
     if (blockedIds.length === 0) {
-        container.innerHTML = `<div class="text-xs text-slate-500 italic">${t('Keine Peers blockiert.')}</div>`;
+        showEmptyState(container, { icon: 'fa-user-check', text: t('Keine Peers blockiert.'), compact: true });
         return;
     }
     blockedIds.forEach(peerId => {
@@ -145,7 +145,7 @@ async function unblockPeerFromSettings(peerId) {
         subscribePresence();
         const operation = { operationId: `unhide:${window.crypto.randomUUID()}`, type: 'PEER_UNHIDE', actorId: state.myProfile.id, createdAt: Date.now() };
         sendSecurePayload(peerId, { type: 'CHAT_OPERATION', operation }).catch(()=>{});
-        showToast('Peer wurde entblockt.', 'success');
+        showToast(t('Peer wurde entblockt.'), 'success');
     } catch (error) { showToast(t('Fehler: {message}', { message: error.message }), 'error'); }
 }
 
@@ -232,7 +232,7 @@ async function generateUserIdentityKeys(showNotification = false) {
         if (state.ws?.readyState === WebSocket.OPEN) {
             await registerWithWorkerGrid();
         }
-        if (showNotification) showToast('New E2EE identity keypair generated.', 'success');
+        if (showNotification) showToast(t('Neues Schluesselpaar erzeugt.'), 'success');
     } catch (error) {
         console.error('Identity key generation failed.', error);
         if (fingerprintOutput) fingerprintOutput.textContent = t('Key generation failed');
@@ -448,7 +448,7 @@ async function updateDeviceLocation(notify = true) {
         geohash = encodeGeohash(position.coords.latitude, position.coords.longitude, GRID_PRECISION);
     } catch (error) {
         logDebug(`Geolocation failed: ${error.message}`);
-        if (notify) showToast('Standort nicht verfuegbar oder nicht erlaubt.', 'warning');
+        if (notify) showToast(t('Standort nicht verfuegbar oder nicht erlaubt.'), 'warning');
         return false;
     }
     await applyLocationCell(geohash);
@@ -484,7 +484,7 @@ async function searchAddressLocation() {
         const latitude = Number(result?.lat);
         const longitude = Number(result?.lon);
         if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-            showToast('Adresse nicht gefunden.', 'warning');
+            showToast(t('Adresse nicht gefunden.'), 'warning');
             return;
         }
         const geohash = encodeGeohash(latitude, longitude, GRID_PRECISION);
@@ -492,10 +492,10 @@ async function searchAddressLocation() {
         await applyLocationCell(geohash);
         await updateGridSetting('locationLabel', result.display_name ? String(result.display_name).substring(0, 200) : query);
         if (state.gridSettings.useLocation) await updateGridSetting('useLocation', false);
-        showToast('Standort aus Adresse uebernommen.', 'success');
+        showToast(t('Standort aus Adresse uebernommen.'), 'success');
     } catch (error) {
         logDebug(`Address lookup failed: ${error.message}`);
-        showToast('Adresssuche fehlgeschlagen.', 'error');
+        showToast(t('Adresssuche fehlgeschlagen.'), 'error');
     } finally {
         if (button) button.disabled = false;
     }
@@ -503,7 +503,7 @@ async function searchAddressLocation() {
 
 async function addCurrentSafeZone() {
     if (!state.gridSettings.useLocation) {
-        showToast('Bitte zuerst den Geraetestandort aktivieren.', 'warning');
+        showToast(t('Bitte zuerst den Geraetestandort aktivieren.'), 'warning');
         return;
     }
     if (!await updateDeviceLocation()) return;
@@ -577,7 +577,7 @@ async function updateGridSetting(key, value) {
     } catch (error) {
         state.gridSettings = previous;
         logDebug(`Could not store grid settings: ${error.message}`);
-        showToast('Einstellung konnte nicht gespeichert werden.', 'error');
+        showToast(t('Einstellung konnte nicht gespeichert werden.'), 'error');
         renderGridSettings();
         return;
     }

@@ -259,7 +259,7 @@ function showChatLoadingPlaceholder() {
     const name = document.getElementById('chat-peer-name');
     if (name) name.textContent = CHAT_LOADING_TEXT;
     const messages = document.getElementById('chat-messages');
-    if (messages) messages.innerHTML = `<div class="text-center text-xs text-slate-500 my-8"><i class="fa-solid fa-spinner fa-spin"></i> ${t('Chat wird geladen...')}</div>`;
+    if (messages) showEmptyState(messages, { icon: 'fa-spinner', spin: true, text: t('Chat wird geladen...'), compact: true });
 }
 
 function updateChatLayout() {
@@ -273,12 +273,7 @@ function resetActiveChat(placeholderText) {
     document.getElementById('chat-peer-name').textContent = t('Kein Chat ausgewaehlt');
     document.getElementById('chat-connection-type').textContent = t('Chat auswaehlen');
     document.getElementById('chat-peer-avatar').textContent = '?';
-    const messages = document.getElementById('chat-messages');
-    messages.innerHTML = '';
-    const placeholder = document.createElement('div');
-    placeholder.className = 'text-center text-xs text-slate-500 my-8';
-    placeholder.textContent = placeholderText;
-    messages.appendChild(placeholder);
+    showEmptyState(document.getElementById('chat-messages'), { icon: 'fa-comments', title: t('Kein Chat ausgewaehlt'), text: placeholderText });
     updateChatActionButtons();
     updateChatLayout();
     renderActivePeerList();
@@ -294,7 +289,7 @@ function leaveActiveChat() {
         window.history.back();
         return;
     }
-    resetActiveChat('Waehle einen Chat aus oder starte einen im Grid.');
+    resetActiveChat(t('Waehle einen Chat aus oder starte einen im Grid.'));
 }
 
 function updateChatActionButtons() {
@@ -343,7 +338,7 @@ async function deleteActiveChat() {
 
         await storeChatControl(peerId, 'DELETE_CHAT');
         resetActiveChat('Chat geloescht.');
-        showToast('Chat und zwischengespeicherte Router-Nachrichten wurden geloescht.', 'success');
+        showToast(t('Chat und zwischengespeicherte Router-Nachrichten wurden geloescht.'), 'success');
     } catch (error) {
         showToast(t('Chat konnte nicht geloescht werden: {message}', { message: error.message }), 'error');
     }
@@ -372,7 +367,7 @@ async function toggleActivePeerBlock() {
             sendSecurePayload(peerId, { type: 'CHAT_OPERATION', operation }).catch(logBackgroundError('toggleActivePeerBlock'));
 
             initiateP2PConnection(peerId).catch(logBackgroundError('toggleActivePeerBlock'));
-            showToast('Peer wurde entblockt.', 'success');
+            showToast(t('Peer wurde entblockt.'), 'success');
         } else {
             if (!window.confirm(t('Diesen Peer blockieren und den Chat loeschen?'))) return;
 
@@ -391,7 +386,7 @@ async function toggleActivePeerBlock() {
             await new Promise(resolve => setTimeout(resolve, 500));
 
             await storeChatControl(peerId, 'BLOCK');
-            showToast('Peer wurde dauerhaft blockiert.', 'success');
+            showToast(t('Peer wurde dauerhaft blockiert.'), 'success');
         }
         updateChatActionButtons();
     } catch (error) {
@@ -618,11 +613,11 @@ function renderChatHistory() {
     const previousScrollTop = container.scrollTop;
     container.innerHTML = '';
     if (allMessages.length === 0) {
-        container.innerHTML = `<div class="text-center text-xs text-slate-500 my-8">${t('Noch keine Nachrichten. Sag hallo!')}</div>`;
+        showEmptyState(container, { icon: 'fa-hand', title: t('Noch keine Nachrichten'), text: t('Sag hallo!') });
         return;
     }
     if (msgs.length === 0) {
-        container.innerHTML = `<div class="text-center text-xs text-slate-500 my-8">${t('Keine passenden Nachrichten.')}</div>`;
+        showEmptyState(container, { icon: 'fa-magnifying-glass', text: t('Keine passenden Nachrichten.'), compact: true });
         return;
     }
     const filtering = Boolean(state.chatSearch) || state.chatStarredOnly;

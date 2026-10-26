@@ -182,7 +182,7 @@ function openChatSwitcherSheet() {
     const peerIds = visibleChatPeerIds();
     const content = openMediaModal(t('Chat wechseln'));
     if (peerIds.length < 2) {
-        renderMediaModalMessage(t('Keine weiteren Chats in dieser Liste.'));
+        renderMediaModalMessage(t('Keine weiteren Chats in dieser Liste.'), 'fa-comments');
         return;
     }
     const list = document.createElement('div');

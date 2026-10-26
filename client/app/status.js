@@ -315,7 +315,7 @@ function openStatusComposer() {
     document.getElementById('status-post-text-btn').onclick = () => postTextStatus().catch(logBackgroundError('postTextStatus'));
     document.getElementById('status-photo-btn').onclick = () => replaceModal(closeMediaModal, () => openSnapCamera('status'));
     document.getElementById('status-presence-btn').onclick = () => savePresenceText()
-        .then(() => showToast('Kurzstatus gespeichert.', 'success'))
+        .then(() => showToast(t('Kurzstatus gespeichert.'), 'success'))
         .catch(logBackgroundError('savePresenceText'));
 }
 

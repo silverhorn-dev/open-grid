@@ -125,9 +125,9 @@ function renderMessageActions(message, isMine, row) {
 async function copyMessageText(message) {
     try {
         await navigator.clipboard.writeText(message.text || '');
-        showToast('Text kopiert.', 'success');
+        showToast(t('Text kopiert.'), 'success');
     } catch {
-        showToast('Kopieren nicht moeglich.', 'error');
+        showToast(t('Kopieren nicht moeglich.'), 'error');
     }
     closeMessageActions();
 }

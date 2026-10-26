@@ -119,7 +119,7 @@ async function sendFlame(peerId) {
     if (!peerId || isPeerBlocked(peerId)) return;
     if (isMatched(peerId)) return;
     if (flameCooldownLeft(peerId) > 0) {
-        showToast('Du hast schon eine Flamme geschickt. Die naechste geht in 24 Stunden.', 'info');
+        showToast(t('Du hast schon eine Flamme geschickt. Die naechste geht in 24 Stunden.'), 'info');
         return;
     }
     await sendMatchOperation(peerId, 'MATCH_PING');

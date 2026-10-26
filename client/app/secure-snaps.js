@@ -57,7 +57,7 @@ async function updateSnapSetting(key, value) {
         await putDatabaseRecord('keys', { id: SNAP_SETTINGS_RECORD_ID, ...state.snapSettings });
     } catch (error) {
         logDebug(`Could not store snap settings: ${error.message}`);
-        showToast('Einstellung konnte nicht gespeichert werden.', 'error');
+        showToast(t('Einstellung konnte nicht gespeichert werden.'), 'error');
     }
     renderSnapSettings();
 }

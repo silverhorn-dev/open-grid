@@ -117,6 +117,7 @@ const clientAssetFiles = [
     'icon.svg',
     'app/theme.js',
     'app/config.js',
+    'app/ui.js',
     'app/storage.js',
     'app/profile.js',
     'app/chat.js',

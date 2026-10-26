@@ -22,7 +22,7 @@ async function loadMoreGrid() {
 
 async function refreshGrid() {
     const refreshed = await fetchPeersFromWorkerGrid();
-    if (refreshed) showToast('Grid aktualisiert.', 'info');
+    if (refreshed) showToast(t('Grid aktualisiert.'), 'info');
 }
 
 function renderDiscoveryGrid() {
@@ -40,13 +40,15 @@ function renderDiscoveryGrid() {
 
     if (visiblePeers.length === 0) {
         const emptyState = document.createElement('div');
-        emptyState.className = 'col-span-full text-center py-12 text-slate-500 text-sm border border-dashed border-slate-800 rounded-2xl bg-slate-900/40';
-        emptyState.innerHTML = '<i class="fa-solid fa-satellite-dish text-2xl text-slate-600 mb-3"></i><div></div>';
-        emptyState.lastChild.textContent = state.appMode === 'friends'
-            ? t('Gerade ist keiner deiner Kontakte online. Lade Freunde mit deinem Einladungslink ein.')
-            : state.appMode === 'event'
-                ? t('Noch niemand sonst in diesem Event.')
-                : t('Gerade ist niemand in deiner Naehe sichtbar.');
+        emptyState.className = 'col-span-full';
+        emptyState.appendChild(createEmptyState({
+            icon: 'fa-satellite-dish',
+            text: state.appMode === 'friends'
+                ? t('Gerade ist keiner deiner Kontakte online. Lade Freunde mit deinem Einladungslink ein.')
+                : state.appMode === 'event'
+                    ? t('Noch niemand sonst in diesem Event.')
+                    : t('Gerade ist niemand in deiner Naehe sichtbar.')
+        }));
         container.appendChild(emptyState);
         return;
     }
@@ -151,6 +153,15 @@ function renderActivePeerList() {
     if (scopeLabel) scopeLabel.textContent = currentChatScope() === 'social' ? t('· Chat & Freunde') : t('· Grid & Event');
     renderListSwitch();
     container.innerHTML = '';
+    if (!peerIds.length) {
+        const social = currentChatScope() === 'social';
+        container.appendChild(createEmptyState({
+            icon: 'fa-comments',
+            title: t('Noch keine Chats'),
+            text: social ? t('Lade jemanden mit deinem Einladungslink ein.') : t('Tippe im Grid auf ein Profil, um einen Chat zu starten.'),
+            action: social ? { label: t('Kontakt einladen'), icon: 'fa-user-plus', onClick: () => openInviteCard() } : null
+        }));
+    }
     peerIds.forEach(peerId => {
         const peer = getPeerPresentation(peerId);
         const blocked = isPeerBlocked(peer.id);
@@ -474,10 +485,10 @@ async function gracefulUnregister() {
         });
         if (!response.ok) throw new Error(`Unregister failed with status ${response.status}`);
         if (state.ws) state.ws.close();
-        showToast('Erfolgreich vom Routing-Server abgemeldet.', 'success');
+        showToast(t('Erfolgreich vom Routing-Server abgemeldet.'), 'success');
         document.getElementById('network-indicator').className = 'w-2.5 h-2.5 rounded-full bg-red-500';
         document.getElementById('network-status-text').textContent = t('Abgemeldet');
     } catch (error) {
-        showToast('Abmeldung fehlgeschlagen.', 'error');
+        showToast(t('Abmeldung fehlgeschlagen.'), 'error');
     }
 }

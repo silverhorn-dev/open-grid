@@ -27,7 +27,7 @@ function pickChatVideo() {
         const file = input.files?.[0];
         if (file) sendVideoFile(file).catch(error => {
             logDebug(`Video senden fehlgeschlagen: ${error.message}`);
-            showToast('Video konnte nicht gesendet werden.', 'error');
+            showToast(t('Video konnte nicht gesendet werden.'), 'error');
         });
     };
     input.click();
@@ -35,14 +35,14 @@ function pickChatVideo() {
 
 async function sendVideoFile(file) {
     if (!VIDEO_MIME_TYPES.includes(file.type)) {
-        showToast('Dieses Videoformat wird nicht unterstuetzt.', 'error');
+        showToast(t('Dieses Videoformat wird nicht unterstuetzt.'), 'error');
         return;
     }
     if (file.size > VIDEO_MAX_BYTES) {
         showToast(t('Video zu gross (hoechstens {value} MB).', { value: Math.round(VIDEO_MAX_BYTES / 1024 / 1024) }), 'error');
         return;
     }
-    showToast('Video wird vorbereitet...', 'info');
+    showToast(t('Video wird vorbereitet...'), 'info');
     const url = URL.createObjectURL(file);
     let poster;
     try {
@@ -136,7 +136,7 @@ function renderVideoMessage(bubble, message, isMine) {
 
 async function openChatVideo(message) {
     if (!isVideoAvailable(message)) {
-        showToast('Das Video wird nur direkt uebertragen und kommt, sobald ihr verbunden seid.', 'info');
+        showToast(t('Das Video wird nur direkt uebertragen und kommt, sobald ihr verbunden seid.'), 'info');
         const peerId = state.activeChatPeerId;
         if (peerId) {
             if (!isSecureChannelOpen(peerId)) initiateP2PConnection(peerId).catch(logBackgroundError('openChatVideo'));
@@ -146,7 +146,7 @@ async function openChatVideo(message) {
     }
     const data = await loadOriginal(message.id);
     if (!isSafeInlineVideo(data)) {
-        showToast('Video nicht gefunden.', 'error');
+        showToast(t('Video nicht gefunden.'), 'error');
         return;
     }
     const sender = message.senderId === state.myProfile.id ? 'Du' : getPeerPresentation(message.senderId).name || HIDDEN_PEER_NAME;

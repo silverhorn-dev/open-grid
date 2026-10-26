@@ -99,7 +99,7 @@ async function startVoiceRecording() {
         return;
     }
     if (!isVoiceSupported()) {
-        showToast('Aufnehmen wird von diesem Browser nicht unterstuetzt.', 'error');
+        showToast(t('Aufnehmen wird von diesem Browser nicht unterstuetzt.'), 'error');
         return;
     }
     let stream;
@@ -107,7 +107,7 @@ async function startVoiceRecording() {
         stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
     } catch (error) {
         logDebug(`Mikrofon nicht verfuegbar: ${error.message}`);
-        showToast('Kein Zugriff auf das Mikrofon.', 'error');
+        showToast(t('Kein Zugriff auf das Mikrofon.'), 'error');
         return;
     }
     const recording = {
@@ -135,7 +135,7 @@ async function tickVoiceRecording(recording) {
         // Maximum: nur anhalten, senden entscheidet der Nutzer.
         await finishVoiceCapture(recording);
         hapticTick(20);
-        showToast('Maximale Laenge erreicht. Senden oder verwerfen.', 'info');
+        showToast(t('Maximale Laenge erreicht. Senden oder verwerfen.'), 'info');
     } else if (recording.segments.length === 1 && elapsed >= VOICE_LIMITS.inlineSeconds) {
         // Ab hier ein eigener zweiter Teil (geht nur per P2P).
         recording.switching = true;
@@ -178,13 +178,13 @@ async function sendVoiceRecording() {
     const duration = Math.min(VOICE_LIMITS.maxSeconds, Math.round(voiceElapsedSeconds(recording) * 10) / 10);
     const [first, rest] = recording.segments;
     if (duration < 1 || !first?.chunks.length) {
-        showToast('Zu kurz, nichts gesendet.', 'info');
+        showToast(t('Zu kurz, nichts gesendet.'), 'info');
         return;
     }
     const dataUrl = await mediaBlobToDataUrl(voiceSegmentBlob(first));
     if (!isSafeInlineAudio(dataUrl)) {
         logDebug(`Sprachnachricht abgelehnt (${dataUrl.length} Zeichen).`);
-        showToast('Sprachnachricht zu gross oder Format nicht unterstuetzt.', 'error');
+        showToast(t('Sprachnachricht zu gross oder Format nicht unterstuetzt.'), 'error');
         return;
     }
     let original;
@@ -383,7 +383,7 @@ function playVoicePart(playback, dataUrl, part) {
     audio.onended = () => continueVoicePlayback(playback).catch(logBackgroundError('continueVoicePlayback'));
     audio.play().catch(error => {
         logDebug(`Wiedergabe fehlgeschlagen: ${error.message}`);
-        showToast('Sprachnachricht kann nicht abgespielt werden.', 'error');
+        showToast(t('Sprachnachricht kann nicht abgespielt werden.'), 'error');
         stopVoicePlayback();
     });
     updateVoicePlayer(playback.messageId);

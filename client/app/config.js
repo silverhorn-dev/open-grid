@@ -131,6 +131,9 @@ const state = {
     pendingInvite: null,
     // Online-Status der Chat-Partner (nur gegenseitig, vom Server per PRESENCE gemeldet).
     peerPresence: {},
+    // Profil-Editor: ungespeicherte Felder (profile.js, Leiste unten) und Stand beim letzten Speichern.
+    profileDirty: false,
+    profileSnapshot: null,
     // Aktiver Bereich der Einstellungen (settings.js).
     settingsTab: 'general',
     // Laufende Sprachaufnahme bzw. Wiedergabe (voice.js) und Aufraeumen des Medien-Modals (video.js).

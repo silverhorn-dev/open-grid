@@ -48,7 +48,7 @@ function initDatabase() {
             finish();
         };
         req.onblocked = () => {
-            showToast('Bitte schliesse andere OpenGrid-Tabs, damit die App aktualisiert werden kann.', 'warning');
+            showToast(t('Bitte schliesse andere OpenGrid-Tabs, damit die App aktualisiert werden kann.'), 'warning');
             setTimeout(() => finish(), 3000);
         };
     });
@@ -724,7 +724,7 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
         if (state.activeChatPeerId === peerId) {
             resetActiveChat('Der Chat wurde vom Chat-Partner geloescht.');
         }
-        showToast('Ein Chat-Partner hat den Chat-Verlauf geloescht.', 'info');
+        showToast(t('Ein Chat-Partner hat den Chat-Verlauf geloescht.'), 'info');
         return true; // Return true, damit der Wipe nicht als endloser Sync gespeichert wird
     } else if (localOperation.type === 'PEER_UNHIDE') {
         if (localOperation.actorId !== peerId) return false;
@@ -820,7 +820,7 @@ async function renderStorageUsage(warn = false) {
             output.classList.toggle('text-amber-400', ratio >= STORAGE_WARNING_RATIO);
         }
         if (warn && ratio >= STORAGE_WARNING_RATIO) {
-            showToast('Der Speicher ist fast voll. In den Einstellungen kannst du aufraeumen.', 'warning');
+            showToast(t('Der Speicher ist fast voll. In den Einstellungen kannst du aufraeumen.'), 'warning');
         }
     } catch (error) {
         logDebug(`Storage estimate failed: ${error.message}`);

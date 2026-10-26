@@ -197,11 +197,11 @@ function recoverPeerConnection(peerId, connection) {
     } else if (state.secureMessageQueues[peerId]?.length) {
         flushPeerQueueToCache(peerId).then(() => {
             if (state.secureMessageQueues[peerId]?.length) {
-                showToast('Nachricht konnte noch nicht zugestellt werden. Sie wird spaeter erneut gesendet.', 'warning');
+                showToast(t('Nachricht konnte noch nicht zugestellt werden. Sie wird spaeter erneut gesendet.'), 'warning');
             }
         }).catch(error => {
             logDebug(`Path C recovery failed: ${error.message}`);
-            showToast('Nachricht konnte noch nicht zugestellt werden. Sie wird spaeter erneut gesendet.', 'warning');
+            showToast(t('Nachricht konnte noch nicht zugestellt werden. Sie wird spaeter erneut gesendet.'), 'warning');
         });
     }
 }
@@ -550,7 +550,7 @@ async function deriveSessionKey(peerId, publicJwk, profileSigningKey) {
     }
     // Per Einladungslink angelegter Kontakt: der Schluessel muss zum Fingerprint im Link passen.
     if (!await verifyInvitedPeerKey(peerId, profileSigningKey)) {
-        showToast('Achtung: Dieser Kontakt hat nicht den Schluessel aus der Einladung. Verbindung abgebrochen.', 'error');
+        showToast(t('Achtung: Dieser Kontakt hat nicht den Schluessel aus der Einladung. Verbindung abgebrochen.'), 'error');
         const connection = state.webrtcConnections[peerId];
         if (connection) cleanupPeerConnection(peerId, connection);
         throw new Error('Peer key does not match the invite fingerprint.');

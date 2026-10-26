@@ -651,3 +651,60 @@ html.debug-on .debug-off-only {
 @media (min-width: 768px) {
     #chat-switch-bar { display: none !important; }
 }
+
+/* Leere Zustaende und Ladeanzeigen (ui.js): ueberall gleich */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0 auto;
+    max-width: 22rem;
+    padding: 2.5rem 1rem;
+    text-align: center;
+}
+.empty-state-compact { padding: 1.25rem 1rem; }
+.empty-state-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 9999px;
+    background: rgb(var(--slate-800));
+    color: rgb(var(--brand-400));
+    font-size: 1.125rem;
+}
+.empty-state-compact .empty-state-icon {
+    width: 2.25rem;
+    height: 2.25rem;
+    font-size: 0.875rem;
+}
+.empty-state-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: rgb(var(--slate-200));
+}
+.empty-state-text {
+    font-size: 0.75rem;
+    line-height: 1.45;
+    color: rgb(var(--slate-400));
+}
+
+/* Profil: Leiste fuer ungespeicherte Aenderungen, bleibt ueber der unteren Navigation stehen */
+.profile-save-bar {
+    position: sticky;
+    bottom: calc(var(--bottom-nav-height, 0px) + 0.75rem);
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.625rem 0.75rem;
+    border: 1px solid rgb(var(--slate-700));
+    border-radius: 0.875rem;
+    background: rgb(var(--slate-900) / 0.96);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.45);
+}
+.profile-save-bar.hidden { display: none; }

@@ -101,7 +101,7 @@ async function setCompactPushNotifications(enabled) {
         await putDatabaseRecord('keys', { id: 'push-settings', compactNotifications: enabled });
     } catch (error) {
         logDebug(`Could not store push settings: ${error.message}`);
-        showToast('Einstellung konnte nicht gespeichert werden.', 'error');
+        showToast(t('Einstellung konnte nicht gespeichert werden.'), 'error');
     }
 }
 
@@ -139,12 +139,12 @@ async function togglePushNotifications() {
                 method: 'DELETE',
                 headers: peerAuthHeaders()
             });
-            showToast('Push-Benachrichtigungen deaktiviert.', 'info');
+            showToast(t('Push-Benachrichtigungen deaktiviert.'), 'info');
             return;
         }
         const permission = await Notification.requestPermission();
         if (permission !== 'granted') {
-            showToast('Benachrichtigungen wurden nicht erlaubt.', 'warning');
+            showToast(t('Benachrichtigungen wurden nicht erlaubt.'), 'warning');
             return;
         }
         const keyResponse = await fetch(`${API_BASE}/api/push/vapid-public-key`);
@@ -156,10 +156,10 @@ async function togglePushNotifications() {
             applicationServerKey: base64UrlToBytes(publicKey)
         });
         await uploadPushSubscription(subscription);
-        showToast('Push-Benachrichtigungen aktiviert.', 'success');
+        showToast(t('Push-Benachrichtigungen aktiviert.'), 'success');
     } catch (error) {
         logDebug(`Push toggle failed: ${error.message}`);
-        showToast('Push-Benachrichtigungen konnten nicht geaendert werden.', 'error');
+        showToast(t('Push-Benachrichtigungen konnten nicht geaendert werden.'), 'error');
     } finally {
         button.disabled = false;
         updatePushStatus();

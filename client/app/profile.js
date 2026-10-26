@@ -27,8 +27,8 @@ async function handleAvatarUpload(input) {
         state.myProfile.avatar = base64;
         document.getElementById('edit-avatar-preview').src = base64;
         await saveUserProfile();
-        showToast('Profilbild aktualisiert.', 'success');
-    } catch (e) { showToast('Fehler bei Avatar-Upload.', 'error'); }
+        showToast(t('Profilbild aktualisiert.'), 'success');
+    } catch (e) { showToast(t('Fehler bei Avatar-Upload.'), 'error'); }
 }
 
 async function handleGalleryUpload(input) {
@@ -41,8 +41,8 @@ async function handleGalleryUpload(input) {
         state.myProfile.gallery.push({ id: imgId, version: 1, sha256: await sha256Base64(base64) });
         renderEditGallery();
         await saveUserProfile();
-        showToast('Bild zur Galerie hinzugefuegt.', 'success');
-    } catch (e) { showToast('Fehler beim Upload.', 'error'); }
+        showToast(t('Bild zur Galerie hinzugefuegt.'), 'success');
+    } catch (e) { showToast(t('Fehler beim Upload.'), 'error'); }
     input.value = '';
 }
 
@@ -93,6 +93,29 @@ async function renderEditGallery() {
 }
 
 // ================= DYNAMIC FORM =================
+// ----- Ungespeicherte Aenderungen -----
+// Felder schreiben bei "change" in state.myProfile.fields; gespeichert (verteilt) wird erst mit
+// "Speichern". Solange etwas abweicht, steht unten eine Leiste mit Verwerfen/Speichern.
+function snapshotProfileFields() {
+    state.profileSnapshot = JSON.stringify(state.myProfile.fields || {});
+    setProfileDirty(false);
+}
+
+function setProfileDirty(dirty) {
+    state.profileDirty = dirty;
+    document.getElementById('profile-save-bar')?.classList.toggle('hidden', !dirty);
+}
+
+function refreshProfileDirty() {
+    setProfileDirty(state.profileSnapshot !== null && JSON.stringify(state.myProfile.fields || {}) !== state.profileSnapshot);
+}
+
+function discardProfileChanges() {
+    if (state.profileSnapshot) state.myProfile.fields = JSON.parse(state.profileSnapshot);
+    setProfileDirty(false);
+    renderProfileForm();
+}
+
 function renderProfileForm(containerId = 'dynamic-profile-form') {
     const container = document.getElementById(containerId);
     if (!container) return;
@@ -104,6 +127,10 @@ function renderProfileForm(containerId = 'dynamic-profile-form') {
     if (containerId === 'dynamic-profile-form') {
         document.getElementById('edit-avatar-preview').src = localAvatar(state.myProfile.avatar);
         renderEditGallery();
+        // Neu zeichnen (z. B. Moduswechsel) behaelt ungespeicherte Aenderungen und ihre Leiste.
+        if (!state.profileDirty) snapshotProfileFields();
+        container.oninput = () => setProfileDirty(true);
+        container.onchange = () => refreshProfileDirty();
     }
 
     PROFILE_SCHEMA.forEach(field => {
@@ -237,7 +264,7 @@ function updateProfileSchemaFromJSON() {
         const schemaInput = document.getElementById('schema-json-input');
         PROFILE_SCHEMA = validateProfileSchema(JSON.parse(schemaInput.value));
         renderProfileForm();
-        showToast('Profile schema applied.', 'success');
+        showToast(t('Profil-Schema uebernommen.'), 'success');
         logDebug('Dynamic profile schema updated.');
     } catch (error) {
         showToast(t('Ungueltiges Profil-Schema: {message}', { message: error.message }), 'error');
@@ -255,4 +282,5 @@ async function saveUserProfile() {
             : t('Profil fuer diese Sitzung verteilt; verschluesselter lokaler Speicher ist nicht verfuegbar.'),
         persisted ? 'success' : 'warning'
     );
+    snapshotProfileFields();
 }

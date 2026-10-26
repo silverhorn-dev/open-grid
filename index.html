@@ -254,7 +254,7 @@
 
                 <div class="relative flex-1 min-h-0 flex flex-col">
                     <div id="chat-messages" class="flex-1 min-h-0 p-4 overflow-y-auto space-y-3">
-                        <div class="text-center text-xs text-slate-500 my-8">Waehle einen Chat aus oder starte einen im Grid.</div>
+                        <div class="empty-state"><span class="empty-state-icon" aria-hidden="true"><i class="fa-solid fa-comments"></i></span><div class="empty-state-title">Kein Chat ausgewaehlt</div><div class="empty-state-text">Waehle einen Chat aus oder starte einen im Grid.</div></div>
                     </div>
                     <button id="chat-jump-bottom" data-click="scrollChatToBottom" data-args='[true]' class="hidden absolute bottom-3 right-3 z-10 w-11 h-11 rounded-full bg-slate-800 border border-slate-700 text-slate-200 shadow-lg flex items-center justify-center hover:bg-slate-700" aria-label="Nach unten">
                         <i class="fa-solid fa-arrow-down"></i>
@@ -319,9 +319,6 @@
                         </h2>
                         <p class="text-xs text-slate-400">Bearbeite dein Profil und deine Galerie. <span class="debug-only">Die Felder kommen aus dem Profil-Schema.</span></p>
                     </div>
-                    <button data-click="saveUserProfile" class="bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-lg pulse-glow">
-                        <i class="fa-solid fa-floppy-disk"></i> Speichern
-                    </button>
                 </div>
 
                 <!-- Media & Gallery Editor -->
@@ -334,7 +331,8 @@
                             <label class="text-xs font-bold text-slate-400">Profilbild (Avatar)</label>
                             <div class="w-24 h-24 rounded-xl bg-slate-950 border border-slate-800 overflow-hidden relative group shrink-0">
                                 <img id="edit-avatar-preview" src="" class="w-full h-full object-cover">
-                                <label class="absolute inset-0 bg-black/60 hidden group-hover:flex flex-col items-center justify-center cursor-pointer text-white transition">
+                                <span class="absolute bottom-1 right-1 w-7 h-7 rounded-full bg-brand-600 text-white text-xs flex items-center justify-center shadow-lg pointer-events-none" aria-hidden="true"><i class="fa-solid fa-camera"></i></span>
+                                <label class="absolute inset-0 bg-black/60 flex flex-col items-center justify-center cursor-pointer text-white transition opacity-0 hover:opacity-100 focus-within:opacity-100" aria-label="Profilbild aendern">
                                     <i class="fa-solid fa-upload text-xl mb-1"></i>
                                     <span class="text-[9px] uppercase tracking-wider font-bold">Aendern</span>
                                     <input type="file" accept="image/*" class="hidden" data-change="handleAvatarUpload" data-args='["$el"]'>
@@ -356,6 +354,15 @@
 
                 <!-- Dynamic Profile Form Fields -->
                 <div id="dynamic-profile-form" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+
+                <!-- Erscheint bei ungespeicherten Aenderungen und bleibt unten stehen -->
+                <div id="profile-save-bar" class="profile-save-bar hidden" role="status">
+                    <span class="flex items-center gap-2 text-xs text-slate-200 min-w-0"><i class="fa-solid fa-circle-exclamation text-amber-400"></i> <span class="truncate">Nicht gespeichert</span></span>
+                    <div class="flex gap-2 shrink-0">
+                        <button data-click="discardProfileChanges" class="btn-secondary">Verwerfen</button>
+                        <button id="profile-save-btn" data-click="saveUserProfile" class="btn-primary"><i class="fa-solid fa-floppy-disk"></i> Speichern</button>
+                    </div>
+                </div>
             </div>
 
             <div id="album-manager-card" class="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-3">
@@ -1039,6 +1046,7 @@
     <script src="/client/crypto.client.js?v={{assetVersion}}"></script>
     <script src="/client/geohash.client.js?v={{assetVersion}}"></script>
     <script src="/client/app/config.js?v={{assetVersion}}"></script>
+    <script src="/client/app/ui.js?v={{assetVersion}}"></script>
     <script src="/client/app/storage.js?v={{assetVersion}}"></script>
     <script src="/client/app/profile.js?v={{assetVersion}}"></script>
     <script src="/client/app/payload-validation.js?v={{assetVersion}}"></script>

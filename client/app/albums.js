@@ -60,7 +60,7 @@ async function createAlbum() {
     const input = document.getElementById('new-album-name');
     const name = input?.value.trim();
     if (!name) {
-        showToast('Bitte einen Albumnamen eingeben.', 'warning');
+        showToast(t('Bitte einen Albumnamen eingeben.'), 'warning');
         return;
     }
     await saveAlbum({
@@ -90,7 +90,7 @@ async function addAlbumImages(albumId, input) {
             album.items.push({ id: imageId, version: 1 });
         } catch (error) {
             logDebug(`Album image failed: ${error.message}`);
-            showToast('Ein Bild konnte nicht hinzugefuegt werden.', 'error');
+            showToast(t('Ein Bild konnte nicht hinzugefuegt werden.'), 'error');
         }
     }
     await saveAlbum(album);
@@ -152,7 +152,7 @@ async function shareAlbumInChat(albumId) {
     const album = state.albums[albumId];
     if (!peerId || !album || isPeerBlocked(peerId)) return;
     if (!album.items.length) {
-        showToast('Das Album ist leer.', 'warning');
+        showToast(t('Das Album ist leer.'), 'warning');
         return;
     }
     if (!album.acl.includes(peerId)) {
@@ -255,14 +255,14 @@ async function forgetReceivedAlbum(peerId, albumId) {
     delete state.albums[albumId];
     expireAlbumKeys(albumId, false);
     if (state.albumViewer?.albumId === albumId) {
-        renderMediaModalMessage(t('Du hast keinen Zugriff mehr auf dieses Album.'));
+        renderMediaModalMessage(t('Du hast keinen Zugriff mehr auf dieses Album.'), 'fa-lock');
     }
 }
 
 async function handleAlbumDenied(peerId, albumId) {
     delete state.pendingAlbumRequests[`${peerId}:${albumId}`];
     await forgetReceivedAlbum(peerId, albumId);
-    if (state.albumViewer?.albumId === albumId) renderMediaModalMessage(t('Du hast keinen Zugriff (mehr) auf dieses Album.'));
+    if (state.albumViewer?.albumId === albumId) renderMediaModalMessage(t('Du hast keinen Zugriff (mehr) auf dieses Album.'), 'fa-lock');
 }
 
 // ----- Medien-Modal (Album, Medienuebersicht, Albumauswahl) -----
@@ -297,13 +297,8 @@ function hideMediaModal() {
     document.getElementById('media-modal-content').innerHTML = '';
 }
 
-function renderMediaModalMessage(text) {
-    const content = document.getElementById('media-modal-content');
-    content.innerHTML = '';
-    const note = document.createElement('div');
-    note.className = 'text-center text-sm text-slate-400 py-10';
-    note.textContent = text;
-    content.appendChild(note);
+function renderMediaModalMessage(text, icon = 'fa-images') {
+    showEmptyState(document.getElementById('media-modal-content'), { icon, text });
 }
 
 // Alle bereits geladenen Bilder des offenen Medien-Modals, in Anzeigereihenfolge.
@@ -334,7 +329,7 @@ async function openAlbumViewer(albumId, reference = null) {
     state.albumViewer = { albumId, ownerId };
     if (album) await renderAlbumViewer(album);
     if (ownerId && ownerId !== state.myProfile.id) {
-        if (!album) renderMediaModalMessage(t('Album wird geladen... vom Besitzer oder von anderen Betrachtern.'));
+        if (!album) renderMediaModalMessage(t('Album wird geladen... vom Besitzer oder von anderen Betrachtern.'), 'fa-spinner');
         state.pendingAlbumRequests[`${ownerId}:${albumId}`] = true;
         await sendSecurePayload(ownerId, { type: 'ALBUM_REQUEST', albumId });
         await requestAlbumKeys(ownerId, albumId);
@@ -433,9 +428,7 @@ function openChatMediaOverview(filter = state.mediaOverviewFilter || 'all') {
     const snaps = messages.filter(isInlineSnap);
     const albums = messages.filter(message => message.album);
     if (!snaps.length && !albums.length) {
-        const note = document.createElement('div');
-        note.className = 'text-center text-sm text-slate-400 py-10';
-        note.textContent = filter === 'all' ? t('In diesem Chat wurden noch keine Bilder geteilt.') : t('Keine Bilder in dieser Auswahl.');
+        const note = createEmptyState({ icon: 'fa-images', text: filter === 'all' ? t('In diesem Chat wurden noch keine Bilder geteilt.') : t('Keine Bilder in dieser Auswahl.') });
         content.appendChild(note);
         return;
     }
@@ -832,7 +825,7 @@ async function updateAlbumDefault(key, value) {
         await putDatabaseRecord('keys', { id: ALBUM_DEFAULTS_RECORD_ID, ...state.albumDefaults });
     } catch (error) {
         logDebug(`Could not store album defaults: ${error.message}`);
-        showToast('Einstellung konnte nicht gespeichert werden.', 'error');
+        showToast(t('Einstellung konnte nicht gespeichert werden.'), 'error');
     }
     renderAlbumDefaults();
 }

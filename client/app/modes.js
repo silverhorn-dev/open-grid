@@ -79,7 +79,7 @@ async function setAppMode(mode) {
     if (!state.appConfig.modes.includes(mode)) return;
     if (mode === 'event' && !hasActiveEvent()) {
         document.getElementById('event-code-input')?.focus();
-        showToast('Gib zuerst einen Event-Code ein.', 'info');
+        showToast(t('Gib zuerst einen Event-Code ein.'), 'info');
         renderAppModeSettings();
         return;
     }
@@ -235,7 +235,7 @@ async function joinEvent() {
     const input = document.getElementById('event-code-input');
     const code = normalizeEventCode(input?.value);
     if (code.length < 3) {
-        showToast('Der Event-Code braucht mindestens 3 Zeichen.', 'warning');
+        showToast(t('Der Event-Code braucht mindestens 3 Zeichen.'), 'warning');
         return;
     }
     await saveAppModeSettings({
@@ -263,7 +263,7 @@ function scheduleEventExpiry() {
     if (!hasActiveEvent()) return;
     const remaining = state.appModeSettings.eventJoinedAt + EVENT_DURATION_MS - Date.now();
     state.eventExpiryTimer = setTimeout(() => {
-        showToast('Das Event ist vorbei.', 'info');
+        showToast(t('Das Event ist vorbei.'), 'info');
         leaveEvent().catch(logBackgroundError('scheduleEventExpiry'));
     }, Math.min(remaining, 2147483647));
 }
@@ -298,9 +298,9 @@ async function renderInviteCard() {
 async function copyInviteLink() {
     try {
         await navigator.clipboard.writeText(await getMyInviteLink());
-        showToast('Einladungslink kopiert.', 'success');
+        showToast(t('Einladungslink kopiert.'), 'success');
     } catch {
-        showToast('Kopieren nicht moeglich.', 'error');
+        showToast(t('Kopieren nicht moeglich.'), 'error');
     }
 }
 
@@ -327,22 +327,22 @@ function parseInvite(fragment) {
 async function acceptInvite(fragment) {
     const invite = parseInvite(fragment);
     if (!invite) {
-        showToast('Der Einladungslink ist ungueltig.', 'error');
+        showToast(t('Der Einladungslink ist ungueltig.'), 'error');
         return;
     }
     if (invite.peerId === state.myProfile.id) {
-        showToast('Das ist dein eigener Einladungslink.', 'info');
+        showToast(t('Das ist dein eigener Einladungslink.'), 'info');
         return;
     }
     const known = await getPeerIdentity(invite.peerId).catch(() => null);
     if (known?.profileSigningKey && await keyFingerprint(known.profileSigningKey) !== invite.fingerprint) {
-        showToast('Achtung: Der Schluessel dieses Kontakts passt nicht zur Einladung.', 'error');
+        showToast(t('Achtung: Der Schluessel dieses Kontakts passt nicht zur Einladung.'), 'error');
         return;
     }
     await putDatabaseRecord('keys', { id: `invite-expect:${invite.peerId}`, fingerprint: invite.fingerprint });
     rememberChatPeer(invite.peerId);
     await openChatWithPeer(invite.peerId);
-    showToast('Kontakt hinzugefuegt. Die Verbindung wird beim ersten Kontakt geprueft.', 'success');
+    showToast(t('Kontakt hinzugefuegt. Die Verbindung wird beim ersten Kontakt geprueft.'), 'success');
 }
 
 // Wird beim ersten KEY_HELLO aufgerufen: false = Schluessel passt nicht zur Einladung.
@@ -352,7 +352,7 @@ async function verifyInvitedPeerKey(peerId, profileSigningKey) {
     const matches = await keyFingerprint(profileSigningKey) === expected.fingerprint;
     if (matches) {
         await deleteDatabaseRecord('keys', `invite-expect:${peerId}`);
-        showToast('Kontakt verifiziert.', 'success');
+        showToast(t('Kontakt verifiziert.'), 'success');
     }
     return matches;
 }

@@ -217,7 +217,7 @@ const SNAP_MAX_DATA_URL_LENGTH = 70000;
 
 async function openSnapUploadModal() {
     if (!state.activeChatPeerId || isPeerBlocked(state.activeChatPeerId)) {
-        showToast('Bitte waehle zuerst einen aktiven Chat aus.', 'warning');
+        showToast(t('Bitte waehle zuerst einen aktiven Chat aus.'), 'warning');
         return;
     }
     await openSnapCamera('chat');
@@ -399,7 +399,7 @@ async function pickSnapImage(input) {
         showSnapReview(base);
     } catch (error) {
         logDebug(`Snap image failed: ${error.message}`);
-        showToast('Bild konnte nicht geladen werden.', 'error');
+        showToast(t('Bild konnte nicht geladen werden.'), 'error');
     }
 }
 
@@ -454,21 +454,21 @@ async function sendSnapDraft() {
         const caption = document.getElementById('snap-caption-input').value;
         closeSnapModal();
         if (image) await postPhotoStatus(image, caption);
-        else showToast('Status konnte nicht erstellt werden.', 'error');
+        else showToast(t('Status konnte nicht erstellt werden.'), 'error');
         return;
     }
     const peerId = state.activeChatPeerId;
     if (!hasSnapDraft() || !peerId) return;
     const snapData = await encodeSnapDraft(peerId);
     if (!snapData) {
-        showToast('Snap konnte nicht erstellt werden.', 'error');
+        showToast(t('Snap konnte nicht erstellt werden.'), 'error');
         return;
     }
     const caption = document.getElementById('snap-caption-input').value;
     if (state.snapSendMode === 'image') {
         const wantsOriginal = document.getElementById('snap-original-toggle')?.checked;
         const original = wantsOriginal ? await createOriginalImage(flattenSnapDraft(), peerId) : null;
-        if (wantsOriginal && !original) showToast('Original ist zu gross, es geht nur die Vorschau.', 'warning');
+        if (wantsOriginal && !original) showToast(t('Original ist zu gross, es geht nur die Vorschau.'), 'warning');
         closeSnapModal();
         await sendChatMessage(snapData, caption, null, null, { asImage: true, original });
         return;

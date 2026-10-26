@@ -26,9 +26,9 @@ async function updateTraceWatermark(enabled) {
         await putDatabaseRecord('keys', { id: PRIVACY_SETTINGS_RECORD_ID, traceWatermark: state.traceWatermark });
     } catch (error) {
         logDebug(`Could not store privacy settings: ${error.message}`);
-        showToast('Einstellung konnte nicht gespeichert werden.', 'error');
+        showToast(t('Einstellung konnte nicht gespeichert werden.'), 'error');
     }
-    if (!state.traceWatermark) showToast('Neue Snaps und Albumbilder tragen kein Wasserzeichen mehr.', 'info');
+    if (!state.traceWatermark) showToast(t('Neue Snaps und Albumbilder tragen kein Wasserzeichen mehr.'), 'info');
 }
 
 async function watermarkTag(peerId) {

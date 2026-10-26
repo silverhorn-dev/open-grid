@@ -852,6 +852,22 @@
         </div>
     </div>
 
+    <!-- Video-Viewer (video.js): wie der Bildbetrachter; nach unten wischen schliesst -->
+    <div id="video-viewer" class="hidden fixed inset-0 z-[80] bg-black flex flex-col select-none" data-no-context-menu role="dialog" aria-modal="true" aria-label="Video">
+        <div class="absolute top-0 inset-x-0 z-10 p-4 flex items-center justify-between gap-3 bg-gradient-to-b from-black/70 to-transparent pointer-events-none" style="padding-top: max(1rem, env(safe-area-inset-top));">
+            <div class="min-w-0">
+                <div id="video-viewer-title" class="text-sm font-semibold text-white/90 truncate"></div>
+                <div id="video-viewer-meta" class="text-[11px] text-white/60"></div>
+            </div>
+            <button data-click="closeVideoViewer" class="pointer-events-auto w-11 h-11 shrink-0 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Schliessen">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div id="video-viewer-stage" class="relative flex-1 min-h-0 flex items-center justify-center overflow-hidden" style="padding-bottom: env(safe-area-inset-bottom);">
+            <video id="video-viewer-video" class="max-w-full max-h-full object-contain will-change-transform" playsinline controls controlslist="nodownload noremoteplayback" disablepictureinpicture></video>
+        </div>
+    </div>
+
     <!-- Status-Viewer (status.js): links/rechts tippen = zurueck/weiter -->
     <div id="status-viewer" class="hidden fixed inset-0 z-[82] bg-black select-none" data-no-context-menu role="dialog" aria-modal="true" aria-label="Status">
         <div id="status-viewer-content" class="absolute inset-0 flex items-center justify-center">

@@ -91,7 +91,13 @@ async function main() {
         // Fast volle Sprachnachricht ueber den Router-Cache (Bobs Kanal halb tot).
         await bob.evaluate(id => {
             const original = handleSignalingMessage;
-            window.restoreSignaling = () => { window.handleSignalingMessage = original; };
+            const originalInitiate = initiateP2PConnection;
+            // Auch Bob selbst baut kein P2P auf (sonst holt er den Rest sofort ueber eine neue Verbindung).
+            window.initiateP2PConnection = async () => {};
+            window.restoreSignaling = () => {
+                window.handleSignalingMessage = original;
+                window.initiateP2PConnection = originalInitiate;
+            };
             window.handleSignalingMessage = async message => (message.type === 'SDP_OFFER' ? undefined : original(message));
             state.dataChannels[id].onmessage = null;
             state.dataChannels[id].send = () => {};
@@ -155,9 +161,12 @@ async function main() {
         assert.match(videoMessage.original.mime, /^video\/webm/);
         await waitFor(bob, () => Object.values(state.chats).flat().some(message => message.video && message.originalReady), null, 40000);
         await bob.click(`[data-video="${videoMessage.id}"]`);
-        await waitFor(bob, () => Boolean(document.querySelector('#media-modal-content video')?.src.startsWith('blob:')));
-        await bob.evaluate(() => closeMediaModal());
-        assert.equal(await bob.evaluate(() => state.mediaModalCleanup), null, 'blob cleaned up');
+        await waitFor(bob, () => !document.getElementById('video-viewer').classList.contains('hidden')
+            && document.getElementById('video-viewer-video').src.startsWith('blob:'));
+        assert.match(await bob.textContent('#video-viewer-title'), /Alice/);
+        await bob.keyboard.press('Escape');
+        await waitFor(bob, () => document.getElementById('video-viewer').classList.contains('hidden'));
+        assert.equal(await bob.evaluate(() => document.getElementById('video-viewer-video').getAttribute('src')), null, 'blob released');
 
         assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log('E2E OK (voice and video)');

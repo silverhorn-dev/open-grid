@@ -727,7 +727,8 @@ Akzeptanzkriterien:
 - Der andere sieht sofort ein Vorschaubild mit Laenge; das Video selbst kommt
   nur ueber eine direkte Verbindung (P2P/TURN), mit Fortschritt.
 - Das Video wird vor dem Speichern per SHA-256 geprueft.
-- Abspielen im Vollbild-Fenster, ohne Download-Knopf.
+- Abspielen im Vollbild wie der Bildbetrachter (nach unten wischen schliesst),
+  ohne Download-Knopf.
 
 ## UC-42: Gesten im Chat
 

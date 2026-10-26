@@ -48,6 +48,7 @@ window.onload = async () => {
     if (initialRoute.peerId) showChatLoadingPlaceholder();
     window.addEventListener('popstate', handlePopState);
     initImageViewer();
+    initVideoViewer();
     initSecureSnaps();
     initGestures();
     initSnapEditor();

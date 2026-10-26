@@ -105,8 +105,10 @@
   Weg wie Originalbilder (`ORIGINAL_REQUEST`/`ORIGINAL_CHUNK`, max. 576
   Stuecke), nie ueber Pfad C; Pruefung per SHA-256, Speicherung verschluesselt.
   Bis dahin zeigt die Nachricht "Video kommt bei direkter Verbindung" mit
-  Fortschritt. Abspielen im Medien-Modal ueber eine Blob-URL, ohne Download-Knopf
-  und Bild-in-Bild; die Blob-URL wird beim Schliessen freigegeben.
+  Fortschritt. Abspielen im Video-Viewer (`#video-viewer`, gleiche Optik wie der
+  Bildbetrachter: Vollbild schwarz, Kopfzeile mit Absender, Zeit und Laenge;
+  nach unten wischen, Esc oder Zurueck schliesst) ueber eine Blob-URL, ohne
+  Download-Knopf und Bild-in-Bild; die Blob-URL wird beim Schliessen freigegeben.
 - Ablauf nach der ersten Ansicht: der Absender legt `snapSettings.expiry` fest
   (Enum `'15m' | '30m' | '60m' | 'off'`, Standard `30m` bzw.
   `CLIENT_DEFAULTS.snapExpiry`), es geht als `message.snapExpiry` mit dem Snap.

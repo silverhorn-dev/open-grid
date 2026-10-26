@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 120 · 2026-10-26
+## Build 121 · 2026-10-26
+- Videos spielen jetzt im Vollbild wie der Bildbetrachter (Absender, Zeit und Laenge oben; nach unten wischen schliesst) statt im kleinen Fenster
+
+## Build 120 · 2026-10-26 · `90af994`
 - Sprachnachrichten bis 15 Minuten: die erste Minute kommt wie bisher auch offline an, der Rest nur ueber eine direkte Verbindung; beim Abhoeren wird er geholt und es geht nahtlos weiter
 - Am Maximum stoppt die Aufnahme nur, es wird nichts mehr automatisch gesendet
 

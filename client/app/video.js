@@ -149,21 +149,110 @@ async function openChatVideo(message) {
         showToast('Video nicht gefunden.', 'error');
         return;
     }
-    const url = URL.createObjectURL(mediaDataUrlToBlob(data));
-    const content = openMediaModal('Video');
-    const video = document.createElement('video');
-    video.className = 'w-full max-h-[70dvh] rounded-lg bg-black';
-    video.controls = true;
-    video.autoplay = true;
-    video.playsInline = true;
-    video.disablePictureInPicture = true;
-    video.setAttribute('controlsList', 'nodownload noremoteplayback');
-    video.oncontextmenu = event => event.preventDefault();
-    video.src = url;
-    content.appendChild(video);
-    state.mediaModalCleanup = () => {
+    const sender = message.senderId === state.myProfile.id ? 'Du' : getPeerPresentation(message.senderId).name || HIDDEN_PEER_NAME;
+    openVideoViewer(data, {
+        title: sender,
+        meta: [message.timestamp, formatVoiceDuration(message.video?.duration)].filter(Boolean).join(' · ')
+    });
+}
+
+// ----- Video-Viewer (Vollbild wie der Bildbetrachter) -----
+const VIDEO_VIEWER_CLOSE_THRESHOLD = 110;
+const videoViewer = { url: null, drag: null };
+
+function openVideoViewer(dataUrl, { title = '', meta = '' } = {}) {
+    const root = document.getElementById('video-viewer');
+    const video = document.getElementById('video-viewer-video');
+    releaseVideoViewerSource();
+    videoViewer.url = URL.createObjectURL(mediaDataUrlToBlob(dataUrl));
+    document.getElementById('video-viewer-title').textContent = title;
+    document.getElementById('video-viewer-meta').textContent = meta;
+    video.style.transform = '';
+    root.style.backgroundColor = '';
+    video.src = videoViewer.url;
+    if (root.classList.contains('hidden')) {
+        root.classList.remove('hidden');
+        pushModalEntry('video', hideVideoViewer);
+    }
+    video.play().catch(() => {
+        // Autoplay kann blockiert sein, die Steuerung bleibt sichtbar.
+    });
+}
+
+function releaseVideoViewerSource() {
+    const video = document.getElementById('video-viewer-video');
+    if (video) {
         video.pause();
         video.removeAttribute('src');
-        URL.revokeObjectURL(url);
+        video.load();
+    }
+    if (videoViewer.url) URL.revokeObjectURL(videoViewer.url);
+    videoViewer.url = null;
+}
+
+function isVideoViewerOpen() {
+    return !document.getElementById('video-viewer')?.classList.contains('hidden');
+}
+
+function closeVideoViewer() {
+    if (!isVideoViewerOpen()) return;
+    dismissModalEntry('video', hideVideoViewer);
+}
+
+function hideVideoViewer() {
+    releaseVideoViewerSource();
+    document.getElementById('video-viewer')?.classList.add('hidden');
+}
+
+// Nach unten ziehen schliesst (wie im Bildbetrachter); die Steuerleiste unten bleibt bedienbar.
+function initVideoViewer() {
+    const stage = document.getElementById('video-viewer-stage');
+    const video = document.getElementById('video-viewer-video');
+    const root = document.getElementById('video-viewer');
+    if (!stage || !video) return;
+    stage.addEventListener('pointerdown', event => {
+        const box = video.getBoundingClientRect();
+        if (event.target === video && event.clientY > box.bottom - 64) return;
+        videoViewer.drag = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, deltaY: 0, active: false };
+    });
+    stage.addEventListener('pointermove', event => {
+        const drag = videoViewer.drag;
+        if (!drag || drag.pointerId !== event.pointerId) return;
+        const deltaX = event.clientX - drag.startX;
+        const deltaY = event.clientY - drag.startY;
+        if (!drag.active) {
+            if (Math.abs(deltaY) < 10 || deltaY < Math.abs(deltaX)) return;
+            drag.active = true;
+            try {
+                stage.setPointerCapture(event.pointerId);
+            } catch {
+                // Pointer schon weg.
+            }
+        }
+        drag.deltaY = Math.max(0, deltaY);
+        video.style.transition = 'none';
+        video.style.transform = `translate3d(0, ${drag.deltaY}px, 0) scale(${1 - Math.min(0.2, drag.deltaY / 1500)})`;
+        root.style.backgroundColor = `rgb(0 0 0 / ${1 - Math.min(0.6, drag.deltaY / 400)})`;
+    });
+    const finish = event => {
+        const drag = videoViewer.drag;
+        if (!drag || drag.pointerId !== event.pointerId) return;
+        videoViewer.drag = null;
+        if (!drag.active) return;
+        if (event.type !== 'pointercancel' && drag.deltaY >= VIDEO_VIEWER_CLOSE_THRESHOLD) {
+            closeVideoViewer();
+            return;
+        }
+        video.style.transition = prefersReducedMotion() ? 'none' : 'transform 200ms ease-out';
+        video.style.transform = '';
+        root.style.backgroundColor = '';
     };
+    stage.addEventListener('pointerup', finish);
+    stage.addEventListener('pointercancel', finish);
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && isVideoViewerOpen()) {
+            event.preventDefault();
+            closeVideoViewer();
+        }
+    }, true);
 }

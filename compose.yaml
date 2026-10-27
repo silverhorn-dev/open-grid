@@ -28,6 +28,8 @@ services:
       # LAN_MODE: "true"
       # App-Modi, die Nutzer waehlen koennen (discovery, chat, friends, event).
       # APP_MODES: discovery,chat,friends,event
+      # Profil-Felder (JSON) fuer alle Modi; je Modus siehe PROFILE_SCHEMAS weiter unten. Leer = eingebautes.
+      PROFILE_SCHEMA: ${PROFILE_SCHEMA:-}
       # DEFAULT_APP_MODE: discovery
       # Schluessel-Epoche fuer Alben und View-once-Snaps (Minuten). 5 = Testbetrieb.
       MEDIA_KEY_EPOCH_MINUTES: 5
@@ -39,18 +41,18 @@ services:
             { "key": "displayName", "label": { "de": "Anzeigename", "en": "Display name" }, "type": "string", "required": true, "default": "Alex" },
             { "key": "age", "label": { "de": "Alter", "en": "Age" }, "type": "number", "min": 18, "max": 99, "default": 26 },
             { "key": "role", "label": { "de": "Position / Rolle", "en": "Position / Role" }, "type": "select", "options": ["Top", "Bottom", "Versatile", "Side"] },
-            { "key": "bio", "label": { "de": "Über mich", "en": "About me" }, "type": "description" }
+            { "key": "bio", "label": { "de": "Ãœber mich", "en": "About me" }, "type": "description" }
           ],
           "chat": [
             { "key": "displayName", "label": "Name", "type": "string", "required": true },
             { "key": "status", "label": { "de": "Status", "en": "Status" }, "type": "string" },
-            { "key": "bio", "label": { "de": "Über mich", "en": "About me" }, "type": "description" }
+            { "key": "bio", "label": { "de": "Ãœber mich", "en": "About me" }, "type": "description" }
           ],
           "event": [
             { "key": "displayName", "label": "Name", "type": "string", "required": true },
             { "key": "status", "label": { "de": "Status", "en": "Status" }, "type": "string" },
-            { "key": "currentWorkshop", "label": { "de": "Aktueller Workshop", "en": "Current Workshop" }, "type": "String" },
-            { "key": "bio", "label": { "de": "Über mich", "en": "About me" }, "type": "description" }
+            { "key": "currentWorkshop", "label": { "de": "Aktueller Workshop", "en": "Current Workshop" }, "type": "string" },
+            { "key": "bio", "label": { "de": "Ãœber mich", "en": "About me" }, "type": "description" }
           ]
         }
 #    disabled b'cause we are in the service net

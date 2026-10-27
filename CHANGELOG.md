@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 147 · 2026-10-27
+## Build 149 · 2026-10-27
+- Behoben: die Profilfelder je Modus vom Server wurden verworfen; "Nur Chat" nutzt jetzt wie vorgesehen das schlanke Profil (Name und Status), eigene Profilfelder des Betreibers greifen wieder
+- Betrieb: Profilfelder je Modus (inkl. Event mit "Aktueller Workshop") direkt in `compose.yaml`
+
+## Build 147 · 2026-10-27 · `bade31f`
 - Snap-Editor: einmal auf einen Text tippen, um ihn nachzubearbeiten (Text, Art, Hintergrund, Farbe)
 - Snap-Editor: "Rueckgaengig" macht jetzt auch Zoomen/Drehen des Hintergrunds, Filter, Verschieben/Groesse/Drehung von Text und Emojis und das Loeschen per Doppeltippen rueckgaengig
 

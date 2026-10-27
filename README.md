@@ -130,7 +130,7 @@ Version ist `Build <Commit-Anzahl> (<Hash>)`.
 | `BUILD_VERSION` | `self-hosted` | Im UI angezeigte Build-Version |
 | `BUILD_TIMESTAMP` | Startzeit | Im UI angezeigter Build-Zeitpunkt |
 | `PROFILE_SCHEMA` | eingebautes Schema | Optionales JSON-Array fuer Profilfelder |
-| `PROFILE_SCHEMAS` | – | Optionales JSON-Objekt mit einem Schema pro App-Modus, z. B. `{"chat": [...]}`; ohne Angabe nutzt "Nur Chat" Name + Status |
+| `PROFILE_SCHEMAS` | – | Optionales JSON-Objekt mit einem Schema pro App-Modus, z. B. `{"chat": [...]}`; ohne Angabe nutzt "Nur Chat" Name + Status. Labels als Text oder je Sprache (`{"de": "Alter", "en": "Age"}`). `PROFILE_SCHEMA` reicht `compose.yaml` aus der `.env` durch, `PROFILE_SCHEMAS` steht direkt in `compose.yaml` |
 | `INFO_HOST` | – | Eigene Subdomain fuer die Info-Seite (sonst `/info`) |
 | `APP_URL` | – | Adresse der App fuer "Zur App" auf der Info-Seite |
 | `TURN_SERVER` | `turn.deine-domain.de` | Hostname des coturn-Servers |

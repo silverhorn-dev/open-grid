@@ -131,6 +131,10 @@
    - noch weitere ideen anmerkungen?
   - ideen dazu (vorschlag 2026-10-27, noch nicht bestaetigt): loeschen per ziehen auf einen papierkorb, textausrichtung, ortsfreie sticker (uhrzeit, wochentag)
 
+## T8 Bug: Profil-Schemas vom Router (gefunden 2026-10-27)
+- [x] `validateProfileSchema` (config.js) nahm nur Text-Labels an; die eingebauten Schemas haben `{de,en}` -> der Client verwarf alle Schemas vom Router, "Nur Chat" bekam nie Name + Status
+  - fix 2026-10-27: Labels als Text oder je Sprache; `compose.yaml` reicht `PROFILE_SCHEMA` durch (`PROFILE_SCHEMAS` steht dort direkt, nutzer 2026-10-27; dabei `"String"` -> `"string"` und "Über" von ISO-8859-1 nach UTF-8 korrigiert); test `test/profile-schema.test.js` (router-standard -> client-pruefung)
+
 ## Eigene rotierende Verschluesselung (geparkt, erst besprechen)
 - [ ] gestohlene album-schluessel sollen nach der epoche wertlos sein; idee: eigener, vom server getakteter algorithmus -> `tasks/feature-request-rotating-encryption.md`
   - offen: konflikt mit regel "crypto nur ueber `crypto.subtle`"; alternative: server-epochen-geheimnis + `CK_e` per HKDF (AES-GCM bleibt)

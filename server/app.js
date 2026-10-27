@@ -148,6 +148,7 @@ const clientAssetFiles = [
     'app/router.js',
     'app/actions.js',
     'app/push.js',
+    'app/share-target.js',
     'app/main.js'
 ];
 const defaultSchema = [
@@ -206,6 +207,53 @@ function loadVapidKeys(store) {
     // Neustart ungueltig. Deshalb einmal erzeugen und in SQLite behalten.
     return JSON.parse(store.getOrCreateSetting('vapid-keys', () => JSON.stringify(generateVapidKeys())));
 }
+
+// Web-App-Manifest (vorher als data:-URL im Markup); share_target fuer "Teilen nach OpenGrid".
+const WEB_APP_MANIFEST = JSON.stringify({
+    "name": "OpenGrid",
+    "short_name": "OpenGrid",
+    "start_url": "/grid",
+    "scope": "/",
+    "display": "standalone",
+    "background_color": "#0f172a",
+    "theme_color": "#0f172a",
+    "icons": [
+        {
+            "src": "/client/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "/client/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "/client/icon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any"
+        }
+    ],
+    "share_target": {
+        "action": "/share-target",
+        "method": "POST",
+        "enctype": "multipart/form-data",
+        "params": {
+            "title": "title",
+            "text": "text",
+            "url": "url",
+            "files": [
+                {
+                    "name": "files",
+                    "accept": [
+                        "image/*"
+                    ]
+                }
+            ]
+        }
+    }
+});
 
 const FONT_AWESOME_DIRECTORY = join(projectDirectory, 'node_modules', '@fortawesome', 'fontawesome-free');
 // PNG-Icons fuer Home-Bildschirm/Manifest (iOS nutzt kein SVG als apple-touch-icon).
@@ -395,6 +443,21 @@ export async function buildApp(options = {}) {
         const text = await readFile(join(projectDirectory, 'CHANGELOG.md'), 'utf8').catch(() => '# Changelog\n\nNicht verfuegbar.');
         return reply.type('text/markdown; charset=utf-8').header('Cache-Control', 'no-cache').send(text);
     });
+
+    // Web-App-Manifest, mit share_target: installiert erscheint OpenGrid im Teilen-Menue anderer Apps.
+    app.get('/manifest.webmanifest', async (_request, reply) => reply
+        .type('application/manifest+json; charset=utf-8')
+        .header('Cache-Control', 'no-cache')
+        .send(WEB_APP_MANIFEST));
+
+    // Geteilte Dateien faengt der Service Worker ab und behaelt sie lokal. Kommt der POST doch hier an
+    // (kein aktiver Worker), wird nichts gespeichert, nur zur App weitergeleitet.
+    app.addContentTypeParser('multipart/form-data', (_request, payload, done) => {
+        payload.resume();
+        payload.on('end', () => done(null, null));
+        payload.on('error', done);
+    });
+    app.post('/share-target', async (_request, reply) => reply.redirect('/chat?share=unavailable', 303));
 
     app.get('/sw.js', async (_request, reply) => {
         return reply

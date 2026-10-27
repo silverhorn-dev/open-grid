@@ -796,3 +796,17 @@ Akzeptanzkriterien:
 - Teilen gibt ein JPEG an das System; Abbrechen zeigt keinen Fehler.
 - Wo Speichern nicht erlaubt ist (Alben, Secure Snaps, Grid & Event), gibt es
   auch kein Teilen.
+
+## UC-49: Aus einer anderen App nach OpenGrid teilen
+
+**Als Nutzer der installierten App** moechte ich ein Foto aus der Galerie oder
+einen Link ueber das Teilen-Menue direkt in einen Chat schicken.
+
+Akzeptanzkriterien:
+
+- OpenGrid erscheint im Teilen-Menue des Geraets (installierte PWA, nicht iOS).
+- Nach dem Teilen fragt OpenGrid "Senden an" und zeigt die Chats.
+- Bilder gehen als Chat-Bilder raus; Text landet im Eingabefeld und wird nicht
+  automatisch gesendet.
+- Andere Dateien werden uebersprungen, mit Hinweis.
+- Geteiltes bleibt bis dahin nur auf dem Geraet und wird danach geloescht.

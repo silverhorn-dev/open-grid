@@ -11,7 +11,7 @@
     <meta name="description" content="Datenschutzfreundliche P2P-Discovery- und Chat-App mit Ende-zu-Ende-Verschluesselung">
 
     <!-- PWA Web App Manifest (Inline Data URI) -->
-    <link rel="manifest" href="data:application/manifest+json;utf8,%7B%22name%22%3A%22OpenGrid%22%2C%22short_name%22%3A%22OpenGrid%22%2C%22start_url%22%3A%22%2Fgrid%22%2C%22scope%22%3A%22%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230f172a%22%2C%22theme_color%22%3A%22%230f172a%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22%2Fclient%2Ficon-192.png%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fpng%22%7D%2C%7B%22src%22%3A%22%2Fclient%2Ficon-512.png%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fpng%22%7D%2C%7B%22src%22%3A%22%2Fclient%2Ficon.svg%22%2C%22sizes%22%3A%22any%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%2C%22purpose%22%3A%22any%22%7D%5D%7D">
+    <link rel="manifest" href="/manifest.webmanifest">
 
     <!-- Tailwind (vorab kompiliert, npm run build:css) und Font Awesome: lokal, offline nutzbar -->
     <link rel="stylesheet" href="/client/tailwind.css?v={{assetVersion}}">
@@ -1116,6 +1116,7 @@
     <script src="/client/app/router.js?v={{assetVersion}}"></script>
     <script src="/client/app/actions.js?v={{assetVersion}}"></script>
     <script src="/client/app/push.js?v={{assetVersion}}"></script>
+    <script src="/client/app/share-target.js?v={{assetVersion}}"></script>
     <script src="/client/app/main.js?v={{assetVersion}}"></script>
 </body>
 </html>

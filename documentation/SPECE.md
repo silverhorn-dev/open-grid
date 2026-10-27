@@ -1081,6 +1081,22 @@ Der Service Worker:
 - ruft `skipWaiting()` nie automatisch auf, nur nach `ACTIVATE_UPDATE` von der
   Seite (Nutzer tippt im Update-Hinweis auf "Aktualisieren")
 
+### 9.0 Teilen nach OpenGrid (share_target)
+
+Das Manifest liefert der Server unter `/manifest.webmanifest` (vorher eine
+`data:`-URL im Markup; `start_url` und damit die App-Identitaet unveraendert)
+mit `share_target` (`POST /share-target`, multipart, Felder `title`, `text`,
+`url`, `files` mit `image/*`). Der Service Worker faengt den POST ab
+(`handleShareTarget`): hoechstens 20 Bilder bis je 25 MB plus Text (je Feld
+4000 Zeichen) in den Cache `opengrid-share-inbox` (`/__share/meta`,
+`/__share/file-<n>`), dann `303` auf `/chat?share=1`. Die Seite
+(`client/app/share-target.js`) liest und leert den Eingang beim Start und zeigt
+"Senden an" mit allen nicht blockierten Chats. Bilder gehen wie aus der Galerie
+als Chat-Bilder raus (Wasserzeichen wie gewohnt), Text nur ins Eingabefeld (nie
+automatisch senden; Titel/Link, die schon im Text stehen, entfallen). Ohne
+aktiven Worker beantwortet der Server den POST ohne zu speichern mit `303` auf
+`/chat?share=unavailable`. Nur installierte PWA, nicht auf iOS.
+
 ### 9.1 Offline (App-Shell)
 
 Der Server setzt beim Ausliefern von `/sw.js` die Asset-Version und die

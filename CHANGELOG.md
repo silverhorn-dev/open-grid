@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 138 · 2026-10-27
+## Build 139 · 2026-10-27
+- Teilen nach OpenGrid: in der installierten App erscheint OpenGrid im Teilen-Menue anderer Apps; Fotos gehen nach "Senden an" direkt in den Chat, Text und Links landen im Eingabefeld
+
+## Build 138 · 2026-10-27 · `fa71f61`
 - Chat-Bilder im Chat- und Freunde-Bereich lassen sich jetzt auch ueber das Teilen-Menue des Geraets weitergeben, Speichern bleibt daneben
 
 ## Build 135 · 2026-10-26 · `46bdceb`

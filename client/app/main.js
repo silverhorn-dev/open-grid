@@ -134,6 +134,7 @@ window.onload = async () => {
         reportStartupProblems();
         renderInviteCard().catch(error => logDebug(`Invite card failed: ${error.message}`));
         if (state.pendingInvite) acceptPendingInvite().catch(error => logDebug(`Invite failed: ${error.message}`));
+        handleIncomingShare().catch(error => logDebug(`Share target failed: ${error.message}`));
         const chatInput = document.getElementById('chat-input');
         chatInput.addEventListener('input', () => {
             fitChatInput(chatInput);

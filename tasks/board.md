@@ -79,7 +79,8 @@
 - [x] teilen aus OpenGrid: installiert als app oeffnen teilen-knoepfe (einladungslink, chat-bilder im social-bereich) das native teilen-menue (Web Share API) statt kopieren/download
   - nutzer 2026-10-27: download bleibt, teilen kommt als zweite moeglichkeit dazu
   - done 2026-10-27: bildbetrachter "Teilen" neben "Speichern" (`canShareFiles`, `shareCanvasImage`, `shareViewerImage`), nur mit derselben freigabe wie speichern; einladungslink hatte schon kopieren + teilen; e2e `image-share`; UC-48 (UC-46/47 liegen auf `feature/safety-checks`)
-- [ ] teilen nach OpenGrid: OpenGrid erscheint im teilen-menue anderer apps (Share Target API im manifest), z. B. foto aus der galerie -> chat auswaehlen -> senden
+- [x] teilen nach OpenGrid: OpenGrid erscheint im teilen-menue anderer apps (Share Target API im manifest), z. B. foto aus der galerie -> chat auswaehlen -> senden
+  - done 2026-10-27: manifest jetzt unter `/manifest.webmanifest` mit `share_target`; SW `handleShareTarget` -> cache `opengrid-share-inbox` -> `/chat?share=1`; `client/app/share-target.js` ("Senden an", bilder als chat-bilder, text nur ins eingabefeld); `createChatPickerList` (chat-switch.js) geteilt mit dem quick-switcher; tests `test/server.test.js`, e2e `share-target`; UC-49
   - offen: nur installierte PWA; iOS unterstuetzt share target nicht
 
 ## Eigene rotierende Verschluesselung (geparkt, erst besprechen)

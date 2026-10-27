@@ -148,6 +148,10 @@
 - [x] gueltigkeit pro person ueberschreibbar
   - done 2026-10-27: `ALBUM_KEY_EPOCH_OPTIONS` + 10080 (album, einstellungs-standard, `CLIENT_DEFAULTS`), `album.viewerKeyEpochs`, auswahl neben jeder person; rollende keys pro epochenlaenge (`<epochMs>:<epoch>`), damit verschiedene laengen nicht kollidieren; tests `test/albums.test.js`, e2e `album-preview`
 
+## T11 Bug: egal welcher Modus, das Entdecken-Profil wird geholt (nutzer 2026-10-27)
+- [x] ursache: `buildProfilePayloadFor` filterte die felder nach dem schema des EIGENEN aktiven modus; wer in "Entdecken" war, schickte chat-kontakten sein dating-profil (alter, rolle), und umgekehrt
+  - fix 2026-10-27: `profileSchemaForPeer` (matching.js) nach der chat-liste; tests `test/matching.test.js`, e2e `profile-scope` (schlaegt ohne fix fehl)
+
 ## Eigene rotierende Verschluesselung (geparkt, erst besprechen)
 - [ ] gestohlene album-schluessel sollen nach der epoche wertlos sein; idee: eigener, vom server getakteter algorithmus -> `tasks/feature-request-rotating-encryption.md`
   - offen: konflikt mit regel "crypto nur ueber `crypto.subtle`"; alternative: server-epochen-geheimnis + `CK_e` per HKDF (AES-GCM bleibt)

@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 153 · 2026-10-27
+## Build 154 · 2026-10-27
+- Behoben: Kontakte aus "Chat & Freunde" bekamen dein Entdecken-Profil (z. B. Alter), wenn du gerade in "Entdecken" warst, und umgekehrt. Jetzt zaehlt die Liste des Chats
+
+## Build 153 · 2026-10-27 · `fbc3c72`
 - Alben: Schluessel koennen jetzt auch eine Woche gelten, und die Gueltigkeit laesst sich pro Person festlegen (neben jeder Person im Album)
 
 ## Build 152 · 2026-10-27 · `fb962bd`

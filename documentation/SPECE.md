@@ -322,9 +322,12 @@ den Code nie. Nach 12 Stunden verlaesst der Client das Event automatisch.
 **Profil-Schema pro Modus**: `PROFILE_SCHEMAS` (JSON-Objekt, Schluessel =
 Modus) ueberschreibt einzelne Modi; ohne Angabe nutzt `chat` ein schlankes
 Schema (Anzeigename + Status), alle anderen `PROFILE_SCHEMA`. Die App-Shell
-bekommt alle Schemas eingebettet, aktiv ist das des gewaehlten Modus. Das
-Profil enthaelt nur Felder des aktiven Schemas (plus `displayName`); fremde
-Profile zeigen auch Felder aus anderen Schemas an.
+bekommt alle Schemas eingebettet; das Bearbeiten-Formular zeigt das des
+gewaehlten Modus. Welche Felder ein Peer bekommt, richtet sich nach der Liste
+des Chats mit ihm (`profileSchemaForPeer`): "Chat & Freunde" = `chat`-Schema
+(Freunde: `friends`), "Grid & Event" = `discovery` (im Event-Modus `event`);
+ohne Chat (z. B. aus dem Grid) das Schema des aktiven Modus. Immer plus
+`displayName`. Fremde Profile zeigen auch Felder aus anderen Schemas an.
 
 **Profil-Handshake**: Steht nach dem ersten `KEY_HELLO` noch kein Profil des
 Peers im Cache (neuer Kontakt per Einladung oder erste Nachricht), fragt der

@@ -7,6 +7,12 @@ const SNAP_EDIT_EMOJIS = ['😂', '😍', '🔥', '❤️', '😎', '🥳', '�
 const SNAP_TEXT_SIZE = 0.07;
 const SNAP_EMOJI_SIZE = 0.14;
 const SNAP_STROKE_WIDTH = 0.012;
+// Gesten (Wunsch 2026-10-27): Element = ein Finger darauf verschiebt, ein zweiter Finger irgendwo
+// skaliert und dreht; Hintergrund = zwei Finger auf dem Bild zoomen, drehen und verschieben das Foto.
+// Drehung rastet bei 0/90/180/270 Grad ein. Am PC: Mausrad beim Ziehen skaliert, mit Shift dreht es.
+const SNAP_ITEM_SCALE_RANGE = [0.3, 6];
+const SNAP_BACKGROUND_SCALE_RANGE = [0.5, 5];
+const SNAP_ROTATION_SNAP = (6 * Math.PI) / 180;
 
 const snapEditor = {
     base: null,
@@ -16,9 +22,35 @@ const snapEditor = {
     items: [],
     history: [],
     activeStroke: null,
-    drag: null,
-    lastItemTap: null
+    lastItemTap: null,
+    // Foto unter Zeichnung und Ebenen: Zoom, Drehung (rad), Verschiebung relativ zur Bildgroesse.
+    background: { scale: 1, rotation: 0, x: 0, y: 0 },
+    gesture: { pointers: new Map(), mode: null, item: null, itemPointerId: null, offset: null, start: null, swipe: null, snapped: false }
 };
+
+const clampTo = ([min, max], value) => Math.min(max, Math.max(min, value));
+
+// Winkel nahe einem Vielfachen von 90 Grad rasten ein.
+function snapEditorRotation(angle) {
+    const quarter = Math.PI / 2;
+    const nearest = Math.round(angle / quarter) * quarter;
+    return Math.abs(angle - nearest) < SNAP_ROTATION_SNAP ? nearest : angle;
+}
+
+function noteRotationSnap(angle) {
+    const snapped = angle === snapEditorRotation(angle) && Math.abs(angle % (Math.PI / 2)) < 1e-9;
+    if (snapped && !snapEditor.gesture.snapped) hapticTick();
+    snapEditor.gesture.snapped = snapped;
+}
+
+function pointerPair(pointers) {
+    const [first, second] = [...pointers.values()];
+    return {
+        distance: Math.hypot(second.x - first.x, second.y - first.y) || 1,
+        angle: Math.atan2(second.y - first.y, second.x - first.x),
+        mid: { x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 }
+    };
+}
 
 // Rohbild ohne Wasserzeichen in voller Aufloesung (max. ORIGINAL_MAX_EDGE, fuer "Original");
 // Snaps und Vorschauen verkleinert encodeSnap beim Senden.
@@ -42,11 +74,13 @@ function openSnapEditor(base) {
     snapEditor.strokes = [];
     snapEditor.items = [];
     snapEditor.history = [];
+    snapEditor.background = { scale: 1, rotation: 0, x: 0, y: 0 };
+    resetSnapEditorGesture();
     const baseCanvas = document.getElementById('snap-edit-base');
     const drawCanvas = document.getElementById('snap-edit-draw');
     baseCanvas.width = drawCanvas.width = base.width;
     baseCanvas.height = drawCanvas.height = base.height;
-    baseCanvas.getContext('2d').drawImage(base, 0, 0);
+    redrawSnapBackground();
     drawCanvas.getContext('2d').clearRect(0, 0, base.width, base.height);
     document.getElementById('snap-edit-layers').replaceChildren();
     document.getElementById('snap-editor').classList.remove('hidden');
@@ -74,6 +108,29 @@ function closeSnapEditor() {
     document.getElementById('snap-text-entry')?.classList.add('hidden');
     document.getElementById('snap-emoji-row')?.classList.add('hidden');
     document.getElementById('snap-live-tools')?.classList.remove('hidden');
+}
+
+function resetSnapEditorGesture() {
+    snapEditor.gesture = { pointers: new Map(), mode: null, item: null, itemPointerId: null, offset: null, start: null, swipe: null, snapped: false };
+}
+
+// Foto mit seiner Transformation; ausserhalb schwarz (wie beim Senden).
+function drawSnapBackground(context, width, height) {
+    const { scale, rotation, x, y } = snapEditor.background;
+    context.save();
+    context.fillStyle = '#000000';
+    context.fillRect(0, 0, width, height);
+    context.translate(width / 2 + x * width, height / 2 + y * height);
+    context.rotate(rotation);
+    context.scale(scale, scale);
+    context.drawImage(snapEditor.base, -width / 2, -height / 2, width, height);
+    context.restore();
+}
+
+function redrawSnapBackground() {
+    const canvas = document.getElementById('snap-edit-base');
+    if (!canvas || !snapEditor.base) return;
+    drawSnapBackground(canvas.getContext('2d'), canvas.width, canvas.height);
 }
 
 function hasSnapDraft() {
@@ -162,7 +219,7 @@ function commitSnapText() {
 
 // ----- Text- und Emoji-Ebenen (Position relativ 0..1, Groesse relativ zur Bildbreite) -----
 function addSnapItem(item) {
-    const entry = { id: window.crypto.randomUUID(), x: 0.5, y: 0.5, ...item };
+    const entry = { id: window.crypto.randomUUID(), x: 0.5, y: 0.5, scale: 1, rotation: 0, ...item };
     snapEditor.items.push(entry);
     snapEditor.history.push({ type: 'item', id: entry.id });
     renderSnapItems();
@@ -173,50 +230,162 @@ function renderSnapItems() {
     const stageWidth = document.getElementById('snap-editor-stage').clientWidth || 1;
     layers.replaceChildren(...snapEditor.items.map(item => {
         const element = document.createElement('div');
-        element.className = 'snap-edit-item absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap font-bold pointer-events-auto cursor-move';
+        element.className = 'snap-edit-item absolute whitespace-nowrap font-bold pointer-events-auto cursor-move touch-none';
         element.dataset.itemId = item.id;
         element.textContent = item.text;
-        element.style.left = `${item.x * 100}%`;
-        element.style.top = `${item.y * 100}%`;
         element.style.fontSize = `${item.size * stageWidth}px`;
         element.style.color = item.color;
         element.style.textShadow = item.kind === 'text' ? '0 1px 3px rgba(0,0,0,0.8)' : '';
-        element.addEventListener('pointerdown', event => startSnapItemDrag(event, item));
+        positionSnapItemElement(element, item);
         return element;
     }));
 }
 
-function startSnapItemDrag(event, item) {
-    event.preventDefault();
-    event.stopPropagation();
-    const now = Date.now();
-    // Doppelt tippen entfernt die Ebene.
-    if (snapEditor.lastItemTap?.id === item.id && now - snapEditor.lastItemTap.at < 300) {
-        snapEditor.items = snapEditor.items.filter(entry => entry.id !== item.id);
-        snapEditor.lastItemTap = null;
-        renderSnapItems();
+function positionSnapItemElement(element, item) {
+    element.style.left = `${item.x * 100}%`;
+    element.style.top = `${item.y * 100}%`;
+    element.style.transform = `translate(-50%, -50%) rotate(${item.rotation || 0}rad) scale(${item.scale || 1})`;
+}
+
+function updateSnapItemElement(item) {
+    const element = document.querySelector(`#snap-edit-layers [data-item-id="${item.id}"]`);
+    if (element) positionSnapItemElement(element, item);
+}
+
+function snapStageRect() {
+    return document.getElementById('snap-editor-stage').getBoundingClientRect();
+}
+
+// ----- Gesten im Editor -----
+function handleSnapEditorDown(event) {
+    if (!hasSnapDraft()) return;
+    const gesture = snapEditor.gesture;
+    const itemElement = event.target.closest?.('[data-item-id]');
+    // Zeichnen hat Vorrang auf dem Bild (Zeichen-Canvas nimmt die Ereignisse selbst).
+    if (snapEditor.tool === 'draw' && !itemElement && !gesture.mode) return;
+    gesture.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    if (gesture.pointers.size === 1) {
+        if (itemElement) {
+            const item = snapEditor.items.find(entry => entry.id === itemElement.dataset.itemId);
+            if (!item) return;
+            const now = Date.now();
+            // Doppelt tippen entfernt die Ebene.
+            if (snapEditor.lastItemTap?.id === item.id && now - snapEditor.lastItemTap.at < 300) {
+                snapEditor.items = snapEditor.items.filter(entry => entry.id !== item.id);
+                snapEditor.lastItemTap = null;
+                resetSnapEditorGesture();
+                renderSnapItems();
+                return;
+            }
+            snapEditor.lastItemTap = { id: item.id, at: now };
+            const rect = snapStageRect();
+            Object.assign(gesture, {
+                mode: 'item',
+                item,
+                itemPointerId: event.pointerId,
+                offset: { x: event.clientX - (rect.left + item.x * rect.width), y: event.clientY - (rect.top + item.y * rect.height) }
+            });
+        } else {
+            Object.assign(gesture, { mode: 'background', swipe: { startX: event.clientX, startY: event.clientY } });
+        }
         return;
     }
-    snapEditor.lastItemTap = { id: item.id, at: now };
-    snapEditor.drag = { item, pointerId: event.pointerId };
-    event.currentTarget.setPointerCapture?.(event.pointerId);
-}
-
-function moveSnapItem(event) {
-    const drag = snapEditor.drag;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-    const rect = document.getElementById('snap-editor-stage').getBoundingClientRect();
-    drag.item.x = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
-    drag.item.y = Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height));
-    const element = document.querySelector(`#snap-edit-layers [data-item-id="${drag.item.id}"]`);
-    if (element) {
-        element.style.left = `${drag.item.x * 100}%`;
-        element.style.top = `${drag.item.y * 100}%`;
+    if (gesture.pointers.size !== 2) return;
+    const pair = pointerPair(gesture.pointers);
+    if (gesture.mode === 'item') {
+        // Zweiter Finger irgendwo: skalieren und drehen.
+        gesture.start = { ...pair, scale: gesture.item.scale || 1, rotation: gesture.item.rotation || 0 };
+    } else if (gesture.mode === 'background' && !itemElement) {
+        gesture.mode = 'background-pinch';
+        gesture.swipe = null;
+        gesture.start = { ...pair, background: { ...snapEditor.background } };
     }
 }
 
-function endSnapItemDrag(event) {
-    if (snapEditor.drag?.pointerId === event.pointerId) snapEditor.drag = null;
+function handleSnapEditorMove(event) {
+    const gesture = snapEditor.gesture;
+    if (!gesture.pointers.has(event.pointerId)) return;
+    gesture.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    const rect = snapStageRect();
+    if (gesture.mode === 'item') {
+        const item = gesture.item;
+        if (gesture.start && gesture.pointers.size >= 2) {
+            const pair = pointerPair(gesture.pointers);
+            item.scale = clampTo(SNAP_ITEM_SCALE_RANGE, gesture.start.scale * (pair.distance / gesture.start.distance));
+            item.rotation = snapEditorRotation(gesture.start.rotation + pair.angle - gesture.start.angle);
+            noteRotationSnap(item.rotation);
+        }
+        const finger = gesture.pointers.get(gesture.itemPointerId);
+        if (finger) {
+            item.x = clampTo([0, 1], (finger.x - gesture.offset.x - rect.left) / rect.width);
+            item.y = clampTo([0, 1], (finger.y - gesture.offset.y - rect.top) / rect.height);
+        }
+        updateSnapItemElement(item);
+    } else if (gesture.mode === 'background-pinch' && gesture.pointers.size >= 2) {
+        const pair = pointerPair(gesture.pointers);
+        const start = gesture.start;
+        snapEditor.background = {
+            scale: clampTo(SNAP_BACKGROUND_SCALE_RANGE, start.background.scale * (pair.distance / start.distance)),
+            rotation: snapEditorRotation(start.background.rotation + pair.angle - start.angle),
+            x: start.background.x + (pair.mid.x - start.mid.x) / rect.width,
+            y: start.background.y + (pair.mid.y - start.mid.y) / rect.height
+        };
+        noteRotationSnap(snapEditor.background.rotation);
+        redrawSnapBackground();
+    }
+}
+
+function handleSnapEditorUp(event) {
+    const gesture = snapEditor.gesture;
+    if (!gesture.pointers.has(event.pointerId)) return;
+    const point = gesture.pointers.get(event.pointerId);
+    gesture.pointers.delete(event.pointerId);
+    if (gesture.mode === 'background' && gesture.swipe && event.type === 'pointerup') {
+        // Ein Finger auf dem Bild seitlich: Snap <-> Bild (wie in der Kamera).
+        const deltaX = point.x - gesture.swipe.startX;
+        const deltaY = point.y - gesture.swipe.startY;
+        if (Math.abs(deltaX) > SNAP_SWIPE_MODE && Math.abs(deltaX) > Math.abs(deltaY) * 1.5 && state.snapTarget !== 'status') toggleSnapSendMode();
+    }
+    if (gesture.mode === 'item') {
+        // Element-Finger weg: Geste vorbei. Nur der zweite Finger weg: weiter verschieben, neu ansetzen.
+        if (event.pointerId === gesture.itemPointerId) resetSnapEditorGesture();
+        else gesture.start = null;
+        return;
+    }
+    // Nach dem Zoomen bleibt ein Finger liegen: keine weitere Geste bis zum Loslassen.
+    if (gesture.mode === 'background-pinch' && gesture.pointers.size) {
+        gesture.mode = 'done';
+        return;
+    }
+    if (!gesture.pointers.size) resetSnapEditorGesture();
+}
+
+// Mausrad: beim Ziehen eines Elements skalieren (Shift = drehen), sonst das Foto zoomen.
+function handleSnapEditorWheel(event) {
+    if (!hasSnapDraft()) return;
+    event.preventDefault();
+    const gesture = snapEditor.gesture;
+    if (gesture.mode === 'item' && gesture.item) {
+        const item = gesture.item;
+        if (event.shiftKey) {
+            item.rotation = snapEditorRotation((item.rotation || 0) + event.deltaY * 0.003);
+            noteRotationSnap(item.rotation);
+        } else {
+            item.scale = clampTo(SNAP_ITEM_SCALE_RANGE, (item.scale || 1) * Math.exp(-event.deltaY * 0.0015));
+        }
+        updateSnapItemElement(item);
+        return;
+    }
+    if (snapEditor.tool === 'draw') return;
+    const background = snapEditor.background;
+    if (event.shiftKey) {
+        background.rotation = snapEditorRotation(background.rotation + event.deltaY * 0.003);
+        noteRotationSnap(background.rotation);
+    } else {
+        background.scale = clampTo(SNAP_BACKGROUND_SCALE_RANGE, background.scale * Math.exp(-event.deltaY * 0.0015));
+    }
+    redrawSnapBackground();
 }
 
 // ----- Zeichnen -----
@@ -310,12 +479,15 @@ function flattenSnapDraft() {
     canvas.width = base.width;
     canvas.height = base.height;
     const context = canvas.getContext('2d');
-    context.drawImage(base, 0, 0);
+    drawSnapBackground(context, canvas.width, canvas.height);
     snapEditor.strokes.forEach(stroke => drawSnapStroke(context, stroke));
     context.textAlign = 'center';
     context.textBaseline = 'middle';
     snapEditor.items.forEach(item => {
-        context.font = `bold ${Math.round(item.size * canvas.width)}px system-ui, sans-serif`;
+        context.save();
+        context.translate(item.x * canvas.width, item.y * canvas.height);
+        context.rotate(item.rotation || 0);
+        context.font = `bold ${Math.round(item.size * (item.scale || 1) * canvas.width)}px system-ui, sans-serif`;
         if (item.kind === 'text') {
             context.shadowColor = 'rgba(0, 0, 0, 0.8)';
             context.shadowBlur = Math.round(canvas.width * 0.006);
@@ -323,7 +495,8 @@ function flattenSnapDraft() {
             context.shadowBlur = 0;
         }
         context.fillStyle = item.color;
-        context.fillText(item.text, item.x * canvas.width, item.y * canvas.height);
+        context.fillText(item.text, 0, 0);
+        context.restore();
     });
     return canvas;
 }
@@ -336,9 +509,13 @@ function initSnapEditor() {
     draw.addEventListener('pointermove', continueSnapStroke);
     draw.addEventListener('pointerup', endSnapStroke);
     draw.addEventListener('pointercancel', endSnapStroke);
-    document.addEventListener('pointermove', moveSnapItem);
-    document.addEventListener('pointerup', endSnapItemDrag);
-    document.addEventListener('pointercancel', endSnapItemDrag);
+    const editor = document.getElementById('snap-editor');
+    editor.classList.add('touch-none');
+    editor.addEventListener('pointerdown', handleSnapEditorDown);
+    editor.addEventListener('pointermove', handleSnapEditorMove);
+    editor.addEventListener('pointerup', handleSnapEditorUp);
+    editor.addEventListener('pointercancel', handleSnapEditorUp);
+    editor.addEventListener('wheel', handleSnapEditorWheel, { passive: false });
     window.addEventListener('resize', () => {
         fitSnapEditorStage();
         if (hasSnapDraft()) renderSnapItems();

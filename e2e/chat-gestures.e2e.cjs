@@ -87,6 +87,22 @@ async function main() {
         const header = await point('#chat-header', 'center');
         await drag(header, 0, 30);
         assert.equal(await page.isVisible('#profile-detail-modal'), false);
+        // Waehrend des Ziehens liegt die Leiste ueber den Nachrichten (nichts schiebt sich davor).
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [header] });
+        for (let step = 1; step <= 8; step++) {
+            await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: header.x, y: header.y + 15 * step }] });
+            await page.waitForTimeout(16);
+        }
+        const onTop = await page.evaluate(() => {
+            const box = document.getElementById('chat-header').getBoundingClientRect();
+            const hit = document.elementFromPoint(box.left + box.width / 2, box.bottom - 4);
+            return { onTop: Boolean(hit?.closest('#chat-header')), background: getComputedStyle(document.getElementById('chat-header')).backgroundColor };
+        });
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+        await page.waitForTimeout(300);
+        assert.equal(onTop.onTop, true, 'pulled bar stays above the messages');
+        assert.doesNotMatch(onTop.background, /rgba\(.*, 0\.5\)/, 'opaque while pulling');
+        if (await page.isVisible('#profile-detail-modal')) await page.evaluate(() => closeProfileModal?.());
         await drag(header, 0, 120);
         await waitFor(page, () => !document.getElementById('profile-detail-modal').classList.contains('hidden'));
         assert.equal(await page.evaluate(() => state.activeModalPeerId), 'node_fake_gestures');

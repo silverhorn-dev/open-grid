@@ -25,7 +25,7 @@ function toggleSnapSendMode() {
 
 // Gesten (feature-request-gestures.md G10/G11), jeweils mit Knopf als Alternative:
 //   - nach unten wischen = Kamera schliessen
-//   - am Ausloeser nach oben wischen = Bild aus der Galerie waehlen
+//   - nach oben wischen (ueberall auf dem Kamerabild oder am Ausloeser) = Bild aus der Galerie waehlen
 //   - doppelt auf das Vorschaubild tippen = Front-/Rueckkamera wechseln
 //   - mit zwei Fingern ziehen = Zoom (wenn die Kamera es unterstuetzt)
 const SNAP_SWIPE_CLOSE = 110;
@@ -138,6 +138,11 @@ function handleSnapStageUp(event) {
         closeSnapModal();
         return;
     }
+    if (-swipe.deltaY > SNAP_SWIPE_GALLERY && Math.abs(swipe.deltaY) > Math.abs(swipe.deltaX || 0) * 1.5) {
+        hapticTick();
+        document.getElementById('snap-file-input').click();
+        return;
+    }
     // Seitlich wischen: Snap <-> Bild.
     if (Math.abs(swipe.deltaX || 0) > SNAP_SWIPE_MODE && Math.abs(swipe.deltaX) > Math.abs(swipe.deltaY) * 1.5) {
         if (state.snapTarget !== 'status') toggleSnapSendMode();
@@ -177,7 +182,42 @@ function attachSnapGallerySwipe(area) {
     });
 }
 
+// Der Umschalt-Knopf sitzt am rechten Rand mitten im Bild: ein Wischen, das dort beginnt, zaehlt auch
+// (sonst landete genau das typische Wischen von rechts auf dem Knopf und tat nichts).
+function attachSnapModeSwitchSwipe(button) {
+    let start = null;
+    let suppressClick = false;
+    button.addEventListener('pointerdown', event => {
+        start = { x: event.clientX, y: event.clientY, pointerId: event.pointerId };
+    });
+    button.addEventListener('pointerup', event => {
+        if (!start || start.pointerId !== event.pointerId) return;
+        const deltaX = event.clientX - start.x;
+        const deltaY = event.clientY - start.y;
+        start = null;
+        if (Math.abs(deltaX) > SNAP_SWIPE_MODE / 2 && Math.abs(deltaX) > Math.abs(deltaY) * 1.5 && state.snapTarget !== 'status') {
+            suppressClick = true;
+            setTimeout(() => { suppressClick = false; }, 80);
+            toggleSnapSendMode();
+        }
+    });
+    button.addEventListener('pointercancel', () => {
+        start = null;
+    });
+    button.addEventListener('click', event => {
+        if (!suppressClick) return;
+        suppressClick = false;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+    }, true);
+}
+
 function initSnapCamera() {
+    const modeSwitch = document.getElementById('snap-mode-switch');
+    if (modeSwitch) {
+        modeSwitch.classList.add('touch-none');
+        attachSnapModeSwitchSwipe(modeSwitch);
+    }
     const stage = document.getElementById('snap-camera-stage');
     if (stage) {
         stage.addEventListener('pointerdown', handleSnapStageDown);

@@ -42,3 +42,4 @@ Ideen ohne festen Termin. Neue Phasen werden von hier auf `tasks/board.md` gehol
 
 ## improvements
 - (2026-10-27 auf das board verschoben: video-flackern, secure-snap-bugs, speicherbar-schalter)
+- (2026-10-27 auf das board verschoben: kontaktleiste z-achse, wischen in snap-vorschau, editing improvement)

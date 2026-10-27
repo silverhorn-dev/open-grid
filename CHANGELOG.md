@@ -2,7 +2,12 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 144 · 2026-10-27
+## Build 145 · 2026-10-27
+- Snap-Editor: Text und Emojis mit zwei Fingern groesser/kleiner machen und drehen (erst ein Finger auf das Element, dann ein zweiter); bei 90 Grad rastet es ein. Mit zwei Fingern auf dem Hintergrund das Foto zoomen und drehen. Am PC: Mausrad beim Ziehen, mit Shift drehen
+- Snap-Kamera: nach oben wischen oeffnet die Galerie jetzt ueberall im Bild; Snap/Bild wechseln per Wischen klappt auch am rechten Rand und in der Vorschau
+- Behoben: beim Herunterziehen der Kontaktleiste im Chat lagen Nachrichten und Videos davor
+
+## Build 144 · 2026-10-27 · `18936da`
 - Neue Einstellung "Eigene Snaps behalten" (Medien > Snaps): nachdem der Empfaenger alles gesehen hat, kannst du deine Snaps und Secure Snaps noch eine Weile ansehen und speichern (Standard 1 Stunde)
 - Behoben: Secure Snaps erscheinen jetzt bildschirmfuellend statt manchmal sehr klein und lassen sich mit zwei Fingern (am PC mit dem Mausrad) zoomen
 

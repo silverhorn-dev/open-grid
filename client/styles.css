@@ -403,6 +403,13 @@ html.debug-on .debug-off-only {
     touch-action: pan-y;
     cursor: grab;
 }
+/* Kontaktleiste immer ueber den Nachrichten (auch Video-Vorschauen mit eigenem Stapel); beim
+   Herunterziehen deckend, damit nichts durchscheint. */
+.chat-header {
+    position: relative;
+    z-index: 20;
+}
+.chat-header.is-pulling { background-color: rgb(var(--slate-900)); }
 
 /* Album-Knopf taucht nach dem langen Druck auf "Snap" auf (Easteregg) */
 @keyframes album-reveal {
@@ -544,6 +551,19 @@ html.debug-on .debug-off-only {
     color: rgb(var(--slate-400));
     cursor: pointer;
 }
+/* Snap-Kamera/-Editor: die Leisten oben und unten lassen Gesten zur Kamera bzw. zum Bild durch, nur
+   ihre Bedienelemente nehmen Tipps an (sonst ging z. B. Wischen nur ausserhalb der Verlaeufe). */
+.snap-overlay,
+.snap-overlay > div,
+.snap-overlay > div > div { pointer-events: none; }
+.snap-overlay button,
+.snap-overlay label,
+.snap-overlay input,
+.snap-overlay select,
+.snap-overlay [role="radiogroup"] > *,
+#snap-emoji-row,
+#snap-text-entry { pointer-events: auto; }
+
 /* Snap-Editor: "speicherbar"-Schalter (Download mit kleinem Kontakt, aus = durchgestrichen). */
 .snap-saveable-icon { position: relative; display: inline-flex; }
 .snap-saveable-contact {

@@ -109,6 +109,24 @@
   - nutzer 2026-10-27: schalter neben den bearbeitungs-icons; download-icon mit kleinem kontakt-icon schraeg versetzt; angeklickt durchgestrichen + notiz "nicht speicherbar"; standard vom router, normal "speicherbar"
   - done 2026-10-27: `#snap-saveable-btn` (snaps.js `toggleSnapSaveable`, `snapSaveOptions`), `downloadable: 'none'`, `CLIENT_DEFAULTS.snapSaveable`; einmal-snap "Speichern" beim empfaenger ausgeblendet; e2e `snap-camera`
 
+## T7 Bugs + Snap-Editor (2026-10-27)
+- [x] on smartphone when swiping the profile bar in chat down, the messages especially the videos are in foreground and the bar in background, fix the y-or z-axis
+  - ursache: kontaktleiste hatte nur am desktop einen z-index, mobil halb durchsichtig; nachrichten (video-vorschau mit eigenem stapel) lagen davor
+  - fix 2026-10-27: `.chat-header` immer `z-index: 20`, beim ziehen deckend (`is-pulling`); e2e `chat-gestures` (mobil)
+- [x] general swiping in snap / iamge preview or when taking photos, swiping up and to the sides is not good
+  - nutzer 2026-10-27: galerie-wischen ging nur auf dem galerie-icon und dem ausloeser; seitlich snap/bild ging nicht; editor-gesten (skalieren, drehen) bitte mit zwei fingern: element = erst ein finger drauf, dann zweiter; hintergrund = beide
+  - ursache seitlich: das typische wischen von rechts begann auf dem umschalt-knopf am rechten rand; in der vorschau gab es gar keine wisch-geste
+  - fix 2026-10-27: leisten lassen gesten durch (`.snap-overlay`), hoch = galerie ueberall im kamerabild, wischen ab dem umschalt-knopf zaehlt, im editor ein finger seitlich = snap/bild; e2e `snap-editor-gestures` (mobil, echte mehrfinger-touches)
+- [ ] editing improvement
+   - [x] emoties und text soll scalable sein, dafür muss man das item verschieben und dabei mit einem 2. Finger rein oder rauszoomen, am pc scrollen während man es dragt.
+      - [x] dabei soll er auch drehbar sein, und jeweils bei 90 grad sn die achse snappen, also wenn er parallel zur seite oder dem boden ist.
+      - done 2026-10-27: item `scale`/`rotation`, zweiter finger irgendwo, einrasten bei 90 grad (6 grad fangbereich, vibration); hintergrund mit zwei fingern zoomen/drehen/verschieben; pc: mausrad beim ziehen, shift = drehen; `flattenSnapDraft` mit transformationen
+      - [ ] verschiedene textarten
+      - [ ] opt. ein texthintergrund
+   - [ ] die möglichkeit filter drüberzulegen, also s/W, farbenfroh, puff farben (rot), mit uhrzeit an verschiendenen stellen
+   - noch weitere ideen anmerkungen?
+  - ideen dazu (vorschlag 2026-10-27, noch nicht bestaetigt): loeschen per ziehen auf einen papierkorb, textausrichtung, ortsfreie sticker (uhrzeit, wochentag)
+
 ## Eigene rotierende Verschluesselung (geparkt, erst besprechen)
 - [ ] gestohlene album-schluessel sollen nach der epoche wertlos sein; idee: eigener, vom server getakteter algorithmus -> `tasks/feature-request-rotating-encryption.md`
   - offen: konflikt mit regel "crypto nur ueber `crypto.subtle`"; alternative: server-epochen-geheimnis + `CK_e` per HKDF (AES-GCM bleibt)

@@ -164,10 +164,22 @@
   runter > 110 px = schliessen, seitlich > 80 px = Snap/Bild umschalten
   (`state.snapSendMode`; "Bild" = `MESSAGE_PUT` mit `snapData` ohne
   `snapMode`, dauerhaft, keine Secure-Snap-Regeln), doppelt tippen (< 300 ms) = Kamera wechseln,
-  zwei Finger = Zoom; am Ausloeser hoch > 60 px = Galerie. Aufnahme =
-  Rohbild ohne Wasserzeichen (max. 1080 px). Der Editor haelt Striche
-  (Canvas-Koordinaten) und Text/Emoji-Ebenen (Position 0..1, Groesse relativ
-  zur Breite); `flattenSnapDraft` zeichnet alles in einen Canvas, erst danach
+  zwei Finger = Zoom; hoch > 60 px (ueberall im Bild oder am Ausloeser) =
+  Galerie. Die Leisten oben und unten (`.snap-overlay`) lassen Gesten durch,
+  nur ihre Bedienelemente nehmen Tipps an; ein Wischen, das auf dem
+  Umschalt-Knopf am rechten Rand beginnt, schaltet ebenfalls um (der Klick
+  danach wird verworfen). Aufnahme = Rohbild ohne Wasserzeichen (max. 1080 px).
+  Der Editor haelt Striche (Canvas-Koordinaten), Text/Emoji-Ebenen (Position
+  0..1, Groesse relativ zur Breite, `scale`, `rotation`) und eine
+  Hintergrund-Transformation (`snapEditor.background`: Zoom 0,5-5x, Drehung,
+  Verschiebung). Gesten im Editor: ein Finger auf einer Ebene verschiebt sie,
+  ein zweiter Finger irgendwo skaliert (0,3-6x) und dreht sie; zwei Finger auf
+  dem Hintergrund zoomen/drehen/verschieben das Foto; Drehungen rasten bei
+  Vielfachen von 90 Grad ein (6 Grad Fangbereich, kurzes Vibrieren); ein Finger
+  seitlich auf dem Bild = Snap/Bild umschalten; doppelt tippen auf eine Ebene
+  loescht sie. Am PC: Mausrad beim Ziehen skaliert, mit Shift dreht es, ohne
+  Ziehen zoomt/dreht es das Foto. `flattenSnapDraft` zeichnet alles mit diesen
+  Transformationen in einen Canvas (ausserhalb des Fotos schwarz), erst danach
   bettet `encodeSnap` das Wasserzeichen ein und komprimiert unter 70 KB.
 - Gesten (`client/app/gestures.js`, nur Touch): Nachricht wischen (fremde
   nach rechts, eigene nach links, ab 56 px) = antworten; lange druecken

@@ -276,6 +276,59 @@ test('key lifetime can be set per person, one week included', async () => {
     assert.equal(owner.context.state.albums.alb_1.viewerKeyEpochs['peer-other'], undefined);
 });
 
+test('limited sharing: views are counted per opening, time limits cap the keys, both end in a revoke', async () => {
+    const [ownerIdentity, viewerIdentity] = await Promise.all([createIdentity(), createIdentity()]);
+    const hour = 60 * 60000;
+    const owner = loadAlbums({ identity: ownerIdentity, peerKeys: { 'peer-allowed': viewerIdentity.jwkPublic }, time: { now: 10 * hour + 5000, epochMs: hour } });
+    // Kein Timer bis zum Ende der Begrenzung (der wuerde den Testlauf offen halten).
+    owner.context.scheduleAlbumLimitCheck = () => {};
+    const album = owner.context.state.albums.alb_1;
+    album.keyEpochMinutes = 1440;
+    album.keyEpochsAhead = 2;
+
+    // 2x ansehen: keine Schluessel vorab.
+    album.limits = { 'peer-allowed': { kind: 'views', views: 2, used: 0 } };
+    const before = owner.sent.length;
+    await owner.context.pushAlbumKeys('peer-allowed', album, true);
+    assert.equal(owner.sent.length, before, 'no keys in advance for view-limited people');
+
+    // Oeffnen = Anfrage: eine Ansicht, Schluessel nur fuer 15 Minuten.
+    await owner.context.handleAlbumKeyRequest('peer-allowed', { albumId: 'alb_1' });
+    let bundles = owner.sent.at(-1).payload.operation.bundles;
+    assert.equal(bundles.length, 1, 'only the current window');
+    assert.equal(bundles[0].session, true);
+    assert.equal(bundles[0].epochEndsAt, owner.clock.now + 15 * 60000);
+    assert.equal(album.limits['peer-allowed'].used, 1);
+
+    // Erneute Anfrage in derselben Ansicht zaehlt nicht.
+    await owner.context.handleAlbumKeyRequest('peer-allowed', { albumId: 'alb_1' });
+    assert.equal(owner.context.state.albums.alb_1.limits['peer-allowed'].used, 1);
+
+    // Zweite Ansicht nach Ablauf der ersten, dann ist Schluss.
+    owner.clock.now += 16 * 60000;
+    await owner.context.handleAlbumKeyRequest('peer-allowed', { albumId: 'alb_1' });
+    assert.equal(owner.context.state.albums.alb_1.limits['peer-allowed'].used, 2);
+    owner.clock.now += 16 * 60000;
+    await owner.context.handleAlbumKeyRequest('peer-allowed', { albumId: 'alb_1' });
+    assert.equal(owner.sent.at(-1).payload.type, 'ALBUM_REVOKED', 'all views used: access revoked');
+    assert.equal(owner.context.state.albums.alb_1.acl.includes('peer-allowed'), false);
+    assert.equal(owner.context.state.albums.alb_1.limits['peer-allowed'], undefined);
+
+    // 1 h verfuegbar: Schluessel enden mit der Frist, auch bei Tages-Epochen und Vorab-Epochen.
+    const timed = owner.context.state.albums.alb_1;
+    timed.acl = ['peer-allowed'];
+    timed.limits = { 'peer-allowed': { kind: 'time', until: owner.clock.now + hour } };
+    await owner.context.pushAlbumKeys('peer-allowed', timed, true);
+    bundles = owner.sent.at(-1).payload.operation.bundles;
+    assert.equal(bundles.length, 1, 'no epochs after the deadline');
+    assert.equal(bundles[0].epochEndsAt, owner.clock.now + hour);
+    assert.equal(bundles[0].session, undefined);
+    owner.clock.now += hour + 1000;
+    await owner.context.enforceAlbumLimits();
+    assert.equal(owner.context.state.albums.alb_1.acl.includes('peer-allowed'), false, 'deadline passed: access revoked');
+
+});
+
 test('revoking access bumps the album key version', async () => {
     const { context } = loadAlbums();
     await context.revokeAlbumAccess('alb_1', 'peer-allowed');

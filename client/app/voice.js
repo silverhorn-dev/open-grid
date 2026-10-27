@@ -284,9 +284,37 @@ function isVoiceRestAvailable(message) {
     return message.senderId === state.myProfile.id || Boolean(message.originalReady);
 }
 
+// Wiedergabe-Geschwindigkeit fuer alle Sprachnachrichten (lokal gemerkt).
+const VOICE_RATES = [1, 1.5, 2];
+const VOICE_RATE_STORAGE_KEY = 'opengrid-voice-rate';
+
+function voiceRate() {
+    try {
+        const stored = Number(window.localStorage.getItem(VOICE_RATE_STORAGE_KEY));
+        return VOICE_RATES.includes(stored) ? stored : 1;
+    } catch {
+        return 1;
+    }
+}
+
+function voiceRateLabel(rate) {
+    return `${String(rate).replace('.', t('voice.decimalSeparator'))}×`;
+}
+
+function cycleVoiceRate() {
+    const next = VOICE_RATES[(VOICE_RATES.indexOf(voiceRate()) + 1) % VOICE_RATES.length];
+    try {
+        window.localStorage.setItem(VOICE_RATE_STORAGE_KEY, String(next));
+    } catch {
+        // Ohne Speicher gilt die Wahl nur fuer diese Wiedergabe.
+    }
+    if (state.voicePlayback?.audio) state.voicePlayback.audio.playbackRate = next;
+    document.querySelectorAll('[data-voice] .voice-rate').forEach(button => { button.textContent = voiceRateLabel(next); });
+}
+
 function renderVoiceMessage(bubble, message, isMine) {
     const player = document.createElement('div');
-    player.className = 'flex items-center gap-2 min-w-[11rem] py-0.5';
+    player.className = 'flex items-center gap-2 min-w-[12.5rem] py-0.5';
     player.dataset.voice = message.id;
     const button = document.createElement('button');
     button.type = 'button';
@@ -297,23 +325,43 @@ function renderVoiceMessage(bubble, message, isMine) {
         event.stopPropagation();
         toggleVoicePlayback(message);
     };
+    // Leiste: tippen oder ziehen springt an die Stelle (auch in den Rest, sobald er da ist).
     const track = document.createElement('div');
-    track.className = `relative flex-1 h-1.5 rounded-full ${isMine ? 'bg-white/30' : 'bg-slate-600'}`;
+    track.className = 'voice-track relative flex-1 h-6 flex items-center cursor-pointer touch-none';
+    track.dataset.voiceTrack = message.id;
+    track.setAttribute('role', 'slider');
+    track.setAttribute('aria-label', t('voice.position'));
+    const rail = document.createElement('div');
+    rail.className = `relative w-full h-1.5 rounded-full ${isMine ? 'bg-white/30' : 'bg-slate-600'}`;
     const fill = document.createElement('div');
     fill.className = `voice-fill absolute inset-y-0 left-0 rounded-full ${isMine ? 'bg-white' : 'bg-brand-400'}`;
     fill.style.width = '0%';
-    track.appendChild(fill);
+    const thumb = document.createElement('div');
+    thumb.className = `voice-thumb absolute top-1/2 w-3 h-3 -mt-1.5 -ml-1.5 rounded-full shadow ${isMine ? 'bg-white' : 'bg-brand-400'}`;
+    thumb.style.left = '0%';
+    rail.append(fill, thumb);
     if (hasVoiceRest(message) && !isVoiceRestAvailable(message)) {
         // Markierung: bis hier ist die Aufnahme da, der Rest kommt direkt.
         const mark = document.createElement('div');
         mark.className = 'absolute inset-y-0 right-0 rounded-r-full bg-[repeating-linear-gradient(90deg,transparent_0_3px,rgb(0_0_0/0.25)_3px_6px)]';
         mark.style.left = `${Math.round((message.audioSplitAt / message.audioDuration) * 100)}%`;
-        track.appendChild(mark);
+        rail.appendChild(mark);
     }
+    track.appendChild(rail);
+    attachVoiceSeek(track, message);
     const time = document.createElement('span');
     time.className = 'voice-time text-[11px] tabular-nums opacity-80';
     time.textContent = formatVoiceDuration(message.audioDuration);
-    player.append(button, track, time);
+    const rate = document.createElement('button');
+    rate.type = 'button';
+    rate.className = `voice-rate shrink-0 min-w-[2.25rem] h-6 px-1.5 rounded-full text-[11px] font-semibold tabular-nums ${isMine ? 'bg-white/20' : 'bg-slate-700'}`;
+    rate.setAttribute('aria-label', t('voice.playbackSpeed'));
+    rate.textContent = voiceRateLabel(voiceRate());
+    rate.onclick = event => {
+        event.stopPropagation();
+        cycleVoiceRate();
+    };
+    player.append(button, track, time, rate);
     bubble.appendChild(player);
     if (hasVoiceRest(message) && !isVoiceRestAvailable(message)) {
         const badge = document.createElement('div');
@@ -329,7 +377,33 @@ function renderVoiceMessage(bubble, message, isMine) {
         transcript.textContent = message.transcript;
         bubble.appendChild(transcript);
     }
-    if (state.voicePlayback?.messageId === message.id) updateVoicePlayer(message.id);
+    // Laufende Wiedergabe direkt am neuen Element zeigen (es haengt noch nicht im DOM; vorher
+    // stand bis zum naechsten Zeit-Update "Play" und eine leere Leiste da: das Flackern).
+    applyVoicePlayerState(player, message.id);
+}
+
+function attachVoiceSeek(track, message) {
+    let pointerId = null;
+    const seekTo = event => {
+        const box = track.getBoundingClientRect();
+        const fraction = Math.min(1, Math.max(0, (event.clientX - box.left) / (box.width || 1)));
+        seekVoicePlayback(message, fraction * (message.audioDuration || 0)).catch(logBackgroundError('seekVoicePlayback'));
+    };
+    track.addEventListener('pointerdown', event => {
+        event.stopPropagation();
+        pointerId = event.pointerId;
+        track.setPointerCapture?.(event.pointerId);
+        seekTo(event);
+    });
+    track.addEventListener('pointermove', event => {
+        if (event.pointerId === pointerId) seekTo(event);
+    });
+    const release = event => {
+        if (event.pointerId === pointerId) pointerId = null;
+    };
+    track.addEventListener('pointerup', release);
+    track.addEventListener('pointercancel', release);
+    track.addEventListener('click', event => event.stopPropagation());
 }
 
 function voicePlaybackPosition(playback) {
@@ -337,17 +411,28 @@ function voicePlaybackPosition(playback) {
     return (playback.part === 1 ? playback.splitAt : 0) + (playback.audio?.currentTime || 0);
 }
 
-function updateVoicePlayer(messageId) {
-    const player = document.querySelector(`[data-voice="${messageId}"]`);
-    const playback = state.voicePlayback;
+function applyVoicePlayerState(player, messageId) {
     if (!player) return;
+    const playback = state.voicePlayback;
     const active = playback?.messageId === messageId;
-    const playing = active && (playback.waiting || !playback.audio.paused);
-    player.querySelector('.voice-play').innerHTML = `<i class="fa-solid ${playback?.waiting && active ? 'fa-spinner fa-spin' : playing ? 'fa-pause' : 'fa-play'}"></i>`;
+    const playing = active && (playback.waiting || (playback.audio && !playback.audio.paused));
+    const icon = playback?.waiting && active ? 'fa-spinner fa-spin' : playing ? 'fa-pause' : 'fa-play';
+    const button = player.querySelector('.voice-play');
+    // Nur bei Aenderung neu setzen (sonst flackert das Symbol bei jedem Zeit-Update).
+    if (button.dataset.icon !== icon) {
+        button.dataset.icon = icon;
+        button.innerHTML = `<i class="fa-solid ${icon}"></i>`;
+    }
     if (!active) return;
     const position = voicePlaybackPosition(playback);
-    player.querySelector('.voice-fill').style.width = `${Math.round(Math.min(1, position / (playback.duration || 1)) * 100)}%`;
+    const percent = `${Math.min(1, position / (playback.duration || 1)) * 100}%`;
+    player.querySelector('.voice-fill').style.width = percent;
+    player.querySelector('.voice-thumb').style.left = percent;
     player.querySelector('.voice-time').textContent = formatVoiceDuration(position);
+}
+
+function updateVoicePlayer(messageId) {
+    applyVoicePlayerState(document.querySelector(`[data-voice="${messageId}"]`), messageId);
 }
 
 function releaseVoiceAudio(playback) {
@@ -365,22 +450,34 @@ function stopVoicePlayback() {
     releaseVoiceAudio(playback);
     const player = document.querySelector(`[data-voice="${playback.messageId}"]`);
     if (player) {
-        player.querySelector('.voice-play').innerHTML = '<i class="fa-solid fa-play"></i>';
+        applyVoicePlayerState(player, playback.messageId);
         player.querySelector('.voice-fill').style.width = '0%';
+        player.querySelector('.voice-thumb').style.left = '0%';
         player.querySelector('.voice-time').textContent = formatVoiceDuration(playback.duration);
     }
 }
 
-function playVoicePart(playback, dataUrl, part) {
+function playVoicePart(playback, dataUrl, part, startAt = 0, { paused = false } = {}) {
     releaseVoiceAudio(playback);
     playback.part = part;
     playback.waiting = false;
     playback.url = URL.createObjectURL(mediaDataUrlToBlob(dataUrl));
     const audio = new Audio(playback.url);
     playback.audio = audio;
+    audio.playbackRate = voiceRate();
+    if (startAt > 0) {
+        audio.addEventListener('loadedmetadata', () => {
+            audio.currentTime = startAt;
+            updateVoicePlayer(playback.messageId);
+        }, { once: true });
+    }
     audio.ontimeupdate = () => updateVoicePlayer(playback.messageId);
     audio.onpause = () => updateVoicePlayer(playback.messageId);
     audio.onended = () => continueVoicePlayback(playback).catch(logBackgroundError('continueVoicePlayback'));
+    if (paused) {
+        updateVoicePlayer(playback.messageId);
+        return;
+    }
     audio.play().catch(error => {
         logDebug(`Wiedergabe fehlgeschlagen: ${error.message}`);
         showToast(t('voice.messageCannotBePlayed'), 'error');
@@ -427,6 +524,36 @@ function onVoiceRestReady(messageId) {
 
 function findChatMessage(messageId) {
     return Object.values(state.chats).flat().find(message => message.id === messageId) || null;
+}
+
+// Springen: innerhalb des ersten Teils direkt, in den Rest nur, wenn er schon da ist (sonst bis zur
+// Grenze und den Rest anfragen). Laeuft nichts, startet die Wiedergabe an der Stelle.
+async function seekVoicePlayback(message, seconds) {
+    if (!isSafeInlineAudio(message.audioData)) return;
+    const duration = message.audioDuration || 0;
+    let target = Math.min(duration, Math.max(0, seconds));
+    let playback = state.voicePlayback;
+    const wasPaused = playback?.messageId === message.id && playback.audio?.paused && !playback.waiting;
+    if (playback?.messageId !== message.id) {
+        stopVoicePlayback();
+        playback = { messageId: message.id, duration, splitAt: message.audioSplitAt || 0, part: 0, audio: null, url: null, waiting: false };
+        state.voicePlayback = playback;
+    }
+    if (hasVoiceRest(message) && target >= playback.splitAt) {
+        const rest = isVoiceRestAvailable(message) ? await loadOriginal(message.id) : null;
+        if (state.voicePlayback !== playback) return;
+        if (isSafeAudioPart(rest)) {
+            if (playback.part === 1 && playback.audio) playback.audio.currentTime = target - playback.splitAt;
+            else playVoicePart(playback, rest, 1, target - playback.splitAt, { paused: wasPaused });
+            updateVoicePlayer(message.id);
+            return;
+        }
+        requestVoiceRest(message);
+        target = Math.max(0, playback.splitAt - 0.05);
+    }
+    if (playback.part === 0 && playback.audio && !playback.waiting) playback.audio.currentTime = target;
+    else playVoicePart(playback, message.audioData, 0, target, { paused: wasPaused });
+    updateVoicePlayer(message.id);
 }
 
 function toggleVoicePlayback(message) {

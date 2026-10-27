@@ -107,6 +107,43 @@ async function main() {
         assert.ok(perPerson.options.includes('1 Woche') && perPerson.options.includes('wie Album'), perPerson.options.join(','));
         assert.equal(perPerson.stored, 10080);
 
+        // Begrenzt teilen: zweiter Schritt im Sendemenue, Karte zeigt die Grenze, Verwaltung den Stand.
+        await page.evaluate(async () => {
+            switchTab('chat');
+            await openChatWithPeer('node_fake_album_preview');
+            openAlbumPicker();
+        });
+        await page.click('#media-modal-content button:has-text("Vorschau")');
+        assert.match(await page.textContent('#media-modal-title'), /„Vorschau“ teilen/);
+        assert.equal(await page.isVisible('[data-share-limit="none"]'), true, 'normal sharing can be skipped to');
+        await page.click('[data-share-limit="views2"]');
+        const shared = await page.evaluate(async () => {
+            await new Promise(resolve => setTimeout(resolve, 500));
+            const message = state.chats.node_fake_album_preview.filter(entry => entry.album).at(-1);
+            return { limit: message.album.limit, stored: state.albums.alb_preview.limits?.node_fake_album_preview };
+        });
+        assert.deepEqual(shared.limit, { kind: 'views', views: 2 });
+        assert.deepEqual(shared.stored, { kind: 'views', views: 2, used: 0 });
+        assert.match(await page.textContent('#chat-messages'), /2x ansehen/);
+
+        const manager = await page.evaluate(async () => {
+            const album = state.albums.alb_preview;
+            album.acl = ['node_fake_album_preview', 'node_b', 'node_c'];
+            await saveAlbum(album);
+            switchTab('editprofile');
+            renderAlbumManager();
+            const card = document.querySelector('[data-album-id="alb_preview"]');
+            const folded = card.querySelector('details.album-access');
+            return {
+                folded: Boolean(folded) && !folded.open,
+                summary: folded?.querySelector('summary')?.textContent,
+                chip: card.querySelector('[data-viewer="node_fake_album_preview"] .album-limit-chip')?.textContent
+            };
+        });
+        assert.equal(manager.folded, true, 'access list folded from 3 people on');
+        assert.equal(manager.summary, 'Zugriff (3 Personen)');
+        assert.equal(manager.chip, 'noch 2 von 2 Ansichten');
+
         assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log('E2E OK (album preview)');
     } finally {

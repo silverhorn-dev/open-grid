@@ -9,6 +9,35 @@ const ALBUM_COVER_EDGE = 240;
 // Besitzer unscharf gerechnet, ein scharfes Deckbild verlaesst das Geraet nie), 'none' = Karte ohne Bild.
 const ALBUM_PREVIEW_OPTIONS = ['normal', 'blur', 'none'];
 
+// Begrenzt teilen (Sendemenue im Chat, ueberspringbar): wie ein Snap 1x/2x/3x ansehen oder 15 min/1 h/24 h.
+// album.limits[viewerId] = { kind: 'views', views, used, sessionEndsAt } | { kind: 'time', until }.
+// Ansichten: keine Schluessel vorab; jedes Oeffnen fragt den Besitzer, der zaehlt und Schluessel fuer
+// eine Ansicht (ALBUM_VIEW_SESSION_MS) schickt. Zeit: Schluessel nur bis zur Frist. Danach wird der
+// Zugriff wie von Hand entzogen (neue Schluesselversion).
+const ALBUM_SHARE_LIMITS = {
+    views1: { kind: 'views', views: 1 },
+    views2: { kind: 'views', views: 2 },
+    views3: { kind: 'views', views: 3 },
+    m15: { kind: 'time', ms: 15 * 60 * 1000 },
+    h1: { kind: 'time', ms: 60 * 60 * 1000 },
+    h24: { kind: 'time', ms: 24 * 60 * 60 * 1000 }
+};
+const ALBUM_VIEW_SESSION_MS = 15 * 60 * 1000;
+
+function albumLimitFor(album, viewerId) {
+    const limit = album?.limits?.[viewerId];
+    return limit && (limit.kind === 'views' || limit.kind === 'time') ? limit : null;
+}
+
+function albumLimitLabel(limit, now = Date.now()) {
+    if (!limit) return '';
+    if (limit.kind === 'views') {
+        const left = Math.max(0, limit.views - (limit.used || 0));
+        return left ? t('albums.viewsLeft', { left, views: limit.views }) : t('albums.viewsUsedUp');
+    }
+    return limit.until > now ? t('albums.availableUntil', { time: formatClockTime(limit.until) }) : t('albums.limitExpired');
+}
+
 function albumPreviewMode(album) {
     return ALBUM_PREVIEW_OPTIONS.includes(album?.preview) ? album.preview : 'normal';
 }
@@ -34,6 +63,8 @@ async function loadAlbums() {
         await persistAlbum(album);
     }
     renderAlbumManager();
+    // Begrenzungen, die abgelaufen sind, waehrend die App zu war.
+    enforceAlbumLimits().catch(logBackgroundError('loadAlbums'));
 }
 
 // Alben (inkl. Albumgeheimnis und rollender Keys) liegen mit dem Speicherschluessel verschluesselt
@@ -130,6 +161,10 @@ async function revokeAlbumAccess(albumId, peerId) {
         album.viewerKeyEpochs = { ...album.viewerKeyEpochs };
         delete album.viewerKeyEpochs[peerId];
     }
+    if (album.limits?.[peerId]) {
+        album.limits = { ...album.limits };
+        delete album.limits[peerId];
+    }
     // Neue Schluesselversion: auch ein zurueckbehaltener Schluessel passt nicht mehr zu neuen Uebertragungen.
     album.keyVersion = (album.keyVersion || 1) + 1;
     await saveAlbum(album);
@@ -182,7 +217,8 @@ async function createAlbumCover(album) {
     return cover.length <= ALBUM_COVER_MAX_LENGTH ? cover : undefined;
 }
 
-async function shareAlbumInChat(albumId) {
+// limitId: Schluessel aus ALBUM_SHARE_LIMITS, ohne = normal (unbegrenzt, wie bisher).
+async function shareAlbumInChat(albumId, limitId = null) {
     const peerId = state.activeChatPeerId;
     const album = state.albums[albumId];
     if (!peerId || !album || isPeerBlocked(peerId)) return;
@@ -190,19 +226,56 @@ async function shareAlbumInChat(albumId) {
         showToast(t('albums.isEmpty'), 'warning');
         return;
     }
-    if (!album.acl.includes(peerId)) {
-        album.acl.push(peerId);
-        await saveAlbum(album);
-    }
-    pushAlbumKeys(peerId, album, true).catch(error => logDebug(`Album key push failed: ${error.message}`));
+    if (!album.acl.includes(peerId)) album.acl.push(peerId);
+    const preset = ALBUM_SHARE_LIMITS[limitId] || null;
+    const limits = { ...(album.limits || {}) };
+    if (!preset) delete limits[peerId];
+    else if (preset.kind === 'views') limits[peerId] = { kind: 'views', views: preset.views, used: 0 };
+    else limits[peerId] = { kind: 'time', until: (await fetchServerTime().catch(() => ({ now: Date.now() }))).now + preset.ms };
+    album.limits = limits;
+    await saveAlbum(album);
+    scheduleAlbumLimitCheck();
+    // Bei Ansichten gibt es keine Schluessel vorab, erst beim Oeffnen.
+    if (preset?.kind !== 'views') pushAlbumKeys(peerId, album, true).catch(error => logDebug(`Album key push failed: ${error.message}`));
     closeMediaModal();
+    const limit = limits[peerId];
     await sendChatMessage(null, '', {
         albumId: album.id,
         ownerId: state.myProfile.id,
         name: album.name,
         cover: await createAlbumCover(album).catch(() => undefined),
-        count: album.items.length
+        count: album.items.length,
+        ...(limit ? { limit: limit.kind === 'views' ? { kind: 'views', views: limit.views } : { kind: 'time', until: limit.until } } : {})
     });
+}
+
+// Abgelaufene Begrenzungen beenden: Frist vorbei bzw. alle Ansichten verbraucht und die letzte vorbei.
+async function enforceAlbumLimits(now = null) {
+    const current = now ?? (await fetchServerTime().catch(() => ({ now: Date.now() }))).now;
+    for (const album of getOwnAlbums()) {
+        for (const viewerId of [...album.acl]) {
+            const limit = albumLimitFor(album, viewerId);
+            if (!limit) continue;
+            const over = limit.kind === 'time'
+                ? limit.until <= current
+                : (limit.used || 0) >= limit.views && (limit.sessionEndsAt || 0) <= current;
+            if (over) await revokeAlbumAccess(album.id, viewerId);
+        }
+    }
+    scheduleAlbumLimitCheck(current);
+}
+
+function scheduleAlbumLimitCheck(now = Date.now()) {
+    clearTimeout(state.albumLimitTimer);
+    const ends = getOwnAlbums().flatMap(album => album.acl.map(viewerId => {
+        const limit = albumLimitFor(album, viewerId);
+        if (!limit) return null;
+        return limit.kind === 'time' ? limit.until : (limit.used || 0) >= limit.views ? limit.sessionEndsAt || now : null;
+    })).filter(Number.isFinite);
+    if (!ends.length) return;
+    const next = Math.min(...ends);
+    state.albumLimitTimer = setTimeout(() => enforceAlbumLimits().catch(logBackgroundError('enforceAlbumLimits')),
+        Math.min(Math.max(0, next - now) + 1000, 2147483647));
 }
 
 // ----- P2P-Protokoll -----
@@ -513,9 +586,71 @@ function openAlbumPicker() {
         meta.className = 'text-xs text-slate-500 shrink-0';
         meta.textContent = `${t('albums.images2', { count: album.items.length })}${album.acl.includes(state.activeChatPeerId) ? t('albums.alreadyShared') : ''}`;
         button.append(name, meta);
-        button.onclick = () => shareAlbumInChat(album.id);
+        button.onclick = () => openAlbumShareOptions(album.id);
         content.appendChild(button);
     });
+}
+
+// Zweiter Schritt im Sendemenue: normal teilen (ueberspringen) oder begrenzt wie ein Snap.
+function openAlbumShareOptions(albumId) {
+    const album = state.albums[albumId];
+    if (!album) return;
+    const content = document.getElementById('media-modal-content');
+    document.getElementById('media-modal-title').textContent = t('albums.shareAlbumName', { name: album.name });
+    content.replaceChildren();
+    const option = (id, icon, title, text, primary = false) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.dataset.shareLimit = id || 'none';
+        button.className = `w-full flex items-center gap-3 p-3 mb-2 rounded-xl border text-left ${primary ? 'border-brand-500/60 bg-brand-500/10' : 'border-slate-800 bg-slate-950/40 hover:border-slate-600'}`;
+        button.innerHTML = `<i class="fa-solid ${icon} w-5 text-center text-brand-400"></i>`;
+        const label = document.createElement('span');
+        label.className = 'min-w-0';
+        const heading = document.createElement('span');
+        heading.className = 'block text-sm font-semibold text-slate-100';
+        heading.textContent = title;
+        label.appendChild(heading);
+        if (text) {
+            const description = document.createElement('span');
+            description.className = 'block text-xs text-slate-400';
+            description.textContent = text;
+            label.appendChild(description);
+        }
+        button.appendChild(label);
+        button.onclick = () => shareAlbumInChat(albumId, id).catch(logBackgroundError('shareAlbumInChat'));
+        return button;
+    };
+    const section = text => {
+        const heading = document.createElement('div');
+        heading.className = 'text-[11px] font-bold uppercase tracking-wide text-slate-500 mt-3 mb-2';
+        heading.textContent = text;
+        return heading;
+    };
+    const chips = (ids, labels) => {
+        const row = document.createElement('div');
+        row.className = 'grid grid-cols-3 gap-2';
+        ids.forEach((id, index) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.dataset.shareLimit = id;
+            button.className = 'btn-secondary justify-center';
+            button.textContent = labels[index];
+            button.onclick = () => shareAlbumInChat(albumId, id).catch(logBackgroundError('shareAlbumInChat'));
+            row.appendChild(button);
+        });
+        return row;
+    };
+    content.append(
+        option(null, 'fa-share', t('albums.shareNormally'), t('albums.shareNormallyText'), true),
+        section(t('albums.limitedViews')),
+        chips(['views1', 'views2', 'views3'], [t('snaps.viewOnce'), t('snaps.viewTwice'), t('snaps.view3Times')]),
+        section(t('albums.limitedTime')),
+        chips(['m15', 'h1', 'h24'], [t('common.15Min'), t('settings.1Hour'), t('settings.24Hours')])
+    );
+    const note = document.createElement('p');
+    note.className = 'text-[11px] text-slate-500 mt-3';
+    note.textContent = t('albums.limitedNote');
+    content.appendChild(note);
 }
 
 // Album-Karte in einer Chat-Nachricht.
@@ -535,6 +670,15 @@ function renderAlbumMessage(bubble, album, messageId = null) {
     meta.className = 'opacity-75 text-[11px]';
     meta.textContent = Number.isInteger(album.count) ? t('albums.imagesTapToOpen', { count: album.count }) : t('albums.tapToOpen');
     card.append(title, meta);
+    if (album.limit) {
+        const limit = document.createElement('div');
+        limit.className = 'text-[11px] font-semibold mt-0.5';
+        limit.innerHTML = '<i class="fa-solid fa-hourglass-half mr-1"></i>';
+        limit.appendChild(document.createTextNode(album.limit.kind === 'views'
+            ? t('albums.limitViews', { views: album.limit.views })
+            : album.limit.until > Date.now() ? t('albums.availableUntil', { time: formatClockTime(album.limit.until) }) : t('albums.limitExpired')));
+        card.appendChild(limit);
+    }
     card.onclick = event => {
         event.stopPropagation();
         openAlbumViewer(album.albumId, album);
@@ -657,8 +801,8 @@ function createAlbumManagerItem(album) {
     settings.append(summary, ...createAlbumKeyTimingControls(album), albumSettingRow(t('albums.previewInChat'), createAlbumPreviewSelect(album)));
     card.appendChild(settings);
 
-    // Zugriff: eine Zeile pro Person mit eigener Gueltigkeit und Entziehen.
-    album.acl.forEach(peerId => {
+    // Zugriff: eine Zeile pro Person (eigene Gueltigkeit bzw. Begrenzung, Entziehen); ab 3 eingeklappt.
+    const rows = album.acl.map(peerId => {
         const row = document.createElement('div');
         row.className = 'album-access-row';
         row.dataset.viewer = peerId;
@@ -666,11 +810,33 @@ function createAlbumManagerItem(album) {
         person.className = 'flex-1 min-w-0 truncate text-sm text-slate-200';
         person.innerHTML = '<i class="fa-solid fa-user text-slate-500 mr-1.5"></i>';
         person.appendChild(document.createTextNode(getPeerPresentation(peerId).name || HIDDEN_PEER_NAME));
-        const select = createViewerKeyTimingSelect(album, peerId);
-        select.className = 'setting-select';
-        row.append(person, select, albumIconButton('fa-user-xmark', t('albums.revokeAccess'), () => revokeAlbumAccess(album.id, peerId), true));
-        card.appendChild(row);
+        row.appendChild(person);
+        const limit = albumLimitFor(album, peerId);
+        if (limit) {
+            const chip = document.createElement('span');
+            chip.className = 'album-limit-chip';
+            chip.innerHTML = '<i class="fa-solid fa-hourglass-half"></i>';
+            chip.appendChild(document.createTextNode(albumLimitLabel(limit)));
+            row.appendChild(chip);
+        } else {
+            const select = createViewerKeyTimingSelect(album, peerId);
+            select.className = 'setting-select';
+            row.appendChild(select);
+        }
+        row.appendChild(albumIconButton('fa-user-xmark', t('albums.revokeAccess'), () => revokeAlbumAccess(album.id, peerId), true));
+        return row;
     });
+    if (rows.length >= 3) {
+        const access = document.createElement('details');
+        access.className = 'setting-details album-access';
+        const summary = document.createElement('summary');
+        summary.className = 'setting-details-summary';
+        summary.textContent = t('albums.accessCount', { count: rows.length });
+        access.append(summary, ...rows);
+        card.appendChild(access);
+    } else {
+        rows.forEach(row => card.appendChild(row));
+    }
     return card;
 }
 
@@ -859,17 +1025,32 @@ async function buildAlbumKeyBundle(album, viewerId, current, epoch) {
 
 // Schickt einem Betrachter die Buendel fuer jetzt und die vorab eingestellten Epochen
 // (einmal pro Epoche, Version und Einstellung).
-async function pushAlbumKeys(viewerId, album, force = false) {
+async function pushAlbumKeys(viewerId, album, force = false, { sessionUntil = null } = {}) {
     if (!album || album.ownerId !== state.myProfile.id || !album.acl.includes(viewerId) || !album.items.length) return;
-    const current = albumEpoch(album, await fetchServerTime(), viewerId);
+    const limit = albumLimitFor(album, viewerId);
+    // Begrenzt auf Ansichten: nur fuer eine gezaehlte Ansicht (handleAlbumKeyRequest).
+    if (limit?.kind === 'views' && !sessionUntil) return;
+    const time = await fetchServerTime();
+    const cap = sessionUntil ?? (limit?.kind === 'time' ? limit.until : null);
+    if (cap !== null && cap <= time.now) return;
+    const current = albumEpoch(album, time, viewerId);
     const ahead = albumEpochsAhead(album);
-    const marker = `${album.keyVersion || 1}:${current.epochMs}:${current.epoch}:${ahead}`;
+    const marker = `${album.keyVersion || 1}:${current.epochMs}:${current.epoch}:${ahead}:${cap || ''}`;
     const pushed = state.albumKeyPushes[viewerId] || (state.albumKeyPushes[viewerId] = {});
     if (!force && pushed[album.id] === marker) return;
     const bundles = [];
     for (let offset = 0; offset <= ahead; offset++) {
-        bundles.push(await buildAlbumKeyBundle(album, viewerId, current, current.epoch + offset));
+        const bundle = await buildAlbumKeyBundle(album, viewerId, current, current.epoch + offset);
+        bundle.epochStartsAt = bundle.epoch * current.epochMs;
+        if (cap !== null) {
+            // Nichts ueber die Frist hinaus: spaetere Epochen weglassen, die laufende kuerzen.
+            if (bundle.epochStartsAt >= cap) break;
+            bundle.epochEndsAt = Math.min(bundle.epochEndsAt, cap);
+        }
+        if (sessionUntil) bundle.session = true;
+        bundles.push(bundle);
     }
+    if (!bundles.length) return;
     await persistAlbum(album);
     pushed[album.id] = marker;
     const operation = {
@@ -1118,7 +1299,8 @@ async function findCurrentAlbumKeyBundle(albumId, keyVersion, time) {
     const records = await getAllDatabaseRecords('keys').catch(() => []);
     return records.find(record => typeof record.id === 'string' && record.id.startsWith(prefix)
         && record.epochEndsAt > time.now
-        && record.epochEndsAt - (Number.isFinite(record.epochMs) && record.epochMs > 0 ? record.epochMs : time.epochMs) <= time.now) || null;
+        && (Number.isFinite(record.epochStartsAt) ? record.epochStartsAt
+            : record.epochEndsAt - (Number.isFinite(record.epochMs) && record.epochMs > 0 ? record.epochMs : time.epochMs)) <= time.now) || null;
 }
 
 // Entpackt das Buendel der laufenden Epoche in nicht exportierbare Schluessel (nur im RAM).
@@ -1149,6 +1331,8 @@ async function loadAlbumKeys(albumId) {
         ownerId: album.ownerId,
         keyVersion,
         epoch: record.epoch,
+        // Begrenzte Ansicht: nach Ablauf nicht automatisch nachfragen (das wuerde eine Ansicht zaehlen).
+        session: record.session === true,
         keys,
         timer: setTimeout(() => expireAlbumKeys(albumId, true), Math.min(Math.max(0, record.epochEndsAt - time.now), 2147483647))
     };
@@ -1171,6 +1355,25 @@ async function handleAlbumKeyRequest(peerId, payload) {
         await sendSecurePayload(peerId, { type: 'ALBUM_DENIED', albumId: payload.albumId });
         return;
     }
+    const limit = albumLimitFor(album, peerId);
+    if (limit?.kind === 'views') {
+        const now = (await fetchServerTime().catch(() => ({ now: Date.now() }))).now;
+        // Laufende Ansicht: dieselbe Frist erneut schicken, ohne zu zaehlen.
+        if ((limit.sessionEndsAt || 0) > now) {
+            await pushAlbumKeys(peerId, album, true, { sessionUntil: limit.sessionEndsAt });
+            return;
+        }
+        if ((limit.used || 0) >= limit.views) {
+            await sendSecurePayload(peerId, { type: 'ALBUM_DENIED', albumId: album.id });
+            await enforceAlbumLimits(now);
+            return;
+        }
+        album.limits = { ...album.limits, [peerId]: { ...limit, used: (limit.used || 0) + 1, sessionEndsAt: now + ALBUM_VIEW_SESSION_MS } };
+        await saveAlbum(album);
+        scheduleAlbumLimitCheck(now);
+        await pushAlbumKeys(peerId, album, true, { sessionUntil: now + ALBUM_VIEW_SESSION_MS });
+        return;
+    }
     await pushAlbumKeys(peerId, album, true);
 }
 
@@ -1181,7 +1384,8 @@ function expireAlbumKeys(albumId, renew) {
     clearTimeout(entry.timer);
     delete state.albumKeys[albumId];
     const album = state.albums[albumId];
-    if (!renew || !album || state.albumViewer?.albumId !== albumId) return;
+    if (entry.session && album && state.albumViewer?.albumId === albumId) renderAlbumViewer(album).catch(logBackgroundError('expireAlbumKeys'));
+    if (!renew || entry.session || !album || state.albumViewer?.albumId !== albumId) return;
     renderAlbumViewer(album).catch(logBackgroundError('expireAlbumKeys'));
     requestAlbumKeys(album.ownerId, albumId).catch(logBackgroundError('expireAlbumKeys'));
 }

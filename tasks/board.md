@@ -166,6 +166,15 @@
   - ursachen: (1) aktionsleiste war nur eine css-klasse an der nachricht, die reaktionsauswahl ein element darin; jedes neuzeichnen des chats (zustellbestaetigung, reaktion, neue nachricht) warf beides weg; (2) nach langem druecken landete der klick beim loslassen auf dem neuen hintergrund; (3) reaktionsauswahl schloss nie beim tippen daneben
   - done 2026-10-27: ein kontextmenue (`openMessageMenu`, chat-tools.js) am `<body>`, reaktionen oben + aktionsliste; uebersteht neuzeichnen (`syncMessageMenu`); hintergrund schliesst nur bei eigenem tipp; aktionen ueber `replaceModal`; desktop: hover-leiste (antworten, reagieren, mehr) + rechtsklick; e2e `message-menu` (desktop + mobil)
 
+## T15 Sprachnachrichten-Player (nutzer 2026-10-27)
+- [x] beim abspielen flackern play-knopf und leiste bei einem redraw; schieben und geschwindigkeit
+  - ursache: neu gezeichneter player stand bis zum naechsten zeit-update auf "play"/0 % (der stand wurde im dom gesucht, bevor das neue element drin war)
+  - done 2026-10-27: `applyVoicePlayerState` am neuen element, symbol nur bei aenderung; leiste mit griff zum springen (`seekVoicePlayback`), 1x/1,5x/2x (`opengrid-voice-rate`); e2e `voice-video`; UC-52
+
+## T16 Album begrenzt teilen (nutzer 2026-10-27)
+- [x] album wie einen snap 1x/2x/3x oder 15 min/1 h/24 h teilen, im sendemenue einstellbar, ueberspringbar; begrenzte nutzer in der alben-verwaltung; ab 3 personen eingeklappt
+  - done 2026-10-27: `album.limits`, `openAlbumShareOptions`, ansichten ueber `handleAlbumKeyRequest` (15-min-ansicht, `session`), zeit ueber gekuerzte buendel, `enforceAlbumLimits`; tests `test/albums.test.js`, e2e `album-preview`; UC-51
+
 ## Eigene rotierende Verschluesselung (geparkt, erst besprechen)
 - [ ] gestohlene album-schluessel sollen nach der epoche wertlos sein; idee: eigener, vom server getakteter algorithmus -> `tasks/feature-request-rotating-encryption.md`
   - offen: konflikt mit regel "crypto nur ueber `crypto.subtle`"; alternative: server-epochen-geheimnis + `CK_e` per HKDF (AES-GCM bleibt)

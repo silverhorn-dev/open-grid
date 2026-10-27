@@ -2,7 +2,12 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 157 · 2026-10-27
+## Build 158 · 2026-10-27
+- Sprachnachrichten: auf der Leiste springen (tippen oder ziehen) und schneller abspielen (1x, 1,5x, 2x)
+- Behoben: beim Abspielen flackerten Play-Knopf und Leiste, sobald der Chat neu gezeichnet wurde
+- Alben begrenzt teilen: beim Teilen im Chat waehlbar, ob normal oder nur 1x/2x/3x ansehen bzw. 15 min/1 h/24 h; danach endet der Zugriff von selbst. Begrenzt freigegebene Personen stehen mit ihrem Stand in der Alben-Verwaltung, ab 3 Personen eingeklappt
+
+## Build 157 · 2026-10-27 · `72f3ef2`
 - Neues Nachrichten-Menue: lange druecken (am PC Rechtsklick) zeigt oben die Reaktionen und darunter Antworten, Kopieren, Markieren und Loeschen
 - Behoben: das Menue bzw. die Reaktionsauswahl ging manchmal gleich wieder zu, vor allem nachdem man vorher schon etwas gemacht hatte
 

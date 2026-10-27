@@ -119,6 +119,8 @@ const state = {
     chatListScopeOverride: null,
     // Offenes Kontextmenue einer Nachricht ({ peerId, messageId }, chat-tools.js).
     messageMenu: null,
+    // Timer fuer das Ende begrenzt geteilter Alben (albums.js).
+    albumLimitTimer: null,
     // Wer eigene Chat-Bilder/Videos speichern darf: 'friends' | 'all' (media-rights.js).
     mediaDownload: 'friends',
     // Snap-Editor: darf der Empfaenger diese Aufnahme speichern (snaps.js).

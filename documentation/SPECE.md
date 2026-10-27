@@ -90,7 +90,13 @@
   ueber den Original-Weg, also nur P2P/TURN; `audioSplitAt` ist die Sekunde des
   Wechsels. Der Empfaenger spielt den Anfang sofort; fehlt der Rest am Ende des
   Anfangs, wartet die Wiedergabe, fordert ihn an (baut P2P auf) und spielt
-  weiter, sobald er geprueft gespeichert ist (`onVoiceRestReady`). Am Maximum
+  weiter, sobald er geprueft gespeichert ist (`onVoiceRestReady`). Player:
+  Tippen/Ziehen auf der Leiste springt (`seekVoicePlayback`; in den Rest nur,
+  wenn er da ist, sonst bis zur Grenze und anfragen; pausiert bleibt
+  pausiert), Knopf 1x/1,5x/2x setzt `playbackRate` fuer alle Sprachnachrichten
+  (`localStorage` `opengrid-voice-rate`). Beim Neuzeichnen setzt
+  `applyVoicePlayerState` den Stand direkt am neuen Element (vorher erst beim
+  naechsten Zeit-Update: Flackern). Am Maximum
   stoppt die Aufnahme nur, gesendet wird nie automatisch. Der Text entsteht
   nur, wenn der Browser lokal verschriftlichen kann (`SpeechRecognition` mit
   `processLocally`, vorher `SpeechRecognition.available(...)` = `available`);
@@ -620,7 +626,22 @@ Chat-Nachricht mit `message.album = { albumId, ownerId, name, cover, count }`
 Album (`album.preview`: `normal` scharf, `blur` unscharf, `none` ohne Bild;
 Standard `normal`). `blur` wird beim Besitzer gerechnet (auf 1/48 verkleinert,
 ueber 1/12 wieder vergroessert, ohne `canvas.filter`), es verlaesst also nie
-ein scharfes Deckfoto das Geraet; `none` sendet kein `cover`. Schon gesendete
+ein scharfes Deckfoto das Geraet; `none` sendet kein `cover`.
+
+Begrenzt teilen (zweiter Schritt im Sendemenue, ueberspringbar = normal):
+`album.limits[viewerId]` = `{ kind: 'views', views: 1-3, used, sessionEndsAt }`
+oder `{ kind: 'time', until }` (15 min, 1 h, 24 h). Ansichten: keine Buendel
+vorab (`pushAlbumKeys` ueberspringt die Person); jede `ALBUM_KEY_REQUEST`
+(Oeffnen) zaehlt eine Ansicht und bekommt nur das laufende Buendel, gekuerzt
+auf 15 Minuten und mit `session: true` (der Betrachter fragt danach nicht von
+selbst nach); eine erneute Anfrage in derselben Ansicht zaehlt nicht. Zeit:
+Buendel enden spaetestens mit `until` (`epochEndsAt` gekuerzt, spaetere
+Epochen entfallen, `epochStartsAt` steht dabei). Ist die Frist vorbei bzw.
+sind alle Ansichten verbraucht und die letzte vorbei, entzieht
+`enforceAlbumLimits` den Zugriff wie von Hand (neue Schluesselversion; Timer,
+beim Start erneut geprueft). Die Chat-Karte traegt `album.limit` zur Anzeige.
+In der Verwaltung stehen begrenzte Personen mit ihrem Stand; ab 3 Personen ist
+der Zugriff eingeklappt. Schon gesendete
 Karten behalten ihr Deckfoto. Der Empfaenger akzeptiert den Verweis nur, wenn
 `ownerId` dem Absender entspricht.
 

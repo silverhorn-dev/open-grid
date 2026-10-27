@@ -66,7 +66,29 @@ async function main() {
         await bob.click(`[data-voice="${voice.id}"] .voice-play`);
         await waitFor(bob, id => state.voicePlayback?.messageId === id, voice.id);
 
-        await bob.evaluate(() => stopVoicePlayback());
+        // Neuzeichnen waehrend der Wiedergabe: Pause-Symbol und Fortschritt bleiben sofort stehen.
+        const redraw = await bob.evaluate(async id => {
+            await new Promise(resolve => setTimeout(resolve, 600));
+            renderChatHistory();
+            const player = document.querySelector(`[data-voice="${id}"]`);
+            return { icon: player.querySelector('.voice-play i').className, fill: player.querySelector('.voice-fill').style.width };
+        }, voice.id);
+        assert.match(redraw.icon, /fa-pause/, 'still shows pause right after a redraw');
+        assert.notEqual(redraw.fill, '0%', 'progress stays');
+
+        // Geschwindigkeit: 1x -> 1,5x, gilt sofort und fuer alle Sprachnachrichten.
+        await bob.click(`[data-voice="${voice.id}"] .voice-rate`);
+        assert.equal((await bob.textContent(`[data-voice="${voice.id}"] .voice-rate`)).trim(), '1,5×');
+        assert.equal(await bob.evaluate(() => state.voicePlayback.audio.playbackRate), 1.5);
+
+        // Springen: Klick auf die Mitte der Leiste.
+        await bob.evaluate(() => state.voicePlayback.audio.pause());
+        const track = await bob.locator(`[data-voice="${voice.id}"] .voice-track`).boundingBox();
+        await bob.mouse.click(track.x + track.width * 0.5, track.y + track.height / 2);
+        await waitFor(bob, half => Math.abs(state.voicePlayback.audio.currentTime - half) < 0.4, voice.audioDuration / 2, 5000);
+        assert.equal(await bob.evaluate(() => state.voicePlayback.audio.paused), true, 'seeking while paused stays paused');
+
+        await bob.evaluate(() => { stopVoicePlayback(); localStorage.removeItem('opengrid-voice-rate'); });
 
         // Lange Sprachnachricht (Grenzen fuer den Test verkuerzt): am Maximum stoppt die Aufnahme nur.
         await alice.evaluate(() => { VOICE_LIMITS.inlineSeconds = 2; VOICE_LIMITS.maxSeconds = 4; });

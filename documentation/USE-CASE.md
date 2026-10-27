@@ -836,3 +836,32 @@ Akzeptanzkriterien:
   verlaesst das eigene Geraet nicht.
 - Keine: die Karte zeigt nur Name und Anzahl.
 - Gilt fuer kuenftig geteilte Karten.
+
+## UC-51: Album begrenzt teilen
+
+**Als Album-Besitzer** moechte ich ein Album wie einen Snap nur fuer wenige
+Ansichten oder kurze Zeit freigeben.
+
+Akzeptanzkriterien:
+
+- Nach der Album-Auswahl im Chat: "Normal teilen" (wie bisher) oder begrenzt
+  1x/2x/3x ansehen bzw. 15 min/1 h/24 h.
+- Ansichten: jedes Oeffnen zaehlt eine Ansicht (15 Minuten); der Besitzer muss
+  dafuer online sein. Danach ist der Zugriff weg.
+- Zeit: nach Ablauf ist der Zugriff weg, auch wenn der Besitzer offline war
+  (die Schluessel enden mit der Frist).
+- Die Album-Karte im Chat zeigt die Grenze; in der Alben-Verwaltung stehen
+  begrenzte Personen mit ihrem Stand und lassen sich vorher entziehen.
+- Ab 3 Personen ist die Zugriffsliste eingeklappt.
+
+## UC-52: Sprachnachricht abspielen
+
+**Als Empfaenger** moechte ich in einer Sprachnachricht springen und sie
+schneller abspielen.
+
+Akzeptanzkriterien:
+
+- Tippen oder Ziehen auf der Leiste springt an die Stelle.
+- Knopf 1x / 1,5x / 2x, gilt fuer alle Sprachnachrichten.
+- Neue Nachrichten waehrend der Wiedergabe lassen Knopf und Leiste nicht
+  flackern.

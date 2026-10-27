@@ -518,8 +518,16 @@ function sanitizeAlbumReference(album, senderId) {
         ownerId: senderId,
         name: String(album.name || 'Album').substring(0, 80),
         cover: isSafeInlineImage(album.cover) && album.cover.length <= ALBUM_COVER_MAX_LENGTH ? album.cover : undefined,
-        count: Number.isInteger(album.count) ? Math.max(0, Math.min(album.count, 999)) : undefined
+        count: Number.isInteger(album.count) ? Math.max(0, Math.min(album.count, 999)) : undefined,
+        limit: sanitizeAlbumLimit(album.limit)
     };
+}
+
+// Begrenzung eines geteilten Albums (Anzeige auf der Karte; durchgesetzt wird beim Besitzer).
+function sanitizeAlbumLimit(limit) {
+    if (limit?.kind === 'views' && [1, 2, 3].includes(limit.views)) return { kind: 'views', views: limit.views };
+    if (limit?.kind === 'time' && Number.isFinite(limit.until) && limit.until > 0) return { kind: 'time', until: limit.until };
+    return undefined;
 }
 
 function sanitizeSecureSnap(snap) {

@@ -83,6 +83,33 @@ function secureImageSource(element) {
 }
 
 // Speichern nur, wo es erlaubt ist (Chat-Bilder im Chat-/Freunde-Modus): aus dem Canvas als JPEG.
+// Teilen ueber das System (Web Share API) als Alternative zum Download; nur wo Dateien teilbar sind
+// (typisch: installierte App auf dem Handy).
+function canShareFiles() {
+    try {
+        return typeof navigator.share === 'function'
+            && navigator.canShare?.({ files: [new File([new Uint8Array(1)], 'test.jpg', { type: 'image/jpeg' })] }) === true;
+    } catch {
+        return false;
+    }
+}
+
+async function shareCanvasImage(canvas, fileName) {
+    if (!canvas?.width) return false;
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+    if (!blob) return false;
+    const file = new File([blob], fileName, { type: 'image/jpeg' });
+    if (!navigator.canShare?.({ files: [file] })) return false;
+    try {
+        await navigator.share({ files: [file] });
+        return true;
+    } catch (error) {
+        // Abbrechen im Teilen-Menue ist kein Fehler.
+        if (error?.name === 'AbortError') return false;
+        throw error;
+    }
+}
+
 function downloadCanvasImage(canvas, fileName) {
     if (!canvas?.width) return;
     canvas.toBlob(blob => {

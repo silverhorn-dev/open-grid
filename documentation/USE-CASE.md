@@ -783,3 +783,16 @@ Akzeptanzkriterien:
 - Unter Einstellungen > Allgemein > Erweitert laesst sich der Bereich aendern;
   "Alle Modi anzeigen" schaltet alles wieder ein.
 - Bestehende Nutzer behalten alle Modi.
+
+## UC-48: Chat-Bild speichern oder teilen
+
+**Als Nutzer im Chat- und Freunde-Bereich** moechte ich ein Chat-Bild
+herunterladen oder direkt ueber das Teilen-Menue meines Geraets weitergeben.
+
+Akzeptanzkriterien:
+
+- Im Bildbetrachter stehen "Speichern" und, wo das Geraet Dateien teilen kann
+  (typisch installierte App auf dem Handy), "Teilen" nebeneinander.
+- Teilen gibt ein JPEG an das System; Abbrechen zeigt keinen Fehler.
+- Wo Speichern nicht erlaubt ist (Alben, Secure Snaps, Grid & Event), gibt es
+  auch kein Teilen.

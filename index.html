@@ -892,8 +892,11 @@
     <!-- Bildbetrachter (Vollbild) -->
     <div data-i18n-attr="aria-label:viewer.imageViewer" id="image-viewer" class="hidden fixed inset-0 z-[80] bg-black flex flex-col select-none" data-no-context-menu role="dialog" aria-modal="true" aria-label="Bildbetrachter">
         <div class="absolute top-0 inset-x-0 z-10 p-4 flex items-center justify-between bg-gradient-to-b from-black/70 to-transparent" style="padding-top: max(1rem, env(safe-area-inset-top));">
-            <span id="image-viewer-counter" class="text-sm font-semibold text-white/90"></span>
-            <button data-i18n-attr="aria-label:viewer.saveImage" id="image-viewer-save" data-click="saveViewerImage" class="hidden ml-auto mr-2 h-11 px-4 rounded-full bg-black/50 text-white text-sm font-semibold flex items-center gap-2" aria-label="Bild speichern">
+            <span id="image-viewer-counter" class="mr-auto text-sm font-semibold text-white/90"></span>
+            <button data-i18n-attr="aria-label:viewer.shareImage" id="image-viewer-share" data-click="shareViewerImage" class="hidden mr-2 h-11 px-4 rounded-full bg-black/50 text-white text-sm font-semibold flex items-center gap-2" aria-label="Bild teilen">
+                <i class="fa-solid fa-share-nodes"></i><span data-i18n="settings.share" class="hidden sm:inline">Teilen</span>
+            </button>
+            <button data-i18n-attr="aria-label:viewer.saveImage" id="image-viewer-save" data-click="saveViewerImage" class="hidden mr-2 h-11 px-4 rounded-full bg-black/50 text-white text-sm font-semibold flex items-center gap-2" aria-label="Bild speichern">
                 <i class="fa-solid fa-download"></i><span data-i18n="common.save" class="hidden sm:inline">Speichern</span>
             </button>
             <button data-i18n-attr="aria-label:profileModal.close" data-click="closeImageViewer" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Schließen">

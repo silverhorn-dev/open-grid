@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 135 · 2026-10-26
+## Build 138 · 2026-10-27
+- Chat-Bilder im Chat- und Freunde-Bereich lassen sich jetzt auch ueber das Teilen-Menue des Geraets weitergeben, Speichern bleibt daneben
+
+## Build 135 · 2026-10-26 · `46bdceb`
 - Beim ersten Start waehlst du, was du willst: "Nur Entdecken", "Social" oder "Entdecken & Freunde". Einstellungen und Knoepfe anderer Bereiche verschwinden; bei "Nur Entdecken" gibt es kein Adden, auch nicht nach einem Match
 - Bereich aendern oder alle Modi wieder einschalten: Einstellungen > Allgemein > App-Modus > Erweitert
 

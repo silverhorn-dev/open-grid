@@ -36,6 +36,7 @@ function openImageViewer(images, startIndex = 0, options = {}) {
     if (!safeImages.length) return;
     viewer.images = safeImages;
     viewerElement('image-viewer-save').classList.toggle('hidden', !options.allowSave);
+    viewerElement('image-viewer-share').classList.toggle('hidden', !options.allowSave || !canShareFiles());
     viewer.index = Math.min(Math.max(startIndex, 0), safeImages.length - 1);
     const element = viewerElement('image-viewer');
     if (element.classList.contains('hidden')) {
@@ -53,6 +54,7 @@ function hideImageViewer() {
     viewerElement('image-viewer').classList.add('hidden');
     ['image-viewer-image', 'image-viewer-prev-image', 'image-viewer-next-image'].forEach(id => clearSecureCanvas(viewerElement(id)));
     viewerElement('image-viewer-save').classList.add('hidden');
+    viewerElement('image-viewer-share').classList.add('hidden');
     viewer.images = [];
     viewer.pointers.clear();
     viewer.gesture = null;
@@ -70,6 +72,17 @@ function setSlideImage(id, dataUrl) {
 function saveViewerImage() {
     if (viewerElement('image-viewer-save').classList.contains('hidden')) return;
     downloadCanvasImage(viewerElement('image-viewer-image'), `opengrid-${Date.now()}.jpg`);
+}
+
+// Dieselbe Freigabe wie Speichern, nur ueber das Teilen-Menue des Systems.
+async function shareViewerImage() {
+    if (viewerElement('image-viewer-share').classList.contains('hidden')) return;
+    try {
+        await shareCanvasImage(viewerElement('image-viewer-image'), `opengrid-${Date.now()}.jpg`);
+    } catch (error) {
+        logDebug(`Sharing failed: ${error.message}`);
+        showToast(t('viewer.sharingFailed'), 'error');
+    }
 }
 
 function resetViewerPosition() {

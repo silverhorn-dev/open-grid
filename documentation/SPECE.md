@@ -964,7 +964,10 @@ Bildbetrachter zeichnen in `<canvas>` (`client/app/secure-canvas.js`:
 Kontextmenue gesperrt). Die Quelle fuer den Betrachter liegt nur in einer
 `WeakMap`. Beim Schliessen werden die Canvas geleert. Speichern (Download als
 JPEG aus dem Canvas) gibt es nur fuer Chat-Bilder im Chat- und Freunde-Modus
-(`isSocialMode`), nie fuer Alben oder Secure Snaps. Profil-Galerien bleiben
+(`isSocialMode`), nie fuer Alben oder Secure Snaps. Mit derselben Freigabe
+erscheint daneben "Teilen", wenn der Browser Dateien teilen kann
+(`canShareFiles`: `navigator.canShare({ files })`): `shareCanvasImage` gibt
+das JPEG an `navigator.share`; Abbrechen ist kein Fehler. Profil-Galerien bleiben
 `<img>`. Kein Schutz gegen Screenshots; Pixel-Verwuerfeln wurde bewusst nicht
 gebaut (entschieden 2026-10-24).
 

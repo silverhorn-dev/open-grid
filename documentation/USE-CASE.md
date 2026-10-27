@@ -542,7 +542,9 @@ Akzeptanzkriterien:
 
 - Eine Nachricht zur Seite wischen startet eine Antwort (fremde nach rechts,
   eigene nach links); ein Antwort-Symbol zeigt den Fortschritt.
-- Lange druecken oeffnet die Aktionsleiste, doppelt tippen reagiert mit ❤️.
+- Lange druecken (am Desktop Rechtsklick) oeffnet das Kontextmenue mit
+  Reaktionen und Aktionen; es bleibt offen, auch wenn neue Nachrichten
+  kommen. Doppelt tippen reagiert mit ❤️.
 - Text laesst sich ueber die Aktion "Kopieren" kopieren.
 - Seitlich wischen wechselt zwischen Grid, Chat und Profil.
 - Profil- und Medienfenster schliessen per Wischen nach unten.

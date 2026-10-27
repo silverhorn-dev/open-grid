@@ -161,6 +161,11 @@
   - ursache: album-karte im chat nutzte die wiederverwendung nicht; album-verwaltung lud das vorschaubild bei jedem neuaufbau asynchron
   - fix 2026-10-27: register in `createSecureImage` (secure-canvas.js) statt collect/release je ansicht; schluessel fuer chat-bild, video, album-karte, album-verwaltung; vorschaubild der verwaltung einmal geladen und synchron; e2e `album-preview` (schlaegt mit altem code fehl)
 
+## T14 Reaktions- und Kontextmenue (nutzer 2026-10-27)
+- [x] gui von reaktionsmenue und nachrichten-kontextmenue ueberarbeiten; bug: geht manchmal fast sofort wieder zu, nachdem man mehrere sachen gemacht hat
+  - ursachen: (1) aktionsleiste war nur eine css-klasse an der nachricht, die reaktionsauswahl ein element darin; jedes neuzeichnen des chats (zustellbestaetigung, reaktion, neue nachricht) warf beides weg; (2) nach langem druecken landete der klick beim loslassen auf dem neuen hintergrund; (3) reaktionsauswahl schloss nie beim tippen daneben
+  - done 2026-10-27: ein kontextmenue (`openMessageMenu`, chat-tools.js) am `<body>`, reaktionen oben + aktionsliste; uebersteht neuzeichnen (`syncMessageMenu`); hintergrund schliesst nur bei eigenem tipp; aktionen ueber `replaceModal`; desktop: hover-leiste (antworten, reagieren, mehr) + rechtsklick; e2e `message-menu` (desktop + mobil)
+
 ## Eigene rotierende Verschluesselung (geparkt, erst besprechen)
 - [ ] gestohlene album-schluessel sollen nach der epoche wertlos sein; idee: eigener, vom server getakteter algorithmus -> `tasks/feature-request-rotating-encryption.md`
   - offen: konflikt mit regel "crypto nur ueber `crypto.subtle`"; alternative: server-epochen-geheimnis + `CK_e` per HKDF (AES-GCM bleibt)

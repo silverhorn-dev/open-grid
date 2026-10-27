@@ -68,7 +68,7 @@ function handleMessagePointerDown(event) {
         if (messageGesture.active !== gesture || gesture.axis) return;
         gesture.longPressed = true;
         hapticTick(15);
-        if (!row.classList.contains('actions-open')) toggleMessageActions(row);
+        openMessageMenu(gesture.messageId);
     }, LONG_PRESS_MS);
     messageGesture.active = gesture;
 }

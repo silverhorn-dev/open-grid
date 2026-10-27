@@ -191,9 +191,19 @@
   Emoji-Feld = Text-Ebene `HH:MM` (mono, abgedunkelt), frei platzierbar. `flattenSnapDraft` zeichnet alles mit diesen
   Transformationen in einen Canvas (ausserhalb des Fotos schwarz), erst danach
   bettet `encodeSnap` das Wasserzeichen ein und komprimiert unter 70 KB.
+- Kontextmenue einer Nachricht (`chat-tools.js`, `openMessageMenu`): oben die
+  Reaktionen (eigene markiert), darunter Antworten, Kopieren, Markieren,
+  Loeschen (nur eigene). Oeffnen: lange druecken oder der Pfeil (Touch),
+  Rechtsklick oder Reagieren/"mehr" in der Hover-Leiste (Desktop). Es haengt am
+  `<body>` (nicht in der Nachrichtenliste) und merkt sich die Nachricht
+  (`state.messageMenu`); `renderChatHistory` haengt es nach jedem Neuzeichnen
+  wieder an (`syncMessageMenu`). Schliessen: Tipp auf den Hintergrund (nur wenn
+  der Tipp dort beginnt, sonst schloss der Klick nach dem langen Druecken es
+  sofort), Esc, Zurueck, Chatwechsel; Aktionen laufen ueber `replaceModal`, erst
+  nach dem Zurueck-Schritt des Menues.
 - Gesten (`client/app/gestures.js`, nur Touch): Nachricht wischen (fremde
   nach rechts, eigene nach links, ab 56 px) = antworten; lange druecken
-  (450 ms) = Aktionsleiste; doppelt tippen = Reaktion ❤️; seitlich wischen
+  (450 ms) = Kontextmenue; doppelt tippen = Reaktion ❤️; seitlich wischen
   (ab 80 px, nicht in den 24-px-Kantenzonen, nicht in horizontal scrollbaren
   Bereichen oder im offenen Chat) = Tab Grid/Chat/Profil wechseln; Profil- und
   Medienfenster von oben nach unten wischen = schliessen; im Chat am Ende nach

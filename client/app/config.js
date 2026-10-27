@@ -117,6 +117,8 @@ const state = {
     // Listen-Wechsel Grid & Event <-> Chat & Freunde (chat-switch.js); override = nur angesehene Liste.
     listSwitchSettings: { enabled: true, behavior: 'mode' },
     chatListScopeOverride: null,
+    // Offenes Kontextmenue einer Nachricht ({ peerId, messageId }, chat-tools.js).
+    messageMenu: null,
     // Wer eigene Chat-Bilder/Videos speichern darf: 'friends' | 'all' (media-rights.js).
     mediaDownload: 'friends',
     // Snap-Editor: darf der Empfaenger diese Aufnahme speichern (snaps.js).

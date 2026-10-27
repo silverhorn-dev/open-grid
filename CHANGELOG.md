@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 156 · 2026-10-27
+## Build 157 · 2026-10-27
+- Neues Nachrichten-Menue: lange druecken (am PC Rechtsklick) zeigt oben die Reaktionen und darunter Antworten, Kopieren, Markieren und Loeschen
+- Behoben: das Menue bzw. die Reaktionsauswahl ging manchmal gleich wieder zu, vor allem nachdem man vorher schon etwas gemacht hatte
+
+## Build 156 · 2026-10-27 · `fedb140`
 - Behoben: Album-Karten im Chat und die Vorschaubilder in der Alben-Verwaltung flackerten beim Neuzeichnen
 
 ## Build 155 · 2026-10-27 · `7c939f8`

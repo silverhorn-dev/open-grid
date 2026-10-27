@@ -46,7 +46,10 @@ async function main() {
         assert.equal(await sharing.isVisible('#image-viewer-save'), true, 'download stays available');
         assert.equal(await sharing.isVisible('#image-viewer-share'), true);
         await sharing.click('#image-viewer-share');
-        await sharing.waitForFunction(() => window.sharedFiles.length === 1, null, { timeout: 5000 }).catch(() => {});
+        // Kein waitForFunction: das nutzt eval und scheitert an der CSP (script-src 'self').
+        for (let attempt = 0; attempt < 25 && !(await sharing.evaluate(() => window.sharedFiles.length)); attempt += 1) {
+            await sharing.waitForTimeout(200);
+        }
         const shared = await sharing.evaluate(() => window.sharedFiles);
         assert.equal(shared.length, 1);
         assert.equal(shared[0].type, 'image/jpeg');

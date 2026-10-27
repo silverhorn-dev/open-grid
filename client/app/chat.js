@@ -227,6 +227,11 @@ function launchChatFromModal() {
 async function openChatWithPeer(peerId) {
     if (state.activeChatPeerId !== peerId) {
         resetChatTools();
+        // Menue des vorherigen Chats ohne eigenen Zurueck-Schritt schliessen.
+        if (state.messageMenu && typeof hideMessageMenu === 'function') {
+            hideMessageMenu();
+            removeModalFromStack('messagemenu');
+        }
         // Das Easteregg gilt nur fuer den Chat, in dem es ausgeloest wurde.
         state.albumButtonRevealedFor = null;
     }
@@ -721,6 +726,8 @@ function renderChatHistory() {
     });
     if (!filtering && state.chatPinned) container.scrollTop = container.scrollHeight;
     else container.scrollTop = previousScrollTop;
+    // Offenes Kontextmenue an die neu gezeichnete Zeile haengen statt es zu verlieren.
+    if (typeof syncMessageMenu === 'function') syncMessageMenu();
     updateChatJumpButton();
     renderChatAllowance();
 }

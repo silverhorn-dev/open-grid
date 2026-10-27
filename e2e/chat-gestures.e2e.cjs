@@ -79,7 +79,7 @@ async function main() {
         }
         const chevron = await replyAfter(await point('#chat-message-m3 .chat-bubble', 'chevron'), 90);
         assert.equal(chevron.reply, 'm3', 'swipe starting on the actions arrow');
-        assert.equal(await page.evaluate(() => document.getElementById('chat-message-m3').classList.contains('actions-open')), false, 'the arrow did not open');
+        assert.equal(await page.evaluate(() => state.messageMenu), null, 'the arrow did not open the menu');
         assert.equal((await replyAfter(await point('#chat-message-m3', 'right'), 90)).reply, 'm3', 'swipe on the empty space next to an incoming message');
         assert.equal((await replyAfter(await point('#chat-message-m2', 'left'), -90)).reply, 'm2', 'swipe on the empty space next to an own message');
 

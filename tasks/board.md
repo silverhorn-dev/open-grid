@@ -62,6 +62,20 @@
   - offen: modell selbst ausliefern (keine CDN, regel 1), groesse (einige MB, lazy laden, im SW-cache), tf.js/onnx im browser + leistung auf alten handys, standard an/aus, auch absender-seitig warnen?
   - grenze: nur schutz, keine durchsetzung (eigener client kann es abschalten); kein melden an den server
 
+## T4 Wrapper-App: native API zum Senden/Empfangen (wunsch 2026-10-27, erst planen)
+- [ ] die wrapper-app (siehe backlog "real application for android") stellt der PWA eine API bereit, um bilder zu senden und zu empfangen, auch offline bzw. wenn die app im hintergrund ist; grund: dauernd geladene PWA zieht viel akku
+  - idee: PWA erkennt die bruecke (z. B. `window.OpenGridNative` bzw. `postMessage`-kanal der WebView) und gibt ihr ausgehende, schon verschluesselte nachrichten (pfad-C-ciphertext + empfaenger + msgId); die app liefert sie im hintergrund aus (router-cache/push, spaeter P2P) und meldet den status zurueck
+  - empfangen: app nimmt web-push/FCM im hintergrund an, holt ciphertext aus `/api/cache`, legt ihn in einen eigenen speicher; beim oeffnen uebernimmt die PWA ihn (wie heute der SW, `MESSAGE_PUT`)
+  - ohne bruecke (normaler browser) bleibt alles wie heute
+  - offen: darf die app schluessel haben? variante A nur ciphertext weiterreichen (app sieht nie klartext, kann keine vorschau zeigen); variante B app entschluesselt (vorschau, aber schluessel ausserhalb des browsers)
+  - offen: plattform (android zuerst? kotlin + WebView oder TWA), hintergrund-grenzen (WorkManager, doze), verhaeltnis zum service worker (doppelte zustellung vermeiden)
+  - offen: api-vertrag versionieren (`apiVersion`), nur fuer signierte app (siehe backlog: signierte clients)
+
+## T5 Teilen-Menues des Systems (ideen 2026-10-27)
+- [ ] teilen aus OpenGrid: installiert als app oeffnen teilen-knoepfe (einladungslink, chat-bilder im social-bereich) das native teilen-menue (Web Share API) statt kopieren/download
+- [ ] teilen nach OpenGrid: OpenGrid erscheint im teilen-menue anderer apps (Share Target API im manifest), z. B. foto aus der galerie -> chat auswaehlen -> senden
+  - offen: nur installierte PWA; iOS unterstuetzt share target nicht
+
 ## Eigene rotierende Verschluesselung (geparkt, erst besprechen)
 - [ ] gestohlene album-schluessel sollen nach der epoche wertlos sein; idee: eigener, vom server getakteter algorithmus -> `tasks/feature-request-rotating-encryption.md`
   - offen: konflikt mit regel "crypto nur ueber `crypto.subtle`"; alternative: server-epochen-geheimnis + `CK_e` per HKDF (AES-GCM bleibt)

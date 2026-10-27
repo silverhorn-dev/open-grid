@@ -11,6 +11,7 @@ Ideen ohne festen Termin. Neue Phasen werden von hier auf `tasks/board.md` gehol
   - [ ] in the settings there is an option to just send video and image files, if the other client is signed
     - [ ] not for profile data, audio files, and secure streaming snaps.
     - this whole setting/feature (i mean the checking if the other client is signed) can be disabled on the router per DEFAULT config
+  - [ ] native API fuer die PWA zum senden/empfangen von bildern im hintergrund/offline (spart akku) -> plan auf dem board unter T4
 
 ## Hyperlocal Mesh (Festival/Club Mode)
 - [x] WebRTC over LAN: mDNS und lokale Host-Kandidaten aggressiv priorisieren

@@ -209,13 +209,19 @@ async function main() {
         await bob.waitForTimeout(300);
         // Kein Restzeit-Hinweis beim Empfaenger.
         assert.doesNotMatch(await bob.textContent('#chat-messages'), /\d+\s*min|verbleib|noch \d/i, 'no time-left label for the receiver');
-        // 16 Minuten spaeter: weg, auch beim Absender.
+        // 16 Minuten spaeter: beim Empfaenger weg; der Absender behaelt ihn noch seine Frist (Standard 1 h).
         await bob.evaluate(async ([peerId, id]) => {
             state.chats[peerId].find(message => message.id === id).firstViewedAt -= 16 * 60 * 1000;
             await expireUsedReplaySnaps(peerId);
         }, [aliceIdForExpiry, expiringId]);
         assert.equal(await bob.evaluate(id => Boolean(state.chats[state.activeChatPeerId].find(message => message.id === id).snapData), expiringId), false, 'expired at the receiver');
-        await waitFor(alice, id => !state.chats[state.activeChatPeerId].find(message => message.id === id).snapData, expiringId, 30000);
+        await waitFor(alice, id => state.chats[state.activeChatPeerId].find(message => message.id === id).snapConsumed === true, expiringId, 30000);
+        assert.equal(await alice.evaluate(id => Boolean(state.chats[state.activeChatPeerId].find(message => message.id === id).snapData), expiringId), true, 'sender keeps it for the own retention time');
+        await alice.evaluate(async id => {
+            state.chats[state.activeChatPeerId].find(message => message.id === id).ownKeepUntil = Date.now() - 1000;
+            await expireOwnKeptSnaps(state.activeChatPeerId);
+        }, expiringId);
+        assert.equal(await alice.evaluate(id => Boolean(state.chats[state.activeChatPeerId].find(message => message.id === id).snapData), expiringId), false, 'gone at the sender after the retention time');
 
         // Bob speichert einen Einmal-Snap: Alice erfaehrt es.
         const snapId = await alice.evaluate(async () => {

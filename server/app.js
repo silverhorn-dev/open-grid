@@ -71,6 +71,7 @@ const CLIENT_DEFAULT_RULES = {
     secureSnaps: 'boolean',
     snapNextGesture: ['doubletap', 'swipe', 'swipeup'],
     snapExpiry: ['15m', '30m', '60m', 'off'],
+    ownSnapKeep: ['now', '15m', '1h', '24h'],
     albumKeyEpochMinutes: [0, 15, 60, 180, 1440],
     albumKeyEpochsAhead: [1, 2, 3]
 };

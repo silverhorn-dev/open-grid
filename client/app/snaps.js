@@ -26,6 +26,9 @@ function renderReplaySnapMessage(bubble, message, isMine) {
     meta.className = 'opacity-75 text-[11px]';
     if (isMine) {
         meta.textContent = available ? t('snaps.sentTapToView') : t('snaps.viewed');
+        if (available && message.snapConsumed && !message.snapSaved && message.ownKeepUntil) {
+            meta.textContent = `${t('snaps.viewed')} · ${t('snaps.keptUntil', { time: formatClockTime(message.ownKeepUntil) })}`;
+        }
         if (message.savedByPeer) meta.textContent += t('snaps.savedByRecipient');
     }
     else if (!available) meta.textContent = t('snaps.expired');
@@ -78,6 +81,11 @@ function openReplaySnap(messageId) {
 
 async function saveReplaySnap() {
     const viewing = state.secureSnapViewing;
+    // Eigener Secure Snap (Frist nach dem Ansehen): als Datei speichern.
+    if (viewing?.mode === 'own') {
+        downloadCanvasImage(document.getElementById('secure-snap-image'), `opengrid-snap-${Date.now()}.jpg`);
+        return;
+    }
     if (viewing?.mode !== 'replay') return;
     const message = state.chats[viewing.peerId]?.find(item => item.id === viewing.messageId);
     if (!message) return;
@@ -182,17 +190,41 @@ async function expireUsedReplaySnaps(peerId) {
         && !message.snapSaved && message.snapData && isReplaySnapUsedUp(message)
         && !(viewing?.mode === 'replay' && viewing.messageId === message.id));
     for (const message of used) await consumeReplaySnap(peerId, message);
+    await expireOwnKeptSnaps(peerId);
     scheduleReplaySnapExpiry(peerId);
+}
+
+// Eigene Snaps nach der eigenen Frist (ownKeepUntil, gesetzt wenn der Empfaenger alles gesehen hat)
+// loeschen: Einmal-Snaps das Bild, Secure Snaps Schluessel und Ciphertext.
+async function expireOwnKeptSnaps(peerId, now = Date.now()) {
+    for (const message of state.chats[peerId] || []) {
+        if (message.senderId !== state.myProfile.id) continue;
+        if (message.snapMode === 'replay' && message.snapData && !message.snapSaved && message.ownKeepUntil && message.ownKeepUntil <= now) {
+            message.snapData = undefined;
+            await removeSnapFromOperation(message.id);
+            await persistChatMessage(peerId, message);
+        } else if (message.secureSnap?.ownKeepUntil && message.secureSnap.ownKeepUntil <= now && message.secureSnap.encrypted) {
+            await deleteDatabaseRecord('media', `ssnap_${message.secureSnap.snapId}`);
+            message.secureSnap = { ...message.secureSnap, encrypted: undefined };
+            await persistChatMessage(peerId, message);
+        } else {
+            continue;
+        }
+        if (state.activeChatPeerId === peerId) renderChatHistory();
+    }
 }
 
 // Timer bis zum naechsten Ablauf im offenen Chat (die Liste prueft sonst beim Oeffnen).
 function scheduleReplaySnapExpiry(peerId) {
     clearTimeout(state.snapExpiryTimer);
     if (state.activeChatPeerId !== peerId) return;
-    const next = (state.chats[peerId] || [])
+    const messages = state.chats[peerId] || [];
+    const next = messages
         .filter(message => message.snapMode === 'replay' && message.senderId === peerId && !message.snapSaved && message.snapData)
         .map(replaySnapExpiresAt)
-        .filter(at => at !== null)
+        .concat(messages.filter(message => message.senderId === state.myProfile.id)
+            .map(message => (message.snapData && !message.snapSaved ? message.ownKeepUntil : message.secureSnap?.encrypted && message.secureSnap.ownKeepUntil) || null))
+        .filter(at => at !== null && at !== undefined)
         .sort((left, right) => left - right)[0];
     if (!next) return;
     state.snapExpiryTimer = setTimeout(() => expireUsedReplaySnaps(peerId).catch(logBackgroundError('scheduleReplaySnapExpiry')),

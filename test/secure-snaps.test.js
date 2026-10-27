@@ -3,12 +3,13 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import vm from 'node:vm';
 
-function loadSecureSnaps() {
+function loadSecureSnaps({ ownKeep } = {}) {
     const media = new Map();
     const sent = [];
     const messages = [];
     const context = {
-        state: { chats: { 'peer-b': messages }, activeChatPeerId: null, webrtcConnections: {}, outgoingSnapStreams: {} },
+        state: { chats: { 'peer-b': messages }, activeChatPeerId: null, webrtcConnections: {}, outgoingSnapStreams: {}, snapSettings: ownKeep ? { ownKeep } : undefined },
+        clientDefault: (_key, fallback) => fallback,
         window: { crypto: globalThis.crypto },
         bytesToBase64: bytes => Buffer.from(bytes).toString('base64'),
         base64ToBytes: value => new Uint8Array(Buffer.from(value, 'base64')),
@@ -59,9 +60,22 @@ test('secure snaps keep the key at the sender and count views', async () => {
 
     await context.handleSnapViewRequest('peer-b', { snapId: secureSnap.snapId });
     assert.equal(sent.at(-1).payload.viewsLeft, 0);
-    assert.equal(media.has(`ssnap_${secureSnap.snapId}`), false, 'key is deleted after the last view');
-    assert.equal(messages[0].secureSnap.encrypted, undefined, 'sender drops the ciphertext too');
+    // Standard: der Sender behaelt seinen Snap noch 1 h (ansehen, speichern), weitere Anfragen abgelehnt.
+    assert.equal(media.get(`ssnap_${secureSnap.snapId}`).viewsLeft, 0);
+    assert.ok(messages[0].secureSnap.encrypted, 'ciphertext kept for the own retention time');
+    const keptFor = messages[0].secureSnap.ownKeepUntil - Date.now();
+    assert.ok(keptFor > 59 * 60 * 1000 && keptFor <= 60 * 60 * 1000, 'kept for one hour by default');
 
     await context.handleSnapViewRequest('peer-b', { snapId: secureSnap.snapId });
     assert.equal(sent.at(-1).payload.type, 'SNAP_VIEW_DENIED');
+});
+
+test('with "delete right away" the sender drops key and ciphertext after the last view', async () => {
+    const { context, media, messages } = loadSecureSnaps({ ownKeep: 'now' });
+    const secureSnap = await context.createSecureSnap(SNAP, 'peer-b', 1, 10);
+    messages.push({ id: 'm1', senderId: 'me', secureSnap: { ...secureSnap } });
+    await context.handleSnapViewRequest('peer-b', { snapId: secureSnap.snapId });
+    assert.equal(media.has(`ssnap_${secureSnap.snapId}`), false, 'key is deleted after the last view');
+    assert.equal(messages[0].secureSnap.encrypted, undefined, 'sender drops the ciphertext too');
+    assert.equal(messages[0].secureSnap.ownKeepUntil, undefined);
 });

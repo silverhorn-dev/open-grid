@@ -945,9 +945,18 @@ Dauer 5/10/30 s oder `0` = bis zum Schliessen, max. 5 Minuten).
   Blob-URL werden verworfen. Wird die App verlassen, schliesst der Viewer sofort.
 - Solange der Empfaenger noch Ansichten hat, kann der Sender seinen eigenen
   Snap ansehen (`openOwnSecureSnap`, lokal entschluesselt, ohne Zeitlimit).
-- Nach der letzten Ansicht loeschen Sender (Schluessel, Ciphertext) und
-  Empfaenger (Ciphertext) ihre Daten; weitere Anfragen beantwortet der Sender
-  mit `SNAP_VIEW_DENIED`.
+- Nach der letzten Ansicht loescht der Empfaenger den Ciphertext; weitere
+  Anfragen beantwortet der Sender mit `SNAP_VIEW_DENIED`. Der Sender behaelt
+  Schluessel und Ciphertext noch seine eigene Frist lang
+  (`snap-settings.ownKeep`: `now`/`15m`/`1h`/`24h`, Standard `1h`, Router
+  `CLIENT_DEFAULTS.ownSnapKeep`; `secureSnap.ownKeepUntil`), kann ihn ansehen
+  und als Datei speichern; danach loescht `expireOwnKeptSnaps` beides. Dieselbe
+  Frist gilt fuer eigene Einmal-Snaps nach `SNAP_CONSUMED` (`ownKeepUntil`,
+  das Bild bleibt bis dahin, "Speichern" behaelt ihn dauerhaft).
+- Viewer: Bild bzw. Stream immer bildschirmfuellend (`object-contain`, der
+  Live-Stream startet oft mit kleiner Aufloesung); zwei Finger bzw. Mausrad
+  zoomen bis 5x, gezoomt verschiebt ein Finger das Bild, Schliessen und
+  "weiter" nur ungezoomt; beim Oeffnen/Schliessen zurueckgesetzt.
 - Grenzen: Screenshots und Bildschirmaufnahmen lassen sich im Browser nicht
   verhindern; ein manipulierter Client kann Frames oder den Schluessel
   behalten. Abschreckung ist das Wasserzeichen.

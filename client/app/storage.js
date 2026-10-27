@@ -682,10 +682,17 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
         const target = loaded || ownMessage;
         target.snapConsumed = true;
         if (!target.snapSaved) {
-            target.snapData = undefined;
-            await removeSnapFromOperation(target.id);
+            // Eigene Frist: der Absender behaelt den Snap noch eine Weile (ansehen, speichern).
+            const keepMs = typeof ownSnapKeepMs === 'function' ? ownSnapKeepMs() : 0;
+            if (keepMs) {
+                target.ownKeepUntil = target.ownKeepUntil || Date.now() + keepMs;
+            } else {
+                target.snapData = undefined;
+                await removeSnapFromOperation(target.id);
+            }
         }
         await persistChatMessage(peerId, target);
+        if (typeof scheduleReplaySnapExpiry === 'function') scheduleReplaySnapExpiry(peerId);
     } else if (localOperation.type === 'SNAP_SAVED') {
         // Der Empfaenger meldet: er hat meinen Snap gespeichert.
         if (localOperation.actorId !== peerId) return false;

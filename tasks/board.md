@@ -96,6 +96,11 @@
 - [x] man kann sich seine eigenen secure snaps nicht mehr ansehen, das soll bei den eigenen wie bei den normalen funken
   - fix 2026-10-27: `openOwnSecureSnap` (lokal, ohne zeitlimit), solange der empfaenger noch ansichten hat
   - nutzer 2026-10-27: nur bis der empfaenger alle ansichten verbraucht hat, danach auch beim sender weg (schluessel + ciphertext geloescht)
+  - nutzer 2026-10-27: dazu eine eigene frist, um ihn noch selbst zu speichern, einstellbar unter der snap-ablauf-einstellung
+  - done 2026-10-27: "Eigene Snaps behalten" (sofort/15 min/1 h/24 h, standard 1 h, `CLIENT_DEFAULTS.ownSnapKeep`), gilt fuer einmal- und secure snaps (`ownKeepUntil`, `expireOwnKeptSnaps`); eigener secure snap mit "Speichern" (datei); e2e `secure-snap`
+- [x] secure snaps werden auf dem endgeraet teilweise sehr klein dargestellt und sind nicht zoombar (nutzer 2026-10-27)
+  - ursache: video/canvas nur in eigener pixelgroesse (max-w/max-h), der live-stream startet oft mit kleiner aufloesung
+  - fix 2026-10-27: immer bildschirmfuellend (`w-full h-full object-contain`), pinch-zoom bis 5x + verschieben, mausrad am pc; e2e `secure-snap`
 - [x] secure snaps bugs, when waiting for "Freigabe" on receiving a secure snap it waits forever, auch wenn der andere client wieder on ist
   - ursache: kein timeout nach SNAP_VIEW_REQUEST; ging die anfrage in einem halb toten kanal verloren, passierte nie etwas
   - fix 2026-10-27: nach 8 s kanal neu aufbauen und einmal erneut fragen, danach "Der Absender antwortet nicht"; e2e `secure-snap`

@@ -670,6 +670,15 @@
                             <option data-i18n="snaps.neverOnlyViewsCount" value="off">nie (nur Ansichten zählen)</option>
                         </select>
                     </label>
+                    <label class="setting-row setting-sub">
+                        <span class="setting-text"><span data-i18n="settings.keepOwnSnaps" class="setting-title">Eigene Snaps behalten</span><span data-i18n="settings.keepOwnSnapsDescription" class="setting-desc">Wie lange du deine Snaps noch ansehen und speichern kannst, nachdem der Empfänger alle Ansichten verbraucht hat. Gilt auch für Secure Snaps.</span></span>
+                        <select id="own-snap-keep-select" data-change="updateSnapSetting" data-args='["ownKeep", "$value"]' class="setting-select">
+                            <option data-i18n="settings.deleteRightAway" value="now">sofort löschen</option>
+                            <option data-i18n="common.15Min" value="15m">15 min</option>
+                            <option data-i18n="settings.1Hour" value="1h">1 Stunde</option>
+                            <option data-i18n="settings.24Hours" value="24h">24 Stunden</option>
+                        </select>
+                    </label>
                     <label class="setting-row">
                         <span class="setting-text"><span data-i18n="settings.severalSnapsNextWith" class="setting-title">Mehrere Snaps: weiter mit</span></span>
                         <select id="snap-next-gesture" data-change="updateSnapSetting" data-args='["nextGesture", "$value"]' class="setting-select">
@@ -976,8 +985,8 @@
 
     <!-- Secure-Snap-Viewer -->
     <div data-i18n-attr="aria-label:common.secureSnap" id="secure-snap-viewer" class="hidden fixed inset-0 z-[85] bg-black flex items-center justify-center select-none touch-none overscroll-none" style="-webkit-touch-callout: none;" data-no-context-menu role="dialog" aria-modal="true" aria-label="Secure Snap">
-        <video id="secure-snap-video" class="hidden max-w-full max-h-full object-contain pointer-events-none" playsinline muted disablepictureinpicture></video>
-        <canvas data-i18n-attr="aria-label:common.snap" id="secure-snap-image" role="img" aria-label="Snap" class="secure-image hidden max-w-full max-h-full object-contain pointer-events-none"></canvas>
+        <video id="secure-snap-video" class="hidden w-full h-full object-contain pointer-events-none origin-center" playsinline muted disablepictureinpicture></video>
+        <canvas data-i18n-attr="aria-label:common.snap" id="secure-snap-image" role="img" aria-label="Snap" class="secure-image hidden w-full h-full object-contain pointer-events-none origin-center"></canvas>
         <div id="secure-snap-status" class="absolute inset-x-8 top-1/2 -translate-y-1/2 text-center text-sm text-slate-200"></div>
         <div id="secure-snap-queue" class="hidden pointer-events-none absolute bottom-6 inset-x-6 text-center text-xs text-white/80" style="bottom: max(1.5rem, env(safe-area-inset-bottom));"></div>
         <div class="absolute top-0 inset-x-0 p-4 flex items-center justify-between" style="padding-top: max(1rem, env(safe-area-inset-top));">

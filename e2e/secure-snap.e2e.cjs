@@ -1,7 +1,8 @@
 // End-to-End: Secure Snaps. (1) Die erste Ansicht laeuft die volle Anzeigedauer (vorher brach sie ab,
 // wenn der Live-Stream beim ersten Mal zu spaet startete). (2) Geht die Anfrage verloren, baut Bob den
 // Kanal neu auf und fragt erneut, statt ewig auf die Freigabe zu warten. (3) Alice sieht ihren eigenen
-// Secure Snap, solange Bob noch Ansichten hat; danach nicht mehr.
+// Secure Snap, solange Bob noch Ansichten hat und danach noch ihre eigene Frist lang (Standard 1 h);
+// ist die abgelaufen, ist er auch bei ihr weg. (4) Dasselbe fuer einen normalen Einmal-Snap.
 const assert = require('node:assert/strict');
 const { chromium } = require('playwright');
 
@@ -68,7 +69,21 @@ async function main() {
             const image = document.getElementById('secure-snap-image');
             return !image.classList.contains('hidden') && image.width > 0;
         }, null, 10000);
+        // Vollbild statt Pixelgroesse, und zoombar (Mausrad; auf dem Handy zwei Finger).
+        const fit = await alice.evaluate(() => {
+            const box = document.getElementById('secure-snap-image').getBoundingClientRect();
+            return { width: box.width, height: box.height, viewportWidth: window.innerWidth, viewportHeight: window.innerHeight };
+        });
+        assert.ok(fit.width >= fit.viewportWidth - 2 && fit.height >= fit.viewportHeight - 2, `fills the screen: ${JSON.stringify(fit)}`);
+        const viewerBox = await alice.locator('#secure-snap-viewer').boundingBox();
+        await alice.mouse.move(viewerBox.x + viewerBox.width / 2, viewerBox.y + viewerBox.height / 2);
+        await alice.mouse.wheel(0, -400);
+        await alice.waitForTimeout(100);
+        const zoomed = await alice.evaluate(() => secureSnapZoom.scale);
+        assert.ok(zoomed > 1.5, `zoomed in: ${zoomed}`);
+        assert.match(await alice.evaluate(() => document.getElementById('secure-snap-image').style.transform), /scale\(/);
         await alice.evaluate(() => closeSecureSnapViewer());
+        assert.equal(await alice.evaluate(() => secureSnapZoom.scale), 1, 'zoom resets on close');
 
         // (1) Erste Ansicht: Inhalt erscheint und bleibt fast die ganze Dauer sichtbar.
         await bob.evaluate(id => requestSecureSnapView(id), messageId);
@@ -114,12 +129,58 @@ async function main() {
         await bob.evaluate(() => closeSecureSnapViewer());
         await waitFor(bob, id => state.chats[id].find(message => message.secureSnap)?.secureSnap.expired === true, aliceId, 10000);
 
-        // (3b) Alle Ansichten verbraucht: auch bei Alice weg.
+        // (3b) Alle Ansichten verbraucht: Alice behaelt ihn noch ihre Frist lang, mit Speichern.
         await waitFor(alice, id => (state.chats[id].find(message => message.secureSnap)?.secureSnap.viewsUsed || 0) >= 2, bobId, 10000);
+        await waitFor(alice, id => Boolean(state.chats[id].find(message => message.secureSnap)?.secureSnap.ownKeepUntil), bobId, 10000);
+        await alice.evaluate(id => openChatWithPeer(id), bobId);
+        assert.match(await alice.textContent('#chat-messages'), /bei dir bis \d\d:\d\d/);
+        await alice.evaluate(id => openOwnSecureSnap(id), ownId);
+        await waitFor(alice, () => {
+            const image = document.getElementById('secure-snap-image');
+            return !image.classList.contains('hidden') && image.width > 0;
+        }, null, 10000);
+        assert.equal(await alice.isVisible('#secure-snap-save'), true, 'own snap can be saved during the retention time');
+        await alice.evaluate(() => closeSecureSnapViewer());
+
+        // (3c) Frist vorbei: auch bei Alice weg.
+        await alice.evaluate(async id => {
+            const message = state.chats[id].find(item => item.secureSnap);
+            message.secureSnap = { ...message.secureSnap, ownKeepUntil: Date.now() - 1000 };
+            await expireOwnKeptSnaps(id);
+        }, bobId);
         await alice.evaluate(id => openOwnSecureSnap(id), ownId);
         await alice.waitForTimeout(500);
-        assert.equal(await alice.isVisible('#secure-snap-viewer'), false, 'gone for the sender after the last view');
+        assert.equal(await alice.isVisible('#secure-snap-viewer'), false, 'gone for the sender after the retention time');
         assert.equal(await alice.evaluate(id => state.chats[id].find(message => message.secureSnap).secureSnap.encrypted, bobId), undefined);
+
+        // (4) Normaler Einmal-Snap: Bob sieht ihn zweimal, Alice behaelt ihn danach noch.
+        await alice.evaluate(async () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 200;
+            canvas.height = 150;
+            canvas.getContext('2d').fillRect(0, 0, 200, 150);
+            await sendChatMessage(canvas.toDataURL('image/jpeg', 0.9), '');
+        });
+        await waitFor(bob, id => (state.chats[id] || []).some(message => message.snapMode === 'replay' && message.snapData), aliceId);
+        const replayId = await bob.evaluate(id => state.chats[id].find(message => message.snapMode === 'replay').id, aliceId);
+        for (let view = 0; view < 2; view += 1) {
+            await bob.evaluate(id => openReplaySnap(id), replayId);
+            await bob.waitForTimeout(300);
+            await bob.evaluate(() => closeSecureSnapViewer());
+            await bob.waitForTimeout(300);
+        }
+        await waitFor(alice, ({ peer, id }) => state.chats[peer].find(message => message.id === id)?.snapConsumed === true, { peer: bobId, id: replayId }, 15000);
+        const kept = await alice.evaluate(({ peer, id }) => {
+            const message = state.chats[peer].find(item => item.id === id);
+            return { data: Boolean(message.snapData), until: message.ownKeepUntil };
+        }, { peer: bobId, id: replayId });
+        assert.equal(kept.data, true, 'sender still has the snap after the recipient used it up');
+        assert.ok(kept.until > Date.now() + 59 * 60 * 1000, 'kept for one hour');
+        await alice.evaluate(async ({ peer, id }) => {
+            state.chats[peer].find(item => item.id === id).ownKeepUntil = Date.now() - 1000;
+            await expireOwnKeptSnaps(peer);
+        }, { peer: bobId, id: replayId });
+        assert.equal(await alice.evaluate(({ peer, id }) => Boolean(state.chats[peer].find(item => item.id === id).snapData), { peer: bobId, id: replayId }), false, 'gone after the retention time');
 
         assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log('E2E OK (secure snap)');

@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 143 · 2026-10-27
+## Build 144 · 2026-10-27
+- Neue Einstellung "Eigene Snaps behalten" (Medien > Snaps): nachdem der Empfaenger alles gesehen hat, kannst du deine Snaps und Secure Snaps noch eine Weile ansehen und speichern (Standard 1 Stunde)
+- Behoben: Secure Snaps erscheinen jetzt bildschirmfuellend statt manchmal sehr klein und lassen sich mit zwei Fingern (am PC mit dem Mausrad) zoomen
+
+## Build 143 · 2026-10-27 · `cd39256`
 - Eigene Secure Snaps lassen sich nur ansehen, bis der Empfaenger alle Ansichten verbraucht hat; danach sind sie auch bei dir geloescht
 - Behoben: baute ein Geraet die Verbindung neu auf, lehnte das andere sie nach einem Secure Snap manchmal ab und der Aufbau hing lange
 

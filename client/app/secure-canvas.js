@@ -46,8 +46,30 @@ function clearSecureCanvas(canvas, invalidate = true) {
 // size ({ w, h }, wenn bekannt): der Canvas bekommt sofort die richtigen Proportionen und haelt den
 // Platz frei, bevor das Bild gezeichnet ist (sonst springt der Inhalt darunter). Ohne Groesse haelt
 // ein 4:3-Platzhalter den Platz, bis das Bild da ist.
-function createSecureImage(dataUrl, className, size = null) {
+// Beim Neuzeichnen des Chats die schon gezeichneten Canvas weiterverwenden statt neue, zuerst leere
+// anzulegen (sonst flackern Bilder und Video-Vorschauen bei jedem Update, z. B. waehrend ein Video
+// uebertragen wird). Schluessel: Art + Nachrichten-ID; nur bei gleicher Quelle.
+let reusableSecureImages = new Map();
+
+function collectReusableSecureImages(container) {
+    reusableSecureImages = new Map();
+    container?.querySelectorAll('canvas[data-reuse-key]').forEach(canvas => reusableSecureImages.set(canvas.dataset.reuseKey, canvas));
+}
+
+function releaseReusableSecureImages() {
+    reusableSecureImages = new Map();
+}
+
+function createSecureImage(dataUrl, className, size = null, { reuseKey = null } = {}) {
+    const reusable = reuseKey ? reusableSecureImages.get(reuseKey) : null;
+    if (reusable && secureImageSources.get(reusable) === dataUrl && reusable.width) {
+        reusableSecureImages.delete(reuseKey);
+        reusable.className = `secure-image ${className || ''}`.trim();
+        reusable.onclick = null;
+        return reusable;
+    }
     const canvas = document.createElement('canvas');
+    if (reuseKey) canvas.dataset.reuseKey = reuseKey;
     canvas.className = `secure-image ${className || ''}`.trim();
     canvas.setAttribute('role', 'img');
     canvas.setAttribute('aria-label', t('common.image'));

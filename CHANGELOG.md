@@ -2,7 +2,13 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 141 · 2026-10-27
+## Build 142 · 2026-10-27
+- Behoben: Videos und Bilder im Chat flackern nicht mehr, wenn der Chat neu gezeichnet wird (z. B. waehrend ein Video ankommt)
+- Behoben: die erste Ansicht eines Secure Snaps war manchmal nur einen Augenblick lang zu sehen
+- Behoben: eigene Secure Snaps lassen sich wieder ansehen, auch nachdem der Empfaenger alle Ansichten verbraucht hat
+- Behoben: beim Oeffnen eines Secure Snaps wartete die App manchmal endlos auf die Freigabe; jetzt verbindet sie neu und fragt erneut
+
+## Build 141 · 2026-10-27 · `871c50f`
 - Snap-Editor: neuer Schalter neben den Werkzeugen, um ein Bild oder einen Snap als "nicht speicherbar" zu markieren
 
 ## Build 140 · 2026-10-27 · `ab295a5`

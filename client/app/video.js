@@ -104,7 +104,7 @@ function renderVideoMessage(bubble, message, isMine) {
     frame.className = 'relative cursor-pointer mb-1.5';
     frame.dataset.video = message.id;
     if (isSafeInlineImage(message.snapData)) {
-        frame.appendChild(createSecureImage(message.snapData, 'w-48 sm:w-64 rounded-xl border border-slate-900/50', message.imageSize || message.video));
+        frame.appendChild(createSecureImage(message.snapData, 'w-48 sm:w-64 rounded-xl border border-slate-900/50', message.imageSize || message.video, { reuseKey: `video:${message.id}` }));
     }
     const overlay = document.createElement('div');
     overlay.className = 'absolute inset-0 flex items-center justify-center pointer-events-none';

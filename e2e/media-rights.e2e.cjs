@@ -70,6 +70,19 @@ async function main() {
         assert.equal(await saveVisibleFor(bob, aliceId, 1), true, 'sender allows everyone');
         assert.equal(await saveVisibleFor(alice, bobId, 0), true, 'own images can always be saved');
 
+        // Neuzeichnen des Chats nimmt die schon gezeichneten Bilder mit (kein Flackern).
+        const reused = await bob.evaluate(async id => {
+            await openChatWithPeer(id);
+            await new Promise(resolve => setTimeout(resolve, 400));
+            const before = [...document.querySelectorAll('#chat-messages canvas[data-reuse-key]')];
+            renderChatHistory();
+            const after = [...document.querySelectorAll('#chat-messages canvas[data-reuse-key]')];
+            return { count: before.length, same: before.every((canvas, index) => canvas === after[index]), drawn: after.every(canvas => canvas.width > 0) };
+        }, aliceId);
+        assert.equal(reused.count, 2);
+        assert.equal(reused.same, true, 'same canvas elements after a re-render');
+        assert.equal(reused.drawn, true, 'still drawn, never blank');
+
         assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log('E2E OK (media rights)');
     } finally {

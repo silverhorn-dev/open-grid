@@ -56,8 +56,10 @@ test('secure snaps keep the key at the sender and count views', async () => {
 
     await context.handleSnapViewRequest('peer-b', { snapId: secureSnap.snapId });
     assert.equal(sent.at(-1).payload.viewsLeft, 0);
-    assert.equal(media.has(`ssnap_${secureSnap.snapId}`), false, 'key is deleted after the last view');
-    assert.equal(messages[0].secureSnap.encrypted, undefined);
+    assert.equal(media.get(`ssnap_${secureSnap.snapId}`).viewsLeft, 0, 'sender keeps the key to view the own snap');
+    assert.ok(messages[0].secureSnap.encrypted, 'sender keeps the ciphertext');
+    const own = await context.decryptOwnSecureSnap('peer-b', media.get(`ssnap_${secureSnap.snapId}`));
+    assert.equal(Buffer.from(own).toString(), 'fake-jpeg-bytes');
 
     await context.handleSnapViewRequest('peer-b', { snapId: secureSnap.snapId });
     assert.equal(sent.at(-1).payload.type, 'SNAP_VIEW_DENIED');

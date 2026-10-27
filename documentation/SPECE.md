@@ -924,6 +924,9 @@ Dauer 5/10/30 s oder `0` = bis zum Schliessen, max. 5 Minuten).
   Schluessel bleibt beim Sender (`media`/`ssnap_<snapId>`, mit `viewsLeft`).
 - Ansehen nur mit Sender online: Der Empfaenger sendet `SNAP_VIEW_REQUEST`
   ausschliesslich ueber einen offenen Kanal (wartet max. 10 s auf den Aufbau).
+  Kommt binnen 8 s keine Antwort (Anfrage in einem halb toten Kanal verloren),
+  baut der Empfaenger den Kanal neu auf und fragt einmal erneut; danach
+  "Der Absender antwortet nicht" statt endlos "Warte auf Freigabe".
   Der Sender zaehlt die Ansicht herunter und versucht zuerst einen
   Live-Stream: `SNAP_STREAM_START { snapId, streamId, seconds, viewsLeft }`,
   dazu ein Video-Track aus `canvas.captureStream()` per Renegotiation auf der
@@ -931,11 +934,15 @@ Dauer 5/10/30 s oder `0` = bis zum Schliessen, max. 5 Minuten).
 - Kommt binnen 6 s kein `SNAP_STREAM_PLAYING`, sendet der Sender
   `SNAP_VIEW_GRANT { snapId, key, seconds, viewsLeft }`. Der Empfaenger
   entschluesselt nur im Arbeitsspeicher (Blob-URL, Puffer wird ueberschrieben).
+  Der Grant gilt auch, wenn der Stream beim Empfaenger schon lief (erste
+  Neuverhandlung zu langsam): dann wechselt die Anzeige aufs Bild und die schon
+  laufende Zeit zaehlt weiter, statt dass der Snap sofort endet.
 - Nach Ablauf der Dauer: `SNAP_STREAM_END` bzw. `SNAP_VIEW_CLOSED`, Track und
   Blob-URL werden verworfen. Wird die App verlassen, schliesst der Viewer sofort.
-- Nach der letzten Ansicht loeschen Sender (Schluessel, Ciphertext) und
-  Empfaenger (Ciphertext) ihre Daten; weitere Anfragen beantwortet der Sender
-  mit `SNAP_VIEW_DENIED`.
+- Nach der letzten Ansicht loescht der Empfaenger den Ciphertext; weitere
+  Anfragen beantwortet der Sender mit `SNAP_VIEW_DENIED`. Der Sender behaelt
+  Schluessel (`viewsLeft: 0`) und Ciphertext und kann seinen eigenen Snap wie
+  einen normalen Snap ansehen (`openOwnSecureSnap`, lokal, ohne Zeitlimit).
 - Grenzen: Screenshots und Bildschirmaufnahmen lassen sich im Browser nicht
   verhindern; ein manipulierter Client kann Frames oder den Schluessel
   behalten. Abschreckung ist das Wasserzeichen.

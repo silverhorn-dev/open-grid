@@ -87,10 +87,17 @@
   - offen: nur installierte PWA; iOS unterstuetzt share target nicht
 
 ## T6 Bugs + Snap-Vorschau (2026-10-27)
-- [ ] when a video is in chat, sometimes it horribly flickers, wurde hier die media platzhalter funktion auch für videos umgesetzt?
-- [ ] when displaying the first view of a secure snap its very very short
-- [ ] man kann sich seine eigenen secure snaps nicht mehr ansehen, das soll bei den eigenen wie bei den normalen funken
-- [ ] secure snaps bugs, when waiting for "Freigabe" on receiving a secure snap it waits forever, auch wenn der andere client wieder on ist
+- [x] when a video is in chat, sometimes it horribly flickers, wurde hier die media platzhalter funktion auch für videos umgesetzt?
+  - ursache: platzhalter (groesse) gab es schon, aber jedes neuzeichnen des chats (waehrend einer video-uebertragung oft) legte neue, erst leere canvas an
+  - fix 2026-10-27: gezeichnete canvas werden beim neuzeichnen weiterverwendet (`collectReusableSecureImages`, `reuseKey`, secure-canvas.js); gilt fuer bilder und video-vorschauen; e2e `media-rights`
+- [x] when displaying the first view of a secure snap its very very short
+  - ursache: erste neuverhandlung fuer den live-stream langsamer als 6 s -> sender stoppt den stream und schickt den schluessel; empfaenger hatte das video gerade gestartet und ignorierte den schluessel
+  - fix 2026-10-27: grant gilt auch waehrend eines laufenden streams, anzeige wechselt aufs bild, die zeit laeuft weiter; e2e `secure-snap`
+- [x] man kann sich seine eigenen secure snaps nicht mehr ansehen, das soll bei den eigenen wie bei den normalen funken
+  - fix 2026-10-27: sender behaelt schluessel + ciphertext auch nach der letzten ansicht, `openOwnSecureSnap` (lokal, ohne zeitlimit); aeltere snaps, deren schluessel schon geloescht war, melden "nicht mehr vorhanden"
+- [x] secure snaps bugs, when waiting for "Freigabe" on receiving a secure snap it waits forever, auch wenn der andere client wieder on ist
+  - ursache: kein timeout nach SNAP_VIEW_REQUEST; ging die anfrage in einem halb toten kanal verloren, passierte nie etwas
+  - fix 2026-10-27: nach 8 s kanal neu aufbauen und einmal erneut fragen, danach "Der Absender antwortet nicht"; e2e `secure-snap`
 - [x] on taken image / snap preview toggle for safeable
   - nutzer 2026-10-27: schalter neben den bearbeitungs-icons; download-icon mit kleinem kontakt-icon schraeg versetzt; angeklickt durchgestrichen + notiz "nicht speicherbar"; standard vom router, normal "speicherbar"
   - done 2026-10-27: `#snap-saveable-btn` (snaps.js `toggleSnapSaveable`, `snapSaveOptions`), `downloadable: 'none'`, `CLIENT_DEFAULTS.snapSaveable`; einmal-snap "Speichern" beim empfaenger ausgeblendet; e2e `snap-camera`

@@ -615,6 +615,7 @@ function renderChatHistory() {
     const msgs = filterChatMessages(allMessages);
     // Wer nicht unten klebt, behaelt seine Position (der Inhalt darueber bleibt gleich).
     const previousScrollTop = container.scrollTop;
+    collectReusableSecureImages(container);
     container.innerHTML = '';
     if (allMessages.length === 0) {
         showEmptyState(container, { icon: 'fa-hand', title: t('chat.noMessagesYet'), text: t('chat.sayHello') });
@@ -660,7 +661,7 @@ function renderChatHistory() {
             renderVideoMessage(bubble, message, isMine);
         } else if (message.snapData) {
             if (isSafeInlineImage(message.snapData)) {
-                const image = createSecureImage(message.snapData, 'w-48 sm:w-64 rounded-xl mb-1.5 border border-slate-900/50 cursor-zoom-in', message.imageSize);
+                const image = createSecureImage(message.snapData, 'w-48 sm:w-64 rounded-xl mb-1.5 border border-slate-900/50 cursor-zoom-in', message.imageSize, { reuseKey: `image:${message.id}` });
                 image.onclick = event => {
                     event.stopPropagation();
                     openChatImageViewer(message.id);
@@ -719,6 +720,7 @@ function renderChatHistory() {
         row.appendChild(meta);
         container.appendChild(row);
     });
+    releaseReusableSecureImages();
     if (!filtering && state.chatPinned) container.scrollTop = container.scrollHeight;
     else container.scrollTop = previousScrollTop;
     updateChatJumpButton();

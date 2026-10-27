@@ -603,7 +603,12 @@ Die Bilder (`albimg_<uuid>`, max. 1080 px, JPEG 0.7) liegen verschluesselt in
 
 Teilen: Der Besitzer nimmt den Chat-Partner in die `acl` auf und sendet eine
 Chat-Nachricht mit `message.album = { albumId, ownerId, name, cover, count }`
-(Deckfoto max. 30 KB). Der Empfaenger akzeptiert den Verweis nur, wenn
+(Deckfoto max. 30 KB). Wie das Deckfoto aussieht, waehlt der Besitzer je
+Album (`album.preview`: `normal` scharf, `blur` unscharf, `none` ohne Bild;
+Standard `normal`). `blur` wird beim Besitzer gerechnet (auf 1/48 verkleinert,
+ueber 1/12 wieder vergroessert, ohne `canvas.filter`), es verlaesst also nie
+ein scharfes Deckfoto das Geraet; `none` sendet kein `cover`. Schon gesendete
+Karten behalten ihr Deckfoto. Der Empfaenger akzeptiert den Verweis nur, wenn
 `ownerId` dem Absender entspricht.
 
 P2P-Protokoll (nur ueber den verschluesselten DataChannel):

@@ -140,7 +140,8 @@
   - entschieden (nutzer): einladung traegt den modus; geht in dessen modus/liste; ist der bereich beim empfaenger aus, oeffnet sich nichts, nur "modus deaktiviert"
   - done 2026-10-27: link `#<peer>.<fingerprint>~<modus>`, `inviteTarget`, hinweis `modes.inviteModeDisabled`; tests `test/modes.test.js`, e2e `invite-modes`
   - offen (nicht entschieden): im entdecken-bereich kann die chat-sperre des einladenden ("Nur Matches") nachrichten des eingeladenen zurueckhalten
-- [ ] album: besitzer waehlt die vorschau (normal / unscharf / keine)
+- [x] album: besitzer waehlt die vorschau (normal / unscharf / keine)
+  - done 2026-10-27: `album.preview`, "Vorschau im Chat" in der album-karte, unscharf beim besitzer gerechnet; e2e `album-preview`; UC-50
 
 ## Eigene rotierende Verschluesselung (geparkt, erst besprechen)
 - [ ] gestohlene album-schluessel sollen nach der epoche wertlos sein; idee: eigener, vom server getakteter algorithmus -> `tasks/feature-request-rotating-encryption.md`

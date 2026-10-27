@@ -5,6 +5,13 @@
 const ALBUM_IMAGE_MAX_EDGE = 1080;
 const ALBUM_IMAGE_QUALITY = 0.7;
 const ALBUM_COVER_EDGE = 240;
+// Vorschau im Chat (Besitzer waehlt je Album): 'normal' = Deckbild scharf, 'blur' = unscharf (schon beim
+// Besitzer unscharf gerechnet, ein scharfes Deckbild verlaesst das Geraet nie), 'none' = Karte ohne Bild.
+const ALBUM_PREVIEW_OPTIONS = ['normal', 'blur', 'none'];
+
+function albumPreviewMode(album) {
+    return ALBUM_PREVIEW_OPTIONS.includes(album?.preview) ? album.preview : 'normal';
+}
 
 async function loadAlbums() {
     const records = await getAllDatabaseRecords('albums').catch(() => []);
@@ -133,6 +140,8 @@ function notifyAlbumRevoked(peerId, albumId) {
 
 // Kleines Deckfoto, das direkt in der Chat-Nachricht mitgeht.
 async function createAlbumCover(album) {
+    const preview = albumPreviewMode(album);
+    if (preview === 'none') return undefined;
     const first = album.items[0] ? await loadMedia(album.items[0].id) : null;
     if (!first?.data) return undefined;
     const image = new Image();
@@ -142,7 +151,29 @@ async function createAlbumCover(album) {
     const canvas = document.createElement('canvas');
     canvas.width = Math.round(image.width * scale);
     canvas.height = Math.round(image.height * scale);
-    canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+    const context = canvas.getContext('2d');
+    if (preview === 'blur') {
+        // Stark verkleinern und wieder vergroessern: weichgezeichnet, ohne canvas.filter (geht ueberall).
+        // Zwei Stufen (1/48, dann 1/12), damit es weich statt kachelig aussieht.
+        const shrink = factor => {
+            const step = document.createElement('canvas');
+            step.width = Math.max(1, Math.round(canvas.width / factor));
+            step.height = Math.max(1, Math.round(canvas.height / factor));
+            const stepContext = step.getContext('2d');
+            stepContext.imageSmoothingEnabled = true;
+            stepContext.imageSmoothingQuality = 'high';
+            return { step, stepContext };
+        };
+        const tiny = shrink(48);
+        tiny.stepContext.drawImage(image, 0, 0, tiny.step.width, tiny.step.height);
+        const middle = shrink(12);
+        middle.stepContext.drawImage(tiny.step, 0, 0, middle.step.width, middle.step.height);
+        context.imageSmoothingEnabled = true;
+        context.imageSmoothingQuality = 'high';
+        context.drawImage(middle.step, 0, 0, canvas.width, canvas.height);
+    } else {
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    }
     const cover = canvas.toDataURL('image/jpeg', 0.6);
     return cover.length <= ALBUM_COVER_MAX_LENGTH ? cover : undefined;
 }
@@ -555,6 +586,7 @@ function renderAlbumManager() {
         header.append(title, actions);
         card.appendChild(header);
         card.appendChild(createAlbumKeyTimingControls(album));
+        card.appendChild(createAlbumPreviewControl(album));
 
         const access = document.createElement('div');
         access.className = 'flex flex-wrap gap-1.5 text-xs';
@@ -855,6 +887,33 @@ async function updateAlbumKeyTiming(albumId, key, value) {
         await pushAlbumKeys(viewerId, album, true).catch(logBackgroundError('updateAlbumKeyTiming'));
     }
     await pushAllAlbumKeys().catch(logBackgroundError('updateAlbumKeyTiming'));
+}
+
+async function updateAlbumPreview(albumId, value) {
+    const album = state.albums[albumId];
+    if (!album || album.ownerId !== state.myProfile.id || !ALBUM_PREVIEW_OPTIONS.includes(value)) return;
+    album.preview = value;
+    await saveAlbum(album);
+}
+
+// Gilt fuer kuenftig geteilte Album-Karten; schon gesendete behalten ihr Deckbild.
+function createAlbumPreviewControl(album) {
+    const row = document.createElement('label');
+    row.className = 'flex flex-wrap items-center gap-2 text-xs text-slate-400';
+    const select = document.createElement('select');
+    select.className = 'bg-slate-950 border border-slate-700 rounded px-2 py-1 text-slate-200';
+    select.dataset.albumPreview = album.id;
+    const labels = { normal: t('albums.previewNormal'), blur: t('albums.previewBlur'), none: t('albums.previewNone') };
+    ALBUM_PREVIEW_OPTIONS.forEach(option => {
+        const entry = document.createElement('option');
+        entry.value = option;
+        entry.textContent = labels[option];
+        select.appendChild(entry);
+    });
+    select.value = albumPreviewMode(album);
+    select.onchange = () => updateAlbumPreview(album.id, select.value).catch(logBackgroundError('updateAlbumPreview'));
+    row.append(document.createTextNode(t('albums.previewInChat')), select);
+    return row;
 }
 
 function createAlbumKeyTimingControls(album) {

@@ -821,3 +821,16 @@ Akzeptanzkriterien:
   automatisch gesendet.
 - Andere Dateien werden uebersprungen, mit Hinweis.
 - Geteiltes bleibt bis dahin nur auf dem Geraet und wird danach geloescht.
+
+## UC-50: Album-Vorschau im Chat
+
+**Als Album-Besitzer** moechte ich festlegen, ob die Album-Karte im Chat ein
+scharfes, ein unscharfes oder gar kein Vorschaubild zeigt.
+
+Akzeptanzkriterien:
+
+- Auswahl je Album "Vorschau im Chat": normal, unscharf, keine.
+- Unscharf: das gesendete Vorschaubild ist bereits unscharf, ein scharfes
+  verlaesst das eigene Geraet nicht.
+- Keine: die Karte zeigt nur Name und Anzahl.
+- Gilt fuer kuenftig geteilte Karten.

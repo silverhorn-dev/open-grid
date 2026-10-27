@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 150 · 2026-10-27
+## Build 152 · 2026-10-27
+- Alben: pro Album waehlbar, wie die Vorschau im Chat aussieht: normal, unscharf oder ohne Bild
+
+## Build 151 · 2026-10-27 · `877ac5b`
 - Einladungslinks merken sich den Modus: wer sie oeffnet, landet in diesem Modus und der Chat bei beiden in derselben Liste. Ist der Bereich ausgeschaltet, erscheint nur ein Hinweis
 
 ## Build 149 · 2026-10-27 · `e300685`

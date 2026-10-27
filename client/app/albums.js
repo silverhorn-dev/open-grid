@@ -553,69 +553,111 @@ function renderAlbumManager() {
     syncAlbumCardVisibility();
     const container = document.getElementById('album-manager-list');
     if (!container) return;
-    container.innerHTML = '';
+    container.replaceChildren();
     const albums = getOwnAlbums();
     if (!albums.length) {
-        container.innerHTML = '<div class="text-xs text-slate-500">Noch keine Alben.</div>';
+        container.appendChild(createEmptyState({ icon: 'fa-images', title: t('albums.noAlbumsYet'), text: t('albums.createFirstAlbum'), compact: true }));
         return;
     }
-    albums.forEach(album => {
-        const card = document.createElement('div');
-        card.className = 'border border-slate-800 rounded-xl p-3 space-y-2 bg-slate-950/40';
-        const header = document.createElement('div');
-        header.className = 'flex items-center justify-between gap-2';
-        const title = document.createElement('button');
-        title.type = 'button';
-        title.className = 'text-sm font-semibold text-slate-200 truncate hover:text-brand-400 text-left';
-        title.textContent = `${album.name} (${album.items.length})`;
-        title.onclick = () => openAlbumViewer(album.id);
-        const actions = document.createElement('div');
-        actions.className = 'flex items-center gap-2 shrink-0';
-        const add = document.createElement('label');
-        add.className = 'text-xs px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-800 text-slate-200 cursor-pointer hover:bg-slate-700';
-        add.innerHTML = `<i class="fa-solid fa-plus"></i> ${t('albums.images')}`;
-        const fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.accept = 'image/*';
-        fileInput.multiple = true;
-        fileInput.className = 'hidden';
-        fileInput.onchange = () => addAlbumImages(album.id, fileInput);
-        add.appendChild(fileInput);
-        const remove = document.createElement('button');
-        remove.type = 'button';
-        remove.className = 'text-xs px-2.5 py-1.5 rounded-lg border border-red-900 text-red-300 hover:bg-red-950';
-        remove.textContent = t('common.delete');
-        remove.onclick = () => deleteAlbum(album.id);
-        actions.append(add, remove);
-        header.append(title, actions);
-        card.appendChild(header);
-        card.appendChild(createAlbumKeyTimingControls(album));
-        card.appendChild(createAlbumPreviewControl(album));
+    albums.forEach(album => container.appendChild(createAlbumManagerItem(album)));
+}
 
-        const access = document.createElement('div');
-        access.className = 'flex flex-wrap gap-1.5 text-xs';
-        if (!album.acl.length) {
-            access.innerHTML = `<span class="text-slate-500">${t('albums.notSharedWithAnyone')}</span>`;
-        } else {
-            album.acl.forEach(peerId => {
-                const chip = document.createElement('span');
-                chip.className = 'flex items-center gap-1 bg-slate-800 border border-slate-700 rounded-full pl-2.5 pr-1 py-0.5 text-slate-300';
-                chip.appendChild(document.createTextNode(getPeerPresentation(peerId).name || HIDDEN_PEER_NAME));
-                chip.appendChild(createViewerKeyTimingSelect(album, peerId));
-                const revoke = document.createElement('button');
-                revoke.type = 'button';
-                revoke.className = 'w-5 h-5 rounded-full hover:bg-red-900 text-red-300';
-                revoke.title = t('albums.revokeAccess');
-                revoke.setAttribute('aria-label', t('albums.revokeAccess'));
-                revoke.innerHTML = '<i class="fa-solid fa-xmark"></i>';
-                revoke.onclick = () => revokeAlbumAccess(album.id, peerId);
-                chip.appendChild(revoke);
-                access.appendChild(chip);
-            });
-        }
-        card.appendChild(access);
-        container.appendChild(card);
+function albumIconButton(icon, label, onClick, danger = false) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `icon-btn${danger ? ' is-danger' : ''}`;
+    button.title = label;
+    button.setAttribute('aria-label', label);
+    button.innerHTML = `<i class="fa-solid ${icon}"></i>`;
+    button.onclick = onClick;
+    return button;
+}
+
+// Zeile im Stil der Einstellungen: Titel links, Auswahl rechts.
+function albumSettingRow(title, control) {
+    const row = document.createElement('label');
+    row.className = 'setting-row';
+    const text = document.createElement('span');
+    text.className = 'setting-text';
+    const label = document.createElement('span');
+    label.className = 'setting-title text-sm';
+    label.textContent = title;
+    text.appendChild(label);
+    control.classList.add('setting-select');
+    row.append(text, control);
+    return row;
+}
+
+function createAlbumManagerItem(album) {
+    const card = document.createElement('div');
+    card.className = 'album-item';
+    card.dataset.albumId = album.id;
+
+    const head = document.createElement('div');
+    head.className = 'album-item-head';
+    const cover = document.createElement('button');
+    cover.type = 'button';
+    cover.className = 'album-cover';
+    cover.setAttribute('aria-label', t('albums.openAlbum', { name: album.name }));
+    cover.onclick = () => openAlbumViewer(album.id);
+    cover.innerHTML = '<i class="fa-solid fa-images"></i>';
+    if (album.items[0]) {
+        loadMedia(album.items[0].id).then(media => {
+            if (media?.data && isSafeInlineImage(media.data)) cover.replaceChildren(createSecureImage(media.data, ''));
+        }).catch(() => {});
+    }
+    const info = document.createElement('div');
+    info.className = 'min-w-0 flex-1';
+    const name = document.createElement('div');
+    name.className = 'text-sm font-semibold text-slate-100 truncate';
+    name.textContent = album.name;
+    const meta = document.createElement('div');
+    meta.className = 'text-xs text-slate-400 truncate';
+    meta.textContent = [
+        t('albums.images2', { count: album.items.length }),
+        album.acl.length ? t('albums.sharedWithCount', { count: album.acl.length }) : t('albums.notShared')
+    ].join(' · ');
+    info.append(name, meta);
+
+    const add = document.createElement('label');
+    add.className = 'icon-btn';
+    add.title = t('albums.addImages');
+    add.setAttribute('aria-label', t('albums.addImages'));
+    add.innerHTML = '<i class="fa-solid fa-plus"></i>';
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+    fileInput.multiple = true;
+    fileInput.className = 'hidden';
+    fileInput.onchange = () => addAlbumImages(album.id, fileInput);
+    add.appendChild(fileInput);
+    head.append(cover, info, add, albumIconButton('fa-trash', t('common.delete'), () => deleteAlbum(album.id), true));
+    card.appendChild(head);
+
+    // Einstellungen des Albums, eingeklappt.
+    const settings = document.createElement('details');
+    settings.className = 'setting-details';
+    const summary = document.createElement('summary');
+    summary.className = 'setting-details-summary';
+    summary.textContent = t('albums.albumSettings');
+    settings.append(summary, ...createAlbumKeyTimingControls(album), albumSettingRow(t('albums.previewInChat'), createAlbumPreviewSelect(album)));
+    card.appendChild(settings);
+
+    // Zugriff: eine Zeile pro Person mit eigener Gueltigkeit und Entziehen.
+    album.acl.forEach(peerId => {
+        const row = document.createElement('div');
+        row.className = 'album-access-row';
+        row.dataset.viewer = peerId;
+        const person = document.createElement('span');
+        person.className = 'flex-1 min-w-0 truncate text-sm text-slate-200';
+        person.innerHTML = '<i class="fa-solid fa-user text-slate-500 mr-1.5"></i>';
+        person.appendChild(document.createTextNode(getPeerPresentation(peerId).name || HIDDEN_PEER_NAME));
+        const select = createViewerKeyTimingSelect(album, peerId);
+        select.className = 'setting-select';
+        row.append(person, select, albumIconButton('fa-user-xmark', t('albums.revokeAccess'), () => revokeAlbumAccess(album.id, peerId), true));
+        card.appendChild(row);
     });
+    return card;
 }
 
 // ----- Rotierende Album-Schluessel -----
@@ -889,7 +931,7 @@ function renderAlbumDefaults() {
 }
 
 function albumEpochLabel(minutes) {
-    if (!minutes) return 'Server-Standard';
+    if (!minutes) return t('albums.serverDefault');
     if (minutes === 10080) return t('albums.oneWeek');
     return minutes < 60 ? `${minutes} min` : `${minutes / 60} h`;
 }
@@ -917,12 +959,10 @@ async function updateAlbumPreview(albumId, value) {
 }
 
 // Gilt fuer kuenftig geteilte Album-Karten; schon gesendete behalten ihr Deckbild.
-function createAlbumPreviewControl(album) {
-    const row = document.createElement('label');
-    row.className = 'flex flex-wrap items-center gap-2 text-xs text-slate-400';
+function createAlbumPreviewSelect(album) {
     const select = document.createElement('select');
-    select.className = 'bg-slate-950 border border-slate-700 rounded px-2 py-1 text-slate-200';
     select.dataset.albumPreview = album.id;
+    select.setAttribute('aria-label', t('albums.previewInChat'));
     const labels = { normal: t('albums.previewNormal'), blur: t('albums.previewBlur'), none: t('albums.previewNone') };
     ALBUM_PREVIEW_OPTIONS.forEach(option => {
         const entry = document.createElement('option');
@@ -932,8 +972,7 @@ function createAlbumPreviewControl(album) {
     });
     select.value = albumPreviewMode(album);
     select.onchange = () => updateAlbumPreview(album.id, select.value).catch(logBackgroundError('updateAlbumPreview'));
-    row.append(document.createTextNode(t('albums.previewInChat')), select);
-    return row;
+    return select;
 }
 
 // Gueltigkeit fuer eine Person (0 = wie das Album); sofort neue Buendel an diese Person.
@@ -967,11 +1006,8 @@ function createViewerKeyTimingSelect(album, viewerId) {
 }
 
 function createAlbumKeyTimingControls(album) {
-    const row = document.createElement('div');
-    row.className = 'flex flex-wrap items-center gap-2 text-xs text-slate-400';
     const select = (options, value, label, onChange) => {
         const element = document.createElement('select');
-        element.className = 'bg-slate-950 border border-slate-700 rounded px-2 py-1 text-slate-200';
         element.setAttribute('aria-label', label);
         options.forEach(option => {
             const entry = document.createElement('option');
@@ -983,17 +1019,14 @@ function createAlbumKeyTimingControls(album) {
         element.onchange = () => onChange(Number(element.value));
         return element;
     };
-    row.append(
-        document.createTextNode(t('albums.keyValidFor')),
-        select(ALBUM_KEY_EPOCH_OPTIONS.map(minutes => ({ value: minutes, text: albumEpochLabel(minutes) })),
+    return [
+        albumSettingRow(t('albums.keyValidFor'), select(ALBUM_KEY_EPOCH_OPTIONS.map(minutes => ({ value: minutes, text: albumEpochLabel(minutes) })),
             ALBUM_KEY_EPOCH_OPTIONS.includes(album.keyEpochMinutes) ? album.keyEpochMinutes : 0, t('albums.keyValidity'),
-            value => updateAlbumKeyTiming(album.id, 'keyEpochMinutes', value)),
-        document.createTextNode('vorab'),
-        select(ALBUM_KEY_AHEAD_OPTIONS.map(count => ({ value: count, text: `${count} Epoche${count > 1 ? 'n' : ''}` })),
+            value => updateAlbumKeyTiming(album.id, 'keyEpochMinutes', value))),
+        albumSettingRow(t('albums.epochsDeliveredInAdvance'), select(ALBUM_KEY_AHEAD_OPTIONS.map(count => ({ value: count, text: t(['albums.1Epoch', 'albums.2Epochs', 'albums.3Epochs'][count - 1]) })),
             albumEpochsAhead(album), t('albums.epochsDeliveredInAdvance'),
-            value => updateAlbumKeyTiming(album.id, 'keyEpochsAhead', value))
-    );
-    return row;
+            value => updateAlbumKeyTiming(album.id, 'keyEpochsAhead', value)))
+    ];
 }
 
 function isValidKeyBundle(bundle) {

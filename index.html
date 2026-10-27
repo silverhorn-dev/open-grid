@@ -378,36 +378,37 @@
                 </div>
             </div>
 
-            <div id="album-manager-card" class="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-3">
-                <div>
-                    <h2 class="text-base font-bold text-slate-100 flex items-center gap-2">
-                        <i class="fa-solid fa-images text-brand-400"></i> <span data-i18n="albums.privateAlbums">Private Alben</span>
-                    </h2>
-                    <p data-i18n="albums.areNotVisibleIn" class="text-xs text-slate-400">Alben sind nicht im Profil sichtbar. Du teilst sie im Chat und kannst den Zugriff jederzeit entziehen.</p>
+            <div id="album-manager-card" class="settings-card album-manager">
+                <h3 class="settings-card-title"><i class="fa-solid fa-images text-brand-400"></i> <span data-i18n="albums.privateAlbums">Private Alben</span></h3>
+                <p data-i18n="albums.areNotVisibleIn" class="setting-desc pb-3">Alben sind nicht im Profil sichtbar. Du teilst sie im Chat und kannst den Zugriff jederzeit entziehen.</p>
+                <div class="flex gap-2 pb-3">
+                    <input data-i18n-attr="placeholder:albums.newAlbum" id="new-album-name" type="text" maxlength="80" placeholder="Neues Album" data-enter="createAlbum" class="setting-input flex-1 min-w-0">
+                    <button data-click="createAlbum" class="btn-primary shrink-0"><i class="fa-solid fa-plus"></i> <span data-i18n="albums.create">Anlegen</span></button>
                 </div>
-                <div class="flex gap-2">
-                    <input data-i18n-attr="placeholder:albums.newAlbum" id="new-album-name" type="text" maxlength="80" placeholder="Neues Album" data-enter="createAlbum" class="flex-1 min-w-0 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-base md:text-sm text-slate-200">
-                    <button data-i18n="albums.create" data-click="createAlbum" class="bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-lg text-xs font-semibold">Anlegen</button>
-                </div>
-                <div class="flex flex-wrap items-center gap-2 text-xs text-slate-400">
-                    <span data-i18n="albums.defaultForNewAlbumsKey">Standard für neue Alben: Schlüssel gilt</span>
-                    <select data-i18n-attr="aria-label:albums.defaultAlbumKeyValidity" id="album-default-epoch" data-change="updateAlbumDefault" data-args='["epochMinutes", "$number"]' aria-label="Standard-Gültigkeit der Albumschlüssel" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-slate-200">
-                        <option data-i18n="albums.serverDefault" value="0">Server-Standard</option>
-                        <option data-i18n="common.15Min" value="15">15 min</option>
-                        <option value="60">1 h</option>
-                        <option value="180">3 h</option>
-                        <option value="1440">24 h</option>
-                        <option data-i18n="albums.oneWeek" value="10080">1 Woche</option>
-                    </select>
-                    <span data-i18n="albums.inAdvance">vorab</span>
-                    <select data-i18n-attr="aria-label:albums.defaultForEpochsDeliveredIn" id="album-default-ahead" data-change="updateAlbumDefault" data-args='["epochsAhead", "$number"]' aria-label="Standard für vorab gelieferte Epochen" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-slate-200">
-                        <option data-i18n="albums.1Epoch" value="1">1 Epoche</option>
-                        <option data-i18n="albums.2Epochs" value="2">2 Epochen</option>
-                        <option data-i18n="albums.3Epochs" value="3">3 Epochen</option>
-                    </select>
-                </div>
-                <p data-i18n="albums.shortRevokedAccessEndsSooner" class="text-[11px] text-slate-500">Kurz = entzogener Zugriff endet schneller, Betrachter brauchen aber öfter neue Schlüssel von dir. Vorab-Epochen halten Alben lesbar, wenn du offline bist.</p>
-                <div id="album-manager-list" class="space-y-2"></div>
+                <details class="setting-details">
+                    <summary data-i18n="albums.defaultsForNewAlbums" class="setting-details-summary">Standard für neue Alben</summary>
+                    <label class="setting-row">
+                        <span class="setting-text"><span data-i18n="albums.keyValidFor" class="setting-title">Schlüssel gilt</span></span>
+                        <select data-i18n-attr="aria-label:albums.defaultAlbumKeyValidity" id="album-default-epoch" data-change="updateAlbumDefault" data-args='["epochMinutes", "$number"]' aria-label="Standard-Gültigkeit der Albumschlüssel" class="setting-select">
+                            <option data-i18n="albums.serverDefault" value="0">Server-Standard</option>
+                            <option data-i18n="common.15Min" value="15">15 min</option>
+                            <option value="60">1 h</option>
+                            <option value="180">3 h</option>
+                            <option value="1440">24 h</option>
+                            <option data-i18n="albums.oneWeek" value="10080">1 Woche</option>
+                        </select>
+                    </label>
+                    <label class="setting-row">
+                        <span class="setting-text"><span data-i18n="albums.epochsDeliveredInAdvance" class="setting-title">Vorab gelieferte Epochen</span></span>
+                        <select data-i18n-attr="aria-label:albums.defaultForEpochsDeliveredIn" id="album-default-ahead" data-change="updateAlbumDefault" data-args='["epochsAhead", "$number"]' aria-label="Standard für vorab gelieferte Epochen" class="setting-select">
+                            <option data-i18n="albums.1Epoch" value="1">1 Epoche</option>
+                            <option data-i18n="albums.2Epochs" value="2">2 Epochen</option>
+                            <option data-i18n="albums.3Epochs" value="3">3 Epochen</option>
+                        </select>
+                    </label>
+                    <p data-i18n="albums.shortRevokedAccessEndsSooner" class="setting-note">Kurz = entzogener Zugriff endet schneller, Betrachter brauchen aber öfter neue Schlüssel von dir. Vorab-Epochen halten Alben lesbar, wenn du offline bist.</p>
+                </details>
+                <div id="album-manager-list" class="album-list"></div>
             </div>
         </section>
 

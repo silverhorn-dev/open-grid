@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 154 · 2026-10-27
+## Build 155 · 2026-10-27
+- Alben im Profil aufgeraeumt: jedes Album als eigene Karte mit Vorschaubild, Einstellungen zum Aufklappen und einer Zeile pro Person (Gueltigkeit, Zugriff entziehen)
+
+## Build 154 · 2026-10-27 · `c1e2b67`
 - Behoben: Kontakte aus "Chat & Freunde" bekamen dein Entdecken-Profil (z. B. Alter), wenn du gerade in "Entdecken" warst, und umgekehrt. Jetzt zaehlt die Liste des Chats
 
 ## Build 153 · 2026-10-27 · `fbc3c72`

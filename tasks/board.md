@@ -67,7 +67,11 @@
   - idee: PWA erkennt die bruecke (z. B. `window.OpenGridNative` bzw. `postMessage`-kanal der WebView) und gibt ihr ausgehende, schon verschluesselte nachrichten (pfad-C-ciphertext + empfaenger + msgId); die app liefert sie im hintergrund aus (router-cache/push, spaeter P2P) und meldet den status zurueck
   - empfangen: app nimmt web-push/FCM im hintergrund an, holt ciphertext aus `/api/cache`, legt ihn in einen eigenen speicher; beim oeffnen uebernimmt die PWA ihn (wie heute der SW, `MESSAGE_PUT`)
   - ohne bruecke (normaler browser) bleibt alles wie heute
-  - offen: darf die app schluessel haben? variante A nur ciphertext weiterreichen (app sieht nie klartext, kann keine vorschau zeigen); variante B app entschluesselt (vorschau, aber schluessel ausserhalb des browsers)
+  - entschieden 2026-10-27 (nutzer): variante haengt an der einstellung "Kompakte Meldung" (`keys`/`push-settings.compactNotifications`)
+    - kompakt an (standard) = variante A: app bekommt nie schluessel, reicht nur ciphertext weiter, meldung nur "Neue Nachrichten"
+    - kompakt aus (vorschau gewuenscht) = variante B: app bekommt die noetigen schluessel und entschluesselt fuer name + vorschau
+    - umschalten auf kompakt -> PWA weist die app an, alle schluessel sofort zu loeschen; nur ueber die bruecke, nie ueber den server
+    - plan: schluessel in der app nur im geschuetzten speicher (Android Keystore), nie im klartext auf platte
   - offen: plattform (android zuerst? kotlin + WebView oder TWA), hintergrund-grenzen (WorkManager, doze), verhaeltnis zum service worker (doppelte zustellung vermeiden)
   - offen: api-vertrag versionieren (`apiVersion`), nur fuer signierte app (siehe backlog: signierte clients)
 

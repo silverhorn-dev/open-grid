@@ -229,6 +229,53 @@ test('the owner sets key lifetime and epochs ahead per album', async () => {
     assert.equal(created.keyEpochsAhead, 3);
 });
 
+test('key lifetime can be set per person, one week included', async () => {
+    const [ownerIdentity, weekIdentity, otherIdentity] = await Promise.all([createIdentity(), createIdentity(), createIdentity()]);
+    const week = 10080 * 60000;
+    const hour = 60 * 60000;
+    const now = 3 * week + 5000;
+    const owner = loadAlbums({
+        identity: ownerIdentity,
+        peerKeys: { 'peer-allowed': weekIdentity.jwkPublic, 'peer-other': otherIdentity.jwkPublic },
+        time: { now, epochMs: 60000 }
+    });
+    const album = owner.context.state.albums.alb_1;
+    album.acl = ['peer-allowed', 'peer-other'];
+    album.keyEpochMinutes = 60;
+    album.viewerKeyEpochs = { 'peer-allowed': 10080 };
+    await owner.context.serveAlbumImage('peer-allowed', 'albimg_a');
+    const encrypted = owner.sent.at(-1).payload.encrypted;
+
+    await owner.context.pushAlbumKeys('peer-allowed', album);
+    const weekBundles = owner.sent.at(-1).payload.operation.bundles;
+    assert.ok(weekBundles.every(bundle => bundle.epochMs === week), 'this person gets one-week keys');
+    assert.equal(weekBundles[0].epochEndsAt, 4 * week);
+    await owner.context.pushAlbumKeys('peer-other', album);
+    const hourBundles = owner.sent.at(-1).payload.operation.bundles;
+    assert.ok(hourBundles.every(bundle => bundle.epochMs === hour), 'everyone else keeps the album setting');
+    assert.ok(Object.keys(album.rollingKeys).some(key => key.startsWith(`${week}:`)) && Object.keys(album.rollingKeys).some(key => key.startsWith(`${hour}:`)),
+        'rolling keys of different lengths do not collide');
+
+    // Beide koennen entschluesseln; die Wochen-Person auch noch Tage spaeter.
+    for (const [identity, operation, later] of [[weekIdentity, owner.sent.at(-2).payload.operation, now + 3 * 24 * hour], [otherIdentity, owner.sent.at(-1).payload.operation, now + 30 * 60000]]) {
+        const viewer = loadAlbums({ identity, peerKeys: { 'peer-owner': ownerIdentity.jwkPublic }, time: { now: later, epochMs: 60000 } });
+        viewer.context.state.albums = { alb_1: { id: 'alb_1', ownerId: 'peer-owner', name: 'Urlaub', keyVersion: 1, items: [{ id: 'albimg_a', version: 1 }] } };
+        await viewer.context.handleAlbumKeysOperation('peer-owner', operation);
+        assert.equal(await viewer.context.loadAlbumKeys('alb_1'), true);
+        assert.ok(await viewer.context.decryptAlbumImage('alb_1', 'albimg_a', encrypted));
+        viewer.context.expireAlbumKeys('alb_1', false);
+    }
+
+    // Zurueck auf "wie Album" und Zugang entziehen raeumt die Einstellung weg. (Ohne den Push-Timer
+    // fuer alle Alben, der wuerde den Testlauf bis zum naechsten Epochenende offen halten.)
+    owner.context.pushAllAlbumKeys = async () => {};
+    await owner.context.updateViewerKeyTiming('alb_1', 'peer-allowed', 0);
+    assert.equal(album.viewerKeyEpochs['peer-allowed'], undefined);
+    album.viewerKeyEpochs = { 'peer-other': 10080 };
+    await owner.context.revokeAlbumAccess('alb_1', 'peer-other');
+    assert.equal(owner.context.state.albums.alb_1.viewerKeyEpochs['peer-other'], undefined);
+});
+
 test('revoking access bumps the album key version', async () => {
     const { context } = loadAlbums();
     await context.revokeAlbumAccess('alb_1', 'peer-allowed');

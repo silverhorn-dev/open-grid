@@ -143,6 +143,11 @@
 - [x] album: besitzer waehlt die vorschau (normal / unscharf / keine)
   - done 2026-10-27: `album.preview`, "Vorschau im Chat" in der album-karte, unscharf beim besitzer gerechnet; e2e `album-preview`; UC-50
 
+## T10 Album-Schluessel: 1 Woche und pro Person (nutzer 2026-10-27)
+- [x] gueltigkeit der album-schluessel auch "1 Woche" (2 wochen verworfen)
+- [x] gueltigkeit pro person ueberschreibbar
+  - done 2026-10-27: `ALBUM_KEY_EPOCH_OPTIONS` + 10080 (album, einstellungs-standard, `CLIENT_DEFAULTS`), `album.viewerKeyEpochs`, auswahl neben jeder person; rollende keys pro epochenlaenge (`<epochMs>:<epoch>`), damit verschiedene laengen nicht kollidieren; tests `test/albums.test.js`, e2e `album-preview`
+
 ## Eigene rotierende Verschluesselung (geparkt, erst besprechen)
 - [ ] gestohlene album-schluessel sollen nach der epoche wertlos sein; idee: eigener, vom server getakteter algorithmus -> `tasks/feature-request-rotating-encryption.md`
   - offen: konflikt mit regel "crypto nur ueber `crypto.subtle`"; alternative: server-epochen-geheimnis + `CK_e` per HKDF (AES-GCM bleibt)

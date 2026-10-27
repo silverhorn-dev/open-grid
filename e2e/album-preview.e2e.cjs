@@ -68,6 +68,24 @@ async function main() {
         assert.equal(result.none, null, 'no cover at all');
         assert.equal(result.stored, 'none', 'choice is stored per album');
 
+        // Gueltigkeit pro Person: Auswahl neben jeder Person im Album, inkl. 1 Woche.
+        const perPerson = await page.evaluate(async () => {
+            const album = state.albums.alb_preview;
+            album.acl = ['node_fake_album_preview'];
+            await saveAlbum(album);
+            switchTab('keys');
+            renderAlbumManager();
+            const select = document.querySelector('[data-viewer-key-epoch="node_fake_album_preview"]');
+            if (!select) return null;
+            select.value = '10080';
+            select.dispatchEvent(new Event('change'));
+            await new Promise(resolve => setTimeout(resolve, 300));
+            return { options: [...select.options].map(option => option.textContent), stored: state.albums.alb_preview.viewerKeyEpochs?.node_fake_album_preview };
+        });
+        assert.ok(perPerson, 'per-person select rendered');
+        assert.ok(perPerson.options.includes('1 Woche') && perPerson.options.includes('wie Album'), perPerson.options.join(','));
+        assert.equal(perPerson.stored, 10080);
+
         assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log('E2E OK (album preview)');
     } finally {

@@ -663,7 +663,9 @@ Betrachter online kommt oder sich verbindet, beim Teilen und nach einem Entzug
 `ALBUM_KEYS` wird nicht ins Operations-Log uebernommen.
 
 Gueltigkeit pro Album (R2): `album.keyEpochMinutes` (0 = Server-Wert
-`MEDIA_KEY_EPOCH_MINUTES`, sonst 15, 60, 180 oder 1440) bestimmt die
+`MEDIA_KEY_EPOCH_MINUTES`, sonst 15, 60, 180, 1440 oder 10080 = 1 Woche; pro
+Person ueberschreibbar mit `album.viewerKeyEpochs[viewerId]`, Auswahl neben der
+Person in der Album-Karte, "wie Album" loescht den Eintrag) bestimmt die
 Epochenlaenge, `album.keyEpochsAhead` (1 bis 3) die vorab gelieferten
 Epochen; ein Push enthaelt also hoechstens 4 Buendel. Epoche =
 `floor(Serverzeit / epochMs)`. Neue Alben uebernehmen den Standard aus

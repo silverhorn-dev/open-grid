@@ -126,6 +126,10 @@ async function revokeAlbumAccess(albumId, peerId) {
     const album = state.albums[albumId];
     if (!album) return;
     album.acl = album.acl.filter(id => id !== peerId);
+    if (album.viewerKeyEpochs?.[peerId]) {
+        album.viewerKeyEpochs = { ...album.viewerKeyEpochs };
+        delete album.viewerKeyEpochs[peerId];
+    }
     // Neue Schluesselversion: auch ein zurueckbehaltener Schluessel passt nicht mehr zu neuen Uebertragungen.
     album.keyVersion = (album.keyVersion || 1) + 1;
     await saveAlbum(album);
@@ -597,6 +601,7 @@ function renderAlbumManager() {
                 const chip = document.createElement('span');
                 chip.className = 'flex items-center gap-1 bg-slate-800 border border-slate-700 rounded-full pl-2.5 pr-1 py-0.5 text-slate-300';
                 chip.appendChild(document.createTextNode(getPeerPresentation(peerId).name || HIDDEN_PEER_NAME));
+                chip.appendChild(createViewerKeyTimingSelect(album, peerId));
                 const revoke = document.createElement('button');
                 revoke.type = 'button';
                 revoke.className = 'w-5 h-5 rounded-full hover:bg-red-900 text-red-300';
@@ -710,13 +715,20 @@ async function storeReceivedAlbumImage(album, payload, relayedBy) {
 const ALBUM_KEY_BUNDLE_PREFIX = 'album-keys:';
 // Der Besitzer stellt pro Album ein, wie lange ein rollender Key gilt (0 = Server-Wert
 // MEDIA_KEY_EPOCH_MINUTES) und wie viele Epochen er vorab ausliefert.
-const ALBUM_KEY_EPOCH_OPTIONS = [0, 15, 60, 180, 1440];
+const ALBUM_KEY_EPOCH_OPTIONS = [0, 15, 60, 180, 1440, 10080];
 const ALBUM_KEY_AHEAD_OPTIONS = [1, 2, 3];
 const MAX_ALBUM_KEY_BUNDLES = 1 + Math.max(...ALBUM_KEY_AHEAD_OPTIONS);
 const ALBUM_DEFAULTS_RECORD_ID = 'album-defaults';
 
-function albumEpochMs(album, time) {
-    const minutes = ALBUM_KEY_EPOCH_OPTIONS.includes(album.keyEpochMinutes) ? album.keyEpochMinutes : 0;
+// Gueltigkeit pro Betrachter (album.viewerKeyEpochs[viewerId], Minuten) ueberschreibt die des Albums.
+function albumKeyMinutesFor(album, viewerId = null) {
+    const override = viewerId ? album.viewerKeyEpochs?.[viewerId] : undefined;
+    if (ALBUM_KEY_EPOCH_OPTIONS.includes(override) && override > 0) return override;
+    return ALBUM_KEY_EPOCH_OPTIONS.includes(album.keyEpochMinutes) ? album.keyEpochMinutes : 0;
+}
+
+function albumEpochMs(album, time, viewerId = null) {
+    const minutes = albumKeyMinutesFor(album, viewerId);
     return minutes > 0 ? minutes * 60 * 1000 : time.epochMs;
 }
 
@@ -724,9 +736,9 @@ function albumEpochsAhead(album) {
     return ALBUM_KEY_AHEAD_OPTIONS.includes(album.keyEpochsAhead) ? album.keyEpochsAhead : 1;
 }
 
-// Laufende Epoche eines Albums nach Serverzeit.
-function albumEpoch(album, time) {
-    const epochMs = albumEpochMs(album, time);
+// Laufende Epoche eines Albums (fuer einen Betrachter) nach Serverzeit.
+function albumEpoch(album, time, viewerId = null) {
+    const epochMs = albumEpochMs(album, time, viewerId);
     const epoch = Math.floor(time.now / epochMs);
     return { epoch, epochMs, epochEndsAt: (epoch + 1) * epochMs };
 }
@@ -754,12 +766,16 @@ async function deriveAlbumKek(peerId, rollingKey, albumId, epoch, keyVersion) {
     );
 }
 
-// Besitzer: zufaelliger rollender Key pro Album und Epoche; aeltere Epochen werden verworfen.
-function getRollingKey(album, epoch, currentEpoch) {
-    album.rollingKeys = Object.fromEntries(Object.entries(album.rollingKeys || {})
-        .filter(([storedEpoch]) => Number(storedEpoch) >= currentEpoch));
-    if (!album.rollingKeys[epoch]) album.rollingKeys[epoch] = bytesToBase64(window.crypto.getRandomValues(new Uint8Array(32)));
-    return album.rollingKeys[epoch];
+// Besitzer: zufaelliger rollender Key pro Album, Epochenlaenge und Epoche (Betrachter koennen
+// unterschiedliche Laengen haben); abgelaufene werden verworfen. Schluessel "<epochMs>:<epoch>".
+function getRollingKey(album, epoch, epochMs, now) {
+    album.rollingKeys = Object.fromEntries(Object.entries(album.rollingKeys || {}).filter(([key]) => {
+        const [storedMs, storedEpoch] = key.split(':').map(Number);
+        return Number.isFinite(storedMs) && Number.isFinite(storedEpoch) && (storedEpoch + 1) * storedMs > now;
+    }));
+    const key = `${epochMs}:${epoch}`;
+    if (!album.rollingKeys[key]) album.rollingKeys[key] = bytesToBase64(window.crypto.getRandomValues(new Uint8Array(32)));
+    return album.rollingKeys[key];
 }
 
 async function buildAlbumKeyBundle(album, viewerId, current, epoch) {
@@ -769,7 +785,7 @@ async function buildAlbumKeyBundle(album, viewerId, current, epoch) {
         const key = await deriveAlbumImageKey(album, item.id);
         keys[item.id] = bytesToBase64(new Uint8Array(await window.crypto.subtle.exportKey('raw', key)));
     }
-    const rollingKey = getRollingKey(album, epoch, current.epoch);
+    const rollingKey = getRollingKey(album, epoch, current.epochMs, current.epoch * current.epochMs);
     const kek = await deriveAlbumKek(viewerId, rollingKey, album.id, epoch, keyVersion);
     const iv = window.crypto.getRandomValues(new Uint8Array(12));
     const wrapped = await window.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, kek, new TextEncoder().encode(JSON.stringify(keys)));
@@ -789,7 +805,7 @@ async function buildAlbumKeyBundle(album, viewerId, current, epoch) {
 // (einmal pro Epoche, Version und Einstellung).
 async function pushAlbumKeys(viewerId, album, force = false) {
     if (!album || album.ownerId !== state.myProfile.id || !album.acl.includes(viewerId) || !album.items.length) return;
-    const current = albumEpoch(album, await fetchServerTime());
+    const current = albumEpoch(album, await fetchServerTime(), viewerId);
     const ahead = albumEpochsAhead(album);
     const marker = `${album.keyVersion || 1}:${current.epochMs}:${current.epoch}:${ahead}`;
     const pushed = state.albumKeyPushes[viewerId] || (state.albumKeyPushes[viewerId] = {});
@@ -826,7 +842,10 @@ async function pushAllAlbumKeys() {
     const time = await fetchServerTime().catch(() => null);
     if (!time) return;
     // Naechster Lauf zum fruehesten Epochenende aller eigenen Alben.
-    const nextEnd = Math.min(time.epochEndsAt, ...getOwnAlbums().map(album => albumEpoch(album, time).epochEndsAt));
+    const nextEnd = Math.min(time.epochEndsAt, ...getOwnAlbums().flatMap(album => [
+        albumEpoch(album, time).epochEndsAt,
+        ...album.acl.map(viewerId => albumEpoch(album, time, viewerId).epochEndsAt)
+    ]));
     state.albumKeyPushTimer = setTimeout(() => pushAllAlbumKeys().catch(logBackgroundError('pushAllAlbumKeys')), Math.min(nextEnd - time.now + 1000, 2147483647));
 }
 
@@ -871,6 +890,7 @@ function renderAlbumDefaults() {
 
 function albumEpochLabel(minutes) {
     if (!minutes) return 'Server-Standard';
+    if (minutes === 10080) return t('albums.oneWeek');
     return minutes < 60 ? `${minutes} min` : `${minutes / 60} h`;
 }
 
@@ -914,6 +934,36 @@ function createAlbumPreviewControl(album) {
     select.onchange = () => updateAlbumPreview(album.id, select.value).catch(logBackgroundError('updateAlbumPreview'));
     row.append(document.createTextNode(t('albums.previewInChat')), select);
     return row;
+}
+
+// Gueltigkeit fuer eine Person (0 = wie das Album); sofort neue Buendel an diese Person.
+async function updateViewerKeyTiming(albumId, viewerId, minutes) {
+    const album = state.albums[albumId];
+    if (!album || album.ownerId !== state.myProfile.id || !album.acl.includes(viewerId) || !ALBUM_KEY_EPOCH_OPTIONS.includes(minutes)) return;
+    const overrides = { ...(album.viewerKeyEpochs || {}) };
+    if (minutes > 0) overrides[viewerId] = minutes;
+    else delete overrides[viewerId];
+    album.viewerKeyEpochs = overrides;
+    await saveAlbum(album);
+    await pushAlbumKeys(viewerId, album, true).catch(logBackgroundError('updateViewerKeyTiming'));
+    await pushAllAlbumKeys().catch(logBackgroundError('updateViewerKeyTiming'));
+}
+
+function createViewerKeyTimingSelect(album, viewerId) {
+    const select = document.createElement('select');
+    select.className = 'bg-slate-900 border border-slate-700 rounded-full px-1.5 py-0 text-[11px] text-slate-300';
+    select.dataset.viewerKeyEpoch = viewerId;
+    select.setAttribute('aria-label', t('albums.keyValidityForPerson', { name: getPeerPresentation(viewerId).name || HIDDEN_PEER_NAME }));
+    ALBUM_KEY_EPOCH_OPTIONS.forEach(minutes => {
+        const option = document.createElement('option');
+        option.value = String(minutes);
+        option.textContent = minutes ? albumEpochLabel(minutes) : t('albums.likeAlbum');
+        select.appendChild(option);
+    });
+    const override = album.viewerKeyEpochs?.[viewerId];
+    select.value = String(ALBUM_KEY_EPOCH_OPTIONS.includes(override) ? override : 0);
+    select.onchange = () => updateViewerKeyTiming(album.id, viewerId, Number(select.value)).catch(logBackgroundError('updateViewerKeyTiming'));
+    return select;
 }
 
 function createAlbumKeyTimingControls(album) {

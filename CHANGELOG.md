@@ -2,10 +2,14 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 142 · 2026-10-27
+## Build 143 · 2026-10-27
+- Eigene Secure Snaps lassen sich nur ansehen, bis der Empfaenger alle Ansichten verbraucht hat; danach sind sie auch bei dir geloescht
+- Behoben: baute ein Geraet die Verbindung neu auf, lehnte das andere sie nach einem Secure Snap manchmal ab und der Aufbau hing lange
+
+## Build 142 · 2026-10-27 · `4351fba`
 - Behoben: Videos und Bilder im Chat flackern nicht mehr, wenn der Chat neu gezeichnet wird (z. B. waehrend ein Video ankommt)
 - Behoben: die erste Ansicht eines Secure Snaps war manchmal nur einen Augenblick lang zu sehen
-- Behoben: eigene Secure Snaps lassen sich wieder ansehen, auch nachdem der Empfaenger alle Ansichten verbraucht hat
+- Behoben: eigene Secure Snaps lassen sich wieder ansehen
 - Behoben: beim Oeffnen eines Secure Snaps wartete die App manchmal endlos auf die Freigabe; jetzt verbindet sie neu und fragt erneut
 
 ## Build 141 · 2026-10-27 · `871c50f`

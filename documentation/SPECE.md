@@ -791,7 +791,11 @@ Fehlt beiden das Profil des anderen, wartet die hoefliche Seite 1,5 s mit dem
 eigenen Aufbau. Verschluesselte Nachrichten, die vor dem eigenen
 Sitzungsschluessel ankommen (beide leiten gleichzeitig ab), werden bis zu 50
 Stueck zurueckgehalten und danach in Reihenfolge verarbeitet (vorher gingen
-sie verloren, z. B. Profil-Anfragen).
+sie verloren, z. B. Profil-Anfragen). Hat eine Seite ihre Verbindung verworfen
+und bietet neu an, passt das Angebot oft nicht zur alten Verbindung der
+anderen Seite (z. B. andere m-lines nach einem Secure-Snap-Stream).
+`applyRemoteOffer` verwirft dann die alte Verbindung und antwortet auf einer
+frischen, statt das Angebot abzulehnen.
 
 **Empfangsbestaetigung (P2P)**: Ein offener DataChannel kann halb tot sein
 (der Partner hat gerade das Netz verloren, ICE merkt es erst nach bis zu 30 s);
@@ -939,10 +943,11 @@ Dauer 5/10/30 s oder `0` = bis zum Schliessen, max. 5 Minuten).
   laufende Zeit zaehlt weiter, statt dass der Snap sofort endet.
 - Nach Ablauf der Dauer: `SNAP_STREAM_END` bzw. `SNAP_VIEW_CLOSED`, Track und
   Blob-URL werden verworfen. Wird die App verlassen, schliesst der Viewer sofort.
-- Nach der letzten Ansicht loescht der Empfaenger den Ciphertext; weitere
-  Anfragen beantwortet der Sender mit `SNAP_VIEW_DENIED`. Der Sender behaelt
-  Schluessel (`viewsLeft: 0`) und Ciphertext und kann seinen eigenen Snap wie
-  einen normalen Snap ansehen (`openOwnSecureSnap`, lokal, ohne Zeitlimit).
+- Solange der Empfaenger noch Ansichten hat, kann der Sender seinen eigenen
+  Snap ansehen (`openOwnSecureSnap`, lokal entschluesselt, ohne Zeitlimit).
+- Nach der letzten Ansicht loeschen Sender (Schluessel, Ciphertext) und
+  Empfaenger (Ciphertext) ihre Daten; weitere Anfragen beantwortet der Sender
+  mit `SNAP_VIEW_DENIED`.
 - Grenzen: Screenshots und Bildschirmaufnahmen lassen sich im Browser nicht
   verhindern; ein manipulierter Client kann Frames oder den Schluessel
   behalten. Abschreckung ist das Wasserzeichen.

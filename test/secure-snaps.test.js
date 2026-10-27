@@ -45,6 +45,9 @@ test('secure snaps keep the key at the sender and count views', async () => {
     assert.equal(grant.type, 'SNAP_VIEW_GRANT');
     assert.equal(grant.viewsLeft, 1);
     assert.equal(messages[0].secureSnap.viewsUsed, 1);
+    // Solange noch Ansichten offen sind, kann der Sender seinen Snap selbst ansehen.
+    const own = await context.decryptOwnSecureSnap('peer-b', media.get(`ssnap_${secureSnap.snapId}`));
+    assert.equal(Buffer.from(own).toString(), 'fake-jpeg-bytes');
 
     const key = await globalThis.crypto.subtle.importKey('raw', Buffer.from(grant.key, 'base64'), 'AES-GCM', false, ['decrypt']);
     const plaintext = await globalThis.crypto.subtle.decrypt(
@@ -56,10 +59,8 @@ test('secure snaps keep the key at the sender and count views', async () => {
 
     await context.handleSnapViewRequest('peer-b', { snapId: secureSnap.snapId });
     assert.equal(sent.at(-1).payload.viewsLeft, 0);
-    assert.equal(media.get(`ssnap_${secureSnap.snapId}`).viewsLeft, 0, 'sender keeps the key to view the own snap');
-    assert.ok(messages[0].secureSnap.encrypted, 'sender keeps the ciphertext');
-    const own = await context.decryptOwnSecureSnap('peer-b', media.get(`ssnap_${secureSnap.snapId}`));
-    assert.equal(Buffer.from(own).toString(), 'fake-jpeg-bytes');
+    assert.equal(media.has(`ssnap_${secureSnap.snapId}`), false, 'key is deleted after the last view');
+    assert.equal(messages[0].secureSnap.encrypted, undefined, 'sender drops the ciphertext too');
 
     await context.handleSnapViewRequest('peer-b', { snapId: secureSnap.snapId });
     assert.equal(sent.at(-1).payload.type, 'SNAP_VIEW_DENIED');

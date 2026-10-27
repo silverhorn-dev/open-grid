@@ -94,10 +94,12 @@
   - ursache: erste neuverhandlung fuer den live-stream langsamer als 6 s -> sender stoppt den stream und schickt den schluessel; empfaenger hatte das video gerade gestartet und ignorierte den schluessel
   - fix 2026-10-27: grant gilt auch waehrend eines laufenden streams, anzeige wechselt aufs bild, die zeit laeuft weiter; e2e `secure-snap`
 - [x] man kann sich seine eigenen secure snaps nicht mehr ansehen, das soll bei den eigenen wie bei den normalen funken
-  - fix 2026-10-27: sender behaelt schluessel + ciphertext auch nach der letzten ansicht, `openOwnSecureSnap` (lokal, ohne zeitlimit); aeltere snaps, deren schluessel schon geloescht war, melden "nicht mehr vorhanden"
+  - fix 2026-10-27: `openOwnSecureSnap` (lokal, ohne zeitlimit), solange der empfaenger noch ansichten hat
+  - nutzer 2026-10-27: nur bis der empfaenger alle ansichten verbraucht hat, danach auch beim sender weg (schluessel + ciphertext geloescht)
 - [x] secure snaps bugs, when waiting for "Freigabe" on receiving a secure snap it waits forever, auch wenn der andere client wieder on ist
   - ursache: kein timeout nach SNAP_VIEW_REQUEST; ging die anfrage in einem halb toten kanal verloren, passierte nie etwas
   - fix 2026-10-27: nach 8 s kanal neu aufbauen und einmal erneut fragen, danach "Der Absender antwortet nicht"; e2e `secure-snap`
+  - dabei gefunden: neues angebot nach einseitigem neuaufbau wurde abgelehnt (m-lines passten nach einem snap-stream nicht zur alten verbindung), aufbau hing ~16 s; fix `applyRemoteOffer` (p2p.client.js) verwirft die alte verbindung und antwortet frisch
 - [x] on taken image / snap preview toggle for safeable
   - nutzer 2026-10-27: schalter neben den bearbeitungs-icons; download-icon mit kleinem kontakt-icon schraeg versetzt; angeklickt durchgestrichen + notiz "nicht speicherbar"; standard vom router, normal "speicherbar"
   - done 2026-10-27: `#snap-saveable-btn` (snaps.js `toggleSnapSaveable`, `snapSaveOptions`), `downloadable: 'none'`, `CLIENT_DEFAULTS.snapSaveable`; einmal-snap "Speichern" beim empfaenger ausgeblendet; e2e `snap-camera`

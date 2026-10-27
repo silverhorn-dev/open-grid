@@ -6,8 +6,8 @@
 //      der Empfaenger bekommt keine Bilddaten). Kommt kein SNAP_STREAM_PLAYING, folgt SNAP_VIEW_GRANT
 //      mit dem Schluessel; der Empfaenger entschluesselt nur im Arbeitsspeicher.
 //   3. Nach Ablauf der Anzeigedauer wird alles verworfen; nach der letzten Ansicht loescht der
-//      Empfaenger auch den Ciphertext. Der Sender behaelt Schluessel und Ciphertext, damit er seinen
-//      eigenen Snap weiter ansehen kann (wie bei normalen Snaps); weitere Anfragen lehnt er ab.
+//      Empfaenger auch den Ciphertext. Bis dahin kann der Sender seinen eigenen Snap ansehen; nach der
+//      letzten Ansicht loescht auch er Schluessel und Ciphertext.
 const SECURE_SNAP_VIEW_OPTIONS = [1, 2, 3];
 const SECURE_SNAP_SECOND_OPTIONS = [5, 10, 30, 0]; // 0 = bis zum Schliessen
 const SECURE_SNAP_UNLIMITED_CAP_MS = 5 * 60 * 1000;
@@ -146,8 +146,8 @@ async function handleSnapViewRequest(peerId, payload) {
         return;
     }
     secret.viewsLeft -= 1;
-    // Auch nach der letzten Ansicht behalten (viewsLeft 0 = weitere Anfragen werden abgelehnt).
-    await cacheMediaPayload(`ssnap_${snapId}`, secret);
+    if (secret.viewsLeft > 0) await cacheMediaPayload(`ssnap_${snapId}`, secret);
+    else await deleteDatabaseRecord('media', `ssnap_${snapId}`);
     await updateOwnSecureSnapMessage(peerId, snapId, { viewsUsed: secret.views - secret.viewsLeft });
 
     const streamed = await startSecureSnapStream(peerId, secret).catch(error => {
@@ -163,9 +163,12 @@ async function handleSnapViewRequest(peerId, payload) {
             viewsLeft: secret.viewsLeft
         });
     }
+    // Nach der letzten Ansicht braucht auch der Sender den Ciphertext nicht mehr.
+    if (secret.viewsLeft <= 0) await updateOwnSecureSnapMessage(peerId, snapId, { encrypted: undefined });
 }
 
-// Eigener Secure Snap: der Sender entschluesselt lokal und sieht ihn ohne Zeitlimit.
+// Eigener Secure Snap: der Sender entschluesselt lokal und sieht ihn ohne Zeitlimit, solange der
+// Empfaenger noch Ansichten uebrig hat.
 async function openOwnSecureSnap(messageId) {
     const peerId = state.activeChatPeerId;
     const message = state.chats[peerId]?.find(item => item.id === messageId);
@@ -635,10 +638,14 @@ function renderSecureSnapMessage(bubble, message, isMine) {
     if (isMine) {
         const used = snap.viewsUsed || 0;
         meta.textContent = used >= views ? t('snaps.seen', { used, views }) : t('snaps.viewed2', { used, views, duration: secureSnapDurationLabel(snap.seconds) });
-        card.onclick = event => {
-            event.stopPropagation();
-            openOwnSecureSnap(message.id).catch(logBackgroundError('openOwnSecureSnap'));
-        };
+        if (used >= views || !snap.encrypted) {
+            card.disabled = true;
+        } else {
+            card.onclick = event => {
+                event.stopPropagation();
+                openOwnSecureSnap(message.id).catch(logBackgroundError('openOwnSecureSnap'));
+            };
+        }
     } else if (snap.expired || !snap.encrypted) {
         meta.textContent = t('snaps.expired');
         card.disabled = true;

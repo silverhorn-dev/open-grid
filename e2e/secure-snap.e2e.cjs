@@ -1,7 +1,7 @@
 // End-to-End: Secure Snaps. (1) Die erste Ansicht laeuft die volle Anzeigedauer (vorher brach sie ab,
 // wenn der Live-Stream beim ersten Mal zu spaet startete). (2) Geht die Anfrage verloren, baut Bob den
 // Kanal neu auf und fragt erneut, statt ewig auf die Freigabe zu warten. (3) Alice sieht ihren eigenen
-// Secure Snap, auch nachdem alle Ansichten verbraucht sind.
+// Secure Snap, solange Bob noch Ansichten hat; danach nicht mehr.
 const assert = require('node:assert/strict');
 const { chromium } = require('playwright');
 
@@ -61,6 +61,15 @@ async function main() {
         await bob.evaluate(id => openChatWithPeer(id), aliceId);
         await waitFor(bob, id => isSecureChannelOpen(id), aliceId);
 
+        // (3a) Bob hat noch Ansichten: Alice sieht ihren eigenen Snap.
+        const ownId = await alice.evaluate(id => state.chats[id].find(message => message.secureSnap).id, bobId);
+        await alice.evaluate(id => openOwnSecureSnap(id), ownId);
+        await waitFor(alice, () => {
+            const image = document.getElementById('secure-snap-image');
+            return !image.classList.contains('hidden') && image.width > 0;
+        }, null, 10000);
+        await alice.evaluate(() => closeSecureSnapViewer());
+
         // (1) Erste Ansicht: Inhalt erscheint und bleibt fast die ganze Dauer sichtbar.
         await bob.evaluate(id => requestSecureSnapView(id), messageId);
         await waitFor(bob, () => {
@@ -105,14 +114,12 @@ async function main() {
         await bob.evaluate(() => closeSecureSnapViewer());
         await waitFor(bob, id => state.chats[id].find(message => message.secureSnap)?.secureSnap.expired === true, aliceId, 10000);
 
-        // (3) Alle Ansichten verbraucht, Alice sieht ihren Snap trotzdem.
-        const ownId = await alice.evaluate(id => state.chats[id].find(message => message.secureSnap).id, bobId);
+        // (3b) Alle Ansichten verbraucht: auch bei Alice weg.
         await waitFor(alice, id => (state.chats[id].find(message => message.secureSnap)?.secureSnap.viewsUsed || 0) >= 2, bobId, 10000);
         await alice.evaluate(id => openOwnSecureSnap(id), ownId);
-        await waitFor(alice, () => {
-            const image = document.getElementById('secure-snap-image');
-            return !image.classList.contains('hidden') && image.width > 0;
-        }, null, 10000);
+        await alice.waitForTimeout(500);
+        assert.equal(await alice.isVisible('#secure-snap-viewer'), false, 'gone for the sender after the last view');
+        assert.equal(await alice.evaluate(id => state.chats[id].find(message => message.secureSnap).secureSnap.encrypted, bobId), undefined);
 
         assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log('E2E OK (secure snap)');

@@ -345,6 +345,15 @@ Oeffnen legt der Client den Kontakt an und merkt sich den Fingerprint
 Schluessel passen, sonst wird die Verbindung verworfen (Schutz gegen einen
 Server, der eine fremde Identitaet einschleust). Der QR-Code wird lokal mit
 `qrcode-generator` (`/vendor/qrcode/qrcode.js`) erzeugt.
+Seit 2026-10-27 haengt der Modus des Einladenden an (`~<modus>`, z. B.
+`~discovery`). `inviteTarget` ordnet ihn einem Bereich zu (`discovery`/`event`
+= "Grid & Event", `chat`/`friends` = "Chat & Freunde"): ist der Bereich beim
+Oeffnenden an, wechselt die App in diesen Modus (bei `event` in einen anderen
+Modus des Bereichs, der Event-Code fehlt) und legt die Chat-Liste fest
+(`ensureChatScope`); die erste Nachricht traegt `scope`, so landet der Chat
+beim Einladenden in derselben Liste. Ist der Bereich aus (eigene
+Bereichswahl oder `APP_MODES`), oeffnet sich nichts, nur ein Hinweis. Links
+ohne Modus verhalten sich wie bisher.
 
 ### 3.1 Grid in Ringen
 

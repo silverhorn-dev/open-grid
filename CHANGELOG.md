@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 149 · 2026-10-27
+## Build 150 · 2026-10-27
+- Einladungslinks merken sich den Modus: wer sie oeffnet, landet in diesem Modus und der Chat bei beiden in derselben Liste. Ist der Bereich ausgeschaltet, erscheint nur ein Hinweis
+
+## Build 149 · 2026-10-27 · `e300685`
 - Behoben: die Profilfelder je Modus vom Server wurden verworfen; "Nur Chat" nutzt jetzt wie vorgesehen das schlanke Profil (Name und Status), eigene Profilfelder des Betreibers greifen wieder
 - Betrieb: Profilfelder je Modus (inkl. Event mit "Aktueller Workshop") direkt in `compose.yaml`
 

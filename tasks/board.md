@@ -135,6 +135,13 @@
 - [x] `validateProfileSchema` (config.js) nahm nur Text-Labels an; die eingebauten Schemas haben `{de,en}` -> der Client verwarf alle Schemas vom Router, "Nur Chat" bekam nie Name + Status
   - fix 2026-10-27: Labels als Text oder je Sprache; `compose.yaml` reicht `PROFILE_SCHEMA` durch (`PROFILE_SCHEMAS` steht dort direkt, nutzer 2026-10-27; dabei `"String"` -> `"string"` und "Über" von ISO-8859-1 nach UTF-8 korrigiert); test `test/profile-schema.test.js` (router-standard -> client-pruefung)
 
+## T9 Einladung + Album-Vorschau (2026-10-27)
+- [x] einladung aus "Entdecken", geoeffnet im chat-modus: chat landete in der falschen liste
+  - entschieden (nutzer): einladung traegt den modus; geht in dessen modus/liste; ist der bereich beim empfaenger aus, oeffnet sich nichts, nur "modus deaktiviert"
+  - done 2026-10-27: link `#<peer>.<fingerprint>~<modus>`, `inviteTarget`, hinweis `modes.inviteModeDisabled`; tests `test/modes.test.js`, e2e `invite-modes`
+  - offen (nicht entschieden): im entdecken-bereich kann die chat-sperre des einladenden ("Nur Matches") nachrichten des eingeladenen zurueckhalten
+- [ ] album: besitzer waehlt die vorschau (normal / unscharf / keine)
+
 ## Eigene rotierende Verschluesselung (geparkt, erst besprechen)
 - [ ] gestohlene album-schluessel sollen nach der epoche wertlos sein; idee: eigener, vom server getakteter algorithmus -> `tasks/feature-request-rotating-encryption.md`
   - offen: konflikt mit regel "crypto nur ueber `crypto.subtle`"; alternative: server-epochen-geheimnis + `CK_e` per HKDF (AES-GCM bleibt)

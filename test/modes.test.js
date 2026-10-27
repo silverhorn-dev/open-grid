@@ -62,10 +62,13 @@ test('invite links carry the key fingerprint and are verified on first contact',
     const jwk = { crv: 'P-256', x: 'abc', y: 'def' };
     context.state.myKeys = { jwkEcdsaPublic: jwk };
     const link = await context.getMyInviteLink();
-    assert.match(link, /^https:\/\/grid\.example\/invite#me\.[0-9a-f]{32}$/);
+    assert.match(link, /^https:\/\/grid\.example\/invite#me\.[0-9a-f]{32}~discovery$/, 'the link remembers the mode');
 
     const invite = context.parseInvite(link.slice(link.indexOf('#')));
     assert.equal(invite.peerId, 'me');
+    assert.equal(invite.mode, 'discovery');
+    assert.equal(context.parseInvite(link.slice(link.indexOf('#')).replace('~discovery', '')).mode, null, 'old links without a mode still work');
+    assert.equal(context.parseInvite(link.slice(link.indexOf('#')).replace('~discovery', '~bogus')).mode, null);
     assert.equal(context.parseInvite('#me.nothex'), null);
     assert.equal(context.parseInvite('#'), null);
 
@@ -129,4 +132,20 @@ test('changing the area moves out of a mode that is no longer available', async 
 
     await context.setModeScope('bogus');
     assert.equal(context.effectiveModeScope(), 'social', 'unknown areas are ignored');
+});
+
+test('invites land in the area of the inviting mode, or open nothing when that area is off', () => {
+    const all = ['discovery', 'chat', 'friends', 'event'];
+    const everything = loadScoped(all, { scope: 'all', mode: 'chat' }).context;
+    assert.deepEqual({ ...everything.inviteTarget('discovery') }, { area: 'discovery', mode: 'discovery' });
+    assert.deepEqual({ ...everything.inviteTarget('friends') }, { area: 'social', mode: 'friends' });
+    assert.deepEqual({ ...everything.inviteTarget('event') }, { area: 'discovery', mode: 'discovery' }, 'event invites need no code, they use exploring');
+    assert.deepEqual({ ...everything.inviteTarget(null) }, { area: null, mode: null }, 'old links: as before');
+
+    const social = loadScoped(all, { scope: 'social', mode: 'chat' }).context;
+    assert.equal(social.inviteTarget('discovery'), null, 'area turned off by the user');
+    assert.deepEqual({ ...social.inviteTarget('chat') }, { area: 'social', mode: 'chat' });
+
+    const operator = loadScoped(['chat', 'friends']).context;
+    assert.equal(operator.inviteTarget('event'), null, 'area not offered by the operator');
 });

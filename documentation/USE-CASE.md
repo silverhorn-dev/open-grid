@@ -575,7 +575,10 @@ Akzeptanzkriterien:
   Dating-Angaben aus anderen Modi werden nicht mitgeschickt.
 - Beim ersten Kontakt tauschen beide Seiten automatisch ihre Profile aus.
 - Kontakte kommen ueber einen Einladungslink oder QR-Code (Kopieren,
-  Teilen). Wer den Link oeffnet, landet direkt im Chat.
+  Teilen). Wer den Link oeffnet, landet direkt im Chat, und zwar im Modus und
+  in der Liste, aus der eingeladen wurde (bei beiden).
+- Ist dieser Bereich beim Oeffnenden ausgeschaltet, oeffnet sich nichts; ein
+  Hinweis sagt, fuer welchen Modus die Einladung ist.
 - Passt der Schluessel beim ersten Kontakt nicht zur Einladung, wird die
   Verbindung abgebrochen und eine Warnung angezeigt.
 

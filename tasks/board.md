@@ -156,6 +156,11 @@
 - [x] alben-verwaltung im profil im stil der einstellungen
   - done 2026-10-27: `settings-card`; "Standard fuer neue Alben" eingeklappt als setting-rows; je album eine karte (vorschaubild, name, "2 Bilder · mit 2 geteilt", icon-knoepfe hinzufuegen/loeschen), "Einstellungen" eingeklappt (schluessel gilt, vorab, vorschau im chat), zugriff als zeilen (name, gueltigkeit, entziehen); leerer zustand; texte ohne feste deutsche reste (`albumEpochLabel`, epochen)
 
+## T13 Flackern bei Album-Vorschau, ein Punkt fuer alle Canvas (nutzer 2026-10-27)
+- [x] album-vorschau flackert wieder; canvas-darstellung ueber eine funktion
+  - ursache: album-karte im chat nutzte die wiederverwendung nicht; album-verwaltung lud das vorschaubild bei jedem neuaufbau asynchron
+  - fix 2026-10-27: register in `createSecureImage` (secure-canvas.js) statt collect/release je ansicht; schluessel fuer chat-bild, video, album-karte, album-verwaltung; vorschaubild der verwaltung einmal geladen und synchron; e2e `album-preview` (schlaegt mit altem code fehl)
+
 ## Eigene rotierende Verschluesselung (geparkt, erst besprechen)
 - [ ] gestohlene album-schluessel sollen nach der epoche wertlos sein; idee: eigener, vom server getakteter algorithmus -> `tasks/feature-request-rotating-encryption.md`
   - offen: konflikt mit regel "crypto nur ueber `crypto.subtle`"; alternative: server-epochen-geheimnis + `CK_e` per HKDF (AES-GCM bleibt)

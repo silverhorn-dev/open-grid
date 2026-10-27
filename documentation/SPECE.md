@@ -1044,6 +1044,14 @@ das JPEG an `navigator.share`; Abbrechen ist kein Fehler. Profil-Galerien bleibe
 `<img>`. Kein Schutz gegen Screenshots; Pixel-Verwuerfeln wurde bewusst nicht
 gebaut (entschieden 2026-10-24).
 
+Neuzeichnen ohne Flackern: `createSecureImage(..., { reuseKey })` ist der
+einzige Weg zu Bild-Canvas in Listen. Mit Schluessel (`image:<id>`,
+`video:<id>`, `album-card:<id>`, `album-cover:<albumId>`) merkt sich ein
+Register den gezeichneten Canvas; wird die Ansicht neu aufgebaut und ist er
+nicht mehr im DOM, kommt bei gleicher Quelle genau dieser Canvas zurueck
+(sonst waere ein neuer bis zum asynchronen Zeichnen leer). Das Register
+vergisst ab 150 Eintraegen die aeltesten nicht angezeigten (bis 100).
+
 ## 7. Message Queue Cache API
 
 Die Queue dient ausschliesslich als Store-and-Forward-Speicher fuer bereits

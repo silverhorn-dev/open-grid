@@ -82,6 +82,27 @@ async function main() {
             await new Promise(resolve => setTimeout(resolve, 300));
             return { options: [...select.options].map(option => option.textContent), stored: state.albums.alb_preview.viewerKeyEpochs?.node_fake_album_preview };
         });
+        // Kein Flackern: nach dem Neuzeichnen stehen dieselben, schon gezeichneten Canvas da.
+        const reuse = await page.evaluate(async () => {
+            const same = async (selector, rerender) => {
+                await new Promise(resolve => setTimeout(resolve, 400));
+                const before = document.querySelector(selector);
+                rerender();
+                const after = document.querySelector(selector);
+                return Boolean(before) && before === after && after.width > 0;
+            };
+            await updateAlbumPreview('alb_preview', 'normal');
+            switchTab('chat');
+            await openChatWithPeer('node_fake_album_preview');
+            await shareAlbumInChat('alb_preview');
+            const card = await same('#chat-messages canvas[data-reuse-key^="album-card:"]', () => renderChatHistory());
+            switchTab('editprofile');
+            renderAlbumManager();
+            const cover = await same('#album-manager-list canvas[data-reuse-key="album-cover:alb_preview"]', () => renderAlbumManager());
+            return { card, cover };
+        });
+        assert.equal(reuse.card, true, 'album card in the chat keeps its canvas');
+        assert.equal(reuse.cover, true, 'album cover in the manager keeps its canvas');
         assert.ok(perPerson, 'per-person select rendered');
         assert.ok(perPerson.options.includes('1 Woche') && perPerson.options.includes('wie Album'), perPerson.options.join(','));
         assert.equal(perPerson.stored, 10080);

@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 155 · 2026-10-27
+## Build 156 · 2026-10-27
+- Behoben: Album-Karten im Chat und die Vorschaubilder in der Alben-Verwaltung flackerten beim Neuzeichnen
+
+## Build 155 · 2026-10-27 · `7c939f8`
 - Alben im Profil aufgeraeumt: jedes Album als eigene Karte mit Vorschaubild, Einstellungen zum Aufklappen und einer Zeile pro Person (Gueltigkeit, Zugriff entziehen)
 
 ## Build 154 · 2026-10-27 · `c1e2b67`

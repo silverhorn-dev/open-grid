@@ -519,12 +519,13 @@ function openAlbumPicker() {
 }
 
 // Album-Karte in einer Chat-Nachricht.
-function renderAlbumMessage(bubble, album) {
+function renderAlbumMessage(bubble, album, messageId = null) {
     const card = document.createElement('button');
     card.type = 'button';
     card.className = 'block w-48 sm:w-56 text-left';
     if (album.cover && isSafeInlineImage(album.cover)) {
-        card.appendChild(createSecureImage(album.cover, 'w-full aspect-square object-cover rounded-xl mb-1.5 border border-slate-900/50'));
+        card.appendChild(createSecureImage(album.cover, 'w-full aspect-square object-cover rounded-xl mb-1.5 border border-slate-900/50',
+            null, { reuseKey: messageId ? `album-card:${messageId}` : null }));
     }
     const title = document.createElement('div');
     title.className = 'font-semibold';
@@ -548,6 +549,9 @@ function syncAlbumCardVisibility() {
     const hide = isSocialMode() && getOwnAlbums().length === 0;
     document.getElementById('album-manager-card')?.classList.toggle('hidden', hide);
 }
+
+// Erstes Bild je Album (Bild-ID -> Data-URL) fuer die Vorschau in der Verwaltung.
+const albumManagerCovers = new Map();
 
 function renderAlbumManager() {
     syncAlbumCardVisibility();
@@ -600,11 +604,21 @@ function createAlbumManagerItem(album) {
     cover.className = 'album-cover';
     cover.setAttribute('aria-label', t('albums.openAlbum', { name: album.name }));
     cover.onclick = () => openAlbumViewer(album.id);
-    cover.innerHTML = '<i class="fa-solid fa-images"></i>';
-    if (album.items[0]) {
-        loadMedia(album.items[0].id).then(media => {
-            if (media?.data && isSafeInlineImage(media.data)) cover.replaceChildren(createSecureImage(media.data, ''));
-        }).catch(() => {});
+    // Vorschaubild synchron, sobald es einmal geladen ist (sonst kurz das Platzhalter-Symbol bei jedem
+    // Neuaufbau der Liste).
+    const first = album.items[0];
+    const known = first ? albumManagerCovers.get(first.id) : null;
+    if (known) {
+        cover.appendChild(createSecureImage(known, '', null, { reuseKey: `album-cover:${album.id}` }));
+    } else {
+        cover.innerHTML = '<i class="fa-solid fa-images"></i>';
+        if (first) {
+            loadMedia(first.id).then(media => {
+                if (!media?.data || !isSafeInlineImage(media.data)) return;
+                albumManagerCovers.set(first.id, media.data);
+                cover.replaceChildren(createSecureImage(media.data, '', null, { reuseKey: `album-cover:${album.id}` }));
+            }).catch(() => {});
+        }
     }
     const info = document.createElement('div');
     info.className = 'min-w-0 flex-1';

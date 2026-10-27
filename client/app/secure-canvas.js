@@ -46,30 +46,46 @@ function clearSecureCanvas(canvas, invalidate = true) {
 // size ({ w, h }, wenn bekannt): der Canvas bekommt sofort die richtigen Proportionen und haelt den
 // Platz frei, bevor das Bild gezeichnet ist (sonst springt der Inhalt darunter). Ohne Groesse haelt
 // ein 4:3-Platzhalter den Platz, bis das Bild da ist.
-// Beim Neuzeichnen des Chats die schon gezeichneten Canvas weiterverwenden statt neue, zuerst leere
-// anzulegen (sonst flackern Bilder und Video-Vorschauen bei jedem Update, z. B. waehrend ein Video
-// uebertragen wird). Schluessel: Art + Nachrichten-ID; nur bei gleicher Quelle.
-let reusableSecureImages = new Map();
+// Einziger Punkt fuer Bild-Canvas in Listen (Chat-Bilder, Video-Vorschauen, Album-Karten,
+// Album-Verwaltung): mit `reuseKey` merkt sich createSecureImage den gezeichneten Canvas. Wird die
+// Ansicht neu aufgebaut (alter Canvas schon aus dem DOM), kommt bei gleichem Schluessel und gleicher
+// Quelle genau dieser Canvas zurueck, fertig gezeichnet. Ohne das waere jeder neue Canvas bis zum
+// asynchronen Zeichnen leer: das bekannte Flackern. Haengt ein Canvas noch sichtbar woanders, gibt es
+// einen neuen (ein Element kann nur an einer Stelle stehen).
+const SECURE_IMAGE_REGISTRY_LIMIT = 150;
+const SECURE_IMAGE_REGISTRY_KEEP = 100;
+const secureImageRegistry = new Map();
 
-function collectReusableSecureImages(container) {
-    reusableSecureImages = new Map();
-    container?.querySelectorAll('canvas[data-reuse-key]').forEach(canvas => reusableSecureImages.set(canvas.dataset.reuseKey, canvas));
+function rememberSecureImage(key, canvas) {
+    secureImageRegistry.delete(key);
+    secureImageRegistry.set(key, canvas);
+    if (secureImageRegistry.size <= SECURE_IMAGE_REGISTRY_LIMIT) return;
+    // Aelteste, nicht mehr angezeigte zuerst vergessen (ihr Speicher wird dann frei).
+    for (const [storedKey, stored] of secureImageRegistry) {
+        if (secureImageRegistry.size <= SECURE_IMAGE_REGISTRY_KEEP) break;
+        if (!stored.isConnected) secureImageRegistry.delete(storedKey);
+    }
 }
 
-function releaseReusableSecureImages() {
-    reusableSecureImages = new Map();
+function reusableSecureImage(key, dataUrl) {
+    const canvas = key ? secureImageRegistry.get(key) : null;
+    if (!canvas || canvas.isConnected || !canvas.width || secureImageSources.get(canvas) !== dataUrl) return null;
+    rememberSecureImage(key, canvas);
+    return canvas;
 }
 
 function createSecureImage(dataUrl, className, size = null, { reuseKey = null } = {}) {
-    const reusable = reuseKey ? reusableSecureImages.get(reuseKey) : null;
-    if (reusable && secureImageSources.get(reusable) === dataUrl && reusable.width) {
-        reusableSecureImages.delete(reuseKey);
+    const reusable = reusableSecureImage(reuseKey, dataUrl);
+    if (reusable) {
         reusable.className = `secure-image ${className || ''}`.trim();
         reusable.onclick = null;
         return reusable;
     }
     const canvas = document.createElement('canvas');
-    if (reuseKey) canvas.dataset.reuseKey = reuseKey;
+    if (reuseKey) {
+        canvas.dataset.reuseKey = reuseKey;
+        rememberSecureImage(reuseKey, canvas);
+    }
     canvas.className = `secure-image ${className || ''}`.trim();
     canvas.setAttribute('role', 'img');
     canvas.setAttribute('aria-label', t('common.image'));

@@ -1056,6 +1056,8 @@
                 <div id="snap-emoji-row" class="hidden flex flex-wrap justify-end gap-1 max-w-[16rem] p-2 rounded-2xl bg-black/60"></div>
                 <div id="snap-text-entry" class="hidden flex gap-2 w-72 max-w-[80vw]">
                     <input data-i18n-attr="placeholder:snaps.text" id="snap-text-input" type="text" maxlength="80" placeholder="Text" data-enter="commitSnapText" class="flex-1 min-w-0 bg-black/60 border border-white/30 rounded-full px-4 py-2 text-base text-white placeholder:text-slate-400 focus:outline-none">
+                    <button data-i18n-attr="title:snaps.textStyle;aria-label:snaps.textStyle" id="snap-text-style-btn" data-click="cycleSnapTextStyle" class="w-10 shrink-0 rounded-full bg-black/60 border border-white/30 text-white text-sm font-bold" aria-label="Textart" title="Textart">Aa</button>
+                    <button data-i18n-attr="title:snaps.textBackground;aria-label:snaps.textBackground" id="snap-text-background-btn" data-click="cycleSnapTextBackground" class="w-10 shrink-0 rounded-full bg-black/60 border border-white/30 text-white text-sm" aria-label="Texthintergrund" title="Texthintergrund"><i class="fa-regular fa-square"></i></button>
                     <button data-i18n="snaps.ok" data-click="commitSnapText" class="px-4 rounded-full bg-brand-600 text-white text-sm font-semibold">OK</button>
                 </div>
             </div>
@@ -1072,6 +1074,7 @@
             </div>
             <p data-i18n="snaps.swipeUpGalleryDoubleTap" id="snap-gesture-hint" class="text-center text-[11px] text-white/60">Hochwischen: Galerie · Doppelt tippen: Kamera wechseln</p>
             <div id="snap-review-controls" class="hidden flex flex-col gap-3">
+                <div data-i18n-attr="aria-label:snaps.filters" id="snap-filter-row" class="flex justify-center gap-2 overflow-x-auto" role="radiogroup" aria-label="Filter"></div>
                 <input data-i18n-attr="placeholder:snaps.captionOptional" id="snap-caption-input" type="text" maxlength="200" placeholder="Bildunterschrift (optional)" class="w-full bg-white/10 border border-white/20 rounded-full px-4 py-2.5 text-base text-white placeholder:text-slate-400 focus:outline-none">
                 <label id="snap-original-option" class="hidden flex items-center justify-center gap-2 text-xs text-white cursor-pointer">
                     <input type="checkbox" id="snap-original-toggle" class="accent-brand-500">

@@ -117,13 +117,15 @@
   - nutzer 2026-10-27: galerie-wischen ging nur auf dem galerie-icon und dem ausloeser; seitlich snap/bild ging nicht; editor-gesten (skalieren, drehen) bitte mit zwei fingern: element = erst ein finger drauf, dann zweiter; hintergrund = beide
   - ursache seitlich: das typische wischen von rechts begann auf dem umschalt-knopf am rechten rand; in der vorschau gab es gar keine wisch-geste
   - fix 2026-10-27: leisten lassen gesten durch (`.snap-overlay`), hoch = galerie ueberall im kamerabild, wischen ab dem umschalt-knopf zaehlt, im editor ein finger seitlich = snap/bild; e2e `snap-editor-gestures` (mobil, echte mehrfinger-touches)
-- [ ] editing improvement
+- [x] editing improvement
    - [x] emoties und text soll scalable sein, dafür muss man das item verschieben und dabei mit einem 2. Finger rein oder rauszoomen, am pc scrollen während man es dragt.
       - [x] dabei soll er auch drehbar sein, und jeweils bei 90 grad sn die achse snappen, also wenn er parallel zur seite oder dem boden ist.
       - done 2026-10-27: item `scale`/`rotation`, zweiter finger irgendwo, einrasten bei 90 grad (6 grad fangbereich, vibration); hintergrund mit zwei fingern zoomen/drehen/verschieben; pc: mausrad beim ziehen, shift = drehen; `flattenSnapDraft` mit transformationen
-      - [ ] verschiedene textarten
-      - [ ] opt. ein texthintergrund
-   - [ ] die möglichkeit filter drüberzulegen, also s/W, farbenfroh, puff farben (rot), mit uhrzeit an verschiendenen stellen
+      - [x] verschiedene textarten
+      - [x] opt. ein texthintergrund
+      - done 2026-10-27: textart (klassisch, serif kursiv, mono, handschrift, neon) und hintergrund (keiner, abgedunkelt, voll) per knopf in der texteingabe
+   - [x] die möglichkeit filter drüberzulegen, also s/W, farbenfroh, puff farben (rot), mit uhrzeit an verschiendenen stellen
+      - done 2026-10-27: filter-leiste ueber der bildunterschrift (Original, S/W, Farbenfroh, Rot); uhrzeit als erster sticker im emoji-feld, frei verschieb-/skalier-/drehbar; tests `test/snap-editor.test.js`, e2e `snap-editor-gestures`
    - noch weitere ideen anmerkungen?
   - ideen dazu (vorschlag 2026-10-27, noch nicht bestaetigt): loeschen per ziehen auf einen papierkorb, textausrichtung, ortsfreie sticker (uhrzeit, wochentag)
 

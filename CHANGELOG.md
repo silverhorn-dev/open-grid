@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 145 · 2026-10-27
+## Build 146 · 2026-10-27
+- Snap-Editor: verschiedene Textarten (klassisch, kursiv, Schreibmaschine, Handschrift, Neon) und ein Texthintergrund (abgedunkelt oder farbig)
+- Snap-Editor: Filter fuer das Foto (Schwarz-Weiss, Farbenfroh, Rot) und die Uhrzeit als Sticker, frei platzierbar
+
+## Build 145 · 2026-10-27 · `1afb32c`
 - Snap-Editor: Text und Emojis mit zwei Fingern groesser/kleiner machen und drehen (erst ein Finger auf das Element, dann ein zweiter); bei 90 Grad rastet es ein. Mit zwei Fingern auf dem Hintergrund das Foto zoomen und drehen. Am PC: Mausrad beim Ziehen, mit Shift drehen
 - Snap-Kamera: nach oben wischen oeffnet die Galerie jetzt ueberall im Bild; Snap/Bild wechseln per Wischen klappt auch am rechten Rand und in der Vorschau
 - Behoben: beim Herunterziehen der Kontaktleiste im Chat lagen Nachrichten und Videos davor

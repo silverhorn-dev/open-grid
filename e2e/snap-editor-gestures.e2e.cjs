@@ -135,6 +135,41 @@ async function main() {
         assert.equal(flat.width, 600);
         assert.ok(flat.top[2] > 150, `zoomed photo still covers the top: ${flat.top}`);
 
+        // Filter: S/W macht das blaue Foto grau (Vorschau und gesendetes Bild).
+        await page.tap('#snap-filter-row [data-filter="bw"]');
+        await page.waitForTimeout(200);
+        assert.equal(await page.getAttribute('#snap-filter-row [data-filter="bw"]', 'aria-checked'), 'true');
+        const filtered = await page.evaluate(() => {
+            const canvas = flattenSnapDraft();
+            const [r, g, b] = canvas.getContext('2d').getImageData(canvas.width / 2, 5, 1, 1).data;
+            return [r, g, b];
+        });
+        assert.ok(Math.abs(filtered[0] - filtered[2]) < 4, `black and white: ${filtered}`);
+
+        // Uhrzeit als Sticker und Text mit anderer Art und vollem Hintergrund.
+        await page.tap('#snap-tool-emoji');
+        await page.tap('#snap-emoji-row [data-time-sticker]');
+        const time = await page.evaluate(() => snapEditor.items.at(-1));
+        assert.match(time.text, /^\d\d:\d\d$/);
+        assert.equal(time.font, 'mono');
+        await page.tap('[data-click="startSnapText"]');
+        await page.fill('#snap-text-input', 'Hallo');
+        await page.tap('#snap-text-style-btn');
+        await page.tap('#snap-text-background-btn');
+        await page.tap('#snap-text-background-btn');
+        await page.tap('[data-click="commitSnapText"]');
+        const text = await page.evaluate(() => snapEditor.items.at(-1));
+        assert.deepEqual([text.text, text.font, text.background], ['Hallo', 'serif', 'solid']);
+        const element = await page.evaluate(() => {
+            const node = document.querySelector('#snap-edit-layers [data-item-id]:last-child');
+            const style = getComputedStyle(node);
+            return { font: style.fontFamily, style: style.fontStyle, background: style.backgroundColor };
+        });
+        assert.match(element.font, /Georgia|serif/);
+        assert.equal(element.style, 'italic');
+        assert.notEqual(element.background, 'rgba(0, 0, 0, 0)', 'full background behind the text');
+        assert.ok(await page.evaluate(() => Boolean(flattenSnapDraft())), 'flattens with styled text');
+
         assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log('E2E OK (snap editor gestures, mobile)');
     } finally {

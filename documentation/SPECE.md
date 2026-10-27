@@ -178,7 +178,13 @@
   Vielfachen von 90 Grad ein (6 Grad Fangbereich, kurzes Vibrieren); ein Finger
   seitlich auf dem Bild = Snap/Bild umschalten; doppelt tippen auf eine Ebene
   loescht sie. Am PC: Mausrad beim Ziehen skaliert, mit Shift dreht es, ohne
-  Ziehen zoomt/dreht es das Foto. `flattenSnapDraft` zeichnet alles mit diesen
+  Ziehen zoomt/dreht es das Foto. Text hat eine Art (`font`: `classic`,
+  `serif`, `mono`, `hand`, `neon`; nur Geraeteschriften) und einen Hintergrund
+  (`background`: `none`, `shade` = abgedunkelt, `solid` = Textfarbe als Kasten,
+  Text dann schwarz/weiss nach Helligkeit). Filter fuer das Foto (`original`,
+  `bw`, `vivid`, `red`) als Pixel-Operation, einmal je Wahl auf eine Kopie
+  gerechnet (`filteredBase`, kein `canvas.filter` noetig). Uhrzeit-Sticker im
+  Emoji-Feld = Text-Ebene `HH:MM` (mono, abgedunkelt), frei platzierbar. `flattenSnapDraft` zeichnet alles mit diesen
   Transformationen in einen Canvas (ausserhalb des Fotos schwarz), erst danach
   bettet `encodeSnap` das Wasserzeichen ein und komprimiert unter 70 KB.
 - Gesten (`client/app/gestures.js`, nur Touch): Nachricht wischen (fremde

@@ -13,6 +13,19 @@ const SNAP_STROKE_WIDTH = 0.012;
 const SNAP_ITEM_SCALE_RANGE = [0.3, 6];
 const SNAP_BACKGROUND_SCALE_RANGE = [0.5, 5];
 const SNAP_ROTATION_SNAP = (6 * Math.PI) / 180;
+// Textarten (nur Schriften, die das Geraet ohnehin hat; keine Webfonts von aussen).
+const SNAP_TEXT_STYLES = {
+    classic: { family: 'system-ui, sans-serif', weight: '700', style: 'normal' },
+    serif: { family: 'Georgia, "Times New Roman", serif', weight: '700', style: 'italic' },
+    mono: { family: 'ui-monospace, "SFMono-Regular", "Courier New", monospace', weight: '700', style: 'normal' },
+    hand: { family: '"Segoe Print", "Bradley Hand", "Comic Sans MS", cursive', weight: '400', style: 'normal' },
+    neon: { family: 'system-ui, sans-serif', weight: '800', style: 'normal', glow: true }
+};
+const SNAP_TEXT_STYLE_ORDER = Object.keys(SNAP_TEXT_STYLES);
+// Texthintergrund: keiner, abgedunkelt, voll in der Textfarbe (Text dann schwarz oder weiss).
+const SNAP_TEXT_BACKGROUNDS = ['none', 'shade', 'solid'];
+// Filter fuer das Foto (Pixel-Operationen, gehen also auch ohne canvas.filter, z. B. auf iOS).
+const SNAP_FILTERS = ['original', 'bw', 'vivid', 'red'];
 
 const snapEditor = {
     base: null,
@@ -25,6 +38,10 @@ const snapEditor = {
     lastItemTap: null,
     // Foto unter Zeichnung und Ebenen: Zoom, Drehung (rad), Verschiebung relativ zur Bildgroesse.
     background: { scale: 1, rotation: 0, x: 0, y: 0 },
+    filter: 'original',
+    filteredBase: null,
+    textStyle: 'classic',
+    textBackground: 'none',
     gesture: { pointers: new Map(), mode: null, item: null, itemPointerId: null, offset: null, start: null, swipe: null, snapped: false }
 };
 
@@ -75,6 +92,8 @@ function openSnapEditor(base) {
     snapEditor.items = [];
     snapEditor.history = [];
     snapEditor.background = { scale: 1, rotation: 0, x: 0, y: 0 };
+    snapEditor.filter = 'original';
+    snapEditor.filteredBase = null;
     resetSnapEditorGesture();
     const baseCanvas = document.getElementById('snap-edit-base');
     const drawCanvas = document.getElementById('snap-edit-draw');
@@ -88,6 +107,7 @@ function openSnapEditor(base) {
     document.getElementById('snap-live-tools').classList.add('hidden');
     renderSnapColorRow();
     renderSnapEmojiRow();
+    renderSnapFilterRow();
     updateSnapToolButtons();
     fitSnapEditorStage();
 }
@@ -123,8 +143,73 @@ function drawSnapBackground(context, width, height) {
     context.translate(width / 2 + x * width, height / 2 + y * height);
     context.rotate(rotation);
     context.scale(scale, scale);
-    context.drawImage(snapEditor.base, -width / 2, -height / 2, width, height);
+    context.drawImage(snapEditor.filteredBase || snapEditor.base, -width / 2, -height / 2, width, height);
     context.restore();
+}
+
+// ----- Filter -----
+function applySnapFilterPixels(data, filter) {
+    for (let index = 0; index < data.length; index += 4) {
+        let red = data[index];
+        let green = data[index + 1];
+        let blue = data[index + 2];
+        const light = 0.299 * red + 0.587 * green + 0.114 * blue;
+        if (filter === 'bw') {
+            red = green = blue = light;
+        } else if (filter === 'vivid') {
+            // Mehr Saettigung und etwas Kontrast.
+            red = (light + (red - light) * 1.6 - 128) * 1.1 + 128;
+            green = (light + (green - light) * 1.6 - 128) * 1.1 + 128;
+            blue = (light + (blue - light) * 1.6 - 128) * 1.1 + 128;
+        } else if (filter === 'red') {
+            red = red * 1.15 + 24;
+            green *= 0.88;
+            blue *= 0.82;
+        }
+        data[index] = Math.min(255, Math.max(0, red));
+        data[index + 1] = Math.min(255, Math.max(0, green));
+        data[index + 2] = Math.min(255, Math.max(0, blue));
+    }
+    return data;
+}
+
+function setSnapFilter(filter) {
+    if (!SNAP_FILTERS.includes(filter) || !snapEditor.base) return;
+    snapEditor.filter = filter;
+    if (filter === 'original') {
+        snapEditor.filteredBase = null;
+    } else {
+        // Einmal pro Filterwahl rechnen, nicht bei jedem Neuzeichnen (Zoomen bleibt fluessig).
+        const canvas = document.createElement('canvas');
+        canvas.width = snapEditor.base.width;
+        canvas.height = snapEditor.base.height;
+        const context = canvas.getContext('2d');
+        context.drawImage(snapEditor.base, 0, 0);
+        const image = context.getImageData(0, 0, canvas.width, canvas.height);
+        applySnapFilterPixels(image.data, filter);
+        context.putImageData(image, 0, 0);
+        snapEditor.filteredBase = canvas;
+    }
+    redrawSnapBackground();
+    renderSnapFilterRow();
+}
+
+function renderSnapFilterRow() {
+    const row = document.getElementById('snap-filter-row');
+    if (!row) return;
+    const labels = { original: t('snaps.filterOriginal'), bw: t('snaps.filterBw'), vivid: t('snaps.filterVivid'), red: t('snaps.filterRed') };
+    row.replaceChildren(...SNAP_FILTERS.map(filter => {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.dataset.filter = filter;
+        const active = filter === snapEditor.filter;
+        chip.className = `shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border ${active ? 'bg-white text-black border-white' : 'bg-black/50 text-white border-white/30'}`;
+        chip.setAttribute('role', 'radio');
+        chip.setAttribute('aria-checked', String(active));
+        chip.textContent = labels[filter];
+        chip.onclick = () => setSnapFilter(filter);
+        return chip;
+    }));
 }
 
 function redrawSnapBackground() {
@@ -168,7 +253,18 @@ function renderSnapColorRow() {
 
 function renderSnapEmojiRow() {
     const row = document.getElementById('snap-emoji-row');
-    row.replaceChildren(...SNAP_EDIT_EMOJIS.map(emoji => {
+    // Erster Sticker: die aktuelle Uhrzeit (verschieb-, skalier- und drehbar wie jede Ebene).
+    const time = document.createElement('button');
+    time.type = 'button';
+    time.dataset.timeSticker = 'true';
+    time.className = 'h-10 px-2 rounded-lg hover:bg-white/10 text-white text-sm font-bold font-mono';
+    time.setAttribute('aria-label', t('snaps.timeSticker'));
+    time.textContent = formatClockTime(Date.now());
+    time.onclick = () => {
+        addSnapItem({ kind: 'text', text: formatClockTime(Date.now()), size: SNAP_TEXT_SIZE, color: '#ffffff', font: 'mono', background: 'shade' });
+        row.classList.add('hidden');
+    };
+    row.replaceChildren(time, ...SNAP_EDIT_EMOJIS.map(emoji => {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'w-10 h-10 text-2xl rounded-lg hover:bg-white/10';
@@ -200,7 +296,53 @@ function toggleSnapEmojiPicker() {
     document.getElementById('snap-emoji-row').classList.toggle('hidden');
 }
 
+function renderSnapTextOptions() {
+    const style = SNAP_TEXT_STYLES[snapEditor.textStyle];
+    const styleButton = document.getElementById('snap-text-style-btn');
+    if (styleButton) {
+        styleButton.style.fontFamily = style.family;
+        styleButton.style.fontStyle = style.style;
+        styleButton.style.textShadow = style.glow ? '0 0 6px #ffffff' : '';
+    }
+    const input = document.getElementById('snap-text-input');
+    if (input) {
+        input.style.fontFamily = style.family;
+        input.style.fontStyle = style.style;
+    }
+    const icon = document.querySelector('#snap-text-background-btn i');
+    if (icon) icon.className = { none: 'fa-regular fa-square', shade: 'fa-solid fa-square text-white/50', solid: 'fa-solid fa-square' }[snapEditor.textBackground];
+}
+
+function cycleSnapTextStyle() {
+    const index = SNAP_TEXT_STYLE_ORDER.indexOf(snapEditor.textStyle);
+    snapEditor.textStyle = SNAP_TEXT_STYLE_ORDER[(index + 1) % SNAP_TEXT_STYLE_ORDER.length];
+    renderSnapTextOptions();
+    document.getElementById('snap-text-input')?.focus();
+}
+
+function cycleSnapTextBackground() {
+    const index = SNAP_TEXT_BACKGROUNDS.indexOf(snapEditor.textBackground);
+    snapEditor.textBackground = SNAP_TEXT_BACKGROUNDS[(index + 1) % SNAP_TEXT_BACKGROUNDS.length];
+    renderSnapTextOptions();
+    document.getElementById('snap-text-input')?.focus();
+}
+
+// Kontrastfarbe fuer Text auf vollem Hintergrund.
+function contrastTextColor(hex) {
+    const value = parseInt(String(hex).replace('#', ''), 16);
+    const light = 0.299 * ((value >> 16) & 255) + 0.587 * ((value >> 8) & 255) + 0.114 * (value & 255);
+    return light > 150 ? '#111111' : '#ffffff';
+}
+
+function snapItemColors(item) {
+    if (item.kind !== 'text' || item.background === 'solid') {
+        return item.kind === 'text' ? { text: contrastTextColor(item.color), box: item.color } : { text: item.color, box: null };
+    }
+    return { text: item.color, box: item.background === 'shade' ? 'rgba(0, 0, 0, 0.55)' : null };
+}
+
 function startSnapText() {
+    renderSnapTextOptions();
     document.getElementById('snap-emoji-row').classList.add('hidden');
     const entry = document.getElementById('snap-text-entry');
     entry.classList.remove('hidden');
@@ -214,7 +356,7 @@ function commitSnapText() {
     const text = input.value.trim().substring(0, 80);
     document.getElementById('snap-text-entry').classList.add('hidden');
     input.blur();
-    if (text) addSnapItem({ kind: 'text', text, size: SNAP_TEXT_SIZE, color: snapEditor.color });
+    if (text) addSnapItem({ kind: 'text', text, size: SNAP_TEXT_SIZE, color: snapEditor.color, font: snapEditor.textStyle, background: snapEditor.textBackground });
 }
 
 // ----- Text- und Emoji-Ebenen (Position relativ 0..1, Groesse relativ zur Bildbreite) -----
@@ -234,8 +376,20 @@ function renderSnapItems() {
         element.dataset.itemId = item.id;
         element.textContent = item.text;
         element.style.fontSize = `${item.size * stageWidth}px`;
-        element.style.color = item.color;
-        element.style.textShadow = item.kind === 'text' ? '0 1px 3px rgba(0,0,0,0.8)' : '';
+        const colors = snapItemColors(item);
+        element.style.color = colors.text;
+        if (item.kind === 'text') {
+            const style = SNAP_TEXT_STYLES[item.font] || SNAP_TEXT_STYLES.classic;
+            element.style.fontFamily = style.family;
+            element.style.fontWeight = style.weight;
+            element.style.fontStyle = style.style;
+            element.style.textShadow = style.glow ? `0 0 0.15em ${item.color}, 0 0 0.4em ${item.color}` : colors.box ? '' : '0 1px 3px rgba(0,0,0,0.8)';
+            if (colors.box) {
+                element.style.backgroundColor = colors.box;
+                element.style.padding = '0.1em 0.35em';
+                element.style.borderRadius = '0.25em';
+            }
+        }
         positionSnapItemElement(element, item);
         return element;
     }));
@@ -487,14 +641,30 @@ function flattenSnapDraft() {
         context.save();
         context.translate(item.x * canvas.width, item.y * canvas.height);
         context.rotate(item.rotation || 0);
-        context.font = `bold ${Math.round(item.size * (item.scale || 1) * canvas.width)}px system-ui, sans-serif`;
-        if (item.kind === 'text') {
+        const fontSize = Math.round(item.size * (item.scale || 1) * canvas.width);
+        const style = item.kind === 'text' ? (SNAP_TEXT_STYLES[item.font] || SNAP_TEXT_STYLES.classic) : SNAP_TEXT_STYLES.classic;
+        context.font = `${style.style} ${style.weight} ${fontSize}px ${style.family}`;
+        const colors = snapItemColors(item);
+        if (colors.box) {
+            // Kasten wie in der Vorschau: 0,1em oben/unten, 0,35em seitlich, abgerundet.
+            const width = context.measureText(item.text).width + fontSize * 0.7;
+            const height = fontSize * 1.35;
+            context.fillStyle = colors.box;
+            context.beginPath();
+            if (typeof context.roundRect === 'function') context.roundRect(-width / 2, -height / 2, width, height, fontSize * 0.25);
+            else context.rect(-width / 2, -height / 2, width, height);
+            context.fill();
+        }
+        if (item.kind === 'text' && style.glow) {
+            context.shadowColor = item.color;
+            context.shadowBlur = fontSize * 0.4;
+        } else if (item.kind === 'text' && !colors.box) {
             context.shadowColor = 'rgba(0, 0, 0, 0.8)';
             context.shadowBlur = Math.round(canvas.width * 0.006);
         } else {
             context.shadowBlur = 0;
         }
-        context.fillStyle = item.color;
+        context.fillStyle = colors.text;
         context.fillText(item.text, 0, 0);
         context.restore();
     });

@@ -709,7 +709,14 @@
                         <span class="setting-text"><span data-i18n="settings.traceWatermark" class="setting-title">Spur-Wasserzeichen</span><span data-i18n="settings.yourSnapsAndAlbumImages" class="setting-desc">Eigene Snaps und Albumbilder tragen unsichtbar die ID des Empfängers. So lässt sich ein Leak (z. B. Screenshot) zuordnen.</span></span>
                         <input type="checkbox" role="switch" id="trace-watermark-toggle" checked data-change="updateTraceWatermark" data-args='["$checked"]' class="switch">
                     </label>
-                    <p data-i18n="settings.screenshotsCantBePreventedIn" class="setting-note">Screenshots lassen sich im Browser nicht verhindern. Bilder werden nur angezeigt, nicht als Datei bereitgestellt; speichern lassen sich nur Chat-Bilder im Chat- und Freunde-Modus.</p>
+                    <label class="setting-row">
+                        <span class="setting-text"><span data-i18n="settings.whoMaySaveMyMedia" class="setting-title">Wer darf meine Bilder und Videos speichern</span><span data-i18n="settings.whoMaySaveMyMediaDescription" class="setting-desc">Gilt für neue Chat-Bilder und Videos, auch fürs Teilen. Alben und Snaps nie.</span></span>
+                        <select id="media-download-select" data-change="updateMediaDownloadSetting" data-args='["$value"]' class="setting-select">
+                            <option data-i18n="settings.onlyFriends" value="friends">Nur Freunde</option>
+                            <option data-i18n="settings.allChatPartners" value="all">Alle Chat-Partner</option>
+                        </select>
+                    </label>
+                    <p data-i18n="settings.screenshotsCantBePreventedIn" class="setting-note">Screenshots lassen sich im Browser nicht verhindern. Bilder werden nur angezeigt, nicht als Datei bereitgestellt; speichern lassen sich nur Chat-Bilder und Videos, und nur wie es der Absender erlaubt.</p>
                 </div>
 
                 <div class="settings-card" data-settings-tab="media">
@@ -925,6 +932,12 @@
                 <div id="video-viewer-title" class="text-sm font-semibold text-white/90 truncate"></div>
                 <div id="video-viewer-meta" class="text-[11px] text-white/60"></div>
             </div>
+            <button data-i18n-attr="aria-label:viewer.shareVideo" id="video-viewer-share" data-click="shareViewerVideo" class="hidden pointer-events-auto ml-auto h-11 px-4 rounded-full bg-black/50 text-white text-sm font-semibold flex items-center gap-2" aria-label="Video teilen">
+                <i class="fa-solid fa-share-nodes"></i><span data-i18n="settings.share" class="hidden sm:inline">Teilen</span>
+            </button>
+            <button data-i18n-attr="aria-label:viewer.saveVideo" id="video-viewer-save" data-click="saveViewerVideo" class="hidden pointer-events-auto h-11 px-4 rounded-full bg-black/50 text-white text-sm font-semibold flex items-center gap-2" aria-label="Video speichern">
+                <i class="fa-solid fa-download"></i><span data-i18n="common.save" class="hidden sm:inline">Speichern</span>
+            </button>
             <button data-i18n-attr="aria-label:profileModal.close" data-click="closeVideoViewer" class="pointer-events-auto w-11 h-11 shrink-0 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Schließen">
                 <i class="fa-solid fa-xmark"></i>
             </button>
@@ -1101,6 +1114,7 @@
     <script src="/client/app/snap-editor.js?v={{assetVersion}}"></script>
     <script src="/client/app/snap-camera.js?v={{assetVersion}}"></script>
     <script src="/client/app/secure-canvas.js?v={{assetVersion}}"></script>
+    <script src="/client/app/media-rights.js?v={{assetVersion}}"></script>
     <script src="/client/app/viewer.js?v={{assetVersion}}"></script>
     <script src="/client/app/watermark.js?v={{assetVersion}}"></script>
     <script src="/client/app/albums.js?v={{assetVersion}}"></script>

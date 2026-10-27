@@ -12,6 +12,7 @@ const VIEWER_SLIDE_MS = 260;
 
 const viewer = {
     images: [],
+    allowSave: [],
     index: 0,
     scale: 1,
     x: 0,
@@ -30,13 +31,15 @@ function viewerElement(id) {
     return document.getElementById(id);
 }
 
-// options.allowSave: Speichern-Knopf (nur Chat-Bilder im Chat-/Freunde-Modus).
+// options.allowSave: Speichern/Teilen erlaubt, fuer alle Bilder (true/false) oder je Bild (Array,
+// Chat-Bilder nach der Wahl des Absenders, media-rights.js).
 function openImageViewer(images, startIndex = 0, options = {}) {
-    const safeImages = images.filter(isSafeInlineImage);
+    const allowed = images.map((image, index) => (Array.isArray(options.allowSave) ? options.allowSave[index] === true : options.allowSave === true));
+    const safe = images.map((image, index) => ({ image, allowed: allowed[index] })).filter(entry => isSafeInlineImage(entry.image));
+    const safeImages = safe.map(entry => entry.image);
     if (!safeImages.length) return;
     viewer.images = safeImages;
-    viewerElement('image-viewer-save').classList.toggle('hidden', !options.allowSave);
-    viewerElement('image-viewer-share').classList.toggle('hidden', !options.allowSave || !canShareFiles());
+    viewer.allowSave = safe.map(entry => entry.allowed);
     viewer.index = Math.min(Math.max(startIndex, 0), safeImages.length - 1);
     const element = viewerElement('image-viewer');
     if (element.classList.contains('hidden')) {
@@ -56,6 +59,7 @@ function hideImageViewer() {
     viewerElement('image-viewer-save').classList.add('hidden');
     viewerElement('image-viewer-share').classList.add('hidden');
     viewer.images = [];
+    viewer.allowSave = [];
     viewer.pointers.clear();
     viewer.gesture = null;
     viewer.animating = false;
@@ -134,6 +138,9 @@ function rotateViewerSlides(direction) {
 
 function updateViewerChrome() {
     const multiple = viewer.images.length > 1;
+    const allowSave = viewer.allowSave?.[viewer.index] === true;
+    viewerElement('image-viewer-save').classList.toggle('hidden', !allowSave);
+    viewerElement('image-viewer-share').classList.toggle('hidden', !allowSave || !canShareFiles());
     viewerElement('image-viewer-counter').textContent = multiple ? `${viewer.index + 1} / ${viewer.images.length}` : '';
     viewerElement('image-viewer-prev').classList.toggle('invisible', !multiple || viewer.index === 0);
     viewerElement('image-viewer-next').classList.toggle('invisible', !multiple || viewer.index === viewer.images.length - 1);

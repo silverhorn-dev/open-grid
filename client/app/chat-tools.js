@@ -80,7 +80,7 @@ async function openChatImageViewer(messageId) {
     const snaps = (state.chats[state.activeChatPeerId] || [])
         .filter(message => !message.deleted && isInlineSnap(message));
     const images = await Promise.all(snaps.map(bestImageFor));
-    openImageViewer(images, snaps.findIndex(message => message.id === messageId), { allowSave: isSocialMode() });
+    openImageViewer(images, snaps.findIndex(message => message.id === messageId), { allowSave: snaps.map(canDownloadMedia) });
 }
 
 // Eigene Nachrichten rechtsbuendig, fremde linksbuendig: die Leiste waechst zur Bildschirmmitte.

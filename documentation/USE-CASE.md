@@ -784,18 +784,22 @@ Akzeptanzkriterien:
   "Alle Modi anzeigen" schaltet alles wieder ein.
 - Bestehende Nutzer behalten alle Modi.
 
-## UC-48: Chat-Bild speichern oder teilen
+## UC-48: Chat-Bild oder Video speichern oder teilen
 
-**Als Nutzer im Chat- und Freunde-Bereich** moechte ich ein Chat-Bild
-herunterladen oder direkt ueber das Teilen-Menue meines Geraets weitergeben.
+**Als Nutzer** moechte ich ein Chat-Bild oder Video herunterladen oder direkt
+ueber das Teilen-Menue meines Geraets weitergeben, und **als Absender**
+festlegen, wer meine Medien speichern darf.
 
 Akzeptanzkriterien:
 
-- Im Bildbetrachter stehen "Speichern" und, wo das Geraet Dateien teilen kann
-  (typisch installierte App auf dem Handy), "Teilen" nebeneinander.
-- Teilen gibt ein JPEG an das System; Abbrechen zeigt keinen Fehler.
-- Wo Speichern nicht erlaubt ist (Alben, Secure Snaps, Grid & Event), gibt es
-  auch kein Teilen.
+- Im Bild- und Video-Betrachter stehen "Speichern" und, wo das Geraet Dateien
+  teilen kann (typisch installierte App auf dem Handy), "Teilen" nebeneinander.
+- Einstellung "Wer darf meine Bilder und Videos speichern": "Nur Freunde"
+  (Standard, Betreiber kann ihn aendern) oder "Alle Chat-Partner"; gilt fuer
+  neue Nachrichten, auch fuers Teilen.
+- Eigene Bilder und Videos lassen sich immer speichern.
+- Alben, Secure Snaps und Einmal-Snaps nie.
+- Teilen gibt die Datei an das System; Abbrechen zeigt keinen Fehler.
 
 ## UC-49: Aus einer anderen App nach OpenGrid teilen
 

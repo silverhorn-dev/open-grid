@@ -35,3 +35,10 @@ test('rejects unknown types and malformed or oversized payloads', () => {
     assert.equal(valid({ type: 'ALBUM_RESPONSE', album: { id: 'a', items: Array(501).fill({ id: 'x' }) } }), false);
     assert.equal(valid({ type: 'IMAGE_RESPONSE', imageId: 'img', version: -1, data: '' }), false);
 });
+
+test('download permission travels with the message and only known values pass', () => {
+    const withFlag = downloadable => ({ type: 'CHAT_OPERATION', operation: { ...put, message: { ...message, downloadable } } });
+    assert.equal(valid(withFlag('friends')), true);
+    assert.equal(valid(withFlag('all')), true);
+    assert.equal(valid(withFlag('everyone')), false);
+});

@@ -151,6 +151,7 @@ async function openChatVideo(message) {
     }
     const sender = message.senderId === state.myProfile.id ? 'Du' : getPeerPresentation(message.senderId).name || HIDDEN_PEER_NAME;
     openVideoViewer(data, {
+        allowSave: canDownloadMedia(message),
         title: sender,
         meta: [message.timestamp, formatVoiceDuration(message.video?.duration)].filter(Boolean).join(' · ')
     });
@@ -160,11 +161,14 @@ async function openChatVideo(message) {
 const VIDEO_VIEWER_CLOSE_THRESHOLD = 110;
 const videoViewer = { url: null, drag: null };
 
-function openVideoViewer(dataUrl, { title = '', meta = '' } = {}) {
+function openVideoViewer(dataUrl, { title = '', meta = '', allowSave = false } = {}) {
     const root = document.getElementById('video-viewer');
     const video = document.getElementById('video-viewer-video');
     releaseVideoViewerSource();
-    videoViewer.url = URL.createObjectURL(mediaDataUrlToBlob(dataUrl));
+    videoViewer.blob = mediaDataUrlToBlob(dataUrl);
+    videoViewer.url = URL.createObjectURL(videoViewer.blob);
+    document.getElementById('video-viewer-save')?.classList.toggle('hidden', !allowSave);
+    document.getElementById('video-viewer-share')?.classList.toggle('hidden', !allowSave || !canShareFiles());
     document.getElementById('video-viewer-title').textContent = title;
     document.getElementById('video-viewer-meta').textContent = meta;
     video.style.transform = '';
@@ -188,6 +192,44 @@ function releaseVideoViewerSource() {
     }
     if (videoViewer.url) URL.revokeObjectURL(videoViewer.url);
     videoViewer.url = null;
+    videoViewer.blob = null;
+    document.getElementById('video-viewer-save')?.classList.add('hidden');
+    document.getElementById('video-viewer-share')?.classList.add('hidden');
+}
+
+function videoViewerFile() {
+    const blob = videoViewer.blob;
+    if (!blob) return null;
+    const extension = { 'video/mp4': 'mp4', 'video/webm': 'webm', 'video/quicktime': 'mov' }[blob.type.split(';')[0]] || 'mp4';
+    return new File([blob], `opengrid-${Date.now()}.${extension}`, { type: blob.type.split(';')[0] || 'video/mp4' });
+}
+
+function saveViewerVideo() {
+    if (document.getElementById('video-viewer-save')?.classList.contains('hidden')) return;
+    const file = videoViewerFile();
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = file.name;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function shareViewerVideo() {
+    if (document.getElementById('video-viewer-share')?.classList.contains('hidden')) return;
+    const file = videoViewerFile();
+    if (!file || !navigator.canShare?.({ files: [file] })) {
+        showToast(t('viewer.sharingFailed'), 'error');
+        return;
+    }
+    try {
+        await navigator.share({ files: [file] });
+    } catch (error) {
+        if (error?.name === 'AbortError') return;
+        logDebug(`Video sharing failed: ${error.message}`);
+        showToast(t('viewer.sharingFailed'), 'error');
+    }
 }
 
 function isVideoViewerOpen() {

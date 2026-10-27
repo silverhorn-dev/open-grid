@@ -963,8 +963,15 @@ Bildbetrachter zeichnen in `<canvas>` (`client/app/secure-canvas.js`:
 `createImageBitmap` aus den Bytes, kein Data- oder Blob-URL im DOM,
 Kontextmenue gesperrt). Die Quelle fuer den Betrachter liegt nur in einer
 `WeakMap`. Beim Schliessen werden die Canvas geleert. Speichern (Download als
-JPEG aus dem Canvas) gibt es nur fuer Chat-Bilder im Chat- und Freunde-Modus
-(`isSocialMode`), nie fuer Alben oder Secure Snaps. Mit derselben Freigabe
+JPEG aus dem Canvas) gibt es nur fuer Chat-Bilder und Videos, nie fuer Alben,
+Secure Snaps oder Einmal-Snaps. Wer speichern darf, bestimmt der Absender
+(`client/app/media-rights.js`, `keys`/`media-download-settings = { value }`,
+`'friends'` Standard oder `'all'`, Router-Standard
+`CLIENT_DEFAULTS.mediaDownload`): neue Bild- und Video-Nachrichten tragen
+`downloadable`; `canDownloadMedia(message)` erlaubt eigene immer, fremde bei
+`'all'` oder wenn der Absender ein Freund ist (fehlt das Feld: nur Freunde).
+Der Bildbetrachter entscheidet je Bild (`allowSave` als Array), der
+Video-Betrachter hat "Speichern"/"Teilen" mit derselben Regel. Mit derselben Freigabe
 erscheint daneben "Teilen", wenn der Browser Dateien teilen kann
 (`canShareFiles`: `navigator.canShare({ files })`): `shareCanvasImage` gibt
 das JPEG an `navigator.share`; Abbrechen ist kein Fehler. Profil-Galerien bleiben

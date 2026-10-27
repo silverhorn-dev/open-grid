@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 139 · 2026-10-27
+## Build 140 · 2026-10-27
+- Videos lassen sich jetzt auch speichern und teilen
+- Neue Einstellung (Medien > Schutz): wer deine Bilder und Videos speichern darf, "Nur Freunde" (Standard) oder "Alle Chat-Partner". Eigene Medien kannst du immer speichern
+
+## Build 139 · 2026-10-27 · `d4f81d1`
 - Teilen nach OpenGrid: in der installierten App erscheint OpenGrid im Teilen-Menue anderer Apps; Fotos gehen nach "Senden an" direkt in den Chat, Text und Links landen im Eingabefeld
 
 ## Build 138 · 2026-10-27 · `fa71f61`

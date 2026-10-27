@@ -165,9 +165,16 @@ async function main() {
         await waitFor(bob, () => !document.getElementById('video-viewer').classList.contains('hidden')
             && document.getElementById('video-viewer-video').src.startsWith('blob:'));
         assert.match(await bob.textContent('#video-viewer-title'), /Alice/);
+        assert.equal(videoMessage.downloadable, 'friends', 'download permission travels with the video');
+        assert.equal(await bob.isVisible('#video-viewer-save'), false, 'not friends: no save button');
         await bob.keyboard.press('Escape');
         await waitFor(bob, () => document.getElementById('video-viewer').classList.contains('hidden'));
         assert.equal(await bob.evaluate(() => document.getElementById('video-viewer-video').getAttribute('src')), null, 'blob released');
+        // Eigene Videos darf man immer speichern.
+        await alice.evaluate(id => openChatVideo(Object.values(state.chats).flat().find(message => message.id === id)), videoMessage.id);
+        await waitFor(alice, () => !document.getElementById('video-viewer').classList.contains('hidden'));
+        assert.equal(await alice.isVisible('#video-viewer-save'), true, 'own video can be saved');
+        await alice.keyboard.press('Escape');
 
         assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log('E2E OK (voice and video)');

@@ -30,6 +30,7 @@ function isValidMessage(message) {
         && (message.scope === undefined || ['discovery', 'social'].includes(message.scope))
         && (message.original === undefined || isValidOriginalMeta(message.original))
         && (message.snapExpiry === undefined || ['15m', '30m', '60m', 'off'].includes(message.snapExpiry))
+        && (message.downloadable === undefined || ['friends', 'all'].includes(message.downloadable))
         // Sprachnachricht (voice.js): kleine Data-URL, Laenge in Sekunden, optional lokaler Text.
         && (message.audioData === undefined || (isOptionalString(message.audioData, MAX_AUDIO_LENGTH) && message.audioData.startsWith('data:audio/')))
         && (message.audioDuration === undefined || (Number.isFinite(message.audioDuration) && message.audioDuration >= 0 && message.audioDuration <= 3600))

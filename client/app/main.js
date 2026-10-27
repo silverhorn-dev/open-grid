@@ -119,6 +119,7 @@ window.onload = async () => {
         await runStartupStep('Snap-Einstellungen', async () => {
             await loadSnapSettings();
             await loadTraceWatermarkSetting();
+            await loadMediaDownloadSetting();
         });
         await generateUserIdentityKeys();
         await runStartupStep('Sichtbarkeit', loadGridSettings);

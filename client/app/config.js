@@ -117,6 +117,8 @@ const state = {
     // Listen-Wechsel Grid & Event <-> Chat & Freunde (chat-switch.js); override = nur angesehene Liste.
     listSwitchSettings: { enabled: true, behavior: 'mode' },
     chatListScopeOverride: null,
+    // Wer eigene Chat-Bilder/Videos speichern darf: 'friends' | 'all' (media-rights.js).
+    mediaDownload: 'friends',
     // Originalbilder im Empfang (originals.js), pro Nachrichten-ID.
     originalTransfers: {},
     // Snap-Kamera: als Einmal-Snap oder als normales Bild senden.

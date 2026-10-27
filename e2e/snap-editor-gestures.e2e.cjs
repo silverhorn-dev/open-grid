@@ -170,6 +170,57 @@ async function main() {
         assert.notEqual(element.background, 'rgba(0, 0, 0, 0)', 'full background behind the text');
         assert.ok(await page.evaluate(() => Boolean(flattenSnapDraft())), 'flattens with styled text');
 
+        // Text nachbearbeiten: einmal tippen oeffnet die Eingabe vorbelegt, OK aendert denselben Text.
+        const textPoint = await page.evaluate(() => {
+            const box = document.querySelector('#snap-edit-layers [data-item-id]:last-child').getBoundingClientRect();
+            return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+        });
+        const tapAt = async point => {
+            await touch('touchStart', [{ ...point, id: 1 }]);
+            await touch('touchEnd', []);
+        };
+        await tapAt(textPoint);
+        await page.waitForTimeout(450);
+        assert.equal(await page.isVisible('#snap-text-entry'), true, 'single tap opens the text for editing');
+        assert.equal(await page.inputValue('#snap-text-input'), 'Hallo');
+        const countBefore = await page.evaluate(() => snapEditor.items.length);
+        await page.fill('#snap-text-input', 'Hallo!');
+        await page.tap('#snap-text-background-btn');
+        await page.tap('[data-click="commitSnapText"]');
+        const edited = await page.evaluate(() => snapEditor.items.at(-1));
+        assert.deepEqual([edited.text, edited.background], ['Hallo!', 'none'], 'same item changed');
+        assert.equal(await page.evaluate(() => snapEditor.items.length), countBefore, 'no new item');
+        await page.tap('[data-click="undoSnapEdit"]');
+        const restored = await page.evaluate(() => snapEditor.items.at(-1));
+        assert.deepEqual([restored.text, restored.background], ['Hallo', 'solid'], 'undo restores the text');
+
+        // Rueckgaengig: Filter, Hintergrund-Zoom, Verschieben, Loeschen.
+        await page.tap('[data-click="undoSnapEdit"]');
+        assert.equal(await page.evaluate(() => snapEditor.items.some(item => item.text === 'Hallo')), false, 'undo removes the added text');
+        await page.tap('[data-click="undoSnapEdit"]');
+        assert.equal(await page.evaluate(() => snapEditor.items.some(item => /^\d\d:\d\d$/.test(item.text))), false, 'undo removes the time sticker');
+        await page.tap('[data-click="undoSnapEdit"]');
+        assert.equal(await page.evaluate(() => snapEditor.filter), 'original', 'undo resets the filter');
+        await page.tap('[data-click="undoSnapEdit"]');
+        assert.equal(await page.evaluate(() => snapEditor.background.scale), 1, 'undo resets the background zoom');
+        await page.tap('[data-click="undoSnapEdit"]');
+        const emoji = await page.evaluate(() => ({ scale: snapEditor.items[0].scale, rotation: snapEditor.items[0].rotation }));
+        assert.deepEqual(emoji, { scale: 1, rotation: 0 }, 'undo resets scale and rotation of the emoji');
+
+        // Doppelt tippen loescht, rueckgaengig holt es zurueck.
+        const emojiPoint = await page.evaluate(() => {
+            const box = document.querySelector('#snap-edit-layers [data-item-id]').getBoundingClientRect();
+            return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+        });
+        await tapAt(emojiPoint);
+        await page.waitForTimeout(80);
+        await tapAt(emojiPoint);
+        await page.waitForTimeout(400);
+        assert.equal(await page.evaluate(() => snapEditor.items.length), 0, 'double tap deletes');
+        assert.equal(await page.isVisible('#snap-text-entry'), false, 'no edit opened for the emoji');
+        await page.tap('[data-click="undoSnapEdit"]');
+        assert.equal(await page.evaluate(() => snapEditor.items.length), 1, 'undo brings it back');
+
         assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log('E2E OK (snap editor gestures, mobile)');
     } finally {

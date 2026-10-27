@@ -125,6 +125,8 @@
       - [x] opt. ein texthintergrund
       - done 2026-10-27: textart (klassisch, serif kursiv, mono, handschrift, neon) und hintergrund (keiner, abgedunkelt, voll) per knopf in der texteingabe
    - [x] die möglichkeit filter drüberzulegen, also s/W, farbenfroh, puff farben (rot), mit uhrzeit an verschiendenen stellen
+      - [x] text nachbearbeiten und hintergrund-aenderungen rueckgaengig machen (nutzer 2026-10-27)
+        - done 2026-10-27: ein tipp auf text = bearbeiten (vorbelegt), doppelt tippen = loeschen; rueckgaengig auch fuer hintergrund, filter, verschieben/skalieren/drehen, bearbeiten, loeschen; e2e `snap-editor-gestures`
       - done 2026-10-27: filter-leiste ueber der bildunterschrift (Original, S/W, Farbenfroh, Rot); uhrzeit als erster sticker im emoji-feld, frei verschieb-/skalier-/drehbar; tests `test/snap-editor.test.js`, e2e `snap-editor-gestures`
    - noch weitere ideen anmerkungen?
   - ideen dazu (vorschlag 2026-10-27, noch nicht bestaetigt): loeschen per ziehen auf einen papierkorb, textausrichtung, ortsfreie sticker (uhrzeit, wochentag)

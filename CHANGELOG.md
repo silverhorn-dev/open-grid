@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 146 · 2026-10-27
+## Build 147 · 2026-10-27
+- Snap-Editor: einmal auf einen Text tippen, um ihn nachzubearbeiten (Text, Art, Hintergrund, Farbe)
+- Snap-Editor: "Rueckgaengig" macht jetzt auch Zoomen/Drehen des Hintergrunds, Filter, Verschieben/Groesse/Drehung von Text und Emojis und das Loeschen per Doppeltippen rueckgaengig
+
+## Build 146 · 2026-10-27 · `6c43427`
 - Snap-Editor: verschiedene Textarten (klassisch, kursiv, Schreibmaschine, Handschrift, Neon) und ein Texthintergrund (abgedunkelt oder farbig)
 - Snap-Editor: Filter fuer das Foto (Schwarz-Weiss, Farbenfroh, Rot) und die Uhrzeit als Sticker, frei platzierbar
 

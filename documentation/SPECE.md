@@ -177,7 +177,11 @@
   dem Hintergrund zoomen/drehen/verschieben das Foto; Drehungen rasten bei
   Vielfachen von 90 Grad ein (6 Grad Fangbereich, kurzes Vibrieren); ein Finger
   seitlich auf dem Bild = Snap/Bild umschalten; doppelt tippen auf eine Ebene
-  loescht sie. Am PC: Mausrad beim Ziehen skaliert, mit Shift dreht es, ohne
+  loescht sie; einmal ruhig auf einen Text tippen oeffnet ihn nach 300 ms zum
+  Nachbearbeiten (Text, Art, Hintergrund, Farbe vorbelegt, OK aendert dieselbe
+  Ebene). "Rueckgaengig" (`snapEditor.history`) kennt: Strich, neue Ebene,
+  Ebene geloescht, verschoben/skaliert/gedreht, Text bearbeitet, Filter,
+  Hintergrund (je Zwei-Finger-Geste bzw. Mausrad-Folge ein Schritt). Am PC: Mausrad beim Ziehen skaliert, mit Shift dreht es, ohne
   Ziehen zoomt/dreht es das Foto. Text hat eine Art (`font`: `classic`,
   `serif`, `mono`, `hand`, `neon`; nur Geraeteschriften) und einen Hintergrund
   (`background`: `none`, `shade` = abgedunkelt, `solid` = Textfarbe als Kasten,

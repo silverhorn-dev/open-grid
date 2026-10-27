@@ -36,6 +36,10 @@ const snapEditor = {
     history: [],
     activeStroke: null,
     lastItemTap: null,
+    // Text, der gerade nachbearbeitet wird (Tipp auf eine Text-Ebene), und der verzoegerte Tipp
+    // (ein zweiter Tipp innerhalb 300 ms loescht stattdessen).
+    editingItemId: null,
+    pendingTextEdit: null,
     // Foto unter Zeichnung und Ebenen: Zoom, Drehung (rad), Verschiebung relativ zur Bildgroesse.
     background: { scale: 1, rotation: 0, x: 0, y: 0 },
     filter: 'original',
@@ -94,6 +98,8 @@ function openSnapEditor(base) {
     snapEditor.background = { scale: 1, rotation: 0, x: 0, y: 0 };
     snapEditor.filter = 'original';
     snapEditor.filteredBase = null;
+    snapEditor.editingItemId = null;
+    clearTimeout(snapEditor.pendingTextEdit);
     resetSnapEditorGesture();
     const baseCanvas = document.getElementById('snap-edit-base');
     const drawCanvas = document.getElementById('snap-edit-draw');
@@ -129,6 +135,11 @@ function closeSnapEditor() {
     document.getElementById('snap-emoji-row')?.classList.add('hidden');
     document.getElementById('snap-live-tools')?.classList.remove('hidden');
 }
+
+const SNAP_ITEM_TRANSFORM_KEYS = ['x', 'y', 'scale', 'rotation'];
+const SNAP_ITEM_TEXT_KEYS = ['text', 'font', 'background', 'color'];
+const pickKeys = (source, keys) => Object.fromEntries(keys.map(key => [key, source[key]]));
+const sameKeys = (left, right, keys) => keys.every(key => left[key] === right[key]);
 
 function resetSnapEditorGesture() {
     snapEditor.gesture = { pointers: new Map(), mode: null, item: null, itemPointerId: null, offset: null, start: null, swipe: null, snapped: false };
@@ -173,8 +184,9 @@ function applySnapFilterPixels(data, filter) {
     return data;
 }
 
-function setSnapFilter(filter) {
+function setSnapFilter(filter, { record = true } = {}) {
     if (!SNAP_FILTERS.includes(filter) || !snapEditor.base) return;
+    if (record && filter !== snapEditor.filter) snapEditor.history.push({ type: 'filter', before: snapEditor.filter });
     snapEditor.filter = filter;
     if (filter === 'original') {
         snapEditor.filteredBase = null;
@@ -341,13 +353,22 @@ function snapItemColors(item) {
     return { text: item.color, box: item.background === 'shade' ? 'rgba(0, 0, 0, 0.55)' : null };
 }
 
-function startSnapText() {
+// itemId: vorhandenen Text nachbearbeiten (Text, Art, Hintergrund, Farbe vorbelegt).
+function startSnapText(itemId = null) {
+    const item = typeof itemId === 'string' ? snapEditor.items.find(entry => entry.id === itemId && entry.kind === 'text') : null;
+    snapEditor.editingItemId = item?.id || null;
+    if (item) {
+        snapEditor.textStyle = SNAP_TEXT_STYLES[item.font] ? item.font : 'classic';
+        snapEditor.textBackground = SNAP_TEXT_BACKGROUNDS.includes(item.background) ? item.background : 'none';
+        snapEditor.color = item.color;
+        renderSnapColorRow();
+    }
     renderSnapTextOptions();
     document.getElementById('snap-emoji-row').classList.add('hidden');
     const entry = document.getElementById('snap-text-entry');
     entry.classList.remove('hidden');
     const input = document.getElementById('snap-text-input');
-    input.value = '';
+    input.value = item ? item.text : '';
     input.focus();
 }
 
@@ -356,7 +377,19 @@ function commitSnapText() {
     const text = input.value.trim().substring(0, 80);
     document.getElementById('snap-text-entry').classList.add('hidden');
     input.blur();
-    if (text) addSnapItem({ kind: 'text', text, size: SNAP_TEXT_SIZE, color: snapEditor.color, font: snapEditor.textStyle, background: snapEditor.textBackground });
+    const editing = snapEditor.items.find(entry => entry.id === snapEditor.editingItemId);
+    snapEditor.editingItemId = null;
+    const changes = { text, font: snapEditor.textStyle, background: snapEditor.textBackground, color: snapEditor.color };
+    if (editing) {
+        // Leer bestaetigt: Text bleibt, nur Art/Hintergrund/Farbe aendern sich.
+        if (!text) changes.text = editing.text;
+        if (sameKeys(editing, changes, SNAP_ITEM_TEXT_KEYS)) return;
+        snapEditor.history.push({ type: 'item-edit', id: editing.id, before: pickKeys(editing, SNAP_ITEM_TEXT_KEYS) });
+        Object.assign(editing, changes);
+        renderSnapItems();
+        return;
+    }
+    if (text) addSnapItem({ kind: 'text', size: SNAP_TEXT_SIZE, ...changes });
 }
 
 // ----- Text- und Emoji-Ebenen (Position relativ 0..1, Groesse relativ zur Bildbreite) -----
@@ -424,9 +457,12 @@ function handleSnapEditorDown(event) {
             const item = snapEditor.items.find(entry => entry.id === itemElement.dataset.itemId);
             if (!item) return;
             const now = Date.now();
-            // Doppelt tippen entfernt die Ebene.
+            clearTimeout(snapEditor.pendingTextEdit);
+            // Doppelt tippen entfernt die Ebene (rueckgaengig machbar).
             if (snapEditor.lastItemTap?.id === item.id && now - snapEditor.lastItemTap.at < 300) {
+                const index = snapEditor.items.indexOf(item);
                 snapEditor.items = snapEditor.items.filter(entry => entry.id !== item.id);
+                snapEditor.history.push({ type: 'item-delete', item, index });
                 snapEditor.lastItemTap = null;
                 resetSnapEditorGesture();
                 renderSnapItems();
@@ -437,6 +473,8 @@ function handleSnapEditorDown(event) {
             Object.assign(gesture, {
                 mode: 'item',
                 item,
+                itemBefore: pickKeys(item, SNAP_ITEM_TRANSFORM_KEYS),
+                down: { x: event.clientX, y: event.clientY, at: now, twoFingers: false },
                 itemPointerId: event.pointerId,
                 offset: { x: event.clientX - (rect.left + item.x * rect.width), y: event.clientY - (rect.top + item.y * rect.height) }
             });
@@ -450,10 +488,12 @@ function handleSnapEditorDown(event) {
     if (gesture.mode === 'item') {
         // Zweiter Finger irgendwo: skalieren und drehen.
         gesture.start = { ...pair, scale: gesture.item.scale || 1, rotation: gesture.item.rotation || 0 };
+        if (gesture.down) gesture.down.twoFingers = true;
     } else if (gesture.mode === 'background' && !itemElement) {
         gesture.mode = 'background-pinch';
         gesture.swipe = null;
         gesture.start = { ...pair, background: { ...snapEditor.background } };
+        gesture.backgroundBefore = { ...snapEditor.background };
     }
 }
 
@@ -503,16 +543,46 @@ function handleSnapEditorUp(event) {
     }
     if (gesture.mode === 'item') {
         // Element-Finger weg: Geste vorbei. Nur der zweite Finger weg: weiter verschieben, neu ansetzen.
-        if (event.pointerId === gesture.itemPointerId) resetSnapEditorGesture();
-        else gesture.start = null;
+        if (event.pointerId !== gesture.itemPointerId) {
+            gesture.start = null;
+            return;
+        }
+        finishSnapItemGesture(gesture, point, event.type === 'pointerup');
+        resetSnapEditorGesture();
         return;
     }
+    if (gesture.mode === 'background-pinch') recordSnapBackgroundChange(gesture.backgroundBefore);
     // Nach dem Zoomen bleibt ein Finger liegen: keine weitere Geste bis zum Loslassen.
     if (gesture.mode === 'background-pinch' && gesture.pointers.size) {
         gesture.mode = 'done';
         return;
     }
     if (!gesture.pointers.size) resetSnapEditorGesture();
+}
+
+// Ende einer Geste auf einer Ebene: Aenderung merken (rueckgaengig) oder, bei einem ruhigen kurzen
+// Tipp auf Text, nach 300 ms die Nachbearbeitung oeffnen (ein zweiter Tipp loescht stattdessen).
+function finishSnapItemGesture(gesture, point, released) {
+    const item = gesture.item;
+    if (!item) return;
+    if (!sameKeys(item, gesture.itemBefore, SNAP_ITEM_TRANSFORM_KEYS)) {
+        snapEditor.history.push({ type: 'item-transform', id: item.id, before: gesture.itemBefore });
+        return;
+    }
+    const down = gesture.down;
+    const tapped = released && down && !down.twoFingers && Math.hypot(point.x - down.x, point.y - down.y) < 10 && Date.now() - down.at < 400;
+    if (tapped && item.kind === 'text') {
+        clearTimeout(snapEditor.pendingTextEdit);
+        snapEditor.pendingTextEdit = setTimeout(() => {
+            snapEditor.pendingTextEdit = null;
+            if (snapEditor.items.includes(item)) startSnapText(item.id);
+        }, 300);
+    }
+}
+
+function recordSnapBackgroundChange(before) {
+    if (!before || sameKeys(before, snapEditor.background, ['scale', 'rotation', 'x', 'y'])) return;
+    snapEditor.history.push({ type: 'background', before });
 }
 
 // Mausrad: beim Ziehen eines Elements skalieren (Shift = drehen), sonst das Foto zoomen.
@@ -532,6 +602,11 @@ function handleSnapEditorWheel(event) {
         return;
     }
     if (snapEditor.tool === 'draw') return;
+    // Eine Folge von Rad-Schritten ist ein Schritt fuers Rueckgaengigmachen.
+    const last = snapEditor.history.at(-1);
+    const now = Date.now();
+    if (last?.type === 'background' && last.wheel && now - last.at < 600) last.at = now;
+    else snapEditor.history.push({ type: 'background', before: { ...snapEditor.background }, wheel: true, at: now });
     const background = snapEditor.background;
     if (event.shiftKey) {
         background.rotation = snapEditorRotation(background.rotation + event.deltaY * 0.003);
@@ -618,6 +693,18 @@ function undoSnapEdit() {
     if (last.type === 'stroke') {
         snapEditor.strokes.pop();
         redrawSnapStrokes();
+    } else if (last.type === 'background') {
+        snapEditor.background = { ...last.before };
+        redrawSnapBackground();
+    } else if (last.type === 'filter') {
+        setSnapFilter(last.before, { record: false });
+    } else if (last.type === 'item-transform' || last.type === 'item-edit') {
+        const item = snapEditor.items.find(entry => entry.id === last.id);
+        if (item) Object.assign(item, last.before);
+        renderSnapItems();
+    } else if (last.type === 'item-delete') {
+        snapEditor.items.splice(Math.min(last.index, snapEditor.items.length), 0, last.item);
+        renderSnapItems();
     } else {
         snapEditor.items = snapEditor.items.filter(item => item.id !== last.id);
         renderSnapItems();

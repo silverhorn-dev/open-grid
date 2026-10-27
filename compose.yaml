@@ -53,6 +53,11 @@ services:
             { "key": "status", "label": { "de": "Status", "en": "Status" }, "type": "string" },
             { "key": "currentWorkshop", "label": { "de": "Aktueller Workshop", "en": "Current Workshop" }, "type": "string" },
             { "key": "bio", "label": { "de": "Über mich", "en": "About me" }, "type": "description" }
+          ],
+          "friends": [
+            { "key": "displayName", "label": "Name", "type": "string", "required": true },
+            { "key": "status", "label": { "de": "Status", "en": "Status" }, "type": "string" },
+            { "key": "bio", "label": { "de": "Über mich", "en": "About me" }, "type": "description" }
           ]
         }
 #    disabled b'cause we are in the service net

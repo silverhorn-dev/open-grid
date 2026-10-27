@@ -69,9 +69,9 @@ function openReplaySnap(messageId) {
     drawSecureImage(image, message.snapData).catch(logBackgroundError('openReplaySnap'));
     image.classList.remove('hidden');
     renderReplayQueueLabel();
-    // Auch der Sender kann seinen eigenen Snap behalten.
+    // Auch der Sender kann seinen eigenen Snap behalten; der Empfaenger nur, wenn der Absender es erlaubt.
     const save = document.getElementById('secure-snap-save');
-    save.classList.remove('hidden');
+    save.classList.toggle('hidden', !isMine && message.downloadable === 'none');
     save.disabled = false;
     save.textContent = t('common.save');
 }
@@ -81,6 +81,7 @@ async function saveReplaySnap() {
     if (viewing?.mode !== 'replay') return;
     const message = state.chats[viewing.peerId]?.find(item => item.id === viewing.messageId);
     if (!message) return;
+    if (!viewing.isMine && message.downloadable === 'none') return;
     message.snapSaved = true;
     viewing.saved = true;
     await persistChatMessage(viewing.peerId, message);
@@ -341,8 +342,32 @@ function encodeSnap(source, width, height, mirror = false, watermarkBits = null)
 }
 
 // Nach der Aufnahme: Editor mit dem Rohbild (ohne Wasserzeichen) oeffnen.
+// Darf der Empfaenger dieses Bild/diesen Snap speichern? Je Aufnahme, Standard vom Router
+// (CLIENT_DEFAULTS.snapSaveable, ohne Angabe: ja). Aus = Nachricht traegt downloadable: 'none'.
+function resetSnapSaveable() {
+    state.snapSaveable = clientDefault('snapSaveable', true) !== false;
+    renderSnapSaveable();
+}
+
+function toggleSnapSaveable() {
+    state.snapSaveable = !state.snapSaveable;
+    hapticTick();
+    renderSnapSaveable();
+}
+
+function renderSnapSaveable() {
+    const button = document.getElementById('snap-saveable-btn');
+    if (button) button.setAttribute('aria-pressed', String(state.snapSaveable));
+    document.getElementById('snap-saveable-note')?.classList.toggle('hidden', state.snapSaveable);
+}
+
+function snapSaveOptions() {
+    return state.snapSaveable ? {} : { downloadable: 'none' };
+}
+
 function showSnapReview(base) {
     stopSnapCamera();
+    resetSnapSaveable();
     renderSnapSettings();
     document.getElementById('snap-camera-stage').classList.add('hidden');
     document.getElementById('snap-live-controls').classList.add('hidden');
@@ -360,6 +385,11 @@ function updateSnapReviewOptions() {
     const secureOptions = document.getElementById('snap-review-secure-options');
     if (forStatus || asImage) secureOptions?.classList.add('hidden');
     else secureOptions?.classList.toggle('hidden', !state.snapSettings.secureSnaps);
+    // Secure Snaps und Status lassen sich ohnehin nie speichern.
+    const saveableRelevant = !forStatus && (asImage || !state.snapSettings.secureSnaps);
+    document.getElementById('snap-saveable-btn')?.classList.toggle('hidden', !saveableRelevant);
+    if (!saveableRelevant) document.getElementById('snap-saveable-note')?.classList.add('hidden');
+    else renderSnapSaveable();
     const send = document.getElementById('snap-send-btn');
     if (send) {
         send.innerHTML = forStatus
@@ -429,7 +459,8 @@ async function sendPickedImages(files) {
                 if (secure) {
                     await sendChatMessage(null, '', null, await createSecureSnap(data, peerId, state.snapSettings.views, state.snapSettings.seconds));
                 } else {
-                    await sendChatMessage(data, '', null, null, { asImage });
+                    // Ohne Editor gilt der Router-Standard fuer "speicherbar".
+                    await sendChatMessage(data, '', null, null, { asImage, ...(clientDefault('snapSaveable', true) !== false ? {} : { downloadable: 'none' }) });
                 }
             }
             sent += 1;
@@ -470,7 +501,7 @@ async function sendSnapDraft() {
         const original = wantsOriginal ? await createOriginalImage(flattenSnapDraft(), peerId) : null;
         if (wantsOriginal && !original) showToast(t('snaps.originalIsTooLargeOnly'), 'warning');
         closeSnapModal();
-        await sendChatMessage(snapData, caption, null, null, { asImage: true, original });
+        await sendChatMessage(snapData, caption, null, null, { asImage: true, original, ...snapSaveOptions() });
         return;
     }
     const secure = state.snapSettings.secureSnaps;
@@ -478,7 +509,7 @@ async function sendSnapDraft() {
     const seconds = Number(document.getElementById('snap-review-seconds')?.value ?? state.snapSettings.seconds);
     closeSnapModal();
     if (!secure) {
-        await sendChatMessage(snapData, caption);
+        await sendChatMessage(snapData, caption, null, null, snapSaveOptions());
         return;
     }
     const secureSnap = await createSecureSnap(snapData, peerId, views, Number.isFinite(seconds) ? seconds : 10);

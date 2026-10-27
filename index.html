@@ -1038,7 +1038,11 @@
                     <button data-i18n-attr="aria-label:snaps.undo" data-click="undoSnapEdit" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Rückgängig">
                         <i class="fa-solid fa-rotate-left"></i>
                     </button>
+                    <button data-i18n-attr="title:snaps.saveableToggle;aria-label:snaps.saveableToggle" id="snap-saveable-btn" data-click="toggleSnapSaveable" class="snap-saveable w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Empfänger darf speichern" title="Empfänger darf speichern" aria-pressed="true">
+                        <span class="snap-saveable-icon" aria-hidden="true"><i class="fa-solid fa-download"></i><i class="fa-solid fa-user snap-saveable-contact"></i><span class="snap-saveable-strike"></span></span>
+                    </button>
                 </div>
+                <div data-i18n="snaps.notSaveable" id="snap-saveable-note" class="hidden px-3 py-1 rounded-full bg-black/60 text-xs font-semibold text-white">nicht speicherbar</div>
                 <div data-i18n-attr="aria-label:snaps.colour2" id="snap-color-row" class="flex gap-2" role="radiogroup" aria-label="Farbe"></div>
                 <div id="snap-emoji-row" class="hidden flex flex-wrap justify-end gap-1 max-w-[16rem] p-2 rounded-2xl bg-black/60"></div>
                 <div id="snap-text-entry" class="hidden flex gap-2 w-72 max-w-[80vw]">

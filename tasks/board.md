@@ -86,6 +86,15 @@
   - done 2026-10-27: manifest jetzt unter `/manifest.webmanifest` mit `share_target`; SW `handleShareTarget` -> cache `opengrid-share-inbox` -> `/chat?share=1`; `client/app/share-target.js` ("Senden an", bilder als chat-bilder, text nur ins eingabefeld); `createChatPickerList` (chat-switch.js) geteilt mit dem quick-switcher; tests `test/server.test.js`, e2e `share-target`; UC-49
   - offen: nur installierte PWA; iOS unterstuetzt share target nicht
 
+## T6 Bugs + Snap-Vorschau (2026-10-27)
+- [ ] when a video is in chat, sometimes it horribly flickers, wurde hier die media platzhalter funktion auch für videos umgesetzt?
+- [ ] when displaying the first view of a secure snap its very very short
+- [ ] man kann sich seine eigenen secure snaps nicht mehr ansehen, das soll bei den eigenen wie bei den normalen funken
+- [ ] secure snaps bugs, when waiting for "Freigabe" on receiving a secure snap it waits forever, auch wenn der andere client wieder on ist
+- [x] on taken image / snap preview toggle for safeable
+  - nutzer 2026-10-27: schalter neben den bearbeitungs-icons; download-icon mit kleinem kontakt-icon schraeg versetzt; angeklickt durchgestrichen + notiz "nicht speicherbar"; standard vom router, normal "speicherbar"
+  - done 2026-10-27: `#snap-saveable-btn` (snaps.js `toggleSnapSaveable`, `snapSaveOptions`), `downloadable: 'none'`, `CLIENT_DEFAULTS.snapSaveable`; einmal-snap "Speichern" beim empfaenger ausgeblendet; e2e `snap-camera`
+
 ## Eigene rotierende Verschluesselung (geparkt, erst besprechen)
 - [ ] gestohlene album-schluessel sollen nach der epoche wertlos sein; idee: eigener, vom server getakteter algorithmus -> `tasks/feature-request-rotating-encryption.md`
   - offen: konflikt mit regel "crypto nur ueber `crypto.subtle`"; alternative: server-epochen-geheimnis + `CK_e` per HKDF (AES-GCM bleibt)

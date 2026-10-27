@@ -36,6 +36,8 @@ function renderMediaDownloadSetting() {
 function canDownloadMedia(message) {
     if (!message || message.secureSnap || message.album || message.snapMode === 'replay') return false;
     if (message.senderId === state.myProfile?.id) return true;
+    // 'none': beim Senden als "nicht speicherbar" markiert.
+    if (message.downloadable === 'none') return false;
     if (message.downloadable === 'all') return true;
     return typeof isFriend === 'function' && isFriend(message.senderId);
 }

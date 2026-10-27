@@ -970,6 +970,10 @@ Secure Snaps oder Einmal-Snaps. Wer speichern darf, bestimmt der Absender
 `CLIENT_DEFAULTS.mediaDownload`): neue Bild- und Video-Nachrichten tragen
 `downloadable`; `canDownloadMedia(message)` erlaubt eigene immer, fremde bei
 `'all'` oder wenn der Absender ein Freund ist (fehlt das Feld: nur Freunde).
+Im Snap-Editor markiert der Schalter neben den Werkzeugen eine einzelne Aufnahme
+als "nicht speicherbar" (`downloadable: 'none'`, je Aufnahme zurueckgesetzt auf
+`CLIENT_DEFAULTS.snapSaveable`, Standard speicherbar): dann weder Speichern
+noch Teilen, und bei Einmal-Snaps kein "Speichern" im Chat beim Empfaenger.
 Der Bildbetrachter entscheidet je Bild (`allowSave` als Array), der
 Video-Betrachter hat "Speichern"/"Teilen" mit derselben Regel. Mit derselben Freigabe
 erscheint daneben "Teilen", wenn der Browser Dateien teilen kann

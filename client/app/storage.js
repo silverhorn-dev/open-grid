@@ -620,7 +620,7 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
                 // Ein Secure Snap darf nie zusaetzlich als Klartext-Snap ankommen.
                 snapData: localOperation.message.secureSnap ? undefined : localOperation.message.snapData,
                 snapMode: localOperation.message.snapMode === 'replay' ? 'replay' : undefined,
-                downloadable: ['friends', 'all'].includes(localOperation.message.downloadable) ? localOperation.message.downloadable : undefined,
+                downloadable: ['friends', 'all', 'none'].includes(localOperation.message.downloadable) ? localOperation.message.downloadable : undefined,
                 snapExpiry: localOperation.message.snapMode === 'replay' && ['15m', '30m', '60m', 'off'].includes(localOperation.message.snapExpiry)
                     ? localOperation.message.snapExpiry : undefined,
                 peerId,

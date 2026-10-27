@@ -460,7 +460,9 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
         transcript: options.audio?.transcript,
         video: options.video,
         // Wer das Bild bzw. Video speichern/teilen darf (Einstellung des Absenders, media-rights.js).
-        downloadable: (snapData && options.asImage) || options.video ? state.mediaDownload : undefined,
+        // 'none': im Snap-Editor als "nicht speicherbar" markiert (snaps.js).
+        downloadable: options.downloadable === 'none' ? 'none'
+            : (snapData && options.asImage) || options.video ? state.mediaDownload : undefined,
         // Liste dieses Chats (Grid & Event oder Chat & Freunde), der Empfaenger uebernimmt sie fuer neue Chats.
         scope: chatScopeOf(peerId) || currentChatScope(),
         timestamp: formatClockTime(Date.now()),

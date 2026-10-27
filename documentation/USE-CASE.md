@@ -797,6 +797,10 @@ Akzeptanzkriterien:
 - Einstellung "Wer darf meine Bilder und Videos speichern": "Nur Freunde"
   (Standard, Betreiber kann ihn aendern) oder "Alle Chat-Partner"; gilt fuer
   neue Nachrichten, auch fuers Teilen.
+- Im Snap-Editor laesst sich jede Aufnahme mit einem Schalter neben den
+  Werkzeugen (Download mit Kontakt) als "nicht speicherbar" markieren; der
+  Schalter ist dann durchgestrichen mit Hinweis. Standard kommt vom Betreiber,
+  sonst speicherbar.
 - Eigene Bilder und Videos lassen sich immer speichern.
 - Alben, Secure Snaps und Einmal-Snaps nie.
 - Teilen gibt die Datei an das System; Abbrechen zeigt keinen Fehler.

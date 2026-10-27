@@ -36,3 +36,9 @@ Ideen ohne festen Termin. Neue Phasen werden von hier auf `tasks/board.md` gehol
 ## chat improvements
 
 # bugs
+
+
+# SNAPPING
+
+## improvements
+- (2026-10-27 auf das board verschoben: video-flackern, secure-snap-bugs, speicherbar-schalter)

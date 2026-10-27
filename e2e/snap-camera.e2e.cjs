@@ -114,10 +114,18 @@ async function main() {
         await alice.click('[aria-label="Auslösen"]');
         await waitFor(alice, () => hasSnapDraft());
         assert.match(await alice.textContent('#snap-send-btn'), /Bild senden/);
+        // "Speicherbar" neben den Werkzeugen: Standard an, angetippt durchgestrichen mit Hinweis.
+        assert.equal(await alice.getAttribute('#snap-saveable-btn', 'aria-pressed'), 'true');
+        assert.equal(await alice.isVisible('#snap-saveable-note'), false);
+        await alice.click('#snap-saveable-btn');
+        assert.equal(await alice.getAttribute('#snap-saveable-btn', 'aria-pressed'), 'false');
+        assert.equal((await alice.textContent('#snap-saveable-note')).trim(), 'nicht speicherbar');
         await alice.click('#snap-send-btn');
         await waitFor(bob, () => Object.values(state.chats).flat().filter(message => typeof message.snapData === 'string').length >= 2, null, 30000);
         const image = await bob.evaluate(() => Object.values(state.chats).flat().filter(message => message.snapData).at(-1));
         assert.equal(image.snapMode, undefined, 'sent as a normal image, not a one-time snap');
+        assert.equal(image.downloadable, 'none', 'marked as not saveable');
+        assert.equal(await bob.evaluate(message => canDownloadMedia(message), image), false);
         assert.ok(image.imageSize?.w > 0 && image.imageSize?.h > 0, 'image size travels with the message');
         assert.equal(await bob.evaluate(message => messagePreview(message), image), 'Bild');
 
@@ -126,6 +134,7 @@ async function main() {
         await alice.click('#snap-mode-switch');
         await alice.click('[aria-label="Auslösen"]');
         await waitFor(alice, () => hasSnapDraft());
+        assert.equal(await alice.getAttribute('#snap-saveable-btn', 'aria-pressed'), 'true', 'every new picture starts with the default');
         assert.equal(await alice.isVisible('#snap-original-option'), true, 'original toggle in image mode');
         await alice.check('#snap-original-toggle');
         await alice.click('#snap-send-btn');

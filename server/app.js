@@ -67,6 +67,7 @@ const CLIENT_DEFAULT_RULES = {
     statusDirectOnly: 'boolean',
     traceWatermark: 'boolean',
     mediaDownload: ['friends', 'all'],
+    snapSaveable: 'boolean',
     secureSnaps: 'boolean',
     snapNextGesture: ['doubletap', 'swipe', 'swipeup'],
     snapExpiry: ['15m', '30m', '60m', 'off'],

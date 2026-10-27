@@ -119,6 +119,8 @@ const state = {
     chatListScopeOverride: null,
     // Wer eigene Chat-Bilder/Videos speichern darf: 'friends' | 'all' (media-rights.js).
     mediaDownload: 'friends',
+    // Snap-Editor: darf der Empfaenger diese Aufnahme speichern (snaps.js).
+    snapSaveable: true,
     // Originalbilder im Empfang (originals.js), pro Nachrichten-ID.
     originalTransfers: {},
     // Snap-Kamera: als Einmal-Snap oder als normales Bild senden.

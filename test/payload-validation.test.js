@@ -40,5 +40,6 @@ test('download permission travels with the message and only known values pass', 
     const withFlag = downloadable => ({ type: 'CHAT_OPERATION', operation: { ...put, message: { ...message, downloadable } } });
     assert.equal(valid(withFlag('friends')), true);
     assert.equal(valid(withFlag('all')), true);
+    assert.equal(valid(withFlag('none')), true);
     assert.equal(valid(withFlag('everyone')), false);
 });

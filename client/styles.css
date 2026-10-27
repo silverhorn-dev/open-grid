@@ -544,6 +544,32 @@ html.debug-on .debug-off-only {
     color: rgb(var(--slate-400));
     cursor: pointer;
 }
+/* Snap-Editor: "speicherbar"-Schalter (Download mit kleinem Kontakt, aus = durchgestrichen). */
+.snap-saveable-icon { position: relative; display: inline-flex; }
+.snap-saveable-contact {
+    position: absolute;
+    right: -0.55em;
+    bottom: -0.35em;
+    font-size: 0.55em;
+    padding: 0.12em;
+    border-radius: 9999px;
+    background: rgb(0 0 0 / 0.75);
+}
+.snap-saveable-strike {
+    display: none;
+    position: absolute;
+    left: 50%;
+    top: -0.2em;
+    width: 0.14em;
+    height: 1.5em;
+    border-radius: 9999px;
+    background: #f87171;
+    transform: translateX(-50%) rotate(45deg);
+    box-shadow: 0 0 0 0.06em rgb(0 0 0 / 0.75);
+}
+.snap-saveable[aria-pressed="false"] .snap-saveable-strike { display: block; }
+.snap-saveable[aria-pressed="false"] { color: #fca5a5; }
+
 /* Einstellungen eines nicht gewaehlten Bereichs (data-scope, modes.js). */
 .scope-hidden { display: none !important; }
 .setting-block,

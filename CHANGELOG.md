@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 140 · 2026-10-27
+## Build 141 · 2026-10-27
+- Snap-Editor: neuer Schalter neben den Werkzeugen, um ein Bild oder einen Snap als "nicht speicherbar" zu markieren
+
+## Build 140 · 2026-10-27 · `ab295a5`
 - Videos lassen sich jetzt auch speichern und teilen
 - Neue Einstellung (Medien > Schutz): wer deine Bilder und Videos speichern darf, "Nur Freunde" (Standard) oder "Alle Chat-Partner". Eigene Medien kannst du immer speichern
 

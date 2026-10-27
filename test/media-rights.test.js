@@ -50,4 +50,6 @@ test('who may save: own always, others as the sender allows, never albums or sna
     assert.equal(context.canDownloadMedia(image('friend', { album: { id: 'a' } })), false);
     assert.equal(context.canDownloadMedia(image('friend', { secureSnap: { snapId: 's' } })), false);
     assert.equal(context.canDownloadMedia(null), false);
+    assert.equal(context.canDownloadMedia(image('friend', { downloadable: 'none' })), false, 'marked as not saveable');
+    assert.equal(context.canDownloadMedia(image('me', { downloadable: 'none' })), true, 'own media stays saveable');
 });

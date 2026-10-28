@@ -193,7 +193,7 @@ function renderProfileForm(containerId = 'dynamic-profile-form') {
             if (field.max !== undefined) input.max = field.max;
         }
 
-        input.className = 'w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-base md:text-sm text-slate-100 focus:outline-none focus:border-brand-500';
+        input.className = 'w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-base md:text-sm text-slate-100 focus:outline-hidden focus:border-brand-500';
         if (field.type === 'description') input.classList.add('min-h-36', 'resize-y', 'leading-relaxed');
 
         input.onchange = (e) => {

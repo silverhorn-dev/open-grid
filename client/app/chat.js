@@ -101,7 +101,7 @@ function renderProfileModalData(profile) {
     renderProfileMatchActions(state.activeModalPeerId);
     if (profile.restricted && !isMatched(state.activeModalPeerId)) {
         const notice = document.createElement('div');
-        notice.className = 'col-span-2 bg-slate-800/60 border border-slate-700 p-2 rounded text-slate-300 flex items-center gap-2';
+        notice.className = 'col-span-2 bg-slate-800/60 border border-slate-700 p-2 rounded-sm text-slate-300 flex items-center gap-2';
         notice.innerHTML = '<i class="fa-solid fa-lock text-orange-300"></i>';
         notice.appendChild(document.createTextNode(profile.visibility === 3
             ? t('chat.thisProfileIsHiddenAfter')
@@ -127,7 +127,7 @@ function renderProfileModalData(profile) {
         const value = profile.fields?.[field.key];
         if (value === undefined || value === null || value === '') return;
         const card = document.createElement('div');
-        card.className = field.type === 'description' ? 'col-span-2 bg-slate-800 p-2 rounded' : 'bg-slate-800 p-2 rounded';
+        card.className = field.type === 'description' ? 'col-span-2 bg-slate-800 p-2 rounded-sm' : 'bg-slate-800 p-2 rounded-sm';
         const label = document.createElement('div');
         label.className = 'text-slate-400 font-bold';
         label.textContent = localizedText(field.label);
@@ -637,7 +637,7 @@ function renderChatHistory() {
         row.className = `flex flex-col ${isMine ? 'items-end' : 'items-start'}`;
         if (message.replyTo && !message.deleted) row.appendChild(renderReplyQuote(message.replyTo, isMine));
         const bubble = document.createElement('div');
-        bubble.className = `chat-bubble whitespace-pre-wrap break-words max-w-[80%] rounded-2xl px-4 py-2 overflow-hidden ${message.deleted ? 'bg-slate-900 text-slate-500 border border-slate-800 italic' : isMine ? 'bg-brand-600 text-white rounded-br-none' : 'bg-slate-800 text-slate-100 rounded-bl-none'}`;
+        bubble.className = `chat-bubble whitespace-pre-wrap wrap-break-word max-w-[80%] rounded-2xl px-4 py-2 overflow-hidden ${message.deleted ? 'bg-slate-900 text-slate-500 border border-slate-800 italic' : isMine ? 'bg-brand-600 text-white rounded-br-none' : 'bg-slate-800 text-slate-100 rounded-bl-none'}`;
 
         if (message.deleted) {
             bubble.textContent = t('common.messageDeleted');

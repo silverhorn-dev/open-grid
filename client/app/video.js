@@ -110,7 +110,7 @@ function renderVideoMessage(bubble, message, isMine) {
     overlay.className = 'absolute inset-0 flex items-center justify-center pointer-events-none';
     overlay.innerHTML = '<span class="w-12 h-12 rounded-full bg-black/55 text-white flex items-center justify-center"><i class="fa-solid fa-play"></i></span>';
     const duration = document.createElement('span');
-    duration.className = 'absolute bottom-1.5 right-2 text-[11px] text-white bg-black/55 rounded px-1 pointer-events-none';
+    duration.className = 'absolute bottom-1.5 right-2 text-[11px] text-white bg-black/55 rounded-sm px-1 pointer-events-none';
     duration.textContent = formatVoiceDuration(message.video?.duration);
     frame.append(overlay, duration);
     frame.onclick = event => {

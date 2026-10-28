@@ -314,7 +314,7 @@ function cycleVoiceRate() {
 
 function renderVoiceMessage(bubble, message, isMine) {
     const player = document.createElement('div');
-    player.className = 'flex items-center gap-2 min-w-[12.5rem] py-0.5';
+    player.className = 'flex items-center gap-2 min-w-50 py-0.5';
     player.dataset.voice = message.id;
     const button = document.createElement('button');
     button.type = 'button';
@@ -337,7 +337,7 @@ function renderVoiceMessage(bubble, message, isMine) {
     fill.className = `voice-fill absolute inset-y-0 left-0 rounded-full ${isMine ? 'bg-white' : 'bg-brand-400'}`;
     fill.style.width = '0%';
     const thumb = document.createElement('div');
-    thumb.className = `voice-thumb absolute top-1/2 w-3 h-3 -mt-1.5 -ml-1.5 rounded-full shadow ${isMine ? 'bg-white' : 'bg-brand-400'}`;
+    thumb.className = `voice-thumb absolute top-1/2 w-3 h-3 -mt-1.5 -ml-1.5 rounded-full shadow-sm ${isMine ? 'bg-white' : 'bg-brand-400'}`;
     thumb.style.left = '0%';
     rail.append(fill, thumb);
     if (hasVoiceRest(message) && !isVoiceRestAvailable(message)) {
@@ -354,7 +354,7 @@ function renderVoiceMessage(bubble, message, isMine) {
     time.textContent = formatVoiceDuration(message.audioDuration);
     const rate = document.createElement('button');
     rate.type = 'button';
-    rate.className = `voice-rate shrink-0 min-w-[2.25rem] h-6 px-1.5 rounded-full text-[11px] font-semibold tabular-nums ${isMine ? 'bg-white/20' : 'bg-slate-700'}`;
+    rate.className = `voice-rate shrink-0 min-w-9 h-6 px-1.5 rounded-full text-[11px] font-semibold tabular-nums ${isMine ? 'bg-white/20' : 'bg-slate-700'}`;
     rate.setAttribute('aria-label', t('voice.playbackSpeed'));
     rate.textContent = voiceRateLabel(voiceRate());
     rate.onclick = event => {

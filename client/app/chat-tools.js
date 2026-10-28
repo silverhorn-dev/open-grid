@@ -289,11 +289,11 @@ function renderReactions(message, isMine) {
     });
     const row = document.createElement('div');
     // Eigene Nachrichten: unten links, fremde: unten rechts (Richtung Bildschirmmitte).
-    row.className = `message-reactions absolute -bottom-4 ${isMine ? 'left-2' : 'right-2'} z-[5] flex gap-1`;
+    row.className = `message-reactions absolute -bottom-4 ${isMine ? 'left-2' : 'right-2'} z-5 flex gap-1`;
     counts.forEach(({ count, mine }, emoji) => {
         const chip = document.createElement('button');
         chip.type = 'button';
-        chip.className = `text-sm leading-none px-2 py-1 rounded-full border shadow ${mine ? 'bg-brand-900 border-brand-500/60' : 'bg-slate-900 border-slate-700'}`;
+        chip.className = `text-sm leading-none px-2 py-1 rounded-full border shadow-sm ${mine ? 'bg-brand-900 border-brand-500/60' : 'bg-slate-900 border-slate-700'}`;
         chip.textContent = count > 1 ? `${emoji} ${count}` : emoji;
         chip.onclick = () => reactToMessage(message.id, emoji);
         row.appendChild(chip);

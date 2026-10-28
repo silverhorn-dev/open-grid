@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 164 · 2026-10-28
+## Build 165 · 2026-10-28
+- Behoben: wer einer Einladung aus "Entdecken" folgte, konnte schreiben, obwohl der andere nur Matches zulaesst; die Nachrichten kamen still nicht an. Jetzt wartet die Eingabe kurz auf das Profil und zeigt dann ehrlich, ob erst eine Flamme noetig ist
+
+## Build 164 · 2026-10-28 · `f8e851a`
 - Betrieb: Jenkins baut auf Neben-Branches jetzt auch das echte Image zur Probe, deployt dort aber nie (wie bisher nur main)
 
 ## Build 162–163 · 2026-10-28 · `366ef79`, `90cb2fd`

@@ -139,7 +139,9 @@
 - [x] einladung aus "Entdecken", geoeffnet im chat-modus: chat landete in der falschen liste
   - entschieden (nutzer): einladung traegt den modus; geht in dessen modus/liste; ist der bereich beim empfaenger aus, oeffnet sich nichts, nur "modus deaktiviert"
   - done 2026-10-27: link `#<peer>.<fingerprint>~<modus>`, `inviteTarget`, hinweis `modes.inviteModeDisabled`; tests `test/modes.test.js`, e2e `invite-modes`
-  - offen (nicht entschieden): im entdecken-bereich kann die chat-sperre des einladenden ("Nur Matches") nachrichten des eingeladenen zurueckhalten
+  - [x] chat-sperre des einladenden ("Nur Matches") im entdecken-bereich
+    - entschieden (nutzer 2026-10-28): sperre bleibt, auch fuer eingeladene (erst flamme/match)
+    - done 2026-10-28: ohne bekanntes profil bleibt die eingabe in "Grid & Event"-chats gesperrt ("Profil wird geladen"), profil wird aktiv angefragt; danach zeigt der hinweis die sperre statt still zurueckgehaltener nachrichten; test `test/matching.test.js`
 - [x] album: besitzer waehlt die vorschau (normal / unscharf / keine)
   - done 2026-10-27: `album.preview`, "Vorschau im Chat" in der album-karte, unscharf beim besitzer gerechnet; e2e `album-preview`; UC-50
 

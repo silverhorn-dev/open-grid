@@ -693,7 +693,10 @@ async function handleIncomingProfileResponse(peerId, signedEnvelopeOrProfile) {
     }
     // Name und Bild in Chatliste und Kontaktleiste nachziehen.
     renderActivePeerList();
-    if (state.activeChatPeerId === peerId) renderChatPeerHeader(peerId);
+    if (state.activeChatPeerId === peerId) {
+        renderChatPeerHeader(peerId);
+        renderChatAllowance();
+    }
 }
 
 async function handleIncomingImageRequest(peerId, imageId) {
@@ -864,7 +867,10 @@ async function handleSecurePayload(peerId, payload, deliveredVia = 'E2EE P2P') {
             renderProfileModalData(acceptedProfile);
         }
         renderActivePeerList();
-        if (state.activeChatPeerId === targetNodeId) renderChatPeerHeader(targetNodeId);
+        if (state.activeChatPeerId === targetNodeId) {
+            renderChatPeerHeader(targetNodeId);
+            renderChatAllowance();
+        }
     } else if (payload.type === 'ALBUM_REQUEST') {
         await handleAlbumRequest(peerId, payload.albumId);
     } else if (payload.type === 'ALBUM_RESPONSE') {

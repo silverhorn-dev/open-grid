@@ -981,7 +981,11 @@ ueber den Regeln wird mit `held: true` gespeichert und nicht angezeigt. Beim
 Match werden alle `held`-Nachrichten freigegeben. Ein Chat gilt auch als
 angenommen, wenn man dem anderen selbst schon geschrieben hat. Der Client des
 Absenders liest die Regeln aus dem Profil und zeigt "Noch N Nachrichten bis
-zum Match" bzw. sperrt die Eingabe (nur Anzeige).
+zum Match" bzw. sperrt die Eingabe (nur Anzeige). Die Regeln gelten auch fuer
+Eingeladene (Einladungslink): ist bei einem Chat im Bereich "Grid & Event" das
+Profil des anderen noch unbekannt, bleibt die Eingabe gesperrt ("Profil wird
+geladen"), bis es per `requestMissingProfile` da ist; sonst gingen Nachrichten
+raus, die der andere wegen "Nur Matches" still zurueckhaelt.
 
 Der Service Worker kennt die Regeln nicht. Die Seite spiegelt deshalb
 `keys`/`chat-gate = { mode, acceptedPeerIds }`. Bei Modus B/C und nicht

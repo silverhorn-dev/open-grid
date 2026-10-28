@@ -130,6 +130,24 @@ test('the sender sees the remaining messages of the receiver policy', () => {
     assert.equal(context.getPeerChatAllowance('peer').allowed, true, 'a reply from the peer accepts the chat');
 });
 
+// Einladung in "Entdecken": die Chat-Sperre ("Nur Matches") gilt auch fuer Eingeladene. Ohne Profil
+// ist sie unbekannt, also erst laden statt Nachrichten zu schicken, die der andere zurueckhaelt.
+test('discovery chats without a known profile wait for it before writing', () => {
+    const context = loadMatching();
+    const requested = [];
+    context.requestMissingProfile = peerId => requested.push(peerId);
+    context.state.chatScopes.invited = 'discovery';
+    const waiting = plain(context.getPeerChatAllowance('invited'));
+    assert.equal(waiting.allowed, false);
+    assert.match(waiting.reason, /Profil wird geladen/);
+    assert.deepEqual(requested, ['invited']);
+
+    context.state.cachedProfiles.invited = { chatPolicy: { mode: 'C' } };
+    assert.equal(context.getPeerChatAllowance('invited').allowed, false, 'the lock stays for invited peers');
+    context.state.chatScopes.friend = 'social';
+    assert.equal(context.getPeerChatAllowance('friend').allowed, true, 'social chats are not held');
+});
+
 test('only fields of the active profile schema are sent', () => {
     const context = loadMatching();
     context.state.myProfile.fields.role = 'dating detail';

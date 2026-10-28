@@ -178,6 +178,13 @@ function getPeerChatAllowance(peerId) {
     // Hat der andere schon geschrieben, hat er den Chat angenommen.
     const peerWrote = (state.chats[peerId] || []).some(message => message.senderId === peerId && !message.held);
     if (peerWrote) return { allowed: true, remaining: Infinity, images: true };
+    // Entdecken ohne bekanntes Profil (z. B. gerade per Einladung geoeffnet): die Chat-Sperre des
+    // anderen ist noch unbekannt. Erst das Profil holen, statt Nachrichten zu schicken, die er wegen
+    // "Nur Matches" zurueckhaelt (die Sperre gilt auch fuer Eingeladene).
+    if (!state.cachedProfiles[peerId] && chatScopeOf(peerId) === 'discovery') {
+        requestMissingProfile(peerId);
+        return { allowed: false, remaining: 0, images: false, reason: t('matching.waitingForProfile') };
+    }
     const policy = sanitizeChatPolicy(state.cachedProfiles[peerId]?.chatPolicy);
     if (policy.mode === 'A') return { allowed: true, remaining: Infinity, images: true };
     const wording = connectionWording();

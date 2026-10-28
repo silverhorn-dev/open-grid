@@ -581,7 +581,7 @@ Worker (Abschnitt 6.0). Der Datensatz `grid-settings` speichert `silent`, `ttlMi
 (Liste von Geohash-Zellen). Ein fehlender Datensatz entspricht den Standardwerten.
 Safe Zones verlassen nie das Geraet: Liegt die eigene Zelle in einer Safe
 Zone, registriert sich der Client als `silent`. Weitere Datensaetze:
-`chat-scopes` (Chatlisten, 6.0), `chat-reads` (Lesestand fuer Ungelesen-Badges, 6.0), `album-defaults`, `album-ticket:<albumId>`
+`chat-scopes` (Chatlisten, 6.0), `discovery-history` (Entdecken-Verlauf in Freundes-Chats), `chat-reads` (Lesestand fuer Ungelesen-Badges, 6.0), `album-defaults`, `album-ticket:<albumId>`
 (5.1), `privacy-settings` (Spur-Wasserzeichen) und `status-settings`
 (`directOnly`, Status).
 
@@ -952,6 +952,20 @@ Nachrichtenaustausch: eigene erste Nachricht = aktueller Modus, eingehende
 erste Nachricht = `message.scope` des Absenders (Feld im verschluesselten
 `MESSAGE_PUT`). Freunde sind immer `social`. Chats ohne Zuordnung (aeltere
 Versionen) erscheinen in beiden Listen.
+
+**Entdecken-Verlauf im Freundes-Chat** (`client/app/friends.js`): Pro Person
+gibt es nur einen Verlauf; jede Nachricht traegt den Bereich, in dem sie
+geschrieben wurde (`message.scope`). Wird aus einem Match ein Freund, wandert
+der Chat nach `social`, und Nachrichten mit `scope: 'discovery'` werden dort
+ausgeblendet (nur Anzeige, nichts geloescht, das Gegenueber merkt nichts).
+Einstellung in `keys`/`discovery-history = { hide, flipped }`: `hide` ist die
+Grundeinstellung (Standard an, Router-Standard
+`CLIENT_DEFAULTS.hideDiscoveryHistory`), `flipped` die Chats, in denen man sie
+oben im Verlauf umgedreht hat ("Entdecken-Verlauf ausgeblendet (N) ·
+anzeigen"). Eine neue Grundeinstellung leert `flipped`. Ist der
+Entdecken-Bereich aus (Bereichswahl), bleibt der Teil immer verborgen und es
+gibt keine Umschaltung. Ausgeblendete Nachrichten zaehlen nicht als ungelesen.
+Nachrichten ohne `scope` (aeltere Versionen) bleiben sichtbar.
 
 **Ungelesen-Badges** (`client/app/unread.js`): Lesestand je Chat in
 `keys`/`chat-reads` (`{ reads: { <peerId>: ms, '*': ms } }`), nur lokal, geht

@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 165 · 2026-10-28
+## Build 166 · 2026-10-28
+- Nach dem Adden bleibt es ein Chat, aber der Flirt aus "Entdecken" ist im Freundes-Chat erst einmal ausgeblendet; oben im Chat kannst du ihn jederzeit einblenden. Abschaltbar unter Einstellungen > Chat > Nach dem Adden
+
+## Build 165 · 2026-10-28 · `3f86068`
 - Behoben: wer einer Einladung aus "Entdecken" folgte, konnte schreiben, obwohl der andere nur Matches zulaesst; die Nachrichten kamen still nicht an. Jetzt wartet die Eingabe kurz auf das Profil und zeigt dann ehrlich, ob erst eine Flamme noetig ist
 
 ## Build 164 · 2026-10-28 · `f8e851a`

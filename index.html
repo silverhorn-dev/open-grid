@@ -638,6 +638,14 @@
                     </label>
                 </div>
 
+                <div class="settings-card" data-settings-tab="chat" data-scope="all">
+                    <h3 class="settings-card-title"><i class="fa-solid fa-user-group text-brand-400"></i> <span data-i18n="friends.afterAdding">Nach dem Adden</span></h3>
+                    <label class="setting-row">
+                        <span class="setting-text"><span data-i18n="friends.hideDiscoveryHistorySetting" class="setting-title">Entdecken-Verlauf ausblenden</span><span data-i18n="friends.hideDiscoveryHistoryDescription" class="setting-desc">Wird aus einem Match ein Freund, zeigt der Chat nur noch die Nachrichten aus "Chat &amp; Freunde". Oben im Chat kannst du den Rest jederzeit einblenden.</span></span>
+                        <input type="checkbox" role="switch" id="discovery-history-toggle" checked data-change="updateDiscoveryHistorySetting" data-args='["$checked"]' class="switch">
+                    </label>
+                </div>
+
                 <div class="settings-card" data-settings-tab="chat" data-scope="social">
                     <h3 class="settings-card-title"><i class="fa-solid fa-circle-notch text-brand-400"></i> <span data-i18n="common.status">Status</span></h3>
                     <label class="setting-row">

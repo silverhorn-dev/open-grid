@@ -65,6 +65,7 @@ const CLIENT_DEFAULT_RULES = {
     listSwitchEnabled: 'boolean',
     listSwitchBehavior: ['mode', 'view'],
     statusDirectOnly: 'boolean',
+    hideDiscoveryHistory: 'boolean',
     traceWatermark: 'boolean',
     mediaDownload: ['friends', 'all'],
     snapSaveable: 'boolean',

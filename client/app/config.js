@@ -123,6 +123,8 @@ const state = {
     albumLimitTimer: null,
     // Betrachter: Selbstzerstoerung zeitlich begrenzter Alben (albums.js).
     albumSelfDestructTimer: null,
+    // Entdecken-Verlauf in Freundes-Chats: Grundeinstellung + je Chat umgedreht (friends.js).
+    discoveryHistory: { hide: true, flipped: [] },
     // Wer eigene Chat-Bilder/Videos speichern darf: 'friends' | 'all' (media-rights.js).
     mediaDownload: 'friends',
     // Snap-Editor: darf der Empfaenger diese Aufnahme speichern (snaps.js).

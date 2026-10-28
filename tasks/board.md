@@ -272,3 +272,8 @@
     - [x] U9 menue: nur 3 punkte, viel leerraum -> modus-wechsel, kontakt einladen und changelog/version mit hinein
       - nutzer 2026-10-26: profil-kopf und drei eintraege fuer einstellungen doppelt -> zahnrad im profil, einstellungen per wischen wie 4. tab, menue = modus direkt + einstellungen/changelog/debug/abmelden
       - done 2026-10-26: profilkopf (avatar, name, modus), Modus wechseln, Kontakt einladen, Einstellungen, Changelog (jetzt immer sichtbar), Debug-Modus; Abmelden und version unten abgesetzt
+
+## T11 Entdecken-Verlauf im Freundes-Chat (nutzer 2026-10-28)
+- [x] nach dem adden (chat wandert nach "Chat & Freunde") ist der entdecken-teil des verlaufs ausgeblendet, oben einblendbar; standard an, aber einstellung
+  - done 2026-10-28: kein datenmodell-umbau (ein verlauf pro person, `message.scope`); `keys`/`discovery-history = { hide, flipped }`, router-standard `hideDiscoveryHistory`; zeile "Entdecken-Verlauf ausgeblendet (N) · anzeigen"; einstellung Chat > "Nach dem Adden" (nur bei beiden bereichen); ohne entdecken-bereich immer verborgen; ungelesen zaehlt nur sichtbares; tests `test/friends.test.js`, e2e `friends`; UC-53
+- [ ] chat laedt und zeichnet immer den ganzen verlauf (keine seiten) -> bei langen chats evtl. nur die letzten N zeichnen, aeltere beim hochscrollen nachladen (frage nutzer 2026-10-28, noch nicht entschieden)

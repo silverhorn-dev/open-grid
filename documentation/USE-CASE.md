@@ -865,3 +865,21 @@ Akzeptanzkriterien:
 - Knopf 1x / 1,5x / 2x, gilt fuer alle Sprachnachrichten.
 - Neue Nachrichten waehrend der Wiedergabe lassen Knopf und Leiste nicht
   flackern.
+
+## UC-53: Entdecken-Verlauf im Freundes-Chat
+
+**Als Nutzer** moechte ich, dass ein Chat nach dem Adden aufgeraeumt wirkt:
+der Flirt aus "Entdecken" soll nicht im Freundes-Chat stehen, aber auch nicht
+verloren sein.
+
+Akzeptanzkriterien:
+
+- Pro Person bleibt es ein Chat; er steht nach dem Adden unter "Chat &
+  Freunde".
+- Nachrichten aus "Entdecken" sind dort standardmaessig ausgeblendet
+  (Einstellung "Entdecken-Verlauf ausblenden", Chat > Nach dem Adden).
+- Oben im Chat zeigt eine Zeile "Entdecken-Verlauf ausgeblendet (N)"; Tippen
+  blendet ihn fuer diesen Chat ein bzw. wieder aus.
+- Ohne aktiven Entdecken-Bereich bleibt der Teil immer verborgen.
+- Nichts wird geloescht; das Gegenueber merkt nichts. Ausgeblendetes zaehlt
+  nicht als ungelesen.

@@ -236,3 +236,45 @@ function emptyEntry() {
     return { sentAt: 0, receivedAt: 0, resetAt: 0 };
 }
 
+
+// Aus einem Match wird ein Freund: der Entdecken-Teil des Verlaufs ist im Freundes-Chat standardmaessig
+// ausgeblendet, pro Chat einblendbar; ohne Entdecken-Bereich bleibt er immer verborgen.
+test('discovery history is hidden in friend chats by default and can be flipped per chat', async () => {
+    const me = loadFriends({ appMode: 'chat' });
+    let scope = 'all';
+    let rendered = 0;
+    Object.assign(me, {
+        scopeIncludes: area => scope === 'all' || scope === area,
+        clientDefault: (key, fallback) => fallback,
+        renderChatHistory: () => { rendered += 1; }
+    });
+    await me.loadDiscoveryHistorySetting();
+    assert.equal(me.state.discoveryHistory.hide, true, 'default on');
+    await me.ensureChatScope('buddy', 'social');
+    await me.ensureChatScope('date', 'discovery');
+    const flirt = { id: 'a', scope: 'discovery', senderId: 'buddy' };
+    const hello = { id: 'b', scope: 'social', senderId: 'buddy' };
+    const legacy = { id: 'c', senderId: 'buddy' };
+    me.state.chats.buddy = [flirt, hello, legacy];
+    assert.equal(me.isDiscoveryMessageHidden('buddy', flirt), true);
+    assert.equal(me.isDiscoveryMessageHidden('buddy', hello), false);
+    assert.equal(me.isDiscoveryMessageHidden('buddy', legacy), false, 'messages without scope stay');
+    assert.equal(me.isDiscoveryMessageHidden('date', flirt), false, 'discovery chats show everything');
+    assert.equal(me.hasDiscoveryHistory('buddy'), true);
+
+    me.state.activeChatPeerId = 'buddy';
+    await me.toggleDiscoveryHistory('buddy');
+    assert.equal(me.isDiscoveryMessageHidden('buddy', flirt), false, 'shown for this chat');
+    assert.equal(rendered, 1);
+    assert.deepEqual([...me.records.get('keys:discovery-history').flipped], ['buddy']);
+
+    scope = 'social';
+    assert.equal(me.isDiscoveryMessageHidden('buddy', flirt), true, 'always hidden without the discovery area');
+    await me.toggleDiscoveryHistory('buddy');
+    assert.deepEqual([...me.state.discoveryHistory.flipped], ['buddy'], 'no toggle without the discovery area');
+
+    scope = 'all';
+    await me.updateDiscoveryHistorySetting(false);
+    assert.equal(me.isDiscoveryMessageHidden('buddy', flirt), false, 'setting off shows the history');
+    assert.deepEqual([...me.state.discoveryHistory.flipped], [], 'a new default resets per-chat flips');
+});

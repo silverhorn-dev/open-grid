@@ -104,6 +104,21 @@ async function main() {
         await waitFor(carol, id => isFriend(id), daveId);
         assert.equal(await dave.evaluate(id => chatScopeOf(id), carolId), 'social', 'chat moved to "Chat & Freunde"');
 
+        // Im Freundes-Chat ist der Entdecken-Verlauf standardmaessig ausgeblendet, oben einblendbar.
+        await carol.evaluate(() => closeProfileModal());
+        await carol.evaluate(id => openChatWithPeer(id), daveId);
+        await carol.fill('#chat-input', 'jetzt als freunde');
+        await carol.click('#send-chat-btn');
+        await dave.evaluate(() => { closeProfileModal(); setAppMode('chat'); });
+        await dave.evaluate(id => openChatWithPeer(id), carolId);
+        await waitFor(dave, () => document.querySelector('#chat-messages')?.textContent.includes('jetzt als freunde'));
+        assert.equal(await dave.evaluate(() => document.querySelector('#chat-messages').textContent.includes('hi dave')), false, 'discovery part hidden');
+        assert.match(await dave.textContent('.discovery-history-toggle'), /ausgeblendet \(1\)/);
+        await dave.click('.discovery-history-toggle');
+        await waitFor(dave, () => document.querySelector('#chat-messages')?.textContent.includes('hi dave'));
+        await dave.evaluate(() => updateDiscoveryHistorySetting(true));
+        await waitFor(dave, () => !document.querySelector('#chat-messages')?.textContent.includes('hi dave'));
+
         assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log('E2E OK (friends)');
         if (process.env.E2E_DEBUG) console.log(debugLogs.filter(entry => /KEY_HELLO|Schluessel|haengt|Path C skipped/.test(entry)).join('\n'));

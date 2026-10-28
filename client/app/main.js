@@ -120,6 +120,7 @@ window.onload = async () => {
             await loadSnapSettings();
             await loadTraceWatermarkSetting();
             await loadMediaDownloadSetting();
+            await loadDiscoveryHistorySetting();
         });
         await generateUserIdentityKeys();
         await runStartupStep('Sichtbarkeit', loadGridSettings);

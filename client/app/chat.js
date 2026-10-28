@@ -616,11 +616,16 @@ function renderChatHistory() {
     const container = document.getElementById('chat-messages');
     if (!container || !state.activeChatPeerId) return;
     // Zurueckgehaltene Nachrichten (Chat-Berechtigungen) erscheinen erst nach einem Match.
-    const allMessages = (state.chats[state.activeChatPeerId] || []).filter(message => !message.held);
+    const peerMessages = state.chats[state.activeChatPeerId] || [];
+    // Entdecken-Verlauf im Freundes-Chat: standardmaessig ausgeblendet (friends.js).
+    const allMessages = peerMessages.filter(message => !message.held
+        && !isDiscoveryMessageHidden(state.activeChatPeerId, message));
     const msgs = filterChatMessages(allMessages);
     // Wer nicht unten klebt, behaelt seine Position (der Inhalt darueber bleibt gleich).
     const previousScrollTop = container.scrollTop;
     container.innerHTML = '';
+    const historyToggle = createDiscoveryHistoryToggle(state.activeChatPeerId, peerMessages);
+    if (historyToggle) container.appendChild(historyToggle);
     if (allMessages.length === 0) {
         showEmptyState(container, { icon: 'fa-hand', title: t('chat.noMessagesYet'), text: t('chat.sayHello') });
         return;

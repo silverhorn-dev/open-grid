@@ -387,7 +387,8 @@
 - [ ] filter (lokal auf die grid-ergebnisse): alter von-bis, entfernung, gerade online, mit foto, plus jedes select-/tag-feld aus dem profil-schema; mehrere selektoren: UND zwischen feldern, ODER innerhalb eines felds; zu wenige treffer -> "mehr laden"
 - [ ] "nur zeigen fuer ..." (sichtbarkeitsregel), auf jedem select-/tag-feld (z. B. tribe: twink, femme), symmetrisch zum filter
   - entschieden (nutzer 2026-10-28): der router setzt die regel durch (P2P-pruefung skaliert nicht und wirkt offline nicht); die regel darf klartext sein ("wen ich sehen lassen will", keine aussage ueber den eigenen typ) - das ist der preis, deshalb steht ein hinweis bei der einstellung
-  - vorschlag (noch bestaetigen): dafuer braucht der router auch das tag des **betrachters**; das eigene tag an den router geben ist opt-in je feld ("Meinen Tribe fuer Sichtbarkeitsregeln freigeben"); ohne freigabe sieht man profile mit regel auf diesem feld nicht (fail closed); hinweis "Der Router sieht diese Angabe im Klartext" an beiden einstellungen
-  - verworfen: hash als code (wenige moegliche werte -> per woerterbuch umkehrbar), unscharfer code + app-pruefung, nur app-pruefung
-  - plan: profil-schema feldtyp `tags` (mehrfachauswahl); router speichert pro peer `audience` (feld -> erlaubte werte) und freigegebene eigene tags; `/api/grid` filtert; tests (regel greift, fail closed ohne freigabe, regel entfernen)
+  - korrigiert (nutzer 2026-10-28): der router bekommt NIE die tags des betrachters. er liefert jede grid-karte mit der regel des besitzers (klartext) aus, die **app des betrachters filtert** mit ihren eigenen tags (die das geraet nie verlassen)
+    - preis (hinweis bei der einstellung): die regel sieht jeder, der die karte abruft; ein manipulierter client koennte sie ignorieren
+    - zusaetzlich: ist die app des besitzers online, gibt sie volles profil/fotos nicht an betrachter ausserhalb der regel (kostet nur bei anfragen)
+  - plan: profil-schema feldtyp `tags` (mehrfachauswahl); router speichert pro peer nur die regel `audience` (feld -> erlaubte werte, begrenzt) und liefert sie mit der karte; client blendet karten aus, deren regel nicht zu den eigenen tags passt (eigene tags fehlen fuer das feld -> nicht passend); besitzer-app prueft bei PROFILE_REQUEST; tests (regel greift, regel entfernen, fehlende eigene tags)
 

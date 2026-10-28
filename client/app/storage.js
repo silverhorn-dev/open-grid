@@ -676,6 +676,11 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
     } else if (localOperation.type === 'STATUS_POST' || localOperation.type === 'STATUS_DELETE') {
         // Status gehoeren nicht ins Chat-Log (wie Album-Schluessel).
         return handleStatusOperation(peerId, localOperation);
+    } else if (localOperation.type === 'ALBUM_REVOKE') {
+        // Entzug durch den Besitzer (auch ueber Pfad C): Album, Bilder und Schluessel weg.
+        if (localOperation.actorId !== peerId) return false;
+        await forgetReceivedAlbum(peerId, localOperation.albumId);
+        return true;
     } else if (localOperation.type === 'ALBUM_KEYS') {
         // Schluessel-Buendel werden separat gespeichert und nicht im Operations-Log synchronisiert.
         if (localOperation.actorId !== peerId) return false;

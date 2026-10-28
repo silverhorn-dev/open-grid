@@ -43,3 +43,9 @@ test('download permission travels with the message and only known values pass', 
     assert.equal(valid(withFlag('none')), true);
     assert.equal(valid(withFlag('everyone')), false);
 });
+
+test('album revoke operations need an album id', () => {
+    const revoke = albumId => ({ type: 'CHAT_OPERATION', operation: { operationId: 'albumrevoke:1', type: 'ALBUM_REVOKE', actorId: 'peer', createdAt: 1, albumId } });
+    assert.equal(valid(revoke('alb_1')), true);
+    assert.equal(valid(revoke('')), false);
+});

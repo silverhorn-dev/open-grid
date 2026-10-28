@@ -639,7 +639,11 @@ Buendel enden spaetestens mit `until` (`epochEndsAt` gekuerzt, spaetere
 Epochen entfallen, `epochStartsAt` steht dabei). Ist die Frist vorbei bzw.
 sind alle Ansichten verbraucht und die letzte vorbei, entzieht
 `enforceAlbumLimits` den Zugriff wie von Hand (neue Schluesselversion; Timer,
-beim Start erneut geprueft). Die Chat-Karte traegt `album.limit` zur Anzeige.
+beim Start erneut geprueft). Jeder Entzug (von Hand oder durch eine Grenze) geht
+als Chat-Operation `ALBUM_REVOKE { albumId }` mit Pfad-C-Rueckfall raus (wie
+`ALBUM_KEYS`), dazu fuer aeltere Versionen die Direktnachricht `ALBUM_REVOKED`.
+Der Betrachter loescht dann Album, Bilder, alle Schluessel-Buendel und das
+Zugangsticket des Albums, auch wenn er es nie geoeffnet hat. Die Chat-Karte traegt `album.limit` zur Anzeige.
 In der Verwaltung stehen begrenzte Personen mit ihrem Stand; ab 3 Personen ist
 der Zugriff eingeklappt. Schon gesendete
 Karten behalten ihr Deckfoto. Der Empfaenger akzeptiert den Verweis nur, wenn

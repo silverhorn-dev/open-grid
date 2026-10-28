@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 158 · 2026-10-27
+## Build 159 · 2026-10-28
+- Behoben: entzogener Album-Zugriff kam bei Personen, die gerade offline waren, nicht an; sie behielten die Schluessel bis zum Ablauf. Der Entzug geht jetzt auch ueber den Server-Zwischenspeicher, und die Schluessel werden geloescht
+
+## Build 158 · 2026-10-27 · `f552228`
 - Sprachnachrichten: auf der Leiste springen (tippen oder ziehen) und schneller abspielen (1x, 1,5x, 2x)
 - Behoben: beim Abspielen flackerten Play-Knopf und Leiste, sobald der Chat neu gezeichnet wurde
 - Alben begrenzt teilen: beim Teilen im Chat waehlbar, ob normal oder nur 1x/2x/3x ansehen bzw. 15 min/1 h/24 h; danach endet der Zugriff von selbst. Begrenzt freigegebene Personen stehen mit ihrem Stand in der Alben-Verwaltung, ab 3 Personen eingeklappt

@@ -173,7 +173,18 @@ async function revokeAlbumAccess(albumId, peerId) {
     for (const viewerId of album.acl) pushAlbumKeys(viewerId, album, true).catch(logBackgroundError('revokeAlbumAccess'));
 }
 
+// Entzug als Chat-Operation: mit Rueckruf geht sie ohne Kanal nach 10 s ueber Pfad C, kommt also auch an,
+// wenn der Betrachter gerade offline ist (sonst behielte er die Schluessel bis zum Epochenende).
+// Die alte Direktnachricht geht fuer aeltere App-Versionen zusaetzlich mit.
 function notifyAlbumRevoked(peerId, albumId) {
+    const operation = {
+        operationId: `albumrevoke:${albumId}:${window.crypto.randomUUID()}`,
+        type: 'ALBUM_REVOKE',
+        actorId: state.myProfile.id,
+        createdAt: Date.now(),
+        albumId
+    };
+    sendSecurePayload(peerId, { type: 'CHAT_OPERATION', operation }, () => {}).catch(logBackgroundError('notifyAlbumRevoked'));
     sendSecurePayload(peerId, { type: 'ALBUM_REVOKED', albumId }).catch(logBackgroundError('notifyAlbumRevoked'));
 }
 
@@ -357,11 +368,19 @@ async function handleAlbumResponse(peerId, payload) {
 
 async function forgetReceivedAlbum(peerId, albumId) {
     const album = state.albums[albumId];
-    if (!album || album.ownerId !== peerId) return;
+    if (album && album.ownerId !== peerId) return;
+    // Schluessel-Buendel und Zugangsticket dieses Besitzers auch dann loeschen, wenn das Album nie
+    // geoeffnet wurde (dann gibt es nur die Buendel).
+    const records = await getAllDatabaseRecords('keys').catch(() => []);
+    await Promise.all(records
+        .filter(record => typeof record.id === 'string' && record.ownerId === peerId
+            && (record.id.startsWith(`${ALBUM_KEY_BUNDLE_PREFIX}${albumId}:`) || record.id === `${ALBUM_TICKET_PREFIX}${albumId}`))
+        .map(record => deleteDatabaseRecord('keys', record.id)));
+    expireAlbumKeys(albumId, false);
+    if (!album) return;
     await Promise.all(album.items.map(item => deleteDatabaseRecord('media', item.id)));
     await deleteDatabaseRecord('albums', albumId);
     delete state.albums[albumId];
-    expireAlbumKeys(albumId, false);
     if (state.albumViewer?.albumId === albumId) {
         renderMediaModalMessage(t('albums.youNoLongerHaveAccess'), 'fa-lock');
     }

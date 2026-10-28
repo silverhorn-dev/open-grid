@@ -311,6 +311,9 @@ test('limited sharing: views are counted per opening, time limits cap the keys, 
     owner.clock.now += 16 * 60000;
     await owner.context.handleAlbumKeyRequest('peer-allowed', { albumId: 'alb_1' });
     assert.equal(owner.sent.at(-1).payload.type, 'ALBUM_REVOKED', 'all views used: access revoked');
+    const revoke = owner.sent.at(-2).payload;
+    assert.equal(revoke.type, 'CHAT_OPERATION', 'revoke also goes as a chat operation (Path C when offline)');
+    assert.deepEqual([revoke.operation.type, revoke.operation.albumId, revoke.operation.actorId], ['ALBUM_REVOKE', 'alb_1', 'me']);
     assert.equal(owner.context.state.albums.alb_1.acl.includes('peer-allowed'), false);
     assert.equal(owner.context.state.albums.alb_1.limits['peer-allowed'], undefined);
 

@@ -86,6 +86,28 @@ async function main() {
         await waitFor(bob, () => Boolean(state.ws && state.ws.readyState === 1));
         await waitFor(bob, () => getAllDatabaseRecords('keys').then(records => !records.some(record => String(record.id).startsWith('album-keys:alb_revoke') || record.id === 'album-ticket:alb_revoke')), null, 40000);
 
+        // Selbstzerstoerung ohne Besitzer: Alice teilt erneut fuer 1 h und geht offline. Zur Frist raeumt
+        // Bobs App selbst auf (Album, Bilder, Schluessel, Ticket).
+        await alice.evaluate(async id => {
+            await openChatWithPeer(id);
+            await shareAlbumInChat('alb_revoke', 'h1');
+        }, bobId);
+        await waitFor(bob, () => getAllDatabaseRecords('keys').then(records => records.some(record => record.id === 'album-expires:alb_revoke')), null, 40000);
+        await bob.evaluate(owner => openAlbumViewer('alb_revoke', { ownerId: owner, name: 'Kurz' }), aliceId);
+        await waitFor(bob, () => loadMedia('albimg_revoke').then(media => Boolean(media?.encrypted)), null, 20000);
+        await bob.evaluate(() => closeMediaModal());
+        await alice.close();
+        await bob.evaluate(async () => {
+            const record = (await getAllDatabaseRecords('keys')).find(entry => entry.id === 'album-expires:alb_revoke');
+            await putDatabaseRecord('keys', { ...record, until: (await fetchServerTime()).now + 1500 });
+            scheduleAlbumSelfDestruct();
+        });
+        await waitFor(bob, async () => {
+            const records = await getAllDatabaseRecords('keys');
+            const left = records.some(record => String(record.id).startsWith('album-keys:alb_revoke') || record.id === 'album-ticket:alb_revoke' || record.id === 'album-expires:alb_revoke');
+            return !left && !state.albums.alb_revoke && !(await loadMedia('albimg_revoke'));
+        }, null, 15000);
+
         assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log('E2E OK (album revoke over path c)');
     } finally {

@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 160 · 2026-10-28
+## Build 161 · 2026-10-28
+- Begrenzt geteilte Alben raeumen sich beim Empfaenger selbst auf: nach einer Ansicht sind auch die gespeicherten Bilder weg, und zeitlich begrenzte Alben loescht seine App zur Frist selbst, auch wenn du dann offline bist
+
+## Build 160 · 2026-10-28 · `b93e303`
 - Behoben: Alben mit 1x/2x/3x ansehen liessen sich nach dem Oeffnen noch 15 Minuten lang beliebig oft wieder oeffnen. Jetzt endet eine Ansicht mit dem Schliessen, und nach der letzten ist der Zugriff sofort weg
 
 ## Build 159 · 2026-10-28 · `fb52534`

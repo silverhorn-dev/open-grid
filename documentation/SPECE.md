@@ -639,7 +639,14 @@ Ansicht endet mit dem Schliessen: der Betrachter verwirft die Schluessel und
 die gespeicherten Ansichts-Buendel (spaet ankommende werden bei geschlossenem
 Album gar nicht gespeichert) und meldet `ALBUM_VIEW_CLOSED { albumId }`; der
 Besitzer beendet die Ansicht und entzieht sofort, wenn alle verbraucht sind.
-Die 15 Minuten bleiben als Sicherheitsnetz (z. B. Betrachter offline). Zeit:
+Die 15 Minuten bleiben als Sicherheitsnetz (z. B. Betrachter offline). Beim Schliessen loescht
+der Betrachter auch die verschluesselten Albumbilder (die naechste Ansicht
+laedt neu). Zeitlich begrenzte Buendel tragen `limitedUntil`; der Betrachter
+merkt sich die Frist (`keys`/`album-expires:<albumId>`) und vergisst zur Frist
+Album, Bilder, Buendel und Ticket selbst (`runAlbumSelfDestruct`, auch beim
+Start), also auch, wenn der Besitzer dann offline ist. Schutz nur gegen
+unveraenderte Clients; was angezeigt wurde, kann ein manipulierter Client
+kopieren. Zeit:
 Buendel enden spaetestens mit `until` (`epochEndsAt` gekuerzt, spaetere
 Epochen entfallen, `epochStartsAt` steht dabei). Ist die Frist vorbei bzw.
 sind alle Ansichten verbraucht und die letzte vorbei, entzieht

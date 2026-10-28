@@ -65,6 +65,8 @@ async function loadAlbums() {
     renderAlbumManager();
     // Begrenzungen, die abgelaufen sind, waehrend die App zu war.
     enforceAlbumLimits().catch(logBackgroundError('loadAlbums'));
+    // Betrachter: was waehrend der Pause abgelaufen ist, jetzt vergessen.
+    runAlbumSelfDestruct().catch(logBackgroundError('loadAlbums'));
 }
 
 // Alben (inkl. Albumgeheimnis und rollender Keys) liegen mit dem Speicherschluessel verschluesselt
@@ -374,7 +376,8 @@ async function forgetReceivedAlbum(peerId, albumId) {
     const records = await getAllDatabaseRecords('keys').catch(() => []);
     await Promise.all(records
         .filter(record => typeof record.id === 'string' && record.ownerId === peerId
-            && (record.id.startsWith(`${ALBUM_KEY_BUNDLE_PREFIX}${albumId}:`) || record.id === `${ALBUM_TICKET_PREFIX}${albumId}`))
+            && (record.id.startsWith(`${ALBUM_KEY_BUNDLE_PREFIX}${albumId}:`) || record.id === `${ALBUM_TICKET_PREFIX}${albumId}`
+                || record.id === `${ALBUM_SELF_DESTRUCT_PREFIX}${albumId}`))
         .map(record => deleteDatabaseRecord('keys', record.id)));
     expireAlbumKeys(albumId, false);
     if (!album) return;
@@ -1070,6 +1073,8 @@ async function pushAlbumKeys(viewerId, album, force = false, { sessionUntil = nu
             bundle.epochEndsAt = Math.min(bundle.epochEndsAt, cap);
         }
         if (sessionUntil) bundle.session = true;
+        // Zeitlich begrenzt: der Betrachter raeumt zur Frist selbst auf (auch wenn der Besitzer dann offline ist).
+        else if (cap !== null) bundle.limitedUntil = cap;
         bundles.push(bundle);
     }
     if (!bundles.length) return;
@@ -1295,6 +1300,7 @@ async function handleAlbumKeysOperation(ownerId, operation) {
         // Ansichts-Buendel nur, solange das Album offen ist (kommt es nach dem Schliessen an, waere es
         // eine Ansicht gratis).
         if (bundle.session === true && state.albumViewer?.albumId !== bundle.albumId) continue;
+        if (Number.isFinite(bundle.limitedUntil)) await rememberAlbumSelfDestruct(ownerId, bundle.albumId, bundle.limitedUntil);
         await putDatabaseRecord('keys', {
             id: `${ALBUM_KEY_BUNDLE_PREFIX}${bundle.albumId}:${bundle.keyVersion}:${bundle.epoch}`,
             ownerId,
@@ -1385,7 +1391,50 @@ async function endLimitedAlbumView(albumId) {
     const ownerId = entry?.ownerId || sessionBundles[0]?.ownerId;
     if (entry?.session) expireAlbumKeys(albumId, false);
     await Promise.all(sessionBundles.map(record => deleteDatabaseRecord('keys', record.id)));
+    // Auch die verschluesselten Bilder: nach der Ansicht bleibt nichts liegen (naechste Ansicht laedt neu).
+    await deleteReceivedAlbumImages(albumId);
     if (ownerId) await sendSecurePayload(ownerId, { type: 'ALBUM_VIEW_CLOSED', albumId });
+}
+
+async function deleteReceivedAlbumImages(albumId) {
+    const album = state.albums[albumId];
+    if (!album || album.ownerId === state.myProfile.id) return;
+    await Promise.all(album.items.map(item => deleteDatabaseRecord('media', item.id)));
+}
+
+// Betrachter: zeitlich begrenztes Album zur Frist selbst vergessen (Album, Bilder, Schluessel, Ticket).
+const ALBUM_SELF_DESTRUCT_PREFIX = 'album-expires:';
+
+async function rememberAlbumSelfDestruct(ownerId, albumId, until) {
+    const id = `${ALBUM_SELF_DESTRUCT_PREFIX}${albumId}`;
+    const existing = await databaseRequest('keys', 'readonly', store => store.get(id)).catch(() => null);
+    if (existing && existing.ownerId === ownerId && existing.until <= until) return;
+    await putDatabaseRecord('keys', { id, ownerId, albumId, until });
+    scheduleAlbumSelfDestruct();
+}
+
+async function runAlbumSelfDestruct() {
+    const now = (await fetchServerTime().catch(() => ({ now: Date.now() }))).now;
+    const records = await getAllDatabaseRecords('keys').catch(() => []);
+    for (const record of records.filter(entry => typeof entry.id === 'string' && entry.id.startsWith(ALBUM_SELF_DESTRUCT_PREFIX))) {
+        if (record.until > now) continue;
+        await forgetReceivedAlbum(record.ownerId, record.albumId);
+        await deleteDatabaseRecord('keys', record.id);
+    }
+    scheduleAlbumSelfDestruct(records, now);
+}
+
+function scheduleAlbumSelfDestruct(records = null, now = Date.now()) {
+    clearTimeout(state.albumSelfDestructTimer);
+    const run = list => {
+        const next = list.filter(entry => typeof entry.id === 'string' && entry.id.startsWith(ALBUM_SELF_DESTRUCT_PREFIX) && entry.until > now)
+            .map(entry => entry.until).sort((left, right) => left - right)[0];
+        if (!next) return;
+        state.albumSelfDestructTimer = setTimeout(() => runAlbumSelfDestruct().catch(logBackgroundError('runAlbumSelfDestruct')),
+            Math.min(Math.max(0, next - now) + 500, 2147483647));
+    };
+    if (records) run(records);
+    else getAllDatabaseRecords('keys').then(run).catch(() => {});
 }
 
 // Besitzer: Ansicht vorzeitig beendet.

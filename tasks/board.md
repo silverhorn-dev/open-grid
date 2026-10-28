@@ -175,6 +175,8 @@
 - [x] album wie einen snap 1x/2x/3x oder 15 min/1 h/24 h teilen, im sendemenue einstellbar, ueberspringbar; begrenzte nutzer in der alben-verwaltung; ab 3 personen eingeklappt
   - nutzer 2026-10-28: eintrag soll nach der frist aus der zugriffsliste verschwinden; pruefen, ob der entzug ueber pfad c laeuft
     - befund: verschwinden klappte; der entzug ging aber nur als direktnachricht ohne pfad c (offline = verloren, schluessel bis epochenende); das vergessen loeschte die schluessel-buendel nicht
+  - nutzer 2026-10-28: album/schluessel selbstzerstoererisch? entschieden: (1) jetzt, (2)+(3) geparkt (siehe "Eigene rotierende Verschluesselung")
+    - done (1) 2026-10-28: nach einer ansicht auch die verschluesselten bilder loeschen; zeitlich begrenzt: `limitedUntil` im buendel, betrachter vergisst zur frist selbst (`runAlbumSelfDestruct`); e2e `album-views`, `album-revoke`
   - nutzer 2026-10-28: alben mit 1-3 ansichten laufen beim oeffnen nicht ab
     - befund: nach dem schliessen blieben schluessel + ansichts-buendel 15 min lang, beliebig oft neu oeffnen; entzug erst nach 15 min
     - fix 2026-10-28: ansicht endet beim schliessen (`endLimitedAlbumView`, `ALBUM_VIEW_CLOSED`, `handleAlbumViewClosed`), spaete ansichts-buendel verworfen; e2e `album-views`
@@ -182,6 +184,8 @@
   - done 2026-10-27: `album.limits`, `openAlbumShareOptions`, ansichten ueber `handleAlbumKeyRequest` (15-min-ansicht, `session`), zeit ueber gekuerzte buendel, `enforceAlbumLimits`; tests `test/albums.test.js`, e2e `album-preview`; UC-51
 
 ## Eigene rotierende Verschluesselung (geparkt, erst besprechen)
+- [ ] (geparkt 2026-10-28) echt selbstzerstoererische alben: key-splitting mit dem server (bildschluessel = haelfte besitzer + haelfte server; server gibt seine haelfte nur so oft/lange wie erlaubt und loescht sie dann; album danach kryptografisch tot, auch ohne besitzer online). beruehrt die regel "server sieht nur ciphertext + iv + routing-ids" (zufaellige schluesselhaelfte) -> zusammen mit der rotierenden verschluesselung entscheiden
+- [ ] (geparkt 2026-10-28) begrenzte album-ansichten als stream wie secure snaps (empfaenger bekommt keine bilddaten; besitzer muss online sein)
 - [ ] gestohlene album-schluessel sollen nach der epoche wertlos sein; idee: eigener, vom server getakteter algorithmus -> `tasks/feature-request-rotating-encryption.md`
   - offen: konflikt mit regel "crypto nur ueber `crypto.subtle`"; alternative: server-epochen-geheimnis + `CK_e` per HKDF (AES-GCM bleibt)
 

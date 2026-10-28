@@ -57,12 +57,14 @@ async function main() {
         // Erste (und einzige) Ansicht.
         await bob.evaluate(id => openAlbumViewer('alb_once', { ownerId: id, name: 'Einmal' }), aliceId);
         await waitFor(bob, () => Boolean(state.albumKeys.alb_once), null, 20000);
+        await waitFor(bob, () => loadMedia('albimg_once').then(media => Boolean(media?.encrypted)), null, 20000);
         assert.equal(await alice.evaluate(id => state.albums.alb_once.limits[id].used, bobId), 1, 'one view counted');
 
         // Schliessen beendet die Ansicht: bei Bob nichts mehr, Alice entzieht sofort.
         await bob.evaluate(() => closeMediaModal());
         await waitFor(bob, () => !state.albumKeys.alb_once, null, 5000);
         assert.equal(await bundles(bob), 0, 'stored view bundles are deleted on close');
+        assert.equal(await bob.evaluate(() => loadMedia('albimg_once').then(media => Boolean(media))), false, 'cached encrypted images are deleted too');
         await waitFor(alice, id => !state.albums.alb_once.acl.includes(id), bobId, 10000);
 
         // Erneut oeffnen bringt nichts mehr.

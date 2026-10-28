@@ -121,6 +121,8 @@ const state = {
     messageMenu: null,
     // Timer fuer das Ende begrenzt geteilter Alben (albums.js).
     albumLimitTimer: null,
+    // Betrachter: Selbstzerstoerung zeitlich begrenzter Alben (albums.js).
+    albumSelfDestructTimer: null,
     // Wer eigene Chat-Bilder/Videos speichern darf: 'friends' | 'all' (media-rights.js).
     mediaDownload: 'friends',
     // Snap-Editor: darf der Empfaenger diese Aufnahme speichern (snaps.js).

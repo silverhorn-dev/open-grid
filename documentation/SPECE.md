@@ -1047,7 +1047,14 @@ Matches am Matches-Tab; rot nur das Badge fuer neue Interaktionen); darunter
 eine schmale Statuszeile (wo, Stand, "Standort verwenden" solange keiner
 gesetzt ist). Aktualisieren: ganz oben nach unten ziehen (eigene Geste, die
 installierte PWA auf iOS hat kein Pull-to-Refresh; ab 70 px), am PC ein
-kleiner Knopf.
+kleiner Knopf (nur Daten, ohne Hinweis).
+
+Neu laden (`keys`/`reload-mode`, Einstellungen > Allgemein > Erweitert,
+Router-Standard `CLIENT_DEFAULTS.reloadMode`, sonst `full`): gilt fuer
+Runterziehen im Grid und in der Chatliste sowie fuer "Am Ende hochziehen: Seite
+neu laden" im Chat. `full` = Tab im Browser neu laden; `app` = nur die Daten
+der Ansicht (Grid neu abrufen; Chatliste bzw. Verlauf neu laden und den
+Router-Cache abholen), ohne Hinweis; dann steht im Menue "Seite neu laden".
 
 Filter (`client/app/grid-filter.js`, nur auf dem Geraet, `keys`/`grid-filter`):
 Panel ueber den Pfeil-Knopf in der Tab-Leiste, gilt fuer alle drei Bereiche.

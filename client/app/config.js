@@ -162,6 +162,8 @@ const state = {
     profileBrowseList: [],
     // Sichtbare Karten im Grid (Zahl am Grid-Tab, grid-tabs.js).
     gridVisibleCount: 0,
+    // Neu laden: 'full' (ganze Seite) oder 'app' (nur Daten) (gestures.js).
+    reloadMode: 'full',
     // Eigene Sichtbarkeitsregel "Nur zeigen fuer ..." (audience.js).
     audienceRule: null,
     shareProfileViews: false,

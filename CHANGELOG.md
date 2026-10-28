@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 194 · 2026-10-28
+## Build 195 · 2026-10-28
+- Neu laden einstellbar (Einstellungen > Allgemein > Erweitert): ganze Seite (Standard) oder nur die Daten. Gilt fuer Runterziehen im Grid und in der Chatliste (neu) und Hochziehen im Chat; bei "Nur Daten" laedt "Seite neu laden" im Menue die ganze Seite
+- Behoben: beim Aktualisieren des Grids stapelten sich Hinweise
+
+## Build 194 · 2026-10-28 · `2d8bf30`
 - Profil in "Entdecken": neue Felder Groesse, Gewicht, Koerperbau, Tribes, Sucht nach und Beziehungsstatus; Mehrfachauswahlen waehlst du jetzt bequem als Chips
 - Behoben: Einrichtungs- und Profilfenster, die hoeher als der Bildschirm sind, liessen sich oben nicht erreichen (der Anfang lag ausserhalb)
 - "Nur zeigen fuer" steht jetzt unter Einstellungen > Privatsphaere > Sichtbarkeit im Grid, uebersichtlicher, und gilt fuer Alter und alle Auswahlfelder

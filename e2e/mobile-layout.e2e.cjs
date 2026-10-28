@@ -124,15 +124,39 @@ async function main() {
         };
         // Das Menue vom vorigen Schritt faehrt noch heraus und laege sonst unter dem Finger.
         await page.waitForTimeout(800);
-        // Grid: oben nach unten ziehen = aktualisieren (kurz ziehen tut nichts).
-        await page.evaluate(() => { switchTab('grid'); window.scrollTo(0, 0); window.__refreshes = 0; refreshGrid = async () => { window.__refreshes += 1; }; });
+        // Grid: oben nach unten ziehen = neu laden. "Nur Daten": holt das Grid neu (ohne Hinweis), im Menue
+        // gibt es dann "Seite neu laden"; kurz ziehen tut nichts.
+        await page.evaluate(async () => {
+            await updateReloadMode('app');
+            switchTab('grid');
+            window.scrollTo(0, 0);
+            window.__refreshes = 0;
+            window.__toastCount = 0;
+            const toast = showToast;
+            showToast = (...args) => { window.__toastCount += 1; toast(...args); };
+            fetchPeersFromWorkerGrid = async () => { window.__refreshes += 1; return true; };
+        });
+        assert.equal(await page.evaluate(() => document.getElementById('menu-reload-page').classList.contains('hidden')), false, 'menu entry in data-only mode');
         await page.waitForTimeout(300);
         const statusLine = await page.locator('.grid-status-line').boundingBox();
         await drag({ x: 200, y: statusLine.y + 10 }, { x: 200, y: statusLine.y + 40 });
         assert.equal(await page.evaluate(() => window.__refreshes), 0, 'short pull does nothing');
         await drag({ x: 200, y: statusLine.y + 10 }, { x: 200, y: statusLine.y + 220 });
         await waitFor(page, () => window.__refreshes === 1);
+        assert.equal(await page.evaluate(() => window.__toastCount), 0, 'no toast spam');
         assert.equal(await page.evaluate(() => document.getElementById('grid-pull-refresh').style.height), '0px', 'indicator closes');
+        // Chatliste: ebenso.
+        await page.evaluate(() => { leaveActiveChat?.(); switchTab('chat'); window.__chatReloads = 0; loadChatPeerIds = async () => { window.__chatReloads += 1; }; });
+        await page.waitForTimeout(300);
+        const list = await page.locator('#active-peers-list').boundingBox();
+        await drag({ x: 200, y: list.y + 10 }, { x: 200, y: list.y + 220 });
+        await waitFor(page, () => window.__chatReloads === 1);
+        // "Ganze Seite" (Standard): Runterziehen laedt den Tab neu, kein Menue-Eintrag.
+        await page.evaluate(async () => { await updateReloadMode('full'); window.__beforeReload = true; switchTab('grid'); window.scrollTo(0, 0); });
+        assert.equal(await page.evaluate(() => document.getElementById('menu-reload-page').classList.contains('hidden')), true);
+        await page.waitForTimeout(300);
+        await drag({ x: 200, y: statusLine.y + 10 }, { x: 200, y: statusLine.y + 220 });
+        await waitFor(page, () => window.__beforeReload === undefined && typeof state !== 'undefined' && Boolean(state.ws && state.ws.readyState === 1), null, 20000);
         await page.evaluate(() => switchTab('editprofile'));
         await page.waitForTimeout(300);
 

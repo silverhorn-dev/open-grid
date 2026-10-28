@@ -65,6 +65,7 @@ const CLIENT_DEFAULT_RULES = {
     pullUpAction: ['reload', 'next', 'switcher', 'snap', 'album'],
     inputSwipeClosesChat: 'boolean',
     chatPagesByDay: 'boolean',
+    reloadMode: ['full', 'app'],
     notifyMatch: 'boolean',
     notifyFlame: 'boolean',
     notifyAdd: 'boolean',

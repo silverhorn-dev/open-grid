@@ -416,4 +416,5 @@
 - [x] einstellung "nur zeigen fuer" in die karte "Sichtbarkeit im Grid" verschoben, GUI ueberarbeitet (titel je feld, chips umbrechen, "wie ich" gestrichelt) (nutzer 2026-10-28)
 - [x] entdecken-profil um dating-felder erweitert: groesse, gewicht, koerperbau, tribes, sucht nach, beziehungsstatus; mehrfachauswahl im profil-editor als chips (nutzer 2026-10-28)
 - [x] router laesst fuer die regel alles zu: alter + alle auswahlfelder (freitext-tags gehen nicht, keine feste liste)
+- [x] neu laden einstellbar (nutzer 2026-10-28): "ganze seite" (browser, standard vom router `CLIENT_DEFAULTS.reloadMode`, sonst full) oder "nur daten"; gilt fuer grid, chatliste (neu: runterziehen) und hochziehen im chat; bei "nur daten" menue-eintrag "seite neu laden"; hinweis "grid aktualisiert" entfernt (spam); e2e `mobile-layout`
 

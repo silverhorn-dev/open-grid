@@ -6,7 +6,7 @@
 //   - Zwischen Grid, Chat und Profil seitlich wischen; im Profil nach links = Menue
 //   - Einstellungen: seitlich = Bereiche blaettern (nicht auf Reglern), oben nach unten = verlassen,
 //     am ersten Bereich nach rechts = verlassen
-//   - Grid: oben nach unten ziehen = aktualisieren
+//   - Grid und Chatliste: oben nach unten ziehen = neu laden (ganze Seite oder nur Daten, Einstellung)
 //   - Seitenmenue nach rechts wischen = schliessen
 //   - Im Chat auf der Eingabeleiste nach rechts wischen = zur Chatliste (einstellbar)
 //   - Profil- und Medienfenster nach unten wischen = schliessen
@@ -248,7 +248,7 @@ function handleTabTouchEnd() {
         renderGridPullRefresh(0);
         if (gesture.deltaY >= GRID_REFRESH_TRIGGER) {
             hapticTick();
-            refreshGrid();
+            reloadView('grid');
         }
         return;
     }
@@ -451,8 +451,101 @@ function runPullUpAction() {
     } else if (action === 'album') {
         openAlbumPicker();
     } else {
-        window.location.reload();
+        reloadView('chat');
     }
+}
+
+// ----- Neu laden: ganze Seite oder nur Daten -----
+// Einstellung `keys`/`reload-mode` ('full' | 'app'), Router-Standard `CLIENT_DEFAULTS.reloadMode`, sonst 'full'.
+// 'full' laedt den Tab im Browser neu; 'app' holt nur die Daten der Ansicht neu (ohne Hinweis), die ganze
+// Seite laesst sich dann ueber das Menue neu laden.
+const RELOAD_MODE_RECORD_ID = 'reload-mode';
+const RELOAD_MODES = ['full', 'app'];
+
+async function loadReloadMode() {
+    const stored = await databaseRequest('keys', 'readonly', store => store.get(RELOAD_MODE_RECORD_ID)).catch(() => null);
+    const routerDefault = clientDefault('reloadMode', 'full');
+    state.reloadMode = RELOAD_MODES.includes(stored?.mode) ? stored.mode : RELOAD_MODES.includes(routerDefault) ? routerDefault : 'full';
+    renderReloadMode();
+}
+
+async function updateReloadMode(mode) {
+    if (!RELOAD_MODES.includes(mode)) return;
+    state.reloadMode = mode;
+    await putDatabaseRecord('keys', { id: RELOAD_MODE_RECORD_ID, mode })
+        .catch(error => logDebug(`Could not store reload mode: ${error.message}`));
+    renderReloadMode();
+}
+
+function renderReloadMode() {
+    const select = document.getElementById('reload-mode-select');
+    if (select) select.value = state.reloadMode;
+    document.getElementById('menu-reload-page')?.classList.toggle('hidden', state.reloadMode !== 'app');
+}
+
+function reloadPageFromMenu() {
+    window.location.reload();
+}
+
+async function reloadView(view) {
+    if (state.reloadMode !== 'app') {
+        window.location.reload();
+        return;
+    }
+    if (view === 'grid') {
+        await fetchPeersFromWorkerGrid();
+    } else if (view === 'chat' && state.activeChatPeerId) {
+        await loadChatHistory(state.activeChatPeerId);
+        renderChatHistory();
+        await fetchQueuedCacheMessages();
+    } else {
+        await loadChatPeerIds();
+        subscribePresence();
+        await fetchQueuedCacheMessages();
+    }
+}
+
+// Chatliste: ganz oben nach unten ziehen = neu laden (gleiche Schwelle wie im Grid).
+function attachChatListPullRefresh() {
+    const list = document.getElementById('active-peers-list');
+    const indicator = document.getElementById('chat-list-pull-refresh');
+    if (!list || !indicator) return;
+    let gesture = null;
+    const render = distance => {
+        indicator.style.height = `${distance}px`;
+        const ready = distance >= GRID_REFRESH_TRIGGER / 2;
+        indicator.classList.toggle('is-ready', ready);
+        const label = indicator.querySelector('span');
+        if (label) label.textContent = ready ? t('grid.releaseToRefresh') : t('grid.pullToRefresh');
+    };
+    list.addEventListener('touchstart', event => {
+        gesture = event.touches.length === 1 && list.scrollTop <= 0
+            ? { startX: event.touches[0].clientX, startY: event.touches[0].clientY, axis: null, deltaY: 0 } : null;
+    }, { passive: true });
+    list.addEventListener('touchmove', event => {
+        if (!gesture) return;
+        const deltaX = event.touches[0].clientX - gesture.startX;
+        const deltaY = event.touches[0].clientY - gesture.startY;
+        if (!gesture.axis) {
+            if (Math.hypot(deltaX, deltaY) < GESTURE_LOCK_DISTANCE * 1.5) return;
+            gesture.axis = deltaY > 0 && Math.abs(deltaY) > Math.abs(deltaX) * 1.5 ? 'down' : 'other';
+        }
+        if (gesture.axis !== 'down' || list.scrollTop > 0) return;
+        gesture.deltaY = Math.max(0, deltaY);
+        render(Math.min(GRID_REFRESH_MAX, gesture.deltaY * 0.5));
+    }, { passive: true });
+    const finish = cancelled => {
+        const finished = gesture;
+        gesture = null;
+        if (finished?.axis !== 'down') return;
+        render(0);
+        if (!cancelled && finished.deltaY >= GRID_REFRESH_TRIGGER) {
+            hapticTick();
+            reloadView('chatlist').catch(logBackgroundError('reloadView'));
+        }
+    };
+    list.addEventListener('touchend', () => finish(false), { passive: true });
+    list.addEventListener('touchcancel', () => finish(true), { passive: true });
 }
 
 function attachPullUpRefresh(container) {
@@ -527,6 +620,7 @@ function initGestures() {
         closeProfileModal
     );
     attachSwipeRight(document.getElementById('app-menu'), { close: closeMenu });
+    attachChatListPullRefresh();
     attachSwipeRight(document.getElementById('chat-input-bar'), {
         moving: () => document.getElementById('view-chat'),
         enabled: () => state.chatSwipeClose && Boolean(state.activeChatPeerId),

@@ -20,9 +20,9 @@ async function loadMoreGrid() {
     if (!loaded) state.gridRing -= 1;
 }
 
+// Knopf am PC: nur die Daten (ohne Hinweis, der stapelte sich beim wiederholten Ziehen).
 async function refreshGrid() {
-    const refreshed = await fetchPeersFromWorkerGrid();
-    if (refreshed) showToast(t('grid.refreshed'), 'info');
+    await fetchPeersFromWorkerGrid();
 }
 
 function renderDiscoveryGrid() {

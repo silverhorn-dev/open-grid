@@ -103,6 +103,7 @@ window.onload = async () => {
             await loadChatSwitchSettings();
             await loadPullUpSetting();
             await loadChatSwipeCloseSetting();
+            await loadReloadMode();
             await loadNotificationSettings();
             await loadChatViewSetting();
             await loadGridFilter();

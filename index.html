@@ -115,6 +115,10 @@
                 <a data-info-link href="/info" target="_blank" rel="noopener" class="menu-item">
                     <i class="fa-solid fa-circle-question text-brand-400"></i> <span data-i18n="menu.helpInfo">Hilfe &amp; Info</span>
                 </a>
+                <!-- Nur bei "Neu laden: Nur Daten" (gestures.js): die Seite bleibt per Menue komplett neu ladbar. -->
+                <button id="menu-reload-page" data-click="reloadPageFromMenu" class="menu-item hidden">
+                    <i class="fa-solid fa-rotate-right text-slate-400"></i> <span data-i18n="menu.reloadPage">Seite neu laden</span>
+                </button>
                 <button data-click="openChangelogFromMenu" class="menu-item">
                     <i class="fa-solid fa-clipboard-list text-slate-400"></i> <span data-i18n="common.changelog">Changelog</span>
                 </button>
@@ -198,6 +202,7 @@
                     </h3>
                     <div data-i18n-attr="aria-label:common.status" id="status-bar" class="hidden flex gap-2 overflow-x-auto pb-3 mb-2 border-b border-slate-800" data-no-tab-swipe aria-label="Status"></div>
                 </div>
+                <div id="chat-list-pull-refresh" class="grid-pull-refresh" aria-hidden="true"><i class="fa-solid fa-arrow-down"></i> <span data-i18n="grid.pullToRefresh">Zum Aktualisieren ziehen</span></div>
                 <div id="active-peers-list" class="flex-1 min-h-0 space-y-2 overflow-y-auto"></div>
             </div>
 
@@ -488,6 +493,13 @@
                         <label class="setting-row">
                             <span class="setting-text"><span data-i18n="settings.showAllModes" class="setting-title">Alle Modi anzeigen</span><span data-i18n="settings.showAllModesDescription" class="setting-desc">Entdecken, Event, Chat und Freunde gleichzeitig.</span></span>
                             <input type="checkbox" role="switch" id="all-modes-toggle" data-change="setAllModesVisible" data-args='["$checked"]' class="switch">
+                        </label>
+                        <label class="setting-row">
+                            <span class="setting-text"><span data-i18n="settings.reloadMode" class="setting-title">Neu laden</span><span data-i18n="settings.reloadModeDescription" class="setting-desc">Was Runterziehen im Grid und in der Chatliste bzw. Hochziehen im Chat macht: die ganze Seite neu laden (Browser) oder nur die Daten in der App.</span></span>
+                            <select id="reload-mode-select" data-change="updateReloadMode" data-args='["$value"]' class="setting-select">
+                                <option data-i18n="settings.reloadFull" value="full">Ganze Seite</option>
+                                <option data-i18n="settings.reloadApp" value="app">Nur Daten</option>
+                            </select>
                         </label>
                     </details>
                 </div>

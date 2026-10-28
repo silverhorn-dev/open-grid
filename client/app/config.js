@@ -123,8 +123,11 @@ const state = {
     albumLimitTimer: null,
     // Betrachter: Selbstzerstoerung zeitlich begrenzter Alben (albums.js).
     albumSelfDestructTimer: null,
-    // Flirt-Modus in Freundes-Chats: Flirt-Teil im normalen Chat ausblenden + Chats im Flirt-Modus (friends.js).
-    discoveryHistory: { hide: true, flirt: [] },
+    // Flirt-Modus in Freundes-Chats: Flirt-Teil im normalen Chat ausblenden, Chats im Flirt-Modus, Lasche
+    // ueber dem Senden-Knopf (an/aus, pro Chat ausgeblendet) (friends.js).
+    discoveryHistory: { hide: true, flirt: [], tab: true, tabHidden: [] },
+    // Senden lange gedrueckt: naechste Nachricht an diesen Peer als Flirt (friends.js).
+    flirtSendOnce: null,
     // Wer eigene Chat-Bilder/Videos speichern darf: 'friends' | 'all' (media-rights.js).
     mediaDownload: 'friends',
     // Snap-Editor: darf der Empfaenger diese Aufnahme speichern (snaps.js).

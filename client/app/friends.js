@@ -183,11 +183,13 @@ function isInCurrentChatList(peerId) {
 
 // ----- Flirt-Modus im Freundes-Chat -----
 // Es gibt pro Person nur einen Verlauf; jede Nachricht traegt den Bereich, in dem sie geschrieben wurde
-// (`scope`). Ist aus dem Match ein Freund geworden (Chat in "Chat & Freunde"), schaltet die Flamme im
-// Chat-Kopf pro Chat zwischen normal und Flirt um:
+// (`scope`). Ist aus dem Match ein Freund geworden (Chat in "Chat & Freunde"), schaltet die Flamme
+// (Lasche ueber dem Senden-Knopf) pro Chat zwischen normal und Flirt um:
 // - Flirt: man sieht alles (Flirt-Nachrichten markiert) und schreibt mit `scope: 'discovery'`.
 // - Normal: neue Nachrichten sind `social`; der Flirt-Teil ist ausgeblendet, solange die Einstellung
 //   "Flirt-Verlauf ausblenden" an ist (Standard, Router-Standard `hideDiscoveryHistory`).
+// Senden lange druecken schickt nur diese eine Nachricht als Flirt. Die Lasche ist ausblendbar
+// (Einstellung `tab`, pro Chat `tabHidden`); dann bleiben das Menue im Chat-Kopf und langes Druecken.
 // Ist der Entdecken-Bereich hier aus, gibt es keine Flamme und der Flirt-Teil bleibt verborgen.
 // Nur Anzeige: nichts wird geloescht, das Gegenueber merkt nichts.
 const DISCOVERY_HISTORY_RECORD_ID = 'discovery-history';
@@ -197,9 +199,15 @@ async function loadDiscoveryHistorySetting() {
     const routerDefault = clientDefault('hideDiscoveryHistory', true);
     state.discoveryHistory = {
         hide: typeof stored?.hide === 'boolean' ? stored.hide : routerDefault !== false,
-        flirt: Array.isArray(stored?.flirt) ? stored.flirt.filter(id => typeof id === 'string').slice(0, 1000) : []
+        flirt: peerIdList(stored?.flirt),
+        tab: stored?.tab !== false,
+        tabHidden: peerIdList(stored?.tabHidden)
     };
     renderDiscoveryHistorySetting();
+}
+
+function peerIdList(value) {
+    return Array.isArray(value) ? value.filter(id => typeof id === 'string').slice(0, 1000) : [];
 }
 
 async function saveDiscoveryHistory() {
@@ -221,6 +229,30 @@ async function updateDiscoveryHistorySetting(hide) {
 function renderDiscoveryHistorySetting() {
     const toggle = document.getElementById('discovery-history-toggle');
     if (toggle) toggle.checked = state.discoveryHistory.hide;
+    const tab = document.getElementById('flirt-tab-toggle');
+    if (tab) tab.checked = state.discoveryHistory.tab;
+}
+
+async function updateFlirtTabSetting(show) {
+    // Wieder einschalten zeigt die Lasche auch in den einzeln ausgeblendeten Chats.
+    state.discoveryHistory = { ...state.discoveryHistory, tab: Boolean(show), tabHidden: show ? [] : state.discoveryHistory.tabHidden };
+    await saveDiscoveryHistory();
+    renderDiscoveryHistorySetting();
+    updateFlirtButton();
+}
+
+function isFlirtTabShown(peerId) {
+    return canFlirt(peerId) && state.discoveryHistory.tab && !state.discoveryHistory.tabHidden.includes(peerId);
+}
+
+async function setFlirtTabHidden(peerId, hidden) {
+    const list = new Set(state.discoveryHistory.tabHidden);
+    if (hidden) list.add(peerId);
+    else list.delete(peerId);
+    state.discoveryHistory = { ...state.discoveryHistory, tabHidden: [...list], tab: hidden ? state.discoveryHistory.tab : true };
+    await saveDiscoveryHistory();
+    renderDiscoveryHistorySetting();
+    updateFlirtButton();
 }
 
 function hasDiscoveryHistory(peerId, messages = state.chats[peerId] || []) {
@@ -254,8 +286,17 @@ function isDiscoveryMessageHidden(peerId, message) {
     return state.discoveryHistory.hide && !isFlirting(peerId);
 }
 
-// Bereich fuer eine neue eigene Nachricht.
+// Bereich fuer eine neue eigene Nachricht. `flirtSendOnce`: Senden lange gedrueckt.
 function messageScopeFor(peerId) {
+    if (state.flirtSendOnce === peerId) {
+        state.flirtSendOnce = null;
+        if (canFlirt(peerId)) {
+            // Im normalen Chat ist der Flirt-Teil ausgeblendet: sagen, wo die Nachricht hin ist.
+            document.getElementById('chat-send-group')?.classList.remove('is-flirt-once');
+            if (state.discoveryHistory.hide) showToast(t('friends.sentAsFlirt'), 'info');
+            return 'discovery';
+        }
+    }
     if (isFlirting(peerId)) return 'discovery';
     return chatScopeOf(peerId) || currentChatScope();
 }
@@ -273,20 +314,105 @@ async function toggleFlirtMode(peerId = state.activeChatPeerId) {
     }
 }
 
-// Flamme im Chat-Kopf: aktiv im Flirt-Modus; Punkt, wenn die neueste Nachricht gerade ausgeblendet ist.
+// Lasche ueber dem Senden-Knopf, Eingabeleiste und Menue-Eintraege nachziehen. Im Flirt-Modus wachsen
+// Lasche und Senden-Knopf zu einem Block zusammen, das Eingabefeld bekommt einen Rand und eigenen Text.
+// Punkt an der Lasche: die neueste Nachricht ist gerade ausgeblendet.
 function updateFlirtButton() {
-    const button = document.getElementById('chat-flirt-btn');
-    if (!button) return;
     const peerId = state.activeChatPeerId;
     const available = canFlirt(peerId);
-    button.classList.toggle('hidden', !available);
-    if (!available) return;
-    const flirting = isFlirting(peerId);
-    button.classList.toggle('is-active', flirting);
-    button.setAttribute('aria-pressed', String(flirting));
-    const visible = (state.chats[peerId] || []).filter(message => !message.held && !message.deleted);
-    const latest = visible[visible.length - 1];
-    button.classList.toggle('has-news', Boolean(latest && isDiscoveryMessageHidden(peerId, latest)));
+    const flirting = available && isFlirting(peerId);
+    const tab = document.getElementById('chat-flirt-tab');
+    const tabShown = available && isFlirtTabShown(peerId);
+    if (tab) {
+        tab.classList.toggle('hidden', !tabShown);
+        tab.classList.toggle('is-active', flirting);
+        tab.setAttribute('aria-pressed', String(flirting));
+        const visible = (state.chats[peerId] || []).filter(message => !message.held && !message.deleted);
+        const latest = visible[visible.length - 1];
+        tab.classList.toggle('has-news', Boolean(available && latest && isDiscoveryMessageHidden(peerId, latest)));
+    }
+    document.getElementById('chat-send-group')?.classList.toggle('is-flirt', flirting);
+    document.getElementById('chat-compose-row')?.classList.toggle('is-flirt', flirting);
+    // Platz unten im Verlauf, damit die Lasche nie die letzte Nachricht verdeckt.
+    document.getElementById('chat-messages')?.classList.toggle('has-flirt-tab', tabShown);
+    const input = document.getElementById('chat-input');
+    if (input) input.placeholder = flirting ? t('friends.flirtMessagePlaceholder') : t('chat.writeMessage');
+    const menuFlirt = document.getElementById('chat-menu-flirt');
+    if (menuFlirt) {
+        menuFlirt.classList.toggle('hidden', !available);
+        const label = document.getElementById('chat-menu-flirt-label');
+        if (label) label.textContent = flirting ? t('friends.flirtModeOff') : t('friends.flirtModeOn');
+    }
+    document.getElementById('chat-menu-flirt-tab')?.classList.toggle('hidden', !available || tabShown);
+}
+
+function chatMenuToggleFlirt() {
+    closeChatHeaderMenu();
+    return toggleFlirtMode();
+}
+
+function chatMenuShowFlirtTab() {
+    closeChatHeaderMenu();
+    if (state.activeChatPeerId) return setFlirtTabHidden(state.activeChatPeerId, false);
+}
+
+// Lasche lange druecken = in diesem Chat ausblenden; Senden lange druecken = diese Nachricht als Flirt.
+const FLIRT_LONG_PRESS_MS = 450;
+
+function attachLongPress(element, onLongPress) {
+    if (!element) return;
+    let timer = null;
+    let fired = false;
+    const cancel = () => {
+        clearTimeout(timer);
+        timer = null;
+        element.classList.remove('is-pressing');
+    };
+    element.addEventListener('pointerdown', event => {
+        if (event.button > 0) return;
+        fired = false;
+        cancel();
+        timer = setTimeout(() => {
+            timer = null;
+            fired = true;
+            element.classList.remove('is-pressing');
+            onLongPress();
+        }, FLIRT_LONG_PRESS_MS);
+        element.classList.add('is-pressing');
+    });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(type => element.addEventListener(type, cancel));
+    element.addEventListener('contextmenu', event => event.preventDefault());
+    // Der Klick nach dem langen Druecken soll nicht noch einmal umschalten.
+    element.addEventListener('click', event => {
+        if (!fired) return;
+        fired = false;
+        if (element.id === 'chat-flirt-tab') {
+            event.stopImmediatePropagation();
+            event.preventDefault();
+        }
+    }, true);
+}
+
+function initFlirtControls() {
+    attachLongPress(document.getElementById('chat-flirt-tab'), () => {
+        const peerId = state.activeChatPeerId;
+        if (!peerId) return;
+        hapticTick();
+        setFlirtTabHidden(peerId, true).catch(logBackgroundError('initFlirtControls'));
+        showToast(t('friends.flirtTabHiddenHere'), 'info');
+    });
+    // Senden lange druecken: der Klick beim Loslassen sendet dann als Flirt.
+    attachLongPress(document.getElementById('send-chat-btn'), () => {
+        const peerId = state.activeChatPeerId;
+        if (!canFlirt(peerId) || isFlirting(peerId)) return;
+        hapticTick();
+        state.flirtSendOnce = peerId;
+        document.getElementById('chat-send-group')?.classList.add('is-flirt-once');
+        setTimeout(() => {
+            if (state.flirtSendOnce === peerId) state.flirtSendOnce = null;
+            document.getElementById('chat-send-group')?.classList.remove('is-flirt-once');
+        }, 3000);
+    });
 }
 
 // ----- UI -----

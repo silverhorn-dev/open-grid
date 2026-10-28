@@ -52,6 +52,7 @@ window.onload = async () => {
     initVideoViewer();
     initSecureSnaps();
     initGestures();
+    initFlirtControls();
     initSnapEditor();
     initSnapCamera();
     initChatSwitchSwipe();

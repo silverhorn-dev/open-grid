@@ -114,19 +114,38 @@ async function main() {
         await dave.evaluate(id => openChatWithPeer(id), carolId);
         await waitFor(dave, () => document.querySelector('#chat-messages')?.textContent.includes('jetzt als freunde'));
         assert.equal(await dave.evaluate(() => document.querySelector('#chat-messages').textContent.includes('hi dave')), false, 'flirt part hidden');
-        await dave.click('#chat-flirt-btn');
+        assert.equal(await dave.isVisible('#chat-flirt-tab'), true, 'flame tab above Send');
+        assert.equal(await dave.evaluate(() => document.getElementById('chat-messages').classList.contains('has-flirt-tab')), true, 'room for the tab');
+        // Senden lange druecken: nur diese Nachricht als Flirt.
+        await dave.fill('#chat-input', 'nur einmal flirt');
+        await dave.hover('#send-chat-btn');
+        await dave.mouse.down();
+        await dave.waitForTimeout(700);
+        await dave.mouse.up();
+        await waitFor(dave, id => (state.chats[id] || []).some(message => message.text === 'nur einmal flirt' && message.scope === 'discovery'), carolId);
+        assert.equal(await dave.evaluate(id => isFlirting(id), carolId), false, 'one message only, mode stays normal');
+        await dave.click('#chat-flirt-tab');
         await waitFor(dave, () => document.querySelector('#chat-messages')?.textContent.includes('hi dave'));
         assert.equal(await dave.evaluate(() => document.querySelector('#chat-messages').textContent.includes('jetzt als freunde')), true, 'flirt mode shows everything');
-        assert.equal(await dave.locator('.flirt-message').count(), 1, 'flirt messages are marked');
+        assert.equal(await dave.locator('.flirt-message').count(), 2, 'flirt messages are marked');
         await dave.fill('#chat-input', 'flirt zurueck');
         await dave.click('#send-chat-btn');
         await waitFor(carol, id => (state.chats[id] || []).some(message => message.text === 'flirt zurueck' && message.scope === 'discovery'), daveId);
         // Carol ist im normalen Chat: die neue Flirt-Nachricht ist verborgen, die Flamme zeigt einen Punkt.
         await carol.evaluate(() => renderChatHistory());
         assert.equal(await carol.evaluate(() => document.querySelector('#chat-messages').textContent.includes('flirt zurueck')), false);
-        await waitFor(carol, () => document.getElementById('chat-flirt-btn')?.classList.contains('has-news'));
-        await dave.click('#chat-flirt-btn');
+        await waitFor(carol, () => document.getElementById('chat-flirt-tab')?.classList.contains('has-news'));
+        await dave.click('#chat-flirt-tab');
         await waitFor(dave, () => !document.querySelector('#chat-messages')?.textContent.includes('hi dave'));
+        // Lasche lange druecken = hier ausblenden; ueber das Menue wieder einblenden.
+        await dave.hover('#chat-flirt-tab');
+        await dave.mouse.down();
+        await dave.waitForTimeout(700);
+        await dave.mouse.up();
+        await waitFor(dave, () => document.getElementById('chat-flirt-tab').classList.contains('hidden'));
+        assert.equal(await dave.evaluate(id => isFlirting(id), carolId), false, 'long-press did not toggle');
+        await dave.evaluate(() => chatMenuShowFlirtTab());
+        await waitFor(dave, () => !document.getElementById('chat-flirt-tab').classList.contains('hidden'));
 
         assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log('E2E OK (friends)');

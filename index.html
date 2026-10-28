@@ -235,9 +235,6 @@
                             <i class="fa-solid fa-chevron-down"></i>
                         </button>
                         <span data-i18n-attr="title:chat.offlineChatsAreAvailableLocally;aria-label:chat.offline" class="offline-indicator hidden w-9 h-9 items-center justify-center text-amber-400" role="img" title="Offline - Chats sind lokal verfügbar, neue Nachrichten kommen, sobald du wieder verbunden bist" aria-label="Offline"><i class="fa-solid fa-wifi wifi-off"></i></span>
-                        <button data-i18n-attr="title:friends.flirtMode;aria-label:friends.flirtMode" id="chat-flirt-btn" data-click="toggleFlirtMode" class="chat-flirt-btn hidden w-9 h-9 rounded-lg items-center justify-center" title="Flirt-Modus" aria-label="Flirt-Modus" aria-pressed="false">
-                            <i class="fa-solid fa-fire"></i>
-                        </button>
                         <button data-i18n-attr="title:chat.searchInChat;aria-label:chat.searchInChat" data-click="toggleChatSearch" class="w-9 h-9 rounded-lg text-slate-300 hover:bg-slate-800 flex items-center justify-center" title="Im Chat suchen" aria-label="Im Chat suchen">
                             <i class="fa-solid fa-magnifying-glass"></i>
                         </button>
@@ -248,6 +245,8 @@
                             <div id="chat-header-menu" class="hidden absolute right-0 top-full mt-1 z-30 w-48 py-1 rounded-xl border border-slate-700 bg-slate-900 shadow-xl" role="menu">
                                 <button data-click="chatMenuMedia" class="chat-menu-item" role="menuitem"><i class="fa-regular fa-images"></i> <span data-i18n="common.media">Medien</span></button>
                                 <button data-click="chatMenuProfile" class="chat-menu-item" role="menuitem"><i class="fa-regular fa-user"></i> <span data-i18n="common.profile">Profil</span></button>
+                                <button id="chat-menu-flirt" data-click="chatMenuToggleFlirt" class="hidden chat-menu-item" role="menuitem"><i class="fa-solid fa-fire text-brand-400"></i> <span id="chat-menu-flirt-label" data-i18n="friends.flirtModeOn">Flirt-Modus an</span></button>
+                                <button id="chat-menu-flirt-tab" data-click="chatMenuShowFlirtTab" class="hidden chat-menu-item" role="menuitem"><i class="fa-solid fa-eye"></i> <span data-i18n="friends.showFlirtTab">Flirt-Knopf zeigen</span></button>
                                 <button id="delete-chat-btn" data-click="chatMenuDeleteChat" class="hidden chat-menu-item text-red-300" role="menuitem"><i class="fa-solid fa-trash"></i> <span data-i18n="chat.deleteChat">Chat löschen</span></button>
                                 <button id="block-peer-btn" data-click="chatMenuToggleBlock" class="hidden chat-menu-item text-red-300" role="menuitem"><i class="fa-solid fa-ban"></i> <span data-i18n="chat.block" id="block-peer-label">Blockieren</span></button>
                             </div>
@@ -311,12 +310,19 @@
                             <i class="fa-solid fa-film"></i>
                         </button>
                         <textarea data-i18n-attr="placeholder:chat.writeMessage" id="chat-input" rows="1" placeholder="Nachricht schreiben..." class="chat-input flex-1 min-w-0 text-base md:text-sm"></textarea>
-                        <button data-i18n-attr="title:chat.send;aria-label:chat.send" id="send-chat-btn" data-click="sendChatMessage" class="compose-btn compose-btn-primary" title="Senden" aria-label="Senden">
-                            <i class="fa-solid fa-paper-plane"></i><span data-i18n="chat.send" class="hidden sm:inline">Senden</span>
-                        </button>
-                        <button data-i18n-attr="title:chat.recordVoiceMessage;aria-label:chat.recordVoiceMessage" id="chat-voice-btn" data-chat-image-action data-click="startVoiceRecording" class="compose-btn compose-btn-primary compose-btn-icon hidden" title="Sprachnachricht aufnehmen" aria-label="Sprachnachricht aufnehmen">
-                            <i class="fa-solid fa-microphone"></i>
-                        </button>
+                        <!-- Senden/Mikrofon mit Flirt-Lasche (friends.js): Lasche tippen = Flirt-Modus, lange druecken =
+                             hier ausblenden; Senden lange druecken = diese Nachricht als Flirt -->
+                        <div id="chat-send-group" class="compose-send">
+                            <button type="button" data-i18n-attr="title:friends.flirtMode;aria-label:friends.flirtMode" id="chat-flirt-tab" data-click="toggleFlirtMode" class="flirt-tab hidden" title="Flirt-Modus" aria-label="Flirt-Modus" aria-pressed="false">
+                                <i class="fa-solid fa-fire"></i>
+                            </button>
+                            <button data-i18n-attr="title:chat.send;aria-label:chat.send" id="send-chat-btn" data-click="sendChatMessage" class="compose-btn compose-btn-primary" title="Senden" aria-label="Senden">
+                                <i class="fa-solid fa-paper-plane"></i><span data-i18n="chat.send" class="hidden sm:inline">Senden</span>
+                            </button>
+                            <button data-i18n-attr="title:chat.recordVoiceMessage;aria-label:chat.recordVoiceMessage" id="chat-voice-btn" data-chat-image-action data-click="startVoiceRecording" class="compose-btn compose-btn-primary compose-btn-icon hidden" title="Sprachnachricht aufnehmen" aria-label="Sprachnachricht aufnehmen">
+                                <i class="fa-solid fa-microphone"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -646,6 +652,10 @@
                     <label class="setting-row">
                         <span class="setting-text"><span data-i18n="friends.hideDiscoveryHistorySetting" class="setting-title">Flirt-Verlauf im normalen Chat ausblenden</span><span data-i18n="friends.hideDiscoveryHistoryDescription" class="setting-desc">Wird aus einem Match ein Freund, wechselst du mit der Flamme oben im Chat in den Flirt-Modus: dort siehst du alles. Im normalen Chat bleibt der Flirt dann verborgen.</span></span>
                         <input type="checkbox" role="switch" id="discovery-history-toggle" checked data-change="updateDiscoveryHistorySetting" data-args='["$checked"]' class="switch">
+                    </label>
+                    <label class="setting-row">
+                        <span class="setting-text"><span data-i18n="friends.flirtTabSetting" class="setting-title">Flirt-Knopf über Senden</span><span data-i18n="friends.flirtTabDescription" class="setting-desc">Kleine Flamme über dem Senden-Knopf in Chats mit Flirt-Verlauf. Lange drücken blendet sie für einen Chat aus; Senden lange drücken schickt eine Flirt-Nachricht.</span></span>
+                        <input type="checkbox" role="switch" id="flirt-tab-toggle" checked data-change="updateFlirtTabSetting" data-args='["$checked"]' class="switch">
                     </label>
                 </div>
 

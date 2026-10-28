@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 173 · 2026-10-28
+## Build 174 · 2026-10-28
+- Flirt-Knopf neu: kleine Flamme ueber dem Senden-Knopf statt oben im Chat. Tippen schaltet den Flirt-Modus (Flamme und Senden werden zu einem Block, das Eingabefeld zeigt "Flirt-Nachricht…"), Senden lange druecken schickt nur diese Nachricht als Flirt, die Flamme lange druecken blendet sie fuer diesen Chat aus (zurueck ueber ⋮). Abschaltbar unter Einstellungen > Chat > Nach dem Adden
+
+## Build 173 · 2026-10-28 · `e56bb82`
 - Wischen: im Profil nach links oeffnet das Menue; in den Einstellungen blaetterst du seitlich durch die Bereiche (nicht auf Schaltern und Reglern) und verlaesst sie, indem du oben nach unten ziehst
 - Behoben: nach Neu laden kam das Ende einer 1x/2x/3x-Album-Ansicht manchmal nicht beim Besitzer an (beim Start war die App noch nicht beim Router angemeldet)
 

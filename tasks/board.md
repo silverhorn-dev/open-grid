@@ -305,3 +305,17 @@
 - [x] wisch-wunsch (nutzer 2026-10-28): im profil nach links = menue; einstellungen seitlich = bereiche blaettern (ausnahme regler); einstellungen verlassen nur nach unten
   - done 2026-10-28: `SWIPE_TABS` ohne einstellungen, `stepSettingsTab`, runterziehen ab 120 px oben = zurueck ins profil; `overscroll-behavior-y: contain` solange die einstellungen offen sind (kein neu laden); e2e `mobile-layout`
 
+## T15 Praesenz: Abwesend + Benachrichtigung bei verstecktem Tab (nutzer 2026-10-28)
+- [ ] PWA auf dem handy weggewischt/im hintergrund (und browser-tab/fenster am pc nicht sichtbar): status bleibt "online", nachrichten kommen an, aber keine benachrichtigung
+  - wunsch: zustand "abwesend" (o. ae.), wenn die app nicht sichtbar ist
+  - zu pruefen: wird bei `visibilityState === 'hidden'` eine benachrichtigung gezeigt (seite selbst bzw. SW), oder unterdrueckt die app sie, weil die seite noch "lebt"? push kommt evtl. gar nicht, solange die WS-verbindung steht (server haelt peer fuer online)
+- [x] flirt-lasche ueber dem senden-knopf (nutzer 2026-10-28): ersetzt die flamme im chat-kopf; lasche tippen = flirt-modus, lasche lange druecken = in diesem chat ausblenden (zurueck ueber ⋮), senden lange druecken = diese nachricht als flirt; im flirt-modus lasche + senden als ein block, eingabefeld mit rand und "Flirt-Nachricht…"; einstellung "Flirt-Knopf über Senden"; verlauf unten mit platz fuer die lasche; e2e `friends`
+  - offen: volle e2e-suite nach dieser aenderung noch nicht gelaufen; screenshots normal/flirt noch nicht angesehen
+
+## T16 Wisch-Bugs (nutzer 2026-10-28, offen)
+- [ ] seitenmenue laesst sich nicht per wischen (nach rechts) schliessen
+- [ ] profil im chat laesst sich (beim nutzer) nicht nach unten wischen; im e2e geht es -> auf echtem geraet pruefen
+- [ ] profil und einstellungen: wischen soll auch auf schaltern und auswahlen starten duerfen (die reagieren auf klick, nicht auf wischen)
+- [ ] einstellungen auch per wischen nach rechts schliessen (an "Allgemein" -> zurueck ins profil)
+- [ ] im chat auf der eingabeleiste nach rechts wischen = chat schliessen (zur chat-uebersicht); einstellbar, standard vom router (`CLIENT_DEFAULTS`) (nutzer 2026-10-28)
+

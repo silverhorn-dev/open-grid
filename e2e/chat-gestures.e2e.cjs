@@ -132,6 +132,28 @@ async function main() {
         await drag(sheetPoint, 0, Math.max(240, viewport.height * 0.45));
         await waitFor(page, () => document.getElementById('media-modal').classList.contains('hidden'), null, 3000);
 
+        // Profil seitlich wischen = naechstes Profil der Liste (mit Animation); am Ende federt es zurueck.
+        await page.evaluate(() => {
+            closeMediaModal?.();
+            state.cachedProfiles.node_browse_a = { id: 'node_browse_a', fields: { displayName: 'Anna' } };
+            state.cachedProfiles.node_browse_b = { id: 'node_browse_b', fields: { displayName: 'Ben' } };
+            setProfileBrowseList(['node_browse_a', 'node_browse_b']);
+            openProfileModal('node_browse_a');
+        });
+        await page.waitForTimeout(400);
+        const profileCard = await page.locator('#profile-detail-modal > div').boundingBox();
+        const middle = { x: profileCard.x + profileCard.width * 0.75, y: Math.max(profileCard.y + 300, 320) };
+        await drag(middle, -220, 0);
+        await waitFor(page, () => state.activeModalPeerId === 'node_browse_b', null, 3000);
+        await page.waitForTimeout(400);
+        assert.equal(await page.evaluate(() => document.querySelector('#profile-detail-modal > div').style.transform), '', 'new card settled');
+        await drag(middle, -220, 0);
+        await page.waitForTimeout(400);
+        assert.equal(await page.evaluate(() => state.activeModalPeerId), 'node_browse_b', 'last profile stays');
+        assert.equal(await page.evaluate(() => document.querySelector('#profile-detail-modal > div').style.transform), '', 'springs back');
+        await drag({ x: profileCard.x + profileCard.width * 0.25, y: middle.y }, 220, 0);
+        await waitFor(page, () => state.activeModalPeerId === 'node_browse_a', null, 3000);
+
         assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log('E2E OK (chat gestures, mobile)');
     } finally {

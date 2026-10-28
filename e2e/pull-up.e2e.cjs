@@ -15,6 +15,9 @@ async function waitFor(page, predicate, arg, timeout = 20000) {
 }
 
 async function pullUp(page, session) {
+    // Ein beim Start schon laufender DB-Abgleich der Chatliste kann die Testchats (nur im Speicher)
+    // spaeter wieder leeren: vor jedem Ziehen sicherstellen, dass beide drin sind.
+    await page.evaluate(() => ['node_one', 'node_two'].forEach(id => { if (!state.chatPeerIds.includes(id)) state.chatPeerIds.push(id); }));
     const box = await page.locator('#chat-messages').boundingBox();
     const x = box.x + box.width / 2;
     const start = box.y + box.height - 40;
@@ -49,6 +52,8 @@ async function main() {
                 state.chats[id] = [{ id: `${id}-m`, senderId: id, text: 'hi', timestamp: '10:00', createdAt: 1 }];
             });
             window.loadChatHistory = async () => {};
+            // Die Testchats liegen nur im Speicher: der Abgleich mit der DB (nach dem Verbinden) darf sie nicht leeren.
+            window.loadChatPeerIds = async () => {};
             await openChatWithPeer('node_one');
         });
 
@@ -79,7 +84,14 @@ async function main() {
             assert.ok(heights.at(-1) > 20, 'indicator visible');
         }
         await page.waitForTimeout(200);
-        await page.evaluate(() => { state.chats[state.activeChatPeerId] = state.chats[state.activeChatPeerId].slice(-1); renderChatHistory(); });
+        await page.evaluate(() => {
+            state.chats[state.activeChatPeerId] = state.chats[state.activeChatPeerId].slice(-1);
+            state.chatRenderLimit = 150;
+            renderChatHistory();
+            const container = document.getElementById('chat-messages');
+            container.scrollTop = container.scrollHeight;
+        });
+        await waitFor(page, () => { const container = document.getElementById('chat-messages'); return container.scrollTop + container.clientHeight >= container.scrollHeight - 2 && document.getElementById('chat-pull-refresh').getBoundingClientRect().height === 0; });
 
         // Naechster Chat.
         await page.evaluate(() => updatePullUpSetting('next'));

@@ -63,3 +63,13 @@ test('distance and photo come from the grid card', () => {
     assert.equal(context.gridFilterVerdict('a', { avatar: null }), 'no');
     assert.equal(context.gridFilterVerdict('a', { avatar: 'data:image/jpeg;base64,AA' }), 'match');
 });
+
+// Prefetch: Profil nur holen, wenn es fehlt oder die Grid-Karte eine neuere Version meldet.
+test('profiles are fetched again only when the card reports a newer version', () => {
+    const context = loadGridFilter();
+    context.state.cachedProfiles = { mia: { version: 3, fields: {} } };
+    assert.equal(context.profileNeedsFetch({ id: 'ben' }), true, 'missing');
+    assert.equal(context.profileNeedsFetch({ id: 'mia', version: 3 }), false, 'same version');
+    assert.equal(context.profileNeedsFetch({ id: 'mia', version: 4 }), true, 'updated');
+    assert.equal(context.profileNeedsFetch({ id: 'mia', version: null }), false, 'no version on the card: keep the cached one');
+});

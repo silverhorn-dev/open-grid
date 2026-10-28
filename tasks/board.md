@@ -387,6 +387,9 @@
   - interaktionen: neueste oben, "flamme zurueck"-knopf, badge am tab fuer neue
 - [x] filter (lokal auf die grid-ergebnisse): alter von-bis, entfernung, gerade online, mit foto, plus jedes select-/tag-feld aus dem profil-schema; mehrere selektoren: UND zwischen feldern, ODER innerhalb eines felds; zu wenige treffer -> "mehr laden"
   - entschieden (nutzer 2026-10-28): kein filter-code auf der karte; stattdessen die ersten ~10 profile im hintergrund laden und auf dem client filtern/sortieren; filter auch in interaktionen und matches; panel nur ueber pfeil-knopf; dazu im profil seitlich zwischen den karten wischen
+  - nachtrag (nutzer 2026-10-28): animation beim seitlichen wischen im profil (karte folgt dem finger, faehrt hinaus, neues kommt herein; gummiband am ende); e2e `chat-gestures`
+  - test-stabilitaet: e2e `pull-up` leerte gelegentlich seine testchats (laufender db-abgleich der chatliste beim start), jetzt vor jedem ziehen sichergestellt
+  - nachtrag (nutzer 2026-10-28): profil-version auf der grid-karte (`profileVersion` beim registrieren, spalte `peers.profile_version`, nur ein zaehler); prefetch nur bei fehlendem oder veraltetem profil
   - done 2026-10-28: `client/app/grid-filter.js` (`keys`/`grid-filter`), entfernung/foto/zahlen/auswahl, unbekannte hinten (abschaltbar), direktes `PROFILE_REQUEST` fuer die ersten 10, neu sortieren bei ankunft, blaettern im profil (wischen, pfeiltasten); tests `test/grid-filter.test.js`, e2e `grid-filter`
 - [ ] "nur zeigen fuer ..." (sichtbarkeitsregel), auf jedem select-/tag-feld (z. B. tribe: twink, femme), symmetrisch zum filter
   - entschieden (nutzer 2026-10-28): der router setzt die regel durch (P2P-pruefung skaliert nicht und wirkt offline nicht); die regel darf klartext sein ("wen ich sehen lassen will", keine aussage ueber den eigenen typ) - das ist der preis, deshalb steht ein hinweis bei der einstellung

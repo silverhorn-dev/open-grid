@@ -115,6 +115,11 @@ export function createStore(databasePath, { credentialRetentionDays = DEFAULT_CR
         database.exec('UPDATE peer_credentials SET last_active_at = created_at WHERE last_active_at IS NULL');
     }
 
+    // Profil-Version (nur ein Zaehler, kein Inhalt): Clients holen ein Profil nur neu, wenn es sich geaendert hat.
+    if (!database.prepare('PRAGMA table_info(peers)').all().some(column => column.name === 'profile_version')) {
+        database.exec('ALTER TABLE peers ADD COLUMN profile_version INTEGER');
+    }
+
     // Benachrichtigungsarten, die der Peer nicht per Push will (JSON-Liste, z. B. ["flame"]).
     const pushColumns = database.prepare('PRAGMA table_info(push_subscriptions)').all();
     if (!pushColumns.some(column => column.name === 'muted_kinds')) {
@@ -147,8 +152,8 @@ export function createStore(databasePath, { credentialRetentionDays = DEFAULT_CR
             WHERE peer_id = ?
         `),
         upsertPeer: database.prepare(`
-            INSERT INTO peers (peer_id, registration_id, auth_hash, geohash, thumbnail, name, silent, scope, event_hash, expires_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO peers (peer_id, registration_id, auth_hash, geohash, thumbnail, name, silent, scope, event_hash, expires_at, profile_version)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(peer_id) DO UPDATE SET
                 registration_id = excluded.registration_id,
                 auth_hash = excluded.auth_hash,
@@ -158,24 +163,25 @@ export function createStore(databasePath, { credentialRetentionDays = DEFAULT_CR
                 silent = excluded.silent,
                 scope = excluded.scope,
                 event_hash = excluded.event_hash,
-                expires_at = excluded.expires_at
+                expires_at = excluded.expires_at,
+                profile_version = excluded.profile_version
         `),
         deletePeer: database.prepare('DELETE FROM peers WHERE peer_id = ?'),
         deletePeerRegistration: database.prepare('DELETE FROM peers WHERE peer_id = ? AND registration_id = ?'),
         // Prefix-Abfrage ueber den (geohash, expires_at)-Index: geohash >= prefix AND geohash < prefix + '~'.
         listPeersInCell: database.prepare(`
-            SELECT peer_id AS peerId, geohash, thumbnail, name
+            SELECT peer_id AS peerId, geohash, thumbnail, name, profile_version AS profileVersion
             FROM peers
             WHERE geohash >= ? AND geohash < ? AND expires_at > ? AND silent = 0 AND scope = 'public'
         `),
         listEventPeers: database.prepare(`
-            SELECT peer_id AS peerId, geohash, thumbnail, name
+            SELECT peer_id AS peerId, geohash, thumbnail, name, profile_version AS profileVersion
             FROM peers
             WHERE event_hash = ? AND scope = 'event' AND expires_at > ? AND silent = 0
             LIMIT 500
         `),
         findVisiblePeer: database.prepare(`
-            SELECT peer_id AS peerId, geohash, thumbnail, name
+            SELECT peer_id AS peerId, geohash, thumbnail, name, profile_version AS profileVersion
             FROM peers
             WHERE peer_id = ? AND expires_at > ? AND silent = 0 AND scope IN ('public', 'friends')
         `),
@@ -355,7 +361,8 @@ export function createStore(databasePath, { credentialRetentionDays = DEFAULT_CR
                 silent,
                 scope,
                 scope === 'event' ? session.eventHash : null,
-                now + ttlMs
+                now + ttlMs,
+                Number.isSafeInteger(session.profileVersion) ? session.profileVersion : null
             );
             if (isPublic) statements.deleteRemoved.run(session.geohash, session.peerId);
             return true;

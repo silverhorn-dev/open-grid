@@ -34,7 +34,7 @@ function renderDiscoveryGrid() {
     // Filter nur auf dem Geraet (grid-filter.js); die ersten Profile im Hintergrund holen.
     const discovery = gridTabsAvailable();
     const visiblePeers = discovery ? applyGridFilter(listedPeers) : listedPeers;
-    if (discovery) prefetchGridProfiles(listedPeers.map(peer => peer.id));
+    if (discovery) prefetchGridProfiles(listedPeers);
     setProfileBrowseList(visiblePeers.map(peer => peer.id));
     const groupByDistance = !(discovery && profileFilterActive());
     container.innerHTML = '';
@@ -448,6 +448,8 @@ async function registerWithWorkerGrid() {
                 // Sichtbarkeitsstufe 3: der Router bekommt weder Namen noch Vorschaubild.
                 ...getRegistrationIdentity(),
                 authToken: state.routerAuthToken,
+                // Nur die Versionsnummer: andere holen das Profil P2P nur, wenn es sich geaendert hat.
+                profileVersion: Number.isSafeInteger(state.myProfile.version) ? state.myProfile.version : undefined,
                 silent: isEffectivelySilent() || isModeSilent(),
                 ...getRegistrationScope(),
                 ttlMinutes: state.gridSettings.ttlMinutes,

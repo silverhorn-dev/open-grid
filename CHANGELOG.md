@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 189 · 2026-10-28
+## Build 190 · 2026-10-28
+- Seitlich durch Profile wischen ist jetzt animiert: die Karte folgt dem Finger und das naechste Profil gleitet herein
+- Grid: geaenderte Profile werden beim Vorladen erkannt (der Router kennt nur die Versionsnummer) und neu geholt; unveraenderte, schon bekannte Profile kosten keine Anfrage mehr
+
+## Build 189 · 2026-10-28 · `6a2c55d`
 - Grid-Filter (Pfeil-Knopf neben den Grid-Bereichen): Entfernung, nur mit Foto, Alter und Auswahlfelder aus dem Profil. Gefiltert wird nur auf deinem Geraet; wessen Profil noch nicht geladen ist, steht als "unbekannt" hinten
 - Im geoeffneten Profil wischst du seitlich zum naechsten Profil (am PC Pfeiltasten)
 

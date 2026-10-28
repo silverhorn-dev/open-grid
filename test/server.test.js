@@ -375,8 +375,14 @@ test('loads the grid ring by ring with distance buckets and no locations', async
     const ring0 = await gridPeerIds('geohash=u10j2k');
     assert.deepEqual(ring0.peers.map(peer => peer.id), ['peer-a']);
     assert.equal(ring0.hasMore, true);
-    assert.deepEqual(Object.keys(ring0.peers[0]).sort(), ['avatar', 'distanceBucket', 'id', 'name']);
+    // Keine Standorte; die Profil-Version ist nur ein Zaehler (ohne Angabe null).
+    assert.deepEqual(Object.keys(ring0.peers[0]).sort(), ['avatar', 'distanceBucket', 'id', 'name', 'version']);
+    assert.equal(ring0.peers[0].version, null);
     assert.equal(ring0.peers[0].distanceBucket, 'lt1');
+    await app.inject({ method: 'POST', url: '/api/register', headers: authHeaders('peer-a'), payload: registrationPayload('peer-a', 'registration-peer-a', { profileVersion: 7 }) });
+    assert.equal((await gridPeerIds('geohash=u10j2k')).peers[0].version, 7, 'profile version on the card');
+    await app.inject({ method: 'POST', url: '/api/register', headers: authHeaders('peer-a'), payload: registrationPayload('peer-a', 'registration-peer-a', { profileVersion: 'x' }) });
+    assert.equal((await gridPeerIds('geohash=u10j2k')).peers[0].version, null, 'only integers');
 
     const ring1 = await gridPeerIds('geohash=u10j2k&ring=1');
     assert.deepEqual(ring1.peers.map(peer => peer.id), ['peer-a', 'peer-b']);

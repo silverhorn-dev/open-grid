@@ -95,8 +95,15 @@ const gridPrefetchRequests = {};
 
 // Gebuendelt 2 s nach dem Zeichnen: so laufen Ablaeufe beim Start (z. B. eine Einladung) erst in Ruhe an.
 // Ausgelassen: wer schon einen Chat hat (dessen Profil kommt ueber den Chat) oder gerade verbunden wird.
-function prefetchGridProfiles(peerIds) {
-    state.gridPrefetchPeerIds = peerIds;
+// Neu geholt wird nur, wenn das Profil fehlt oder die Karte eine neuere Version meldet als das gecachte.
+function profileNeedsFetch(card) {
+    const cached = state.cachedProfiles[card.id];
+    if (!cached) return true;
+    return Number.isFinite(card.version) && (Number(cached.version) || 0) < card.version;
+}
+
+function prefetchGridProfiles(cards) {
+    state.gridPrefetchPeerIds = cards;
     if (state.gridPrefetchTimer) return;
     state.gridPrefetchTimer = setTimeout(() => {
         state.gridPrefetchTimer = null;
@@ -104,16 +111,17 @@ function prefetchGridProfiles(peerIds) {
     }, GRID_PREFETCH_DELAY_MS);
 }
 
-function runGridPrefetch(peerIds) {
+function runGridPrefetch(cards) {
     const now = Date.now();
-    peerIds.filter(peerId => !state.cachedProfiles[peerId] && !isPeerBlocked(peerId)
-        && !state.chatPeerIds.includes(peerId) && peerId !== state.activeChatPeerId)
+    cards.filter(card => profileNeedsFetch(card) && !isPeerBlocked(card.id)
+        && !state.chatPeerIds.includes(card.id) && card.id !== state.activeChatPeerId)
+        .map(card => card.id)
         .slice(0, GRID_PREFETCH_COUNT)
         .filter(peerId => now - (gridPrefetchRequests[peerId] || 0) >= GRID_PREFETCH_INTERVAL_MS)
         .forEach(peerId => {
             gridPrefetchRequests[peerId] = now;
             const request = () => {
-                if (state.cachedProfiles[peerId] || hasConnectionInProgress(peerId)) return;
+                if (hasConnectionInProgress(peerId)) return;
                 sendSecurePayload(peerId, { type: 'PROFILE_REQUEST' }).catch(logBackgroundError('prefetchGridProfiles'));
             };
             // Sehen sich beide im Grid, wuerden beide gleichzeitig verbinden. Die hoefliche Seite wartet kurz.
@@ -258,33 +266,84 @@ function setProfileBrowseList(peerIds) {
     state.profileBrowseList = peerIds.slice(0, 500);
 }
 
-function stepProfile(direction) {
+const PROFILE_SWIPE_TRIGGER = 70;
+const PROFILE_SLIDE_MS = 180;
+
+function profileNeighbour(direction) {
     const list = state.profileBrowseList || [];
     const index = list.indexOf(state.activeModalPeerId);
-    if (index < 0) return;
-    const next = list[index + direction];
-    if (!next) return;
+    return index < 0 ? null : list[index + direction] || null;
+}
+
+// Naechstes Profil mit Animation: Karte faehrt zur Seite hinaus, das neue kommt von der anderen Seite.
+function stepProfile(direction, fromOffset = 0) {
+    const next = profileNeighbour(direction);
+    const card = document.querySelector('#profile-detail-modal > div');
+    if (!next) {
+        if (card) springBackProfileCard(card);
+        return;
+    }
     hapticTick();
-    openProfileModal(next);
+    if (!card || prefersReducedMotion()) {
+        openProfileModal(next);
+        return;
+    }
+    card.style.transition = `transform ${PROFILE_SLIDE_MS}ms ease-in, opacity ${PROFILE_SLIDE_MS}ms ease-in`;
+    card.style.transform = `translate3d(${direction > 0 ? '-110%' : '110%'}, 0, 0)`;
+    card.style.opacity = '0';
+    setTimeout(() => {
+        openProfileModal(next);
+        card.style.transition = 'none';
+        card.style.transform = `translate3d(${direction > 0 ? '40%' : '-40%'}, 0, 0)`;
+        void card.offsetWidth;
+        card.style.transition = `transform ${PROFILE_SLIDE_MS + 40}ms ease-out, opacity ${PROFILE_SLIDE_MS + 40}ms ease-out`;
+        card.style.transform = '';
+        card.style.opacity = '';
+    }, fromOffset ? PROFILE_SLIDE_MS - 40 : PROFILE_SLIDE_MS);
+}
+
+function springBackProfileCard(card) {
+    card.style.transition = prefersReducedMotion() ? 'none' : 'transform 200ms ease-out, opacity 200ms ease-out';
+    card.style.transform = '';
+    card.style.opacity = '';
 }
 
 function initProfileBrowsing() {
     const card = document.querySelector('#profile-detail-modal > div');
     if (!card) return;
-    let start = null;
+    let gesture = null;
     card.addEventListener('touchstart', event => {
-        start = event.touches.length === 1 && !event.target.closest('[data-no-sheet-swipe], input, textarea, select')
-            ? { x: event.touches[0].clientX, y: event.touches[0].clientY } : null;
+        gesture = event.touches.length === 1 && !event.target.closest('[data-no-sheet-swipe], input, textarea, select')
+            ? { x: event.touches[0].clientX, y: event.touches[0].clientY, axis: null, deltaX: 0 } : null;
     }, { passive: true });
-    card.addEventListener('touchend', event => {
-        if (!start) return;
-        const touch = event.changedTouches[0];
-        const deltaX = touch.clientX - start.x;
-        const deltaY = touch.clientY - start.y;
-        start = null;
-        if (Math.abs(deltaX) < 70 || Math.abs(deltaX) < Math.abs(deltaY) * 1.5) return;
-        stepProfile(deltaX < 0 ? 1 : -1);
+    card.addEventListener('touchmove', event => {
+        if (!gesture) return;
+        const deltaX = event.touches[0].clientX - gesture.x;
+        const deltaY = event.touches[0].clientY - gesture.y;
+        if (!gesture.axis) {
+            if (Math.hypot(deltaX, deltaY) < 10) return;
+            gesture.axis = Math.abs(deltaX) > Math.abs(deltaY) * 1.5 ? 'x' : 'y';
+        }
+        if (gesture.axis !== 'x' || prefersReducedMotion()) return;
+        // Ohne Nachbarn in der Richtung nur ein kleiner Gummiband-Zug.
+        const hasNext = Boolean(profileNeighbour(deltaX < 0 ? 1 : -1));
+        gesture.deltaX = deltaX;
+        card.style.transition = 'none';
+        card.style.transform = `translate3d(${hasNext ? deltaX : deltaX * 0.25}px, 0, 0)`;
+        card.style.opacity = hasNext ? String(1 - Math.min(0.5, Math.abs(deltaX) / 600)) : '';
     }, { passive: true });
+    const finish = cancelled => {
+        const finished = gesture;
+        gesture = null;
+        if (finished?.axis !== 'x') return;
+        if (cancelled || Math.abs(finished.deltaX) < PROFILE_SWIPE_TRIGGER) {
+            springBackProfileCard(card);
+            return;
+        }
+        stepProfile(finished.deltaX < 0 ? 1 : -1, finished.deltaX);
+    };
+    card.addEventListener('touchend', () => finish(false), { passive: true });
+    card.addEventListener('touchcancel', () => finish(true), { passive: true });
     document.addEventListener('keydown', event => {
         if (document.getElementById('profile-detail-modal')?.classList.contains('hidden')) return;
         if (event.target.closest?.('input, textarea, select')) return;

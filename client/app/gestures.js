@@ -371,10 +371,12 @@ function attachSwipeToClose(scrollContainer, card, close, { trigger = () => SHEE
     const finish = cancelled => {
         const finished = gesture;
         gesture = null;
+        // Nur nach eigenem Zug nach unten zuruecksetzen (sonst stoert es z. B. das seitliche Blaettern).
+        if (finished?.axis !== 'down') return;
         card.style.transition = prefersReducedMotion() ? 'none' : 'transform 200ms ease-out, opacity 200ms ease-out';
         card.style.transform = '';
         card.style.opacity = '';
-        if (!cancelled && finished?.axis === 'down' && finished.deltaY > trigger()) close();
+        if (!cancelled && finished.deltaY > trigger()) close();
     };
     scrollContainer.addEventListener('touchend', () => finish(false), { passive: true });
     scrollContainer.addEventListener('touchcancel', () => finish(true), { passive: true });

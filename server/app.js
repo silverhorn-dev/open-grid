@@ -616,7 +616,8 @@ export async function buildApp(options = {}) {
             silent,
             ttlMinutes,
             scope,
-            eventHash
+            eventHash,
+            profileVersion
         } = request.body || {};
         if (!isString(peerId, 200) || !isGeohash(geohash, GRID_PRECISION) || !isString(registrationId, 200)) {
             return reply.code(400).send({ error: 'Invalid payload' });
@@ -663,7 +664,9 @@ export async function buildApp(options = {}) {
             silent: silent === true,
             ttlMs: ttlMinutes != null ? ttlMinutes * 60 * 1000 : undefined,
             scope: peerScope,
-            eventHash: peerScope === 'event' ? eventHash : null
+            eventHash: peerScope === 'event' ? eventHash : null,
+            // Nur der Zaehler der Profil-Version (Clients holen das Profil P2P nur bei Aenderung neu).
+            profileVersion: Number.isSafeInteger(profileVersion) && profileVersion >= 0 && profileVersion <= 1e9 ? profileVersion : null
         };
         if (!store.registerPeer(session)) {
             return reply.code(403).send({ error: 'Peer identity is already registered' });
@@ -697,6 +700,7 @@ export async function buildApp(options = {}) {
         id: peer.peerId,
         avatar: peer.thumbnail,
         name: peer.name,
+        version: peer.profileVersion ?? null,
         distanceBucket: origin ? distanceBucket(km) : null
     });
     const withDistance = (origin, peers) => peers

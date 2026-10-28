@@ -1042,7 +1042,10 @@ Entfernung (hoechstens Stufe X) und "nur mit Foto" aus der Grid-Karte;
 Zahlenfelder (von-bis) und Auswahlfelder (ODER im Feld) aus dem Profil-Schema,
 UND zwischen Feldern. Profile kommen nur P2P: fehlt eins, gilt der Peer als
 unbekannt ("Unbekannte zeigen", Standard an). Passende stehen vorne,
-unbekannte danach. Die ersten 10 sichtbaren Grid-Peers ohne Profil bekommen
+unbekannte danach. Die Grid-Karte traegt die Profil-Version (`version`, nur
+ein Zaehler, beim Registrieren als `profileVersion` gemeldet, Spalte
+`peers.profile_version`): geholt wird nur, wenn das Profil fehlt oder die
+Karte eine neuere Version meldet. Die ersten 10 sichtbaren Grid-Peers ohne (aktuelles) Profil bekommen
 2 s nach dem Zeichnen (gebuendelt) direkt ein `PROFILE_REQUEST` (je Peer
 hoechstens einmal pro Minute; nicht fuer Chat-Partner oder laufende
 Verbindungsaufbauten; die hoefliche Seite wartet 1,5 s, sonst verbinden sich
@@ -1050,7 +1053,9 @@ zwei, die sich gegenseitig im Grid sehen, gleichzeitig und der Aufbau bricht
 ab, z. B. bei einer gerade geoeffneten Einladung); kommt ein
 Profil an, wird das Grid gebuendelt neu sortiert. Im offenen Profil blaettert
 seitliches Wischen (bzw. Pfeiltasten) zum naechsten/vorigen Profil der Liste,
-aus der es geoeffnet wurde.
+aus der es geoeffnet wurde: die Karte folgt dem Finger, faehrt ab 70 px hinaus
+und das neue Profil kommt von der anderen Seite; ohne Nachbarn federt sie
+zurueck (ohne Animation bei "reduced motion").
 
 **Verlauf in Seiten** (`client/app/chat-tools.js`): Ein Chat laedt weiter den
 ganzen Verlauf aus IndexedDB, zeichnet aber nur einen Teil. Durchgehend: die

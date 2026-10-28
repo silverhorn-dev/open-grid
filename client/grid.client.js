@@ -33,7 +33,9 @@ function renderDiscoveryGrid() {
     const listedPeers = state.peers.filter(peer => !isPeerBlocked(peer.id) && !hiddenList.includes(peer.id));
     // Filter nur auf dem Geraet (grid-filter.js); die ersten Profile im Hintergrund holen.
     const discovery = gridTabsAvailable();
-    const visiblePeers = discovery ? applyGridFilter(listedPeers) : listedPeers;
+    // Sichtbarkeitsregeln der anderen (audience.js): Karten, die nicht fuer mich bestimmt sind, weglassen.
+    const allowedPeers = discovery ? listedPeers.filter(peer => audienceAllows(peer.audience)) : listedPeers;
+    const visiblePeers = discovery ? applyGridFilter(allowedPeers) : allowedPeers;
     if (discovery) prefetchGridProfiles(listedPeers);
     setProfileBrowseList(visiblePeers.map(peer => peer.id));
     const groupByDistance = !(discovery && profileFilterActive());
@@ -450,6 +452,8 @@ async function registerWithWorkerGrid() {
                 authToken: state.routerAuthToken,
                 // Nur die Versionsnummer: andere holen das Profil P2P nur, wenn es sich geaendert hat.
                 profileVersion: Number.isSafeInteger(state.myProfile.version) ? state.myProfile.version : undefined,
+                // "Nur zeigen fuer ...": Regel als kurzer Code (audience.js), sonst nichts.
+                audience: myAudienceCode(),
                 silent: isEffectivelySilent() || isModeSilent(),
                 ...getRegistrationScope(),
                 ttlMinutes: state.gridSettings.ttlMinutes,

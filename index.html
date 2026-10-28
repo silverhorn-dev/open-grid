@@ -534,6 +534,14 @@
 
                 <!-- ===== Privatsphaere ===== -->
                 <div class="settings-card" data-settings-tab="privacy" data-scope="discovery">
+                    <h3 class="settings-card-title"><i class="fa-solid fa-user-lock text-brand-400"></i> <span data-i18n="audience.title">Wer mich im Grid sieht</span></h3>
+                    <p class="setting-desc"><span data-i18n="audience.intro">Nur zeigen für Leute, deren Profil zu deiner Auswahl passt. Ohne Auswahl sehen dich alle.</span> <span id="audience-summary" class="font-semibold"></span></p>
+                    <div id="audience-fields" class="flex flex-col gap-2.5 mt-2"></div>
+                    <p data-i18n="audience.notice" class="setting-note"><i class="fa-solid fa-circle-info"></i> Der Router speichert diese Regel im Klartext; jeder, der deine Karte abruft, kann sie lesen. Geprüft wird in der App des anderen, eine veränderte App könnte sie ignorieren.</p>
+                    <button type="button" data-click="resetAudienceRule" data-i18n="audience.reset" class="grid-filter-reset mt-1">Für alle zeigen</button>
+                </div>
+
+                <div class="settings-card" data-settings-tab="privacy" data-scope="discovery">
                     <h3 class="settings-card-title"><i class="fa-solid fa-fire text-orange-400"></i> <span data-i18n="settings.matching">Matching</span></h3>
                     <label class="setting-row">
                         <span class="setting-text"><span data-i18n="settings.profileVisible" class="setting-title">Profil sichtbar</span><span data-i18n="settings.matchHappensWhenYouSend" class="setting-desc">Ein Match entsteht, wenn ihr euch gegenseitig eine Flamme schickt. Bei "Teilweise" markierst du im Profil, welche Felder nur Matches sehen.</span></span>
@@ -1237,6 +1245,7 @@
     <script src="/client/app/friends.js?v={{assetVersion}}"></script>
     <script src="/client/app/grid-tabs.js?v={{assetVersion}}"></script>
     <script src="/client/app/grid-filter.js?v={{assetVersion}}"></script>
+    <script src="/client/app/audience.js?v={{assetVersion}}"></script>
     <script src="/client/app/status.js?v={{assetVersion}}"></script>
     <script src="/client/app/gestures.js?v={{assetVersion}}"></script>
     <script src="/client/app/modes.js?v={{assetVersion}}"></script>

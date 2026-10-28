@@ -158,6 +158,7 @@ const clientAssetFiles = [
     'app/friends.js',
     'app/grid-tabs.js',
     'app/grid-filter.js',
+    'app/audience.js',
     'app/status.js',
     'app/gestures.js',
     'app/modes.js',
@@ -617,7 +618,8 @@ export async function buildApp(options = {}) {
             ttlMinutes,
             scope,
             eventHash,
-            profileVersion
+            profileVersion,
+            audience
         } = request.body || {};
         if (!isString(peerId, 200) || !isGeohash(geohash, GRID_PRECISION) || !isString(registrationId, 200)) {
             return reply.code(400).send({ error: 'Invalid payload' });
@@ -666,7 +668,9 @@ export async function buildApp(options = {}) {
             scope: peerScope,
             eventHash: peerScope === 'event' ? eventHash : null,
             // Nur der Zaehler der Profil-Version (Clients holen das Profil P2P nur bei Aenderung neu).
-            profileVersion: Number.isSafeInteger(profileVersion) && profileVersion >= 0 && profileVersion <= 1e9 ? profileVersion : null
+            profileVersion: Number.isSafeInteger(profileVersion) && profileVersion >= 0 && profileVersion <= 1e9 ? profileVersion : null,
+            // Sichtbarkeitsregel als kurzer Code; der Router prueft nur die Form, nie den Inhalt.
+            audience: typeof audience === 'string' && /^[A-Za-z0-9_-]{2,64}$/.test(audience) ? audience : null
         };
         if (!store.registerPeer(session)) {
             return reply.code(403).send({ error: 'Peer identity is already registered' });
@@ -701,6 +705,7 @@ export async function buildApp(options = {}) {
         avatar: peer.thumbnail,
         name: peer.name,
         version: peer.profileVersion ?? null,
+        ...(peer.audience ? { audience: peer.audience } : {}),
         distanceBucket: origin ? distanceBucket(km) : null
     });
     const withDistance = (origin, peers) => peers

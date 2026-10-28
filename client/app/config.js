@@ -154,6 +154,8 @@ const state = {
     gridPrefetchTimer: null,
     gridPrefetchPeerIds: [],
     profileBrowseList: [],
+    // Eigene Sichtbarkeitsregel "Nur zeigen fuer ..." (audience.js).
+    audienceRule: null,
     shareProfileViews: false,
     // Wer eigene Chat-Bilder/Videos speichern darf: 'friends' | 'all' (media-rights.js).
     mediaDownload: 'friends',

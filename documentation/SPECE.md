@@ -1057,6 +1057,23 @@ aus der es geoeffnet wurde: die Karte folgt dem Finger, faehrt ab 70 px hinaus
 und das neue Profil kommt von der anderen Seite; ohne Nachbarn federt sie
 zurueck (ohne Animation bei "reduced motion").
 
+**"Nur zeigen fuer ..."** (`client/app/audience.js`, Einstellungen >
+Privatsphaere, nur "Entdecken"): Regel ueber Zahl- und Auswahlfelder des
+Profil-Schemas (`keys`/`audience-rule = { ranges, options }`). Sie geht als
+kurzer Binaer-Code mit der Registrierung an den Router (`audience`, Spalte
+`peers.audience`, nur die Form wird geprueft: base64url, 2-64 Zeichen) und
+kommt mit der Grid-Karte zurueck. Code: Byte 0 Version, Byte 1
+Schema-Fingerabdruck (FNV-1a ueber Schluessel/Typ/Optionen der filterbaren
+Felder, 8 Bit), dann je Feld Kopf `Feldnummer | Art << 7`; Auswahl = Laenge
+(1-4) + Bitmaske (Option n = Bit n), Bereich = min + max (je 1 Byte). Beispiel
+"Alter 21-35, Tribe Twink oder Femme" = 8 Byte, 11 Zeichen. Die App des
+Betrachters zeigt eine Karte nur, wenn das eigene Profil passt (ODER im Feld,
+UND zwischen Feldern; fehlt ein eigener Wert, passt es nicht). Falscher
+Fingerabdruck oder kaputter Code: Regel ignorieren (Karte sichtbar). Der
+Router erfaehrt nichts ueber Betrachter; die Regel ist fuer jeden lesbar, der
+die Karte abruft, und ein veraenderter Client koennte sie ignorieren (Hinweis
+bei der Einstellung).
+
 **Verlauf in Seiten** (`client/app/chat-tools.js`): Ein Chat laedt weiter den
 ganzen Verlauf aus IndexedDB, zeichnet aber nur einen Teil. Durchgehend: die
 letzten 150 Nachrichten (`state.chatRenderLimit`), oben angekommen (bzw.

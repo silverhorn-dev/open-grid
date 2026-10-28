@@ -106,6 +106,7 @@ window.onload = async () => {
             await loadNotificationSettings();
             await loadChatViewSetting();
             await loadGridFilter();
+            await loadAudienceRule();
             await loadInteractions();
             await loadListSwitchSettings();
         });

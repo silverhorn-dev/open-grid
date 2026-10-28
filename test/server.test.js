@@ -383,6 +383,11 @@ test('loads the grid ring by ring with distance buckets and no locations', async
     assert.equal((await gridPeerIds('geohash=u10j2k')).peers[0].version, 7, 'profile version on the card');
     await app.inject({ method: 'POST', url: '/api/register', headers: authHeaders('peer-a'), payload: registrationPayload('peer-a', 'registration-peer-a', { profileVersion: 'x' }) });
     assert.equal((await gridPeerIds('geohash=u10j2k')).peers[0].version, null, 'only integers');
+    // Sichtbarkeitsregel: nur ein kurzer Code, nur gueltige Form, nur wenn gesetzt.
+    await app.inject({ method: 'POST', url: '/api/register', headers: authHeaders('peer-a'), payload: registrationPayload('peer-a', 'registration-peer-a', { audience: 'AWcCAQE' }) });
+    assert.equal((await gridPeerIds('geohash=u10j2k')).peers[0].audience, 'AWcCAQE');
+    await app.inject({ method: 'POST', url: '/api/register', headers: authHeaders('peer-a'), payload: registrationPayload('peer-a', 'registration-peer-a', { audience: '<script>' }) });
+    assert.equal('audience' in (await gridPeerIds('geohash=u10j2k')).peers[0], false, 'invalid codes are dropped');
 
     const ring1 = await gridPeerIds('geohash=u10j2k&ring=1');
     assert.deepEqual(ring1.peers.map(peer => peer.id), ['peer-a', 'peer-b']);

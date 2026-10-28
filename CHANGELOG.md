@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 190 · 2026-10-28
+## Build 191 · 2026-10-28
+- Neu: "Wer mich im Grid sieht" (Einstellungen > Privatsphaere): zeig dich nur Leuten, deren Profil passt, z. B. nur bestimmte Positionen oder ein Altersbereich. Der Router bekommt nur einen kurzen Code der Regel; geprueft wird in der App der anderen
+
+## Build 190 · 2026-10-28 · `38acaad`
 - Seitlich durch Profile wischen ist jetzt animiert: die Karte folgt dem Finger und das naechste Profil gleitet herein
 - Grid: geaenderte Profile werden beim Vorladen erkannt (der Router kennt nur die Versionsnummer) und neu geholt; unveraenderte, schon bekannte Profile kosten keine Anfrage mehr
 

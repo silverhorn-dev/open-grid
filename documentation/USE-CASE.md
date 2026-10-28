@@ -935,3 +935,17 @@ Akzeptanzkriterien:
   Profil ist, steht als "unbekannt" hinten (abschaltbar).
 - Im geoeffneten Profil wische ich seitlich zum naechsten Profil.
 
+## UC-57: Nur fuer bestimmte Leute sichtbar
+
+**Als Nutzer in "Entdecken"** moechte ich festlegen, wer meine Karte im Grid
+sieht (z. B. nur Position "Top", Alter 21-35).
+
+Akzeptanzkriterien:
+
+- Einstellungen > Privatsphaere > "Wer mich im Grid sieht": Auswahl je Zahl-
+  oder Auswahlfeld des Profils; ohne Auswahl sehen mich alle.
+- Wer nicht passt (oder den Wert nicht angegeben hat), sieht meine Karte nicht.
+- Der Router bekommt nur einen kurzen Code der Regel, nie etwas ueber die
+  Betrachter; ein Hinweis sagt, dass die Regel lesbar ist und eine veraenderte
+  App sie ignorieren koennte.
+

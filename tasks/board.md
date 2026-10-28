@@ -391,7 +391,7 @@
   - test-stabilitaet: e2e `pull-up` leerte gelegentlich seine testchats (laufender db-abgleich der chatliste beim start), jetzt vor jedem ziehen sichergestellt
   - nachtrag (nutzer 2026-10-28): profil-version auf der grid-karte (`profileVersion` beim registrieren, spalte `peers.profile_version`, nur ein zaehler); prefetch nur bei fehlendem oder veraltetem profil
   - done 2026-10-28: `client/app/grid-filter.js` (`keys`/`grid-filter`), entfernung/foto/zahlen/auswahl, unbekannte hinten (abschaltbar), direktes `PROFILE_REQUEST` fuer die ersten 10, neu sortieren bei ankunft, blaettern im profil (wischen, pfeiltasten); tests `test/grid-filter.test.js`, e2e `grid-filter`
-- [ ] "nur zeigen fuer ..." (sichtbarkeitsregel), auf jedem select-/tag-feld (z. B. tribe: twink, femme), symmetrisch zum filter
+- [x] "nur zeigen fuer ..." (sichtbarkeitsregel), auf jedem select-/tag-feld (z. B. tribe: twink, femme), symmetrisch zum filter
   - entschieden (nutzer 2026-10-28): der router setzt die regel durch (P2P-pruefung skaliert nicht und wirkt offline nicht); die regel darf klartext sein ("wen ich sehen lassen will", keine aussage ueber den eigenen typ) - das ist der preis, deshalb steht ein hinweis bei der einstellung
   - korrigiert (nutzer 2026-10-28): der router bekommt NIE die tags des betrachters. er liefert jede grid-karte mit der regel des besitzers (klartext) aus, die **app des betrachters filtert** mit ihren eigenen tags (die das geraet nie verlassen)
     - preis (hinweis bei der einstellung): die regel sieht jeder, der die karte abruft; ein manipulierter client koennte sie ignorieren
@@ -403,5 +403,7 @@
     - pruefung beim betrachter: pro feld `regel & meine bits != 0` (ODER im feld), range `min <= wert <= max`, UND zwischen feldern
     - schema geaendert -> version/feldnummer passt nicht -> regel wird ignoriert statt falsch angewendet
     - filter (was ich sehe) nutzen dieselben masken, nur lokal
+  - done 2026-10-28: `client/app/audience.js` (kodierung wie oben, + schema-fingerabdruck), einstellung unter privatsphaere mit hinweis, router speichert nur den code (`peers.audience`), karte traegt ihn, app des betrachters blendet aus; tests `test/audience.test.js`, server-test, e2e `audience`; UC-57
+  - nicht gebaut: zusaetzliche pruefung beim besitzer (profil/fotos verweigern) - der besitzer kennt das profil des betrachters meist nicht, das waere fail-closed fuer fast alle
   - plan: profil-schema feldtyp `tags` (mehrfachauswahl); router speichert pro peer nur die regel `audience` (feld -> erlaubte werte, begrenzt) und liefert sie mit der karte; client blendet karten aus, deren regel nicht zu den eigenen tags passt (eigene tags fehlen fuer das feld -> nicht passend); besitzer-app prueft bei PROFILE_REQUEST; tests (regel greift, regel entfernen, fehlende eigene tags)
 

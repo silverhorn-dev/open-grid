@@ -1,6 +1,7 @@
 // Automatisches Deployment von OpenGrid.
 // Bei jedem Push auf main: Syntax-Check + Unit-Tests, E2E-Tests (Playwright), danach
-// `docker compose up -d --build` auf dem Host.
+// `docker compose up -d --build` auf dem Host. Andere Branches: dieselben Tests und ein Image-Build
+// zur Probe, aber nie ein Deploy.
 //
 // Der Jenkins-Agent laeuft als Container auf demselben Host und nutzt den Docker-Daemon des Hosts ueber
 // den eingehaengten Socket (/var/run/docker.sock). Pfade im Workspace existieren auf dem Host nicht, deshalb gibt es keine
@@ -72,6 +73,22 @@ pipeline {
             }
             steps {
                 sh '. scripts/ci-env.sh && sh scripts/e2e.sh'
+            }
+        }
+
+        // Andere Branches: das echte Image bauen (prueft Dockerfile und CSS-Build), aber nicht starten.
+        // Eigener Image-Name, damit das laufende Image von main unberuehrt bleibt.
+        stage('Image bauen (ohne Deploy)') {
+            when {
+                expression { (env.BRANCH_NAME ?: env.GIT_BRANCH ?: '').replaceFirst('^origin/', '') != 'main' }
+            }
+            steps {
+                sh '. scripts/ci-env.sh && docker build -t open-grid-branch-check:${BUILD_NUMBER} .'
+            }
+            post {
+                always {
+                    sh '. scripts/ci-env.sh && docker image rm open-grid-branch-check:${BUILD_NUMBER} >/dev/null 2>&1 || true'
+                }
             }
         }
 

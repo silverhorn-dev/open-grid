@@ -6,7 +6,10 @@ Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unte
 - Fuer Betreiber (standardmaessig aus): Alters- oder E-Mail-Nachweis, bevor jemand im Grid sichtbar wird; Sperren und ein kurzes IP-Protokoll fuer Anfragen der Strafverfolgung
 - Neue Einstellung "Nacktbilder unscharf" (Medien > Schutz, standardmaessig aus): moegliche Nacktbilder erscheinen unscharf, bis du tippst; geprueft wird nur auf deinem Geraet. Das Erkennungsmodell folgt noch
 
-## Build 162–163 · 2026-10-28
+## Build 164 · 2026-10-28
+- Betrieb: Jenkins baut auf Neben-Branches jetzt auch das echte Image zur Probe, deployt dort aber nie (wie bisher nur main)
+
+## Build 162–163 · 2026-10-28 · `366ef79`, `90cb2fd`
 - Technik: Umstieg auf Tailwind CSS 4 (behebt die gemeldeten Sicherheitshinweise in den Build-Werkzeugen); einige Abstaende sind minimal enger
 
 ## Build 161 · 2026-10-28 · `8d53162`

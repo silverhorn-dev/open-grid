@@ -390,5 +390,12 @@
   - korrigiert (nutzer 2026-10-28): der router bekommt NIE die tags des betrachters. er liefert jede grid-karte mit der regel des besitzers (klartext) aus, die **app des betrachters filtert** mit ihren eigenen tags (die das geraet nie verlassen)
     - preis (hinweis bei der einstellung): die regel sieht jeder, der die karte abruft; ein manipulierter client koennte sie ignorieren
     - zusaetzlich: ist die app des besitzers online, gibt sie volles profil/fotos nicht an betrachter ausserhalb der regel (kostet nur bei anfragen)
+  - kodierung (nutzer 2026-10-28: so klein wie moeglich, binaer, baumartig, min/max):
+    - `code = version (1 byte) + eintraege`, base64url; eintrag = feldnummer (index im profil-schema) + art
+    - art "tags": bitmaske der erlaubten werte (option n = bit n), 1-4 byte; art "range": min + max (je 1 byte, z. B. alter)
+    - beispiel "tribe twink|femme, alter 21-35" = 8 byte (~11 zeichen auf der karte)
+    - pruefung beim betrachter: pro feld `regel & meine bits != 0` (ODER im feld), range `min <= wert <= max`, UND zwischen feldern
+    - schema geaendert -> version/feldnummer passt nicht -> regel wird ignoriert statt falsch angewendet
+    - filter (was ich sehe) nutzen dieselben masken, nur lokal
   - plan: profil-schema feldtyp `tags` (mehrfachauswahl); router speichert pro peer nur die regel `audience` (feld -> erlaubte werte, begrenzt) und liefert sie mit der karte; client blendet karten aus, deren regel nicht zu den eigenen tags passt (eigene tags fehlen fuer das feld -> nicht passend); besitzer-app prueft bei PROFILE_REQUEST; tests (regel greift, regel entfernen, fehlende eigene tags)
 

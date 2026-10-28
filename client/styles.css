@@ -52,6 +52,10 @@ html.debug-on .debug-off-only {
     pointer-events: auto;
 }
 .message-actions-toggle { display: none; }
+/* Einstellungen: oben nach unten wischen verlaesst sie (gestures.js), nicht Seite neu laden. */
+html:has(#view-keys:not(.hidden)) {
+    overscroll-behavior-y: contain;
+}
 @media (hover: none) {
     /* Unter #chat-messages, damit die zur Laufzeit geladenen Tailwind-Klassen nicht gewinnen.
        Ohne :hover-Variante: :hover bleibt auf Touch nach dem Tippen haengen. */

@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 172 · 2026-10-28
+## Build 173 · 2026-10-28
+- Wischen: im Profil nach links oeffnet das Menue; in den Einstellungen blaetterst du seitlich durch die Bereiche (nicht auf Schaltern und Reglern) und verlaesst sie, indem du oben nach unten ziehst
+- Behoben: nach Neu laden kam das Ende einer 1x/2x/3x-Album-Ansicht manchmal nicht beim Besitzer an (beim Start war die App noch nicht beim Router angemeldet)
+
+## Build 172 · 2026-10-28 · `f7d9dd8`
 - Album-Ansicht: nach unten wischen schliesst erst nach einem deutlich laengeren Zug (vorher waren 1x-Alben schnell aus Versehen vorbei); ab der Schwelle wird das Fenster leicht durchsichtig, loslassen schliesst
 - Profile im Chat lassen sich weiterhin per Wischen nach unten schliessen (oben im Fenster)
 

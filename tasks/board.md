@@ -302,4 +302,6 @@
   - done 2026-10-28: `attachSwipeToClose(..., { trigger })`; album-ansicht ab 40 % der bildschirmhoehe (mind. 220 px) statt 100 px; ab der schwelle wird die karte durchsichtig; `touchcancel` setzt zurueck; e2e `chat-gestures` (mobil)
 - [x] profil im chat nach unten wischen = schliessen
   - validiert 2026-10-28: gab es schon (profil-fenster, auch aus dem chat geoeffnet); funktioniert im e2e vom profilbild und von weiter unten aus; nur wenn das fenster ganz oben ist (sonst scrollt es erst). jetzt im e2e `chat-gestures` abgedeckt
+- [x] wisch-wunsch (nutzer 2026-10-28): im profil nach links = menue; einstellungen seitlich = bereiche blaettern (ausnahme regler); einstellungen verlassen nur nach unten
+  - done 2026-10-28: `SWIPE_TABS` ohne einstellungen, `stepSettingsTab`, runterziehen ab 120 px oben = zurueck ins profil; `overscroll-behavior-y: contain` solange die einstellungen offen sind (kein neu laden); e2e `mobile-layout`
 

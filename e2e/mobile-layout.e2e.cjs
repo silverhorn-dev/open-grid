@@ -99,29 +99,50 @@ async function main() {
         assert.match(await page.textContent('#menu-modes .menu-mode.is-active'), /Nur Chat/);
         await page.evaluate(() => closeMenu());
 
-        // Zahnrad im Profil oeffnet die Einstellungen; wischen: Profil <-> Einstellungen wie ein vierter Tab.
+        // Zahnrad im Profil oeffnet die Einstellungen. Wischen: im Profil nach links = Menue; in den
+        // Einstellungen seitlich = Bereiche blaettern, verlassen nur oben nach unten.
         // (Vorher war ein Chat offen: das Wischen zwischen Tabs muss trotzdem gehen.)
         await page.evaluate(() => switchTab('editprofile'));
-        await page.click('#profile-settings-btn');
-        await waitFor(page, () => !document.getElementById('view-keys').classList.contains('hidden'));
-        assert.equal(await page.evaluate(() => document.querySelector('[data-tab-btn="editprofile"][data-nav="bottom"]').classList.contains('is-active')), true, 'profile stays highlighted');
         const cdp = await page.context().newCDPSession(page);
         // Ueber der Ueberschrift der Ansicht (Eingabefelder und Auswahlen nehmen selbst keine Tab-Wischer an).
-        const swipe = async (fromX, toX) => {
-            const heading = await page.locator('main section:not(.hidden) h2').first().boundingBox();
-            const y = heading.y + heading.height / 2;
-            await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: fromX, y }] });
+        const drag = async (from, to) => {
+            await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [from] });
             for (let step = 1; step <= 8; step++) {
-                await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: fromX + (toX - fromX) * step / 8, y }] });
+                await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: from.x + (to.x - from.x) * step / 8, y: from.y + (to.y - from.y) * step / 8 }] });
                 await page.waitForTimeout(16);
             }
             await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
             await page.waitForTimeout(300);
         };
-        await swipe(80, 330);
-        await waitFor(page, () => !document.getElementById('view-editprofile').classList.contains('hidden'));
+        const headingY = async () => {
+            const heading = await page.locator('main section:not(.hidden) h2').first().boundingBox();
+            return heading.y + heading.height / 2;
+        };
+        const swipe = async (fromX, toX) => {
+            const y = await headingY();
+            await drag({ x: fromX, y }, { x: toX, y });
+        };
+        // Das Menue vom vorigen Schritt faehrt noch heraus und laege sonst unter dem Finger.
+        await page.waitForTimeout(800);
         await swipe(330, 80);
+        await waitFor(page, () => document.getElementById('app-menu').classList.contains('is-open'));
+        assert.equal(await page.evaluate(() => document.getElementById('view-editprofile').classList.contains('hidden')), false, 'profile stays');
+        await page.evaluate(() => closeMenu());
+        await page.waitForTimeout(800);
+
+        await page.click('#profile-settings-btn');
         await waitFor(page, () => !document.getElementById('view-keys').classList.contains('hidden'));
+        assert.equal(await page.evaluate(() => document.querySelector('[data-tab-btn="editprofile"][data-nav="bottom"]').classList.contains('is-active')), true, 'profile stays highlighted');
+        await page.evaluate(() => switchSettingsTab('general'));
+        await swipe(330, 80);
+        await waitFor(page, () => state.settingsTab === 'privacy');
+        await swipe(80, 330);
+        await waitFor(page, () => state.settingsTab === 'general');
+        await swipe(80, 330);
+        assert.equal(await page.evaluate(() => document.getElementById('view-keys').classList.contains('hidden')), false, 'sideways never leaves the settings');
+        const y = await headingY();
+        await drag({ x: 200, y }, { x: 200, y: y + 260 });
+        await waitFor(page, () => !document.getElementById('view-editprofile').classList.contains('hidden'));
 
         assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log('E2E OK (mobile layout)');

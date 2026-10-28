@@ -141,3 +141,12 @@ pinch / double tap / wheel zoom, drag to pan, swipe down to close.
 2. G3 double tap ❤️: OK that it collides with nothing else on bubbles
    (images open the viewer on single tap)?
 3. Should long press also offer "Kopieren" (copy text)?
+
+## Nachtrag 2026-10-28 (Nutzer)
+
+- Im Profil-Tab nach links wischen = Menue oeffnen (statt zu den Einstellungen).
+- In den Einstellungen seitlich wischen = Bereiche blaettern, Ausnahmen fuer Regler
+  (und Eingabefelder/Schalter).
+- Einstellungen verlassen: nur nach unten wischen (oben im Fenster), zurueck ins Profil.
+- Umgesetzt 2026-10-28, E2E `mobile-layout`.
+

@@ -1433,11 +1433,15 @@ async function reportAlbumViewClosed(ownerId, albumId) {
     };
     const payload = { type: 'CHAT_OPERATION', operation };
     const channel = state.dataChannels[ownerId];
+    let delivered = false;
     if (channel?.readyState === 'open' && state.sessionKeys[ownerId]) {
-        await sendSecurePayload(ownerId, payload).catch(logBackgroundError('reportAlbumViewClosed'));
+        delivered = await sendSecurePayload(ownerId, payload).catch(() => false);
     } else {
-        await queuePayloadInCache(ownerId, { payload, cacheQueued: false }).catch(logBackgroundError('reportAlbumViewClosed'));
+        delivered = await queuePayloadInCache(ownerId, { payload, cacheQueued: false }).catch(() => false);
     }
+    // Klappt beides nicht (z. B. beim Start noch ohne Router-Anmeldung): normale Warteschlange, die P2P
+    // versucht und nach 10 s ueber Pfad C geht.
+    if (!delivered) sendSecurePayload(ownerId, payload, () => {}).catch(logBackgroundError('reportAlbumViewClosed'));
     sendSecurePayload(ownerId, { type: 'ALBUM_VIEW_CLOSED', albumId }).catch(logBackgroundError('reportAlbumViewClosed'));
 }
 

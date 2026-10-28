@@ -3,7 +3,8 @@
 // (Knoepfe bleiben). Stil-Updates laufen gebuendelt ueber requestAnimationFrame.
 //   - Nachricht wischen (fremde nach rechts, eigene nach links) = antworten
 //   - Nachricht lange druecken = Aktionsleiste, doppelt tippen = Herz-Reaktion
-//   - Zwischen Grid, Chat und Profil seitlich wischen
+//   - Zwischen Grid, Chat und Profil seitlich wischen; im Profil nach links = Menue
+//   - Einstellungen: seitlich = Bereiche blaettern (nicht auf Reglern), oben nach unten = verlassen
 //   - Profil- und Medienfenster nach unten wischen = schliessen
 //   - Im Chat am Ende nach oben ziehen = aktualisieren
 // Die Kanten-Geste "zurueck" und Pull-to-Refresh der Seite bleiben dem Betriebssystem/Browser.
@@ -14,9 +15,12 @@ const LONG_PRESS_MS = 450;
 const DOUBLE_TAP_MS = 300;
 const TAB_SWIPE_TRIGGER = 80;
 const TAB_SWIPE_EDGE = 24;
-// Die Einstellungen haben keinen eigenen Knopf in der Navigation, liegen beim Wischen aber rechts
-// neben dem Profil wie ein vierter Tab.
+// Ansichten, zwischen denen seitlich gewischt wird. Die Einstellungen ('keys') gehoeren zum Profil:
+// dort blaettert seitliches Wischen die Bereiche, verlassen geht nur nach unten (zurueck ins Profil).
+// Im Profil nach links wischen oeffnet das Menue.
 const TAB_ORDER = ['grid', 'chat', 'editprofile', 'keys'];
+const SWIPE_TABS = ['grid', 'chat', 'editprofile'];
+const SETTINGS_LEAVE_TRIGGER = 120;
 const SHEET_CLOSE_TRIGGER = 100;
 // Album-Ansicht: 40 % der Bildschirmhoehe, mindestens 220 px.
 const ALBUM_SHEET_CLOSE_SHARE = 0.4;
@@ -177,7 +181,12 @@ function handleTabTouchStart(event) {
     // Kanten bleiben der System-Geste "zurueck".
     if (touch.clientX < TAB_SWIPE_EDGE || touch.clientX > window.innerWidth - TAB_SWIPE_EDGE) return;
     if (blocksTabSwipe(event.target)) return;
-    tabSwipe.active = { startX: touch.clientX, startY: touch.clientY, axis: null, deltaX: 0, startedAt: performance.now() };
+    // Regler (Schieber) gehoeren dem Finger, auch wenn sie keine Eingabefelder im engeren Sinn sind.
+    if (event.target.closest('[role="slider"], .setting-range, input[type="range"]')) return;
+    tabSwipe.active = {
+        startX: touch.clientX, startY: touch.clientY, axis: null, deltaX: 0, deltaY: 0,
+        startedAt: performance.now(), atTop: window.scrollY <= 0
+    };
 }
 
 function handleTabTouchMove(event) {
@@ -190,9 +199,19 @@ function handleTabTouchMove(event) {
         if (Math.hypot(deltaX, deltaY) < GESTURE_LOCK_DISTANCE * 1.5) return;
         gesture.axis = Math.abs(deltaX) > Math.abs(deltaY) * 1.5 ? 'x' : 'y';
     }
+    const view = document.getElementById(`view-${currentTab()}`);
+    // Einstellungen: ganz oben nach unten ziehen = verlassen (Ansicht folgt dem Finger).
+    if (gesture.axis === 'y' && currentTab() === 'keys' && gesture.atTop && window.scrollY <= 0) {
+        gesture.deltaY = Math.max(0, deltaY);
+        if (view && !prefersReducedMotion()) {
+            view.style.transition = 'none';
+            view.style.transform = `translate3d(0, ${gesture.deltaY * 0.4}px, 0)`;
+            view.style.opacity = gesture.deltaY > SETTINGS_LEAVE_TRIGGER ? '0.6' : '';
+        }
+        return;
+    }
     if (gesture.axis !== 'x') return;
     gesture.deltaX = deltaX;
-    const view = document.getElementById(`view-${currentTab()}`);
     if (view && !prefersReducedMotion()) {
         view.style.transition = 'none';
         view.style.transform = `translate3d(${deltaX * 0.25}px, 0, 0)`;
@@ -210,14 +229,41 @@ function handleTabTouchEnd() {
         view.style.transform = '';
         view.style.opacity = '';
     }
-    if (!gesture || gesture.axis !== 'x') return;
+    if (!gesture) return;
+    if (tab === 'keys' && gesture.axis === 'y') {
+        if (gesture.deltaY > SETTINGS_LEAVE_TRIGGER) {
+            hapticTick();
+            switchTab('editprofile');
+        }
+        return;
+    }
+    if (gesture.axis !== 'x') return;
     const fast = Math.abs(gesture.deltaX) / Math.max(1, performance.now() - gesture.startedAt) > 0.5;
     if (Math.abs(gesture.deltaX) < TAB_SWIPE_TRIGGER && !fast) return;
-    const order = TAB_ORDER.filter(entry => entry !== 'grid' || isGridAvailable());
-    const index = order.indexOf(tab) + (gesture.deltaX < 0 ? 1 : -1);
+    const forward = gesture.deltaX < 0;
+    if (tab === 'keys') {
+        stepSettingsTab(forward ? 1 : -1);
+        return;
+    }
+    if (tab === 'editprofile' && forward) {
+        hapticTick();
+        openMenu();
+        return;
+    }
+    const order = SWIPE_TABS.filter(entry => entry !== 'grid' || isGridAvailable());
+    const index = order.indexOf(tab) + (forward ? 1 : -1);
     if (index < 0 || index >= order.length) return;
     hapticTick();
     switchTab(order[index]);
+}
+
+// Einstellungen: naechster/vorheriger Bereich (an den Enden passiert nichts).
+function stepSettingsTab(direction) {
+    const tabs = SETTINGS_TABS.filter(name => name !== 'debug' || CONFIG.DEBUG_MODE);
+    const index = tabs.indexOf(state.settingsTab || 'general') + direction;
+    if (index < 0 || index >= tabs.length) return;
+    hapticTick();
+    switchSettingsTab(tabs[index]);
 }
 
 // ----- Fenster nach unten wischen = schliessen -----

@@ -212,7 +212,11 @@
   nach rechts, eigene nach links, ab 56 px) = antworten; lange druecken
   (450 ms) = Kontextmenue; doppelt tippen = Reaktion ❤️; seitlich wischen
   (ab 80 px, nicht in den 24-px-Kantenzonen, nicht in horizontal scrollbaren
-  Bereichen oder im offenen Chat) = Tab Grid/Chat/Profil wechseln; Profil- und
+  Bereichen oder im offenen Chat) = Tab Grid/Chat/Profil wechseln; im Profil
+  nach links = Menue oeffnen; in den Einstellungen seitlich = Bereiche
+  blaettern (nicht auf Eingabefeldern/Schaltern/Reglern, an den Enden nichts),
+  verlassen nur ganz oben nach unten ziehen (ab 120 px, zurueck ins Profil;
+  `overscroll-behavior` verhindert dort das Neuladen der Seite); Profil- und
   Medienfenster von oben nach unten wischen = schliessen (ab 100 px; in der
   Album-Ansicht erst ab 40 % der Bildschirmhoehe, mind. 220 px, damit 1x-Alben
   nicht aus Versehen enden; ab der Schwelle wird die Karte durchsichtig =
@@ -646,7 +650,8 @@ Ansicht endet mit dem Schliessen: der Betrachter verwirft die Schluessel und
 die gespeicherten Ansichts-Buendel (spaet ankommende werden bei geschlossenem
 Album gar nicht gespeichert) und meldet das Ende als Chat-Operation
 `ALBUM_VIEW_CLOSED { albumId }` (bei offenem Kanal direkt, sonst sofort ueber
-Pfad C; zusaetzlich die alte Direktnachricht gleichen Namens); der Besitzer
+Pfad C, klappt das nicht: normale Warteschlange mit Pfad C nach 10 s;
+zusaetzlich die alte Direktnachricht gleichen Namens); der Besitzer
 beendet die Ansicht und entzieht sofort, wenn alle verbraucht sind, mit
 Hinweis "X hat ... fertig angesehen".
 Endet die Ansicht ohne Schliessen (Neu laden, App beendet), liegen beim

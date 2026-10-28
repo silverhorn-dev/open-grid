@@ -774,6 +774,7 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
         // Profilbesuch (nur gesendet, wenn der Besucher es erlaubt); nur in "Entdecken", nie gespeichert.
         if (localOperation.actorId !== peerId || isPeerBlocked(peerId)) return true;
         if (typeof scopeIncludes === 'function' && scopeIncludes('discovery')) {
+            recordInteraction(peerId, 'view', localOperation.createdAt || Date.now()).catch(logBackgroundError('applyChatOperation'));
             notifyInApp('profileView', t('notifications.viewedYourProfile', { name: getPeerPresentation(peerId).name || t('app.someone') }));
         }
         return true;

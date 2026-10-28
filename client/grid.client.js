@@ -37,6 +37,7 @@ function renderDiscoveryGrid() {
     if (geohashLabel) geohashLabel.textContent = t('grid.ring', { geohash: state.myProfile.geohash, gridRing: state.gridRing });
     document.getElementById('grid-load-more-btn')?.classList.toggle('hidden', state.appMode !== 'discovery' || !state.gridHasMore);
     renderActivePeerList();
+    renderGridTabs();
 
     if (visiblePeers.length === 0) {
         const emptyState = document.createElement('div');

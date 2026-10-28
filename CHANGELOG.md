@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 181 · 2026-10-28
+## Build 188 · 2026-10-28
+- Grid in drei Bereichen (in "Entdecken"): Grid, Interaktionen (wer dir eine Flamme geschickt oder dein Profil angesehen hat, mit "Flamme zurueck") und Matches (noch nicht angeschriebene oben). Die Interaktionen liegen nur auf deinem Geraet
+
+## Build 181 · 2026-10-28 · `5fb8dcd`
 - Mehrere Bilder senden: in der Durchsicht pro Bild Snap, Bild oder Secure Snap waehlen und einzelne Bilder im Editor bearbeiten
 - Betrieb: Standardwerte fuer die Benachrichtigungs-Schalter per `CLIENT_DEFAULTS` (`notifyMatch` ... `notifyChatEvents`, `shareProfileViews`)
 

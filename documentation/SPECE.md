@@ -1028,6 +1028,14 @@ es keine Flamme, der Flirt-Teil bleibt verborgen und zaehlt nicht als
 ungelesen. Nur Anzeige: nichts wird geloescht, das Gegenueber merkt nichts.
 Nachrichten ohne `scope` (aeltere Versionen) bleiben sichtbar.
 
+**Grid: drei Bereiche** (`client/app/grid-tabs.js`, nur in "Entdecken"):
+Grid · Interaktionen · Matches. Interaktionen = eingegangene Flammen und
+Profilbesuche (`keys`/`interactions = { items: [{ peerId, kind, at }], seenAt }`,
+max. 200, dieselbe Person/Art innerhalb 10 Minuten einmal), nur lokal; Badge
+am Tab fuer Neues seit `seenAt`, "Flamme zurueck" bzw. "Schreiben" je Zeile.
+Matches: alle gematchten Peers, noch nicht angeschriebene (ohne Chat-Vorschau)
+oben, "Schreiben" oeffnet den Chat. Im Social-Bereich gibt es die Tabs nicht.
+
 **Verlauf in Seiten** (`client/app/chat-tools.js`): Ein Chat laedt weiter den
 ganzen Verlauf aus IndexedDB, zeichnet aber nur einen Teil. Durchgehend: die
 letzten 150 Nachrichten (`state.chatRenderLimit`), oben angekommen (bzw.

@@ -85,11 +85,15 @@ async function applyMatchOperation(peerId, operation) {
     if (wasMatched !== nowMatched) syncChatGate();
     if (!wasMatched && nowMatched) {
         await releaseHeldMessages(peerId);
-        if (operation.actorId === peerId) notifyInApp('match', t('matching.matchWith', { name: getPeerPresentation(peerId).name || HIDDEN_PEER_NAME }), 'success');
+        if (operation.actorId === peerId) {
+            notifyInApp('match', t('matching.matchWith', { name: getPeerPresentation(peerId).name || HIDDEN_PEER_NAME }), 'success');
+            recordInteraction(peerId, 'flame', operation.createdAt || Date.now()).catch(logBackgroundError('applyMatchOperation'));
+        }
         // Das Profil ist jetzt fuer diesen Peer vollstaendig: neu anfragen.
         sendSecurePayload(peerId, { type: 'PROFILE_REQUEST' }).catch(logBackgroundError('applyMatchOperation'));
     } else if (operation.type === 'MATCH_PING' && operation.actorId === peerId && !nowMatched) {
         notifyInApp('flame', t('matching.sentYouFlame', { value: getPeerPresentation(peerId).name || HIDDEN_PEER_NAME }));
+        recordInteraction(peerId, 'flame', operation.createdAt || Date.now()).catch(logBackgroundError('applyMatchOperation'));
     }
     if (wasMatched && !nowMatched) sendSecurePayload(peerId, { type: 'PROFILE_REQUEST' }).catch(logBackgroundError('applyMatchOperation'));
     renderMatchUi(peerId);
@@ -359,6 +363,7 @@ function renderMatchingSettings() {
 // ----- UI -----
 function renderMatchUi(peerId) {
     renderActivePeerList();
+    if (typeof renderGridTabs === 'function') renderGridTabs();
     if (state.activeModalPeerId === peerId) renderProfileMatchActions(peerId);
     if (state.activeChatPeerId === peerId) {
         updateChatActionButtons();

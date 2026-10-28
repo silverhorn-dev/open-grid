@@ -919,3 +919,15 @@ Akzeptanzkriterien:
   wechseln zu Tagen mit Nachrichten. Nach dem Senden steht der Chat auf heute.
 - Suche und "nur markierte" finden Nachrichten aus allen Tagen.
 
+## UC-56: Interaktionen und Matches im Grid
+
+**Als Nutzer in "Entdecken"** moechte ich sehen, wer mich angesehen oder mir
+eine Flamme geschickt hat, und meine Matches an einem Ort.
+
+Akzeptanzkriterien:
+
+- Das Grid hat drei Bereiche: Grid, Interaktionen, Matches.
+- Interaktionen: Flammen und Profilbesuche, neueste oben, mit "Flamme
+  zurueck"; ein Badge zeigt Neues. Die Liste liegt nur auf dem Geraet.
+- Matches: noch nicht angeschriebene oben, "Schreiben" oeffnet den Chat.
+

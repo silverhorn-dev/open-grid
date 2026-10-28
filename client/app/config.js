@@ -145,6 +145,9 @@ const state = {
     chatDayMode: false,
     chatDay: null,
     chatDays: [],
+    // Grid-Bereich ('grid' | 'interactions' | 'matches') und lokale Interaktionen (grid-tabs.js).
+    gridView: 'grid',
+    interactions: { items: [], seenAt: 0 },
     shareProfileViews: false,
     // Wer eigene Chat-Bilder/Videos speichern darf: 'friends' | 'all' (media-rights.js).
     mediaDownload: 'friends',

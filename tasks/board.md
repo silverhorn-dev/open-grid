@@ -381,8 +381,9 @@
   - metadaten: jeder router sieht nur seine zellen
 
 ## T20 Grid: drei Bereiche, Filter, "nur zeigen fuer" (nutzer 2026-10-28)
-- [ ] grid in drei tabs: **Grid** · **Interaktionen** (wer hat mein profil angesehen, wer hat mir eine flamme geschickt; nur lokal, nichts ueber den router) · **Matches** (eigener tab, nur bei aktivem matching)
+- [x] grid in drei tabs: **Grid** · **Interaktionen** (wer hat mein profil angesehen, wer hat mir eine flamme geschickt; nur lokal, nichts ueber den router) · **Matches** (eigener tab, nur bei aktivem matching)
   - matches-tab: noch nicht angeschriebene matches oben, jede karte mit chat-knopf (keine doppelung zur chatliste)
+  - done 2026-10-28: `client/app/grid-tabs.js`, `keys`/`interactions`, badge, flamme zurueck / schreiben; e2e `grid-tabs`; UC-56
   - interaktionen: neueste oben, "flamme zurueck"-knopf, badge am tab fuer neue
 - [ ] filter (lokal auf die grid-ergebnisse): alter von-bis, entfernung, gerade online, mit foto, plus jedes select-/tag-feld aus dem profil-schema; mehrere selektoren: UND zwischen feldern, ODER innerhalb eines felds; zu wenige treffer -> "mehr laden"
 - [ ] "nur zeigen fuer ..." (sichtbarkeitsregel), auf jedem select-/tag-feld (z. B. tribe: twink, femme), symmetrisch zum filter

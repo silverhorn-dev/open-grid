@@ -183,59 +183,52 @@ async function updateAudienceRule(change) {
     registerWithWorkerGrid().catch(logBackgroundError('updateAudienceRule'));
 }
 
-function renderAudienceSettings() {
-    const container = document.getElementById('audience-fields');
-    if (!container || !state.audienceRule) return;
-    container.innerHTML = '';
-    const rule = state.audienceRule;
-    const fields = filterableFields();
-    if (!fields.length) {
-        const note = document.createElement('p');
-        note.className = 'setting-desc';
-        note.textContent = t('audience.noFields');
-        container.appendChild(note);
-        return;
-    }
-    fields.forEach(field => {
-        const row = document.createElement('div');
-        row.className = 'grid-filter-row';
-        const label = document.createElement('span');
-        label.className = 'grid-filter-label';
-        label.textContent = localizedText(field.label);
-        row.appendChild(label);
-        if (field.type === 'number') {
-            const range = rule.ranges[field.key] || {};
-            // Art: Bereich (von-bis) oder relativ zum eigenen Wert.
-            const mode = document.createElement('select');
-            mode.className = 'setting-select';
-            mode.dataset.audienceMode = field.key;
-            [['', t('audience.anyValue')], ['range', t('audience.range')], ['same', t('audience.sameAsMe')], ['older', t('audience.olderThanMe')], ['younger', t('audience.youngerThanMe')]]
-                .forEach(([value, text]) => {
-                    const option = document.createElement('option');
-                    option.value = value;
-                    option.textContent = text;
-                    option.selected = (range.relative || (Number.isFinite(range.min) || Number.isFinite(range.max) ? 'range' : '')) === value;
-                    mode.appendChild(option);
-                });
-            mode.onchange = () => {
-                const next = mode.value === 'range' ? { min: null, max: null, open: true } : mode.value ? { relative: mode.value } : null;
-                const ranges = { ...state.audienceRule.ranges };
-                if (next) ranges[field.key] = next;
-                else delete ranges[field.key];
-                updateAudienceRule({ ranges });
-            };
-            row.appendChild(mode);
-            if (range.relative || !(range.open || Number.isFinite(range.min) || Number.isFinite(range.max))) {
-                container.appendChild(row);
-                return;
-            }
-            const box = document.createElement('span');
-            box.className = 'grid-filter-range';
+// Felder fuer die Regel: das Alter und alle Auswahlfelder (Einfach- und Mehrfachauswahl).
+function audienceFields(schema = PROFILE_SCHEMA) {
+    return (schema || []).filter(field => (field.type === 'number' && field.key === 'age')
+        || (['select', 'multiselect'].includes(field.type) && Array.isArray(field.options) && field.options.length));
+}
+
+// Ein Feld: Titel oben, darunter die Auswahl (Chips umbrechen statt sich zu quetschen).
+function createAudienceField(field, rule) {
+    const box = document.createElement('div');
+    box.className = 'audience-field';
+    const title = document.createElement('span');
+    title.className = 'audience-field-title';
+    title.textContent = localizedText(field.label);
+    box.appendChild(title);
+    const controls = document.createElement('div');
+    controls.className = 'audience-field-controls';
+    box.appendChild(controls);
+
+    if (field.type === 'number') {
+        const range = rule.ranges[field.key] || {};
+        const current = range.relative || (range.open || Number.isFinite(range.min) || Number.isFinite(range.max) ? 'range' : '');
+        const mode = document.createElement('select');
+        mode.className = 'setting-select';
+        mode.dataset.audienceMode = field.key;
+        [['', t('audience.anyValue')], ['same', t('audience.sameAsMe')], ['older', t('audience.olderThanMe')], ['younger', t('audience.youngerThanMe')], ['range', t('audience.range')]]
+            .forEach(([value, text]) => {
+                const option = document.createElement('option');
+                option.value = value;
+                option.textContent = text;
+                option.selected = current === value;
+                mode.appendChild(option);
+            });
+        mode.onchange = () => {
+            const ranges = { ...state.audienceRule.ranges };
+            if (mode.value === 'range') ranges[field.key] = { min: null, max: null, open: true };
+            else if (mode.value) ranges[field.key] = { relative: mode.value };
+            else delete ranges[field.key];
+            updateAudienceRule({ ranges });
+        };
+        controls.appendChild(mode);
+        if (current === 'range') {
             const number = (value, placeholder, key) => {
                 const input = document.createElement('input');
                 input.type = 'number';
                 input.inputMode = 'numeric';
-                input.className = 'setting-input w-16';
+                input.className = 'setting-input w-20';
                 input.placeholder = placeholder;
                 input.dataset.audienceRange = `${field.key}:${key}`;
                 if (Number.isFinite(value)) input.value = value;
@@ -246,48 +239,66 @@ function renderAudienceSettings() {
                 };
                 return input;
             };
-            box.append(number(range.min, t('grid.filterFrom'), 'min'), document.createTextNode('–'), number(range.max, t('grid.filterTo'), 'max'));
-            row.appendChild(box);
-        } else {
-            const chips = document.createElement('span');
-            chips.className = 'grid-filter-chips';
-            const same = rule.options[field.key] === 'same';
-            const selected = new Set(Array.isArray(rule.options[field.key]) ? rule.options[field.key] : []);
-            // "Wie ich": dieselben Werte wie im eigenen Profil (schliesst die einzelnen Chips aus).
-            const sameChip = document.createElement('button');
-            sameChip.type = 'button';
-            sameChip.className = `grid-filter-chip${same ? ' is-active' : ''}`;
-            sameChip.textContent = t('audience.sameAsMe');
-            sameChip.dataset.audienceOption = `${field.key}:__same`;
-            sameChip.setAttribute('aria-pressed', String(same));
-            sameChip.onclick = () => {
-                const options = { ...state.audienceRule.options };
-                if (same) delete options[field.key];
-                else options[field.key] = 'same';
-                updateAudienceRule({ options });
-            };
-            chips.appendChild(sameChip);
-            field.options.forEach(value => {
-                const chip = document.createElement('button');
-                chip.type = 'button';
-                chip.className = `grid-filter-chip${selected.has(value) ? ' is-active' : ''}`;
-                chip.textContent = localizedText(value);
-                chip.dataset.audienceOption = `${field.key}:${value}`;
-                chip.setAttribute('aria-pressed', String(selected.has(value)));
-                chip.onclick = () => {
-                    if (selected.has(value)) selected.delete(value);
-                    else selected.add(value);
-                    updateAudienceRule({ options: { ...state.audienceRule.options, [field.key]: [...selected] } });
-                };
-                if (same) chip.classList.add('opacity-50');
-                chips.appendChild(chip);
-            });
-            row.appendChild(chips);
+            const span = document.createElement('span');
+            span.className = 'grid-filter-range';
+            span.append(number(range.min, t('grid.filterFrom'), 'min'), document.createTextNode('–'), number(range.max, t('grid.filterTo'), 'max'));
+            controls.appendChild(span);
         }
-        container.appendChild(row);
+        return box;
+    }
+
+    const same = rule.options[field.key] === 'same';
+    const selected = new Set(Array.isArray(rule.options[field.key]) ? rule.options[field.key] : []);
+    const chips = document.createElement('div');
+    chips.className = 'grid-filter-chips';
+    const chip = (text, active, key, onClick, extraClass = '') => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `grid-filter-chip${active ? ' is-active' : ''}${extraClass}`;
+        button.textContent = text;
+        button.dataset.audienceOption = key;
+        button.setAttribute('aria-pressed', String(active));
+        button.onclick = onClick;
+        return button;
+    };
+    // "Wie ich": dieselben Werte wie im eigenen Profil (ersetzt die einzelnen Chips).
+    chips.appendChild(chip(t('audience.sameAsMe'), same, `${field.key}:__same`, () => {
+        const options = { ...state.audienceRule.options };
+        if (same) delete options[field.key];
+        else options[field.key] = 'same';
+        updateAudienceRule({ options });
+    }, ' is-same'));
+    field.options.forEach(value => {
+        chips.appendChild(chip(localizedText(value), !same && selected.has(value), `${field.key}:${value}`, () => {
+            const next = new Set(same ? [] : selected);
+            if (next.has(value)) next.delete(value);
+            else next.add(value);
+            updateAudienceRule({ options: { ...state.audienceRule.options, [field.key]: [...next] } });
+        }, same ? ' is-muted' : ''));
     });
+    controls.appendChild(chips);
+    return box;
+}
+
+function renderAudienceSettings() {
+    const container = document.getElementById('audience-fields');
+    if (!container || !state.audienceRule) return;
+    container.innerHTML = '';
+    const fields = audienceFields();
+    if (!fields.length) {
+        const note = document.createElement('p');
+        note.className = 'setting-desc';
+        note.textContent = t('audience.noFields');
+        container.appendChild(note);
+    } else {
+        fields.forEach(field => container.appendChild(createAudienceField(field, state.audienceRule)));
+    }
     const summary = document.getElementById('audience-summary');
-    if (summary) summary.textContent = encodeAudience(resolveAudienceRule(rule)) ? t('audience.active') : t('audience.everyone');
+    if (summary) {
+        const active = Boolean(encodeAudience(resolveAudienceRule(state.audienceRule)));
+        summary.textContent = active ? t('audience.active') : t('audience.everyone');
+        summary.classList.toggle('is-active', active);
+    }
     renderAudienceMinimum();
 }
 

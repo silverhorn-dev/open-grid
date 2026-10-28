@@ -413,4 +413,7 @@
   - entschieden (nutzer 2026-10-28): startregel fuer neue nutzer (`CLIENT_DEFAULTS.audience`), router erzwingt mindestwerte (`AUDIENCE_MINIMUM`, router mischt sie in jeden karten-code, auch ohne eigene regel); relative regeln: alter "wie ich" (+-3), "aelter als ich" (>=), "juenger als ich" (<=); auswahlfelder "wie ich"
   - folge: wer den wert (z. B. alter) nicht angibt, sieht bei einem mindestwert niemanden (fail closed, gewollt fuer 18+)
   - done 2026-10-28: `resolveAudienceRule`, `CLIENT_DEFAULTS.audience`, `AUDIENCE_MINIMUM` + `server/audience.js` (gleicher code, parity-test), `audienceMinimum` in `/api/config`, hinweis "Vom Server vorgegeben"; tests `test/audience-parity.test.js`, server-tests
+- [x] einstellung "nur zeigen fuer" in die karte "Sichtbarkeit im Grid" verschoben, GUI ueberarbeitet (titel je feld, chips umbrechen, "wie ich" gestrichelt) (nutzer 2026-10-28)
+- [x] entdecken-profil um dating-felder erweitert: groesse, gewicht, koerperbau, tribes, sucht nach, beziehungsstatus; mehrfachauswahl im profil-editor als chips (nutzer 2026-10-28)
+- [x] router laesst fuer die regel alles zu: alter + alle auswahlfelder (freitext-tags gehen nicht, keine feste liste)
 

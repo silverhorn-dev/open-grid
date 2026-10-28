@@ -1028,6 +1028,13 @@ es keine Flamme, der Flirt-Teil bleibt verborgen und zaehlt nicht als
 ungelesen. Nur Anzeige: nichts wird geloescht, das Gegenueber merkt nichts.
 Nachrichten ohne `scope` (aeltere Versionen) bleiben sichtbar.
 
+**Eingebautes Profil-Schema "Entdecken"** (Client `DEFAULT_PROFILE_SCHEMA`,
+Router-Standard, `compose.yaml`): Anzeigename, Alter, Position, Groesse (cm),
+Gewicht (kg), Koerperbau, Tribes (Mehrfachauswahl), Sucht nach
+(Mehrfachauswahl), Beziehungsstatus, Ueber mich. Im Profil-Editor erscheinen
+Mehrfachauswahlen als Chips, Einfachauswahlen ohne Pflicht haben einen leeren
+Eintrag.
+
 **Grid: drei Bereiche** (`client/app/grid-tabs.js`, nur in "Entdecken"):
 Grid · Interaktionen · Matches. Interaktionen = eingegangene Flammen und
 Profilbesuche (`keys`/`interactions = { items: [{ peerId, kind, at }], seenAt }`,
@@ -1064,8 +1071,10 @@ und das neue Profil kommt von der anderen Seite; ohne Nachbarn federt sie
 zurueck (ohne Animation bei "reduced motion").
 
 **"Nur zeigen fuer ..."** (`client/app/audience.js`, Einstellungen >
-Privatsphaere, nur "Entdecken"): Regel ueber Zahl- und Auswahlfelder des
-Profil-Schemas (`keys`/`audience-rule = { ranges, options }`). Sie geht als
+Privatsphaere > Sichtbarkeit im Grid, nur "Entdecken"): Regel ueber das Alter
+und alle Auswahlfelder (Einfach- und Mehrfachauswahl) des Profil-Schemas; der
+Router laesst alle diese Felder zu (keine Einschraenkung). Freitext-Tags (Typ
+`tag`) gehen nicht, sie haben keine feste Werteliste (`keys`/`audience-rule = { ranges, options }`). Sie geht als
 kurzer Binaer-Code mit der Registrierung an den Router (`audience`, Spalte
 `peers.audience`, nur die Form wird geprueft: base64url, 2-64 Zeichen) und
 kommt mit der Grid-Karte zurueck. Code: Byte 0 Version, Byte 1

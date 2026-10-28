@@ -519,15 +519,6 @@
 
                 <!-- ===== Privatsphaere ===== -->
                 <div class="settings-card" data-settings-tab="privacy" data-scope="discovery">
-                    <h3 class="settings-card-title"><i class="fa-solid fa-user-lock text-brand-400"></i> <span data-i18n="audience.title">Wer mich im Grid sieht</span></h3>
-                    <p class="setting-desc"><span data-i18n="audience.intro">Nur zeigen für Leute, deren Profil zu deiner Auswahl passt. Ohne Auswahl sehen dich alle.</span> <span id="audience-summary" class="font-semibold"></span></p>
-                    <div id="audience-fields" class="flex flex-col gap-2.5 mt-2"></div>
-                    <p id="audience-minimum" class="setting-note hidden"></p>
-                    <p data-i18n="audience.notice" class="setting-note"><i class="fa-solid fa-circle-info"></i> Der Router speichert diese Regel im Klartext; jeder, der deine Karte abruft, kann sie lesen. Geprüft wird in der App des anderen, eine veränderte App könnte sie ignorieren.</p>
-                    <button type="button" data-click="resetAudienceRule" data-i18n="audience.reset" class="grid-filter-reset mt-1">Für alle zeigen</button>
-                </div>
-
-                <div class="settings-card" data-settings-tab="privacy" data-scope="discovery">
                     <h3 class="settings-card-title"><i class="fa-solid fa-fire text-orange-400"></i> <span data-i18n="settings.matching">Matching</span></h3>
                     <label class="setting-row">
                         <span class="setting-text"><span data-i18n="settings.profileVisible" class="setting-title">Profil sichtbar</span><span data-i18n="settings.matchHappensWhenYouSend" class="setting-desc">Ein Match entsteht, wenn ihr euch gegenseitig eine Flamme schickt. Bei "Teilweise" markierst du im Profil, welche Felder nur Matches sehen.</span></span>
@@ -585,6 +576,19 @@
                         <span class="setting-text"><span data-i18n="settings.liveGrid" class="setting-title">Live-Grid</span><span data-i18n="settings.onlyShowProfilesThatAre" class="setting-desc">Nur Profile zeigen, die gerade online sind.</span></span>
                         <input type="checkbox" role="switch" id="live-grid-toggle" data-change="updateGridSetting" data-args='["liveGrid", "$checked"]' class="switch">
                     </label>
+                    <!-- "Nur zeigen fuer ..." (audience.js), nur in "Entdecken" -->
+                    <div class="audience-block" data-scope="discovery">
+                        <div class="audience-head">
+                            <span class="setting-text"><span data-i18n="audience.title" class="setting-title">Nur zeigen für</span><span data-i18n="audience.intro" class="setting-desc">Nur Leute, deren Profil zu deiner Auswahl passt, sehen deine Karte. Ohne Auswahl sehen dich alle.</span></span>
+                            <span id="audience-summary" class="audience-summary"></span>
+                        </div>
+                        <div id="audience-fields" class="audience-fields"></div>
+                        <p id="audience-minimum" class="setting-note hidden"></p>
+                        <div class="audience-foot">
+                            <p data-i18n="audience.notice" class="setting-note">Der Router speichert diese Regel im Klartext; jeder, der deine Karte abruft, kann sie lesen. Geprüft wird in der App des anderen, eine veränderte App könnte sie ignorieren.</p>
+                            <button type="button" data-click="resetAudienceRule" data-i18n="audience.reset" class="grid-filter-reset">Für alle zeigen</button>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="settings-card" data-settings-tab="privacy">
@@ -913,8 +917,8 @@
     </main>
 
     <!-- First-run profile onboarding -->
-    <div id="profile-onboarding-modal" class="hidden fixed inset-0 bg-slate-950/90 backdrop-blur-md z-60 flex items-center justify-center p-4 overflow-y-auto">
-        <div class="bg-slate-900 border border-brand-500/40 rounded-2xl max-w-2xl w-full shadow-2xl my-8">
+    <div id="profile-onboarding-modal" class="hidden fixed inset-0 bg-slate-950/90 backdrop-blur-md z-60 flex items-start justify-center p-4 overflow-y-auto">
+        <div class="bg-slate-900 border border-brand-500/40 rounded-2xl max-w-2xl w-full shadow-2xl my-auto">
             <div class="p-5 border-b border-slate-800">
                 <div class="w-11 h-11 rounded-xl bg-brand-500/15 border border-brand-500/30 text-brand-400 flex items-center justify-center mb-3">
                     <i class="fa-solid fa-user-plus"></i>
@@ -945,8 +949,8 @@
     </div>
 
     <!-- Detailed Profile View Modal -->
-    <div id="profile-detail-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full overflow-hidden shadow-2xl space-y-0 my-8">
+    <div id="profile-detail-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-start justify-center p-4 overflow-y-auto">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full overflow-hidden shadow-2xl space-y-0 my-auto">
             <div class="relative h-64 bg-slate-950">
                 <img id="modal-profile-img" src="" class="w-full h-full object-cover cursor-zoom-in" data-click="openProfileImageViewer" data-args='["$src"]'>
                 <div class="absolute inset-0 bg-linear-to-t from-slate-900 via-slate-900/20 to-transparent"></div>

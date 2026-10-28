@@ -2,7 +2,12 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 193 · 2026-10-28
+## Build 194 · 2026-10-28
+- Profil in "Entdecken": neue Felder Groesse, Gewicht, Koerperbau, Tribes, Sucht nach und Beziehungsstatus; Mehrfachauswahlen waehlst du jetzt bequem als Chips
+- Behoben: Einrichtungs- und Profilfenster, die hoeher als der Bildschirm sind, liessen sich oben nicht erreichen (der Anfang lag ausserhalb)
+- "Nur zeigen fuer" steht jetzt unter Einstellungen > Privatsphaere > Sichtbarkeit im Grid, uebersichtlicher, und gilt fuer Alter und alle Auswahlfelder
+
+## Build 193 · 2026-10-28 · `6bf216a`
 - "Wer mich im Grid sieht": auch relativ zu dir moeglich (Alter wie ich, aelter oder juenger als ich; Auswahlfelder wie ich), passt sich an, wenn du dein Profil aenderst
 - Betrieb: Startregel fuer neue Nutzer (`CLIENT_DEFAULTS.audience`) und Mindestwerte, die der Router in jede Karte setzt (`AUDIENCE_MINIMUM`, z. B. ab 18)
 

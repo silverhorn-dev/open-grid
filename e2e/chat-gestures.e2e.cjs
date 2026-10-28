@@ -107,6 +107,22 @@ async function main() {
         await waitFor(page, () => !document.getElementById('profile-detail-modal').classList.contains('hidden'));
         assert.equal(await page.evaluate(() => state.activeModalPeerId), 'node_fake_gestures');
 
+        // Profil im Chat: nach unten wischen schliesst es.
+        await page.waitForTimeout(400);
+        const profileTop = await page.locator('#profile-detail-modal > div').boundingBox();
+        await drag({ x: profileTop.x + profileTop.width / 2, y: Math.max(profileTop.y + 80, 120) }, 0, 260);
+        await waitFor(page, () => document.getElementById('profile-detail-modal').classList.contains('hidden'), null, 3000);
+
+        // Album-Ansicht: 120 px ziehen schliesst nicht mehr (1x-Alben), erst ein langer Zug.
+        await page.evaluate(() => { openMediaModal('Album'); state.albumViewer = { albumId: 'alb_x', ownerId: 'node_fake_gestures', viewId: 'v' }; renderMediaModalMessage('Bilder', 'fa-images'); });
+        const sheet = await page.locator('#media-modal-content').boundingBox();
+        const sheetPoint = { x: sheet.x + sheet.width / 2, y: sheet.y + 20 };
+        await drag(sheetPoint, 0, 120);
+        assert.equal(await page.isVisible('#media-modal'), true, 'a short pull keeps the album open');
+        const viewport = page.viewportSize();
+        await drag(sheetPoint, 0, Math.max(240, viewport.height * 0.45));
+        await waitFor(page, () => document.getElementById('media-modal').classList.contains('hidden'), null, 3000);
+
         assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log('E2E OK (chat gestures, mobile)');
     } finally {

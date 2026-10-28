@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 171 · 2026-10-28
+## Build 172 · 2026-10-28
+- Album-Ansicht: nach unten wischen schliesst erst nach einem deutlich laengeren Zug (vorher waren 1x-Alben schnell aus Versehen vorbei); ab der Schwelle wird das Fenster leicht durchsichtig, loslassen schliesst
+- Profile im Chat lassen sich weiterhin per Wischen nach unten schliessen (oben im Fenster)
+
+## Build 171 · 2026-10-28 · `716c5cd`
 - Behoben: bei Alben mit 1x/2x/3x ansehen merkte der Besitzer oft nicht, dass alle Ansichten verbraucht waren, und die Person blieb in den Album-Einstellungen stehen. Jetzt kommt das Ende auch ohne direkte Verbindung an, und du bekommst den Hinweis "X hat ... fertig angesehen"
 
 ## Build 170 · 2026-10-28 · `50c40dd`

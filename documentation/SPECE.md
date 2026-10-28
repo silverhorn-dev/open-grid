@@ -213,7 +213,10 @@
   (450 ms) = Kontextmenue; doppelt tippen = Reaktion ❤️; seitlich wischen
   (ab 80 px, nicht in den 24-px-Kantenzonen, nicht in horizontal scrollbaren
   Bereichen oder im offenen Chat) = Tab Grid/Chat/Profil wechseln; Profil- und
-  Medienfenster von oben nach unten wischen = schliessen; im Chat am Ende nach
+  Medienfenster von oben nach unten wischen = schliessen (ab 100 px; in der
+  Album-Ansicht erst ab 40 % der Bildschirmhoehe, mind. 220 px, damit 1x-Alben
+  nicht aus Versehen enden; ab der Schwelle wird die Karte durchsichtig =
+  loslassen schliesst); im Chat am Ende nach
   oben ziehen = einstellbare Aktion (`keys`/`pullup-settings.action`: `reload`
   = Tab neu laden (Standard, ohne Toast), `next` = naechster Chat der Liste,
   `switcher` = Auswahl aller Chats der Liste (`openChatSwitcherSheet`),

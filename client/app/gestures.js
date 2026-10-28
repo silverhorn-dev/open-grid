@@ -18,6 +18,9 @@ const TAB_SWIPE_EDGE = 24;
 // neben dem Profil wie ein vierter Tab.
 const TAB_ORDER = ['grid', 'chat', 'editprofile', 'keys'];
 const SHEET_CLOSE_TRIGGER = 100;
+// Album-Ansicht: 40 % der Bildschirmhoehe, mindestens 220 px.
+const ALBUM_SHEET_CLOSE_SHARE = 0.4;
+const ALBUM_SHEET_CLOSE_MIN = 220;
 const PULL_REFRESH_TRIGGER = 56;
 const PULL_REFRESH_MAX = 72;
 
@@ -218,7 +221,9 @@ function handleTabTouchEnd() {
 }
 
 // ----- Fenster nach unten wischen = schliessen -----
-function attachSwipeToClose(scrollContainer, card, close) {
+// `trigger()` liefert die noetige Zugstrecke (Standard SHEET_CLOSE_TRIGGER). Ab dieser Strecke wird die
+// Karte etwas durchsichtig: loslassen schliesst.
+function attachSwipeToClose(scrollContainer, card, close, { trigger = () => SHEET_CLOSE_TRIGGER } = {}) {
     if (!scrollContainer || !card) return;
     let gesture = null;
     scrollContainer.addEventListener('touchstart', event => {
@@ -239,14 +244,18 @@ function attachSwipeToClose(scrollContainer, card, close) {
         gesture.deltaY = Math.max(0, deltaY);
         card.style.transition = 'none';
         card.style.transform = `translate3d(0, ${gesture.deltaY}px, 0)`;
+        card.style.opacity = gesture.deltaY > trigger() ? '0.6' : '';
     }, { passive: true });
-    scrollContainer.addEventListener('touchend', () => {
+    const finish = cancelled => {
         const finished = gesture;
         gesture = null;
-        card.style.transition = prefersReducedMotion() ? 'none' : 'transform 200ms ease-out';
+        card.style.transition = prefersReducedMotion() ? 'none' : 'transform 200ms ease-out, opacity 200ms ease-out';
         card.style.transform = '';
-        if (finished?.axis === 'down' && finished.deltaY > SHEET_CLOSE_TRIGGER) close();
-    }, { passive: true });
+        card.style.opacity = '';
+        if (!cancelled && finished?.axis === 'down' && finished.deltaY > trigger()) close();
+    };
+    scrollContainer.addEventListener('touchend', () => finish(false), { passive: true });
+    scrollContainer.addEventListener('touchcancel', () => finish(true), { passive: true });
 }
 
 // ----- Chat: am Ende nach oben ziehen = einstellbare Aktion -----
@@ -361,9 +370,11 @@ function initGestures() {
         document.querySelector('#profile-detail-modal > div'),
         closeProfileModal
     );
+    // Album-Ansicht: deutlich weiter ziehen, sonst ist eine 1x-Ansicht schnell aus Versehen vorbei.
     attachSwipeToClose(
         document.getElementById('media-modal-content'),
         document.querySelector('#media-modal > div'),
-        closeMediaModal
+        closeMediaModal,
+        { trigger: () => (state.albumViewer ? Math.max(ALBUM_SHEET_CLOSE_MIN, window.innerHeight * ALBUM_SHEET_CLOSE_SHARE) : SHEET_CLOSE_TRIGGER) }
     );
 }

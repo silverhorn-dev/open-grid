@@ -297,3 +297,9 @@
   - validiert: `ALBUM_VIEW_CLOSED` ging nur direkt (P2P), ohne pfad c; ohne offenen kanal (handy, app im hintergrund) kam es nie an -> entzug erst nach 15 min und nur bei laufender besitzer-app. e2e mit altem code: person bleibt
   - done 2026-10-28: `ALBUM_VIEW_CLOSED` auch als chat-operation (offen -> direkt, sonst sofort pfad c), besitzer bekommt hinweis "X hat ... fertig angesehen"; tests `test/albums.test.js`, e2e `album-views` (schliessen ohne kanal)
 
+## T14 Wischgesten: Album-Ansicht, Profil im Chat (nutzer 2026-10-28)
+- [x] album-ansicht nach unten wischen ist zu empfindlich (1x-alben enden zu schnell)
+  - done 2026-10-28: `attachSwipeToClose(..., { trigger })`; album-ansicht ab 40 % der bildschirmhoehe (mind. 220 px) statt 100 px; ab der schwelle wird die karte durchsichtig; `touchcancel` setzt zurueck; e2e `chat-gestures` (mobil)
+- [x] profil im chat nach unten wischen = schliessen
+  - validiert 2026-10-28: gab es schon (profil-fenster, auch aus dem chat geoeffnet); funktioniert im e2e vom profilbild und von weiter unten aus; nur wenn das fenster ganz oben ist (sonst scrollt es erst). jetzt im e2e `chat-gestures` abgedeckt
+

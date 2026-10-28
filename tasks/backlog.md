@@ -56,3 +56,14 @@ Ideen ohne festen Termin. Neue Phasen werden von hier auf `tasks/board.md` gehol
     - jede seite entscheidet fuer sich (gegenueber merkt nichts), ungelesen-zaehler zaehlt nur sichtbare nachrichten
     - snaps/alben aus dem entdecken-teil: mit ausgeblendet; laufende ansichten/limits laufen normal weiter
     - offen: im entdecken-blick (vor dem adden) aendert sich nichts; nach dem adden noch flammen-chat in "Grid & Event" zeigen? (vorschlag: nein, ein ort pro person)
+
+## Ideen 2026-10-28 (nutzer, noch nicht besprechen)
+- [ ] grid improvement: filter, matches, interests, views
+  - per einstellung konfigurierbar: grid zeigt nur profile mit bestimmtem profil-tag (z. B. alter, tribes)
+  - anlass: neue invite/match-funktion
+- [ ] mit der altersverifikation (T2): im entdecken-bereich sehen/kontaktieren sich nur minderjaehrige untereinander und 18+ untereinander
+  - social ("Chat & Freunde") ist davon nicht betroffen
+  - dafuer im social-bereich ein nicht abschaltbarer nacktbild-scan (T3) fuer diese faelle
+  - abschaltbar nur per router; die router-option wird NICHT dokumentiert, das verhalten (scan aktiv) aber schon
+  - haengt an T2 (alter) und T3 (modell); passt zur backlog-notiz "einladung im dating-modus: unter 18 kann nicht oeffnen"
+

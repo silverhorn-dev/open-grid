@@ -181,6 +181,7 @@ const clientAssetFiles = [
     'app/grid-tabs.js',
     'app/grid-filter.js',
     'app/audience.js',
+    'app/account.js',
     'app/status.js',
     'app/gestures.js',
     'app/modes.js',
@@ -735,6 +736,16 @@ export async function buildApp(options = {}) {
     }
 
     app.delete('/api/register', unregister);
+
+    // Profil loeschen: alles zu diesem Peer weg (siehe store.deleteIdentity); die Verbindung wird getrennt.
+    app.delete('/api/account/:peerId', async (request, reply) => {
+        const { peerId } = request.params;
+        if (!allowRequest('register', request.ip, reply)) return;
+        if (!requirePeerAuth(request, reply, peerId)) return;
+        store.deleteIdentity(peerId);
+        signaling.disconnectPeer(peerId);
+        return { status: 'deleted', peerId };
+    });
     app.post('/api/unregister', unregister);
 
     app.get('/api/config', async () => ({ modes: appModes, defaultMode: defaultAppMode, profileSchemas, lanMode: isLanMode, clientDefaults, infoUrl: infoSiteUrl(infoHost),

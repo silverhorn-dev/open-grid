@@ -1077,3 +1077,23 @@ test('the operator minimum ends up in every grid card code', async () => {
     const config = (await app.inject({ method: 'GET', url: '/api/config' })).json();
     assert.deepEqual(config.audienceMinimum, { ranges: { age: { min: 18 } } });
 });
+
+// Profil loeschen: nur der Peer selbst; danach ist er aus Grid, Zugang und Push verschwunden, Nachrichten
+// an ihn sind weg, Nachrichten von ihm (z. B. Loesch-Hinweise an Kontakte) bleiben bis zur Abholung.
+test('deleting an account removes the peer, its access and messages to it', async () => {
+    await registerPeer('peer-a');
+    await registerPeer('peer-b');
+    store.enqueueMessage({ recipientId: 'peer-a', senderId: 'peer-b', ciphertextPayload: 'to-a', ivHex: 'aXY=' });
+    store.enqueueMessage({ recipientId: 'peer-b', senderId: 'peer-a', ciphertextPayload: 'from-a', ivHex: 'aXY=' });
+    const forged = await app.inject({ method: 'DELETE', url: '/api/account/peer-a', headers: authHeaders('peer-b') });
+    assert.ok(forged.statusCode >= 400, 'only the peer itself');
+    const deleted = await app.inject({ method: 'DELETE', url: '/api/account/peer-a', headers: authHeaders('peer-a') });
+    assert.equal(deleted.statusCode, 200);
+    assert.deepEqual((await gridPeerIds('geohash=u10j2k')).peers.map(peer => peer.id), ['peer-b']);
+    assert.ok((await gridPeerIds('geohash=u10j2k')).removedPeerIds.includes('peer-a'), 'tombstone for other clients');
+    assert.equal(store.getMessages('peer-a').length, 0, 'messages to the deleted peer are gone');
+    assert.equal(store.getMessages('peer-b').length, 1, 'its last messages still reach the contacts');
+    const again = await app.inject({ method: 'GET', url: '/api/chat-controls/peer-a', headers: authHeaders('peer-a') });
+    assert.ok(again.statusCode >= 400, 'access token no longer valid');
+});
+

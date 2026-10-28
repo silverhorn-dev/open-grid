@@ -1351,3 +1351,6 @@ html:has(#view-chat.chat-open:not(.hidden)) {
 .audience-foot { display: flex; flex-direction: column; gap: 0.375rem; }
 .profile-chips { margin-top: 0.25rem; }
 
+/* Systemzeile im Chat (z. B. "Profil wurde geloescht", account.js) */
+.chat-system-note { align-self: center; margin: 0.5rem auto; padding: 0.3rem 0.8rem; border-radius: 9999px; background: rgb(var(--slate-800)); color: rgb(var(--slate-400)); font-size: 0.75rem; text-align: center; }
+

@@ -1347,6 +1347,19 @@ Lokale Chatkontakte werden unabhaengig vom Discovery-Grid aus `messages` und
 werden, wenn beide Clients zuvor offline waren und der andere Peer noch nicht
 wieder im Router registriert ist.
 
+### Profil loeschen
+
+`DELETE /api/account/:peerId` (authentifiziert als dieser Peer, `store.deleteIdentity`): Grid-Eintrag (mit
+Tombstone in `removed_peers`), Zugangsdaten, Push-Abo, eigene Chat-Kontrollen und wartende Nachrichten
+an den Peer werden geloescht, eine offene WS-Verbindung getrennt. Nachrichten von ihm bleiben bis zur
+Abholung bzw. zum Ablauf. Ablauf im Client (`client/app/account.js`, Einstellungen > Allgemein, zweimal
+bestaetigen): an alle Kontakte (Chats, Freunde, Matches) die Chat-Operation `PROFILE_DELETED` (direkt,
+wenn verbunden, und immer ueber Pfad C), dann die Router-Loeschung (schlaegt sie fehl, wird lokal nichts
+geloescht), dann IndexedDB, `localStorage`/`sessionStorage` und alle Caches, Neustart mit dem Onboarding.
+Beim Kontakt: Nachrichten, Chat-Operationen, Originale, empfangene Alben, Status und das gespeicherte Profil
+weg; der Chat bleibt mit einer Systemzeile (`message.system = 'profileDeleted'`, "Profil wurde geloescht",
+nicht synchronisiert), schreiben ist gesperrt.
+
 ## 9. Web Push und Service Worker
 
 Der Server liefert `client/sw.js` unter `/sw.js` mit Scope `/` aus.

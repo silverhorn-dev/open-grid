@@ -183,6 +183,10 @@ function connectionWording() {
 
 // Absender-Sicht: was erlaubt die Einstellung des anderen? (nur Anzeige, durchgesetzt wird beim Empfaenger)
 function getPeerChatAllowance(peerId) {
+    // Profil geloescht (account.js): hier kommt nichts mehr an.
+    if (typeof isProfileDeleted === 'function' && isProfileDeleted(peerId)) {
+        return { allowed: false, remaining: 0, images: false, reason: t('chat.profileDeletedNoWriting') };
+    }
     if (isConnectedPeer(peerId)) return { allowed: true, remaining: Infinity, images: true };
     // Hat der andere schon geschrieben, hat er den Chat angenommen.
     const peerWrote = (state.chats[peerId] || []).some(message => message.senderId === peerId && !message.held);

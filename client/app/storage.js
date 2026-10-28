@@ -297,7 +297,7 @@ async function loadChatHistory(peerId) {
     const operations = await getChatOperations(peerId);
     const operationIds = new Set(operations.map(operation => operation.operationId));
     const missingOperations = messages
-        .filter(message => !message.deleted && !operationIds.has(`put:${message.id}`))
+        .filter(message => !message.deleted && !message.system && !operationIds.has(`put:${message.id}`))
         .map(message => createPutOperation(peerId, message));
     await Promise.all(missingOperations.map(persistChatOperation));
 }
@@ -772,6 +772,11 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
         }
         notifyInApp('chatEvents', t('app.chatPartnerDeletedChatHistory'));
         return true; // Return true, damit der Wipe nicht als endloser Sync gespeichert wird
+    } else if (localOperation.type === 'PROFILE_DELETED') {
+        // Kontakt hat sein Profil geloescht (account.js): Verlauf und Medien weg, Chat bleibt mit Hinweis.
+        if (localOperation.actorId !== peerId) return false;
+        await handleProfileDeleted(peerId);
+        return true;
     } else if (localOperation.type === 'PROFILE_VIEW') {
         // Profilbesuch (nur gesendet, wenn der Besucher es erlaubt); nur in "Entdecken", nie gespeichert.
         if (localOperation.actorId !== peerId || isPeerBlocked(peerId)) return true;

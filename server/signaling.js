@@ -205,6 +205,10 @@ export function registerSignalingRoute(app, store, { messageLimiter = null, hear
 
     return {
         isPeerOnline: isOnline,
+        // Nach dem Loeschen eines Profils: offene Verbindung schliessen (Abmeldung wie beim Trennen).
+        disconnectPeer(peerId) {
+            activeSockets.get(peerId)?.close();
+        },
         isPeerAway: peerId => isOnline(peerId) && awayPeers.has(peerId),
         // Gegenseitige, nicht blockierte Kontakte, die gerade online sind (Freunde-Grid).
         getMutualContacts(peerId) {

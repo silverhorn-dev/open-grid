@@ -422,6 +422,22 @@ export function createStore(databasePath, { credentialRetentionDays = DEFAULT_CR
     }
 
     return {
+        // Profil loeschen (auf Wunsch des Nutzers): Grid-Eintrag (mit Tombstone, damit Karten verschwinden),
+        // Zugangsdaten, Push-Abo, eigene Chat-Kontrollen und Nachrichten an ihn. Nachrichten von ihm bleiben
+        // bis zur Abholung bzw. zum Ablauf: darunter die Loesch-Hinweise an seine Kontakte.
+        deleteIdentity(peerId, now = Date.now()) {
+            return transaction(() => {
+                const current = statements.findPeer.get(peerId);
+                if (current) statements.upsertRemoved.run(current.geohash, peerId, now, now + REMOVED_TTL_MS);
+                statements.deletePeer.run(peerId);
+                statements.deleteCredential.run(peerId);
+                statements.deletePushSubscription.run(peerId);
+                statements.deleteOwnerControls.run(peerId);
+                statements.deleteRecipientMessages.run(peerId);
+                return true;
+            });
+        },
+
         registerPeer(session, now = Date.now()) {
             return registerPeerTransaction(session, now);
         },

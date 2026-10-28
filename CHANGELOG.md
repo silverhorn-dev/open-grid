@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 197 · 2026-10-28
+## Build 198 · 2026-10-28
+- Neu: Profil loeschen (Einstellungen > Allgemein). Loescht dein Profil auf dem Server und alles auf dem Geraet; bei deinen Kontakten verschwinden Verlauf und Bilder, dort steht dann "Profil wurde geloescht" (auch wenn sie gerade offline sind)
+
+## Build 197 · 2026-10-28 · `c61fb9b`
 - Interaktionen: eine Zeile pro Person, neueste Aktivitaet oben ("hat dir eine Flamme geschickt · 3× dein Profil angesehen")
 - Behoben: "Nur zeigen fuer" hatte keine waehlbaren Felder, wenn die App im Chat-Modus gestartet war
 

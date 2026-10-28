@@ -419,11 +419,12 @@
 - [x] neu laden einstellbar (nutzer 2026-10-28): "ganze seite" (browser, standard vom router `CLIENT_DEFAULTS.reloadMode`, sonst full) oder "nur daten"; gilt fuer grid, chatliste (neu: runterziehen) und hochziehen im chat; bei "nur daten" menue-eintrag "seite neu laden"; hinweis "grid aktualisiert" entfernt (spam); e2e `mobile-layout`
 
 ## T22 Profil loeschen (nutzer 2026-10-28)
-- [ ] es gibt keinen loesch-knopf fuer das eigene profil ("Abmelden" nimmt nur aus dem grid, die daten bleiben)
+- [x] es gibt keinen loesch-knopf fuer das eigene profil ("Abmelden" nimmt nur aus dem grid, die daten bleiben)
   - plan: Einstellungen > Allgemein "Profil loeschen" mit doppelter bestaetigung
   - router: alles zu mir entfernen (grid-eintrag, zugang/credentials, push-subscription, chat-steuerung, wartende nachrichten von und an mich)
   - geraet: IndexedDB, localStorage, caches loeschen, danach startet die app mit dem onboarding
-  - offen (nutzer fragen): chats bei den kontakten mitloeschen (wipe an alle) oder nur hinweis "konto geloescht"?
+  - entschieden (nutzer 2026-10-28): bei den kontakten alles loeschen (chats, bilder), der chat bleibt aber in der liste mit "Profil wurde geloescht", im chat dieselbe zeile
+  - done 2026-10-28: `client/app/account.js`, `PROFILE_DELETED` (direkt + pfad C), `DELETE /api/account/:peerId` (`deleteIdentity`, tombstone, WS getrennt), geraet komplett geleert; tests server-test, e2e `profile-delete` (mit offline-kontakt); UC-58
 
 ## T23 Interaktionen: eine Zeile pro Person? (nutzer 2026-10-28, besprechen)
 - [x] heute: jedes ereignis eine zeile (gleiche person + art innerhalb 10 min zusammengefasst); jemand kann mehrfach als "hat dir eine flamme geschickt" erscheinen

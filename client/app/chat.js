@@ -663,6 +663,15 @@ function renderChatHistory() {
         container.appendChild(older);
     }
     msgs.forEach(message => {
+        // Systemzeile (z. B. "Profil wurde geloescht", account.js): mittig, ohne Blase und Aktionen.
+        if (message.system) {
+            const note = document.createElement('div');
+            note.id = `chat-message-${message.id}`;
+            note.className = 'chat-system-note';
+            note.textContent = message.text;
+            container.appendChild(note);
+            return;
+        }
         const isMine = message.senderId === state.myProfile.id;
         const row = document.createElement('div');
         row.id = `chat-message-${message.id}`;

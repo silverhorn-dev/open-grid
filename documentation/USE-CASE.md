@@ -949,3 +949,17 @@ Akzeptanzkriterien:
   Betrachter; ein Hinweis sagt, dass die Regel lesbar ist und eine veraenderte
   App sie ignorieren koennte.
 
+## UC-58: Profil loeschen
+
+**Als Nutzer** moechte ich mein Profil vollstaendig loeschen.
+
+Akzeptanzkriterien:
+
+- Einstellungen > Allgemein > "Profil endgueltig loeschen", zweimal bestaetigen.
+- Der Router loescht alles zu mir; mein Geraet loescht alle Daten, die App
+  startet neu mit der Einrichtung.
+- Bei meinen Kontakten verschwinden Verlauf, Bilder, Alben und Status; der
+  Chat bleibt in der Liste mit "Profil wurde geloescht", schreiben geht nicht
+  mehr. Kontakte, die gerade offline sind, bekommen das beim naechsten Oeffnen.
+- Ohne Verbindung zum Router wird nichts geloescht (Hinweis).
+

@@ -148,7 +148,7 @@ const PAYLOAD_VALIDATORS = {
     ALBUM_DENIED: payload => isId(payload.albumId),
     ALBUM_REVOKED: payload => isId(payload.albumId),
     ALBUM_VIEW_CLOSED: payload => isId(payload.albumId),
-    ALBUM_KEY_REQUEST: payload => isId(payload.albumId),
+    ALBUM_KEY_REQUEST: payload => isId(payload.albumId) && (payload.viewId === undefined || isId(payload.viewId)),
     SNAP_VIEW_REQUEST: payload => isId(payload.snapId),
     SNAP_VIEW_GRANT: payload => isId(payload.snapId) && isOptionalString(payload.key, 100),
     SNAP_VIEW_DENIED: payload => payload.snapId === null || isId(payload.snapId),

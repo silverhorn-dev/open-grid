@@ -293,7 +293,7 @@ test('limited sharing: views are counted per opening, time limits cap the keys, 
     assert.equal(owner.sent.length, before, 'no keys in advance for view-limited people');
 
     // Oeffnen = Anfrage: eine Ansicht, Schluessel nur fuer 15 Minuten.
-    await owner.context.handleAlbumKeyRequest('peer-allowed', { albumId: 'alb_1' });
+    await owner.context.handleAlbumKeyRequest('peer-allowed', { albumId: 'alb_1', viewId: 'view-a' });
     let bundles = owner.sent.at(-1).payload.operation.bundles;
     assert.equal(bundles.length, 1, 'only the current window');
     assert.equal(bundles[0].session, true);
@@ -301,8 +301,13 @@ test('limited sharing: views are counted per opening, time limits cap the keys, 
     assert.equal(album.limits['peer-allowed'].used, 1);
 
     // Erneute Anfrage in derselben Ansicht zaehlt nicht.
-    await owner.context.handleAlbumKeyRequest('peer-allowed', { albumId: 'alb_1' });
+    await owner.context.handleAlbumKeyRequest('peer-allowed', { albumId: 'alb_1', viewId: 'view-a' });
     assert.equal(owner.context.state.albums.alb_1.limits['peer-allowed'].used, 1);
+    // Neu laden und wieder oeffnen (neue viewId) ist eine neue Ansicht, auch vor Ablauf der alten.
+    await owner.context.handleAlbumKeyRequest('peer-allowed', { albumId: 'alb_1', viewId: 'view-b' });
+    assert.equal(owner.context.state.albums.alb_1.limits['peer-allowed'].used, 2, 'reload counts');
+    assert.equal(owner.context.state.albums.alb_1.limits['peer-allowed'].viewId, 'view-b');
+    album.limits['peer-allowed'] = { kind: 'views', views: 2, used: 1, sessionEndsAt: owner.clock.now + 60000, viewId: 'view-a' };
 
     // Schliesst Bob das Album, ist die Ansicht vorbei: das naechste Oeffnen zaehlt sofort.
     await owner.context.handleAlbumViewClosed('peer-allowed', { albumId: 'alb_1' });

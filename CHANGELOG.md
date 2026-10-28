@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 167 · 2026-10-28
+## Build 169 · 2026-10-28
+- Behoben: Alben mit 1x/2x/3x ansehen liessen sich nach dem Oeffnen per Neu laden erneut ansehen, ohne dass es zaehlte; jetzt zaehlt jedes Oeffnen, und eine durch Neu laden unterbrochene Ansicht endet beim naechsten Start
+
+## Build 168 · 2026-10-28 · `02cc811`
 - Flirt-Modus: in Freundes-Chats, die aus einem Match kommen, schaltet die Flamme oben im Chat zwischen normal und Flirt. Im Flirt-Modus siehst du alles und schreibst Flirt-Nachrichten; im normalen Chat bleibt der Flirt verborgen, ein Punkt an der Flamme zeigt neue Flirt-Nachrichten. Ersetzt die Zeile "Entdecken-Verlauf ausgeblendet"
 
 ## Build 166 · 2026-10-28 · `f6c1576`

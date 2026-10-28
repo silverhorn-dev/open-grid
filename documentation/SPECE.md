@@ -630,17 +630,23 @@ ueber 1/12 wieder vergroessert, ohne `canvas.filter`), es verlaesst also nie
 ein scharfes Deckfoto das Geraet; `none` sendet kein `cover`.
 
 Begrenzt teilen (zweiter Schritt im Sendemenue, ueberspringbar = normal):
-`album.limits[viewerId]` = `{ kind: 'views', views: 1-3, used, sessionEndsAt }`
+`album.limits[viewerId]` = `{ kind: 'views', views: 1-3, used, sessionEndsAt, viewId }`
 oder `{ kind: 'time', until }` (15 min, 1 h, 24 h). Ansichten: keine Buendel
 vorab (`pushAlbumKeys` ueberspringt die Person); jede `ALBUM_KEY_REQUEST`
 (Oeffnen) zaehlt eine Ansicht und bekommt nur das laufende Buendel, gekuerzt
 auf 15 Minuten und mit `session: true` (der Betrachter fragt danach nicht von
-selbst nach); eine erneute Anfrage in derselben Ansicht zaehlt nicht. Die
+selbst nach). Jede Oeffnung hat eine eigene `viewId` (`ALBUM_KEY_REQUEST
+{ albumId, viewId }`); nur eine erneute Anfrage mit derselben `viewId` in der
+laufenden Ansicht zaehlt nicht, eine neue Oeffnung (z. B. nach Neu laden)
+zaehlt immer, auch vor Ablauf der alten Ansicht. Die
 Ansicht endet mit dem Schliessen: der Betrachter verwirft die Schluessel und
 die gespeicherten Ansichts-Buendel (spaet ankommende werden bei geschlossenem
 Album gar nicht gespeichert) und meldet `ALBUM_VIEW_CLOSED { albumId }`; der
 Besitzer beendet die Ansicht und entzieht sofort, wenn alle verbraucht sind.
-Die 15 Minuten bleiben als Sicherheitsnetz (z. B. Betrachter offline). Beim Schliessen loescht
+Endet die Ansicht ohne Schliessen (Neu laden, App beendet), liegen beim
+naechsten Start noch Ansichts-Buendel: `endInterruptedAlbumViews` beendet die
+Ansicht dann wie beim Schliessen. Die 15 Minuten bleiben als Sicherheitsnetz
+(z. B. Betrachter offline). Beim Schliessen loescht
 der Betrachter auch die verschluesselten Albumbilder (die naechste Ansicht
 laedt neu). Zeitlich begrenzte Buendel tragen `limitedUntil`; der Betrachter
 merkt sich die Frist (`keys`/`album-expires:<albumId>`) und vergisst zur Frist

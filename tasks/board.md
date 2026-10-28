@@ -280,3 +280,9 @@
   - entschieden: flamme im chat-kopf pro chat; flirt-modus zeigt alles (flirt markiert) und schreibt `scope: 'discovery'`; normal = social, flirt-teil verborgen (einstellung); punkt an der flamme bei neuer verborgener nachricht
   - done 2026-10-28: `keys`/`discovery-history = { hide, flirt }` (ersetzt die zeile oben im verlauf), `canFlirt`/`isFlirting`/`messageScopeFor`, album-knopf im flirt-modus sichtbar; tests `test/friends.test.js`, e2e `friends`
 - [ ] chat laedt und zeichnet immer den ganzen verlauf (keine seiten) -> bei langen chats evtl. nur die letzten N zeichnen, aeltere beim hochscrollen nachladen (frage nutzer 2026-10-28, noch nicht entschieden)
+
+## T12 Bug: Album-Ansichten und Neu laden (nutzer 2026-10-28)
+- [x] album mit 1x/2x/3x ansehen: oeffnen + neu laden zaehlte nicht (wie frueher bei snaps)
+  - ursache: neu laden ueberspringt das schliessen -> ansichts-buendel blieben gespeichert (oeffnen ohne nachfrage), und der besitzer wertete jede anfrage innerhalb der 15-min-ansicht als dieselbe ansicht
+  - done 2026-10-28: `viewId` pro oeffnung in `ALBUM_KEY_REQUEST` (besitzer zaehlt neu bei anderer/fehlender viewId), `endInterruptedAlbumViews` beim start; tests `test/albums.test.js`, e2e `album-views` (mit neu laden)
+

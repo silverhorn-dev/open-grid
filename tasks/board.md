@@ -361,6 +361,7 @@
 ## T19 Skalierung: mehrere Router, der Client waehlt (nutzer 2026-10-28)
 - [ ] ein 2. container registriert sich beim 1.; der 1. gibt ihn per config an die clients; die clients entscheiden selbst, wohin sie ihren verkehr schicken (kein weiterleiten zwischen routern)
   - entschieden (nutzer): aufteilung nach region (geohash); kein forwarding; zellen sind teilbar (laengeres praefix), sonst bekommt ein router alles; optional "sharing": zellen unter einem praefix abwechselnd verteilen (2 router = gerade/ungerade); der client ordnet anhand des hashs zu, ohne vorher einen router anzupingen; die regeln kommen mit der config vom router
+  - stand 2026-10-28: P1-modul (regeln, zuordnung, beitritt) auf branch `feature/federation` (`7c1c377`), nicht in main; dort steht der genaue stand. vorerst geparkt (nutzer: "musik aus der zukunft")
   - plan P1 (router-seite, ein router bleibt wie heute):
     - `POST /api/federation/join { id, url, token }` vom 2. container (token aus `FEDERATION_PEERS`), health-check, faellt er aus -> seine zellen zurueck an den 1.
     - regeln per env (`FEDERATION_RULES`, z. B. `[{"prefix":"u1","routers":["r1"]},{"prefix":"u1hx","routers":["r2"]},{"prefix":"u0","routers":["r1","r2"],"mode":"share"}]`)

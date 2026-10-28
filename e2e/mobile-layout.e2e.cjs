@@ -134,6 +134,16 @@ async function main() {
         await waitFor(page, () => !document.getElementById('app-menu').classList.contains('is-open'));
         await page.waitForTimeout(800);
 
+        // Eigenes Profil: Wischen darf auf einem (nicht fokussierten) Eingabefeld starten.
+        const field = page.locator('#view-editprofile input[type="text"], #view-editprofile textarea').first();
+        await field.evaluate(element => { element.blur(); element.scrollIntoView({ block: 'center' }); });
+        await page.waitForTimeout(200);
+        const fieldBox = await field.boundingBox();
+        await drag({ x: Math.min(330, fieldBox.x + fieldBox.width - 10), y: fieldBox.y + fieldBox.height / 2 }, { x: 60, y: fieldBox.y + fieldBox.height / 2 });
+        await waitFor(page, () => document.getElementById('app-menu').classList.contains('is-open'));
+        await page.evaluate(() => { closeMenu(); window.scrollTo(0, 0); });
+        await page.waitForTimeout(800);
+
         await page.click('#profile-settings-btn');
         await waitFor(page, () => !document.getElementById('view-keys').classList.contains('hidden'));
         assert.equal(await page.evaluate(() => document.querySelector('[data-tab-btn="editprofile"][data-nav="bottom"]').classList.contains('is-active')), true, 'profile stays highlighted');

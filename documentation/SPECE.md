@@ -129,8 +129,11 @@
   (`expireUsedReplaySnaps`). Weiter zum naechsten ungesehenen Snap
   (`advanceReplaySnap`, zeitlich der naechste) per `snapSettings.nextGesture`:
   `doubletap`, `swipe` (seitlich > 80 px) oder `swipeup`.
-- Galerie-Mehrfachauswahl (max. 20): jedes Bild ohne Editor als eigener Snap,
-  Secure Snap, Bild oder Foto-Status (`sendPickedImages`).
+- Galerie-Mehrfachauswahl (max. 20): erst eine Durchsicht im Medienfenster
+  (grosses Bild, seitlich wischen oder Pfeile, Leiste mit allen, einzelne
+  entfernen, "Alle senden (N)"), dann jedes Bild ohne Editor als eigener Snap,
+  Secure Snap, Bild oder Foto-Status je nach Wahl im Snap-Menue
+  (`sendPickedImages`, `renderPickedReview`, `sendPickedReview`).
 - `SNAP_SAVED { messageId }` (Chat-Operation, vom Empfaenger eines Einmal-Snaps
   beim Speichern): der Absender markiert `savedByPeer` und zeigt einen Hinweis.
 - Listen-Wechsel (`chat-switch.js`): Knopf neben dem Titel der Chatliste,
@@ -216,8 +219,9 @@
   nach links = Menue oeffnen; Seitenmenue nach rechts wischen = schliessen; in
   den Einstellungen seitlich = Bereiche blaettern, am ersten Bereich nach
   rechts oder ganz oben nach unten ziehen (ab 120 px) = zurueck ins Profil;
-  Wischen darf auf Schaltern und Auswahlen starten (die reagieren auf Tippen),
-  nicht auf Textfeldern und Reglern; im offenen Chat die Eingabeleiste nach
+  Wischen darf auf Schaltern, Auswahlen und nicht fokussierten Textfeldern
+  starten (die reagieren auf Tippen), nicht auf fokussierten Textfeldern und
+  Reglern; im offenen Chat die Eingabeleiste nach
   rechts wischen = zur Chatliste (`keys`/`chat-swipe-close`, Router-Standard
   `CLIENT_DEFAULTS.inputSwipeClosesChat`, sonst an); in Einstellungen, offenen
   Fenstern, Menue und offenem Chat verhindert `overscroll-behavior` das
@@ -523,8 +527,9 @@ Online-Status von Chat-Partnern haengt nicht vom Grid ab:
 - Abwesend: der Client meldet `{ type: 'PRESENCE_AWAY', away }`, sobald die
   Seite versteckt (`visibilitychange`, `pagehide`) bzw. wieder sichtbar ist,
   und nach jedem `SOCKET_REGISTERED`. Partner sehen dann "Abwesend" (gelber
-  Punkt) statt "online"; abwesend geht vor "hat den Chat offen". Nur im
-  Speicher, endet mit der Verbindung.
+  Punkt in Chatliste, Chat-Wechsler und Kontaktleiste, Abzeichen im Profil)
+  statt "online" (`presenceStatusOf`, `createPresenceDot`); abwesend geht vor
+  "hat den Chat offen". Nur im Speicher, endet mit der Verbindung.
 - Sichtbar ist der Status nur **gegenseitig**: A sieht B nur, wenn A B und B A
   abonniert hat und keiner den anderen blockiert hat. Einseitige Abos liefern
   nichts.
@@ -994,7 +999,10 @@ Entdecken-Bereich und Flirt-Teil):
 
 - Lasche mit Flamme (`#chat-flirt-tab`) auf der Oberkante der Eingabeleiste
   ueber dem Senden-Knopf; Antwort-Leiste und Hinweise liegen darunter, der
-  Verlauf bekommt unten Platz (`.has-flirt-tab`). Tippen = Flirt-Modus pro
+  Verlauf bekommt unten Platz (`.has-flirt-tab`). Ab einem halben Bildschirm
+  hochgescrollt faehrt sie zu einem schmalen Streifen ein
+  (`.flirt-tab-collapsed`); Tippen darauf oder Fokus im Eingabefeld klappt sie
+  aus (ohne umzuschalten), unten kommt sie von selbst zurueck. Tippen = Flirt-Modus pro
   Chat an/aus (der Fokus des Eingabefelds bleibt, wie er war); lange druecken
   = in diesem Chat ausblenden (zurueck ueber das Chat-Menue). Einstellung
   "Flirt-Knopf über Senden" (`tab`), pro Chat `tabHidden`.

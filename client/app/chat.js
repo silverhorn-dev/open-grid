@@ -23,7 +23,7 @@ async function probePeerPresence(peerId) {
 
     // Chat-Partner: Status kommt ohne P2P-Probe vom Server.
     if (peerId in state.peerPresence) {
-        updateProfilePresence(peerId, isPeerOnline(peerId) ? 'online' : 'offline');
+        updateProfilePresence(peerId, { online: 'online', away: 'absent', offline: 'offline' }[presenceStatusOf(peerId)]);
         return;
     }
     updateProfilePresence(peerId, 'checking');
@@ -614,6 +614,7 @@ function initChatScroll() {
     container.addEventListener('scroll', () => {
         state.chatPinned = chatDistanceFromBottom(container) <= CHAT_PINNED_PX;
         updateChatJumpButton();
+        updateFlirtTabCollapse(container);
     }, { passive: true });
     // Canvas-Bilder bekommen ihre Groesse erst nach dem Zeichnen: unten bleiben, wenn man dort war.
     new MutationObserver(() => {

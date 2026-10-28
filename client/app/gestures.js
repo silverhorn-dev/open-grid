@@ -165,9 +165,9 @@ function currentTab() {
 
 // Nicht in Bereichen, die selbst horizontal reagieren.
 function blocksTabSwipe(target) {
-    // Schalter und Auswahlen reagieren auf Tippen, nicht auf Wischen: dort darf das Wischen starten.
-    // Textfelder (Cursor, Markieren) und Regler gehoeren dem Finger.
-    if (target.closest('textarea, input:not([type="checkbox"]):not([type="radio"]), [data-no-tab-swipe], #chat-messages, .chat-bubble-wrap')) return true;
+    // Schalter, Auswahlen und nicht fokussierte Textfelder reagieren auf Tippen, nicht auf Wischen: dort darf
+    // das Wischen starten. Ein fokussiertes Textfeld (Cursor, Markieren) und Regler gehoeren dem Finger.
+    if (target.closest('textarea:focus, input:focus:not([type="checkbox"]):not([type="radio"]), input[type="range"], [data-no-tab-swipe], #chat-messages, .chat-bubble-wrap')) return true;
     // Offener Chat (Smartphone, Vollbild): dort gehoert das seitliche Wischen den Nachrichten. Nur solange
     // er sichtbar ist; im Hintergrund behaelt die Ansicht "chat-open", andere Tabs wischen trotzdem.
     const chatView = document.getElementById('view-chat');
@@ -443,26 +443,30 @@ function attachPullUpRefresh(container) {
             ? { startY: event.touches[0].clientY, distance: 0 }
             : null;
     }, { passive: true });
+    // "Unten" nur beim Aufsetzen pruefen: die wachsende Anzeige verkleinert den Verlauf, danach waere er
+    // nicht mehr ganz unten, die Anzeige fiele auf 0 und waechse wieder (Flackern). Waehrend des Ziehens
+    // bleibt der Verlauf deshalb unten angeheftet.
     container.addEventListener('touchmove', event => {
         if (!gesture) return;
         const pulled = gesture.startY - event.touches[0].clientY;
-        if (pulled <= 0 || !isAtBottom()) {
-            gesture.distance = 0;
-            render(0);
-            return;
-        }
-        gesture.distance = Math.min(PULL_REFRESH_MAX, pulled * 0.5);
-        render(gesture.distance);
+        const distance = pulled > 0 ? Math.min(PULL_REFRESH_MAX, pulled * 0.5) : 0;
+        if (distance === gesture.distance) return;
+        gesture.distance = distance;
+        render(distance);
+        container.scrollTop = container.scrollHeight;
     }, { passive: true });
-    container.addEventListener('touchend', () => {
+    const finish = cancelled => {
         const finished = gesture;
         gesture = null;
+        if (!finished) return;
         render(0);
-        if (finished?.distance >= PULL_REFRESH_TRIGGER) {
+        if (!cancelled && finished.distance >= PULL_REFRESH_TRIGGER) {
             hapticTick();
             runPullUpAction();
         }
-    }, { passive: true });
+    };
+    container.addEventListener('touchend', () => finish(false), { passive: true });
+    container.addEventListener('touchcancel', () => finish(true), { passive: true });
 }
 
 function initGestures() {

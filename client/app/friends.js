@@ -351,6 +351,7 @@ function updateFlirtButton() {
         if (label) label.textContent = flirting ? t('friends.flirtModeOff') : t('friends.flirtModeOn');
     }
     document.getElementById('chat-menu-flirt-tab')?.classList.toggle('hidden', !available || tabShown);
+    updateFlirtTabCollapse();
 }
 
 // Neue, gerade ausgeblendete Flirt-Nachrichten des anderen seit dem letzten Blick in den Flirt-Teil.
@@ -394,6 +395,17 @@ function composeMediaAlbum() {
 function composeMediaVideo() {
     closeComposeMediaMenu();
     pickChatVideo();
+}
+
+// Weit hochgescrollt (ab einem halben Bildschirm): Lasche faehrt zu einem schmalen Streifen ueber dem
+// Senden-Knopf ein, der stoert beim Lesen nicht. Tippen auf den Streifen oder ins Eingabefeld klappt sie
+// wieder aus (ohne umzuschalten); unten angekommen kommt sie von selbst zurueck.
+function updateFlirtTabCollapse(container = document.getElementById('chat-messages')) {
+    const bar = document.getElementById('chat-input-bar');
+    if (!bar || !container) return;
+    const far = chatDistanceFromBottom(container) > container.clientHeight / 2;
+    if (!far) state.flirtTabPinnedOpen = false;
+    bar.classList.toggle('flirt-tab-collapsed', far && !state.flirtTabPinnedOpen);
 }
 
 function chatMenuToggleFlirt() {
@@ -464,6 +476,21 @@ function initFlirtControls() {
     });
     // Maus: der Knopf nimmt den Fokus gar nicht erst (Klick kommt trotzdem an).
     tab?.addEventListener('mousedown', event => event.preventDefault());
+    // Wer zu schreiben anfaengt, braucht die Lasche evtl.: Fokus im Eingabefeld klappt sie aus.
+    document.getElementById('chat-input')?.addEventListener('focus', () => {
+        if (!document.getElementById('chat-input-bar')?.classList.contains('flirt-tab-collapsed')) return;
+        state.flirtTabPinnedOpen = true;
+        updateFlirtTabCollapse();
+    });
+    // Eingefahren: der erste Tipp klappt nur aus.
+    tab?.addEventListener('click', event => {
+        if (!document.getElementById('chat-input-bar')?.classList.contains('flirt-tab-collapsed')) return;
+        event.stopImmediatePropagation();
+        event.preventDefault();
+        state.flirtTabPinnedOpen = true;
+        updateFlirtTabCollapse();
+        restoreInputFocusAfterFlirtTab();
+    }, true);
     attachLongPress(tab, () => {
         const peerId = state.activeChatPeerId;
         if (!peerId) return;

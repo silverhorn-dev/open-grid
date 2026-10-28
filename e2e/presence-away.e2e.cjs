@@ -49,6 +49,9 @@ async function main() {
         await bob.evaluate(() => { leaveActiveChat(); reportAway(true); });
         await waitFor(alice, id => isPeerAway(id), bobId);
         await waitFor(alice, () => document.getElementById('chat-peer-status').textContent.toLowerCase().includes('abwesend'));
+        // Auch in der Chatliste: gelber statt gruener Punkt.
+        await waitFor(alice, () => Boolean(document.querySelector('#active-peers-list .bg-amber-400')));
+        assert.equal(await alice.evaluate(() => Boolean(document.querySelector('#active-peers-list .bg-emerald-400'))), false, 'no green dot while away');
 
         await alice.fill('#chat-input', 'bist du da?');
         await alice.click('#send-chat-btn');

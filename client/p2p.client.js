@@ -397,6 +397,22 @@ function reportAway(forceAway = undefined, force = false) {
     state.ws.send(JSON.stringify({ type: 'PRESENCE_AWAY', away }));
 }
 
+// 'online' | 'away' | 'offline' fuer Punkte und Abzeichen (Chatliste, Kontaktleiste, Profil).
+function presenceStatusOf(peerId) {
+    if (!isPeerOnline(peerId) || isPeerBlocked(peerId)) return 'offline';
+    return isPeerAway(peerId) ? 'away' : 'online';
+}
+
+// Punkt am Avatar: gruen online, gelb abwesend, ohne Punkt offline.
+function createPresenceDot(peerId, className) {
+    const status = presenceStatusOf(peerId);
+    if (status === 'offline') return null;
+    const dot = document.createElement('span');
+    dot.className = `${className} rounded-full border-2 border-slate-900 ${status === 'away' ? 'bg-amber-400' : 'bg-emerald-400'}`;
+    dot.title = status === 'away' ? t('chat.away') : t('common.online');
+    return dot;
+}
+
 function isPeerOnline(peerId) {
     return state.peerPresence[peerId] === true || state.dataChannels[peerId]?.readyState === 'open';
 }
@@ -417,6 +433,11 @@ function handlePeerCameOnline(peerId) {
 function renderPresenceChange(peerId = null) {
     renderActivePeerList();
     if (!peerId || state.activeChatPeerId === peerId) renderChatPeerIndicator();
+    // Offenes Profil eines Chat-Partners: Abzeichen mitziehen (auch abwesend).
+    const modalPeerId = state.activeModalPeerId;
+    if (modalPeerId && (!peerId || modalPeerId === peerId) && modalPeerId in state.peerPresence) {
+        updateProfilePresence(modalPeerId, { online: 'online', away: 'absent', offline: 'offline' }[presenceStatusOf(modalPeerId)]);
+    }
 }
 
 // Offener Chat und Peers mit wartenden Nachrichten, auch wenn sie nicht im Grid stehen (Chat- und

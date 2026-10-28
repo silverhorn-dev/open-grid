@@ -2,7 +2,14 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 177 · 2026-10-28
+## Build 178 · 2026-10-28
+- Flirt-Knopf: scrollst du im Chat weit nach oben, faehrt er zu einem schmalen Streifen ein und stoert beim Lesen nicht; tippen darauf oder ins Eingabefeld holt ihn zurueck, unten ist er von selbst wieder da. Er liegt jetzt auch nicht mehr hinter den Pfeilen der Nachrichten
+- Wischen im eigenen Profil klappt jetzt auch, wenn der Finger auf einem Eingabefeld startet
+- Behoben: im Chat am Ende hochziehen flackerte die Anzeige darunter
+- Mehrere Bilder aus der Galerie: vor dem Senden alle durchsehen (wischen oder Pfeile), einzelne entfernen, dann "Alle senden"
+- Behoben: Chatliste, Chat-Wechsler und Profil zeigten "Abwesend" noch nicht (nur gruen oder offline); jetzt mit gelbem Punkt
+
+## Build 177 · 2026-10-28 · `2317cb8`
 - Eingabeleiste aufgeraeumt: die Flamme sitzt genau ueber dem Senden-Knopf und gehoert sichtbar zur Leiste; das Medien-Menue im Flirt-Modus sieht aus wie das Chat-Menue (Album teilen, Video senden). Den Eintrag "Foto aus der Galerie" gibt es nicht mehr (er fuehrte ins Snap-Menue)
 
 ## Build 176 · 2026-10-28 · `1f3a9b4`

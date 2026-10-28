@@ -465,34 +465,188 @@ async function pickSnapImage(input) {
     }
 }
 
-// Mehrfachauswahl aus der Galerie: jedes Bild wird ein eigener Snap (bzw. Bild oder Foto-Status),
-// ohne Editor. Secure Snaps und Wasserzeichen gelten wie beim einzelnen Senden.
+// Mehrfachauswahl aus der Galerie: erst durchsehen, dann senden. Jedes Bild wird ein eigener Snap (bzw.
+// Bild oder Foto-Status), ohne Editor; Art (Snap/Bild/Secure) wie im Snap-Menue gewaehlt. In der Ansicht:
+// grosses Bild, seitlich wischen oder Pfeile, Leiste mit allen, einzelne entfernen, "Alle senden".
 const MAX_PICKED_IMAGES = 20;
+const pickedReview = { items: [], index: 0, context: null };
 
 async function sendPickedImages(files) {
-    const target = state.snapTarget;
-    const peerId = state.activeChatPeerId;
-    const asImage = state.snapSendMode === 'image';
-    const secure = state.snapSettings.secureSnaps && !asImage;
+    const context = {
+        target: state.snapTarget,
+        peerId: state.activeChatPeerId,
+        asImage: state.snapSendMode === 'image',
+        secure: state.snapSettings.secureSnaps && state.snapSendMode !== 'image',
+        skipped: Math.max(0, files.length - MAX_PICKED_IMAGES)
+    };
     closeSnapModal();
-    let sent = 0;
+    const items = [];
     for (const file of files.slice(0, MAX_PICKED_IMAGES)) {
         try {
             const bitmap = await createImageBitmap(file);
             const base = captureSnapBase(bitmap, bitmap.width, bitmap.height, false);
             bitmap.close?.();
-            if (target === 'status') {
+            items.push({ id: window.crypto.randomUUID(), base });
+        } catch (error) {
+            logDebug(`Picked image failed: ${error.message}`);
+        }
+    }
+    if (!items.length) {
+        showToast(t('snaps.imageCouldNotBeLoaded'), 'error');
+        return;
+    }
+    pickedReview.items = items;
+    pickedReview.index = 0;
+    pickedReview.context = context;
+    renderPickedReview();
+}
+
+function pickedReviewTitle() {
+    const { target, asImage, secure } = pickedReview.context;
+    const count = pickedReview.items.length;
+    if (target === 'status') return t('snaps.reviewStatuses', { count });
+    if (asImage) return t('snaps.reviewImages', { count });
+    return secure ? t('snaps.reviewSecureSnaps', { count }) : t('snaps.reviewSnaps', { count });
+}
+
+// Verkleinerte Kopie fuer Vorschau/Leiste (das Original bleibt fuers Senden).
+function pickedPreviewCanvas(base, maxEdge) {
+    const scale = Math.min(1, maxEdge / Math.max(base.width, base.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(base.width * scale));
+    canvas.height = Math.max(1, Math.round(base.height * scale));
+    canvas.getContext('2d').drawImage(base, 0, 0, canvas.width, canvas.height);
+    return canvas;
+}
+
+function renderPickedReview() {
+    const { items } = pickedReview;
+    if (!items.length) {
+        closeMediaModal();
+        return;
+    }
+    pickedReview.index = Math.min(Math.max(0, pickedReview.index), items.length - 1);
+    // Neu zeichnen (blaettern, entfernen) ist kein Schliessen: alte Aufraeum-Funktion nicht ausfuehren.
+    if (document.getElementById('media-modal')?.classList.contains('hidden') === false) state.mediaModalCleanup = null;
+    const content = openMediaModal(pickedReviewTitle());
+    state.mediaModalCleanup = () => {
+        pickedReview.items = [];
+        pickedReview.context = null;
+    };
+    const wrap = document.createElement('div');
+    wrap.className = 'picked-review';
+
+    const stage = document.createElement('div');
+    stage.className = 'picked-review-stage';
+    stage.setAttribute('data-no-sheet-swipe', '');
+    const preview = pickedPreviewCanvas(items[pickedReview.index].base, 1080);
+    preview.className = 'picked-review-image';
+    stage.appendChild(preview);
+    const arrow = (direction, icon, label) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `picked-review-arrow ${direction < 0 ? 'is-prev' : 'is-next'}`;
+        button.setAttribute('aria-label', label);
+        button.innerHTML = `<i class="fa-solid ${icon}"></i>`;
+        button.disabled = direction < 0 ? pickedReview.index === 0 : pickedReview.index === items.length - 1;
+        button.onclick = () => stepPickedReview(direction);
+        return button;
+    };
+    if (items.length > 1) stage.append(arrow(-1, 'fa-chevron-left', t('snaps.previousImage')), arrow(1, 'fa-chevron-right', t('snaps.nextImage')));
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'picked-review-remove';
+    remove.setAttribute('aria-label', t('common.remove'));
+    remove.title = t('common.remove');
+    remove.innerHTML = '<i class="fa-solid fa-trash"></i>';
+    remove.onclick = removePickedImage;
+    stage.appendChild(remove);
+    const counter = document.createElement('span');
+    counter.className = 'picked-review-counter';
+    counter.textContent = `${pickedReview.index + 1} / ${items.length}`;
+    stage.appendChild(counter);
+    attachPickedReviewSwipe(stage);
+
+    const strip = document.createElement('div');
+    strip.className = 'picked-review-strip';
+    strip.setAttribute('data-no-tab-swipe', '');
+    strip.setAttribute('data-no-sheet-swipe', '');
+    items.forEach((item, index) => {
+        const thumb = document.createElement('button');
+        thumb.type = 'button';
+        thumb.className = `picked-review-thumb${index === pickedReview.index ? ' is-active' : ''}`;
+        thumb.setAttribute('aria-label', `${index + 1} / ${items.length}`);
+        thumb.appendChild(pickedPreviewCanvas(item.base, 160));
+        thumb.onclick = () => {
+            pickedReview.index = index;
+            renderPickedReview();
+        };
+        strip.appendChild(thumb);
+    });
+
+    const send = document.createElement('button');
+    send.type = 'button';
+    send.id = 'picked-review-send';
+    send.className = 'compose-btn compose-btn-primary w-full';
+    send.innerHTML = '<i class="fa-solid fa-paper-plane"></i>';
+    send.append(` ${t('snaps.sendAll', { count: items.length })}`);
+    send.onclick = sendPickedReview;
+
+    wrap.append(stage, strip, send);
+    content.appendChild(wrap);
+    strip.querySelector('.is-active')?.scrollIntoView?.({ block: 'nearest', inline: 'center' });
+}
+
+function stepPickedReview(direction) {
+    const next = pickedReview.index + direction;
+    if (next < 0 || next >= pickedReview.items.length) return;
+    pickedReview.index = next;
+    renderPickedReview();
+}
+
+function removePickedImage() {
+    pickedReview.items.splice(pickedReview.index, 1);
+    renderPickedReview();
+}
+
+// Seitlich wischen auf dem grossen Bild = vor/zurueck.
+function attachPickedReviewSwipe(stage) {
+    let start = null;
+    stage.addEventListener('touchstart', event => {
+        start = event.touches.length === 1 ? { x: event.touches[0].clientX, y: event.touches[0].clientY } : null;
+    }, { passive: true });
+    stage.addEventListener('touchend', event => {
+        if (!start) return;
+        const touch = event.changedTouches[0];
+        const deltaX = touch.clientX - start.x;
+        const deltaY = touch.clientY - start.y;
+        start = null;
+        if (Math.abs(deltaX) < 50 || Math.abs(deltaX) < Math.abs(deltaY) * 1.5) return;
+        hapticTick();
+        stepPickedReview(deltaX < 0 ? 1 : -1);
+    }, { passive: true });
+}
+
+async function sendPickedReview() {
+    const { items, context } = pickedReview;
+    if (!items.length || !context) return;
+    const bases = items.map(item => item.base);
+    closeMediaModal();
+    let sent = 0;
+    for (const base of bases) {
+        try {
+            if (context.target === 'status') {
                 const image = encodeSnap(base, base.width, base.height, false, null);
                 if (image) await postPhotoStatus(image, '');
-            } else if (peerId) {
-                const bits = isTraceWatermarkEnabled() ? await watermarkTag(peerId) : null;
+            } else if (context.peerId) {
+                const bits = isTraceWatermarkEnabled() ? await watermarkTag(context.peerId) : null;
                 const data = encodeSnap(base, base.width, base.height, false, bits);
                 if (!data) continue;
-                if (secure) {
-                    await sendChatMessage(null, '', null, await createSecureSnap(data, peerId, state.snapSettings.views, state.snapSettings.seconds));
+                if (context.secure) {
+                    await sendChatMessage(null, '', null, await createSecureSnap(data, context.peerId, state.snapSettings.views, state.snapSettings.seconds));
                 } else {
                     // Ohne Editor gilt der Router-Standard fuer "speicherbar".
-                    await sendChatMessage(data, '', null, null, { asImage, ...(clientDefault('snapSaveable', true) !== false ? {} : { downloadable: 'none' }) });
+                    await sendChatMessage(data, '', null, null, { asImage: context.asImage, ...(clientDefault('snapSaveable', true) !== false ? {} : { downloadable: 'none' }) });
                 }
             }
             sent += 1;
@@ -500,9 +654,9 @@ async function sendPickedImages(files) {
             logDebug(`Picked image failed: ${error.message}`);
         }
     }
-    const message = target === 'status' ? t('snaps.statusesSent', { count: sent })
-        : asImage ? t('snaps.imagesSent', { count: sent }) : t('snaps.sent', { count: sent });
-    const limit = files.length > MAX_PICKED_IMAGES ? t('snaps.atMost', { max: MAX_PICKED_IMAGES }) : '';
+    const message = context.target === 'status' ? t('snaps.statusesSent', { count: sent })
+        : context.asImage ? t('snaps.imagesSent', { count: sent }) : t('snaps.sent', { count: sent });
+    const limit = context.skipped ? t('snaps.atMost', { max: MAX_PICKED_IMAGES }) : '';
     showToast(`${message}${limit}.`, sent ? 'success' : 'error');
 }
 

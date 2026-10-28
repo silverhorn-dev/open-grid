@@ -135,6 +135,8 @@ const state = {
     // Abwesende Chat-Partner (verbunden, App nicht sichtbar) und der eigene zuletzt gemeldete Zustand.
     peerAway: {},
     reportedAway: null,
+    // Eingefahrene Flirt-Lasche per Tipp wieder ausgeklappt (bis man wieder unten ist, friends.js).
+    flirtTabPinnedOpen: false,
     // Wer eigene Chat-Bilder/Videos speichern darf: 'friends' | 'all' (media-rights.js).
     mediaDownload: 'friends',
     // Snap-Editor: darf der Empfaenger diese Aufnahme speichern (snaps.js).

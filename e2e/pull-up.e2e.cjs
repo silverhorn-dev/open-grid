@@ -52,6 +52,35 @@ async function main() {
             await openChatWithPeer('node_one');
         });
 
+        // Langer Verlauf: die Anzeige darf beim Ziehen nur wachsen, nie zwischendurch auf 0 fallen
+        // (vorher: Anzeige waechst -> Verlauf nicht mehr ganz unten -> Anzeige 0 -> waechst ... = Flackern).
+        await page.evaluate(() => {
+            const id = state.activeChatPeerId;
+            const now = Date.now();
+            state.chats[id] = Array.from({ length: 60 }, (_, index) => ({ id: `${id}-long-${index}`, senderId: id, text: `Zeile ${index}`, timestamp: '10:00', createdAt: now - 1000 + index }));
+            renderChatHistory();
+            const container = document.getElementById('chat-messages');
+            container.scrollTop = container.scrollHeight;
+        });
+        await page.waitForTimeout(200);
+        {
+            const box = await page.locator('#chat-messages').boundingBox();
+            const x = box.x + box.width / 2;
+            const start = box.y + box.height - 40;
+            const heights = [];
+            await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y: start }] });
+            for (let step = 1; step <= 10; step++) {
+                await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: start - step * 12 }] });
+                await page.waitForTimeout(16);
+                heights.push(await page.evaluate(() => document.getElementById('chat-pull-refresh').getBoundingClientRect().height));
+            }
+            await session.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+            assert.ok(heights.every((height, index) => index === 0 || height >= heights[index - 1]), `indicator only grows: ${heights.join(',')}`);
+            assert.ok(heights.at(-1) > 20, 'indicator visible');
+        }
+        await page.waitForTimeout(200);
+        await page.evaluate(() => { state.chats[state.activeChatPeerId] = state.chats[state.activeChatPeerId].slice(-1); renderChatHistory(); });
+
         // Naechster Chat.
         await page.evaluate(() => updatePullUpSetting('next'));
         await pullUp(page, session);

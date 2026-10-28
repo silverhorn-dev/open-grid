@@ -157,6 +157,37 @@ async function main() {
         await dave.click('#chat-flirt-tab');
         assert.notEqual(await dave.evaluate(() => document.activeElement?.id), 'chat-input', 'no focus without focus before');
         await waitFor(dave, () => !document.querySelector('#chat-messages')?.textContent.includes('hi dave'));
+        // Weit hochgescrollt: Lasche faehrt zum Streifen ein; Tippen klappt nur aus, schaltet nicht um.
+        await dave.evaluate(id => {
+            const now = Date.now();
+            for (let index = 0; index < 60; index += 1) state.chats[id].push({ id: `filler-${index}`, senderId: id, scope: 'social', text: `Zeile ${index}`, createdAt: now + index, timestamp: '12:00' });
+            renderChatHistory();
+            const container = document.getElementById('chat-messages');
+            container.scrollTop = 0;
+            container.dispatchEvent(new Event('scroll'));
+        }, carolId);
+        await waitFor(dave, () => document.getElementById('chat-input-bar').classList.contains('flirt-tab-collapsed'));
+        const flirtingBefore = await dave.evaluate(id => isFlirting(id), carolId);
+        await dave.click('#chat-flirt-tab');
+        await waitFor(dave, () => !document.getElementById('chat-input-bar').classList.contains('flirt-tab-collapsed'));
+        assert.equal(await dave.evaluate(id => isFlirting(id), carolId), flirtingBefore, 'tap on the strip only expands');
+        // Wieder einfahren (weiter scrollen setzt nichts zurueck, erst unten); Fokus im Eingabefeld klappt aus.
+        await dave.evaluate(() => {
+            state.flirtTabPinnedOpen = false;
+            document.activeElement?.blur();
+            updateFlirtTabCollapse();
+        });
+        await waitFor(dave, () => document.getElementById('chat-input-bar').classList.contains('flirt-tab-collapsed'));
+        await dave.focus('#chat-input');
+        await waitFor(dave, () => !document.getElementById('chat-input-bar').classList.contains('flirt-tab-collapsed'));
+        await dave.evaluate(id => {
+            state.chats[id] = state.chats[id].filter(message => !message.id.startsWith('filler-'));
+            renderChatHistory();
+            const container = document.getElementById('chat-messages');
+            container.scrollTop = container.scrollHeight;
+            container.dispatchEvent(new Event('scroll'));
+        }, carolId);
+
         // Lasche lange druecken = hier ausblenden; ueber das Menue wieder einblenden.
         await dave.hover('#chat-flirt-tab');
         await dave.mouse.down();

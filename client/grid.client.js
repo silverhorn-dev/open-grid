@@ -177,12 +177,8 @@ function renderActivePeerList() {
         image.alt = '';
         image.className = 'w-10 h-10 rounded-full object-cover border border-slate-700';
         avatar.appendChild(image);
-        if (!blocked && isPeerOnline(peer.id)) {
-            const dot = document.createElement('span');
-            dot.className = 'absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-slate-900';
-            dot.title = t('common.online');
-            avatar.appendChild(dot);
-        }
+        const dot = blocked ? null : createPresenceDot(peer.id, 'absolute bottom-0 right-0 w-3 h-3');
+        if (dot) avatar.appendChild(dot);
         const details = document.createElement('div');
         details.className = 'min-w-0 flex-1';
         const name = document.createElement('div');

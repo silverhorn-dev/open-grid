@@ -333,8 +333,18 @@
 
 - [x] gui der neuen eingabeleisten-funktionen ueberarbeitet (nutzer 2026-10-28): lasche genau ueber dem senden-knopf und optisch teil der leiste; medien-menue im stil des chat-menues (symbol + text); "foto aus der galerie" entfernt (fuehrte ins snap-menue)
 
+- [x] flirt-lasche beim hochscrollen (nutzer 2026-10-28): ab halbem bildschirm faehrt sie smooth zum streifen ein (gleicher hintergrund), tippen/fokus im eingabefeld klappt aus, unten wieder da; liegt jetzt vor der aktionsleiste der nachrichten (z-index); e2e `friends`
+- [x] eigenes profil: wischen auch ueber (nicht fokussierte) eingabefelder (nutzer 2026-10-28); e2e `mobile-layout`
+- [x] chatliste/chat-wechsler/profil zeigten nur gruen/offline, nicht "abwesend" (nutzer 2026-10-28)
+  - done: `presenceStatusOf`/`createPresenceDot` an allen stellen; e2e `presence-away` prueft den gelben punkt in der liste
+- [x] bug: im chat am ende hochziehen flackerte (nutzer 2026-10-28)
+  - ursache: anzeige waechst -> verlauf schrumpft -> nicht mehr "ganz unten" -> anzeige 0 -> wieder unten -> waechst ...
+  - done: "unten" nur beim aufsetzen pruefen, verlauf waehrend des ziehens unten anheften, `touchcancel`; e2e `pull-up` prueft, dass die anzeige nur waechst (mit altem code: 0,12,18,18,24,0,36,0,...)
+
 ## T17 Mehrere Bilder/Snaps vor dem Senden durchsehen (nutzer 2026-10-28)
-- [ ] beim versenden mehrerer bilder/snaps (mehrfachauswahl aus der galerie) alle vor dem senden durchsehen koennen
+- [x] beim versenden mehrerer bilder/snaps (mehrfachauswahl aus der galerie) alle vor dem senden durchsehen koennen
+  - done 2026-10-28: durchsicht im medienfenster: grosses bild, seitlich wischen/pfeile, zaehler, leiste mit allen, einzelne entfernen, "Alle senden (N)"; art (snap/bild/secure/status) wie im snap-menue gewaehlt; e2e `snap-camera` (4 waehlen, blaettern, eins entfernen, 3 kommen an)
+  - spaeter evtl.: art pro bild umstellen, einzelnes bild im editor bearbeiten
   - ist-stand: `sendPickedImages` (snaps.js) schickt bei mehrfachauswahl jedes bild sofort einzeln, ohne editor/vorschau
   - idee: vorschau-streifen mit allen bildern, durchwischen, einzelne entfernen, ggf. pro bild snap/bild/secure; dann "alle senden"
 

@@ -40,24 +40,21 @@ html.debug-on .debug-off-only {
     transform: scaleX(-1);
 }
 
-/* Nachrichten-Aktionen: am Desktop beim Hovern (ohne Pfeil). Auf Touch-Geraeten ist nur der
-   Pfeil an der Aussenkante sichtbar; er klappt die Leiste auf und wieder zu. */
+/* Nachrichten-Aktionen: am Desktop eine kleine Leiste beim Hovern (Antworten, Reagieren, mehr).
+   Auf Touch-Geraeten nur der Pfeil in der Ecke; Leiste wie Pfeil oeffnen das Kontextmenue. */
 .message-actions {
     opacity: 0;
     pointer-events: none;
     transition: opacity 120ms;
 }
-.chat-bubble-wrap:hover .message-actions,
-.actions-open .message-actions {
+.chat-bubble-wrap:hover .message-actions {
     opacity: 1;
     pointer-events: auto;
 }
 .message-actions-toggle { display: none; }
 @media (hover: none) {
-    /* Unter #chat-messages, damit die zur Laufzeit geladenen Tailwind-Klassen nicht gewinnen. */
-    /* Zu: nur der kleine Pfeil in der oberen Ecke der Nachricht (eigene rechts, fremde links). */
-    /* Ohne :hover-Variante: :hover bleibt auf Touch nach dem Tippen haengen und waere
-       spezifischer als die "offen"-Regeln (transparente Leiste). */
+    /* Unter #chat-messages, damit die zur Laufzeit geladenen Tailwind-Klassen nicht gewinnen.
+       Ohne :hover-Variante: :hover bleibt auf Touch nach dem Tippen haengen. */
     #chat-messages .message-actions {
         opacity: 1;
         pointer-events: auto;
@@ -74,25 +71,73 @@ html.debug-on .debug-off-only {
     /* Platz fuer den Pfeil, damit der Text nicht darunter liegt. */
     #chat-messages .is-mine .chat-bubble { padding-right: 2rem; }
     #chat-messages .is-theirs .chat-bubble { padding-left: 2rem; }
-    /* Offen: die Leiste sitzt halb ueber der Nachricht, der Pfeil bleibt das aeussere Element. */
-    #chat-messages .actions-open .message-actions {
-        top: -1.25rem;
-        padding: 0.125rem 0.25rem;
-        background: rgb(var(--slate-900) / 0.95);
-        border-color: rgb(var(--slate-700));
-        box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.4);
-    }
-    #chat-messages .actions-open .is-mine .message-actions { right: 0; }
-    #chat-messages .actions-open .is-theirs .message-actions { left: 0; }
-    #chat-messages .actions-open .message-actions .message-action { display: flex; }
-    #chat-messages .actions-open .message-actions-toggle {
-        width: 2.25rem;
-        height: 2.25rem;
-        font-size: 0.875rem;
-        background: rgb(var(--slate-800));
-    }
-    #chat-messages .actions-open .message-actions-toggle i { transform: rotate(180deg); }
 }
+
+/* Kontextmenue einer Nachricht (chat-tools.js): Reaktionen oben, Aktionen als Liste. */
+.message-menu-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 74;
+    background: rgb(2 6 23 / 0.35);
+}
+.message-menu {
+    position: fixed;
+    z-index: 75;
+    width: min(17rem, calc(100vw - 1rem));
+    border: 1px solid rgb(var(--slate-700));
+    border-radius: 1rem;
+    background: rgb(var(--slate-900));
+    box-shadow: 0 20px 40px -12px rgb(0 0 0 / 0.55);
+    overflow: hidden;
+    animation: message-menu-in 120ms ease-out;
+}
+@keyframes message-menu-in {
+    from { opacity: 0; transform: scale(0.96); }
+    to { opacity: 1; transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .message-menu { animation: none; }
+}
+.message-menu-reactions {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.125rem;
+    padding: 0.5rem;
+    border-bottom: 1px solid rgb(var(--slate-800));
+}
+.message-menu-reaction {
+    width: 2.375rem;
+    height: 2.375rem;
+    border-radius: 9999px;
+    font-size: 1.375rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 100ms, background-color 100ms;
+}
+.message-menu-reaction:hover { background: rgb(var(--slate-800)); transform: scale(1.12); }
+.message-menu-reaction.is-active { background: rgb(var(--brand-500) / 0.25); box-shadow: inset 0 0 0 2px rgb(var(--brand-500)); }
+.message-menu-items { display: flex; flex-direction: column; padding: 0.25rem 0; }
+.message-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.7rem 1rem;
+    font-size: 0.9375rem;
+    color: rgb(var(--slate-100));
+    text-align: left;
+}
+.message-menu-item i { width: 1.25rem; text-align: center; color: rgb(var(--slate-400)); }
+.message-menu-item:hover { background: rgb(var(--slate-800)); }
+.message-menu-item.is-danger,
+.message-menu-item.is-danger i { color: #f87171; }
+/* Die Nachricht, zu der das Menue gehoert. */
+#chat-messages .message-menu-target .chat-bubble {
+    box-shadow: 0 0 0 2px rgb(var(--brand-500));
+}
+
 /* Schriftgroesse im Chat (Einstellung "Darstellung") */
 .chat-bubble {
     font-size: var(--chat-font-size, 15px);
@@ -403,6 +448,13 @@ html.debug-on .debug-off-only {
     touch-action: pan-y;
     cursor: grab;
 }
+/* Kontaktleiste immer ueber den Nachrichten (auch Video-Vorschauen mit eigenem Stapel); beim
+   Herunterziehen deckend, damit nichts durchscheint. */
+.chat-header {
+    position: relative;
+    z-index: 20;
+}
+.chat-header.is-pulling { background-color: rgb(var(--slate-900)); }
 
 /* Album-Knopf taucht nach dem langen Druck auf "Snap" auf (Easteregg) */
 @keyframes album-reveal {
@@ -544,6 +596,97 @@ html.debug-on .debug-off-only {
     color: rgb(var(--slate-400));
     cursor: pointer;
 }
+/* Snap-Kamera/-Editor: die Leisten oben und unten lassen Gesten zur Kamera bzw. zum Bild durch, nur
+   ihre Bedienelemente nehmen Tipps an (sonst ging z. B. Wischen nur ausserhalb der Verlaeufe). */
+.snap-overlay,
+.snap-overlay > div,
+.snap-overlay > div > div { pointer-events: none; }
+.snap-overlay button,
+.snap-overlay label,
+.snap-overlay input,
+.snap-overlay select,
+.snap-overlay [role="radiogroup"] > *,
+#snap-emoji-row,
+#snap-text-entry { pointer-events: auto; }
+
+/* Snap-Editor: "speicherbar"-Schalter (Download mit kleinem Kontakt, aus = durchgestrichen). */
+.snap-saveable-icon { position: relative; display: inline-flex; }
+.snap-saveable-contact {
+    position: absolute;
+    right: -0.55em;
+    bottom: -0.35em;
+    font-size: 0.55em;
+    padding: 0.12em;
+    border-radius: 9999px;
+    background: rgb(0 0 0 / 0.75);
+}
+.snap-saveable-strike {
+    display: none;
+    position: absolute;
+    left: 50%;
+    top: -0.2em;
+    width: 0.14em;
+    height: 1.5em;
+    border-radius: 9999px;
+    background: #f87171;
+    transform: translateX(-50%) rotate(45deg);
+    box-shadow: 0 0 0 0.06em rgb(0 0 0 / 0.75);
+}
+.snap-saveable[aria-pressed="false"] .snap-saveable-strike { display: block; }
+.snap-saveable[aria-pressed="false"] { color: #fca5a5; }
+
+/* Alben-Verwaltung im Profil (albums.js): je Album eine Karte im Stil der Einstellungen. */
+.album-manager { padding-bottom: 1rem; }
+.album-list { display: flex; flex-direction: column; gap: 0.75rem; padding-top: 0.75rem; border-top: 1px solid rgb(var(--slate-800)); }
+.album-item {
+    border: 1px solid rgb(var(--slate-800));
+    border-radius: 0.75rem;
+    background: rgb(var(--slate-950) / 0.4);
+    padding: 0.75rem 0.875rem 0.25rem;
+}
+.album-item-head { display: flex; align-items: center; gap: 0.75rem; padding-bottom: 0.5rem; }
+.album-cover {
+    width: 3.25rem;
+    height: 3.25rem;
+    flex-shrink: 0;
+    border-radius: 0.625rem;
+    overflow: hidden;
+    background: rgb(var(--slate-800));
+    color: rgb(var(--slate-500));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.album-cover canvas { width: 100%; height: 100%; object-fit: cover; }
+.icon-btn {
+    width: 2.25rem;
+    height: 2.25rem;
+    flex-shrink: 0;
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgb(var(--slate-800));
+    color: rgb(var(--slate-200));
+    cursor: pointer;
+}
+.icon-btn:hover { background: rgb(var(--slate-700)); }
+.icon-btn.is-danger { color: #fca5a5; }
+.icon-btn.is-danger:hover { background: rgb(127 29 29 / 0.6); }
+.album-access-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0; border-top: 1px solid rgb(var(--slate-800)); }
+.album-limit-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    flex-shrink: 0;
+    padding: 0.2rem 0.6rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    color: #fcd34d;
+    background: rgb(245 158 11 / 0.12);
+}
+.album-access-row .setting-select { max-width: 45%; padding: 0.25rem 0.5rem; font-size: 0.8125rem; }
+
 /* Einstellungen eines nicht gewaehlten Bereichs (data-scope, modes.js). */
 .scope-hidden { display: none !important; }
 .setting-block,

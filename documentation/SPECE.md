@@ -24,15 +24,16 @@
   `router.js` (Client-Routen, History), `viewer.js` (Bildbetrachter),
   `albums.js` (Alben, Medienuebersicht), `push.js` (Web Push), `main.js`
   (Start). `client/geohash.client.js` kodiert den eigenen Standort.
-- `client/styles.css` und `client/app/tailwind.config.js` enthalten Styles
-  und die Tailwind-Konfiguration.
+- `client/styles.css` enthaelt eigene Styles, `client/tailwind.input.css` die
+  Tailwind-Konfiguration (Tailwind 4, CSS statt JS-Datei).
 - Der Server liefert nur Dateien aus der festen Liste `clientAssetFiles` in
   `server/app.js` aus; neue Client-Dateien muessen dort eingetragen werden.
 - Thema und Akzentfarbe (`client/app/theme.js`, im `<head>` geladen, damit
   nichts aufflackert): `localStorage` `opengrid-theme` (`system`, `light`,
   `dark`) und `opengrid-accent` (`{ hue, saturation }`). Tailwind bezieht
-  `slate` und `brand` aus CSS-Variablen (`rgb(var(--slate-500) / <alpha>)`,
-  `tailwind.config.cjs`); `:root` enthaelt die dunklen Standardwerte,
+  `slate` und `brand` aus CSS-Variablen (`@theme inline` mit
+  `rgb(var(--slate-500))`, Transparenz per `color-mix`,
+  `client/tailwind.input.css`); `:root` enthaelt die dunklen Standardwerte,
   `:root.theme-light` eine angepasste helle slate-Skala (Seite hellgrau,
   Karten weiss, Text dunkel). Die Akzentpalette 50-950 wird aus Farbton und
   Saettigung per HSL berechnet. Einstellung: Farbrad (Winkel = Farbton,
@@ -90,7 +91,13 @@
   ueber den Original-Weg, also nur P2P/TURN; `audioSplitAt` ist die Sekunde des
   Wechsels. Der Empfaenger spielt den Anfang sofort; fehlt der Rest am Ende des
   Anfangs, wartet die Wiedergabe, fordert ihn an (baut P2P auf) und spielt
-  weiter, sobald er geprueft gespeichert ist (`onVoiceRestReady`). Am Maximum
+  weiter, sobald er geprueft gespeichert ist (`onVoiceRestReady`). Player:
+  Tippen/Ziehen auf der Leiste springt (`seekVoicePlayback`; in den Rest nur,
+  wenn er da ist, sonst bis zur Grenze und anfragen; pausiert bleibt
+  pausiert), Knopf 1x/1,5x/2x setzt `playbackRate` fuer alle Sprachnachrichten
+  (`localStorage` `opengrid-voice-rate`). Beim Neuzeichnen setzt
+  `applyVoicePlayerState` den Stand direkt am neuen Element (vorher erst beim
+  naechsten Zeit-Update: Flackern). Am Maximum
   stoppt die Aufnahme nur, gesendet wird nie automatisch. Der Text entsteht
   nur, wenn der Browser lokal verschriftlichen kann (`SpeechRecognition` mit
   `processLocally`, vorher `SpeechRecognition.available(...)` = `available`);
@@ -164,14 +171,46 @@
   runter > 110 px = schliessen, seitlich > 80 px = Snap/Bild umschalten
   (`state.snapSendMode`; "Bild" = `MESSAGE_PUT` mit `snapData` ohne
   `snapMode`, dauerhaft, keine Secure-Snap-Regeln), doppelt tippen (< 300 ms) = Kamera wechseln,
-  zwei Finger = Zoom; am Ausloeser hoch > 60 px = Galerie. Aufnahme =
-  Rohbild ohne Wasserzeichen (max. 1080 px). Der Editor haelt Striche
-  (Canvas-Koordinaten) und Text/Emoji-Ebenen (Position 0..1, Groesse relativ
-  zur Breite); `flattenSnapDraft` zeichnet alles in einen Canvas, erst danach
+  zwei Finger = Zoom; hoch > 60 px (ueberall im Bild oder am Ausloeser) =
+  Galerie. Die Leisten oben und unten (`.snap-overlay`) lassen Gesten durch,
+  nur ihre Bedienelemente nehmen Tipps an; ein Wischen, das auf dem
+  Umschalt-Knopf am rechten Rand beginnt, schaltet ebenfalls um (der Klick
+  danach wird verworfen). Aufnahme = Rohbild ohne Wasserzeichen (max. 1080 px).
+  Der Editor haelt Striche (Canvas-Koordinaten), Text/Emoji-Ebenen (Position
+  0..1, Groesse relativ zur Breite, `scale`, `rotation`) und eine
+  Hintergrund-Transformation (`snapEditor.background`: Zoom 0,5-5x, Drehung,
+  Verschiebung). Gesten im Editor: ein Finger auf einer Ebene verschiebt sie,
+  ein zweiter Finger irgendwo skaliert (0,3-6x) und dreht sie; zwei Finger auf
+  dem Hintergrund zoomen/drehen/verschieben das Foto; Drehungen rasten bei
+  Vielfachen von 90 Grad ein (6 Grad Fangbereich, kurzes Vibrieren); ein Finger
+  seitlich auf dem Bild = Snap/Bild umschalten; doppelt tippen auf eine Ebene
+  loescht sie; einmal ruhig auf einen Text tippen oeffnet ihn nach 300 ms zum
+  Nachbearbeiten (Text, Art, Hintergrund, Farbe vorbelegt, OK aendert dieselbe
+  Ebene). "Rueckgaengig" (`snapEditor.history`) kennt: Strich, neue Ebene,
+  Ebene geloescht, verschoben/skaliert/gedreht, Text bearbeitet, Filter,
+  Hintergrund (je Zwei-Finger-Geste bzw. Mausrad-Folge ein Schritt). Am PC: Mausrad beim Ziehen skaliert, mit Shift dreht es, ohne
+  Ziehen zoomt/dreht es das Foto. Text hat eine Art (`font`: `classic`,
+  `serif`, `mono`, `hand`, `neon`; nur Geraeteschriften) und einen Hintergrund
+  (`background`: `none`, `shade` = abgedunkelt, `solid` = Textfarbe als Kasten,
+  Text dann schwarz/weiss nach Helligkeit). Filter fuer das Foto (`original`,
+  `bw`, `vivid`, `red`) als Pixel-Operation, einmal je Wahl auf eine Kopie
+  gerechnet (`filteredBase`, kein `canvas.filter` noetig). Uhrzeit-Sticker im
+  Emoji-Feld = Text-Ebene `HH:MM` (mono, abgedunkelt), frei platzierbar. `flattenSnapDraft` zeichnet alles mit diesen
+  Transformationen in einen Canvas (ausserhalb des Fotos schwarz), erst danach
   bettet `encodeSnap` das Wasserzeichen ein und komprimiert unter 70 KB.
+- Kontextmenue einer Nachricht (`chat-tools.js`, `openMessageMenu`): oben die
+  Reaktionen (eigene markiert), darunter Antworten, Kopieren, Markieren,
+  Loeschen (nur eigene). Oeffnen: lange druecken oder der Pfeil (Touch),
+  Rechtsklick oder Reagieren/"mehr" in der Hover-Leiste (Desktop). Es haengt am
+  `<body>` (nicht in der Nachrichtenliste) und merkt sich die Nachricht
+  (`state.messageMenu`); `renderChatHistory` haengt es nach jedem Neuzeichnen
+  wieder an (`syncMessageMenu`). Schliessen: Tipp auf den Hintergrund (nur wenn
+  der Tipp dort beginnt, sonst schloss der Klick nach dem langen Druecken es
+  sofort), Esc, Zurueck, Chatwechsel; Aktionen laufen ueber `replaceModal`, erst
+  nach dem Zurueck-Schritt des Menues.
 - Gesten (`client/app/gestures.js`, nur Touch): Nachricht wischen (fremde
   nach rechts, eigene nach links, ab 56 px) = antworten; lange druecken
-  (450 ms) = Aktionsleiste; doppelt tippen = Reaktion ❤️; seitlich wischen
+  (450 ms) = Kontextmenue; doppelt tippen = Reaktion ❤️; seitlich wischen
   (ab 80 px, nicht in den 24-px-Kantenzonen, nicht in horizontal scrollbaren
   Bereichen oder im offenen Chat) = Tab Grid/Chat/Profil wechseln; Profil- und
   Medienfenster von oben nach unten wischen = schliessen; im Chat am Ende nach
@@ -300,9 +339,12 @@ den Code nie. Nach 12 Stunden verlaesst der Client das Event automatisch.
 **Profil-Schema pro Modus**: `PROFILE_SCHEMAS` (JSON-Objekt, Schluessel =
 Modus) ueberschreibt einzelne Modi; ohne Angabe nutzt `chat` ein schlankes
 Schema (Anzeigename + Status), alle anderen `PROFILE_SCHEMA`. Die App-Shell
-bekommt alle Schemas eingebettet, aktiv ist das des gewaehlten Modus. Das
-Profil enthaelt nur Felder des aktiven Schemas (plus `displayName`); fremde
-Profile zeigen auch Felder aus anderen Schemas an.
+bekommt alle Schemas eingebettet; das Bearbeiten-Formular zeigt das des
+gewaehlten Modus. Welche Felder ein Peer bekommt, richtet sich nach der Liste
+des Chats mit ihm (`profileSchemaForPeer`): "Chat & Freunde" = `chat`-Schema
+(Freunde: `friends`), "Grid & Event" = `discovery` (im Event-Modus `event`);
+ohne Chat (z. B. aus dem Grid) das Schema des aktiven Modus. Immer plus
+`displayName`. Fremde Profile zeigen auch Felder aus anderen Schemas an.
 
 **Profil-Handshake**: Steht nach dem ersten `KEY_HELLO` noch kein Profil des
 Peers im Cache (neuer Kontakt per Einladung oder erste Nachricht), fragt der
@@ -323,6 +365,15 @@ Oeffnen legt der Client den Kontakt an und merkt sich den Fingerprint
 Schluessel passen, sonst wird die Verbindung verworfen (Schutz gegen einen
 Server, der eine fremde Identitaet einschleust). Der QR-Code wird lokal mit
 `qrcode-generator` (`/vendor/qrcode/qrcode.js`) erzeugt.
+Seit 2026-10-27 haengt der Modus des Einladenden an (`~<modus>`, z. B.
+`~discovery`). `inviteTarget` ordnet ihn einem Bereich zu (`discovery`/`event`
+= "Grid & Event", `chat`/`friends` = "Chat & Freunde"): ist der Bereich beim
+Oeffnenden an, wechselt die App in diesen Modus (bei `event` in einen anderen
+Modus des Bereichs, der Event-Code fehlt) und legt die Chat-Liste fest
+(`ensureChatScope`); die erste Nachricht traegt `scope`, so landet der Chat
+beim Einladenden in derselben Liste. Ist der Bereich aus (eigene
+Bereichswahl oder `APP_MODES`), oeffnet sich nichts, nur ein Hinweis. Links
+ohne Modus verhalten sich wie bisher.
 
 ### 3.1 Grid in Ringen
 
@@ -572,7 +623,43 @@ Die Bilder (`albimg_<uuid>`, max. 1080 px, JPEG 0.7) liegen verschluesselt in
 
 Teilen: Der Besitzer nimmt den Chat-Partner in die `acl` auf und sendet eine
 Chat-Nachricht mit `message.album = { albumId, ownerId, name, cover, count }`
-(Deckfoto max. 30 KB). Der Empfaenger akzeptiert den Verweis nur, wenn
+(Deckfoto max. 30 KB). Wie das Deckfoto aussieht, waehlt der Besitzer je
+Album (`album.preview`: `normal` scharf, `blur` unscharf, `none` ohne Bild;
+Standard `normal`). `blur` wird beim Besitzer gerechnet (auf 1/48 verkleinert,
+ueber 1/12 wieder vergroessert, ohne `canvas.filter`), es verlaesst also nie
+ein scharfes Deckfoto das Geraet; `none` sendet kein `cover`.
+
+Begrenzt teilen (zweiter Schritt im Sendemenue, ueberspringbar = normal):
+`album.limits[viewerId]` = `{ kind: 'views', views: 1-3, used, sessionEndsAt }`
+oder `{ kind: 'time', until }` (15 min, 1 h, 24 h). Ansichten: keine Buendel
+vorab (`pushAlbumKeys` ueberspringt die Person); jede `ALBUM_KEY_REQUEST`
+(Oeffnen) zaehlt eine Ansicht und bekommt nur das laufende Buendel, gekuerzt
+auf 15 Minuten und mit `session: true` (der Betrachter fragt danach nicht von
+selbst nach); eine erneute Anfrage in derselben Ansicht zaehlt nicht. Die
+Ansicht endet mit dem Schliessen: der Betrachter verwirft die Schluessel und
+die gespeicherten Ansichts-Buendel (spaet ankommende werden bei geschlossenem
+Album gar nicht gespeichert) und meldet `ALBUM_VIEW_CLOSED { albumId }`; der
+Besitzer beendet die Ansicht und entzieht sofort, wenn alle verbraucht sind.
+Die 15 Minuten bleiben als Sicherheitsnetz (z. B. Betrachter offline). Beim Schliessen loescht
+der Betrachter auch die verschluesselten Albumbilder (die naechste Ansicht
+laedt neu). Zeitlich begrenzte Buendel tragen `limitedUntil`; der Betrachter
+merkt sich die Frist (`keys`/`album-expires:<albumId>`) und vergisst zur Frist
+Album, Bilder, Buendel und Ticket selbst (`runAlbumSelfDestruct`, auch beim
+Start), also auch, wenn der Besitzer dann offline ist. Schutz nur gegen
+unveraenderte Clients; was angezeigt wurde, kann ein manipulierter Client
+kopieren. Zeit:
+Buendel enden spaetestens mit `until` (`epochEndsAt` gekuerzt, spaetere
+Epochen entfallen, `epochStartsAt` steht dabei). Ist die Frist vorbei bzw.
+sind alle Ansichten verbraucht und die letzte vorbei, entzieht
+`enforceAlbumLimits` den Zugriff wie von Hand (neue Schluesselversion; Timer,
+beim Start erneut geprueft). Jeder Entzug (von Hand oder durch eine Grenze) geht
+als Chat-Operation `ALBUM_REVOKE { albumId }` mit Pfad-C-Rueckfall raus (wie
+`ALBUM_KEYS`), dazu fuer aeltere Versionen die Direktnachricht `ALBUM_REVOKED`.
+Der Betrachter loescht dann Album, Bilder, alle Schluessel-Buendel und das
+Zugangsticket des Albums, auch wenn er es nie geoeffnet hat. Die Chat-Karte traegt `album.limit` zur Anzeige.
+In der Verwaltung stehen begrenzte Personen mit ihrem Stand; ab 3 Personen ist
+der Zugriff eingeklappt. Schon gesendete
+Karten behalten ihr Deckfoto. Der Empfaenger akzeptiert den Verweis nur, wenn
 `ownerId` dem Absender entspricht.
 
 P2P-Protokoll (nur ueber den verschluesselten DataChannel):
@@ -627,7 +714,9 @@ Betrachter online kommt oder sich verbindet, beim Teilen und nach einem Entzug
 `ALBUM_KEYS` wird nicht ins Operations-Log uebernommen.
 
 Gueltigkeit pro Album (R2): `album.keyEpochMinutes` (0 = Server-Wert
-`MEDIA_KEY_EPOCH_MINUTES`, sonst 15, 60, 180 oder 1440) bestimmt die
+`MEDIA_KEY_EPOCH_MINUTES`, sonst 15, 60, 180, 1440 oder 10080 = 1 Woche; pro
+Person ueberschreibbar mit `album.viewerKeyEpochs[viewerId]`, Auswahl neben der
+Person in der Album-Karte, "wie Album" loescht den Eintrag) bestimmt die
 Epochenlaenge, `album.keyEpochsAhead` (1 bis 3) die vorab gelieferten
 Epochen; ein Push enthaelt also hoechstens 4 Buendel. Epoche =
 `floor(Serverzeit / epochMs)`. Neue Alben uebernehmen den Standard aus
@@ -791,7 +880,11 @@ Fehlt beiden das Profil des anderen, wartet die hoefliche Seite 1,5 s mit dem
 eigenen Aufbau. Verschluesselte Nachrichten, die vor dem eigenen
 Sitzungsschluessel ankommen (beide leiten gleichzeitig ab), werden bis zu 50
 Stueck zurueckgehalten und danach in Reihenfolge verarbeitet (vorher gingen
-sie verloren, z. B. Profil-Anfragen).
+sie verloren, z. B. Profil-Anfragen). Hat eine Seite ihre Verbindung verworfen
+und bietet neu an, passt das Angebot oft nicht zur alten Verbindung der
+anderen Seite (z. B. andere m-lines nach einem Secure-Snap-Stream).
+`applyRemoteOffer` verwirft dann die alte Verbindung und antwortet auf einer
+frischen, statt das Angebot abzulehnen.
 
 **Empfangsbestaetigung (P2P)**: Ein offener DataChannel kann halb tot sein
 (der Partner hat gerade das Netz verloren, ICE merkt es erst nach bis zu 30 s);
@@ -924,6 +1017,9 @@ Dauer 5/10/30 s oder `0` = bis zum Schliessen, max. 5 Minuten).
   Schluessel bleibt beim Sender (`media`/`ssnap_<snapId>`, mit `viewsLeft`).
 - Ansehen nur mit Sender online: Der Empfaenger sendet `SNAP_VIEW_REQUEST`
   ausschliesslich ueber einen offenen Kanal (wartet max. 10 s auf den Aufbau).
+  Kommt binnen 8 s keine Antwort (Anfrage in einem halb toten Kanal verloren),
+  baut der Empfaenger den Kanal neu auf und fragt einmal erneut; danach
+  "Der Absender antwortet nicht" statt endlos "Warte auf Freigabe".
   Der Sender zaehlt die Ansicht herunter und versucht zuerst einen
   Live-Stream: `SNAP_STREAM_START { snapId, streamId, seconds, viewsLeft }`,
   dazu ein Video-Track aus `canvas.captureStream()` per Renegotiation auf der
@@ -931,11 +1027,25 @@ Dauer 5/10/30 s oder `0` = bis zum Schliessen, max. 5 Minuten).
 - Kommt binnen 6 s kein `SNAP_STREAM_PLAYING`, sendet der Sender
   `SNAP_VIEW_GRANT { snapId, key, seconds, viewsLeft }`. Der Empfaenger
   entschluesselt nur im Arbeitsspeicher (Blob-URL, Puffer wird ueberschrieben).
+  Der Grant gilt auch, wenn der Stream beim Empfaenger schon lief (erste
+  Neuverhandlung zu langsam): dann wechselt die Anzeige aufs Bild und die schon
+  laufende Zeit zaehlt weiter, statt dass der Snap sofort endet.
 - Nach Ablauf der Dauer: `SNAP_STREAM_END` bzw. `SNAP_VIEW_CLOSED`, Track und
   Blob-URL werden verworfen. Wird die App verlassen, schliesst der Viewer sofort.
-- Nach der letzten Ansicht loeschen Sender (Schluessel, Ciphertext) und
-  Empfaenger (Ciphertext) ihre Daten; weitere Anfragen beantwortet der Sender
-  mit `SNAP_VIEW_DENIED`.
+- Solange der Empfaenger noch Ansichten hat, kann der Sender seinen eigenen
+  Snap ansehen (`openOwnSecureSnap`, lokal entschluesselt, ohne Zeitlimit).
+- Nach der letzten Ansicht loescht der Empfaenger den Ciphertext; weitere
+  Anfragen beantwortet der Sender mit `SNAP_VIEW_DENIED`. Der Sender behaelt
+  Schluessel und Ciphertext noch seine eigene Frist lang
+  (`snap-settings.ownKeep`: `now`/`15m`/`1h`/`24h`, Standard `1h`, Router
+  `CLIENT_DEFAULTS.ownSnapKeep`; `secureSnap.ownKeepUntil`), kann ihn ansehen
+  und als Datei speichern; danach loescht `expireOwnKeptSnaps` beides. Dieselbe
+  Frist gilt fuer eigene Einmal-Snaps nach `SNAP_CONSUMED` (`ownKeepUntil`,
+  das Bild bleibt bis dahin, "Speichern" behaelt ihn dauerhaft).
+- Viewer: Bild bzw. Stream immer bildschirmfuellend (`object-contain`, der
+  Live-Stream startet oft mit kleiner Aufloesung); zwei Finger bzw. Mausrad
+  zoomen bis 5x, gezoomt verschiebt ein Finger das Bild, Schliessen und
+  "weiter" nur ungezoomt; beim Oeffnen/Schliessen zurueckgesetzt.
 - Grenzen: Screenshots und Bildschirmaufnahmen lassen sich im Browser nicht
   verhindern; ein manipulierter Client kann Frames oder den Schluessel
   behalten. Abschreckung ist das Wasserzeichen.
@@ -963,10 +1073,32 @@ Bildbetrachter zeichnen in `<canvas>` (`client/app/secure-canvas.js`:
 `createImageBitmap` aus den Bytes, kein Data- oder Blob-URL im DOM,
 Kontextmenue gesperrt). Die Quelle fuer den Betrachter liegt nur in einer
 `WeakMap`. Beim Schliessen werden die Canvas geleert. Speichern (Download als
-JPEG aus dem Canvas) gibt es nur fuer Chat-Bilder im Chat- und Freunde-Modus
-(`isSocialMode`), nie fuer Alben oder Secure Snaps. Profil-Galerien bleiben
+JPEG aus dem Canvas) gibt es nur fuer Chat-Bilder und Videos, nie fuer Alben,
+Secure Snaps oder Einmal-Snaps. Wer speichern darf, bestimmt der Absender
+(`client/app/media-rights.js`, `keys`/`media-download-settings = { value }`,
+`'friends'` Standard oder `'all'`, Router-Standard
+`CLIENT_DEFAULTS.mediaDownload`): neue Bild- und Video-Nachrichten tragen
+`downloadable`; `canDownloadMedia(message)` erlaubt eigene immer, fremde bei
+`'all'` oder wenn der Absender ein Freund ist (fehlt das Feld: nur Freunde).
+Im Snap-Editor markiert der Schalter neben den Werkzeugen eine einzelne Aufnahme
+als "nicht speicherbar" (`downloadable: 'none'`, je Aufnahme zurueckgesetzt auf
+`CLIENT_DEFAULTS.snapSaveable`, Standard speicherbar): dann weder Speichern
+noch Teilen, und bei Einmal-Snaps kein "Speichern" im Chat beim Empfaenger.
+Der Bildbetrachter entscheidet je Bild (`allowSave` als Array), der
+Video-Betrachter hat "Speichern"/"Teilen" mit derselben Regel. Mit derselben Freigabe
+erscheint daneben "Teilen", wenn der Browser Dateien teilen kann
+(`canShareFiles`: `navigator.canShare({ files })`): `shareCanvasImage` gibt
+das JPEG an `navigator.share`; Abbrechen ist kein Fehler. Profil-Galerien bleiben
 `<img>`. Kein Schutz gegen Screenshots; Pixel-Verwuerfeln wurde bewusst nicht
 gebaut (entschieden 2026-10-24).
+
+Neuzeichnen ohne Flackern: `createSecureImage(..., { reuseKey })` ist der
+einzige Weg zu Bild-Canvas in Listen. Mit Schluessel (`image:<id>`,
+`video:<id>`, `album-card:<id>`, `album-cover:<albumId>`) merkt sich ein
+Register den gezeichneten Canvas; wird die Ansicht neu aufgebaut und ist er
+nicht mehr im DOM, kommt bei gleicher Quelle genau dieser Canvas zurueck
+(sonst waere ein neuer bis zum asynchronen Zeichnen leer). Das Register
+vergisst ab 150 Eintraegen die aeltesten nicht angezeigten (bis 100).
 
 ### 6.4 Nacktbild-Filter (T3, `client/app/nudity.js`)
 
@@ -1091,6 +1223,22 @@ Der Service Worker:
 - ruft `skipWaiting()` nie automatisch auf, nur nach `ACTIVATE_UPDATE` von der
   Seite (Nutzer tippt im Update-Hinweis auf "Aktualisieren")
 
+### 9.0 Teilen nach OpenGrid (share_target)
+
+Das Manifest liefert der Server unter `/manifest.webmanifest` (vorher eine
+`data:`-URL im Markup; `start_url` und damit die App-Identitaet unveraendert)
+mit `share_target` (`POST /share-target`, multipart, Felder `title`, `text`,
+`url`, `files` mit `image/*`). Der Service Worker faengt den POST ab
+(`handleShareTarget`): hoechstens 20 Bilder bis je 25 MB plus Text (je Feld
+4000 Zeichen) in den Cache `opengrid-share-inbox` (`/__share/meta`,
+`/__share/file-<n>`), dann `303` auf `/chat?share=1`. Die Seite
+(`client/app/share-target.js`) liest und leert den Eingang beim Start und zeigt
+"Senden an" mit allen nicht blockierten Chats. Bilder gehen wie aus der Galerie
+als Chat-Bilder raus (Wasserzeichen wie gewohnt), Text nur ins Eingabefeld (nie
+automatisch senden; Titel/Link, die schon im Text stehen, entfallen). Ohne
+aktiven Worker beantwortet der Server den POST ohne zu speichern mit `303` auf
+`/chat?share=unavailable`. Nur installierte PWA, nicht auf iOS.
+
 ### 9.1 Offline (App-Shell)
 
 Der Server setzt beim Ausliefern von `/sw.js` die Asset-Version und die
@@ -1111,7 +1259,7 @@ Precache-Liste ein (`__ASSET_VERSION__`, `__PRECACHE_URLS__`): `/`, alle
   aus IndexedDB.
 
 Externe Abhaengigkeiten zur Laufzeit gibt es keine mehr: Tailwind wird mit
-`npm run build:css` (Tailwind-CLI 3, `tailwind.config.cjs`) nach
+`npm run build:css` (Tailwind 4, `@tailwindcss/cli`, `client/tailwind.input.css`) nach
 `client/tailwind.css` kompiliert (Docker-Build, `prestart`, `pretest`); Font
 Awesome kommt aus `node_modules/@fortawesome/fontawesome-free` unter
 `/vendor/fontawesome/*`; Platzhalterbilder und App-Icons (`client/icon.svg`, PNG 180/192/512 fuer Manifest und `apple-touch-icon`)

@@ -122,6 +122,16 @@ const state = {
     // Nacktbild-Filter fuer eingehende Bilder (nudity.js), standardmaessig aus.
     nudityFilter: false,
     safetyGateDismissed: false,
+    // Offenes Kontextmenue einer Nachricht ({ peerId, messageId }, chat-tools.js).
+    messageMenu: null,
+    // Timer fuer das Ende begrenzt geteilter Alben (albums.js).
+    albumLimitTimer: null,
+    // Betrachter: Selbstzerstoerung zeitlich begrenzter Alben (albums.js).
+    albumSelfDestructTimer: null,
+    // Wer eigene Chat-Bilder/Videos speichern darf: 'friends' | 'all' (media-rights.js).
+    mediaDownload: 'friends',
+    // Snap-Editor: darf der Empfaenger diese Aufnahme speichern (snaps.js).
+    snapSaveable: true,
     // Originalbilder im Empfang (originals.js), pro Nachrichten-ID.
     originalTransfers: {},
     // Snap-Kamera: als Einmal-Snap oder als normales Bild senden.
@@ -262,7 +272,11 @@ function validateProfileSchema(schema) {
 
     const supportedTypes = new Set(['string', 'number', 'select', 'multiselect', 'description', 'tag']);
     schema.forEach((field) => {
-        if (!field || typeof field.key !== 'string' || typeof field.label !== 'string') {
+        // Label als Text oder je Sprache ({ de, en }, wie die eingebauten Schemas).
+        const label = field?.label;
+        const validLabel = typeof label === 'string'
+            || (label && typeof label === 'object' && Object.values(label).length > 0 && Object.values(label).every(value => typeof value === 'string'));
+        if (!field || typeof field.key !== 'string' || !validLabel) {
             throw new Error('Each schema field requires a key and label.');
         }
         if (field.type && !supportedTypes.has(field.type)) {

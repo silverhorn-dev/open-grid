@@ -42,7 +42,7 @@ function setup({ isMine = false } = {}) {
         clearTimeout: handle => { if (timers[handle - 1]) timers[handle - 1].cleared = true; },
         startReply: id => calls.reply.push(id),
         reactToMessage: (id, emoji) => calls.react.push([id, emoji]),
-        toggleMessageActions: () => { calls.actions += 1; },
+        openMessageMenu: () => { calls.actions += 1; },
         Date,
         Math
     };

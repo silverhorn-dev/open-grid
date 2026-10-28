@@ -20,6 +20,7 @@ function loadMatching({ visibility = 1, chatPolicy, privateFields = [], stored =
             },
             matchState: {},
             friendState: {},
+            chatScopes: {},
             appMode: 'discovery',
             chats: {},
             cachedProfiles: {}
@@ -135,4 +136,31 @@ test('only fields of the active profile schema are sent', () => {
     context.PROFILE_SCHEMA = [{ key: 'displayName' }, { key: 'status' }];
     const payload = plain(context.buildProfilePayloadFor('stranger'));
     assert.deepEqual(Object.keys(payload.fields), ['displayName']);
+});
+
+// Regression: das Profil richtete sich nach dem eigenen aktiven Modus; wer in "Entdecken" war,
+// schickte Chat-Kontakten sein Dating-Profil (und umgekehrt).
+test('the profile a peer gets follows the list of the chat, not the own active mode', () => {
+    const context = loadMatching();
+    Object.assign(context.state.myProfile.fields, { status: 'Hi', role: 'dating detail', workshop: 'Rust' });
+    Object.assign(context.state.chatScopes, { contact: 'social', dating: 'discovery' });
+    context.PROFILE_SCHEMA = [{ key: 'displayName' }, { key: 'age' }, { key: 'role' }];
+    context.PROFILE_SCHEMAS = {
+        discovery: [{ key: 'displayName' }, { key: 'age' }, { key: 'role' }],
+        chat: [{ key: 'displayName' }, { key: 'status' }],
+        friends: [{ key: 'displayName' }, { key: 'bio' }],
+        event: [{ key: 'displayName' }, { key: 'workshop' }]
+    };
+    const fieldsFor = peerId => Object.keys(plain(context.buildProfilePayloadFor(peerId)).fields).sort();
+    context.state.appMode = 'discovery';
+    assert.deepEqual(fieldsFor('contact'), ['displayName', 'status'], 'chat contact gets the chat profile while I explore');
+    assert.deepEqual(fieldsFor('dating'), ['age', 'displayName', 'role']);
+    assert.deepEqual(fieldsFor('stranger'), ['age', 'displayName', 'role'], 'no chat yet: active mode');
+    context.state.appMode = 'chat';
+    context.PROFILE_SCHEMA = context.PROFILE_SCHEMAS.chat;
+    assert.deepEqual(fieldsFor('dating'), ['age', 'displayName', 'role'], 'dating chat keeps the dating profile while I am in chat mode');
+    context.state.appMode = 'event';
+    assert.deepEqual(fieldsFor('dating'), ['displayName', 'workshop'], 'event schema while in an event');
+    context.state.friendState.contact = { sentAt: 2, receivedAt: 3, resetAt: 0 };
+    assert.deepEqual(fieldsFor('contact'), ['bio', 'displayName'], 'friends get the friends profile');
 });

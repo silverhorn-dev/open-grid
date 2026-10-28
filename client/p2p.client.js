@@ -218,6 +218,31 @@ async function flushPendingIceCandidates(peerId) {
     }
 }
 
+// Hat die Gegenseite ihre Verbindung verworfen und neu angeboten, passt das Angebot oft nicht mehr zur
+// alten Verbindung hier (z. B. andere Reihenfolge der m-lines nach einem Secure-Snap-Stream). Dann die
+// alte verwerfen und auf einer frischen antworten, statt das Angebot abzulehnen (sonst haengt der
+// Aufbau, bis die Gegenseite aufgibt).
+async function applyRemoteOffer(peerId, connection, sdp, collision) {
+    try {
+        if (collision) {
+            await Promise.all([
+                connection.setLocalDescription({ type: 'rollback' }),
+                connection.setRemoteDescription(sdp)
+            ]);
+        } else {
+            await connection.setRemoteDescription(sdp);
+        }
+        return connection;
+    } catch (error) {
+        if (!connection.currentRemoteDescription) throw error;
+        logDebug(`Angebot von ${peerId} passt nicht zur bestehenden Verbindung (${error.message}); baue sie neu auf.`);
+        cleanupPeerConnection(peerId, connection);
+        const fresh = getOrCreatePeerConnection(peerId);
+        await fresh.setRemoteDescription(sdp);
+        return fresh;
+    }
+}
+
 async function handleSignalingMessage(message) {
     if (message.type === 'CACHE_WAITING') {
         scheduleCacheFetch();
@@ -300,7 +325,7 @@ async function handleSignalingMessage(message) {
         logDebug(`Ignored signaling from blocked peer ${peerId}.`);
         return;
     }
-    const connection = getOrCreatePeerConnection(peerId);
+    let connection = getOrCreatePeerConnection(peerId);
 
     if (message.type === 'SDP_OFFER') {
         const polite = isPolitePeer(peerId);
@@ -310,14 +335,7 @@ async function handleSignalingMessage(message) {
             logDebug(`Ignored colliding offer from ${peerId}`);
             return;
         }
-        if (offerCollision) {
-            await Promise.all([
-                connection.setLocalDescription({type: 'rollback'}),
-                connection.setRemoteDescription(message.sdp)
-            ]);
-        } else {
-            await connection.setRemoteDescription(message.sdp);
-        }
+        connection = await applyRemoteOffer(peerId, connection, message.sdp, offerCollision);
         await flushPendingIceCandidates(peerId);
         const answer = await connection.createAnswer();
         await connection.setLocalDescription(answer);
@@ -869,6 +887,8 @@ async function handleSecurePayload(peerId, payload, deliveredVia = 'E2EE P2P') {
         handleSnapViewClosed(peerId, payload);
     } else if (payload.type === 'ALBUM_KEY_REQUEST') {
         await handleAlbumKeyRequest(peerId, payload);
+    } else if (payload.type === 'ALBUM_VIEW_CLOSED') {
+        await handleAlbumViewClosed(peerId, payload);
     } else if (payload.type === 'ALBUM_REVOKED') {
         await forgetReceivedAlbum(peerId, payload.albumId);
     } else if (payload.type === 'IMAGE_REQUEST') {

@@ -77,7 +77,130 @@
     - [ ] modell auswaehlen und ausliefern (Bumble Private Detector o. ae., lizenz/groesse/browser) -> entscheidung
     - [ ] absender-warnung vor dem senden -> entscheidung
 
+## T4 Wrapper-App: native API zum Senden/Empfangen (wunsch 2026-10-27, erst planen)
+- [ ] die wrapper-app (siehe backlog "real application for android") stellt der PWA eine API bereit, um bilder zu senden und zu empfangen, auch offline bzw. wenn die app im hintergrund ist; grund: dauernd geladene PWA zieht viel akku
+  - idee: PWA erkennt die bruecke (z. B. `window.OpenGridNative` bzw. `postMessage`-kanal der WebView) und gibt ihr ausgehende, schon verschluesselte nachrichten (pfad-C-ciphertext + empfaenger + msgId); die app liefert sie im hintergrund aus (router-cache/push, spaeter P2P) und meldet den status zurueck
+  - empfangen: app nimmt web-push/FCM im hintergrund an, holt ciphertext aus `/api/cache`, legt ihn in einen eigenen speicher; beim oeffnen uebernimmt die PWA ihn (wie heute der SW, `MESSAGE_PUT`)
+  - ohne bruecke (normaler browser) bleibt alles wie heute
+  - entschieden 2026-10-27 (nutzer): variante haengt an der einstellung "Kompakte Meldung" (`keys`/`push-settings.compactNotifications`)
+    - kompakt an (standard) = variante A: app bekommt nie schluessel, reicht nur ciphertext weiter, meldung nur "Neue Nachrichten"
+    - kompakt aus (vorschau gewuenscht) = variante B: app bekommt die noetigen schluessel und entschluesselt fuer name + vorschau
+    - umschalten auf kompakt -> PWA weist die app an, alle schluessel sofort zu loeschen; nur ueber die bruecke, nie ueber den server
+    - plan: schluessel in der app nur im geschuetzten speicher (Android Keystore), nie im klartext auf platte
+  - offen: plattform (android zuerst? kotlin + WebView oder TWA), hintergrund-grenzen (WorkManager, doze), verhaeltnis zum service worker (doppelte zustellung vermeiden)
+  - offen: api-vertrag versionieren (`apiVersion`), nur fuer signierte app (siehe backlog: signierte clients)
+
+## T5 Teilen-Menues des Systems (ideen 2026-10-27)
+- [x] teilen aus OpenGrid: installiert als app oeffnen teilen-knoepfe (einladungslink, chat-bilder im social-bereich) das native teilen-menue (Web Share API) statt kopieren/download
+  - nutzer 2026-10-27: download bleibt, teilen kommt als zweite moeglichkeit dazu
+  - done 2026-10-27: bildbetrachter "Teilen" neben "Speichern" (`canShareFiles`, `shareCanvasImage`, `shareViewerImage`), nur mit derselben freigabe wie speichern; einladungslink hatte schon kopieren + teilen; e2e `image-share`; UC-48 (UC-46/47 liegen auf `feature/safety-checks`)
+- [x] videos auch speichern/teilen + einstellung "medien nur fuer freunde herunterladbar" (nutzer 2026-10-27; freunde = geaddete)
+  - entschieden: einstellung des absenders, betreiber gibt den standard vor (`CLIENT_DEFAULTS.mediaDownload`)
+  - done 2026-10-27: `client/app/media-rights.js` (`canDownloadMedia`, feld `downloadable` an bild-/video-nachrichten), bildbetrachter je bild, video-betrachter mit speichern/teilen; einstellung Medien > Schutz; tests `test/media-rights.test.js`, e2e `media-rights`, `voice-video`
+- [x] teilen nach OpenGrid: OpenGrid erscheint im teilen-menue anderer apps (Share Target API im manifest), z. B. foto aus der galerie -> chat auswaehlen -> senden
+  - done 2026-10-27: manifest jetzt unter `/manifest.webmanifest` mit `share_target`; SW `handleShareTarget` -> cache `opengrid-share-inbox` -> `/chat?share=1`; `client/app/share-target.js` ("Senden an", bilder als chat-bilder, text nur ins eingabefeld); `createChatPickerList` (chat-switch.js) geteilt mit dem quick-switcher; tests `test/server.test.js`, e2e `share-target`; UC-49
+  - offen: nur installierte PWA; iOS unterstuetzt share target nicht
+
+## T6 Bugs + Snap-Vorschau (2026-10-27)
+- [x] when a video is in chat, sometimes it horribly flickers, wurde hier die media platzhalter funktion auch für videos umgesetzt?
+  - ursache: platzhalter (groesse) gab es schon, aber jedes neuzeichnen des chats (waehrend einer video-uebertragung oft) legte neue, erst leere canvas an
+  - fix 2026-10-27: gezeichnete canvas werden beim neuzeichnen weiterverwendet (`collectReusableSecureImages`, `reuseKey`, secure-canvas.js); gilt fuer bilder und video-vorschauen; e2e `media-rights`
+- [x] when displaying the first view of a secure snap its very very short
+  - ursache: erste neuverhandlung fuer den live-stream langsamer als 6 s -> sender stoppt den stream und schickt den schluessel; empfaenger hatte das video gerade gestartet und ignorierte den schluessel
+  - fix 2026-10-27: grant gilt auch waehrend eines laufenden streams, anzeige wechselt aufs bild, die zeit laeuft weiter; e2e `secure-snap`
+- [x] man kann sich seine eigenen secure snaps nicht mehr ansehen, das soll bei den eigenen wie bei den normalen funken
+  - fix 2026-10-27: `openOwnSecureSnap` (lokal, ohne zeitlimit), solange der empfaenger noch ansichten hat
+  - nutzer 2026-10-27: nur bis der empfaenger alle ansichten verbraucht hat, danach auch beim sender weg (schluessel + ciphertext geloescht)
+  - nutzer 2026-10-27: dazu eine eigene frist, um ihn noch selbst zu speichern, einstellbar unter der snap-ablauf-einstellung
+  - done 2026-10-27: "Eigene Snaps behalten" (sofort/15 min/1 h/24 h, standard 1 h, `CLIENT_DEFAULTS.ownSnapKeep`), gilt fuer einmal- und secure snaps (`ownKeepUntil`, `expireOwnKeptSnaps`); eigener secure snap mit "Speichern" (datei); e2e `secure-snap`
+- [x] secure snaps werden auf dem endgeraet teilweise sehr klein dargestellt und sind nicht zoombar (nutzer 2026-10-27)
+  - ursache: video/canvas nur in eigener pixelgroesse (max-w/max-h), der live-stream startet oft mit kleiner aufloesung
+  - fix 2026-10-27: immer bildschirmfuellend (`w-full h-full object-contain`), pinch-zoom bis 5x + verschieben, mausrad am pc; e2e `secure-snap`
+- [x] secure snaps bugs, when waiting for "Freigabe" on receiving a secure snap it waits forever, auch wenn der andere client wieder on ist
+  - ursache: kein timeout nach SNAP_VIEW_REQUEST; ging die anfrage in einem halb toten kanal verloren, passierte nie etwas
+  - fix 2026-10-27: nach 8 s kanal neu aufbauen und einmal erneut fragen, danach "Der Absender antwortet nicht"; e2e `secure-snap`
+  - dabei gefunden: neues angebot nach einseitigem neuaufbau wurde abgelehnt (m-lines passten nach einem snap-stream nicht zur alten verbindung), aufbau hing ~16 s; fix `applyRemoteOffer` (p2p.client.js) verwirft die alte verbindung und antwortet frisch
+- [x] on taken image / snap preview toggle for safeable
+  - nutzer 2026-10-27: schalter neben den bearbeitungs-icons; download-icon mit kleinem kontakt-icon schraeg versetzt; angeklickt durchgestrichen + notiz "nicht speicherbar"; standard vom router, normal "speicherbar"
+  - done 2026-10-27: `#snap-saveable-btn` (snaps.js `toggleSnapSaveable`, `snapSaveOptions`), `downloadable: 'none'`, `CLIENT_DEFAULTS.snapSaveable`; einmal-snap "Speichern" beim empfaenger ausgeblendet; e2e `snap-camera`
+
+## T7 Bugs + Snap-Editor (2026-10-27)
+- [x] on smartphone when swiping the profile bar in chat down, the messages especially the videos are in foreground and the bar in background, fix the y-or z-axis
+  - ursache: kontaktleiste hatte nur am desktop einen z-index, mobil halb durchsichtig; nachrichten (video-vorschau mit eigenem stapel) lagen davor
+  - fix 2026-10-27: `.chat-header` immer `z-index: 20`, beim ziehen deckend (`is-pulling`); e2e `chat-gestures` (mobil)
+- [x] general swiping in snap / iamge preview or when taking photos, swiping up and to the sides is not good
+  - nutzer 2026-10-27: galerie-wischen ging nur auf dem galerie-icon und dem ausloeser; seitlich snap/bild ging nicht; editor-gesten (skalieren, drehen) bitte mit zwei fingern: element = erst ein finger drauf, dann zweiter; hintergrund = beide
+  - ursache seitlich: das typische wischen von rechts begann auf dem umschalt-knopf am rechten rand; in der vorschau gab es gar keine wisch-geste
+  - fix 2026-10-27: leisten lassen gesten durch (`.snap-overlay`), hoch = galerie ueberall im kamerabild, wischen ab dem umschalt-knopf zaehlt, im editor ein finger seitlich = snap/bild; e2e `snap-editor-gestures` (mobil, echte mehrfinger-touches)
+- [x] editing improvement
+   - [x] emoties und text soll scalable sein, dafür muss man das item verschieben und dabei mit einem 2. Finger rein oder rauszoomen, am pc scrollen während man es dragt.
+      - [x] dabei soll er auch drehbar sein, und jeweils bei 90 grad sn die achse snappen, also wenn er parallel zur seite oder dem boden ist.
+      - done 2026-10-27: item `scale`/`rotation`, zweiter finger irgendwo, einrasten bei 90 grad (6 grad fangbereich, vibration); hintergrund mit zwei fingern zoomen/drehen/verschieben; pc: mausrad beim ziehen, shift = drehen; `flattenSnapDraft` mit transformationen
+      - [x] verschiedene textarten
+      - [x] opt. ein texthintergrund
+      - done 2026-10-27: textart (klassisch, serif kursiv, mono, handschrift, neon) und hintergrund (keiner, abgedunkelt, voll) per knopf in der texteingabe
+   - [x] die möglichkeit filter drüberzulegen, also s/W, farbenfroh, puff farben (rot), mit uhrzeit an verschiendenen stellen
+      - [x] text nachbearbeiten und hintergrund-aenderungen rueckgaengig machen (nutzer 2026-10-27)
+        - done 2026-10-27: ein tipp auf text = bearbeiten (vorbelegt), doppelt tippen = loeschen; rueckgaengig auch fuer hintergrund, filter, verschieben/skalieren/drehen, bearbeiten, loeschen; e2e `snap-editor-gestures`
+      - done 2026-10-27: filter-leiste ueber der bildunterschrift (Original, S/W, Farbenfroh, Rot); uhrzeit als erster sticker im emoji-feld, frei verschieb-/skalier-/drehbar; tests `test/snap-editor.test.js`, e2e `snap-editor-gestures`
+   - noch weitere ideen anmerkungen?
+  - ideen dazu (vorschlag 2026-10-27, noch nicht bestaetigt): loeschen per ziehen auf einen papierkorb, textausrichtung, ortsfreie sticker (uhrzeit, wochentag)
+
+## T8 Bug: Profil-Schemas vom Router (gefunden 2026-10-27)
+- [x] `validateProfileSchema` (config.js) nahm nur Text-Labels an; die eingebauten Schemas haben `{de,en}` -> der Client verwarf alle Schemas vom Router, "Nur Chat" bekam nie Name + Status
+  - fix 2026-10-27: Labels als Text oder je Sprache; `compose.yaml` reicht `PROFILE_SCHEMA` durch (`PROFILE_SCHEMAS` steht dort direkt, nutzer 2026-10-27; dabei `"String"` -> `"string"` und "Über" von ISO-8859-1 nach UTF-8 korrigiert); test `test/profile-schema.test.js` (router-standard -> client-pruefung)
+
+## T9 Einladung + Album-Vorschau (2026-10-27)
+- [x] einladung aus "Entdecken", geoeffnet im chat-modus: chat landete in der falschen liste
+  - entschieden (nutzer): einladung traegt den modus; geht in dessen modus/liste; ist der bereich beim empfaenger aus, oeffnet sich nichts, nur "modus deaktiviert"
+  - done 2026-10-27: link `#<peer>.<fingerprint>~<modus>`, `inviteTarget`, hinweis `modes.inviteModeDisabled`; tests `test/modes.test.js`, e2e `invite-modes`
+  - offen (nicht entschieden): im entdecken-bereich kann die chat-sperre des einladenden ("Nur Matches") nachrichten des eingeladenen zurueckhalten
+- [x] album: besitzer waehlt die vorschau (normal / unscharf / keine)
+  - done 2026-10-27: `album.preview`, "Vorschau im Chat" in der album-karte, unscharf beim besitzer gerechnet; e2e `album-preview`; UC-50
+
+## T10 Album-Schluessel: 1 Woche und pro Person (nutzer 2026-10-27)
+- [x] gueltigkeit der album-schluessel auch "1 Woche" (2 wochen verworfen)
+- [x] gueltigkeit pro person ueberschreibbar
+  - done 2026-10-27: `ALBUM_KEY_EPOCH_OPTIONS` + 10080 (album, einstellungs-standard, `CLIENT_DEFAULTS`), `album.viewerKeyEpochs`, auswahl neben jeder person; rollende keys pro epochenlaenge (`<epochMs>:<epoch>`), damit verschiedene laengen nicht kollidieren; tests `test/albums.test.js`, e2e `album-preview`
+
+## T11 Bug: egal welcher Modus, das Entdecken-Profil wird geholt (nutzer 2026-10-27)
+- [x] ursache: `buildProfilePayloadFor` filterte die felder nach dem schema des EIGENEN aktiven modus; wer in "Entdecken" war, schickte chat-kontakten sein dating-profil (alter, rolle), und umgekehrt
+  - fix 2026-10-27: `profileSchemaForPeer` (matching.js) nach der chat-liste; tests `test/matching.test.js`, e2e `profile-scope` (schlaegt ohne fix fehl)
+
+## T12 Alben-Menue an die einheitliche Oberflaeche anpassen (nutzer 2026-10-27)
+- [x] alben-verwaltung im profil im stil der einstellungen
+  - done 2026-10-27: `settings-card`; "Standard fuer neue Alben" eingeklappt als setting-rows; je album eine karte (vorschaubild, name, "2 Bilder · mit 2 geteilt", icon-knoepfe hinzufuegen/loeschen), "Einstellungen" eingeklappt (schluessel gilt, vorab, vorschau im chat), zugriff als zeilen (name, gueltigkeit, entziehen); leerer zustand; texte ohne feste deutsche reste (`albumEpochLabel`, epochen)
+
+## T13 Flackern bei Album-Vorschau, ein Punkt fuer alle Canvas (nutzer 2026-10-27)
+- [x] album-vorschau flackert wieder; canvas-darstellung ueber eine funktion
+  - ursache: album-karte im chat nutzte die wiederverwendung nicht; album-verwaltung lud das vorschaubild bei jedem neuaufbau asynchron
+  - fix 2026-10-27: register in `createSecureImage` (secure-canvas.js) statt collect/release je ansicht; schluessel fuer chat-bild, video, album-karte, album-verwaltung; vorschaubild der verwaltung einmal geladen und synchron; e2e `album-preview` (schlaegt mit altem code fehl)
+
+## T14 Reaktions- und Kontextmenue (nutzer 2026-10-27)
+- [x] gui von reaktionsmenue und nachrichten-kontextmenue ueberarbeiten; bug: geht manchmal fast sofort wieder zu, nachdem man mehrere sachen gemacht hat
+  - ursachen: (1) aktionsleiste war nur eine css-klasse an der nachricht, die reaktionsauswahl ein element darin; jedes neuzeichnen des chats (zustellbestaetigung, reaktion, neue nachricht) warf beides weg; (2) nach langem druecken landete der klick beim loslassen auf dem neuen hintergrund; (3) reaktionsauswahl schloss nie beim tippen daneben
+  - done 2026-10-27: ein kontextmenue (`openMessageMenu`, chat-tools.js) am `<body>`, reaktionen oben + aktionsliste; uebersteht neuzeichnen (`syncMessageMenu`); hintergrund schliesst nur bei eigenem tipp; aktionen ueber `replaceModal`; desktop: hover-leiste (antworten, reagieren, mehr) + rechtsklick; e2e `message-menu` (desktop + mobil)
+
+## T15 Sprachnachrichten-Player (nutzer 2026-10-27)
+- [x] beim abspielen flackern play-knopf und leiste bei einem redraw; schieben und geschwindigkeit
+  - ursache: neu gezeichneter player stand bis zum naechsten zeit-update auf "play"/0 % (der stand wurde im dom gesucht, bevor das neue element drin war)
+  - done 2026-10-27: `applyVoicePlayerState` am neuen element, symbol nur bei aenderung; leiste mit griff zum springen (`seekVoicePlayback`), 1x/1,5x/2x (`opengrid-voice-rate`); e2e `voice-video`; UC-52
+
+## T16 Album begrenzt teilen (nutzer 2026-10-27)
+- [x] album wie einen snap 1x/2x/3x oder 15 min/1 h/24 h teilen, im sendemenue einstellbar, ueberspringbar; begrenzte nutzer in der alben-verwaltung; ab 3 personen eingeklappt
+  - nutzer 2026-10-28: eintrag soll nach der frist aus der zugriffsliste verschwinden; pruefen, ob der entzug ueber pfad c laeuft
+    - befund: verschwinden klappte; der entzug ging aber nur als direktnachricht ohne pfad c (offline = verloren, schluessel bis epochenende); das vergessen loeschte die schluessel-buendel nicht
+  - nutzer 2026-10-28: album/schluessel selbstzerstoererisch? entschieden: (1) jetzt, (2)+(3) geparkt (siehe "Eigene rotierende Verschluesselung")
+    - done (1) 2026-10-28: nach einer ansicht auch die verschluesselten bilder loeschen; zeitlich begrenzt: `limitedUntil` im buendel, betrachter vergisst zur frist selbst (`runAlbumSelfDestruct`); e2e `album-views`, `album-revoke`
+  - nutzer 2026-10-28: alben mit 1-3 ansichten laufen beim oeffnen nicht ab
+    - befund: nach dem schliessen blieben schluessel + ansichts-buendel 15 min lang, beliebig oft neu oeffnen; entzug erst nach 15 min
+    - fix 2026-10-28: ansicht endet beim schliessen (`endLimitedAlbumView`, `ALBUM_VIEW_CLOSED`, `handleAlbumViewClosed`), spaete ansichts-buendel verworfen; e2e `album-views`
+    - fix 2026-10-28: `ALBUM_REVOKE` als chat-operation mit pfad-c-rueckfall, `forgetReceivedAlbum` loescht buendel + ticket; e2e `album-revoke` (schlaegt mit altem code fehl)
+  - done 2026-10-27: `album.limits`, `openAlbumShareOptions`, ansichten ueber `handleAlbumKeyRequest` (15-min-ansicht, `session`), zeit ueber gekuerzte buendel, `enforceAlbumLimits`; tests `test/albums.test.js`, e2e `album-preview`; UC-51
+
 ## Eigene rotierende Verschluesselung (geparkt, erst besprechen)
+- [ ] (geparkt 2026-10-28) echt selbstzerstoererische alben: key-splitting mit dem server (bildschluessel = haelfte besitzer + haelfte server; server gibt seine haelfte nur so oft/lange wie erlaubt und loescht sie dann; album danach kryptografisch tot, auch ohne besitzer online). beruehrt die regel "server sieht nur ciphertext + iv + routing-ids" (zufaellige schluesselhaelfte) -> zusammen mit der rotierenden verschluesselung entscheiden
+- [ ] (geparkt 2026-10-28) begrenzte album-ansichten als stream wie secure snaps (empfaenger bekommt keine bilddaten; besitzer muss online sein)
 - [ ] gestohlene album-schluessel sollen nach der epoche wertlos sein; idee: eigener, vom server getakteter algorithmus -> `tasks/feature-request-rotating-encryption.md`
   - offen: konflikt mit regel "crypto nur ueber `crypto.subtle`"; alternative: server-epochen-geheimnis + `CK_e` per HKDF (AES-GCM bleibt)
 
@@ -107,7 +230,8 @@
 
 
 ## S3 Aufraeumen
-- [ ] tailwind 4 migration (behebt die 3 moderate `npm audit`-funde in dev-abhaengigkeiten)
+- [x] tailwind 4 migration (behebt die 3 moderate `npm audit`-funde in dev-abhaengigkeiten)
+  - done 2026-10-28: `@tailwindcss/cli` 4, konfiguration in `client/tailwind.input.css` (`@theme inline` aus css-variablen, schriften wie v3, rahmenfarbe wie v3), `tailwind.config.cjs` entfernt; klassen per upgrade-tool umbenannt, dessen 3 fehler zurueckgenommen (`'blur'`-wert der album-vorschau, api-parameter `ring`, text-schluessel `grid.ring`); `npm audit` 0 funde; vorher/nachher-screenshots: farben/hell/dunkel gleich, nur etwas engere abstaende wo versteckte elemente bei `space-y` vorher extra luecken machten
 
 # test
 

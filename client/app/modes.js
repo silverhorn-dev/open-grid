@@ -407,7 +407,9 @@ function scheduleEventExpiry() {
 }
 
 // ----- Einladungslinks -----
-// Link: /invite#<peerId>.<fingerprint>. Der Teil nach # geht nie an den Server.
+// Link: /invite#<peerId>.<fingerprint>~<modus>. Der Teil nach # geht nie an den Server. Der Modus ist der,
+// in dem eingeladen wurde: der Chat landet bei beiden in dessen Liste (Grid & Event bzw. Chat & Freunde).
+// Aeltere Links ohne Modus gelten weiter (Liste wie bisher).
 async function keyFingerprint(jwk) {
     const digest = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${jwk.crv}:${jwk.x}:${jwk.y}`));
     return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('').substring(0, INVITE_FINGERPRINT_LENGTH);
@@ -415,7 +417,8 @@ async function keyFingerprint(jwk) {
 
 async function getMyInviteLink() {
     const fingerprint = await keyFingerprint(state.myKeys.jwkEcdsaPublic);
-    return `${window.location.origin}/invite#${encodeURIComponent(state.myProfile.id)}.${fingerprint}`;
+    const mode = APP_MODE_INFO[state.appMode] ? `~${state.appMode}` : '';
+    return `${window.location.origin}/invite#${encodeURIComponent(state.myProfile.id)}.${fingerprint}${mode}`;
 }
 
 async function renderInviteCard() {
@@ -452,13 +455,26 @@ async function shareInviteLink() {
 }
 
 function parseInvite(fragment) {
-    const value = decodeURIComponent(String(fragment || '').replace(/^#/, ''));
+    const [value, modePart] = decodeURIComponent(String(fragment || '').replace(/^#/, '')).split('~');
+    const mode = APP_MODE_INFO[modePart] ? modePart : null;
     const separator = value.lastIndexOf('.');
     if (separator <= 0) return null;
     const peerId = value.substring(0, separator);
     const fingerprint = value.substring(separator + 1).toLowerCase();
     if (!peerId || peerId.length > 200 || !new RegExp(`^[0-9a-f]{${INVITE_FINGERPRINT_LENGTH}}$`).test(fingerprint)) return null;
-    return { peerId, fingerprint };
+    return { peerId, fingerprint, mode };
+}
+
+// Bereich und Modus fuer eine Einladung: null, wenn der Bereich hier ausgeschaltet ist (eigene
+// Bereichswahl oder Betreiber). Event-Einladungen landen in "Grid & Event", aber im Entdecken-Modus
+// (der Event-Code fehlt hier).
+function inviteTarget(mode) {
+    if (!mode) return { area: null, mode: null };
+    const area = MODE_SCOPE_MODES.discovery.includes(mode) ? 'discovery' : 'social';
+    if (!availableModeAreas().includes(area) || !scopeIncludes(area)) return null;
+    const usable = candidate => state.appConfig.modes.includes(candidate) && candidate !== 'event';
+    const target = usable(mode) ? mode : MODE_SCOPE_MODES[area].find(usable) || null;
+    return { area, mode: target };
 }
 
 // Einladung annehmen: Kontakt anlegen und den erwarteten Schluessel merken.
@@ -472,12 +488,22 @@ async function acceptInvite(fragment) {
         showToast(t('modes.thisIsYourOwnInvite'), 'info');
         return;
     }
+    const target = inviteTarget(invite.mode);
+    if (!target) {
+        // Bereich ausgeschaltet: nichts oeffnen, nur sagen, warum.
+        showToast(t('modes.inviteModeDisabled', { mode: APP_MODE_INFO[invite.mode].label }), 'warning');
+        return;
+    }
     const known = await getPeerIdentity(invite.peerId).catch(() => null);
     if (known?.profileSigningKey && await keyFingerprint(known.profileSigningKey) !== invite.fingerprint) {
         showToast(t('modes.warningThisContactsKeyDoes'), 'error');
         return;
     }
     await putDatabaseRecord('keys', { id: `invite-expect:${invite.peerId}`, fingerprint: invite.fingerprint });
+    if (target.area) {
+        if (target.mode && target.mode !== state.appMode) await setAppMode(target.mode);
+        await ensureChatScope(invite.peerId, target.area);
+    }
     rememberChatPeer(invite.peerId);
     await openChatWithPeer(invite.peerId);
     showToast(t('modes.contactAddedConnectionIsVerified'), 'success');

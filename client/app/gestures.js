@@ -48,7 +48,7 @@ function handleMessagePointerDown(event) {
     const row = event.target.closest('[id^="chat-message-"]');
     const wrap = row?.querySelector('.chat-bubble-wrap');
     if (!wrap) return;
-    const control = event.target.closest('button, a, input, img, video, canvas');
+    const control = event.target.closest('button, a, input, img, video, canvas, [data-voice-track]');
     if (control && !control.classList.contains('message-actions-toggle')) return;
     const messageId = messageIdFromRow(row);
     if (!messageId) return;
@@ -68,7 +68,7 @@ function handleMessagePointerDown(event) {
         if (messageGesture.active !== gesture || gesture.axis) return;
         gesture.longPressed = true;
         hapticTick(15);
-        if (!row.classList.contains('actions-open')) toggleMessageActions(row);
+        openMessageMenu(gesture.messageId);
     }, LONG_PRESS_MS);
     messageGesture.active = gesture;
 }

@@ -101,7 +101,7 @@ function renderProfileModalData(profile) {
     renderProfileMatchActions(state.activeModalPeerId);
     if (profile.restricted && !isMatched(state.activeModalPeerId)) {
         const notice = document.createElement('div');
-        notice.className = 'col-span-2 bg-slate-800/60 border border-slate-700 p-2 rounded text-slate-300 flex items-center gap-2';
+        notice.className = 'col-span-2 bg-slate-800/60 border border-slate-700 p-2 rounded-sm text-slate-300 flex items-center gap-2';
         notice.innerHTML = '<i class="fa-solid fa-lock text-orange-300"></i>';
         notice.appendChild(document.createTextNode(profile.visibility === 3
             ? t('chat.thisProfileIsHiddenAfter')
@@ -127,7 +127,7 @@ function renderProfileModalData(profile) {
         const value = profile.fields?.[field.key];
         if (value === undefined || value === null || value === '') return;
         const card = document.createElement('div');
-        card.className = field.type === 'description' ? 'col-span-2 bg-slate-800 p-2 rounded' : 'bg-slate-800 p-2 rounded';
+        card.className = field.type === 'description' ? 'col-span-2 bg-slate-800 p-2 rounded-sm' : 'bg-slate-800 p-2 rounded-sm';
         const label = document.createElement('div');
         label.className = 'text-slate-400 font-bold';
         label.textContent = localizedText(field.label);
@@ -227,6 +227,11 @@ function launchChatFromModal() {
 async function openChatWithPeer(peerId) {
     if (state.activeChatPeerId !== peerId) {
         resetChatTools();
+        // Menue des vorherigen Chats ohne eigenen Zurueck-Schritt schliessen.
+        if (state.messageMenu && typeof hideMessageMenu === 'function') {
+            hideMessageMenu();
+            removeModalFromStack('messagemenu');
+        }
         // Das Easteregg gilt nur fuer den Chat, in dem es ausgeloest wurde.
         state.albumButtonRevealedFor = null;
     }
@@ -459,6 +464,10 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
         audioSplitAt: options.audio?.splitAt,
         transcript: options.audio?.transcript,
         video: options.video,
+        // Wer das Bild bzw. Video speichern/teilen darf (Einstellung des Absenders, media-rights.js).
+        // 'none': im Snap-Editor als "nicht speicherbar" markiert (snaps.js).
+        downloadable: options.downloadable === 'none' ? 'none'
+            : (snapData && options.asImage) || options.video ? state.mediaDownload : undefined,
         // Liste dieses Chats (Grid & Event oder Chat & Freunde), der Empfaenger uebernimmt sie fuer neue Chats.
         scope: chatScopeOf(peerId) || currentChatScope(),
         timestamp: formatClockTime(Date.now()),
@@ -628,7 +637,7 @@ function renderChatHistory() {
         row.className = `flex flex-col ${isMine ? 'items-end' : 'items-start'}`;
         if (message.replyTo && !message.deleted) row.appendChild(renderReplyQuote(message.replyTo, isMine));
         const bubble = document.createElement('div');
-        bubble.className = `chat-bubble whitespace-pre-wrap break-words max-w-[80%] rounded-2xl px-4 py-2 overflow-hidden ${message.deleted ? 'bg-slate-900 text-slate-500 border border-slate-800 italic' : isMine ? 'bg-brand-600 text-white rounded-br-none' : 'bg-slate-800 text-slate-100 rounded-bl-none'}`;
+        bubble.className = `chat-bubble whitespace-pre-wrap wrap-break-word max-w-[80%] rounded-2xl px-4 py-2 overflow-hidden ${message.deleted ? 'bg-slate-900 text-slate-500 border border-slate-800 italic' : isMine ? 'bg-brand-600 text-white rounded-br-none' : 'bg-slate-800 text-slate-100 rounded-bl-none'}`;
 
         if (message.deleted) {
             bubble.textContent = t('common.messageDeleted');
@@ -641,7 +650,7 @@ function renderChatHistory() {
                 bubble.appendChild(caption);
             }
         } else if (message.album) {
-            renderAlbumMessage(bubble, message.album);
+            renderAlbumMessage(bubble, message.album, message.id);
             if (message.text) {
                 const caption = document.createElement('div');
                 caption.className = 'opacity-90 mt-1';
@@ -656,7 +665,7 @@ function renderChatHistory() {
             renderVideoMessage(bubble, message, isMine);
         } else if (message.snapData) {
             if (isSafeInlineImage(message.snapData)) {
-                const image = createSecureImage(message.snapData, 'w-48 sm:w-64 rounded-xl mb-1.5 border border-slate-900/50 cursor-zoom-in', message.imageSize, { own: isMine });
+                const image = createSecureImage(message.snapData, 'w-48 sm:w-64 rounded-xl mb-1.5 border border-slate-900/50 cursor-zoom-in', message.imageSize, { own: isMine, reuseKey: `image:${message.id}` });
                 image.onclick = event => {
                     event.stopPropagation();
                     openChatImageViewer(message.id);
@@ -717,6 +726,8 @@ function renderChatHistory() {
     });
     if (!filtering && state.chatPinned) container.scrollTop = container.scrollHeight;
     else container.scrollTop = previousScrollTop;
+    // Offenes Kontextmenue an die neu gezeichnete Zeile haengen statt es zu verlieren.
+    if (typeof syncMessageMenu === 'function') syncMessageMenu();
     updateChatJumpButton();
     renderChatAllowance();
 }

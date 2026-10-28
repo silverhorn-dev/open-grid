@@ -66,11 +66,11 @@ function renderDiscoveryGrid() {
         const avatarSrc = localAvatar(peer.avatar);
         const card = document.createElement('button');
         card.type = 'button';
-        card.className = 'text-left bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden cursor-pointer hover:border-brand-500/60 hover:-translate-y-0.5 transition group shadow-lg focus:outline-none focus:ring-2 focus:ring-brand-500';
+        card.className = 'text-left bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden cursor-pointer hover:border-brand-500/60 hover:-translate-y-0.5 transition group shadow-lg focus:outline-hidden focus:ring-2 focus:ring-brand-500';
         card.onclick = () => openProfileModal(peer.id);
 
         const imageWrapper = document.createElement('div');
-        imageWrapper.className = 'relative aspect-[4/5] bg-slate-950 overflow-hidden';
+        imageWrapper.className = 'relative aspect-4/5 bg-slate-950 overflow-hidden';
         if (!peer.avatar && !peer.name) {
             // Sichtbarkeitsstufe 3: Silhouette ohne Namen.
             imageWrapper.classList.add('flex', 'items-center', 'justify-center', 'text-slate-700');

@@ -11,6 +11,7 @@ Ideen ohne festen Termin. Neue Phasen werden von hier auf `tasks/board.md` gehol
   - [ ] in the settings there is an option to just send video and image files, if the other client is signed
     - [ ] not for profile data, audio files, and secure streaming snaps.
     - this whole setting/feature (i mean the checking if the other client is signed) can be disabled on the router per DEFAULT config
+  - [ ] native API fuer die PWA zum senden/empfangen von bildern im hintergrund/offline (spart akku) -> plan auf dem board unter T4
 
 ## Hyperlocal Mesh (Festival/Club Mode)
 - [x] WebRTC over LAN: mDNS und lokale Host-Kandidaten aggressiv priorisieren
@@ -35,3 +36,15 @@ Ideen ohne festen Termin. Neue Phasen werden von hier auf `tasks/board.md` gehol
 ## chat improvements
 
 # bugs
+
+
+# SNAPPING
+
+## improvements
+- (2026-10-27 auf das board verschoben: video-flackern, secure-snap-bugs, speicherbar-schalter)
+- (2026-10-27 auf das board verschoben: kontaktleiste z-achse, wischen in snap-vorschau, editing improvement)
+- [ ] einladung im dating-modus (entdecken): unter 18 kann die einladung nicht oeffnen; im chat-modus normal (nutzer 2026-10-27, haengt an T2 alter)
+- [ ] chat-threads besprechen (nutzer 2026-10-27): technisch nur EIN chat pro person statt zwei listen; nachrichten aus dem entdecken-bereich werden im social-bereich ausgeblendet
+  - ablauf: match -> chat (entdecken) -> adden -> chat (social); im social-chat ein knopf wie "ausgeblendeten hot-chat wieder anzeigen"
+  - nur wenn der entdecken-bereich beim nutzer aktiv ist
+  - offen: was passiert mit den zwei listen / dem listen-wechsel, ungelesen-zaehler je bereich, snaps/alben aus dem entdecken-teil, wer sieht was beim gegenueber

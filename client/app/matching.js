@@ -220,24 +220,38 @@ function buildProfilePayloadFor(peerId) {
         return {
             ...base,
             audience: visibility === 1 ? 'public' : peerId,
-            fields: activeSchemaFields(),
+            fields: activeSchemaFields(peerId),
             avatar: state.myProfile.avatar,
             gallery: state.myProfile.gallery || []
         };
     }
     if (visibility === 2) {
         const privateFields = new Set(state.myProfile.privateFields || []);
-        const fields = Object.fromEntries(Object.entries(activeSchemaFields())
+        const fields = Object.fromEntries(Object.entries(activeSchemaFields(peerId))
             .filter(([key]) => !privateFields.has(key)));
         return { ...base, audience: 'public', fields, avatar: state.myProfile.avatar, gallery: [], restricted: true };
     }
     return { ...base, audience: 'public', fields: {}, avatar: null, gallery: [], restricted: true };
 }
 
-// Nur Felder des aktiven Schemas gehen raus (z. B. im Modus "Nur Chat" keine Dating-Details).
-function activeSchemaFields() {
+// Welches Profil ein Peer sieht, richtet sich nach der Liste des Chats mit ihm, nicht nach dem
+// eigenen gerade aktiven Modus: "Chat & Freunde" = Chat- bzw. Freunde-Schema, "Grid & Event" =
+// Entdecken- bzw. Event-Schema. Ohne Chat (z. B. aus dem Grid) gilt der aktive Modus.
+function profileSchemaForPeer(peerId) {
+    const schemas = typeof PROFILE_SCHEMAS === 'object' && PROFILE_SCHEMAS ? PROFILE_SCHEMAS : {};
+    const scope = peerId && typeof chatScopeOf === 'function' ? chatScopeOf(peerId) : null;
+    if (scope === 'social') {
+        const friend = typeof isFriend === 'function' && isFriend(peerId);
+        return (friend && schemas.friends) || schemas.chat || schemas.friends || PROFILE_SCHEMA;
+    }
+    if (scope === 'discovery') return (state.appMode === 'event' && schemas.event) || schemas.discovery || PROFILE_SCHEMA;
+    return PROFILE_SCHEMA;
+}
+
+// Nur Felder des passenden Schemas gehen raus (z. B. in "Chat & Freunde" keine Dating-Details).
+function activeSchemaFields(peerId = null) {
     const fields = state.myProfile.fields || {};
-    const keys = new Set(['displayName', ...PROFILE_SCHEMA.map(field => field.key)]);
+    const keys = new Set(['displayName', ...profileSchemaForPeer(peerId).map(field => field.key)]);
     return Object.fromEntries(Object.entries(fields).filter(([key]) => keys.has(key)));
 }
 

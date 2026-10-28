@@ -47,7 +47,7 @@ Priority: **P1** = first iteration, **P2** = later, **P3** = nice to have.
 | G7 | Main tabs (mobile) | Horizontal swipe on empty area | Switch Grid ↔ Chat ↔ Profil | P3 |
 | G8 | Profile modal | Swipe down | Close the modal | P2 |
 | G9 | Media modal (bottom sheet) | Swipe down on the header | Close the sheet | P2 |
-| G10 | Snap camera | Swipe up on the shutter area | Open the gallery picker (done R5) | P3 |
+| G10 | Snap camera | Swipe up anywhere on the camera image or on the shutter area | Open the gallery picker (done R5, whole image 2026-10-27) | P3 |
 | G11 | Snap camera | Double tap the preview | Switch front/rear camera (done R5) | P3 |
 | G12 | Chat header (contact bar) | Pull down | Open the contact's profile (done 2026-10-26) | P2 |
 

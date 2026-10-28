@@ -1,3 +1,56 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Tailwind 4 (npm run build:css -> client/tailwind.css, offline, ohne CDN). Gescannt werden nur
+   index.html und die Client-Skripte. `slate` und `brand` kommen aus CSS-Variablen (client/styles.css,
+   client/app/theme.js): so wechseln Hell/Dunkel und Akzentfarbe zur Laufzeit. `@theme inline` setzt
+   rgb(var(--...)) direkt in die Klassen, Transparenz (bg-slate-900/50) rechnet Tailwind per color-mix. */
+@import 'tailwindcss' source(none);
+@source '../index.html';
+@source './**/*.js';
+
+@custom-variant dark (&:is(.dark *));
+
+/* Schriften wie unter Tailwind 3 (4 hat eine andere Standard-Reihenfolge, die z. B. Noto Sans/Arial vor
+   die Systemschrift stellt). */
+@theme {
+  --font-sans: ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+}
+
+@theme inline {
+  --color-slate-50: rgb(var(--slate-50));
+  --color-slate-100: rgb(var(--slate-100));
+  --color-slate-200: rgb(var(--slate-200));
+  --color-slate-300: rgb(var(--slate-300));
+  --color-slate-400: rgb(var(--slate-400));
+  --color-slate-500: rgb(var(--slate-500));
+  --color-slate-600: rgb(var(--slate-600));
+  --color-slate-700: rgb(var(--slate-700));
+  --color-slate-800: rgb(var(--slate-800));
+  --color-slate-900: rgb(var(--slate-900));
+  --color-slate-950: rgb(var(--slate-950));
+
+  --color-brand-50: rgb(var(--brand-50));
+  --color-brand-100: rgb(var(--brand-100));
+  --color-brand-200: rgb(var(--brand-200));
+  --color-brand-300: rgb(var(--brand-300));
+  --color-brand-400: rgb(var(--brand-400));
+  --color-brand-500: rgb(var(--brand-500));
+  --color-brand-600: rgb(var(--brand-600));
+  --color-brand-700: rgb(var(--brand-700));
+  --color-brand-800: rgb(var(--brand-800));
+  --color-brand-900: rgb(var(--brand-900));
+  --color-brand-950: rgb(var(--brand-950));
+
+  --color-darkbg: rgb(var(--slate-900));
+  --color-cardbg: rgb(var(--slate-800));
+}
+
+/* Tailwind 4 nimmt als Standard-Rahmenfarbe currentColor, 3 nahm gray-200: so bleibt es wie bisher. */
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}

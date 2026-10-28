@@ -5,6 +5,42 @@
 const ALBUM_IMAGE_MAX_EDGE = 1080;
 const ALBUM_IMAGE_QUALITY = 0.7;
 const ALBUM_COVER_EDGE = 240;
+// Vorschau im Chat (Besitzer waehlt je Album): 'normal' = Deckbild scharf, 'blur' = unscharf (schon beim
+// Besitzer unscharf gerechnet, ein scharfes Deckbild verlaesst das Geraet nie), 'none' = Karte ohne Bild.
+const ALBUM_PREVIEW_OPTIONS = ['normal', 'blur', 'none'];
+
+// Begrenzt teilen (Sendemenue im Chat, ueberspringbar): wie ein Snap 1x/2x/3x ansehen oder 15 min/1 h/24 h.
+// album.limits[viewerId] = { kind: 'views', views, used, sessionEndsAt } | { kind: 'time', until }.
+// Ansichten: keine Schluessel vorab; jedes Oeffnen fragt den Besitzer, der zaehlt und Schluessel fuer
+// eine Ansicht (ALBUM_VIEW_SESSION_MS) schickt. Zeit: Schluessel nur bis zur Frist. Danach wird der
+// Zugriff wie von Hand entzogen (neue Schluesselversion).
+const ALBUM_SHARE_LIMITS = {
+    views1: { kind: 'views', views: 1 },
+    views2: { kind: 'views', views: 2 },
+    views3: { kind: 'views', views: 3 },
+    m15: { kind: 'time', ms: 15 * 60 * 1000 },
+    h1: { kind: 'time', ms: 60 * 60 * 1000 },
+    h24: { kind: 'time', ms: 24 * 60 * 60 * 1000 }
+};
+const ALBUM_VIEW_SESSION_MS = 15 * 60 * 1000;
+
+function albumLimitFor(album, viewerId) {
+    const limit = album?.limits?.[viewerId];
+    return limit && (limit.kind === 'views' || limit.kind === 'time') ? limit : null;
+}
+
+function albumLimitLabel(limit, now = Date.now()) {
+    if (!limit) return '';
+    if (limit.kind === 'views') {
+        const left = Math.max(0, limit.views - (limit.used || 0));
+        return left ? t('albums.viewsLeft', { left, views: limit.views }) : t('albums.viewsUsedUp');
+    }
+    return limit.until > now ? t('albums.availableUntil', { time: formatClockTime(limit.until) }) : t('albums.limitExpired');
+}
+
+function albumPreviewMode(album) {
+    return ALBUM_PREVIEW_OPTIONS.includes(album?.preview) ? album.preview : 'normal';
+}
 
 async function loadAlbums() {
     const records = await getAllDatabaseRecords('albums').catch(() => []);
@@ -27,6 +63,10 @@ async function loadAlbums() {
         await persistAlbum(album);
     }
     renderAlbumManager();
+    // Begrenzungen, die abgelaufen sind, waehrend die App zu war.
+    enforceAlbumLimits().catch(logBackgroundError('loadAlbums'));
+    // Betrachter: was waehrend der Pause abgelaufen ist, jetzt vergessen.
+    runAlbumSelfDestruct().catch(logBackgroundError('loadAlbums'));
 }
 
 // Alben (inkl. Albumgeheimnis und rollender Keys) liegen mit dem Speicherschluessel verschluesselt
@@ -119,6 +159,14 @@ async function revokeAlbumAccess(albumId, peerId) {
     const album = state.albums[albumId];
     if (!album) return;
     album.acl = album.acl.filter(id => id !== peerId);
+    if (album.viewerKeyEpochs?.[peerId]) {
+        album.viewerKeyEpochs = { ...album.viewerKeyEpochs };
+        delete album.viewerKeyEpochs[peerId];
+    }
+    if (album.limits?.[peerId]) {
+        album.limits = { ...album.limits };
+        delete album.limits[peerId];
+    }
     // Neue Schluesselversion: auch ein zurueckbehaltener Schluessel passt nicht mehr zu neuen Uebertragungen.
     album.keyVersion = (album.keyVersion || 1) + 1;
     await saveAlbum(album);
@@ -127,12 +175,25 @@ async function revokeAlbumAccess(albumId, peerId) {
     for (const viewerId of album.acl) pushAlbumKeys(viewerId, album, true).catch(logBackgroundError('revokeAlbumAccess'));
 }
 
+// Entzug als Chat-Operation: mit Rueckruf geht sie ohne Kanal nach 10 s ueber Pfad C, kommt also auch an,
+// wenn der Betrachter gerade offline ist (sonst behielte er die Schluessel bis zum Epochenende).
+// Die alte Direktnachricht geht fuer aeltere App-Versionen zusaetzlich mit.
 function notifyAlbumRevoked(peerId, albumId) {
+    const operation = {
+        operationId: `albumrevoke:${albumId}:${window.crypto.randomUUID()}`,
+        type: 'ALBUM_REVOKE',
+        actorId: state.myProfile.id,
+        createdAt: Date.now(),
+        albumId
+    };
+    sendSecurePayload(peerId, { type: 'CHAT_OPERATION', operation }, () => {}).catch(logBackgroundError('notifyAlbumRevoked'));
     sendSecurePayload(peerId, { type: 'ALBUM_REVOKED', albumId }).catch(logBackgroundError('notifyAlbumRevoked'));
 }
 
 // Kleines Deckfoto, das direkt in der Chat-Nachricht mitgeht.
 async function createAlbumCover(album) {
+    const preview = albumPreviewMode(album);
+    if (preview === 'none') return undefined;
     const first = album.items[0] ? await loadMedia(album.items[0].id) : null;
     if (!first?.data) return undefined;
     const image = new Image();
@@ -142,12 +203,35 @@ async function createAlbumCover(album) {
     const canvas = document.createElement('canvas');
     canvas.width = Math.round(image.width * scale);
     canvas.height = Math.round(image.height * scale);
-    canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+    const context = canvas.getContext('2d');
+    if (preview === 'blur') {
+        // Stark verkleinern und wieder vergroessern: weichgezeichnet, ohne canvas.filter (geht ueberall).
+        // Zwei Stufen (1/48, dann 1/12), damit es weich statt kachelig aussieht.
+        const shrink = factor => {
+            const step = document.createElement('canvas');
+            step.width = Math.max(1, Math.round(canvas.width / factor));
+            step.height = Math.max(1, Math.round(canvas.height / factor));
+            const stepContext = step.getContext('2d');
+            stepContext.imageSmoothingEnabled = true;
+            stepContext.imageSmoothingQuality = 'high';
+            return { step, stepContext };
+        };
+        const tiny = shrink(48);
+        tiny.stepContext.drawImage(image, 0, 0, tiny.step.width, tiny.step.height);
+        const middle = shrink(12);
+        middle.stepContext.drawImage(tiny.step, 0, 0, middle.step.width, middle.step.height);
+        context.imageSmoothingEnabled = true;
+        context.imageSmoothingQuality = 'high';
+        context.drawImage(middle.step, 0, 0, canvas.width, canvas.height);
+    } else {
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    }
     const cover = canvas.toDataURL('image/jpeg', 0.6);
     return cover.length <= ALBUM_COVER_MAX_LENGTH ? cover : undefined;
 }
 
-async function shareAlbumInChat(albumId) {
+// limitId: Schluessel aus ALBUM_SHARE_LIMITS, ohne = normal (unbegrenzt, wie bisher).
+async function shareAlbumInChat(albumId, limitId = null) {
     const peerId = state.activeChatPeerId;
     const album = state.albums[albumId];
     if (!peerId || !album || isPeerBlocked(peerId)) return;
@@ -155,19 +239,56 @@ async function shareAlbumInChat(albumId) {
         showToast(t('albums.isEmpty'), 'warning');
         return;
     }
-    if (!album.acl.includes(peerId)) {
-        album.acl.push(peerId);
-        await saveAlbum(album);
-    }
-    pushAlbumKeys(peerId, album, true).catch(error => logDebug(`Album key push failed: ${error.message}`));
+    if (!album.acl.includes(peerId)) album.acl.push(peerId);
+    const preset = ALBUM_SHARE_LIMITS[limitId] || null;
+    const limits = { ...(album.limits || {}) };
+    if (!preset) delete limits[peerId];
+    else if (preset.kind === 'views') limits[peerId] = { kind: 'views', views: preset.views, used: 0 };
+    else limits[peerId] = { kind: 'time', until: (await fetchServerTime().catch(() => ({ now: Date.now() }))).now + preset.ms };
+    album.limits = limits;
+    await saveAlbum(album);
+    scheduleAlbumLimitCheck();
+    // Bei Ansichten gibt es keine Schluessel vorab, erst beim Oeffnen.
+    if (preset?.kind !== 'views') pushAlbumKeys(peerId, album, true).catch(error => logDebug(`Album key push failed: ${error.message}`));
     closeMediaModal();
+    const limit = limits[peerId];
     await sendChatMessage(null, '', {
         albumId: album.id,
         ownerId: state.myProfile.id,
         name: album.name,
         cover: await createAlbumCover(album).catch(() => undefined),
-        count: album.items.length
+        count: album.items.length,
+        ...(limit ? { limit: limit.kind === 'views' ? { kind: 'views', views: limit.views } : { kind: 'time', until: limit.until } } : {})
     });
+}
+
+// Abgelaufene Begrenzungen beenden: Frist vorbei bzw. alle Ansichten verbraucht und die letzte vorbei.
+async function enforceAlbumLimits(now = null) {
+    const current = now ?? (await fetchServerTime().catch(() => ({ now: Date.now() }))).now;
+    for (const album of getOwnAlbums()) {
+        for (const viewerId of [...album.acl]) {
+            const limit = albumLimitFor(album, viewerId);
+            if (!limit) continue;
+            const over = limit.kind === 'time'
+                ? limit.until <= current
+                : (limit.used || 0) >= limit.views && (limit.sessionEndsAt || 0) <= current;
+            if (over) await revokeAlbumAccess(album.id, viewerId);
+        }
+    }
+    scheduleAlbumLimitCheck(current);
+}
+
+function scheduleAlbumLimitCheck(now = Date.now()) {
+    clearTimeout(state.albumLimitTimer);
+    const ends = getOwnAlbums().flatMap(album => album.acl.map(viewerId => {
+        const limit = albumLimitFor(album, viewerId);
+        if (!limit) return null;
+        return limit.kind === 'time' ? limit.until : (limit.used || 0) >= limit.views ? limit.sessionEndsAt || now : null;
+    })).filter(Number.isFinite);
+    if (!ends.length) return;
+    const next = Math.min(...ends);
+    state.albumLimitTimer = setTimeout(() => enforceAlbumLimits().catch(logBackgroundError('enforceAlbumLimits')),
+        Math.min(Math.max(0, next - now) + 1000, 2147483647));
 }
 
 // ----- P2P-Protokoll -----
@@ -249,11 +370,20 @@ async function handleAlbumResponse(peerId, payload) {
 
 async function forgetReceivedAlbum(peerId, albumId) {
     const album = state.albums[albumId];
-    if (!album || album.ownerId !== peerId) return;
+    if (album && album.ownerId !== peerId) return;
+    // Schluessel-Buendel und Zugangsticket dieses Besitzers auch dann loeschen, wenn das Album nie
+    // geoeffnet wurde (dann gibt es nur die Buendel).
+    const records = await getAllDatabaseRecords('keys').catch(() => []);
+    await Promise.all(records
+        .filter(record => typeof record.id === 'string' && record.ownerId === peerId
+            && (record.id.startsWith(`${ALBUM_KEY_BUNDLE_PREFIX}${albumId}:`) || record.id === `${ALBUM_TICKET_PREFIX}${albumId}`
+                || record.id === `${ALBUM_SELF_DESTRUCT_PREFIX}${albumId}`))
+        .map(record => deleteDatabaseRecord('keys', record.id)));
+    expireAlbumKeys(albumId, false);
+    if (!album) return;
     await Promise.all(album.items.map(item => deleteDatabaseRecord('media', item.id)));
     await deleteDatabaseRecord('albums', albumId);
     delete state.albums[albumId];
-    expireAlbumKeys(albumId, false);
     if (state.albumViewer?.albumId === albumId) {
         renderMediaModalMessage(t('albums.youNoLongerHaveAccess'), 'fa-lock');
     }
@@ -292,7 +422,10 @@ function runMediaModalCleanup() {
 
 function hideMediaModal() {
     runMediaModalCleanup();
+    const viewing = state.albumViewer;
     state.albumViewer = null;
+    // Begrenzte Ansicht endet mit dem Schliessen (nicht erst nach 15 Minuten).
+    if (viewing) endLimitedAlbumView(viewing.albumId).catch(logBackgroundError('endLimitedAlbumView'));
     document.getElementById('media-modal').classList.add('hidden');
     document.getElementById('media-modal-content').innerHTML = '';
 }
@@ -478,18 +611,81 @@ function openAlbumPicker() {
         meta.className = 'text-xs text-slate-500 shrink-0';
         meta.textContent = `${t('albums.images2', { count: album.items.length })}${album.acl.includes(state.activeChatPeerId) ? t('albums.alreadyShared') : ''}`;
         button.append(name, meta);
-        button.onclick = () => shareAlbumInChat(album.id);
+        button.onclick = () => openAlbumShareOptions(album.id);
         content.appendChild(button);
     });
 }
 
+// Zweiter Schritt im Sendemenue: normal teilen (ueberspringen) oder begrenzt wie ein Snap.
+function openAlbumShareOptions(albumId) {
+    const album = state.albums[albumId];
+    if (!album) return;
+    const content = document.getElementById('media-modal-content');
+    document.getElementById('media-modal-title').textContent = t('albums.shareAlbumName', { name: album.name });
+    content.replaceChildren();
+    const option = (id, icon, title, text, primary = false) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.dataset.shareLimit = id || 'none';
+        button.className = `w-full flex items-center gap-3 p-3 mb-2 rounded-xl border text-left ${primary ? 'border-brand-500/60 bg-brand-500/10' : 'border-slate-800 bg-slate-950/40 hover:border-slate-600'}`;
+        button.innerHTML = `<i class="fa-solid ${icon} w-5 text-center text-brand-400"></i>`;
+        const label = document.createElement('span');
+        label.className = 'min-w-0';
+        const heading = document.createElement('span');
+        heading.className = 'block text-sm font-semibold text-slate-100';
+        heading.textContent = title;
+        label.appendChild(heading);
+        if (text) {
+            const description = document.createElement('span');
+            description.className = 'block text-xs text-slate-400';
+            description.textContent = text;
+            label.appendChild(description);
+        }
+        button.appendChild(label);
+        button.onclick = () => shareAlbumInChat(albumId, id).catch(logBackgroundError('shareAlbumInChat'));
+        return button;
+    };
+    const section = text => {
+        const heading = document.createElement('div');
+        heading.className = 'text-[11px] font-bold uppercase tracking-wide text-slate-500 mt-3 mb-2';
+        heading.textContent = text;
+        return heading;
+    };
+    const chips = (ids, labels) => {
+        const row = document.createElement('div');
+        row.className = 'grid grid-cols-3 gap-2';
+        ids.forEach((id, index) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.dataset.shareLimit = id;
+            button.className = 'btn-secondary justify-center';
+            button.textContent = labels[index];
+            button.onclick = () => shareAlbumInChat(albumId, id).catch(logBackgroundError('shareAlbumInChat'));
+            row.appendChild(button);
+        });
+        return row;
+    };
+    content.append(
+        option(null, 'fa-share', t('albums.shareNormally'), t('albums.shareNormallyText'), true),
+        section(t('albums.limitedViews')),
+        chips(['views1', 'views2', 'views3'], [t('snaps.viewOnce'), t('snaps.viewTwice'), t('snaps.view3Times')]),
+        section(t('albums.limitedTime')),
+        chips(['m15', 'h1', 'h24'], [t('common.15Min'), t('settings.1Hour'), t('settings.24Hours')])
+    );
+    const note = document.createElement('p');
+    note.className = 'text-[11px] text-slate-500 mt-3';
+    note.textContent = t('albums.limitedNote');
+    content.appendChild(note);
+}
+
 // Album-Karte in einer Chat-Nachricht.
-function renderAlbumMessage(bubble, album) {
+function renderAlbumMessage(bubble, album, messageId = null) {
     const card = document.createElement('button');
     card.type = 'button';
     card.className = 'block w-48 sm:w-56 text-left';
     if (album.cover && isSafeInlineImage(album.cover)) {
-        card.appendChild(createSecureImage(album.cover, 'w-full aspect-square object-cover rounded-xl mb-1.5 border border-slate-900/50'));
+        card.appendChild(createSecureImage(album.cover, 'w-full aspect-square object-cover rounded-xl mb-1.5 border border-slate-900/50',
+            null, { own: album.ownerId === state.myProfile?.id, reuseKey: messageId ? `album-card:${messageId}` : null }));
     }
     const title = document.createElement('div');
     title.className = 'font-semibold';
@@ -499,6 +695,15 @@ function renderAlbumMessage(bubble, album) {
     meta.className = 'opacity-75 text-[11px]';
     meta.textContent = Number.isInteger(album.count) ? t('albums.imagesTapToOpen', { count: album.count }) : t('albums.tapToOpen');
     card.append(title, meta);
+    if (album.limit) {
+        const limit = document.createElement('div');
+        limit.className = 'text-[11px] font-semibold mt-0.5';
+        limit.innerHTML = '<i class="fa-solid fa-hourglass-half mr-1"></i>';
+        limit.appendChild(document.createTextNode(album.limit.kind === 'views'
+            ? t('albums.limitViews', { views: album.limit.views })
+            : album.limit.until > Date.now() ? t('albums.availableUntil', { time: formatClockTime(album.limit.until) }) : t('albums.limitExpired')));
+        card.appendChild(limit);
+    }
     card.onclick = event => {
         event.stopPropagation();
         openAlbumViewer(album.albumId, album);
@@ -514,71 +719,150 @@ function syncAlbumCardVisibility() {
     document.getElementById('album-manager-card')?.classList.toggle('hidden', hide);
 }
 
+// Erstes Bild je Album (Bild-ID -> Data-URL) fuer die Vorschau in der Verwaltung.
+const albumManagerCovers = new Map();
+
 function renderAlbumManager() {
     syncAlbumCardVisibility();
     const container = document.getElementById('album-manager-list');
     if (!container) return;
-    container.innerHTML = '';
+    container.replaceChildren();
     const albums = getOwnAlbums();
     if (!albums.length) {
-        container.innerHTML = '<div class="text-xs text-slate-500">Noch keine Alben.</div>';
+        container.appendChild(createEmptyState({ icon: 'fa-images', title: t('albums.noAlbumsYet'), text: t('albums.createFirstAlbum'), compact: true }));
         return;
     }
-    albums.forEach(album => {
-        const card = document.createElement('div');
-        card.className = 'border border-slate-800 rounded-xl p-3 space-y-2 bg-slate-950/40';
-        const header = document.createElement('div');
-        header.className = 'flex items-center justify-between gap-2';
-        const title = document.createElement('button');
-        title.type = 'button';
-        title.className = 'text-sm font-semibold text-slate-200 truncate hover:text-brand-400 text-left';
-        title.textContent = `${album.name} (${album.items.length})`;
-        title.onclick = () => openAlbumViewer(album.id);
-        const actions = document.createElement('div');
-        actions.className = 'flex items-center gap-2 shrink-0';
-        const add = document.createElement('label');
-        add.className = 'text-xs px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-800 text-slate-200 cursor-pointer hover:bg-slate-700';
-        add.innerHTML = `<i class="fa-solid fa-plus"></i> ${t('albums.images')}`;
-        const fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.accept = 'image/*';
-        fileInput.multiple = true;
-        fileInput.className = 'hidden';
-        fileInput.onchange = () => addAlbumImages(album.id, fileInput);
-        add.appendChild(fileInput);
-        const remove = document.createElement('button');
-        remove.type = 'button';
-        remove.className = 'text-xs px-2.5 py-1.5 rounded-lg border border-red-900 text-red-300 hover:bg-red-950';
-        remove.textContent = t('common.delete');
-        remove.onclick = () => deleteAlbum(album.id);
-        actions.append(add, remove);
-        header.append(title, actions);
-        card.appendChild(header);
-        card.appendChild(createAlbumKeyTimingControls(album));
+    albums.forEach(album => container.appendChild(createAlbumManagerItem(album)));
+}
 
-        const access = document.createElement('div');
-        access.className = 'flex flex-wrap gap-1.5 text-xs';
-        if (!album.acl.length) {
-            access.innerHTML = `<span class="text-slate-500">${t('albums.notSharedWithAnyone')}</span>`;
-        } else {
-            album.acl.forEach(peerId => {
-                const chip = document.createElement('span');
-                chip.className = 'flex items-center gap-1 bg-slate-800 border border-slate-700 rounded-full pl-2.5 pr-1 py-0.5 text-slate-300';
-                chip.appendChild(document.createTextNode(getPeerPresentation(peerId).name || HIDDEN_PEER_NAME));
-                const revoke = document.createElement('button');
-                revoke.type = 'button';
-                revoke.className = 'w-5 h-5 rounded-full hover:bg-red-900 text-red-300';
-                revoke.title = t('albums.revokeAccess');
-                revoke.setAttribute('aria-label', t('albums.revokeAccess'));
-                revoke.innerHTML = '<i class="fa-solid fa-xmark"></i>';
-                revoke.onclick = () => revokeAlbumAccess(album.id, peerId);
-                chip.appendChild(revoke);
-                access.appendChild(chip);
-            });
+function albumIconButton(icon, label, onClick, danger = false) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `icon-btn${danger ? ' is-danger' : ''}`;
+    button.title = label;
+    button.setAttribute('aria-label', label);
+    button.innerHTML = `<i class="fa-solid ${icon}"></i>`;
+    button.onclick = onClick;
+    return button;
+}
+
+// Zeile im Stil der Einstellungen: Titel links, Auswahl rechts.
+function albumSettingRow(title, control) {
+    const row = document.createElement('label');
+    row.className = 'setting-row';
+    const text = document.createElement('span');
+    text.className = 'setting-text';
+    const label = document.createElement('span');
+    label.className = 'setting-title text-sm';
+    label.textContent = title;
+    text.appendChild(label);
+    control.classList.add('setting-select');
+    row.append(text, control);
+    return row;
+}
+
+function createAlbumManagerItem(album) {
+    const card = document.createElement('div');
+    card.className = 'album-item';
+    card.dataset.albumId = album.id;
+
+    const head = document.createElement('div');
+    head.className = 'album-item-head';
+    const cover = document.createElement('button');
+    cover.type = 'button';
+    cover.className = 'album-cover';
+    cover.setAttribute('aria-label', t('albums.openAlbum', { name: album.name }));
+    cover.onclick = () => openAlbumViewer(album.id);
+    // Vorschaubild synchron, sobald es einmal geladen ist (sonst kurz das Platzhalter-Symbol bei jedem
+    // Neuaufbau der Liste).
+    const first = album.items[0];
+    const known = first ? albumManagerCovers.get(first.id) : null;
+    if (known) {
+        cover.appendChild(createSecureImage(known, '', null, { own: true, reuseKey: `album-cover:${album.id}` }));
+    } else {
+        cover.innerHTML = '<i class="fa-solid fa-images"></i>';
+        if (first) {
+            loadMedia(first.id).then(media => {
+                if (!media?.data || !isSafeInlineImage(media.data)) return;
+                albumManagerCovers.set(first.id, media.data);
+                cover.replaceChildren(createSecureImage(media.data, '', null, { own: true, reuseKey: `album-cover:${album.id}` }));
+            }).catch(() => {});
         }
-        card.appendChild(access);
-        container.appendChild(card);
+    }
+    const info = document.createElement('div');
+    info.className = 'min-w-0 flex-1';
+    const name = document.createElement('div');
+    name.className = 'text-sm font-semibold text-slate-100 truncate';
+    name.textContent = album.name;
+    const meta = document.createElement('div');
+    meta.className = 'text-xs text-slate-400 truncate';
+    meta.textContent = [
+        t('albums.images2', { count: album.items.length }),
+        album.acl.length ? t('albums.sharedWithCount', { count: album.acl.length }) : t('albums.notShared')
+    ].join(' · ');
+    info.append(name, meta);
+
+    const add = document.createElement('label');
+    add.className = 'icon-btn';
+    add.title = t('albums.addImages');
+    add.setAttribute('aria-label', t('albums.addImages'));
+    add.innerHTML = '<i class="fa-solid fa-plus"></i>';
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+    fileInput.multiple = true;
+    fileInput.className = 'hidden';
+    fileInput.onchange = () => addAlbumImages(album.id, fileInput);
+    add.appendChild(fileInput);
+    head.append(cover, info, add, albumIconButton('fa-trash', t('common.delete'), () => deleteAlbum(album.id), true));
+    card.appendChild(head);
+
+    // Einstellungen des Albums, eingeklappt.
+    const settings = document.createElement('details');
+    settings.className = 'setting-details';
+    const summary = document.createElement('summary');
+    summary.className = 'setting-details-summary';
+    summary.textContent = t('albums.albumSettings');
+    settings.append(summary, ...createAlbumKeyTimingControls(album), albumSettingRow(t('albums.previewInChat'), createAlbumPreviewSelect(album)));
+    card.appendChild(settings);
+
+    // Zugriff: eine Zeile pro Person (eigene Gueltigkeit bzw. Begrenzung, Entziehen); ab 3 eingeklappt.
+    const rows = album.acl.map(peerId => {
+        const row = document.createElement('div');
+        row.className = 'album-access-row';
+        row.dataset.viewer = peerId;
+        const person = document.createElement('span');
+        person.className = 'flex-1 min-w-0 truncate text-sm text-slate-200';
+        person.innerHTML = '<i class="fa-solid fa-user text-slate-500 mr-1.5"></i>';
+        person.appendChild(document.createTextNode(getPeerPresentation(peerId).name || HIDDEN_PEER_NAME));
+        row.appendChild(person);
+        const limit = albumLimitFor(album, peerId);
+        if (limit) {
+            const chip = document.createElement('span');
+            chip.className = 'album-limit-chip';
+            chip.innerHTML = '<i class="fa-solid fa-hourglass-half"></i>';
+            chip.appendChild(document.createTextNode(albumLimitLabel(limit)));
+            row.appendChild(chip);
+        } else {
+            const select = createViewerKeyTimingSelect(album, peerId);
+            select.className = 'setting-select';
+            row.appendChild(select);
+        }
+        row.appendChild(albumIconButton('fa-user-xmark', t('albums.revokeAccess'), () => revokeAlbumAccess(album.id, peerId), true));
+        return row;
     });
+    if (rows.length >= 3) {
+        const access = document.createElement('details');
+        access.className = 'setting-details album-access';
+        const summary = document.createElement('summary');
+        summary.className = 'setting-details-summary';
+        summary.textContent = t('albums.accessCount', { count: rows.length });
+        access.append(summary, ...rows);
+        card.appendChild(access);
+    } else {
+        rows.forEach(row => card.appendChild(row));
+    }
+    return card;
 }
 
 // ----- Rotierende Album-Schluessel -----
@@ -678,13 +962,20 @@ async function storeReceivedAlbumImage(album, payload, relayedBy) {
 const ALBUM_KEY_BUNDLE_PREFIX = 'album-keys:';
 // Der Besitzer stellt pro Album ein, wie lange ein rollender Key gilt (0 = Server-Wert
 // MEDIA_KEY_EPOCH_MINUTES) und wie viele Epochen er vorab ausliefert.
-const ALBUM_KEY_EPOCH_OPTIONS = [0, 15, 60, 180, 1440];
+const ALBUM_KEY_EPOCH_OPTIONS = [0, 15, 60, 180, 1440, 10080];
 const ALBUM_KEY_AHEAD_OPTIONS = [1, 2, 3];
 const MAX_ALBUM_KEY_BUNDLES = 1 + Math.max(...ALBUM_KEY_AHEAD_OPTIONS);
 const ALBUM_DEFAULTS_RECORD_ID = 'album-defaults';
 
-function albumEpochMs(album, time) {
-    const minutes = ALBUM_KEY_EPOCH_OPTIONS.includes(album.keyEpochMinutes) ? album.keyEpochMinutes : 0;
+// Gueltigkeit pro Betrachter (album.viewerKeyEpochs[viewerId], Minuten) ueberschreibt die des Albums.
+function albumKeyMinutesFor(album, viewerId = null) {
+    const override = viewerId ? album.viewerKeyEpochs?.[viewerId] : undefined;
+    if (ALBUM_KEY_EPOCH_OPTIONS.includes(override) && override > 0) return override;
+    return ALBUM_KEY_EPOCH_OPTIONS.includes(album.keyEpochMinutes) ? album.keyEpochMinutes : 0;
+}
+
+function albumEpochMs(album, time, viewerId = null) {
+    const minutes = albumKeyMinutesFor(album, viewerId);
     return minutes > 0 ? minutes * 60 * 1000 : time.epochMs;
 }
 
@@ -692,9 +983,9 @@ function albumEpochsAhead(album) {
     return ALBUM_KEY_AHEAD_OPTIONS.includes(album.keyEpochsAhead) ? album.keyEpochsAhead : 1;
 }
 
-// Laufende Epoche eines Albums nach Serverzeit.
-function albumEpoch(album, time) {
-    const epochMs = albumEpochMs(album, time);
+// Laufende Epoche eines Albums (fuer einen Betrachter) nach Serverzeit.
+function albumEpoch(album, time, viewerId = null) {
+    const epochMs = albumEpochMs(album, time, viewerId);
     const epoch = Math.floor(time.now / epochMs);
     return { epoch, epochMs, epochEndsAt: (epoch + 1) * epochMs };
 }
@@ -722,12 +1013,16 @@ async function deriveAlbumKek(peerId, rollingKey, albumId, epoch, keyVersion) {
     );
 }
 
-// Besitzer: zufaelliger rollender Key pro Album und Epoche; aeltere Epochen werden verworfen.
-function getRollingKey(album, epoch, currentEpoch) {
-    album.rollingKeys = Object.fromEntries(Object.entries(album.rollingKeys || {})
-        .filter(([storedEpoch]) => Number(storedEpoch) >= currentEpoch));
-    if (!album.rollingKeys[epoch]) album.rollingKeys[epoch] = bytesToBase64(window.crypto.getRandomValues(new Uint8Array(32)));
-    return album.rollingKeys[epoch];
+// Besitzer: zufaelliger rollender Key pro Album, Epochenlaenge und Epoche (Betrachter koennen
+// unterschiedliche Laengen haben); abgelaufene werden verworfen. Schluessel "<epochMs>:<epoch>".
+function getRollingKey(album, epoch, epochMs, now) {
+    album.rollingKeys = Object.fromEntries(Object.entries(album.rollingKeys || {}).filter(([key]) => {
+        const [storedMs, storedEpoch] = key.split(':').map(Number);
+        return Number.isFinite(storedMs) && Number.isFinite(storedEpoch) && (storedEpoch + 1) * storedMs > now;
+    }));
+    const key = `${epochMs}:${epoch}`;
+    if (!album.rollingKeys[key]) album.rollingKeys[key] = bytesToBase64(window.crypto.getRandomValues(new Uint8Array(32)));
+    return album.rollingKeys[key];
 }
 
 async function buildAlbumKeyBundle(album, viewerId, current, epoch) {
@@ -737,7 +1032,7 @@ async function buildAlbumKeyBundle(album, viewerId, current, epoch) {
         const key = await deriveAlbumImageKey(album, item.id);
         keys[item.id] = bytesToBase64(new Uint8Array(await window.crypto.subtle.exportKey('raw', key)));
     }
-    const rollingKey = getRollingKey(album, epoch, current.epoch);
+    const rollingKey = getRollingKey(album, epoch, current.epochMs, current.epoch * current.epochMs);
     const kek = await deriveAlbumKek(viewerId, rollingKey, album.id, epoch, keyVersion);
     const iv = window.crypto.getRandomValues(new Uint8Array(12));
     const wrapped = await window.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, kek, new TextEncoder().encode(JSON.stringify(keys)));
@@ -755,17 +1050,34 @@ async function buildAlbumKeyBundle(album, viewerId, current, epoch) {
 
 // Schickt einem Betrachter die Buendel fuer jetzt und die vorab eingestellten Epochen
 // (einmal pro Epoche, Version und Einstellung).
-async function pushAlbumKeys(viewerId, album, force = false) {
+async function pushAlbumKeys(viewerId, album, force = false, { sessionUntil = null } = {}) {
     if (!album || album.ownerId !== state.myProfile.id || !album.acl.includes(viewerId) || !album.items.length) return;
-    const current = albumEpoch(album, await fetchServerTime());
+    const limit = albumLimitFor(album, viewerId);
+    // Begrenzt auf Ansichten: nur fuer eine gezaehlte Ansicht (handleAlbumKeyRequest).
+    if (limit?.kind === 'views' && !sessionUntil) return;
+    const time = await fetchServerTime();
+    const cap = sessionUntil ?? (limit?.kind === 'time' ? limit.until : null);
+    if (cap !== null && cap <= time.now) return;
+    const current = albumEpoch(album, time, viewerId);
     const ahead = albumEpochsAhead(album);
-    const marker = `${album.keyVersion || 1}:${current.epochMs}:${current.epoch}:${ahead}`;
+    const marker = `${album.keyVersion || 1}:${current.epochMs}:${current.epoch}:${ahead}:${cap || ''}`;
     const pushed = state.albumKeyPushes[viewerId] || (state.albumKeyPushes[viewerId] = {});
     if (!force && pushed[album.id] === marker) return;
     const bundles = [];
     for (let offset = 0; offset <= ahead; offset++) {
-        bundles.push(await buildAlbumKeyBundle(album, viewerId, current, current.epoch + offset));
+        const bundle = await buildAlbumKeyBundle(album, viewerId, current, current.epoch + offset);
+        bundle.epochStartsAt = bundle.epoch * current.epochMs;
+        if (cap !== null) {
+            // Nichts ueber die Frist hinaus: spaetere Epochen weglassen, die laufende kuerzen.
+            if (bundle.epochStartsAt >= cap) break;
+            bundle.epochEndsAt = Math.min(bundle.epochEndsAt, cap);
+        }
+        if (sessionUntil) bundle.session = true;
+        // Zeitlich begrenzt: der Betrachter raeumt zur Frist selbst auf (auch wenn der Besitzer dann offline ist).
+        else if (cap !== null) bundle.limitedUntil = cap;
+        bundles.push(bundle);
     }
+    if (!bundles.length) return;
     await persistAlbum(album);
     pushed[album.id] = marker;
     const operation = {
@@ -794,7 +1106,10 @@ async function pushAllAlbumKeys() {
     const time = await fetchServerTime().catch(() => null);
     if (!time) return;
     // Naechster Lauf zum fruehesten Epochenende aller eigenen Alben.
-    const nextEnd = Math.min(time.epochEndsAt, ...getOwnAlbums().map(album => albumEpoch(album, time).epochEndsAt));
+    const nextEnd = Math.min(time.epochEndsAt, ...getOwnAlbums().flatMap(album => [
+        albumEpoch(album, time).epochEndsAt,
+        ...album.acl.map(viewerId => albumEpoch(album, time, viewerId).epochEndsAt)
+    ]));
     state.albumKeyPushTimer = setTimeout(() => pushAllAlbumKeys().catch(logBackgroundError('pushAllAlbumKeys')), Math.min(nextEnd - time.now + 1000, 2147483647));
 }
 
@@ -838,7 +1153,8 @@ function renderAlbumDefaults() {
 }
 
 function albumEpochLabel(minutes) {
-    if (!minutes) return 'Server-Standard';
+    if (!minutes) return t('albums.serverDefault');
+    if (minutes === 10080) return t('albums.oneWeek');
     return minutes < 60 ? `${minutes} min` : `${minutes / 60} h`;
 }
 
@@ -857,12 +1173,63 @@ async function updateAlbumKeyTiming(albumId, key, value) {
     await pushAllAlbumKeys().catch(logBackgroundError('updateAlbumKeyTiming'));
 }
 
+async function updateAlbumPreview(albumId, value) {
+    const album = state.albums[albumId];
+    if (!album || album.ownerId !== state.myProfile.id || !ALBUM_PREVIEW_OPTIONS.includes(value)) return;
+    album.preview = value;
+    await saveAlbum(album);
+}
+
+// Gilt fuer kuenftig geteilte Album-Karten; schon gesendete behalten ihr Deckbild.
+function createAlbumPreviewSelect(album) {
+    const select = document.createElement('select');
+    select.dataset.albumPreview = album.id;
+    select.setAttribute('aria-label', t('albums.previewInChat'));
+    const labels = { normal: t('albums.previewNormal'), blur: t('albums.previewBlur'), none: t('albums.previewNone') };
+    ALBUM_PREVIEW_OPTIONS.forEach(option => {
+        const entry = document.createElement('option');
+        entry.value = option;
+        entry.textContent = labels[option];
+        select.appendChild(entry);
+    });
+    select.value = albumPreviewMode(album);
+    select.onchange = () => updateAlbumPreview(album.id, select.value).catch(logBackgroundError('updateAlbumPreview'));
+    return select;
+}
+
+// Gueltigkeit fuer eine Person (0 = wie das Album); sofort neue Buendel an diese Person.
+async function updateViewerKeyTiming(albumId, viewerId, minutes) {
+    const album = state.albums[albumId];
+    if (!album || album.ownerId !== state.myProfile.id || !album.acl.includes(viewerId) || !ALBUM_KEY_EPOCH_OPTIONS.includes(minutes)) return;
+    const overrides = { ...(album.viewerKeyEpochs || {}) };
+    if (minutes > 0) overrides[viewerId] = minutes;
+    else delete overrides[viewerId];
+    album.viewerKeyEpochs = overrides;
+    await saveAlbum(album);
+    await pushAlbumKeys(viewerId, album, true).catch(logBackgroundError('updateViewerKeyTiming'));
+    await pushAllAlbumKeys().catch(logBackgroundError('updateViewerKeyTiming'));
+}
+
+function createViewerKeyTimingSelect(album, viewerId) {
+    const select = document.createElement('select');
+    select.className = 'bg-slate-900 border border-slate-700 rounded-full px-1.5 py-0 text-[11px] text-slate-300';
+    select.dataset.viewerKeyEpoch = viewerId;
+    select.setAttribute('aria-label', t('albums.keyValidityForPerson', { name: getPeerPresentation(viewerId).name || HIDDEN_PEER_NAME }));
+    ALBUM_KEY_EPOCH_OPTIONS.forEach(minutes => {
+        const option = document.createElement('option');
+        option.value = String(minutes);
+        option.textContent = minutes ? albumEpochLabel(minutes) : t('albums.likeAlbum');
+        select.appendChild(option);
+    });
+    const override = album.viewerKeyEpochs?.[viewerId];
+    select.value = String(ALBUM_KEY_EPOCH_OPTIONS.includes(override) ? override : 0);
+    select.onchange = () => updateViewerKeyTiming(album.id, viewerId, Number(select.value)).catch(logBackgroundError('updateViewerKeyTiming'));
+    return select;
+}
+
 function createAlbumKeyTimingControls(album) {
-    const row = document.createElement('div');
-    row.className = 'flex flex-wrap items-center gap-2 text-xs text-slate-400';
     const select = (options, value, label, onChange) => {
         const element = document.createElement('select');
-        element.className = 'bg-slate-950 border border-slate-700 rounded px-2 py-1 text-slate-200';
         element.setAttribute('aria-label', label);
         options.forEach(option => {
             const entry = document.createElement('option');
@@ -874,17 +1241,14 @@ function createAlbumKeyTimingControls(album) {
         element.onchange = () => onChange(Number(element.value));
         return element;
     };
-    row.append(
-        document.createTextNode(t('albums.keyValidFor')),
-        select(ALBUM_KEY_EPOCH_OPTIONS.map(minutes => ({ value: minutes, text: albumEpochLabel(minutes) })),
+    return [
+        albumSettingRow(t('albums.keyValidFor'), select(ALBUM_KEY_EPOCH_OPTIONS.map(minutes => ({ value: minutes, text: albumEpochLabel(minutes) })),
             ALBUM_KEY_EPOCH_OPTIONS.includes(album.keyEpochMinutes) ? album.keyEpochMinutes : 0, t('albums.keyValidity'),
-            value => updateAlbumKeyTiming(album.id, 'keyEpochMinutes', value)),
-        document.createTextNode('vorab'),
-        select(ALBUM_KEY_AHEAD_OPTIONS.map(count => ({ value: count, text: `${count} Epoche${count > 1 ? 'n' : ''}` })),
+            value => updateAlbumKeyTiming(album.id, 'keyEpochMinutes', value))),
+        albumSettingRow(t('albums.epochsDeliveredInAdvance'), select(ALBUM_KEY_AHEAD_OPTIONS.map(count => ({ value: count, text: t(['albums.1Epoch', 'albums.2Epochs', 'albums.3Epochs'][count - 1]) })),
             albumEpochsAhead(album), t('albums.epochsDeliveredInAdvance'),
-            value => updateAlbumKeyTiming(album.id, 'keyEpochsAhead', value))
-    );
-    return row;
+            value => updateAlbumKeyTiming(album.id, 'keyEpochsAhead', value)))
+    ];
 }
 
 function isValidKeyBundle(bundle) {
@@ -933,6 +1297,10 @@ async function handleAlbumKeysOperation(ownerId, operation) {
         await putDatabaseRecord('keys', { id: `${ALBUM_TICKET_PREFIX}${ticketAlbumId}`, ownerId, ticket: operation.ticket });
     }
     for (const bundle of valid) {
+        // Ansichts-Buendel nur, solange das Album offen ist (kommt es nach dem Schliessen an, waere es
+        // eine Ansicht gratis).
+        if (bundle.session === true && state.albumViewer?.albumId !== bundle.albumId) continue;
+        if (Number.isFinite(bundle.limitedUntil)) await rememberAlbumSelfDestruct(ownerId, bundle.albumId, bundle.limitedUntil);
         await putDatabaseRecord('keys', {
             id: `${ALBUM_KEY_BUNDLE_PREFIX}${bundle.albumId}:${bundle.keyVersion}:${bundle.epoch}`,
             ownerId,
@@ -962,7 +1330,8 @@ async function findCurrentAlbumKeyBundle(albumId, keyVersion, time) {
     const records = await getAllDatabaseRecords('keys').catch(() => []);
     return records.find(record => typeof record.id === 'string' && record.id.startsWith(prefix)
         && record.epochEndsAt > time.now
-        && record.epochEndsAt - (Number.isFinite(record.epochMs) && record.epochMs > 0 ? record.epochMs : time.epochMs) <= time.now) || null;
+        && (Number.isFinite(record.epochStartsAt) ? record.epochStartsAt
+            : record.epochEndsAt - (Number.isFinite(record.epochMs) && record.epochMs > 0 ? record.epochMs : time.epochMs)) <= time.now) || null;
 }
 
 // Entpackt das Buendel der laufenden Epoche in nicht exportierbare Schluessel (nur im RAM).
@@ -993,6 +1362,8 @@ async function loadAlbumKeys(albumId) {
         ownerId: album.ownerId,
         keyVersion,
         epoch: record.epoch,
+        // Begrenzte Ansicht: nach Ablauf nicht automatisch nachfragen (das wuerde eine Ansicht zaehlen).
+        session: record.session === true,
         keys,
         timer: setTimeout(() => expireAlbumKeys(albumId, true), Math.min(Math.max(0, record.epochEndsAt - time.now), 2147483647))
     };
@@ -1009,10 +1380,98 @@ async function requestAlbumKeys(ownerId, albumId) {
     await sendSecurePayload(ownerId, { type: 'ALBUM_KEY_REQUEST', albumId });
 }
 
+// Betrachter: Album mit begrenzten Ansichten geschlossen -> Schluessel und gespeicherte Ansichts-Buendel
+// sofort weg und dem Besitzer melden (er beendet die Ansicht und entzieht, wenn alle verbraucht sind).
+async function endLimitedAlbumView(albumId) {
+    const entry = state.albumKeys[albumId];
+    const records = await getAllDatabaseRecords('keys').catch(() => []);
+    const sessionBundles = records.filter(record => typeof record.id === 'string'
+        && record.id.startsWith(`${ALBUM_KEY_BUNDLE_PREFIX}${albumId}:`) && record.session === true);
+    if (!entry?.session && !sessionBundles.length) return;
+    const ownerId = entry?.ownerId || sessionBundles[0]?.ownerId;
+    if (entry?.session) expireAlbumKeys(albumId, false);
+    await Promise.all(sessionBundles.map(record => deleteDatabaseRecord('keys', record.id)));
+    // Auch die verschluesselten Bilder: nach der Ansicht bleibt nichts liegen (naechste Ansicht laedt neu).
+    await deleteReceivedAlbumImages(albumId);
+    if (ownerId) await sendSecurePayload(ownerId, { type: 'ALBUM_VIEW_CLOSED', albumId });
+}
+
+async function deleteReceivedAlbumImages(albumId) {
+    const album = state.albums[albumId];
+    if (!album || album.ownerId === state.myProfile.id) return;
+    await Promise.all(album.items.map(item => deleteDatabaseRecord('media', item.id)));
+}
+
+// Betrachter: zeitlich begrenztes Album zur Frist selbst vergessen (Album, Bilder, Schluessel, Ticket).
+const ALBUM_SELF_DESTRUCT_PREFIX = 'album-expires:';
+
+async function rememberAlbumSelfDestruct(ownerId, albumId, until) {
+    const id = `${ALBUM_SELF_DESTRUCT_PREFIX}${albumId}`;
+    const existing = await databaseRequest('keys', 'readonly', store => store.get(id)).catch(() => null);
+    if (existing && existing.ownerId === ownerId && existing.until <= until) return;
+    await putDatabaseRecord('keys', { id, ownerId, albumId, until });
+    scheduleAlbumSelfDestruct();
+}
+
+async function runAlbumSelfDestruct() {
+    const now = (await fetchServerTime().catch(() => ({ now: Date.now() }))).now;
+    const records = await getAllDatabaseRecords('keys').catch(() => []);
+    for (const record of records.filter(entry => typeof entry.id === 'string' && entry.id.startsWith(ALBUM_SELF_DESTRUCT_PREFIX))) {
+        if (record.until > now) continue;
+        await forgetReceivedAlbum(record.ownerId, record.albumId);
+        await deleteDatabaseRecord('keys', record.id);
+    }
+    scheduleAlbumSelfDestruct(records, now);
+}
+
+function scheduleAlbumSelfDestruct(records = null, now = Date.now()) {
+    clearTimeout(state.albumSelfDestructTimer);
+    const run = list => {
+        const next = list.filter(entry => typeof entry.id === 'string' && entry.id.startsWith(ALBUM_SELF_DESTRUCT_PREFIX) && entry.until > now)
+            .map(entry => entry.until).sort((left, right) => left - right)[0];
+        if (!next) return;
+        state.albumSelfDestructTimer = setTimeout(() => runAlbumSelfDestruct().catch(logBackgroundError('runAlbumSelfDestruct')),
+            Math.min(Math.max(0, next - now) + 500, 2147483647));
+    };
+    if (records) run(records);
+    else getAllDatabaseRecords('keys').then(run).catch(() => {});
+}
+
+// Besitzer: Ansicht vorzeitig beendet.
+async function handleAlbumViewClosed(peerId, payload) {
+    const album = state.albums[payload.albumId];
+    const limit = albumLimitFor(album, peerId);
+    if (!album || album.ownerId !== state.myProfile.id || limit?.kind !== 'views') return;
+    const now = (await fetchServerTime().catch(() => ({ now: Date.now() }))).now;
+    if ((limit.sessionEndsAt || 0) <= now) return;
+    album.limits = { ...album.limits, [peerId]: { ...limit, sessionEndsAt: now } };
+    await saveAlbum(album);
+    await enforceAlbumLimits(now);
+}
+
 async function handleAlbumKeyRequest(peerId, payload) {
     const album = state.albums[payload.albumId];
     if (!album || album.ownerId !== state.myProfile.id || !album.acl.includes(peerId)) {
         await sendSecurePayload(peerId, { type: 'ALBUM_DENIED', albumId: payload.albumId });
+        return;
+    }
+    const limit = albumLimitFor(album, peerId);
+    if (limit?.kind === 'views') {
+        const now = (await fetchServerTime().catch(() => ({ now: Date.now() }))).now;
+        // Laufende Ansicht: dieselbe Frist erneut schicken, ohne zu zaehlen.
+        if ((limit.sessionEndsAt || 0) > now) {
+            await pushAlbumKeys(peerId, album, true, { sessionUntil: limit.sessionEndsAt });
+            return;
+        }
+        if ((limit.used || 0) >= limit.views) {
+            await sendSecurePayload(peerId, { type: 'ALBUM_DENIED', albumId: album.id });
+            await enforceAlbumLimits(now);
+            return;
+        }
+        album.limits = { ...album.limits, [peerId]: { ...limit, used: (limit.used || 0) + 1, sessionEndsAt: now + ALBUM_VIEW_SESSION_MS } };
+        await saveAlbum(album);
+        scheduleAlbumLimitCheck(now);
+        await pushAlbumKeys(peerId, album, true, { sessionUntil: now + ALBUM_VIEW_SESSION_MS });
         return;
     }
     await pushAlbumKeys(peerId, album, true);
@@ -1025,7 +1484,8 @@ function expireAlbumKeys(albumId, renew) {
     clearTimeout(entry.timer);
     delete state.albumKeys[albumId];
     const album = state.albums[albumId];
-    if (!renew || !album || state.albumViewer?.albumId !== albumId) return;
+    if (entry.session && album && state.albumViewer?.albumId === albumId) renderAlbumViewer(album).catch(logBackgroundError('expireAlbumKeys'));
+    if (!renew || entry.session || !album || state.albumViewer?.albumId !== albumId) return;
     renderAlbumViewer(album).catch(logBackgroundError('expireAlbumKeys'));
     requestAlbumKeys(album.ownerId, albumId).catch(logBackgroundError('expireAlbumKeys'));
 }

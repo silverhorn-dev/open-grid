@@ -145,6 +145,7 @@ function initChatSwitchSwipe() {
     const reset = () => {
         header.style.transition = prefersReducedMotion() ? 'none' : 'transform 160ms ease-out';
         header.style.transform = '';
+        header.classList.remove('is-pulling');
         start = null;
     };
     header.addEventListener('pointerdown', event => {
@@ -156,6 +157,7 @@ function initChatSwitchSwipe() {
         const deltaY = event.clientY - start.y;
         if (deltaY <= 0 || deltaY < Math.abs(event.clientX - start.x)) return;
         header.style.transition = 'none';
+        header.classList.add('is-pulling');
         header.style.transform = `translate3d(0, ${Math.min(HEADER_PULL_MAX, deltaY * 0.4)}px, 0)`;
     });
     header.addEventListener('pointerup', event => {
@@ -177,21 +179,16 @@ function initChatSwitchSwipe() {
     header.addEventListener('pointercancel', reset);
 }
 
-// Quick-Switcher: alle Chats der aktuellen Liste zur Auswahl (z. B. per Hochziehen im Chat).
-function openChatSwitcherSheet() {
-    const peerIds = visibleChatPeerIds();
-    const content = openMediaModal(t('chat.switchChat'));
-    if (peerIds.length < 2) {
-        renderMediaModalMessage(t('chat.noOtherChatsInThis'), 'fa-comments');
-        return;
-    }
+// Liste von Chats zum Antippen (Quick-Switcher, "Senden an" beim Teilen nach OpenGrid).
+function createChatPickerList(peerIds, onPick, currentPeerId = null) {
     const list = document.createElement('div');
     list.className = 'space-y-1.5';
     peerIds.forEach(peerId => {
         const peer = getPeerPresentation(peerId);
-        const current = peerId === state.activeChatPeerId;
+        const current = peerId === currentPeerId;
         const button = document.createElement('button');
         button.type = 'button';
+        button.dataset.peerId = peerId;
         button.className = `w-full flex items-center gap-3 rounded-xl border p-2 text-left ${current ? 'border-brand-500/60 bg-brand-500/10' : 'border-slate-800 bg-slate-950/40 hover:border-slate-700'}`;
         if (current) button.setAttribute('aria-current', 'true');
         const avatar = document.createElement('div');
@@ -219,9 +216,21 @@ function openChatSwitcherSheet() {
         button.append(avatar, details);
         const unread = unreadCountOf(peerId);
         if (unread) button.appendChild(createUnreadBadge(unread, 'shrink-0'));
-        button.onclick = () => replaceModal(closeMediaModal, () => switchToChat(peerId));
+        button.onclick = () => onPick(peerId);
         list.appendChild(button);
     });
+    return list;
+}
+
+// Quick-Switcher: alle Chats der aktuellen Liste zur Auswahl (z. B. per Hochziehen im Chat).
+function openChatSwitcherSheet() {
+    const peerIds = visibleChatPeerIds();
+    const content = openMediaModal(t('chat.switchChat'));
+    if (peerIds.length < 2) {
+        renderMediaModalMessage(t('chat.noOtherChatsInThis'), 'fa-comments');
+        return;
+    }
+    const list = createChatPickerList(peerIds, peerId => replaceModal(closeMediaModal, () => switchToChat(peerId)), state.activeChatPeerId);
     content.appendChild(list);
     centerInScroller(content, list.querySelector('[aria-current="true"]'), 'y');
 }

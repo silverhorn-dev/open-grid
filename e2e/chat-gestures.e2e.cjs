@@ -79,7 +79,7 @@ async function main() {
         }
         const chevron = await replyAfter(await point('#chat-message-m3 .chat-bubble', 'chevron'), 90);
         assert.equal(chevron.reply, 'm3', 'swipe starting on the actions arrow');
-        assert.equal(await page.evaluate(() => document.getElementById('chat-message-m3').classList.contains('actions-open')), false, 'the arrow did not open');
+        assert.equal(await page.evaluate(() => state.messageMenu), null, 'the arrow did not open the menu');
         assert.equal((await replyAfter(await point('#chat-message-m3', 'right'), 90)).reply, 'm3', 'swipe on the empty space next to an incoming message');
         assert.equal((await replyAfter(await point('#chat-message-m2', 'left'), -90)).reply, 'm2', 'swipe on the empty space next to an own message');
 
@@ -87,6 +87,22 @@ async function main() {
         const header = await point('#chat-header', 'center');
         await drag(header, 0, 30);
         assert.equal(await page.isVisible('#profile-detail-modal'), false);
+        // Waehrend des Ziehens liegt die Leiste ueber den Nachrichten (nichts schiebt sich davor).
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [header] });
+        for (let step = 1; step <= 8; step++) {
+            await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: header.x, y: header.y + 15 * step }] });
+            await page.waitForTimeout(16);
+        }
+        const onTop = await page.evaluate(() => {
+            const box = document.getElementById('chat-header').getBoundingClientRect();
+            const hit = document.elementFromPoint(box.left + box.width / 2, box.bottom - 4);
+            return { onTop: Boolean(hit?.closest('#chat-header')), background: getComputedStyle(document.getElementById('chat-header')).backgroundColor };
+        });
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+        await page.waitForTimeout(300);
+        assert.equal(onTop.onTop, true, 'pulled bar stays above the messages');
+        assert.doesNotMatch(onTop.background, /rgba\(.*, 0\.5\)/, 'opaque while pulling');
+        if (await page.isVisible('#profile-detail-modal')) await page.evaluate(() => closeProfileModal?.());
         await drag(header, 0, 120);
         await waitFor(page, () => !document.getElementById('profile-detail-modal').classList.contains('hidden'));
         assert.equal(await page.evaluate(() => state.activeModalPeerId), 'node_fake_gestures');

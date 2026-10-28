@@ -245,7 +245,7 @@ function renderStatusBar() {
     const own = activeStatusesOf(state.myProfile.id);
     const items = [];
     const mine = statusAvatar(state.myProfile.id, {
-        ring: own.length ? 'bg-gradient-to-tr from-brand-500 to-amber-400' : 'bg-slate-800',
+        ring: own.length ? 'bg-linear-to-tr from-brand-500 to-amber-400' : 'bg-slate-800',
         label: t('status.yourStatus'),
         onClick: () => (own.length ? openStatusViewer(state.myProfile.id) : openStatusComposer())
     });
@@ -266,7 +266,7 @@ function renderStatusBar() {
         .forEach(({ peerId, statuses }) => {
             const unseen = statuses.some(status => !status.seen);
             items.push(statusAvatar(peerId, {
-                ring: unseen ? 'bg-gradient-to-tr from-brand-500 to-amber-400' : 'bg-slate-700',
+                ring: unseen ? 'bg-linear-to-tr from-brand-500 to-amber-400' : 'bg-slate-700',
                 label: getPeerPresentation(peerId).name || t('status.friend'),
                 onClick: () => openStatusViewer(peerId)
             }).button);
@@ -281,7 +281,7 @@ function openStatusComposer() {
     wrapper.className = 'space-y-4';
     wrapper.innerHTML = `
         <div class="space-y-2">
-            <textarea id="status-text-input" rows="3" maxlength="${STATUS_TEXT_MAX}" placeholder="Was ist los? (24 Stunden sichtbar fuer Freunde)" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-base md:text-sm text-slate-100 resize-none focus:outline-none focus:border-brand-500"></textarea>
+            <textarea id="status-text-input" rows="3" maxlength="${STATUS_TEXT_MAX}" placeholder="Was ist los? (24 Stunden sichtbar fuer Freunde)" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-base md:text-sm text-slate-100 resize-none focus:outline-hidden focus:border-brand-500"></textarea>
             <div class="flex items-center justify-between gap-2">
                 <div id="status-color-row" class="flex gap-1.5" role="radiogroup" aria-label="Hintergrund"></div>
                 <button id="status-post-text-btn" type="button" class="px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-white text-sm font-semibold">Teilen</button>
@@ -293,7 +293,7 @@ function openStatusComposer() {
         <div class="space-y-2 pt-3 border-t border-slate-800">
             <label for="status-presence-input" class="text-xs font-bold text-slate-400">Kurzstatus (dauerhaft, neben deinem Online-Punkt, nur fuer Freunde)</label>
             <div class="flex gap-2">
-                <input id="status-presence-input" type="text" maxlength="${PRESENCE_TEXT_MAX}" placeholder="z. B. Im Club" class="flex-1 min-w-0 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-base md:text-sm text-slate-100 focus:outline-none focus:border-brand-500">
+                <input id="status-presence-input" type="text" maxlength="${PRESENCE_TEXT_MAX}" placeholder="z. B. Im Club" class="flex-1 min-w-0 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-base md:text-sm text-slate-100 focus:outline-hidden focus:border-brand-500">
                 <button id="status-presence-btn" type="button" class="px-3 py-2 rounded-lg border border-slate-700 text-slate-200 hover:bg-slate-800 text-sm">Speichern</button>
             </div>
         </div>`;
@@ -368,12 +368,12 @@ function showStatusAt(index) {
         drawSecureImage(canvas, status.image).catch(logBackgroundError('showStatusAt'));
         canvas.classList.remove('hidden');
         panel.style.backgroundColor = '#000';
-        text.className = status.text ? 'absolute inset-x-6 bottom-24 text-center text-white text-base font-semibold drop-shadow' : 'hidden';
+        text.className = status.text ? 'absolute inset-x-6 bottom-24 text-center text-white text-base font-semibold drop-shadow-sm' : 'hidden';
     } else {
         clearSecureCanvas(canvas);
         canvas.classList.add('hidden');
         panel.style.backgroundColor = status.color;
-        text.className = 'px-8 text-center text-white text-2xl font-bold leading-snug break-words';
+        text.className = 'px-8 text-center text-white text-2xl font-bold leading-snug wrap-break-word';
     }
     text.textContent = status.text || '';
     if (!isMine && !status.seen) {

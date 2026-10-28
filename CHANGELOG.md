@@ -2,9 +2,92 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 136 · 2026-10-26
+## Branch `feature/safety-checks` (noch nicht in main)
 - Fuer Betreiber (standardmaessig aus): Alters- oder E-Mail-Nachweis, bevor jemand im Grid sichtbar wird; Sperren und ein kurzes IP-Protokoll fuer Anfragen der Strafverfolgung
 - Neue Einstellung "Nacktbilder unscharf" (Medien > Schutz, standardmaessig aus): moegliche Nacktbilder erscheinen unscharf, bis du tippst; geprueft wird nur auf deinem Geraet. Das Erkennungsmodell folgt noch
+
+## Build 162–163 · 2026-10-28
+- Technik: Umstieg auf Tailwind CSS 4 (behebt die gemeldeten Sicherheitshinweise in den Build-Werkzeugen); einige Abstaende sind minimal enger
+
+## Build 161 · 2026-10-28 · `8d53162`
+- Begrenzt geteilte Alben raeumen sich beim Empfaenger selbst auf: nach einer Ansicht sind auch die gespeicherten Bilder weg, und zeitlich begrenzte Alben loescht seine App zur Frist selbst, auch wenn du dann offline bist
+
+## Build 160 · 2026-10-28 · `b93e303`
+- Behoben: Alben mit 1x/2x/3x ansehen liessen sich nach dem Oeffnen noch 15 Minuten lang beliebig oft wieder oeffnen. Jetzt endet eine Ansicht mit dem Schliessen, und nach der letzten ist der Zugriff sofort weg
+
+## Build 159 · 2026-10-28 · `fb52534`
+- Behoben: entzogener Album-Zugriff kam bei Personen, die gerade offline waren, nicht an; sie behielten die Schluessel bis zum Ablauf. Der Entzug geht jetzt auch ueber den Server-Zwischenspeicher, und die Schluessel werden geloescht
+
+## Build 158 · 2026-10-27 · `f552228`
+- Sprachnachrichten: auf der Leiste springen (tippen oder ziehen) und schneller abspielen (1x, 1,5x, 2x)
+- Behoben: beim Abspielen flackerten Play-Knopf und Leiste, sobald der Chat neu gezeichnet wurde
+- Alben begrenzt teilen: beim Teilen im Chat waehlbar, ob normal oder nur 1x/2x/3x ansehen bzw. 15 min/1 h/24 h; danach endet der Zugriff von selbst. Begrenzt freigegebene Personen stehen mit ihrem Stand in der Alben-Verwaltung, ab 3 Personen eingeklappt
+
+## Build 157 · 2026-10-27 · `72f3ef2`
+- Neues Nachrichten-Menue: lange druecken (am PC Rechtsklick) zeigt oben die Reaktionen und darunter Antworten, Kopieren, Markieren und Loeschen
+- Behoben: das Menue bzw. die Reaktionsauswahl ging manchmal gleich wieder zu, vor allem nachdem man vorher schon etwas gemacht hatte
+
+## Build 156 · 2026-10-27 · `fedb140`
+- Behoben: Album-Karten im Chat und die Vorschaubilder in der Alben-Verwaltung flackerten beim Neuzeichnen
+
+## Build 155 · 2026-10-27 · `7c939f8`
+- Alben im Profil aufgeraeumt: jedes Album als eigene Karte mit Vorschaubild, Einstellungen zum Aufklappen und einer Zeile pro Person (Gueltigkeit, Zugriff entziehen)
+
+## Build 154 · 2026-10-27 · `c1e2b67`
+- Behoben: Kontakte aus "Chat & Freunde" bekamen dein Entdecken-Profil (z. B. Alter), wenn du gerade in "Entdecken" warst, und umgekehrt. Jetzt zaehlt die Liste des Chats
+
+## Build 153 · 2026-10-27 · `fbc3c72`
+- Alben: Schluessel koennen jetzt auch eine Woche gelten, und die Gueltigkeit laesst sich pro Person festlegen (neben jeder Person im Album)
+
+## Build 152 · 2026-10-27 · `fb962bd`
+- Alben: pro Album waehlbar, wie die Vorschau im Chat aussieht: normal, unscharf oder ohne Bild
+
+## Build 151 · 2026-10-27 · `877ac5b`
+- Einladungslinks merken sich den Modus: wer sie oeffnet, landet in diesem Modus und der Chat bei beiden in derselben Liste. Ist der Bereich ausgeschaltet, erscheint nur ein Hinweis
+
+## Build 149 · 2026-10-27 · `e300685`
+- Behoben: die Profilfelder je Modus vom Server wurden verworfen; "Nur Chat" nutzt jetzt wie vorgesehen das schlanke Profil (Name und Status), eigene Profilfelder des Betreibers greifen wieder
+- Betrieb: Profilfelder je Modus (inkl. Event mit "Aktueller Workshop") direkt in `compose.yaml`
+
+## Build 147 · 2026-10-27 · `bade31f`
+- Snap-Editor: einmal auf einen Text tippen, um ihn nachzubearbeiten (Text, Art, Hintergrund, Farbe)
+- Snap-Editor: "Rueckgaengig" macht jetzt auch Zoomen/Drehen des Hintergrunds, Filter, Verschieben/Groesse/Drehung von Text und Emojis und das Loeschen per Doppeltippen rueckgaengig
+
+## Build 146 · 2026-10-27 · `6c43427`
+- Snap-Editor: verschiedene Textarten (klassisch, kursiv, Schreibmaschine, Handschrift, Neon) und ein Texthintergrund (abgedunkelt oder farbig)
+- Snap-Editor: Filter fuer das Foto (Schwarz-Weiss, Farbenfroh, Rot) und die Uhrzeit als Sticker, frei platzierbar
+
+## Build 145 · 2026-10-27 · `1afb32c`
+- Snap-Editor: Text und Emojis mit zwei Fingern groesser/kleiner machen und drehen (erst ein Finger auf das Element, dann ein zweiter); bei 90 Grad rastet es ein. Mit zwei Fingern auf dem Hintergrund das Foto zoomen und drehen. Am PC: Mausrad beim Ziehen, mit Shift drehen
+- Snap-Kamera: nach oben wischen oeffnet die Galerie jetzt ueberall im Bild; Snap/Bild wechseln per Wischen klappt auch am rechten Rand und in der Vorschau
+- Behoben: beim Herunterziehen der Kontaktleiste im Chat lagen Nachrichten und Videos davor
+
+## Build 144 · 2026-10-27 · `18936da`
+- Neue Einstellung "Eigene Snaps behalten" (Medien > Snaps): nachdem der Empfaenger alles gesehen hat, kannst du deine Snaps und Secure Snaps noch eine Weile ansehen und speichern (Standard 1 Stunde)
+- Behoben: Secure Snaps erscheinen jetzt bildschirmfuellend statt manchmal sehr klein und lassen sich mit zwei Fingern (am PC mit dem Mausrad) zoomen
+
+## Build 143 · 2026-10-27 · `cd39256`
+- Eigene Secure Snaps lassen sich nur ansehen, bis der Empfaenger alle Ansichten verbraucht hat; danach sind sie auch bei dir geloescht
+- Behoben: baute ein Geraet die Verbindung neu auf, lehnte das andere sie nach einem Secure Snap manchmal ab und der Aufbau hing lange
+
+## Build 142 · 2026-10-27 · `4351fba`
+- Behoben: Videos und Bilder im Chat flackern nicht mehr, wenn der Chat neu gezeichnet wird (z. B. waehrend ein Video ankommt)
+- Behoben: die erste Ansicht eines Secure Snaps war manchmal nur einen Augenblick lang zu sehen
+- Behoben: eigene Secure Snaps lassen sich wieder ansehen
+- Behoben: beim Oeffnen eines Secure Snaps wartete die App manchmal endlos auf die Freigabe; jetzt verbindet sie neu und fragt erneut
+
+## Build 141 · 2026-10-27 · `871c50f`
+- Snap-Editor: neuer Schalter neben den Werkzeugen, um ein Bild oder einen Snap als "nicht speicherbar" zu markieren
+
+## Build 140 · 2026-10-27 · `ab295a5`
+- Videos lassen sich jetzt auch speichern und teilen
+- Neue Einstellung (Medien > Schutz): wer deine Bilder und Videos speichern darf, "Nur Freunde" (Standard) oder "Alle Chat-Partner". Eigene Medien kannst du immer speichern
+
+## Build 139 · 2026-10-27 · `d4f81d1`
+- Teilen nach OpenGrid: in der installierten App erscheint OpenGrid im Teilen-Menue anderer Apps; Fotos gehen nach "Senden an" direkt in den Chat, Text und Links landen im Eingabefeld
+
+## Build 138 · 2026-10-27 · `fa71f61`
+- Chat-Bilder im Chat- und Freunde-Bereich lassen sich jetzt auch ueber das Teilen-Menue des Geraets weitergeben, Speichern bleibt daneben
 
 ## Build 135 · 2026-10-26 · `46bdceb`
 - Beim ersten Start waehlst du, was du willst: "Nur Entdecken", "Social" oder "Entdecken & Freunde". Einstellungen und Knoepfe anderer Bereiche verschwinden; bei "Nur Entdecken" gibt es kein Adden, auch nicht nach einem Match

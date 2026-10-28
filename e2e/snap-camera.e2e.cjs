@@ -114,10 +114,18 @@ async function main() {
         await alice.click('[aria-label="Auslösen"]');
         await waitFor(alice, () => hasSnapDraft());
         assert.match(await alice.textContent('#snap-send-btn'), /Bild senden/);
+        // "Speicherbar" neben den Werkzeugen: Standard an, angetippt durchgestrichen mit Hinweis.
+        assert.equal(await alice.getAttribute('#snap-saveable-btn', 'aria-pressed'), 'true');
+        assert.equal(await alice.isVisible('#snap-saveable-note'), false);
+        await alice.click('#snap-saveable-btn');
+        assert.equal(await alice.getAttribute('#snap-saveable-btn', 'aria-pressed'), 'false');
+        assert.equal((await alice.textContent('#snap-saveable-note')).trim(), 'nicht speicherbar');
         await alice.click('#snap-send-btn');
         await waitFor(bob, () => Object.values(state.chats).flat().filter(message => typeof message.snapData === 'string').length >= 2, null, 30000);
         const image = await bob.evaluate(() => Object.values(state.chats).flat().filter(message => message.snapData).at(-1));
         assert.equal(image.snapMode, undefined, 'sent as a normal image, not a one-time snap');
+        assert.equal(image.downloadable, 'none', 'marked as not saveable');
+        assert.equal(await bob.evaluate(message => canDownloadMedia(message), image), false);
         assert.ok(image.imageSize?.w > 0 && image.imageSize?.h > 0, 'image size travels with the message');
         assert.equal(await bob.evaluate(message => messagePreview(message), image), 'Bild');
 
@@ -126,6 +134,7 @@ async function main() {
         await alice.click('#snap-mode-switch');
         await alice.click('[aria-label="Auslösen"]');
         await waitFor(alice, () => hasSnapDraft());
+        assert.equal(await alice.getAttribute('#snap-saveable-btn', 'aria-pressed'), 'true', 'every new picture starts with the default');
         assert.equal(await alice.isVisible('#snap-original-option'), true, 'original toggle in image mode');
         await alice.check('#snap-original-toggle');
         await alice.click('#snap-send-btn');
@@ -200,13 +209,19 @@ async function main() {
         await bob.waitForTimeout(300);
         // Kein Restzeit-Hinweis beim Empfaenger.
         assert.doesNotMatch(await bob.textContent('#chat-messages'), /\d+\s*min|verbleib|noch \d/i, 'no time-left label for the receiver');
-        // 16 Minuten spaeter: weg, auch beim Absender.
+        // 16 Minuten spaeter: beim Empfaenger weg; der Absender behaelt ihn noch seine Frist (Standard 1 h).
         await bob.evaluate(async ([peerId, id]) => {
             state.chats[peerId].find(message => message.id === id).firstViewedAt -= 16 * 60 * 1000;
             await expireUsedReplaySnaps(peerId);
         }, [aliceIdForExpiry, expiringId]);
         assert.equal(await bob.evaluate(id => Boolean(state.chats[state.activeChatPeerId].find(message => message.id === id).snapData), expiringId), false, 'expired at the receiver');
-        await waitFor(alice, id => !state.chats[state.activeChatPeerId].find(message => message.id === id).snapData, expiringId, 30000);
+        await waitFor(alice, id => state.chats[state.activeChatPeerId].find(message => message.id === id).snapConsumed === true, expiringId, 30000);
+        assert.equal(await alice.evaluate(id => Boolean(state.chats[state.activeChatPeerId].find(message => message.id === id).snapData), expiringId), true, 'sender keeps it for the own retention time');
+        await alice.evaluate(async id => {
+            state.chats[state.activeChatPeerId].find(message => message.id === id).ownKeepUntil = Date.now() - 1000;
+            await expireOwnKeptSnaps(state.activeChatPeerId);
+        }, expiringId);
+        assert.equal(await alice.evaluate(id => Boolean(state.chats[state.activeChatPeerId].find(message => message.id === id).snapData), expiringId), false, 'gone at the sender after the retention time');
 
         // Bob speichert einen Einmal-Snap: Alice erfaehrt es.
         const snapId = await alice.evaluate(async () => {

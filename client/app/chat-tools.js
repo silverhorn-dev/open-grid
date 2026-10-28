@@ -59,20 +59,176 @@ function scrollToChatMessage(messageId) {
     setTimeout(() => target.classList.remove('chat-message-highlight'), 1500);
 }
 
-// Auf Touch-Geraeten blendet ein Tipp auf die Nachricht die Aktionen ein, am Desktop das Hovern.
-function toggleMessageActions(row) {
-    const wasOpen = row.classList.contains('actions-open');
-    closeMessageActions();
-    if (!wasOpen) row.classList.add('actions-open');
+// ----- Kontextmenue einer Nachricht -----
+// Ein Menue fuer alles (Reaktionen oben, Aktionen darunter): langes Druecken oder der Pfeil (Touch),
+// Rechtsklick oder "mehr" in der Hover-Leiste (Desktop). Es haengt am <body>, nicht in der
+// Nachrichtenliste, und merkt sich die Nachricht (state.messageMenu): ein Neuzeichnen des Chats
+// (neue Nachricht, Zustellbestaetigung, Reaktion) schliesst es nicht mehr. Schliessen: Tipp daneben,
+// Esc, Zurueck-Geste, nach einer Aktion, beim Chatwechsel.
+function messageMenuTarget() {
+    const menu = state.messageMenu;
+    if (!menu || menu.peerId !== state.activeChatPeerId) return null;
+    const message = (state.chats[menu.peerId] || []).find(item => item.id === menu.messageId);
+    return message && !message.deleted ? message : null;
 }
 
-function closeMessageActions() {
-    document.querySelectorAll('#chat-messages .actions-open').forEach(element => element.classList.remove('actions-open'));
+function openMessageMenu(messageId) {
+    const peerId = state.activeChatPeerId;
+    const message = (state.chats[peerId] || []).find(item => item.id === messageId);
+    if (!peerId || !message || message.deleted) return;
+    // Schon offen fuer diese Nachricht (z. B. langes Druecken + Kontextmenue-Ereignis): nichts tun.
+    if (state.messageMenu?.messageId === messageId && document.getElementById('message-menu')) return;
+    if (state.messageMenu) hideMessageMenu();
+    state.messageMenu = { peerId, messageId };
+    renderMessageMenu();
+    pushModalEntry('messagemenu', hideMessageMenu);
 }
 
-// Tipp ausserhalb schliesst offene Aktionsleisten.
-document.addEventListener('click', event => {
-    if (!event.target.closest?.('.actions-open')) closeMessageActions();
+function closeMessageMenu() {
+    if (!state.messageMenu) return;
+    dismissModalEntry('messagemenu', hideMessageMenu);
+}
+
+function hideMessageMenu() {
+    state.messageMenu = null;
+    document.getElementById('message-menu')?.remove();
+    document.getElementById('message-menu-backdrop')?.remove();
+    document.querySelectorAll('#chat-messages .message-menu-target').forEach(row => row.classList.remove('message-menu-target'));
+}
+
+// Aktion aus dem Menue: erst schliessen (der Zurueck-Schritt kommt asynchron), dann ausfuehren.
+// Sonst wuerde das verspaetete Schliessen etwas gerade Geoeffnetes gleich wieder zumachen.
+function runMessageMenuAction(action) {
+    replaceModal(closeMessageMenu, () => {
+        Promise.resolve(action()).catch(logBackgroundError('runMessageMenuAction'));
+    });
+}
+
+function messageMenuItem(icon, label, action, danger = false) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `message-menu-item${danger ? ' is-danger' : ''}`;
+    button.innerHTML = `<i class="${icon}"></i>`;
+    const text = document.createElement('span');
+    text.textContent = label;
+    button.appendChild(text);
+    button.onclick = event => {
+        event.stopPropagation();
+        runMessageMenuAction(action);
+    };
+    return button;
+}
+
+function renderMessageMenu() {
+    const message = messageMenuTarget();
+    if (!message) {
+        closeMessageMenu();
+        return;
+    }
+    const isMine = message.senderId === state.myProfile.id;
+    let backdrop = document.getElementById('message-menu-backdrop');
+    if (!backdrop) {
+        backdrop = document.createElement('div');
+        backdrop.id = 'message-menu-backdrop';
+        backdrop.className = 'message-menu-backdrop';
+        // Nur ein Tipp, der auch auf dem Hintergrund beginnt, schliesst. Sonst landet der Klick nach dem
+        // langen Druecken (Finger hebt sich, der Hintergrund liegt jetzt darunter) hier und das Menue
+        // ginge sofort wieder zu.
+        backdrop.addEventListener('pointerdown', event => {
+            event.preventDefault();
+            backdrop.dataset.armed = 'true';
+        });
+        backdrop.onclick = () => {
+            if (backdrop.dataset.armed !== 'true') return;
+            closeMessageMenu();
+        };
+        backdrop.oncontextmenu = event => {
+            event.preventDefault();
+            closeMessageMenu();
+        };
+        document.body.appendChild(backdrop);
+    }
+    let menu = document.getElementById('message-menu');
+    if (!menu) {
+        menu = document.createElement('div');
+        menu.id = 'message-menu';
+        menu.className = 'message-menu';
+        menu.setAttribute('role', 'menu');
+        document.body.appendChild(menu);
+    }
+    menu.dataset.messageId = message.id;
+    const reactions = document.createElement('div');
+    reactions.className = 'message-menu-reactions';
+    const mine = message.reactions?.[state.myProfile.id]?.emoji || null;
+    REACTION_EMOJIS.forEach(emoji => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `message-menu-reaction${emoji === mine ? ' is-active' : ''}`;
+        button.textContent = emoji;
+        button.setAttribute('aria-label', t('chat.reactWith', { emoji }));
+        button.setAttribute('aria-pressed', String(emoji === mine));
+        button.onclick = event => {
+            event.stopPropagation();
+            runMessageMenuAction(() => reactToMessage(message.id, emoji));
+        };
+        reactions.appendChild(button);
+    });
+    const items = [messageMenuItem('fa-solid fa-reply', t('chat.reply'), () => startReply(message.id))];
+    if (message.text) items.push(messageMenuItem('fa-regular fa-copy', t('common.copy'), () => copyMessageText(message)));
+    items.push(messageMenuItem(message.starred ? 'fa-solid fa-star text-amber-400' : 'fa-regular fa-star',
+        message.starred ? t('chat.removeStar') : t('chat.starForYourself'), () => toggleMessageStar(message.id)));
+    if (isMine) items.push(messageMenuItem('fa-solid fa-trash', t('common.delete'), () => deleteChatMessage(message.id), true));
+    const list = document.createElement('div');
+    list.className = 'message-menu-items';
+    list.append(...items);
+    menu.replaceChildren(reactions, list);
+    positionMessageMenu(isMine);
+}
+
+// Unter die Nachricht, wenn Platz ist, sonst darueber; immer ganz im Bild, zur Seite der Nachricht.
+function positionMessageMenu(isMine) {
+    const menu = document.getElementById('message-menu');
+    const row = document.getElementById(`chat-message-${state.messageMenu?.messageId}`);
+    document.querySelectorAll('#chat-messages .message-menu-target').forEach(element => {
+        if (element !== row) element.classList.remove('message-menu-target');
+    });
+    if (!menu) return;
+    const bubble = row?.querySelector('.chat-bubble');
+    row?.classList.add('message-menu-target');
+    const width = menu.offsetWidth;
+    const height = menu.offsetHeight;
+    const margin = 8;
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const box = bubble?.getBoundingClientRect() || { left: (viewportWidth - width) / 2, right: (viewportWidth + width) / 2, top: viewportHeight / 2, bottom: viewportHeight / 2 };
+    const left = isMine ? box.right - width : box.left;
+    const below = box.bottom + margin;
+    const top = below + height <= viewportHeight - margin ? below : box.top - margin - height;
+    menu.style.left = `${Math.round(Math.min(viewportWidth - width - margin, Math.max(margin, left)))}px`;
+    menu.style.top = `${Math.round(Math.min(viewportHeight - height - margin, Math.max(margin, top)))}px`;
+}
+
+// Nach jedem Neuzeichnen des Chats: Menue an die neue Zeile haengen (oder schliessen, wenn die
+// Nachricht weg ist).
+function syncMessageMenu() {
+    if (!state.messageMenu) return;
+    renderMessageMenu();
+}
+
+document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && state.messageMenu) closeMessageMenu();
+});
+// Rechtsklick (bzw. Kontextmenue-Taste) auf eine Nachricht: unser Menue statt des Browser-Menues.
+document.addEventListener('contextmenu', event => {
+    const row = event.target.closest?.('#chat-messages [id^="chat-message-"]');
+    if (!row || event.target.closest('a, input, textarea')) return;
+    const messageId = row.id.slice('chat-message-'.length);
+    if (!(state.chats[state.activeChatPeerId] || []).some(message => message.id === messageId && !message.deleted)) return;
+    event.preventDefault();
+    openMessageMenu(messageId);
+});
+window.addEventListener('resize', () => {
+    if (state.messageMenu) syncMessageMenu();
 });
 
 // Mit Original (wenn vorhanden) statt Vorschau.
@@ -80,45 +236,35 @@ async function openChatImageViewer(messageId) {
     const snaps = (state.chats[state.activeChatPeerId] || [])
         .filter(message => !message.deleted && isInlineSnap(message));
     const images = await Promise.all(snaps.map(bestImageFor));
-    openImageViewer(images, snaps.findIndex(message => message.id === messageId), { allowSave: isSocialMode() });
+    openImageViewer(images, snaps.findIndex(message => message.id === messageId), { allowSave: snaps.map(canDownloadMedia) });
 }
 
-// Eigene Nachrichten rechtsbuendig, fremde linksbuendig: die Leiste waechst zur Bildschirmmitte.
-// Auf Touch-Geraeten ist der Pfeil das aeussere Element der Leiste: er oeffnet und schliesst sie.
-function renderMessageActions(message, isMine, row) {
+// Desktop: beim Hovern eine kleine Leiste (Antworten, Reagieren, mehr). Touch: nur der Pfeil in der
+// Ecke; beide oeffnen das Kontextmenue.
+function renderMessageActions(message, isMine) {
     const actions = document.createElement('div');
-    actions.className = `message-actions absolute -top-5 ${isMine ? 'right-0' : 'left-0'} z-10 flex items-center gap-0.5 rounded-full border border-slate-700 bg-slate-900/95 px-1 py-0.5 shadow-lg text-slate-300`;
-    const toggle = document.createElement('button');
-    toggle.type = 'button';
-    toggle.className = 'message-actions-toggle w-6 h-6 rounded-full items-center justify-center text-[10px] text-slate-200 bg-black/25';
-    toggle.setAttribute('aria-label', t('chat.showOrHideActions'));
-    toggle.innerHTML = '<i class="fa-solid fa-chevron-down transition-transform"></i>';
-    toggle.onclick = event => {
-        event.stopPropagation();
-        toggleMessageActions(row);
-    };
-    if (!isMine) actions.appendChild(toggle);
-    const addAction = (iconClass, title, onClick, extraClass = 'hover:text-slate-50 hover:bg-slate-800') => {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = `message-action w-9 h-9 rounded-full flex items-center justify-center text-base transition ${extraClass}`;
-        button.title = title;
-        button.setAttribute('aria-label', title);
-        button.onclick = event => {
+    actions.className = `message-actions absolute -top-4 ${isMine ? 'right-1' : 'left-1'} z-10 flex items-center gap-0.5 rounded-full border border-slate-700 bg-slate-900/95 p-0.5 shadow-lg text-slate-300`;
+    const button = (className, icon, title, onClick) => {
+        const element = document.createElement('button');
+        element.type = 'button';
+        element.className = className;
+        element.title = title;
+        element.setAttribute('aria-label', title);
+        element.innerHTML = `<i class="${icon}"></i>`;
+        element.onclick = event => {
             event.stopPropagation();
-            onClick(event);
+            onClick();
         };
-        const icon = document.createElement('i');
-        icon.className = iconClass;
-        button.appendChild(icon);
-        actions.appendChild(button);
+        return element;
     };
-    addAction('fa-solid fa-reply', t('chat.reply'), () => startReply(message.id));
-    if (message.text) addAction('fa-regular fa-copy', t('common.copy'), () => copyMessageText(message));
-    addAction('fa-regular fa-face-smile', t('chat.react'), event => toggleReactionPicker(event.currentTarget, message.id));
-    addAction(message.starred ? 'fa-solid fa-star text-amber-400' : 'fa-regular fa-star', message.starred ? t('chat.removeStar') : t('chat.starForYourself'), () => toggleMessageStar(message.id));
-    if (isMine) addAction('fa-solid fa-trash', t('common.delete'), () => deleteChatMessage(message.id), 'text-red-400 hover:text-red-300 hover:bg-slate-800');
-    if (isMine) actions.appendChild(toggle);
+    const action = 'message-action w-8 h-8 rounded-full flex items-center justify-center text-sm transition hover:text-slate-50 hover:bg-slate-800';
+    actions.append(
+        button(action, 'fa-solid fa-reply', t('chat.reply'), () => startReply(message.id)),
+        button(action, 'fa-regular fa-face-smile', t('chat.react'), () => openMessageMenu(message.id)),
+        button(action, 'fa-solid fa-ellipsis', t('chat.moreActions'), () => openMessageMenu(message.id)),
+        button('message-actions-toggle w-6 h-6 rounded-full items-center justify-center text-[10px] text-slate-200 bg-black/25',
+            'fa-solid fa-chevron-down', t('chat.showOrHideActions'), () => openMessageMenu(message.id))
+    );
     return actions;
 }
 
@@ -129,32 +275,6 @@ async function copyMessageText(message) {
     } catch {
         showToast(t('common.copyingIsNotPossible'), 'error');
     }
-    closeMessageActions();
-}
-
-function toggleReactionPicker(anchor, messageId) {
-    const existing = document.getElementById('reaction-picker');
-    if (existing) {
-        const sameMessage = existing.dataset.messageId === messageId;
-        existing.remove();
-        if (sameMessage) return;
-    }
-    const picker = document.createElement('div');
-    picker.id = 'reaction-picker';
-    picker.dataset.messageId = messageId;
-    picker.className = 'flex gap-1 bg-slate-900 border border-slate-700 rounded-full px-2 py-1 shadow-lg';
-    REACTION_EMOJIS.forEach(emoji => {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'text-base leading-none hover:scale-125 transition';
-        button.textContent = emoji;
-        button.onclick = () => {
-            picker.remove();
-            reactToMessage(messageId, emoji);
-        };
-        picker.appendChild(button);
-    });
-    anchor.closest('[id^="chat-message-"]').appendChild(picker);
 }
 
 function renderReactions(message, isMine) {
@@ -169,11 +289,11 @@ function renderReactions(message, isMine) {
     });
     const row = document.createElement('div');
     // Eigene Nachrichten: unten links, fremde: unten rechts (Richtung Bildschirmmitte).
-    row.className = `message-reactions absolute -bottom-4 ${isMine ? 'left-2' : 'right-2'} z-[5] flex gap-1`;
+    row.className = `message-reactions absolute -bottom-4 ${isMine ? 'left-2' : 'right-2'} z-5 flex gap-1`;
     counts.forEach(({ count, mine }, emoji) => {
         const chip = document.createElement('button');
         chip.type = 'button';
-        chip.className = `text-sm leading-none px-2 py-1 rounded-full border shadow ${mine ? 'bg-brand-900 border-brand-500/60' : 'bg-slate-900 border-slate-700'}`;
+        chip.className = `text-sm leading-none px-2 py-1 rounded-full border shadow-sm ${mine ? 'bg-brand-900 border-brand-500/60' : 'bg-slate-900 border-slate-700'}`;
         chip.textContent = count > 1 ? `${emoji} ${count}` : emoji;
         chip.onclick = () => reactToMessage(message.id, emoji);
         row.appendChild(chip);

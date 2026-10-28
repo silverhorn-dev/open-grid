@@ -121,12 +121,12 @@ function renderBlockedPeers() {
     blockedIds.forEach(peerId => {
         const peer = getPeerPresentation(peerId);
         const row = document.createElement('div');
-        row.className = 'flex items-center justify-between bg-slate-950 p-2 rounded border border-slate-800';
+        row.className = 'flex items-center justify-between bg-slate-950 p-2 rounded-sm border border-slate-800';
         const nameDiv = document.createElement('div');
         nameDiv.className = 'text-xs text-slate-300 font-semibold truncate';
         nameDiv.textContent = peer.name || peerId;
         const unblockBtn = document.createElement('button');
-        unblockBtn.className = 'text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded transition';
+        unblockBtn.className = 'text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded-sm transition';
         unblockBtn.textContent = t('common.unblock');
         unblockBtn.onclick = () => unblockPeerFromSettings(peerId);
         row.append(nameDiv, unblockBtn);

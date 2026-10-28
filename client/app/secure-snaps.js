@@ -6,16 +6,33 @@
 //      der Empfaenger bekommt keine Bilddaten). Kommt kein SNAP_STREAM_PLAYING, folgt SNAP_VIEW_GRANT
 //      mit dem Schluessel; der Empfaenger entschluesselt nur im Arbeitsspeicher.
 //   3. Nach Ablauf der Anzeigedauer wird alles verworfen; nach der letzten Ansicht loescht der
-//      Empfaenger auch den Ciphertext.
+//      Empfaenger auch den Ciphertext. Bis dahin kann der Sender seinen eigenen Snap ansehen; nach der
+//      letzten Ansicht loescht auch er Schluessel und Ciphertext.
 const SECURE_SNAP_VIEW_OPTIONS = [1, 2, 3];
 const SECURE_SNAP_SECOND_OPTIONS = [5, 10, 30, 0]; // 0 = bis zum Schliessen
 const SECURE_SNAP_UNLIMITED_CAP_MS = 5 * 60 * 1000;
 const SECURE_SNAP_CONNECT_TIMEOUT_MS = 10000;
 const SECURE_SNAP_STREAM_TIMEOUT_MS = 6000;
+// Antwortet der Sender nicht (Anfrage in einem halb toten Kanal verloren), Kanal neu aufbauen und
+// einmal erneut fragen; danach eine klare Meldung statt ewig "Warte auf Freigabe".
+const SECURE_SNAP_REQUEST_TIMEOUT_MS = 8000;
 const SNAP_SETTINGS_RECORD_ID = 'snap-settings';
 // Einmal-Snaps laufen nach der ersten Ansicht ab (Einstellung des Absenders, geht als Enum mit dem
 // Snap mit). 'off' = nur die Ansichten zaehlen. Standard 30 min, vom Router per CLIENT_DEFAULTS.snapExpiry.
 const SNAP_EXPIRY_OPTIONS = { '15m': 15 * 60 * 1000, '30m': 30 * 60 * 1000, '60m': 60 * 60 * 1000, off: 0 };
+
+// Eigene Snaps (Einmal- und Secure Snaps) bleiben beim Absender noch so lange, nachdem der Empfaenger
+// alle Ansichten verbraucht hat (zum Ansehen oder Speichern). Standard 1 h, Router: CLIENT_DEFAULTS.ownSnapKeep.
+const OWN_SNAP_KEEP_OPTIONS = { now: 0, '15m': 15 * 60 * 1000, '1h': 60 * 60 * 1000, '24h': 24 * 60 * 60 * 1000 };
+
+function defaultOwnSnapKeep() {
+    const value = clientDefault('ownSnapKeep', '1h');
+    return OWN_SNAP_KEEP_OPTIONS[value] !== undefined ? value : '1h';
+}
+
+function ownSnapKeepMs() {
+    return OWN_SNAP_KEEP_OPTIONS[state.snapSettings?.ownKeep] ?? OWN_SNAP_KEEP_OPTIONS[defaultOwnSnapKeep()];
+}
 
 function defaultSnapExpiry() {
     const value = clientDefault('snapExpiry', '30m');
@@ -32,7 +49,8 @@ async function loadSnapSettings() {
                 views: SECURE_SNAP_VIEW_OPTIONS.includes(stored.views) ? stored.views : 1,
                 seconds: SECURE_SNAP_SECOND_OPTIONS.includes(stored.seconds) ? stored.seconds : 10,
                 nextGesture: SNAP_NEXT_GESTURES.includes(stored.nextGesture) ? stored.nextGesture : 'doubletap',
-                expiry: SNAP_EXPIRY_OPTIONS[stored.expiry] !== undefined ? stored.expiry : defaultSnapExpiry()
+                expiry: SNAP_EXPIRY_OPTIONS[stored.expiry] !== undefined ? stored.expiry : defaultSnapExpiry(),
+                ownKeep: OWN_SNAP_KEEP_OPTIONS[stored.ownKeep] !== undefined ? stored.ownKeep : defaultOwnSnapKeep()
             };
         } else {
             const gesture = clientDefault('snapNextGesture', 'doubletap');
@@ -40,7 +58,8 @@ async function loadSnapSettings() {
                 ...state.snapSettings,
                 secureSnaps: clientDefault('secureSnaps', false) === true,
                 nextGesture: SNAP_NEXT_GESTURES.includes(gesture) ? gesture : 'doubletap',
-                expiry: defaultSnapExpiry()
+                expiry: defaultSnapExpiry(),
+                ownKeep: defaultOwnSnapKeep()
             };
         }
     } catch (error) {
@@ -52,6 +71,7 @@ async function loadSnapSettings() {
 async function updateSnapSetting(key, value) {
     if (key === 'nextGesture' && !SNAP_NEXT_GESTURES.includes(value)) return;
     if (key === 'expiry' && SNAP_EXPIRY_OPTIONS[value] === undefined) return;
+    if (key === 'ownKeep' && OWN_SNAP_KEEP_OPTIONS[value] === undefined) return;
     state.snapSettings = { ...state.snapSettings, [key]: value };
     try {
         await putDatabaseRecord('keys', { id: SNAP_SETTINGS_RECORD_ID, ...state.snapSettings });
@@ -78,6 +98,8 @@ function renderSnapSettings() {
     if (nextGesture) nextGesture.value = settings.nextGesture;
     const expiry = document.getElementById('snap-expiry-select');
     if (expiry) expiry.value = settings.expiry;
+    const ownKeep = document.getElementById('own-snap-keep-select');
+    if (ownKeep) ownKeep.value = settings.ownKeep || defaultOwnSnapKeep();
     document.getElementById('secure-snap-defaults')?.classList.toggle('hidden', !settings.secureSnaps);
     document.getElementById('snap-review-secure-options')?.classList.toggle('hidden', !settings.secureSnaps);
 }
@@ -142,7 +164,10 @@ async function handleSnapViewRequest(peerId, payload) {
         return;
     }
     secret.viewsLeft -= 1;
-    if (secret.viewsLeft > 0) await cacheMediaPayload(`ssnap_${snapId}`, secret);
+    // Nach der letzten Ansicht: Schluessel noch fuer die eigene Frist behalten (viewsLeft 0 = weitere
+    // Anfragen werden abgelehnt), ohne Frist sofort loeschen.
+    const keepMs = secret.viewsLeft > 0 ? 0 : ownSnapKeepMs();
+    if (secret.viewsLeft > 0 || keepMs) await cacheMediaPayload(`ssnap_${snapId}`, secret);
     else await deleteDatabaseRecord('media', `ssnap_${snapId}`);
     await updateOwnSecureSnapMessage(peerId, snapId, { viewsUsed: secret.views - secret.viewsLeft });
 
@@ -159,8 +184,48 @@ async function handleSnapViewRequest(peerId, payload) {
             viewsLeft: secret.viewsLeft
         });
     }
-    // Nach der letzten Ansicht braucht auch der Sender den Ciphertext nicht mehr.
-    if (secret.viewsLeft <= 0) await updateOwnSecureSnapMessage(peerId, snapId, { encrypted: undefined });
+    // Nach der letzten Ansicht braucht auch der Sender den Ciphertext nicht mehr (nach seiner Frist).
+    if (secret.viewsLeft <= 0) {
+        if (keepMs) {
+            await updateOwnSecureSnapMessage(peerId, snapId, { ownKeepUntil: Date.now() + keepMs });
+            if (typeof scheduleReplaySnapExpiry === 'function') scheduleReplaySnapExpiry(peerId);
+        } else {
+            await updateOwnSecureSnapMessage(peerId, snapId, { encrypted: undefined });
+        }
+    }
+}
+
+// Eigener Secure Snap: der Sender entschluesselt lokal und sieht ihn ohne Zeitlimit, solange der
+// Empfaenger noch Ansichten hat und danach bis zum Ende der eigenen Frist (ownKeepUntil).
+async function openOwnSecureSnap(messageId) {
+    const peerId = state.activeChatPeerId;
+    const message = state.chats[peerId]?.find(item => item.id === messageId);
+    const snapId = message?.secureSnap?.snapId;
+    if (!snapId || message.senderId !== state.myProfile.id) return;
+    const keptUntil = message.secureSnap.ownKeepUntil;
+    const secret = keptUntil && keptUntil <= Date.now() ? null : await loadSecureSnapSecret(snapId);
+    let bytes = null;
+    try {
+        bytes = secret ? await decryptOwnSecureSnap(peerId, secret) : null;
+    } catch (error) {
+        logDebug(`Own secure snap could not be decrypted: ${error.message}`);
+    }
+    if (!bytes) {
+        showToast(t('snaps.ownSnapNoLongerAvailable'), 'info');
+        return;
+    }
+    const blob = new Blob([bytes], { type: 'image/jpeg' });
+    bytes.fill(0);
+    openSecureSnapViewer('');
+    state.secureSnapViewing = { mode: 'own', peerId, snapId, messageId };
+    const image = document.getElementById('secure-snap-image');
+    await drawSecureImage(image, blob);
+    image.classList.remove('hidden');
+    // Eigenes Bild: als Datei speichern.
+    const save = document.getElementById('secure-snap-save');
+    save.classList.remove('hidden');
+    save.disabled = false;
+    save.textContent = t('common.save');
 }
 
 async function decryptOwnSecureSnap(peerId, secret) {
@@ -290,8 +355,38 @@ async function requestSecureSnapView(messageId) {
         }
         return;
     }
+    await sendSecureSnapRequest(state.secureSnapViewing, 1);
+}
+
+async function sendSecureSnapRequest(viewing, attempt) {
+    if (state.secureSnapViewing !== viewing || viewing.phase !== 'requesting') return;
     setSecureSnapStatus(t('snaps.waitingForApproval'));
-    await sendSecurePayload(peerId, { type: 'SNAP_VIEW_REQUEST', snapId: snap.snapId });
+    clearTimeout(viewing.requestTimer);
+    viewing.requestTimer = setTimeout(() => {
+        handleSecureSnapRequestTimeout(viewing, attempt).catch(logBackgroundError('requestSecureSnapView'));
+    }, SECURE_SNAP_REQUEST_TIMEOUT_MS);
+    await sendSecurePayload(viewing.peerId, { type: 'SNAP_VIEW_REQUEST', snapId: viewing.snapId });
+}
+
+async function handleSecureSnapRequestTimeout(viewing, attempt) {
+    if (state.secureSnapViewing !== viewing || viewing.phase !== 'requesting') return;
+    if (attempt >= 2) {
+        setSecureSnapStatus(t('snaps.senderDoesNotAnswer'));
+        state.secureSnapViewing = null;
+        return;
+    }
+    logDebug(`Keine Antwort auf SNAP_VIEW_REQUEST von ${viewing.peerId}: Kanal wird neu aufgebaut.`);
+    setSecureSnapStatus(t('snaps.connectingToSender'));
+    const connection = state.webrtcConnections[viewing.peerId];
+    if (connection && typeof cleanupPeerConnection === 'function') cleanupPeerConnection(viewing.peerId, connection);
+    if (!await waitForSecureChannel(viewing.peerId)) {
+        if (state.secureSnapViewing === viewing) {
+            setSecureSnapStatus(t('snaps.senderIsOfflineRightNow'));
+            state.secureSnapViewing = null;
+        }
+        return;
+    }
+    await sendSecureSnapRequest(viewing, attempt + 1);
 }
 
 function isAwaitingSnap(peerId, snapId) {
@@ -349,9 +444,12 @@ function attachSecureSnapStream(stream) {
 
 async function handleSnapViewGrant(peerId, payload) {
     const viewing = state.secureSnapViewing;
+    // Auch waehrend eines Streams: kam der beim Sender zu spaet an (erste Neuverhandlung dauert), stoppt
+    // er ihn und schickt den Schluessel. Lief das Video hier schon, zaehlt die Zeit einfach weiter.
     const awaiting = isAwaitingSnap(peerId, payload.snapId)
-        || (viewing?.peerId === peerId && viewing.snapId === payload.snapId && viewing.phase === 'streaming' && !viewing.started);
+        || (viewing?.peerId === peerId && viewing.snapId === payload.snapId && viewing.phase === 'streaming');
     if (!awaiting || typeof payload.key !== 'string') return;
+    const alreadyStarted = viewing.started === true;
     const message = (state.chats[peerId] || []).find(item => item.id === viewing.messageId);
     const encrypted = message?.secureSnap?.encrypted;
     if (!encrypted) return;
@@ -378,8 +476,18 @@ async function handleSnapViewGrant(peerId, payload) {
     }
     const image = document.getElementById('secure-snap-image');
     await drawSecureImage(image, blob);
+    if (state.secureSnapViewing !== viewing) {
+        clearSecureCanvas(image);
+        return;
+    }
+    const video = document.getElementById('secure-snap-video');
+    video.pause();
+    video.srcObject = null;
+    video.classList.add('hidden');
     image.classList.remove('hidden');
     setSecureSnapStatus('');
+    if (alreadyStarted) return;
+    viewing.started = true;
     startSecureSnapCountdown(Number(payload.seconds) || 0);
     await recordSecureSnapView(peerId, payload.snapId, Number(payload.viewsLeft) || 0);
 }
@@ -417,6 +525,7 @@ function handleSnapStreamEnd(peerId, payload) {
 
 // ----- Viewer -----
 function openSecureSnapViewer(status) {
+    resetSecureSnapZoom();
     const viewer = document.getElementById('secure-snap-viewer');
     if (viewer.classList.contains('hidden')) {
         viewer.classList.remove('hidden');
@@ -462,11 +571,13 @@ function hideSecureSnapViewer() {
     state.secureSnapViewing = null;
     if (viewing) {
         clearTimeout(viewing.timer);
+        clearTimeout(viewing.requestTimer);
         if (viewing.phase === 'streaming') {
             sendSecurePayload(viewing.peerId, { type: 'SNAP_VIEW_CLOSED', snapId: viewing.snapId }).catch(logBackgroundError('hideSecureSnapViewer'));
         }
         if (viewing.mode === 'replay') finishReplaySnapView(viewing).catch(logBackgroundError('hideSecureSnapViewer'));
     }
+    resetSecureSnapZoom();
     document.getElementById('secure-snap-save').classList.add('hidden');
     document.getElementById('secure-snap-queue')?.classList.add('hidden');
     const video = document.getElementById('secure-snap-video');
@@ -489,33 +600,132 @@ const SNAP_VIEWER_CLOSE_SWIPE = 110;
 const SNAP_VIEWER_NEXT_SWIPE = 80;
 const SNAP_NEXT_GESTURES = ['doubletap', 'swipe', 'swipeup'];
 
+// Zoom im Snap-Viewer: zwei Finger (bzw. Mausrad) zoomen bis 5x, gezoomt verschiebt ein Finger das Bild.
+// Ungezoomt bleiben die Gesten wie gehabt (runter = schliessen, weiter zum naechsten Snap).
+const SECURE_SNAP_MAX_ZOOM = 5;
+const secureSnapZoom = { scale: 1, x: 0, y: 0 };
+
+function secureSnapContent() {
+    return [document.getElementById('secure-snap-image'), document.getElementById('secure-snap-video')];
+}
+
+function applySecureSnapTransform(offsetY = 0) {
+    const { scale, x, y } = secureSnapZoom;
+    const transform = scale === 1 && !offsetY ? '' : `translate3d(${x}px, ${y + offsetY}px, 0) scale(${scale})`;
+    secureSnapContent().forEach(element => {
+        if (element) element.style.transform = transform;
+    });
+}
+
+function resetSecureSnapZoom() {
+    Object.assign(secureSnapZoom, { scale: 1, x: 0, y: 0 });
+    applySecureSnapTransform();
+}
+
+// Verschieben nur so weit, dass das Bild den Rand nicht verlaesst.
+function clampSecureSnapPan(viewer) {
+    const maxX = (viewer.clientWidth * (secureSnapZoom.scale - 1)) / 2;
+    const maxY = (viewer.clientHeight * (secureSnapZoom.scale - 1)) / 2;
+    secureSnapZoom.x = Math.min(maxX, Math.max(-maxX, secureSnapZoom.x));
+    secureSnapZoom.y = Math.min(maxY, Math.max(-maxY, secureSnapZoom.y));
+}
+
+function zoomSecureSnapAt(viewer, scale, clientX, clientY) {
+    const next = Math.min(SECURE_SNAP_MAX_ZOOM, Math.max(1, scale));
+    const rect = viewer.getBoundingClientRect();
+    // Punkt unter Finger/Maus bleibt an seiner Stelle.
+    const pointX = clientX - rect.left - rect.width / 2;
+    const pointY = clientY - rect.top - rect.height / 2;
+    const ratio = next / secureSnapZoom.scale;
+    secureSnapZoom.x = pointX - (pointX - secureSnapZoom.x) * ratio;
+    secureSnapZoom.y = pointY - (pointY - secureSnapZoom.y) * ratio;
+    secureSnapZoom.scale = next;
+    if (next === 1) {
+        secureSnapZoom.x = 0;
+        secureSnapZoom.y = 0;
+    }
+    clampSecureSnapPan(viewer);
+    applySecureSnapTransform();
+}
+
 function initSecureSnaps() {
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'hidden' && state.secureSnapViewing) closeSecureSnapViewer();
     });
     const viewer = document.getElementById('secure-snap-viewer');
     if (!viewer) return;
+    const pointers = new Map();
     let swipe = null;
-    const content = () => [document.getElementById('secure-snap-image'), document.getElementById('secure-snap-video')];
+    let pinch = null;
+    let pan = null;
     viewer.addEventListener('pointerdown', event => {
         if (event.target.closest('button')) return;
+        pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+        if (pointers.size === 2) {
+            const [first, second] = [...pointers.values()];
+            pinch = {
+                distance: Math.hypot(second.x - first.x, second.y - first.y) || 1,
+                scale: secureSnapZoom.scale
+            };
+            swipe = null;
+            pan = null;
+            applySecureSnapTransform();
+            return;
+        }
+        if (pointers.size > 2) return;
+        if (secureSnapZoom.scale > 1) {
+            pan = { pointerId: event.pointerId, lastX: event.clientX, lastY: event.clientY };
+            return;
+        }
         swipe = { pointerId: event.pointerId, startY: event.clientY, startX: event.clientX, deltaY: 0 };
     });
     viewer.addEventListener('pointermove', event => {
+        if (!pointers.has(event.pointerId)) return;
+        pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+        if (pinch && pointers.size >= 2) {
+            const [first, second] = [...pointers.values()];
+            const distance = Math.hypot(second.x - first.x, second.y - first.y) || 1;
+            zoomSecureSnapAt(viewer, pinch.scale * (distance / pinch.distance), (first.x + second.x) / 2, (first.y + second.y) / 2);
+            return;
+        }
+        if (pan?.pointerId === event.pointerId) {
+            secureSnapZoom.x += event.clientX - pan.lastX;
+            secureSnapZoom.y += event.clientY - pan.lastY;
+            pan.lastX = event.clientX;
+            pan.lastY = event.clientY;
+            clampSecureSnapPan(viewer);
+            applySecureSnapTransform();
+            return;
+        }
         if (!swipe || swipe.pointerId !== event.pointerId) return;
         swipe.deltaY = Math.max(0, event.clientY - swipe.startY);
-        content().forEach(element => {
-            if (element) element.style.transform = `translate3d(0, ${swipe.deltaY}px, 0)`;
-        });
+        applySecureSnapTransform(swipe.deltaY);
     });
+    viewer.addEventListener('wheel', event => {
+        if (!state.secureSnapViewing) return;
+        event.preventDefault();
+        zoomSecureSnapAt(viewer, secureSnapZoom.scale * Math.exp(-event.deltaY * 0.002), event.clientX, event.clientY);
+    }, { passive: false });
     let lastTap = 0;
     const finish = event => {
+        pointers.delete(event.pointerId);
+        if (pinch) {
+            // Nach dem Zoomen keine Wisch- oder Tipp-Geste; fast 1x zaehlt als ungezoomt.
+            if (pointers.size < 2) {
+                pinch = null;
+                if (secureSnapZoom.scale < 1.05) resetSecureSnapZoom();
+            }
+            swipe = null;
+            return;
+        }
+        if (pan?.pointerId === event.pointerId) {
+            pan = null;
+            return;
+        }
         if (!swipe || swipe.pointerId !== event.pointerId) return;
         const { deltaY, startX, startY } = swipe;
         swipe = null;
-        content().forEach(element => {
-            if (element) element.style.transform = '';
-        });
+        applySecureSnapTransform();
         const deltaX = event.clientX - startX;
         const rawY = event.clientY - startY;
         if (deltaY > SNAP_VIEWER_CLOSE_SWIPE && Math.abs(deltaX) < deltaY) {
@@ -563,7 +773,16 @@ function renderSecureSnapMessage(bubble, message, isMine) {
     if (isMine) {
         const used = snap.viewsUsed || 0;
         meta.textContent = used >= views ? t('snaps.seen', { used, views }) : t('snaps.viewed2', { used, views, duration: secureSnapDurationLabel(snap.seconds) });
-        card.disabled = true;
+        const kept = snap.ownKeepUntil && snap.ownKeepUntil > Date.now();
+        if (kept) meta.textContent += ` · ${t('snaps.keptUntil', { time: formatClockTime(snap.ownKeepUntil) })}`;
+        if (!snap.encrypted || (used >= views && !kept)) {
+            card.disabled = true;
+        } else {
+            card.onclick = event => {
+                event.stopPropagation();
+                openOwnSecureSnap(message.id).catch(logBackgroundError('openOwnSecureSnap'));
+            };
+        }
     } else if (snap.expired || !snap.encrypted) {
         meta.textContent = t('snaps.expired');
         card.disabled = true;

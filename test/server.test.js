@@ -1013,3 +1013,24 @@ test('an online recipient is told that a cached message is waiting', async () =>
     socket.close();
 });
 
+
+test('serves the web app manifest with a share target and redirects shares without a service worker', async () => {
+    const manifest = await app.inject({ method: 'GET', url: '/manifest.webmanifest' });
+    assert.equal(manifest.statusCode, 200);
+    assert.match(manifest.headers['content-type'], /application\/manifest\+json/);
+    const body = manifest.json();
+    assert.equal(body.start_url, '/grid');
+    assert.equal(body.share_target.action, '/share-target');
+    assert.equal(body.share_target.enctype, 'multipart/form-data');
+    assert.deepEqual(body.share_target.params.files[0].accept, ['image/*']);
+
+    const boundary = 'ogboundary';
+    const share = await app.inject({
+        method: 'POST',
+        url: '/share-target',
+        headers: { 'content-type': `multipart/form-data; boundary=${boundary}` },
+        payload: `--${boundary}\r\nContent-Disposition: form-data; name="text"\r\n\r\nhallo\r\n--${boundary}--\r\n`
+    });
+    assert.equal(share.statusCode, 303);
+    assert.equal(share.headers.location, '/chat?share=unavailable', 'nothing is stored on the server');
+});

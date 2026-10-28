@@ -387,8 +387,44 @@ async function handleAsset(request) {
     return cached || fetch(request);
 }
 
+// "Teilen nach OpenGrid" (share_target im Manifest): geteilte Bilder und Text bleiben lokal in einem
+// eigenen Cache, bis die App sie einem Chat zuordnet (client/app/share-target.js). Nichts geht an den Server.
+const SHARE_INBOX_CACHE = 'opengrid-share-inbox';
+const SHARE_MAX_FILES = 20;
+const SHARE_MAX_FILE_BYTES = 25 * 1024 * 1024;
+const SHARE_MAX_TEXT_LENGTH = 4000;
+
+async function handleShareTarget(request) {
+    try {
+        const form = await request.formData();
+        const files = form.getAll('files')
+            .filter(file => typeof file === 'object' && file && String(file.type).startsWith('image/') && file.size <= SHARE_MAX_FILE_BYTES)
+            .slice(0, SHARE_MAX_FILES);
+        const field = name => String(form.get(name) || '').slice(0, SHARE_MAX_TEXT_LENGTH);
+        await caches.delete(SHARE_INBOX_CACHE);
+        const cache = await caches.open(SHARE_INBOX_CACHE);
+        await Promise.all(files.map((file, index) => cache.put(`/__share/file-${index}`, new Response(file, { headers: { 'Content-Type': file.type } }))));
+        await cache.put('/__share/meta', new Response(JSON.stringify({
+            title: field('title'),
+            text: field('text'),
+            url: field('url'),
+            files: files.length,
+            skipped: form.getAll('files').length - files.length,
+            at: Date.now()
+        }), { headers: { 'Content-Type': 'application/json' } }));
+        return Response.redirect('/chat?share=1', 303);
+    } catch (error) {
+        console.warn('[SW] Share target failed.', error);
+        return Response.redirect('/chat?share=failed', 303);
+    }
+}
+
 self.addEventListener('fetch', event => {
     const { request } = event;
+    if (request.method === 'POST' && new URL(request.url).pathname === '/share-target') {
+        event.respondWith(handleShareTarget(request));
+        return;
+    }
     if (request.method !== 'GET') return;
     const url = new URL(request.url);
     // Nur eigene Seiten und Dateien; API, WebSocket und Fremd-URLs laufen ungecacht durch.

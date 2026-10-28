@@ -542,7 +542,9 @@ Akzeptanzkriterien:
 
 - Eine Nachricht zur Seite wischen startet eine Antwort (fremde nach rechts,
   eigene nach links); ein Antwort-Symbol zeigt den Fortschritt.
-- Lange druecken oeffnet die Aktionsleiste, doppelt tippen reagiert mit ❤️.
+- Lange druecken (am Desktop Rechtsklick) oeffnet das Kontextmenue mit
+  Reaktionen und Aktionen; es bleibt offen, auch wenn neue Nachrichten
+  kommen. Doppelt tippen reagiert mit ❤️.
 - Text laesst sich ueber die Aktion "Kopieren" kopieren.
 - Seitlich wischen wechselt zwischen Grid, Chat und Profil.
 - Profil- und Medienfenster schliessen per Wischen nach unten.
@@ -575,7 +577,10 @@ Akzeptanzkriterien:
   Dating-Angaben aus anderen Modi werden nicht mitgeschickt.
 - Beim ersten Kontakt tauschen beide Seiten automatisch ihre Profile aus.
 - Kontakte kommen ueber einen Einladungslink oder QR-Code (Kopieren,
-  Teilen). Wer den Link oeffnet, landet direkt im Chat.
+  Teilen). Wer den Link oeffnet, landet direkt im Chat, und zwar im Modus und
+  in der Liste, aus der eingeladen wurde (bei beiden).
+- Ist dieser Bereich beim Oeffnenden ausgeschaltet, oeffnet sich nichts; ein
+  Hinweis sagt, fuer welchen Modus die Einladung ist.
 - Passt der Schluessel beim ersten Kontakt nicht zur Einladung, wird die
   Verbindung abgebrochen und eine Warnung angezeigt.
 
@@ -815,3 +820,80 @@ Akzeptanzkriterien:
 - Eigene Bilder werden nie geprueft.
 - Ohne installiertes Erkennungsmodell sagt die Einstellung, dass der Filter
   noch nicht wirkt.
+
+## UC-48: Chat-Bild oder Video speichern oder teilen
+
+**Als Nutzer** moechte ich ein Chat-Bild oder Video herunterladen oder direkt
+ueber das Teilen-Menue meines Geraets weitergeben, und **als Absender**
+festlegen, wer meine Medien speichern darf.
+
+Akzeptanzkriterien:
+
+- Im Bild- und Video-Betrachter stehen "Speichern" und, wo das Geraet Dateien
+  teilen kann (typisch installierte App auf dem Handy), "Teilen" nebeneinander.
+- Einstellung "Wer darf meine Bilder und Videos speichern": "Nur Freunde"
+  (Standard, Betreiber kann ihn aendern) oder "Alle Chat-Partner"; gilt fuer
+  neue Nachrichten, auch fuers Teilen.
+- Im Snap-Editor laesst sich jede Aufnahme mit einem Schalter neben den
+  Werkzeugen (Download mit Kontakt) als "nicht speicherbar" markieren; der
+  Schalter ist dann durchgestrichen mit Hinweis. Standard kommt vom Betreiber,
+  sonst speicherbar.
+- Eigene Bilder und Videos lassen sich immer speichern.
+- Alben, Secure Snaps und Einmal-Snaps nie.
+- Teilen gibt die Datei an das System; Abbrechen zeigt keinen Fehler.
+
+## UC-49: Aus einer anderen App nach OpenGrid teilen
+
+**Als Nutzer der installierten App** moechte ich ein Foto aus der Galerie oder
+einen Link ueber das Teilen-Menue direkt in einen Chat schicken.
+
+Akzeptanzkriterien:
+
+- OpenGrid erscheint im Teilen-Menue des Geraets (installierte PWA, nicht iOS).
+- Nach dem Teilen fragt OpenGrid "Senden an" und zeigt die Chats.
+- Bilder gehen als Chat-Bilder raus; Text landet im Eingabefeld und wird nicht
+  automatisch gesendet.
+- Andere Dateien werden uebersprungen, mit Hinweis.
+- Geteiltes bleibt bis dahin nur auf dem Geraet und wird danach geloescht.
+
+## UC-50: Album-Vorschau im Chat
+
+**Als Album-Besitzer** moechte ich festlegen, ob die Album-Karte im Chat ein
+scharfes, ein unscharfes oder gar kein Vorschaubild zeigt.
+
+Akzeptanzkriterien:
+
+- Auswahl je Album "Vorschau im Chat": normal, unscharf, keine.
+- Unscharf: das gesendete Vorschaubild ist bereits unscharf, ein scharfes
+  verlaesst das eigene Geraet nicht.
+- Keine: die Karte zeigt nur Name und Anzahl.
+- Gilt fuer kuenftig geteilte Karten.
+
+## UC-51: Album begrenzt teilen
+
+**Als Album-Besitzer** moechte ich ein Album wie einen Snap nur fuer wenige
+Ansichten oder kurze Zeit freigeben.
+
+Akzeptanzkriterien:
+
+- Nach der Album-Auswahl im Chat: "Normal teilen" (wie bisher) oder begrenzt
+  1x/2x/3x ansehen bzw. 15 min/1 h/24 h.
+- Ansichten: jedes Oeffnen zaehlt eine Ansicht (15 Minuten); der Besitzer muss
+  dafuer online sein. Danach ist der Zugriff weg.
+- Zeit: nach Ablauf ist der Zugriff weg, auch wenn der Besitzer offline war
+  (die Schluessel enden mit der Frist).
+- Die Album-Karte im Chat zeigt die Grenze; in der Alben-Verwaltung stehen
+  begrenzte Personen mit ihrem Stand und lassen sich vorher entziehen.
+- Ab 3 Personen ist die Zugriffsliste eingeklappt.
+
+## UC-52: Sprachnachricht abspielen
+
+**Als Empfaenger** moechte ich in einer Sprachnachricht springen und sie
+schneller abspielen.
+
+Akzeptanzkriterien:
+
+- Tippen oder Ziehen auf der Leiste springt an die Stelle.
+- Knopf 1x / 1,5x / 2x, gilt fuer alle Sprachnachrichten.
+- Neue Nachrichten waehrend der Wiedergabe lassen Knopf und Leiste nicht
+  flackern.

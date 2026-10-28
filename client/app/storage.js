@@ -518,8 +518,16 @@ function sanitizeAlbumReference(album, senderId) {
         ownerId: senderId,
         name: String(album.name || 'Album').substring(0, 80),
         cover: isSafeInlineImage(album.cover) && album.cover.length <= ALBUM_COVER_MAX_LENGTH ? album.cover : undefined,
-        count: Number.isInteger(album.count) ? Math.max(0, Math.min(album.count, 999)) : undefined
+        count: Number.isInteger(album.count) ? Math.max(0, Math.min(album.count, 999)) : undefined,
+        limit: sanitizeAlbumLimit(album.limit)
     };
+}
+
+// Begrenzung eines geteilten Albums (Anzeige auf der Karte; durchgesetzt wird beim Besitzer).
+function sanitizeAlbumLimit(limit) {
+    if (limit?.kind === 'views' && [1, 2, 3].includes(limit.views)) return { kind: 'views', views: limit.views };
+    if (limit?.kind === 'time' && Number.isFinite(limit.until) && limit.until > 0) return { kind: 'time', until: limit.until };
+    return undefined;
 }
 
 function sanitizeSecureSnap(snap) {
@@ -579,6 +587,7 @@ function createPutOperation(peerId, message) {
             audioSplitAt: message.audioSplitAt,
             transcript: message.transcript,
             video: message.video,
+            downloadable: message.downloadable,
             scope: message.scope,
             timestamp: message.timestamp,
             createdAt: message.createdAt
@@ -619,6 +628,7 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
                 // Ein Secure Snap darf nie zusaetzlich als Klartext-Snap ankommen.
                 snapData: localOperation.message.secureSnap ? undefined : localOperation.message.snapData,
                 snapMode: localOperation.message.snapMode === 'replay' ? 'replay' : undefined,
+                downloadable: ['friends', 'all', 'none'].includes(localOperation.message.downloadable) ? localOperation.message.downloadable : undefined,
                 snapExpiry: localOperation.message.snapMode === 'replay' && ['15m', '30m', '60m', 'off'].includes(localOperation.message.snapExpiry)
                     ? localOperation.message.snapExpiry : undefined,
                 peerId,
@@ -666,6 +676,11 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
     } else if (localOperation.type === 'STATUS_POST' || localOperation.type === 'STATUS_DELETE') {
         // Status gehoeren nicht ins Chat-Log (wie Album-Schluessel).
         return handleStatusOperation(peerId, localOperation);
+    } else if (localOperation.type === 'ALBUM_REVOKE') {
+        // Entzug durch den Besitzer (auch ueber Pfad C): Album, Bilder und Schluessel weg.
+        if (localOperation.actorId !== peerId) return false;
+        await forgetReceivedAlbum(peerId, localOperation.albumId);
+        return true;
     } else if (localOperation.type === 'ALBUM_KEYS') {
         // Schluessel-Buendel werden separat gespeichert und nicht im Operations-Log synchronisiert.
         if (localOperation.actorId !== peerId) return false;
@@ -680,10 +695,17 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
         const target = loaded || ownMessage;
         target.snapConsumed = true;
         if (!target.snapSaved) {
-            target.snapData = undefined;
-            await removeSnapFromOperation(target.id);
+            // Eigene Frist: der Absender behaelt den Snap noch eine Weile (ansehen, speichern).
+            const keepMs = typeof ownSnapKeepMs === 'function' ? ownSnapKeepMs() : 0;
+            if (keepMs) {
+                target.ownKeepUntil = target.ownKeepUntil || Date.now() + keepMs;
+            } else {
+                target.snapData = undefined;
+                await removeSnapFromOperation(target.id);
+            }
         }
         await persistChatMessage(peerId, target);
+        if (typeof scheduleReplaySnapExpiry === 'function') scheduleReplaySnapExpiry(peerId);
     } else if (localOperation.type === 'SNAP_SAVED') {
         // Der Empfaenger meldet: er hat meinen Snap gespeichert.
         if (localOperation.actorId !== peerId) return false;

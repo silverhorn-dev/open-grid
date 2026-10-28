@@ -50,9 +50,47 @@ function clearSecureCanvas(canvas, invalidate = true) {
 // size ({ w, h }, wenn bekannt): der Canvas bekommt sofort die richtigen Proportionen und haelt den
 // Platz frei, bevor das Bild gezeichnet ist (sonst springt der Inhalt darunter). Ohne Groesse haelt
 // ein 4:3-Platzhalter den Platz, bis das Bild da ist.
-function createSecureImage(dataUrl, className, size = null, { own = false } = {}) {
+// Einziger Punkt fuer Bild-Canvas in Listen (Chat-Bilder, Video-Vorschauen, Album-Karten,
+// Album-Verwaltung): mit `reuseKey` merkt sich createSecureImage den gezeichneten Canvas. Wird die
+// Ansicht neu aufgebaut (alter Canvas schon aus dem DOM), kommt bei gleichem Schluessel und gleicher
+// Quelle genau dieser Canvas zurueck, fertig gezeichnet. Ohne das waere jeder neue Canvas bis zum
+// asynchronen Zeichnen leer: das bekannte Flackern. Haengt ein Canvas noch sichtbar woanders, gibt es
+// einen neuen (ein Element kann nur an einer Stelle stehen).
+const SECURE_IMAGE_REGISTRY_LIMIT = 150;
+const SECURE_IMAGE_REGISTRY_KEEP = 100;
+const secureImageRegistry = new Map();
+
+function rememberSecureImage(key, canvas) {
+    secureImageRegistry.delete(key);
+    secureImageRegistry.set(key, canvas);
+    if (secureImageRegistry.size <= SECURE_IMAGE_REGISTRY_LIMIT) return;
+    // Aelteste, nicht mehr angezeigte zuerst vergessen (ihr Speicher wird dann frei).
+    for (const [storedKey, stored] of secureImageRegistry) {
+        if (secureImageRegistry.size <= SECURE_IMAGE_REGISTRY_KEEP) break;
+        if (!stored.isConnected) secureImageRegistry.delete(storedKey);
+    }
+}
+
+function reusableSecureImage(key, dataUrl) {
+    const canvas = key ? secureImageRegistry.get(key) : null;
+    if (!canvas || canvas.isConnected || !canvas.width || secureImageSources.get(canvas) !== dataUrl) return null;
+    rememberSecureImage(key, canvas);
+    return canvas;
+}
+
+function createSecureImage(dataUrl, className, size = null, { own = false, reuseKey = null } = {}) {
+    const reusable = reusableSecureImage(reuseKey, dataUrl);
+    if (reusable) {
+        reusable.className = `secure-image ${className || ''}`.trim();
+        reusable.onclick = null;
+        return reusable;
+    }
     const canvas = document.createElement('canvas');
     if (own) canvas.dataset.ownImage = 'true';
+    if (reuseKey) {
+        canvas.dataset.reuseKey = reuseKey;
+        rememberSecureImage(reuseKey, canvas);
+    }
     canvas.className = `secure-image ${className || ''}`.trim();
     canvas.setAttribute('role', 'img');
     canvas.setAttribute('aria-label', t('common.image'));
@@ -88,6 +126,33 @@ function secureImageSource(element) {
 }
 
 // Speichern nur, wo es erlaubt ist (Chat-Bilder im Chat-/Freunde-Modus): aus dem Canvas als JPEG.
+// Teilen ueber das System (Web Share API) als Alternative zum Download; nur wo Dateien teilbar sind
+// (typisch: installierte App auf dem Handy).
+function canShareFiles() {
+    try {
+        return typeof navigator.share === 'function'
+            && navigator.canShare?.({ files: [new File([new Uint8Array(1)], 'test.jpg', { type: 'image/jpeg' })] }) === true;
+    } catch {
+        return false;
+    }
+}
+
+async function shareCanvasImage(canvas, fileName) {
+    if (!canvas?.width) return false;
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+    if (!blob) return false;
+    const file = new File([blob], fileName, { type: 'image/jpeg' });
+    if (!navigator.canShare?.({ files: [file] })) return false;
+    try {
+        await navigator.share({ files: [file] });
+        return true;
+    } catch (error) {
+        // Abbrechen im Teilen-Menue ist kein Fehler.
+        if (error?.name === 'AbortError') return false;
+        throw error;
+    }
+}
+
 function downloadCanvasImage(canvas, fileName) {
     if (!canvas?.width) return;
     canvas.toBlob(blob => {

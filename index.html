@@ -11,7 +11,7 @@
     <meta name="description" content="Datenschutzfreundliche P2P-Discovery- und Chat-App mit Ende-zu-Ende-Verschluesselung">
 
     <!-- PWA Web App Manifest (Inline Data URI) -->
-    <link rel="manifest" href="data:application/manifest+json;utf8,%7B%22name%22%3A%22OpenGrid%22%2C%22short_name%22%3A%22OpenGrid%22%2C%22start_url%22%3A%22%2Fgrid%22%2C%22scope%22%3A%22%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230f172a%22%2C%22theme_color%22%3A%22%230f172a%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22%2Fclient%2Ficon-192.png%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fpng%22%7D%2C%7B%22src%22%3A%22%2Fclient%2Ficon-512.png%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fpng%22%7D%2C%7B%22src%22%3A%22%2Fclient%2Ficon.svg%22%2C%22sizes%22%3A%22any%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%2C%22purpose%22%3A%22any%22%7D%5D%7D">
+    <link rel="manifest" href="/manifest.webmanifest">
 
     <!-- Tailwind (vorab kompiliert, npm run build:css) und Font Awesome: lokal, offline nutzbar -->
     <link rel="stylesheet" href="/client/tailwind.css?v={{assetVersion}}">
@@ -27,7 +27,7 @@
 <body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col antialiased select-none">
 
     <!-- Verbindungs- und Update-Hinweise -->
-    <div class="fixed top-0 inset-x-0 z-[58] flex flex-col items-center gap-2 px-4 pointer-events-none" style="padding-top: max(0.5rem, env(safe-area-inset-top));">
+    <div class="fixed top-0 inset-x-0 z-58 flex flex-col items-center gap-2 px-4 pointer-events-none" style="padding-top: max(0.5rem, env(safe-area-inset-top));">
         <div id="update-banner" class="hidden pointer-events-auto max-w-md w-full bg-slate-900/95 border border-brand-500/50 text-slate-100 text-xs rounded-xl px-3 py-2 shadow-lg flex items-center justify-between gap-3">
             <span><i class="fa-solid fa-arrows-rotate text-brand-400"></i> <span data-i18n="common.newVersionIsReady">Eine neue Version ist bereit.</span></span>
             <button data-i18n="common.refresh" data-click="activateServiceWorkerUpdate" class="bg-brand-600 hover:bg-brand-500 text-white font-semibold px-3 py-1.5 rounded-lg">Aktualisieren</button>
@@ -37,10 +37,10 @@
     <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full px-4"></div>
 
     <!-- Top Global Header -->
-    <header class="app-header bg-slate-900/90 backdrop-blur border-b border-slate-800 sticky top-0 z-40 px-4 py-3">
+    <header class="app-header bg-slate-900/90 backdrop-blur-sm border-b border-slate-800 sticky top-0 z-40 px-4 py-3">
         <div class="max-w-7xl mx-auto flex items-center justify-between gap-3">
             <div class="flex items-center gap-3 min-w-0">
-                <div data-i18n="nav.og" class="w-9 h-9 shrink-0 rounded-xl bg-gradient-to-tr from-brand-600 to-purple-600 flex items-center justify-center font-black text-white shadow-lg pulse-glow">
+                <div data-i18n="nav.og" class="w-9 h-9 shrink-0 rounded-xl bg-linear-to-tr from-brand-600 to-purple-600 flex items-center justify-center font-black text-white shadow-lg pulse-glow">
                     OG
                 </div>
                 <div class="min-w-0">
@@ -80,7 +80,7 @@
     </header>
 
     <!-- Mobile Bottom Navigation -->
-    <nav data-i18n-attr="aria-label:nav.mainNavigation" class="bottom-nav md:hidden fixed bottom-0 inset-x-0 z-40 bg-slate-900/95 backdrop-blur border-t border-slate-800 grid grid-cols-3" aria-label="Hauptnavigation">
+    <nav data-i18n-attr="aria-label:nav.mainNavigation" class="bottom-nav md:hidden fixed bottom-0 inset-x-0 z-40 bg-slate-900/95 backdrop-blur-sm border-t border-slate-800 grid grid-cols-3" aria-label="Hauptnavigation">
         <button data-tab-btn="grid" data-nav="bottom" data-click="switchTab" data-args='["grid"]' class="nav-bottom-btn">
             <i class="fa-solid fa-border-all text-lg"></i><span data-i18n="nav.grid">Grid</span>
         </button>
@@ -93,8 +93,8 @@
     </nav>
 
     <!-- Menu Drawer (technical settings) -->
-    <div id="app-menu-backdrop" data-click="closeMenu" class="hidden fixed inset-0 z-[55] bg-slate-950/70 backdrop-blur-sm"></div>
-    <aside data-i18n-attr="aria-label:common.menu" id="app-menu" class="menu-drawer fixed top-0 right-0 bottom-0 z-[56] w-72 max-w-[85vw] bg-slate-900 border-l border-slate-800 shadow-2xl flex flex-col" aria-label="Menü" aria-hidden="true">
+    <div id="app-menu-backdrop" data-click="closeMenu" class="hidden fixed inset-0 z-55 bg-slate-950/70 backdrop-blur-xs"></div>
+    <aside data-i18n-attr="aria-label:common.menu" id="app-menu" class="menu-drawer fixed top-0 right-0 bottom-0 z-56 w-72 max-w-[85vw] bg-slate-900 border-l border-slate-800 shadow-2xl flex flex-col" aria-label="Menü" aria-hidden="true">
         <div class="flex items-center justify-between px-4 py-4 border-b border-slate-800">
             <span data-i18n="common.menu" class="font-bold text-slate-100">Menü</span>
             <button data-i18n-attr="aria-label:menu.closeMenu" data-click="closeMenu" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center" aria-label="Menü schließen">
@@ -255,7 +255,7 @@
                 <div data-i18n-attr="aria-label:common.switchingChats" id="chat-switch-bar" class="hidden flex gap-1.5 px-3 py-2 border-b border-slate-800 overflow-x-auto" data-no-tab-swipe aria-label="Chats wechseln"></div>
 
                 <div id="chat-search-bar" class="hidden px-4 py-2 border-b border-slate-800 flex items-center gap-3">
-                    <input data-i18n-attr="placeholder:chat.searchInChat2" id="chat-search-input" type="search" placeholder="Im Chat suchen..." data-input="setChatSearch" data-args='["$value"]' class="flex-1 min-w-0 bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-base md:text-sm text-slate-100 focus:outline-none focus:border-brand-500">
+                    <input data-i18n-attr="placeholder:chat.searchInChat2" id="chat-search-input" type="search" placeholder="Im Chat suchen..." data-input="setChatSearch" data-args='["$value"]' class="flex-1 min-w-0 bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-base md:text-sm text-slate-100 focus:outline-hidden focus:border-brand-500">
                     <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer whitespace-nowrap">
                         <input type="checkbox" id="chat-starred-toggle" data-change="setChatStarredOnly" data-args='["$checked"]' class="accent-brand-500">
                         <i class="fa-solid fa-star text-amber-400"></i> <span data-i18n="chat.starredOnly">Nur markierte</span>
@@ -378,35 +378,37 @@
                 </div>
             </div>
 
-            <div id="album-manager-card" class="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-3">
-                <div>
-                    <h2 class="text-base font-bold text-slate-100 flex items-center gap-2">
-                        <i class="fa-solid fa-images text-brand-400"></i> <span data-i18n="albums.privateAlbums">Private Alben</span>
-                    </h2>
-                    <p data-i18n="albums.areNotVisibleIn" class="text-xs text-slate-400">Alben sind nicht im Profil sichtbar. Du teilst sie im Chat und kannst den Zugriff jederzeit entziehen.</p>
+            <div id="album-manager-card" class="settings-card album-manager">
+                <h3 class="settings-card-title"><i class="fa-solid fa-images text-brand-400"></i> <span data-i18n="albums.privateAlbums">Private Alben</span></h3>
+                <p data-i18n="albums.areNotVisibleIn" class="setting-desc pb-3">Alben sind nicht im Profil sichtbar. Du teilst sie im Chat und kannst den Zugriff jederzeit entziehen.</p>
+                <div class="flex gap-2 pb-3">
+                    <input data-i18n-attr="placeholder:albums.newAlbum" id="new-album-name" type="text" maxlength="80" placeholder="Neues Album" data-enter="createAlbum" class="setting-input flex-1 min-w-0">
+                    <button data-click="createAlbum" class="btn-primary shrink-0"><i class="fa-solid fa-plus"></i> <span data-i18n="albums.create">Anlegen</span></button>
                 </div>
-                <div class="flex gap-2">
-                    <input data-i18n-attr="placeholder:albums.newAlbum" id="new-album-name" type="text" maxlength="80" placeholder="Neues Album" data-enter="createAlbum" class="flex-1 min-w-0 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-base md:text-sm text-slate-200">
-                    <button data-i18n="albums.create" data-click="createAlbum" class="bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-lg text-xs font-semibold">Anlegen</button>
-                </div>
-                <div class="flex flex-wrap items-center gap-2 text-xs text-slate-400">
-                    <span data-i18n="albums.defaultForNewAlbumsKey">Standard für neue Alben: Schlüssel gilt</span>
-                    <select data-i18n-attr="aria-label:albums.defaultAlbumKeyValidity" id="album-default-epoch" data-change="updateAlbumDefault" data-args='["epochMinutes", "$number"]' aria-label="Standard-Gültigkeit der Albumschlüssel" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-slate-200">
-                        <option data-i18n="albums.serverDefault" value="0">Server-Standard</option>
-                        <option data-i18n="common.15Min" value="15">15 min</option>
-                        <option value="60">1 h</option>
-                        <option value="180">3 h</option>
-                        <option value="1440">24 h</option>
-                    </select>
-                    <span data-i18n="albums.inAdvance">vorab</span>
-                    <select data-i18n-attr="aria-label:albums.defaultForEpochsDeliveredIn" id="album-default-ahead" data-change="updateAlbumDefault" data-args='["epochsAhead", "$number"]' aria-label="Standard für vorab gelieferte Epochen" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-slate-200">
-                        <option data-i18n="albums.1Epoch" value="1">1 Epoche</option>
-                        <option data-i18n="albums.2Epochs" value="2">2 Epochen</option>
-                        <option data-i18n="albums.3Epochs" value="3">3 Epochen</option>
-                    </select>
-                </div>
-                <p data-i18n="albums.shortRevokedAccessEndsSooner" class="text-[11px] text-slate-500">Kurz = entzogener Zugriff endet schneller, Betrachter brauchen aber öfter neue Schlüssel von dir. Vorab-Epochen halten Alben lesbar, wenn du offline bist.</p>
-                <div id="album-manager-list" class="space-y-2"></div>
+                <details class="setting-details">
+                    <summary data-i18n="albums.defaultsForNewAlbums" class="setting-details-summary">Standard für neue Alben</summary>
+                    <label class="setting-row">
+                        <span class="setting-text"><span data-i18n="albums.keyValidFor" class="setting-title">Schlüssel gilt</span></span>
+                        <select data-i18n-attr="aria-label:albums.defaultAlbumKeyValidity" id="album-default-epoch" data-change="updateAlbumDefault" data-args='["epochMinutes", "$number"]' aria-label="Standard-Gültigkeit der Albumschlüssel" class="setting-select">
+                            <option data-i18n="albums.serverDefault" value="0">Server-Standard</option>
+                            <option data-i18n="common.15Min" value="15">15 min</option>
+                            <option value="60">1 h</option>
+                            <option value="180">3 h</option>
+                            <option value="1440">24 h</option>
+                            <option data-i18n="albums.oneWeek" value="10080">1 Woche</option>
+                        </select>
+                    </label>
+                    <label class="setting-row">
+                        <span class="setting-text"><span data-i18n="albums.epochsDeliveredInAdvance" class="setting-title">Vorab gelieferte Epochen</span></span>
+                        <select data-i18n-attr="aria-label:albums.defaultForEpochsDeliveredIn" id="album-default-ahead" data-change="updateAlbumDefault" data-args='["epochsAhead", "$number"]' aria-label="Standard für vorab gelieferte Epochen" class="setting-select">
+                            <option data-i18n="albums.1Epoch" value="1">1 Epoche</option>
+                            <option data-i18n="albums.2Epochs" value="2">2 Epochen</option>
+                            <option data-i18n="albums.3Epochs" value="3">3 Epochen</option>
+                        </select>
+                    </label>
+                    <p data-i18n="albums.shortRevokedAccessEndsSooner" class="setting-note">Kurz = entzogener Zugriff endet schneller, Betrachter brauchen aber öfter neue Schlüssel von dir. Vorab-Epochen halten Alben lesbar, wenn du offline bist.</p>
+                </details>
+                <div id="album-manager-list" class="album-list"></div>
             </div>
         </section>
 
@@ -678,6 +680,15 @@
                             <option data-i18n="snaps.neverOnlyViewsCount" value="off">nie (nur Ansichten zählen)</option>
                         </select>
                     </label>
+                    <label class="setting-row setting-sub">
+                        <span class="setting-text"><span data-i18n="settings.keepOwnSnaps" class="setting-title">Eigene Snaps behalten</span><span data-i18n="settings.keepOwnSnapsDescription" class="setting-desc">Wie lange du deine Snaps noch ansehen und speichern kannst, nachdem der Empfänger alle Ansichten verbraucht hat. Gilt auch für Secure Snaps.</span></span>
+                        <select id="own-snap-keep-select" data-change="updateSnapSetting" data-args='["ownKeep", "$value"]' class="setting-select">
+                            <option data-i18n="settings.deleteRightAway" value="now">sofort löschen</option>
+                            <option data-i18n="common.15Min" value="15m">15 min</option>
+                            <option data-i18n="settings.1Hour" value="1h">1 Stunde</option>
+                            <option data-i18n="settings.24Hours" value="24h">24 Stunden</option>
+                        </select>
+                    </label>
                     <label class="setting-row">
                         <span class="setting-text"><span data-i18n="settings.severalSnapsNextWith" class="setting-title">Mehrere Snaps: weiter mit</span></span>
                         <select id="snap-next-gesture" data-change="updateSnapSetting" data-args='["nextGesture", "$value"]' class="setting-select">
@@ -721,7 +732,14 @@
                         <span class="setting-text"><span data-i18n="nudity.filter" class="setting-title">Nacktbilder unscharf</span><span data-i18n="nudity.filterDescription" class="setting-desc">Eingehende Bilder werden auf deinem Gerät geprüft; mögliche Nacktbilder erscheinen unscharf, bis du tippst. Kein Bild verlässt dabei dein Gerät.</span><span data-i18n="nudity.noModel" id="nudity-filter-no-model" class="setting-desc text-amber-300">Auf diesem Server ist noch kein Erkennungsmodell installiert, der Filter wirkt noch nicht.</span></span>
                         <input type="checkbox" role="switch" id="nudity-filter-toggle" data-change="updateNudityFilter" data-args='["$checked"]' class="switch">
                     </label>
-                    <p data-i18n="settings.screenshotsCantBePreventedIn" class="setting-note">Screenshots lassen sich im Browser nicht verhindern. Bilder werden nur angezeigt, nicht als Datei bereitgestellt; speichern lassen sich nur Chat-Bilder im Chat- und Freunde-Modus.</p>
+                    <label class="setting-row">
+                        <span class="setting-text"><span data-i18n="settings.whoMaySaveMyMedia" class="setting-title">Wer darf meine Bilder und Videos speichern</span><span data-i18n="settings.whoMaySaveMyMediaDescription" class="setting-desc">Gilt für neue Chat-Bilder und Videos, auch fürs Teilen. Alben und Snaps nie.</span></span>
+                        <select id="media-download-select" data-change="updateMediaDownloadSetting" data-args='["$value"]' class="setting-select">
+                            <option data-i18n="settings.onlyFriends" value="friends">Nur Freunde</option>
+                            <option data-i18n="settings.allChatPartners" value="all">Alle Chat-Partner</option>
+                        </select>
+                    </label>
+                    <p data-i18n="settings.screenshotsCantBePreventedIn" class="setting-note">Screenshots lassen sich im Browser nicht verhindern. Bilder werden nur angezeigt, nicht als Datei bereitgestellt; speichern lassen sich nur Chat-Bilder und Videos, und nur wie es der Absender erlaubt.</p>
                 </div>
 
                 <div class="settings-card" data-settings-tab="media">
@@ -770,7 +788,7 @@
                     <h3 class="settings-card-title"><i class="fa-solid fa-terminal text-amber-400"></i> <span data-i18n="settings.livePwaProtocolLog">Live PWA Protocol Log</span></h3>
                     <div class="setting-block space-y-3">
                         <div class="flex flex-wrap items-center gap-2">
-                            <span class="text-[10px] text-slate-500 bg-slate-950 px-2 py-1 rounded border border-slate-800">Build: {{timestamp}}</span>
+                            <span class="text-[10px] text-slate-500 bg-slate-950 px-2 py-1 rounded-sm border border-slate-800">Build: {{timestamp}}</span>
                             <button data-i18n-attr="title:settings.copyFullLogToClipboard" data-click="copyDebugLogs" class="btn-secondary" title="Vollständiges Protokoll in die Zwischenablage kopieren"><i class="fa-solid fa-copy text-sky-400"></i> <span data-i18n="settings.copyLogs">Copy Logs</span></button>
                             <button data-i18n-attr="title:settings.checkStunTurnReachability" data-click="runConnectivityDiagnostics" class="btn-secondary" title="STUN/TURN-Erreichbarkeit prüfen"><i class="fa-solid fa-stethoscope text-emerald-400"></i> <span data-i18n="settings.testIce">Test ICE</span></button>
                             <button data-i18n="settings.clearLogs" data-click="clearDebugLogs" class="btn-secondary">Clear Logs</button>
@@ -785,7 +803,7 @@
                     <h3 class="settings-card-title"><i class="fa-solid fa-sliders text-brand-400"></i> <span data-i18n="settings.dynamicProfileSchema">Dynamic Profile Schema</span></h3>
                     <div class="setting-block space-y-3">
                         <p data-i18n="settings.profileFieldsAreGeneratedFrom" class="setting-desc">Die Profilfelder werden aus dieser JSON-Konfiguration erzeugt.</p>
-                        <textarea id="schema-json-input" rows="10" spellcheck="false" class="w-full bg-slate-950 p-2.5 rounded-lg border border-slate-800 font-mono text-xs text-slate-300 focus:outline-none focus:border-brand-500"></textarea>
+                        <textarea id="schema-json-input" rows="10" spellcheck="false" class="w-full bg-slate-950 p-2.5 rounded-lg border border-slate-800 font-mono text-xs text-slate-300 focus:outline-hidden focus:border-brand-500"></textarea>
                         <button data-i18n="settings.applySchema" data-click="updateProfileSchemaFromJSON" class="btn-secondary">Apply Schema</button>
                     </div>
                 </div>
@@ -807,7 +825,7 @@
                     <div class="setting-block space-y-3">
                         <p data-i18n="settings.keyPairIsGeneratedLocally" class="setting-desc">Das Schlüsselpaar wird lokal mit Web Crypto erzeugt. Nur der öffentliche Schlüssel wird beim Routing-Server registriert.</p>
                         <div data-i18n="settings.publicKeyFingerprintSha256" class="text-xs font-mono text-slate-400">Public Key Fingerprint (SHA-256)</div>
-                        <div data-i18n="settings.generating" id="inspect-pubkey-fingerprint" class="bg-slate-950 p-2 rounded border border-slate-800 font-mono text-xs text-emerald-400 break-all">Generating...</div>
+                        <div data-i18n="settings.generating" id="inspect-pubkey-fingerprint" class="bg-slate-950 p-2 rounded-sm border border-slate-800 font-mono text-xs text-emerald-400 break-all">Generating...</div>
                         <button data-i18n="settings.regenerateKeypair" id="regenerate-key-btn" data-click="generateUserIdentityKeys" data-args='[true]' class="btn-secondary">Regenerate Keypair</button>
                     </div>
                 </div>
@@ -818,7 +836,7 @@
     </main>
 
     <!-- First-run profile onboarding -->
-    <div id="profile-onboarding-modal" class="hidden fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[60] flex items-center justify-center p-4 overflow-y-auto">
+    <div id="profile-onboarding-modal" class="hidden fixed inset-0 bg-slate-950/90 backdrop-blur-md z-60 flex items-center justify-center p-4 overflow-y-auto">
         <div class="bg-slate-900 border border-brand-500/40 rounded-2xl max-w-2xl w-full shadow-2xl my-8">
             <div class="p-5 border-b border-slate-800">
                 <div class="w-11 h-11 rounded-xl bg-brand-500/15 border border-brand-500/30 text-brand-400 flex items-center justify-center mb-3">
@@ -891,7 +909,7 @@
         <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full overflow-hidden shadow-2xl space-y-0 my-8">
             <div class="relative h-64 bg-slate-950">
                 <img id="modal-profile-img" src="" class="w-full h-full object-cover cursor-zoom-in" data-click="openProfileImageViewer" data-args='["$src"]'>
-                <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/20 to-transparent"></div>
+                <div class="absolute inset-0 bg-linear-to-t from-slate-900 via-slate-900/20 to-transparent"></div>
                 <button data-click="closeProfileModal" class="absolute top-3 right-3 w-8 h-8 rounded-full bg-slate-950/70 hover:bg-slate-900 text-slate-200 border border-slate-700 flex items-center justify-center transition">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
@@ -926,7 +944,7 @@
     </div>
 
     <!-- Medien: Alben, Medienuebersicht, Albumauswahl -->
-    <div id="media-modal" class="hidden fixed inset-0 z-[65] bg-slate-950/90 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="media-modal-title">
+    <div id="media-modal" class="hidden fixed inset-0 z-65 bg-slate-950/90 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="media-modal-title">
         <div class="bg-slate-900 border border-slate-800 w-full sm:max-w-2xl max-h-[90dvh] rounded-t-2xl sm:rounded-2xl flex flex-col overflow-hidden">
             <div class="flex items-center justify-between gap-3 p-4 border-b border-slate-800">
                 <h3 data-i18n="common.media" id="media-modal-title" class="font-bold text-sm text-slate-100 truncate">Medien</h3>
@@ -939,10 +957,13 @@
     </div>
 
     <!-- Bildbetrachter (Vollbild) -->
-    <div data-i18n-attr="aria-label:viewer.imageViewer" id="image-viewer" class="hidden fixed inset-0 z-[80] bg-black flex flex-col select-none" data-no-context-menu role="dialog" aria-modal="true" aria-label="Bildbetrachter">
-        <div class="absolute top-0 inset-x-0 z-10 p-4 flex items-center justify-between bg-gradient-to-b from-black/70 to-transparent" style="padding-top: max(1rem, env(safe-area-inset-top));">
-            <span id="image-viewer-counter" class="text-sm font-semibold text-white/90"></span>
-            <button data-i18n-attr="aria-label:viewer.saveImage" id="image-viewer-save" data-click="saveViewerImage" class="hidden ml-auto mr-2 h-11 px-4 rounded-full bg-black/50 text-white text-sm font-semibold flex items-center gap-2" aria-label="Bild speichern">
+    <div data-i18n-attr="aria-label:viewer.imageViewer" id="image-viewer" class="hidden fixed inset-0 z-80 bg-black flex flex-col select-none" data-no-context-menu role="dialog" aria-modal="true" aria-label="Bildbetrachter">
+        <div class="absolute top-0 inset-x-0 z-10 p-4 flex items-center justify-between bg-linear-to-b from-black/70 to-transparent" style="padding-top: max(1rem, env(safe-area-inset-top));">
+            <span id="image-viewer-counter" class="mr-auto text-sm font-semibold text-white/90"></span>
+            <button data-i18n-attr="aria-label:viewer.shareImage" id="image-viewer-share" data-click="shareViewerImage" class="hidden mr-2 h-11 px-4 rounded-full bg-black/50 text-white text-sm font-semibold flex items-center gap-2" aria-label="Bild teilen">
+                <i class="fa-solid fa-share-nodes"></i><span data-i18n="settings.share" class="hidden sm:inline">Teilen</span>
+            </button>
+            <button data-i18n-attr="aria-label:viewer.saveImage" id="image-viewer-save" data-click="saveViewerImage" class="hidden mr-2 h-11 px-4 rounded-full bg-black/50 text-white text-sm font-semibold flex items-center gap-2" aria-label="Bild speichern">
                 <i class="fa-solid fa-download"></i><span data-i18n="common.save" class="hidden sm:inline">Speichern</span>
             </button>
             <button data-i18n-attr="aria-label:profileModal.close" data-click="closeImageViewer" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Schließen">
@@ -965,12 +986,18 @@
     </div>
 
     <!-- Video-Viewer (video.js): wie der Bildbetrachter; nach unten wischen schliesst -->
-    <div data-i18n-attr="aria-label:chat.video" id="video-viewer" class="hidden fixed inset-0 z-[80] bg-black flex flex-col select-none" data-no-context-menu role="dialog" aria-modal="true" aria-label="Video">
-        <div class="absolute top-0 inset-x-0 z-10 p-4 flex items-center justify-between gap-3 bg-gradient-to-b from-black/70 to-transparent pointer-events-none" style="padding-top: max(1rem, env(safe-area-inset-top));">
+    <div data-i18n-attr="aria-label:chat.video" id="video-viewer" class="hidden fixed inset-0 z-80 bg-black flex flex-col select-none" data-no-context-menu role="dialog" aria-modal="true" aria-label="Video">
+        <div class="absolute top-0 inset-x-0 z-10 p-4 flex items-center justify-between gap-3 bg-linear-to-b from-black/70 to-transparent pointer-events-none" style="padding-top: max(1rem, env(safe-area-inset-top));">
             <div class="min-w-0">
                 <div id="video-viewer-title" class="text-sm font-semibold text-white/90 truncate"></div>
                 <div id="video-viewer-meta" class="text-[11px] text-white/60"></div>
             </div>
+            <button data-i18n-attr="aria-label:viewer.shareVideo" id="video-viewer-share" data-click="shareViewerVideo" class="hidden pointer-events-auto ml-auto h-11 px-4 rounded-full bg-black/50 text-white text-sm font-semibold flex items-center gap-2" aria-label="Video teilen">
+                <i class="fa-solid fa-share-nodes"></i><span data-i18n="settings.share" class="hidden sm:inline">Teilen</span>
+            </button>
+            <button data-i18n-attr="aria-label:viewer.saveVideo" id="video-viewer-save" data-click="saveViewerVideo" class="hidden pointer-events-auto h-11 px-4 rounded-full bg-black/50 text-white text-sm font-semibold flex items-center gap-2" aria-label="Video speichern">
+                <i class="fa-solid fa-download"></i><span data-i18n="common.save" class="hidden sm:inline">Speichern</span>
+            </button>
             <button data-i18n-attr="aria-label:profileModal.close" data-click="closeVideoViewer" class="pointer-events-auto w-11 h-11 shrink-0 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Schließen">
                 <i class="fa-solid fa-xmark"></i>
             </button>
@@ -981,14 +1008,14 @@
     </div>
 
     <!-- Status-Viewer (status.js): links/rechts tippen = zurueck/weiter -->
-    <div data-i18n-attr="aria-label:common.status" id="status-viewer" class="hidden fixed inset-0 z-[82] bg-black select-none" data-no-context-menu role="dialog" aria-modal="true" aria-label="Status">
+    <div data-i18n-attr="aria-label:common.status" id="status-viewer" class="hidden fixed inset-0 z-82 bg-black select-none" data-no-context-menu role="dialog" aria-modal="true" aria-label="Status">
         <div id="status-viewer-content" class="absolute inset-0 flex items-center justify-center">
             <canvas data-i18n-attr="aria-label:common.status" id="status-viewer-image" role="img" aria-label="Status" class="secure-image hidden max-w-full max-h-full object-contain"></canvas>
             <div id="status-viewer-text"></div>
         </div>
         <button data-i18n-attr="aria-label:common.previousStatus" data-click="stepStatus" data-args='[-1]' class="absolute inset-y-0 left-0 w-1/3" aria-label="Vorheriger Status"></button>
         <button data-i18n-attr="aria-label:common.nextStatus" data-click="stepStatus" data-args='[1]' class="absolute inset-y-0 right-0 w-2/3" aria-label="Nächster Status"></button>
-        <div class="absolute top-0 inset-x-0 p-3 space-y-3 bg-gradient-to-b from-black/60 to-transparent" style="padding-top: max(0.75rem, env(safe-area-inset-top));">
+        <div class="absolute top-0 inset-x-0 p-3 space-y-3 bg-linear-to-b from-black/60 to-transparent" style="padding-top: max(0.75rem, env(safe-area-inset-top));">
             <div id="status-viewer-progress" class="flex gap-1"></div>
             <div class="flex items-center justify-between gap-2">
                 <div class="min-w-0">
@@ -1008,9 +1035,9 @@
     </div>
 
     <!-- Secure-Snap-Viewer -->
-    <div data-i18n-attr="aria-label:common.secureSnap" id="secure-snap-viewer" class="hidden fixed inset-0 z-[85] bg-black flex items-center justify-center select-none touch-none overscroll-none" style="-webkit-touch-callout: none;" data-no-context-menu role="dialog" aria-modal="true" aria-label="Secure Snap">
-        <video id="secure-snap-video" class="hidden max-w-full max-h-full object-contain pointer-events-none" playsinline muted disablepictureinpicture></video>
-        <canvas data-i18n-attr="aria-label:common.snap" id="secure-snap-image" role="img" aria-label="Snap" class="secure-image hidden max-w-full max-h-full object-contain pointer-events-none"></canvas>
+    <div data-i18n-attr="aria-label:common.secureSnap" id="secure-snap-viewer" class="hidden fixed inset-0 z-85 bg-black flex items-center justify-center select-none touch-none overscroll-none" style="-webkit-touch-callout: none;" data-no-context-menu role="dialog" aria-modal="true" aria-label="Secure Snap">
+        <video id="secure-snap-video" class="hidden w-full h-full object-contain pointer-events-none origin-center" playsinline muted disablepictureinpicture></video>
+        <canvas data-i18n-attr="aria-label:common.snap" id="secure-snap-image" role="img" aria-label="Snap" class="secure-image hidden w-full h-full object-contain pointer-events-none origin-center"></canvas>
         <div id="secure-snap-status" class="absolute inset-x-8 top-1/2 -translate-y-1/2 text-center text-sm text-slate-200"></div>
         <div id="secure-snap-queue" class="hidden pointer-events-none absolute bottom-6 inset-x-6 text-center text-xs text-white/80" style="bottom: max(1.5rem, env(safe-area-inset-bottom));"></div>
         <div class="absolute top-0 inset-x-0 p-4 flex items-center justify-between" style="padding-top: max(1rem, env(safe-area-inset-top));">
@@ -1026,7 +1053,7 @@
     </div>
 
     <!-- Snap-Kamera (Vollbild) -->
-    <div data-i18n-attr="aria-label:settings.takeSnap" id="snap-capture-modal" class="hidden fixed inset-0 z-[70] bg-black select-none" role="dialog" aria-modal="true" aria-label="Snap aufnehmen">
+    <div data-i18n-attr="aria-label:settings.takeSnap" id="snap-capture-modal" class="hidden fixed inset-0 z-70 bg-black select-none" role="dialog" aria-modal="true" aria-label="Snap aufnehmen">
         <!-- Live-Kamera: Vollbild, Gesten (snap-camera.js): runter = schliessen, doppelt tippen = Kamera wechseln, zwei Finger = Zoom -->
         <div id="snap-camera-stage" class="absolute inset-0 overflow-hidden touch-none">
             <video id="snap-video-preview" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover"></video>
@@ -1047,7 +1074,7 @@
             <span data-i18n="snaps.sendAsImage" id="snap-mode-switch-label">Als Bild senden</span><i class="fa-solid fa-chevron-right"></i>
         </button>
 
-        <div class="absolute top-0 inset-x-0 p-4 flex items-start justify-between bg-gradient-to-b from-black/60 to-transparent" style="padding-top: max(1rem, env(safe-area-inset-top));">
+        <div class="snap-overlay absolute top-0 inset-x-0 p-4 flex items-start justify-between bg-linear-to-b from-black/60 to-transparent" style="padding-top: max(1rem, env(safe-area-inset-top));">
             <button data-i18n-attr="aria-label:profileModal.close" data-click="closeSnapModal" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Schließen">
                 <i class="fa-solid fa-xmark"></i>
             </button>
@@ -1071,17 +1098,23 @@
                     <button data-i18n-attr="aria-label:snaps.undo" data-click="undoSnapEdit" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Rückgängig">
                         <i class="fa-solid fa-rotate-left"></i>
                     </button>
+                    <button data-i18n-attr="title:snaps.saveableToggle;aria-label:snaps.saveableToggle" id="snap-saveable-btn" data-click="toggleSnapSaveable" class="snap-saveable w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Empfänger darf speichern" title="Empfänger darf speichern" aria-pressed="true">
+                        <span class="snap-saveable-icon" aria-hidden="true"><i class="fa-solid fa-download"></i><i class="fa-solid fa-user snap-saveable-contact"></i><span class="snap-saveable-strike"></span></span>
+                    </button>
                 </div>
+                <div data-i18n="snaps.notSaveable" id="snap-saveable-note" class="hidden px-3 py-1 rounded-full bg-black/60 text-xs font-semibold text-white">nicht speicherbar</div>
                 <div data-i18n-attr="aria-label:snaps.colour2" id="snap-color-row" class="flex gap-2" role="radiogroup" aria-label="Farbe"></div>
                 <div id="snap-emoji-row" class="hidden flex flex-wrap justify-end gap-1 max-w-[16rem] p-2 rounded-2xl bg-black/60"></div>
                 <div id="snap-text-entry" class="hidden flex gap-2 w-72 max-w-[80vw]">
-                    <input data-i18n-attr="placeholder:snaps.text" id="snap-text-input" type="text" maxlength="80" placeholder="Text" data-enter="commitSnapText" class="flex-1 min-w-0 bg-black/60 border border-white/30 rounded-full px-4 py-2 text-base text-white placeholder:text-slate-400 focus:outline-none">
+                    <input data-i18n-attr="placeholder:snaps.text" id="snap-text-input" type="text" maxlength="80" placeholder="Text" data-enter="commitSnapText" class="flex-1 min-w-0 bg-black/60 border border-white/30 rounded-full px-4 py-2 text-base text-white placeholder:text-slate-400 focus:outline-hidden">
+                    <button data-i18n-attr="title:snaps.textStyle;aria-label:snaps.textStyle" id="snap-text-style-btn" data-click="cycleSnapTextStyle" class="w-10 shrink-0 rounded-full bg-black/60 border border-white/30 text-white text-sm font-bold" aria-label="Textart" title="Textart">Aa</button>
+                    <button data-i18n-attr="title:snaps.textBackground;aria-label:snaps.textBackground" id="snap-text-background-btn" data-click="cycleSnapTextBackground" class="w-10 shrink-0 rounded-full bg-black/60 border border-white/30 text-white text-sm" aria-label="Texthintergrund" title="Texthintergrund"><i class="fa-regular fa-square"></i></button>
                     <button data-i18n="snaps.ok" data-click="commitSnapText" class="px-4 rounded-full bg-brand-600 text-white text-sm font-semibold">OK</button>
                 </div>
             </div>
         </div>
 
-        <div class="absolute bottom-0 inset-x-0 px-5 pt-10 flex flex-col gap-3 bg-gradient-to-t from-black/70 to-transparent" style="padding-bottom: max(1.25rem, env(safe-area-inset-bottom));">
+        <div class="snap-overlay absolute bottom-0 inset-x-0 px-5 pt-10 flex flex-col gap-3 bg-linear-to-t from-black/70 to-transparent" style="padding-bottom: max(1.25rem, env(safe-area-inset-bottom));">
             <div id="snap-live-controls" class="flex items-center justify-center gap-10 touch-none">
                 <label data-i18n-attr="aria-label:settings.chooseImage" class="w-11 h-11 rounded-full bg-white/10 text-white flex items-center justify-center cursor-pointer" aria-label="Bild auswählen">
                     <i class="fa-regular fa-image text-lg"></i>
@@ -1092,7 +1125,8 @@
             </div>
             <p data-i18n="snaps.swipeUpGalleryDoubleTap" id="snap-gesture-hint" class="text-center text-[11px] text-white/60">Hochwischen: Galerie · Doppelt tippen: Kamera wechseln</p>
             <div id="snap-review-controls" class="hidden flex flex-col gap-3">
-                <input data-i18n-attr="placeholder:snaps.captionOptional" id="snap-caption-input" type="text" maxlength="200" placeholder="Bildunterschrift (optional)" class="w-full bg-white/10 border border-white/20 rounded-full px-4 py-2.5 text-base text-white placeholder:text-slate-400 focus:outline-none">
+                <div data-i18n-attr="aria-label:snaps.filters" id="snap-filter-row" class="flex justify-center gap-2 overflow-x-auto" role="radiogroup" aria-label="Filter"></div>
+                <input data-i18n-attr="placeholder:snaps.captionOptional" id="snap-caption-input" type="text" maxlength="200" placeholder="Bildunterschrift (optional)" class="w-full bg-white/10 border border-white/20 rounded-full px-4 py-2.5 text-base text-white placeholder:text-slate-400 focus:outline-hidden">
                 <label id="snap-original-option" class="hidden flex items-center justify-center gap-2 text-xs text-white cursor-pointer">
                     <input type="checkbox" id="snap-original-toggle" class="accent-brand-500">
                     <span data-i18n="snaps.sendOriginalFullQualityOnly">Original senden (volle Qualität, nur direkt per P2P, nie über den Server)</span>
@@ -1148,6 +1182,7 @@
     <script src="/client/app/snap-camera.js?v={{assetVersion}}"></script>
     <script src="/client/app/secure-canvas.js?v={{assetVersion}}"></script>
     <script src="/client/app/nudity.js?v={{assetVersion}}"></script>
+    <script src="/client/app/media-rights.js?v={{assetVersion}}"></script>
     <script src="/client/app/viewer.js?v={{assetVersion}}"></script>
     <script src="/client/app/watermark.js?v={{assetVersion}}"></script>
     <script src="/client/app/albums.js?v={{assetVersion}}"></script>
@@ -1164,6 +1199,7 @@
     <script src="/client/app/actions.js?v={{assetVersion}}"></script>
     <script src="/client/app/push.js?v={{assetVersion}}"></script>
     <script src="/client/app/safety.js?v={{assetVersion}}"></script>
+    <script src="/client/app/share-target.js?v={{assetVersion}}"></script>
     <script src="/client/app/main.js?v={{assetVersion}}"></script>
 </body>
 </html>

@@ -346,7 +346,7 @@
 ## T17 Mehrere Bilder/Snaps vor dem Senden durchsehen (nutzer 2026-10-28)
 - [x] beim versenden mehrerer bilder/snaps (mehrfachauswahl aus der galerie) alle vor dem senden durchsehen koennen
   - done 2026-10-28: durchsicht im medienfenster: grosses bild, seitlich wischen/pfeile, zaehler, leiste mit allen, einzelne entfernen, "Alle senden (N)"; art (snap/bild/secure/status) wie im snap-menue gewaehlt; e2e `snap-camera` (4 waehlen, blaettern, eins entfernen, 3 kommen an)
-  - spaeter evtl.: art pro bild umstellen, einzelnes bild im editor bearbeiten
+  - done 2026-10-28 (nachtrag): art pro bild (snap/bild/secure), einzelnes bild im snap-editor bearbeiten ("Uebernehmen"/schliessen -> zurueck zur durchsicht); e2e `snap-camera`
   - ist-stand: `sendPickedImages` (snaps.js) schickt bei mehrfachauswahl jedes bild sofort einzeln, ohne editor/vorschau
   - idee: vorschau-streifen mit allen bildern, durchwischen, einzelne entfernen, ggf. pro bild snap/bild/secure; dann "alle senden"
 
@@ -355,5 +355,6 @@
   - entschieden (nutzer): ein schalter = push + hinweis in der app; profilbesuche neu bauen, opt-in auf beiden seiten
   - done 2026-10-28: `keys`/`notification-settings`, `notifyInApp`, `POST /api/push/settings` (stumme arten, spalte `muted_kinds`), `notifyKind` beim cache-eintrag und `kind` beim anstupsen, SW-texte je art; push jetzt auch fuer flamme/match/anfrage/profilbesuch; `PROFILE_VIEW` (opt-in, nur entdecken, 6 h pro person); tests `test/push.test.js`, e2e `notifications`
   - metadaten: der router erfaehrt die art eines ereignisses (nicht den inhalt), sonst bestrafen browser still verworfene pushes (decisions log in claudy.md)
-  - offen/spaeter: echte benachrichtigung auf dem geraet testen; router-standards fuer die schalter (`CLIENT_DEFAULTS`)
+  - nutzer hat auf dem geraet getestet (2026-10-28): passt
+  - done 2026-10-28: router-standards `CLIENT_DEFAULTS.notifyMatch` ... `notifyChatEvents`, `shareProfileViews`
 

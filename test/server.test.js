@@ -984,6 +984,8 @@ test('serves the changelog as markdown', async () => {
 test('client defaults from the operator are validated and delivered with the app config', async () => {
     assert.deepEqual(parseClientDefaults('{"pullUpAction":"switcher","statusDirectOnly":true,"chatSwitchStyle":"teleport","evil":1,"albumKeyEpochsAhead":9}'),
         { pullUpAction: 'switcher', statusDirectOnly: true });
+    assert.deepEqual(parseClientDefaults('{"notifyFlame":false,"notifyProfileView":true,"shareProfileViews":"yes"}'),
+        { notifyFlame: false, notifyProfileView: true }, 'notification defaults are booleans only');
     assert.deepEqual(parseClientDefaults('kaputt'), {});
     assert.deepEqual(parseClientDefaults('[1,2]'), {});
     const configured = await buildApp({ databasePath: ':memory:', clientDefaults: '{"listSwitchBehavior":"view","traceWatermark":false}' });

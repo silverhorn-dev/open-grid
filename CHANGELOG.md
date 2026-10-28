@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 180 · 2026-10-28
+## Build 181 · 2026-10-28
+- Mehrere Bilder senden: in der Durchsicht pro Bild Snap, Bild oder Secure Snap waehlen und einzelne Bilder im Editor bearbeiten
+- Betrieb: Standardwerte fuer die Benachrichtigungs-Schalter per `CLIENT_DEFAULTS` (`notifyMatch` ... `notifyChatEvents`, `shareProfileViews`)
+
+## Build 180 · 2026-10-28 · `a25c3b1`
 - Lange Chats oeffnen schneller: zuerst die letzten 150 Nachrichten, beim Hochscrollen kommen aeltere dazu
 - Neu: "Chat nach Tagen" (Einstellungen > Chat): unter der Kontaktleiste blaetterst du mit Pfeilen oder Wischen Tag fuer Tag
 

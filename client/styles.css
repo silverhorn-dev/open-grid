@@ -1169,6 +1169,29 @@ html:has(#view-chat.chat-open:not(.hidden)) {
 .picked-review-arrow.is-next { right: 0.5rem; }
 .picked-review-arrow:disabled { opacity: 0; pointer-events: none; }
 .picked-review-remove { top: 0.5rem; right: 0.5rem; }
+.picked-review-edit {
+    position: absolute;
+    top: 0.5rem;
+    right: 3.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 9999px;
+    background: rgb(0 0 0 / 0.45);
+    color: #fff;
+}
+.picked-review-modes { display: flex; gap: 0.25rem; padding: 0.25rem; border-radius: 9999px; background: rgb(var(--slate-800)); }
+.picked-review-mode {
+    flex: 1;
+    padding: 0.375rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: rgb(var(--slate-300));
+}
+.picked-review-mode.is-active { background: rgb(var(--brand-600)); color: #fff; }
 .picked-review-counter {
     position: absolute;
     left: 0.5rem;

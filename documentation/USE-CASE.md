@@ -348,8 +348,9 @@ Akzeptanzkriterien:
   noch wiederholt werden kann (15, 30, 60 min oder unbegrenzt; Standard 30 min).
   Danach ist er bei beiden weg. Der Empfaenger sieht keine Restzeit.
 - In der Galerie lassen sich mehrere Bilder auswaehlen; vor dem Senden sehe ich
-  alle durch (blaettern, einzelne entfernen) und schicke sie mit "Alle
-  senden"; jedes wird ein eigener Snap (bzw. Bild oder Foto-Status).
+  alle durch (blaettern, einzelne entfernen, pro Bild Snap/Bild/Secure
+  waehlen, einzelne im Editor bearbeiten) und schicke sie mit "Alle senden";
+  jedes wird ein eigener Snap (bzw. Bild oder Foto-Status).
 - Mehrere ungesehene Snaps lassen sich hintereinander ansehen: weiter per
   Doppeltippen, seitlich oder nach oben wischen (einstellbar).
 - Gesten in der Kamera: nach unten wischen schliesst, am Ausloeser nach oben

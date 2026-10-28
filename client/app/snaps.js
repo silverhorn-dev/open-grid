@@ -332,6 +332,7 @@ function hideSnapModal() {
     stopSnapCamera();
     resetSnapPreview();
     document.getElementById('snap-capture-modal').classList.add('hidden');
+    finishPickedEdit();
 }
 
 function resetSnapPreview() {
@@ -466,10 +467,12 @@ async function pickSnapImage(input) {
 }
 
 // Mehrfachauswahl aus der Galerie: erst durchsehen, dann senden. Jedes Bild wird ein eigener Snap (bzw.
-// Bild oder Foto-Status), ohne Editor; Art (Snap/Bild/Secure) wie im Snap-Menue gewaehlt. In der Ansicht:
-// grosses Bild, seitlich wischen oder Pfeile, Leiste mit allen, einzelne entfernen, "Alle senden".
+// Bild oder Foto-Status). In der Ansicht: grosses Bild, seitlich wischen oder Pfeile, Leiste mit allen,
+// einzelne entfernen, Art pro Bild (Snap/Bild/Secure, vorbelegt wie im Snap-Menue), einzelnes Bild im
+// Snap-Editor bearbeiten (zurueck mit "Uebernehmen" oder Schliessen), "Alle senden".
 const MAX_PICKED_IMAGES = 20;
-const pickedReview = { items: [], index: 0, context: null };
+const PICKED_MODES = ['snap', 'image', 'secure'];
+const pickedReview = { items: [], index: 0, context: null, editIndex: null };
 
 async function sendPickedImages(files) {
     const context = {
@@ -486,7 +489,7 @@ async function sendPickedImages(files) {
             const bitmap = await createImageBitmap(file);
             const base = captureSnapBase(bitmap, bitmap.width, bitmap.height, false);
             bitmap.close?.();
-            items.push({ id: window.crypto.randomUUID(), base });
+            items.push({ id: window.crypto.randomUUID(), base, mode: context.asImage ? 'image' : context.secure ? 'secure' : 'snap' });
         } catch (error) {
             logDebug(`Picked image failed: ${error.message}`);
         }
@@ -502,11 +505,12 @@ async function sendPickedImages(files) {
 }
 
 function pickedReviewTitle() {
-    const { target, asImage, secure } = pickedReview.context;
     const count = pickedReview.items.length;
-    if (target === 'status') return t('snaps.reviewStatuses', { count });
-    if (asImage) return t('snaps.reviewImages', { count });
-    return secure ? t('snaps.reviewSecureSnaps', { count }) : t('snaps.reviewSnaps', { count });
+    if (pickedReview.context.target === 'status') return t('snaps.reviewStatuses', { count });
+    const modes = new Set(pickedReview.items.map(item => item.mode));
+    if (modes.size > 1) return t('snaps.reviewMixed', { count });
+    if (modes.has('image')) return t('snaps.reviewImages', { count });
+    return modes.has('secure') ? t('snaps.reviewSecureSnaps', { count }) : t('snaps.reviewSnaps', { count });
 }
 
 // Verkleinerte Kopie fuer Vorschau/Leiste (das Original bleibt fuers Senden).
@@ -561,6 +565,14 @@ function renderPickedReview() {
     remove.innerHTML = '<i class="fa-solid fa-trash"></i>';
     remove.onclick = removePickedImage;
     stage.appendChild(remove);
+    const editButton = document.createElement('button');
+    editButton.type = 'button';
+    editButton.className = 'picked-review-edit';
+    editButton.setAttribute('aria-label', t('snaps.editImage'));
+    editButton.title = t('snaps.editImage');
+    editButton.innerHTML = '<i class="fa-solid fa-pen"></i>';
+    editButton.onclick = () => editPickedImage(pickedReview.index);
+    stage.appendChild(editButton);
     const counter = document.createElement('span');
     counter.className = 'picked-review-counter';
     counter.textContent = `${pickedReview.index + 1} / ${items.length}`;
@@ -592,7 +604,31 @@ function renderPickedReview() {
     send.append(` ${t('snaps.sendAll', { count: items.length })}`);
     send.onclick = sendPickedReview;
 
-    wrap.append(stage, strip, send);
+    const parts = [stage];
+    // Art pro Bild (nicht beim Foto-Status).
+    if (pickedReview.context.target !== 'status') {
+        const modes = document.createElement('div');
+        modes.className = 'picked-review-modes';
+        modes.setAttribute('role', 'radiogroup');
+        const current = items[pickedReview.index];
+        const labels = { snap: t('common.snap'), image: t('common.image'), secure: t('common.secureSnap') };
+        PICKED_MODES.forEach(mode => {
+            const option = document.createElement('button');
+            option.type = 'button';
+            option.className = `picked-review-mode${current.mode === mode ? ' is-active' : ''}`;
+            option.dataset.mode = mode;
+            option.setAttribute('role', 'radio');
+            option.setAttribute('aria-checked', String(current.mode === mode));
+            option.textContent = labels[mode];
+            option.onclick = () => {
+                current.mode = mode;
+                renderPickedReview();
+            };
+            modes.appendChild(option);
+        });
+        parts.push(modes);
+    }
+    wrap.append(...parts, strip, send);
     content.appendChild(wrap);
     strip.querySelector('.is-active')?.scrollIntoView?.({ block: 'nearest', inline: 'center' });
 }
@@ -627,13 +663,46 @@ function attachPickedReviewSwipe(stage) {
     }, { passive: true });
 }
 
+// Ein Bild im Snap-Editor bearbeiten (ohne Kamera); "Uebernehmen" bzw. Schliessen fuehrt zurueck.
+function editPickedImage(index) {
+    const item = pickedReview.items[index];
+    if (!item) return;
+    pickedReview.editIndex = index;
+    // Die Durchsicht bleibt erhalten, nur das Fenster geht zu. Erst nach dessen Zurueck-Schritt den Editor
+    // oeffnen (sonst schloesse das spaete "Zurueck" gleich den Editor).
+    state.mediaModalCleanup = null;
+    replaceModal(closeMediaModal, () => {
+        state.snapTarget = pickedReview.context.target;
+        document.getElementById('snap-capture-modal').classList.remove('hidden');
+        pushModalEntry('snap', hideSnapModal);
+        showSnapReview(item.base);
+        const send = document.getElementById('snap-send-btn');
+        if (send) {
+            send.dataset.label = send.textContent;
+            send.textContent = t('snaps.applyEdit');
+        }
+    });
+}
+
+// Aus hideSnapModal: Bearbeitung beenden und zur Durchsicht zurueck (uebernommen oder nicht).
+function finishPickedEdit() {
+    if (pickedReview.editIndex === null) return;
+    pickedReview.editIndex = null;
+    const send = document.getElementById('snap-send-btn');
+    if (send?.dataset.label) {
+        send.textContent = send.dataset.label;
+        delete send.dataset.label;
+    }
+    setTimeout(renderPickedReview, 0);
+}
+
 async function sendPickedReview() {
     const { items, context } = pickedReview;
     if (!items.length || !context) return;
-    const bases = items.map(item => item.base);
+    const picked = items.map(item => ({ base: item.base, mode: item.mode }));
     closeMediaModal();
     let sent = 0;
-    for (const base of bases) {
+    for (const { base, mode } of picked) {
         try {
             if (context.target === 'status') {
                 const image = encodeSnap(base, base.width, base.height, false, null);
@@ -642,11 +711,11 @@ async function sendPickedReview() {
                 const bits = isTraceWatermarkEnabled() ? await watermarkTag(context.peerId) : null;
                 const data = encodeSnap(base, base.width, base.height, false, bits);
                 if (!data) continue;
-                if (context.secure) {
+                if (mode === 'secure') {
                     await sendChatMessage(null, '', null, await createSecureSnap(data, context.peerId, state.snapSettings.views, state.snapSettings.seconds));
                 } else {
                     // Ohne Editor gilt der Router-Standard fuer "speicherbar".
-                    await sendChatMessage(data, '', null, null, { asImage: context.asImage, ...(clientDefault('snapSaveable', true) !== false ? {} : { downloadable: 'none' }) });
+                    await sendChatMessage(data, '', null, null, { asImage: mode === 'image', ...(clientDefault('snapSaveable', true) !== false ? {} : { downloadable: 'none' }) });
                 }
             }
             sent += 1;
@@ -655,7 +724,7 @@ async function sendPickedReview() {
         }
     }
     const message = context.target === 'status' ? t('snaps.statusesSent', { count: sent })
-        : context.asImage ? t('snaps.imagesSent', { count: sent }) : t('snaps.sent', { count: sent });
+        : picked.every(item => item.mode === 'image') ? t('snaps.imagesSent', { count: sent }) : t('snaps.sent', { count: sent });
     const limit = context.skipped ? t('snaps.atMost', { max: MAX_PICKED_IMAGES }) : '';
     showToast(`${message}${limit}.`, sent ? 'success' : 'error');
 }
@@ -666,6 +735,14 @@ async function retakeSnap() {
 }
 
 async function sendSnapDraft() {
+    // Bild aus der Mehrfachauswahl bearbeitet: Ergebnis in die Durchsicht uebernehmen, nicht senden.
+    if (pickedReview.editIndex !== null) {
+        const flat = hasSnapDraft() ? flattenSnapDraft() : null;
+        const item = pickedReview.items[pickedReview.editIndex];
+        if (flat && item) item.base = flat;
+        closeSnapModal();
+        return;
+    }
     if (state.snapTarget === 'status') {
         const image = hasSnapDraft() ? await encodeSnapDraft(null) : null;
         const caption = document.getElementById('snap-caption-input').value;

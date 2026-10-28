@@ -105,9 +105,14 @@ const NOTIFICATION_DEFAULTS = { match: true, flame: true, add: true, discovery: 
 
 async function loadNotificationSettings() {
     const stored = await databaseRequest('keys', 'readonly', store => store.get(NOTIFICATION_SETTINGS_RECORD_ID)).catch(() => null);
+    // Ohne eigene Wahl gilt der Router-Standard (`CLIENT_DEFAULTS.notifyMatch` usw.), sonst NOTIFICATION_DEFAULTS.
+    const routerDefault = kind => {
+        const value = clientDefault(`notify${kind[0].toUpperCase()}${kind.slice(1)}`, NOTIFICATION_DEFAULTS[kind]);
+        return typeof value === 'boolean' ? value : NOTIFICATION_DEFAULTS[kind];
+    };
     state.notificationSettings = Object.fromEntries(NOTIFICATION_KINDS.map(kind => [kind,
-        typeof stored?.kinds?.[kind] === 'boolean' ? stored.kinds[kind] : NOTIFICATION_DEFAULTS[kind]]));
-    state.shareProfileViews = stored?.shareProfileViews === true;
+        typeof stored?.kinds?.[kind] === 'boolean' ? stored.kinds[kind] : routerDefault(kind)]));
+    state.shareProfileViews = typeof stored?.shareProfileViews === 'boolean' ? stored.shareProfileViews : clientDefault('shareProfileViews', false) === true;
     renderNotificationSettings();
 }
 

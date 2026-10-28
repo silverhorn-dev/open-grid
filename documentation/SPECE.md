@@ -131,9 +131,12 @@
   `doubletap`, `swipe` (seitlich > 80 px) oder `swipeup`.
 - Galerie-Mehrfachauswahl (max. 20): erst eine Durchsicht im Medienfenster
   (grosses Bild, seitlich wischen oder Pfeile, Leiste mit allen, einzelne
-  entfernen, "Alle senden (N)"), dann jedes Bild ohne Editor als eigener Snap,
-  Secure Snap, Bild oder Foto-Status je nach Wahl im Snap-Menue
-  (`sendPickedImages`, `renderPickedReview`, `sendPickedReview`).
+  entfernen, Art pro Bild Snap/Bild/Secure (vorbelegt wie im Snap-Menue),
+  einzelnes Bild im Snap-Editor bearbeiten: Stift -> Editor ohne Kamera,
+  "Uebernehmen" bzw. Schliessen fuehrt zurueck; "Alle senden (N)"), dann jedes
+  Bild als eigener Snap, Secure Snap, Bild oder Foto-Status
+  (`sendPickedImages`, `renderPickedReview`, `editPickedImage`,
+  `sendPickedReview`).
 - `SNAP_SAVED { messageId }` (Chat-Operation, vom Empfaenger eines Einmal-Snaps
   beim Speichern): der Absender markiert `savedByPeer` und zeigt einen Hinweis.
 - Listen-Wechsel (`chat-switch.js`): Knopf neben dem Titel der Chatliste,
@@ -1277,7 +1280,9 @@ Benachrichtigungen je Art (Einstellungen > Chat > Benachrichtigungen,
 (Nachricht in "Chat & Freunde"), `profileView` (Standard aus), `chatEvents`
 (nur in der App: Snap gespeichert, Chat geloescht, Album fertig angesehen). Ein
 Schalter steuert Push und Hinweis in der App (`notifyInApp`). Abgeschaltete
-Push-Arten meldet der Client dem Router (`mutedKinds`, Spalte
+Push-Arten meldet der Client dem Router (Router-Standards je Art:
+`CLIENT_DEFAULTS.notifyMatch` ... `notifyChatEvents`, `shareProfileViews`;
+`mutedKinds`, Spalte
 `push_subscriptions.muted_kinds`); der Absender nennt die Art beim
 Cache-Eintrag (`notifyKind`) bzw. beim Anstupsen (`kind`), der Router pusht
 nur gewollte Arten und schreibt `kind` in den Push. Grund: Browser erwarten zu

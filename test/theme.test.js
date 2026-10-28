@@ -54,9 +54,10 @@ test('builds a full accent palette from hue and saturation', () => {
 });
 
 test('tailwind palettes come from CSS variables', () => {
-    const config = readFileSync(new URL('../tailwind.config.cjs', import.meta.url), 'utf8');
-    assert.match(config, /fromVariables\('slate'\)/);
-    assert.match(config, /fromVariables\('brand'\)/);
+    const config = readFileSync(new URL('../client/tailwind.input.css', import.meta.url), 'utf8');
+    assert.match(config, /@theme inline \{/);
+    assert.match(config, /--color-slate-900: rgb\(var\(--slate-900\)\);/);
+    assert.match(config, /--color-brand-500: rgb\(var\(--brand-500\)\);/);
     const styles = readFileSync(new URL('../client/styles.css', import.meta.url), 'utf8');
     assert.match(styles, /:root\.theme-light \{/);
     assert.doesNotMatch(styles.replace(/:root[^{]*\{[^}]*\}/g, ''), /#0f172a|#1e293b|#334155/, 'no hard-coded slate colors outside the variables');

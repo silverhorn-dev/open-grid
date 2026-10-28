@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Self-hosted P2P discovery, profile and chat application",
   "scripts": {
-    "build:css": "tailwindcss -c tailwind.config.cjs -i client/tailwind.input.css -o client/tailwind.css --minify",
+    "build:css": "tailwindcss -i client/tailwind.input.css -o client/tailwind.css --minify",
     "prestart": "npm run build:css",
     "start": "node server/index.js",
     "pretest": "npm run build:css",
@@ -25,6 +25,7 @@
     "qrcode-generator": "^1.4.4"
   },
   "devDependencies": {
-    "tailwindcss": "^3.4.17"
+    "@tailwindcss/cli": "^4.1.0",
+    "tailwindcss": "^4.1.0"
   }
 }

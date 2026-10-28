@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 161 · 2026-10-28
+## Build 162 · 2026-10-28
+- Technik: Umstieg auf Tailwind CSS 4 (behebt die gemeldeten Sicherheitshinweise in den Build-Werkzeugen); einige Abstaende sind minimal enger
+
+## Build 161 · 2026-10-28 · `8d53162`
 - Begrenzt geteilte Alben raeumen sich beim Empfaenger selbst auf: nach einer Ansicht sind auch die gespeicherten Bilder weg, und zeitlich begrenzte Alben loescht seine App zur Frist selbst, auch wenn du dann offline bist
 
 ## Build 160 · 2026-10-28 · `b93e303`

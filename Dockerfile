@@ -3,7 +3,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 # Tailwind vorab kompilieren (kein CDN zur Laufzeit), danach Dev-Abhaengigkeiten entfernen.
-COPY tailwind.config.cjs index.html ./
+COPY index.html ./
 COPY client ./client
 RUN npm run build:css && npm prune --omit=dev
 

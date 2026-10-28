@@ -24,15 +24,16 @@
   `router.js` (Client-Routen, History), `viewer.js` (Bildbetrachter),
   `albums.js` (Alben, Medienuebersicht), `push.js` (Web Push), `main.js`
   (Start). `client/geohash.client.js` kodiert den eigenen Standort.
-- `client/styles.css` und `client/app/tailwind.config.js` enthalten Styles
-  und die Tailwind-Konfiguration.
+- `client/styles.css` enthaelt eigene Styles, `client/tailwind.input.css` die
+  Tailwind-Konfiguration (Tailwind 4, CSS statt JS-Datei).
 - Der Server liefert nur Dateien aus der festen Liste `clientAssetFiles` in
   `server/app.js` aus; neue Client-Dateien muessen dort eingetragen werden.
 - Thema und Akzentfarbe (`client/app/theme.js`, im `<head>` geladen, damit
   nichts aufflackert): `localStorage` `opengrid-theme` (`system`, `light`,
   `dark`) und `opengrid-accent` (`{ hue, saturation }`). Tailwind bezieht
-  `slate` und `brand` aus CSS-Variablen (`rgb(var(--slate-500) / <alpha>)`,
-  `tailwind.config.cjs`); `:root` enthaelt die dunklen Standardwerte,
+  `slate` und `brand` aus CSS-Variablen (`@theme inline` mit
+  `rgb(var(--slate-500))`, Transparenz per `color-mix`,
+  `client/tailwind.input.css`); `:root` enthaelt die dunklen Standardwerte,
   `:root.theme-light` eine angepasste helle slate-Skala (Seite hellgrau,
   Karten weiss, Text dunkel). Die Akzentpalette 50-950 wird aus Farbton und
   Saettigung per HSL berechnet. Einstellung: Farbrad (Winkel = Farbton,
@@ -1245,7 +1246,7 @@ Precache-Liste ein (`__ASSET_VERSION__`, `__PRECACHE_URLS__`): `/`, alle
   aus IndexedDB.
 
 Externe Abhaengigkeiten zur Laufzeit gibt es keine mehr: Tailwind wird mit
-`npm run build:css` (Tailwind-CLI 3, `tailwind.config.cjs`) nach
+`npm run build:css` (Tailwind 4, `@tailwindcss/cli`, `client/tailwind.input.css`) nach
 `client/tailwind.css` kompiliert (Docker-Build, `prestart`, `pretest`); Font
 Awesome kommt aus `node_modules/@fortawesome/fontawesome-free` unter
 `/vendor/fontawesome/*`; Platzhalterbilder und App-Icons (`client/icon.svg`, PNG 180/192/512 fuer Manifest und `apple-touch-icon`)

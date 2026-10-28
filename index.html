@@ -138,45 +138,30 @@
     <main class="app-main flex-1 max-w-7xl w-full mx-auto p-4 flex flex-col space-y-4">
 
         <!-- ==================== TAB 1: DISCOVERY GRID ==================== -->
-        <section id="view-grid" class="space-y-4">
-            <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex flex-wrap items-center justify-between gap-4">
-                <div class="flex items-center gap-3">
-                    <div class="p-2.5 bg-brand-500/10 border border-brand-500/20 text-brand-400 rounded-lg">
-                        <i class="fa-solid fa-location-crosshairs text-xl"></i>
-                    </div>
-                    <div>
-                        <div class="text-sm font-semibold"><span data-i18n="common.nearYou" id="grid-title">In deiner Nähe</span> <span class="debug-only"><span data-i18n="grid.geohashCell">· Geohash-Zelle</span> <span id="current-geohash" class="font-mono text-brand-400">u10j2k</span></span></div>
-                        <p class="text-xs text-slate-400">
-                            <span data-i18n="grid.0People" id="grid-peer-count">0 Personen</span>
-                            <span class="text-slate-600">•</span>
-                            <span data-i18n="grid.notSynchronisedYet" id="grid-last-updated">Noch nicht synchronisiert</span>
-                        </p>
-                        <p id="silent-mode-hint" class="hidden text-xs text-sky-400 mt-0.5">
-                            <i class="fa-solid fa-eye-slash"></i> <span data-i18n="common.silentModeActiveYouAre">Silent-Modus aktiv: du bist für andere nicht im Grid sichtbar.</span>
-                        </p>
-                    </div>
-                </div>
-
-                <div class="flex items-center gap-2">
-                    <button id="use-location-btn" data-click="updateGridSetting" data-args='["useLocation", true]' class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
-                        <i class="fa-solid fa-location-arrow"></i> <span data-i18n="grid.useLocation">Standort verwenden</span>
-                    </button>
-                    <button id="leave-event-btn" data-click="leaveEvent" class="hidden bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
-                        <i class="fa-solid fa-right-from-bracket"></i> <span data-i18n="grid.leaveEvent">Event verlassen</span>
-                    </button>
-                    <button id="refresh-grid-btn" data-click="refreshGrid" class="bg-brand-600 hover:bg-brand-500 disabled:opacity-60 text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
-                        <i id="refresh-grid-icon" class="fa-solid fa-rotate"></i> <span data-i18n="common.refresh">Aktualisieren</span>
-                    </button>
-                </div>
-            </div>
-
+        <section id="view-grid" class="space-y-3">
             <!-- Drei Bereiche (grid-tabs.js), nur in "Entdecken" -->
             <div id="grid-tabs" class="grid-tabs hidden" role="tablist" data-no-tab-swipe>
-                <button type="button" role="tab" data-grid-view="grid" data-click="setGridView" data-args='["grid"]' class="grid-tab is-active"><i class="fa-solid fa-table-cells"></i> <span data-i18n="grid.tabGrid">Grid</span></button>
+                <button type="button" role="tab" data-grid-view="grid" data-click="setGridView" data-args='["grid"]' class="grid-tab is-active"><i class="fa-solid fa-table-cells"></i> <span data-i18n="grid.tabGrid">Grid</span> <span id="grid-tab-count" class="grid-tab-count"></span></button>
                 <button type="button" role="tab" data-grid-view="interactions" data-click="setGridView" data-args='["interactions"]' class="grid-tab"><i class="fa-solid fa-eye"></i> <span data-i18n="grid.tabInteractions">Interaktionen</span> <span id="grid-interactions-badge" class="unread-badge hidden">0</span></button>
-                <button type="button" role="tab" data-grid-view="matches" data-click="setGridView" data-args='["matches"]' class="grid-tab"><i class="fa-solid fa-fire"></i> <span data-i18n="grid.tabMatches">Matches</span></button>
+                <button type="button" role="tab" data-grid-view="matches" data-click="setGridView" data-args='["matches"]' class="grid-tab"><i class="fa-solid fa-fire"></i> <span data-i18n="grid.tabMatches">Matches</span> <span id="matches-tab-count" class="grid-tab-count"></span></button>
                 <button type="button" id="grid-filter-btn" data-click="toggleGridFilterPanel" data-i18n-attr="title:grid.filters;aria-label:grid.filters" class="grid-filter-btn" title="Filter" aria-label="Filter" aria-expanded="false"><i class="fa-solid fa-sliders"></i><i class="fa-solid fa-chevron-down text-[10px]"></i></button>
             </div>
+            <!-- Schmale Statuszeile: wo, wie viele (ohne Tabs), Stand; aktualisieren per Runterziehen (gestures.js),
+                 am PC ueber den kleinen Knopf -->
+            <div class="grid-status-line">
+                <i class="fa-solid fa-location-crosshairs text-brand-400"></i>
+                <span class="grid-status-text"><span data-i18n="common.nearYou" id="grid-title">In deiner Nähe</span> <span class="debug-only"><span data-i18n="grid.geohashCell">· Geohash-Zelle</span> <span id="current-geohash" class="font-mono text-brand-400">u10j2k</span></span></span>
+                <span id="grid-peer-count" data-i18n="grid.0People" class="grid-status-count">0 Personen</span>
+                <span data-i18n="grid.notSynchronisedYet" id="grid-last-updated" class="grid-status-updated">Noch nicht synchronisiert</span>
+                <span class="flex-1"></span>
+                <button id="use-location-btn" data-click="updateGridSetting" data-args='["useLocation", true]' class="grid-status-btn"><i class="fa-solid fa-location-arrow"></i> <span data-i18n="grid.useLocation">Standort verwenden</span></button>
+                <button id="leave-event-btn" data-click="leaveEvent" class="grid-status-btn hidden"><i class="fa-solid fa-right-from-bracket"></i> <span data-i18n="grid.leaveEvent">Event verlassen</span></button>
+                <button id="refresh-grid-btn" data-click="refreshGrid" data-i18n-attr="title:common.refresh;aria-label:common.refresh" class="grid-refresh-btn" title="Aktualisieren" aria-label="Aktualisieren"><i id="refresh-grid-icon" class="fa-solid fa-rotate"></i></button>
+            </div>
+            <p id="silent-mode-hint" class="hidden text-xs text-sky-400 -mt-1">
+                <i class="fa-solid fa-eye-slash"></i> <span data-i18n="common.silentModeActiveYouAre">Silent-Modus aktiv: du bist für andere nicht im Grid sichtbar.</span>
+            </p>
+            <div id="grid-pull-refresh" class="grid-pull-refresh" aria-hidden="true"><i class="fa-solid fa-arrow-down"></i> <span data-i18n="grid.pullToRefresh">Zum Aktualisieren ziehen</span></div>
             <div id="grid-filter-panel" class="grid-filter-panel hidden"></div>
             <div id="grid-interactions" class="grid-list hidden" role="tabpanel"></div>
             <div id="grid-matches" class="grid-list hidden" role="tabpanel"></div>

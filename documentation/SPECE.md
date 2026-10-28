@@ -1035,6 +1035,12 @@ max. 200, dieselbe Person/Art innerhalb 10 Minuten einmal), nur lokal; Badge
 am Tab fuer Neues seit `seenAt`, "Flamme zurueck" bzw. "Schreiben" je Zeile.
 Matches: alle gematchten Peers, noch nicht angeschriebene (ohne Chat-Vorschau)
 oben, "Schreiben" oeffnet den Chat. Im Social-Bereich gibt es die Tabs nicht.
+Kopf: die Tabs stehen oben, mit grauen Zahlen (sichtbare Karten am Grid-Tab,
+Matches am Matches-Tab; rot nur das Badge fuer neue Interaktionen); darunter
+eine schmale Statuszeile (wo, Stand, "Standort verwenden" solange keiner
+gesetzt ist). Aktualisieren: ganz oben nach unten ziehen (eigene Geste, die
+installierte PWA auf iOS hat kein Pull-to-Refresh; ab 70 px), am PC ein
+kleiner Knopf.
 
 Filter (`client/app/grid-filter.js`, nur auf dem Geraet, `keys`/`grid-filter`):
 Panel ueber den Pfeil-Knopf in der Tab-Leiste, gilt fuer alle drei Bereiche.

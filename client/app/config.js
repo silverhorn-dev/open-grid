@@ -154,6 +154,8 @@ const state = {
     gridPrefetchTimer: null,
     gridPrefetchPeerIds: [],
     profileBrowseList: [],
+    // Sichtbare Karten im Grid (Zahl am Grid-Tab, grid-tabs.js).
+    gridVisibleCount: 0,
     // Eigene Sichtbarkeitsregel "Nur zeigen fuer ..." (audience.js).
     audienceRule: null,
     shareProfileViews: false,

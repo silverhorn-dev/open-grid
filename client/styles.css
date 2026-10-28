@@ -61,6 +61,7 @@ html.debug-on .debug-off-only {
 /* Wischgesten (gestures.js) statt Browser-Geste: in den Einstellungen, offenen Fenstern, Menue und
    offenem Chat laedt ein Zug nach unten nicht die Seite neu (das brach z. B. das Profil-Wischen ab). */
 html:has(#view-keys:not(.hidden)),
+html:has(#view-grid:not(.hidden)),
 html:has(#profile-detail-modal:not(.hidden)),
 html:has(#media-modal:not(.hidden)),
 html:has(#app-menu.is-open),
@@ -1318,4 +1319,21 @@ html:has(#view-chat.chat-open:not(.hidden)) {
 }
 .grid-filter-chip.is-active { border-color: transparent; background: rgb(var(--brand-600)); color: #fff; }
 .grid-filter-reset { align-self: flex-start; font-size: 0.75rem; color: rgb(var(--slate-400)); text-decoration: underline; }
+
+/* Grid-Kopf: schmale Statuszeile, graue Zahlen in den Tabs, Runterziehen zum Aktualisieren */
+.grid-status-line { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; padding: 0 0.25rem; font-size: 0.75rem; color: rgb(var(--slate-400)); }
+.grid-status-text { font-weight: 600; color: rgb(var(--slate-200)); }
+.grid-status-count.hidden { display: none; }
+.grid-status-btn { display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.3rem 0.65rem; border-radius: 9999px; border: 1px solid rgb(var(--slate-700)); background: rgb(var(--slate-800)); color: rgb(var(--slate-200)); font-weight: 600; }
+.grid-status-btn.hidden { display: none; }
+.grid-refresh-btn { display: none; width: 2rem; height: 2rem; align-items: center; justify-content: center; border-radius: 9999px; color: rgb(var(--slate-400)); }
+.grid-refresh-btn:hover { background: rgb(var(--slate-800)); color: rgb(var(--slate-100)); }
+@media (hover: hover) and (pointer: fine) {
+    .grid-refresh-btn { display: inline-flex; }
+}
+.grid-tab-count { font-weight: 500; color: rgb(var(--slate-500)); font-variant-numeric: tabular-nums; }
+.grid-tab-count:empty { display: none; }
+.grid-pull-refresh { height: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-size: 0.75rem; color: rgb(var(--slate-400)); margin-top: 0 !important; }
+.grid-pull-refresh.is-ready { color: rgb(var(--brand-400)); }
+.grid-pull-refresh.is-ready i { transform: rotate(180deg); }
 

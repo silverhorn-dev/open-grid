@@ -6,6 +6,7 @@
 //   - Zwischen Grid, Chat und Profil seitlich wischen; im Profil nach links = Menue
 //   - Einstellungen: seitlich = Bereiche blaettern (nicht auf Reglern), oben nach unten = verlassen,
 //     am ersten Bereich nach rechts = verlassen
+//   - Grid: oben nach unten ziehen = aktualisieren
 //   - Seitenmenue nach rechts wischen = schliessen
 //   - Im Chat auf der Eingabeleiste nach rechts wischen = zur Chatliste (einstellbar)
 //   - Profil- und Medienfenster nach unten wischen = schliessen
@@ -24,6 +25,8 @@ const TAB_SWIPE_EDGE = 24;
 const TAB_ORDER = ['grid', 'chat', 'editprofile', 'keys'];
 const SWIPE_TABS = ['grid', 'chat', 'editprofile'];
 const SETTINGS_LEAVE_TRIGGER = 120;
+const GRID_REFRESH_TRIGGER = 70;
+const GRID_REFRESH_MAX = 90;
 const SHEET_CLOSE_TRIGGER = 100;
 // Album-Ansicht: 40 % der Bildschirmhoehe, mindestens 220 px.
 const ALBUM_SHEET_CLOSE_SHARE = 0.4;
@@ -205,6 +208,12 @@ function handleTabTouchMove(event) {
         gesture.axis = Math.abs(deltaX) > Math.abs(deltaY) * 1.5 ? 'x' : 'y';
     }
     const view = document.getElementById(`view-${currentTab()}`);
+    // Grid: ganz oben nach unten ziehen = aktualisieren (eigene Geste, die installierte PWA auf iOS hat keine).
+    if (gesture.axis === 'y' && currentTab() === 'grid' && gesture.atTop && window.scrollY <= 0) {
+        gesture.deltaY = Math.max(0, deltaY);
+        renderGridPullRefresh(Math.min(GRID_REFRESH_MAX, gesture.deltaY * 0.5));
+        return;
+    }
     // Einstellungen: ganz oben nach unten ziehen = verlassen (Ansicht folgt dem Finger).
     if (gesture.axis === 'y' && currentTab() === 'keys' && gesture.atTop && window.scrollY <= 0) {
         gesture.deltaY = Math.max(0, deltaY);
@@ -235,6 +244,14 @@ function handleTabTouchEnd() {
         view.style.opacity = '';
     }
     if (!gesture) return;
+    if (tab === 'grid' && gesture.axis === 'y') {
+        renderGridPullRefresh(0);
+        if (gesture.deltaY >= GRID_REFRESH_TRIGGER) {
+            hapticTick();
+            refreshGrid();
+        }
+        return;
+    }
     if (tab === 'keys' && gesture.axis === 'y') {
         if (gesture.deltaY > SETTINGS_LEAVE_TRIGGER) {
             hapticTick();
@@ -260,6 +277,17 @@ function handleTabTouchEnd() {
     if (index < 0 || index >= order.length) return;
     hapticTick();
     switchTab(order[index]);
+}
+
+function renderGridPullRefresh(distance) {
+    const indicator = document.getElementById('grid-pull-refresh');
+    if (!indicator) return;
+    indicator.style.height = `${distance}px`;
+    // Anzeige waechst mit dem halben Zug; bereit, sobald der Zug GRID_REFRESH_TRIGGER erreicht.
+    const ready = distance >= GRID_REFRESH_TRIGGER / 2;
+    indicator.classList.toggle('is-ready', ready);
+    const label = indicator.querySelector('span');
+    if (label) label.textContent = ready ? t('grid.releaseToRefresh') : t('grid.pullToRefresh');
 }
 
 // Einstellungen: naechster/vorheriger Bereich (an den Enden passiert nichts).

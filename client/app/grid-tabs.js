@@ -70,6 +70,15 @@ function renderGridTabs() {
         button.classList.toggle('is-active', active);
         button.setAttribute('aria-selected', String(active));
     });
+    // Graue Zahlen in den Tabs (keine Badges: rot heisst "neu fuer dich"); ohne Tabs steht sie in der Statuszeile.
+    const gridCount = document.getElementById('grid-tab-count');
+    if (gridCount) gridCount.textContent = available && state.gridVisibleCount ? String(state.gridVisibleCount) : '';
+    const matchCount = document.getElementById('matches-tab-count');
+    if (matchCount) {
+        const count = available ? matchedPeerIds().length : 0;
+        matchCount.textContent = count ? String(count) : '';
+    }
+    document.getElementById('grid-peer-count')?.classList.toggle('hidden', available);
     const badge = document.getElementById('grid-interactions-badge');
     if (badge) {
         const unseen = unseenInteractionCount();

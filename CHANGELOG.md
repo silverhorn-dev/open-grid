@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 191 · 2026-10-28
+## Build 192 · 2026-10-28
+- Grid aufgeraeumt: die Bereiche stehen oben, mit Anzahl (Grid, Matches); die Kachel "In deiner Naehe" ist jetzt eine schmale Zeile. Aktualisieren durch Herunterziehen, auch in der installierten App auf dem iPhone
+
+## Build 191 · 2026-10-28 · `b3bcfb0`
 - Neu: "Wer mich im Grid sieht" (Einstellungen > Privatsphaere): zeig dich nur Leuten, deren Profil passt, z. B. nur bestimmte Positionen oder ein Altersbereich. Der Router bekommt nur einen kurzen Code der Regel; geprueft wird in der App der anderen
 
 ## Build 190 · 2026-10-28 · `38acaad`

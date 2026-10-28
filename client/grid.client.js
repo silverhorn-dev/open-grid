@@ -41,6 +41,8 @@ function renderDiscoveryGrid() {
     const groupByDistance = !(discovery && profileFilterActive());
     container.innerHTML = '';
     document.getElementById('grid-peer-count').textContent = visiblePeers.length === 1 ? t('grid.1Person') : t('grid.people', { count: visiblePeers.length });
+    // Mit Tabs steht die Zahl grau am Grid-Tab (grid-tabs.js), sonst in der Statuszeile.
+    state.gridVisibleCount = visiblePeers.length;
     const geohashLabel = document.getElementById('current-geohash');
     if (geohashLabel) geohashLabel.textContent = t('grid.ring', { geohash: state.myProfile.geohash, gridRing: state.gridRing });
     document.getElementById('grid-load-more-btn')?.classList.toggle('hidden', state.appMode !== 'discovery' || !state.gridHasMore);

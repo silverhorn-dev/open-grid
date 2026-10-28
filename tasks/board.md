@@ -407,3 +407,9 @@
   - nicht gebaut: zusaetzliche pruefung beim besitzer (profil/fotos verweigern) - der besitzer kennt das profil des betrachters meist nicht, das waere fail-closed fuer fast alle
   - plan: profil-schema feldtyp `tags` (mehrfachauswahl); router speichert pro peer nur die regel `audience` (feld -> erlaubte werte, begrenzt) und liefert sie mit der karte; client blendet karten aus, deren regel nicht zu den eigenen tags passt (eigene tags fehlen fuer das feld -> nicht passend); besitzer-app prueft bei PROFILE_REQUEST; tests (regel greift, regel entfernen, fehlende eigene tags)
 
+## T21 Grid-Kopf und Router-Standards fuer "nur zeigen fuer" (nutzer 2026-10-28)
+- [x] grid-kopf: tabs ueber die kachel, graue zahlen an den tabs (rot bleibt fuer neues), kachel "in deiner naehe" zur schmalen statuszeile, aktualisieren per runterziehen (eigene geste, iOS-PWA hat keins), am PC kleiner knopf; e2e `mobile-layout`
+- [ ] router-standards fuer die sichtbarkeitsregel
+  - entschieden (nutzer 2026-10-28): startregel fuer neue nutzer (`CLIENT_DEFAULTS.audience`), router erzwingt mindestwerte (`AUDIENCE_MINIMUM`, router mischt sie in jeden karten-code, auch ohne eigene regel); relative regeln: alter "wie ich" (+-3), "aelter als ich" (>=), "juenger als ich" (<=); auswahlfelder "wie ich"
+  - folge: wer den wert (z. B. alter) nicht angibt, sieht bei einem mindestwert niemanden (fail closed, gewollt fuer 18+)
+

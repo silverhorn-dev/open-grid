@@ -124,6 +124,18 @@ async function main() {
         };
         // Das Menue vom vorigen Schritt faehrt noch heraus und laege sonst unter dem Finger.
         await page.waitForTimeout(800);
+        // Grid: oben nach unten ziehen = aktualisieren (kurz ziehen tut nichts).
+        await page.evaluate(() => { switchTab('grid'); window.scrollTo(0, 0); window.__refreshes = 0; refreshGrid = async () => { window.__refreshes += 1; }; });
+        await page.waitForTimeout(300);
+        const statusLine = await page.locator('.grid-status-line').boundingBox();
+        await drag({ x: 200, y: statusLine.y + 10 }, { x: 200, y: statusLine.y + 40 });
+        assert.equal(await page.evaluate(() => window.__refreshes), 0, 'short pull does nothing');
+        await drag({ x: 200, y: statusLine.y + 10 }, { x: 200, y: statusLine.y + 220 });
+        await waitFor(page, () => window.__refreshes === 1);
+        assert.equal(await page.evaluate(() => document.getElementById('grid-pull-refresh').style.height), '0px', 'indicator closes');
+        await page.evaluate(() => switchTab('editprofile'));
+        await page.waitForTimeout(300);
+
         await swipe(330, 80);
         await waitFor(page, () => document.getElementById('app-menu').classList.contains('is-open'));
         assert.equal(await page.evaluate(() => document.getElementById('view-editprofile').classList.contains('hidden')), false, 'profile stays');

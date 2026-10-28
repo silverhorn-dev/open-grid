@@ -34,6 +34,7 @@ function loadStorage() {
     const context = {
         state: { myProfile: { id: 'me', gallery: [] }, chatControls: {}, chats: {}, chatPreviews: {}, chatPeerIds: [], activeChatPeerId: null, cachedProfiles: {}, albums: {}, chatScopes: {} },
         showToast: () => {},
+        notifyInApp: (kind, message, type) => context.showToast(message, type),
         document: { getElementById: () => null },
         subscribePresence: () => {},
         isPeerOnline: () => false,

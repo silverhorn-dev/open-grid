@@ -348,3 +348,10 @@
   - ist-stand: `sendPickedImages` (snaps.js) schickt bei mehrfachauswahl jedes bild sofort einzeln, ohne editor/vorschau
   - idee: vorschau-streifen mit allen bildern, durchwischen, einzelne entfernen, ggf. pro bild snap/bild/secure; dann "alle senden"
 
+## T18 Benachrichtigungen je Art (nutzer 2026-10-28)
+- [x] in den einstellungen einzeln einstellbar: match, flamme, adden, entdecken-nachricht, chat-nachricht, profilbesuch (entdecken), chat-ereignisse
+  - entschieden (nutzer): ein schalter = push + hinweis in der app; profilbesuche neu bauen, opt-in auf beiden seiten
+  - done 2026-10-28: `keys`/`notification-settings`, `notifyInApp`, `POST /api/push/settings` (stumme arten, spalte `muted_kinds`), `notifyKind` beim cache-eintrag und `kind` beim anstupsen, SW-texte je art; push jetzt auch fuer flamme/match/anfrage/profilbesuch; `PROFILE_VIEW` (opt-in, nur entdecken, 6 h pro person); tests `test/push.test.js`, e2e `notifications`
+  - metadaten: der router erfaehrt die art eines ereignisses (nicht den inhalt), sonst bestrafen browser still verworfene pushes (decisions log in claudy.md)
+  - offen/spaeter: echte benachrichtigung auf dem geraet testen; router-standards fuer die schalter (`CLIENT_DEFAULTS`)
+

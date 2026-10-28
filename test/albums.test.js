@@ -16,6 +16,8 @@ function loadAlbums({ identity = null, peerKeys = {}, signingKeys = {}, withSwar
     const records = new Map();
     const clock = { ...time };
     const context = {
+        // Hinweise je Art (push.js) laufen hier ueber showToast, das einzelne Tests setzen.
+        notifyInApp: (kind, message, type) => context.showToast?.(message, type),
         state: {
             myProfile: { id: 'me', gallery: [{ id: 'img_public', version: 1 }] },
             albums: {

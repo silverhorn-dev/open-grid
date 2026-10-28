@@ -1258,6 +1258,31 @@ Der Server liefert `client/sw.js` unter `/sw.js` mit Scope `/` aus.
 | `POST` | `/api/push/subscribe` | Push-Subscription eines Peers speichern (authentifiziert) |
 | `DELETE` | `/api/push/subscribe/:peerId` | Push-Subscription entfernen (authentifiziert) |
 | `POST` | `/api/push/nudge` | Abwesenden Empfaenger anstupsen (authentifiziert als Absender) |
+| `POST` | `/api/push/settings` | Stumme Benachrichtigungsarten hinterlegen (authentifiziert) |
+
+Benachrichtigungen je Art (Einstellungen > Chat > Benachrichtigungen,
+`keys`/`notification-settings = { kinds, shareProfileViews }`, `push.js`):
+`match`, `flame`, `add`, `discovery` (Nachricht in "Entdecken"), `chat`
+(Nachricht in "Chat & Freunde"), `profileView` (Standard aus), `chatEvents`
+(nur in der App: Snap gespeichert, Chat geloescht, Album fertig angesehen). Ein
+Schalter steuert Push und Hinweis in der App (`notifyInApp`). Abgeschaltete
+Push-Arten meldet der Client dem Router (`mutedKinds`, Spalte
+`push_subscriptions.muted_kinds`); der Absender nennt die Art beim
+Cache-Eintrag (`notifyKind`) bzw. beim Anstupsen (`kind`), der Router pusht
+nur gewollte Arten und schreibt `kind` in den Push. Grund: Browser erwarten zu
+jedem Push eine Meldung; still verworfene Pushes fuehren zu Browser-eigenen
+Meldungen bzw. zum Entzug des Push-Rechts. Der Router erfaehrt dadurch die Art
+eines Ereignisses (nie den Inhalt). Push gibt es jetzt auch fuer Flamme/Match
+(`MATCH_PING`), Anfragen (`FRIEND_PING`) und Profilbesuche; der Service Worker
+zeigt dafuer "X hat dir eine Flamme geschickt", "Match mit X!" usw. (im
+Kompaktmodus ohne Namen) und laesst die Operation in der Queue, die Seite
+wendet sie beim Oeffnen an.
+
+Profilbesuch (`PROFILE_VIEW`, Chat-Operation, nicht im Log): nur wenn der
+Besucher "Meine Profilbesuche zeigen" eingeschaltet hat (Standard aus), nur in
+"Entdecken" (nicht bei Freunden/Chats aus "Chat & Freunde"), hoechstens alle
+6 Stunden pro Person (`localStorage`). Der Besuchte sieht ihn nur mit
+eingeschaltetem "Profilbesuch".
 
 Anstupsen: eine direkt (P2P) zugestellte Nachricht loest keinen Push aus. Ist
 der Empfaenger abwesend (App im Hintergrund, Verbindung steht noch), sieht er

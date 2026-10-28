@@ -95,12 +95,12 @@ async function applyFriendOperation(peerId, operation) {
         await setChatScope(peerId, 'social');
         await releaseHeldMessages(peerId);
         pushStatusesToPeer(peerId).catch(logBackgroundError('applyFriendOperation'));
-        if (operation.actorId === peerId) showToast(t('friends.andYouAreFriendsNow', { name }), 'success');
+        if (operation.actorId === peerId) notifyInApp('add', t('friends.andYouAreFriendsNow', { name }), 'success');
         sendSecurePayload(peerId, { type: 'PROFILE_REQUEST' }).catch(logBackgroundError('applyFriendOperation'));
     } else if (operation.type === 'FRIEND_PING' && operation.actorId === peerId && !nowFriend) {
         // Neue Kontakte (noch ohne Liste) gehoeren nach "Chat & Freunde"; Grid-Kontakte nur nach Match.
         await ensureChatScope(peerId, 'social');
-        if (acceptsFriendRequestFrom(peerId)) showToast(t('friends.wantsToAddYou', { name }), 'info');
+        if (acceptsFriendRequestFrom(peerId)) notifyInApp('add', t('friends.wantsToAddYou', { name }));
     }
     if (wasFriend && !nowFriend) {
         delete state.statusPushes[peerId];
@@ -121,9 +121,12 @@ async function sendFriendOperation(peerId, type) {
     };
     await applyChatOperation(peerId, operation);
     const { peerId: _localPeerId, ...sharedOperation } = operation;
-    // Mit Rueckruf: ohne direkte Verbindung nach 10 s ueber Pfad C (ohne Push), statt nur beim
-    // naechsten Chat-Sync.
-    await sendSecurePayload(peerId, { type: 'CHAT_OPERATION', operation: sharedOperation }, () => {});
+    // Mit Rueckruf: ohne direkte Verbindung nach 10 s ueber Pfad C (Anfragen mit Push "Adden"), statt nur
+    // beim naechsten Chat-Sync; direkt zugestellt an einen abwesenden Partner per Anstupsen.
+    const notifyKind = type === 'FRIEND_PING' ? 'add' : null;
+    await sendSecurePayload(peerId, { type: 'CHAT_OPERATION', operation: sharedOperation }, path => {
+        if (path === 'p2p' && notifyKind) nudgeAwayPeer(peerId, notifyKind);
+    }, { notifyKind });
 }
 
 // Anfrage senden oder eine erhaltene annehmen.

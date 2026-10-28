@@ -277,7 +277,7 @@ async function enforceAlbumLimits(now = null) {
             if (!over) continue;
             // Besitzer erfaehrt, dass jemand fertig ist (alle Ansichten verbraucht).
             if (limit.kind === 'views') {
-                showToast(t('albums.viewerFinishedAlbum', { name: getPeerPresentation(viewerId).name || t('app.someone'), album: album.name }), 'info');
+                notifyInApp('chatEvents', t('albums.viewerFinishedAlbum', { name: getPeerPresentation(viewerId).name || t('app.someone'), album: album.name }));
             }
             await revokeAlbumAccess(album.id, viewerId);
         }

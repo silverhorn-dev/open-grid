@@ -745,12 +745,13 @@ export async function buildApp(options = {}) {
         };
     });
 
-    async function notifyRecipient(message) {
+    async function notifyRecipient(message, kind = 'chat') {
         const subscription = store.getPushSubscription(message.recipientId);
         // Auch alte, vor der Allowlist gespeicherte Subscriptions nie an fremde Hosts.
         if (!subscription || !isAllowedPushEndpoint(subscription.endpoint, pushHostAllowlist)) return;
         const fullPayload = {
             type: 'PATH_C',
+            kind,
             msgId: message.msgId,
             senderId: message.senderId,
             ciphertextPayload: message.ciphertextPayload,
@@ -760,7 +761,7 @@ export async function buildApp(options = {}) {
         // nur der Hinweis raus und der Service Worker holt den Rest aus der Queue.
         const payload = Buffer.byteLength(JSON.stringify(fullPayload)) <= MAX_PUSH_PLAINTEXT_BYTES
             ? fullPayload
-            : { type: 'PATH_C', msgId: message.msgId, senderId: message.senderId };
+            : { type: 'PATH_C', kind, msgId: message.msgId, senderId: message.senderId };
         try {
             const result = await sendPush(subscription, payload);
             if (result.expired) store.deletePushSubscription(message.recipientId, subscription.endpoint);
@@ -769,7 +770,26 @@ export async function buildApp(options = {}) {
         }
     }
 
+    // Benachrichtigungsarten (Einstellungen > Benachrichtigungen). Der Absender nennt die Art beim Push
+    // (Cache-Eintrag oder Anstupsen); der Empfaenger hinterlegt, welche er nicht per Push will. Ohne das
+    // muesste der Service Worker Pushes still verwerfen, und Browser zeigen dann eigene Meldungen bzw.
+    // entziehen das Push-Recht. Der Server erfaehrt so nur die Art, nie den Inhalt.
+    const PUSH_KINDS = ['chat', 'discovery', 'flame', 'match', 'add', 'profileView'];
+    const pushWanted = (recipientId, kind) => !store.getPushMutedKinds(recipientId).includes(kind);
+
     app.get('/api/push/vapid-public-key', async () => ({ publicKey: vapidKeys.publicKey }));
+
+    app.post('/api/push/settings', async (request, reply) => {
+        if (!allowRequest('push', request.ip, reply)) return;
+        const { peerId, mutedKinds } = request.body || {};
+        if (!isString(peerId, 200) || !Array.isArray(mutedKinds) || mutedKinds.length > PUSH_KINDS.length) {
+            return reply.code(400).send({ error: 'Invalid parameters' });
+        }
+        if (!requirePeerAuth(request, reply, peerId)) return;
+        const kinds = [...new Set(mutedKinds.filter(kind => PUSH_KINDS.includes(kind)))];
+        const updated = store.setPushMutedKinds(peerId, kinds);
+        return { status: updated ? 'saved' : 'no-subscription', mutedKinds: kinds };
+    });
 
     app.post('/api/push/subscribe', async (request, reply) => {
         if (!allowRequest('push', request.ip, reply)) return;
@@ -800,21 +820,23 @@ export async function buildApp(options = {}) {
     const lastNudges = new Map();
     app.post('/api/push/nudge', async (request, reply) => {
         const { senderId, recipientId } = request.body || {};
+        const kind = PUSH_KINDS.includes(request.body?.kind) ? request.body.kind : 'chat';
         if (!isString(senderId, 200) || !isString(recipientId, 200) || senderId === recipientId) {
             return reply.code(400).send({ error: 'Invalid parameters' });
         }
         if (!requirePeerAuth(request, reply, senderId)) return;
         if (!allowRequest('nudge', senderId, reply)) return;
-        const pair = `${senderId}:${recipientId}`;
+        const pair = `${senderId}:${recipientId}:${kind}`;
         const current = now();
         if (store.isBlocked(recipientId, senderId)) return reply.code(202).send({ status: 'skipped' });
         if (signaling.isPeerOnline(recipientId) && !signaling.isPeerAway(recipientId)) return reply.code(202).send({ status: 'skipped' });
         if (current - (lastNudges.get(pair) || 0) < NUDGE_PAIR_INTERVAL_MS) return reply.code(202).send({ status: 'skipped' });
+        if (!pushWanted(recipientId, kind)) return reply.code(202).send({ status: 'skipped' });
         const subscription = store.getPushSubscription(recipientId);
         if (!subscription || !isAllowedPushEndpoint(subscription.endpoint, pushHostAllowlist)) return reply.code(202).send({ status: 'skipped' });
         lastNudges.set(pair, current);
         if (lastNudges.size > 5000) lastNudges.delete(lastNudges.keys().next().value);
-        sendPush(subscription, { type: 'NUDGE', senderId })
+        sendPush(subscription, { type: 'NUDGE', senderId, kind })
             .then(result => { if (result.expired) store.deletePushSubscription(recipientId, subscription.endpoint); })
             .catch(error => app.log.warn(`Web Push nudge failed: ${error.message}`));
         return reply.code(202).send({ status: 'sent' });
@@ -823,6 +845,8 @@ export async function buildApp(options = {}) {
     // Groesseres Limit nur hier: Sprachnachrichten (bis 60 s) gehen als Ganzes durch den Cache.
     app.post('/api/cache', { bodyLimit: CACHE_BODY_LIMIT }, async (request, reply) => {
         const { recipientId, senderId, ciphertextPayload, ivHex, ttlHours, notify } = request.body || {};
+        // Art fuer die Benachrichtigung (ohne Angabe: Chat-Nachricht, wie aeltere Clients).
+        const notifyKind = PUSH_KINDS.includes(request.body?.notifyKind) ? request.body.notifyKind : 'chat';
         if (!isString(recipientId, 200) || !isString(ciphertextPayload, MAX_CACHE_CIPHERTEXT_LENGTH)) {
             return reply.code(400).send({ error: 'Missing or invalid parameters' });
         }
@@ -852,8 +876,8 @@ export async function buildApp(options = {}) {
         });
         // Der Push laeuft im Hintergrund, damit der Sender nicht auf den
         // Push-Dienst des Empfaengers warten muss.
-        const pushRequested = notify === true && Boolean(store.getPushSubscription(recipientId));
-        if (pushRequested) notifyRecipient(message);
+        const pushRequested = notify === true && Boolean(store.getPushSubscription(recipientId)) && pushWanted(recipientId, notifyKind);
+        if (pushRequested) notifyRecipient(message, notifyKind);
         signaling.notifyCacheWaiting(recipientId);
         return reply.code(201).send({
             status: 'queued',

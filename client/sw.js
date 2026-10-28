@@ -239,6 +239,36 @@ function showCompactNotification() {
     });
 }
 
+// Arten ohne Chat-Nachricht (Einstellungen > Benachrichtigungen); der Router pusht nur eingeschaltete.
+const EVENT_KINDS = ['flame', 'match', 'add', 'profileView'];
+// Titel je Art, mit Namen oder ohne (Kompaktmodus, unbekannter Absender).
+const KIND_TITLES = {
+    chat: name => (name ? swText('sw.newMessageFrom', { name }) : swText('sw.newMessage')),
+    flame: name => (name ? swText('sw.flameFrom', { name }) : swText('sw.newFlame')),
+    match: name => (name ? swText('sw.matchWith', { name }) : swText('sw.newMatch')),
+    add: name => (name ? swText('sw.addFrom', { name }) : swText('sw.newRequest')),
+    profileView: name => (name ? swText('sw.profileViewFrom', { name }) : swText('sw.newProfileView'))
+};
+
+async function showKindNotification(kind, senderId, compact) {
+    const title = KIND_TITLES[kind] || KIND_TITLES.chat;
+    if (compact) {
+        return EVENT_KINDS.includes(kind) ? showChatNotification(title(null), swText('sw.tapToOpen'), null) : showCompactNotification();
+    }
+    let senderName = null;
+    try {
+        const database = await openDatabase();
+        try {
+            senderName = await findPeerName(database, senderId);
+        } finally {
+            database.close();
+        }
+    } catch {
+        senderName = null;
+    }
+    return showChatNotification(title(senderName), swText('sw.tapToOpen'), senderId);
+}
+
 async function loadCompactSetting() {
     try {
         const database = await openDatabase();
@@ -271,28 +301,15 @@ async function handlePush(event) {
         data = null;
     }
     const compact = await loadCompactSetting();
-    // Anstupsen: Nachricht kam direkt (P2P) an, die App ist aber im Hintergrund. Kein Inhalt im Push,
-    // nur der Absender; bei sichtbarer App nichts zeigen.
-    if (data?.type === 'NUDGE' && typeof data.senderId === 'string') {
+    // Anstupsen (direkt zugestellt, App im Hintergrund) und Ereignisse ohne Nachricht (Flamme, Match,
+    // Anfrage, Profilbesuch): kein Inhalt im Push, nur Absender und Art; bei sichtbarer App nichts zeigen.
+    // Ereignisse ueber Pfad C bleiben in der Queue, die Seite wendet sie beim Oeffnen an.
+    const eventKind = data?.type === 'NUDGE' ? (data.kind || 'chat')
+        : data?.type === 'PATH_C' && EVENT_KINDS.includes(data.kind) ? data.kind : null;
+    if (eventKind && typeof data.senderId === 'string') {
         const openWindows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
         if (openWindows.some(client => client.visibilityState === 'visible')) return undefined;
-        if (compact) return showCompactNotification();
-        let senderName = null;
-        try {
-            const database = await openDatabase();
-            try {
-                senderName = await findPeerName(database, data.senderId);
-            } finally {
-                database.close();
-            }
-        } catch {
-            senderName = null;
-        }
-        return showChatNotification(
-            senderName ? swText('sw.newMessageFrom', { name: senderName }) : swText('sw.newMessage'),
-            swText('sw.tapToOpen'),
-            data.senderId
-        );
+        return showKindNotification(eventKind, data.senderId, compact);
     }
     if (data?.type !== 'PATH_C' || typeof data.msgId !== 'string' || typeof data.senderId !== 'string') {
         return compact ? showCompactNotification() : showGenericNotification(null);

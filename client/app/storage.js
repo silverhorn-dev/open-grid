@@ -719,7 +719,7 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
         const target = state.chats[peerId]?.find(item => item.id === ownMessage.id) || ownMessage;
         target.savedByPeer = true;
         await persistChatMessage(peerId, target);
-        showToast(t('app.savedYourSnap', { name: getPeerPresentation(peerId).name || t('app.someone') }), 'info');
+        notifyInApp('chatEvents', t('app.savedYourSnap', { name: getPeerPresentation(peerId).name || t('app.someone') }));
     } else if (localOperation.type === 'MATCH_PING' || localOperation.type === 'MATCH_RESET') {
         if (!await applyMatchOperation(peerId, localOperation)) return false;
     } else if (localOperation.type === 'FRIEND_PING' || localOperation.type === 'FRIEND_RESET') {
@@ -768,8 +768,15 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
         if (state.activeChatPeerId === peerId) {
             resetActiveChat('Der Chat wurde vom Chat-Partner geloescht.');
         }
-        showToast(t('app.chatPartnerDeletedChatHistory'), 'info');
+        notifyInApp('chatEvents', t('app.chatPartnerDeletedChatHistory'));
         return true; // Return true, damit der Wipe nicht als endloser Sync gespeichert wird
+    } else if (localOperation.type === 'PROFILE_VIEW') {
+        // Profilbesuch (nur gesendet, wenn der Besucher es erlaubt); nur in "Entdecken", nie gespeichert.
+        if (localOperation.actorId !== peerId || isPeerBlocked(peerId)) return true;
+        if (typeof scopeIncludes === 'function' && scopeIncludes('discovery')) {
+            notifyInApp('profileView', t('notifications.viewedYourProfile', { name: getPeerPresentation(peerId).name || t('app.someone') }));
+        }
+        return true;
     } else if (localOperation.type === 'PEER_UNHIDE') {
         if (localOperation.actorId !== peerId) return false;
         const hidden = JSON.parse(localStorage.getItem('hiddenByPeers') || '[]');

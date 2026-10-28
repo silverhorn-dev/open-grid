@@ -58,7 +58,7 @@ async function main() {
         await waitFor(bob, id => (state.chats[id] || []).some(message => message.text === 'bist du da?'), aliceId);
         const startedAt = Date.now();
         while (!nudges.length && Date.now() - startedAt < 10000) await alice.waitForTimeout(200);
-        assert.deepEqual(nudges[0], { senderId: aliceId, recipientId: bobId }, 'direct delivery to an away peer nudges a push');
+        assert.deepEqual(nudges[0], { senderId: aliceId, recipientId: bobId, kind: 'chat' }, 'direct delivery to an away peer nudges a push');
 
         // Zurueck: wieder online, kein Anstupsen mehr noetig.
         await bob.evaluate(() => reportAway(false));

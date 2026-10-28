@@ -137,6 +137,9 @@ const state = {
     reportedAway: null,
     // Eingefahrene Flirt-Lasche per Tipp wieder ausgeklappt (bis man wieder unten ist, friends.js).
     flirtTabPinnedOpen: false,
+    // Benachrichtigungen je Art und ob eigene Profilbesuche gemeldet werden (push.js).
+    notificationSettings: null,
+    shareProfileViews: false,
     // Wer eigene Chat-Bilder/Videos speichern darf: 'friends' | 'all' (media-rights.js).
     mediaDownload: 'friends',
     // Snap-Editor: darf der Empfaenger diese Aufnahme speichern (snaps.js).

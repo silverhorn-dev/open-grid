@@ -32,6 +32,7 @@ function loadFriends({ appMode = 'chat' } = {}) {
         rememberChatPeer: peerId => { if (!context.state.chatPeerIds.includes(peerId)) context.state.chatPeerIds.push(peerId); },
         getPeerPresentation: peerId => ({ id: peerId, name: peerId }),
         showToast: (message, type) => toasts.push(`${type}: ${message}`),
+        notifyInApp: (kind, message, type = 'info') => toasts.push(`${type}: ${message}`),
         sendSecurePayload: async (peerId, payload) => sent.push({ peerId, payload }),
         syncChatGate: async () => {},
         getDatabaseRecordsByIndex: async () => [],

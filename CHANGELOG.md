@@ -2,7 +2,12 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 178 · 2026-10-28
+## Build 179 · 2026-10-28
+- Benachrichtigungen einzeln einstellbar (Einstellungen > Chat > Benachrichtigungen): Match, Flamme, Adden, Nachrichten aus "Entdecken" und aus "Chat & Freunde", Profilbesuche und Chat-Ereignisse. Jeder Schalter gilt fuer Push und Hinweise in der App
+- Flammen, Matches und Freundschaftsanfragen melden sich jetzt auch, wenn die App geschlossen ist
+- Neu: Profilbesuche in "Entdecken" (beidseitig freiwillig): nur wenn der Besucher "Meine Profilbesuche zeigen" einschaltet und du "Profilbesuch" an hast, hoechstens alle 6 Stunden pro Person
+
+## Build 178 · 2026-10-28 · `a407c50`
 - Flirt-Knopf: scrollst du im Chat weit nach oben, faehrt er zu einem schmalen Streifen ein und stoert beim Lesen nicht; tippen darauf oder ins Eingabefeld holt ihn zurueck, unten ist er von selbst wieder da. Er liegt jetzt auch nicht mehr hinter den Pfeilen der Nachrichten
 - Wischen im eigenen Profil klappt jetzt auch, wenn der Finger auf einem Eingabefeld startet
 - Behoben: im Chat am Ende hochziehen flackerte die Anzeige darunter

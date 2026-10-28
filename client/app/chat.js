@@ -94,6 +94,8 @@ function openProfileModal(peerId) {
     }, 800);
 
     probePeerPresence(peerId).catch(error => logDebug(`Presence probe failed: ${error.message}`));
+    // Profilbesuch melden (nur wenn erlaubt, push.js).
+    sendProfileView(peerId);
 }
 
 function renderProfileModalData(profile) {
@@ -509,7 +511,7 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
     }, (deliveryPath, details = {}) => {
         message.deliveredVia = DELIVERY_PATH_LABELS[deliveryPath] || 'E2EE P2P';
         // Direkt zugestellt, Partner aber abwesend: Benachrichtigung per Push anstossen (push.js).
-        if (deliveryPath === 'p2p') nudgeAwayPeer(peerId);
+        if (deliveryPath === 'p2p') nudgeAwayPeer(peerId, message.scope === 'discovery' ? 'discovery' : 'chat');
         // Path C haelt die Nachricht nur bis zum Ablauf der Queue-TTL.
         if (deliveryPath === 'cache' && details.expiresAt) message.cacheExpiresAt = details.expiresAt;
         persistChatMessage(peerId, message).catch(error => logDebug(`Could not update chat message: ${error.message}`));

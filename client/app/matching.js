@@ -85,11 +85,11 @@ async function applyMatchOperation(peerId, operation) {
     if (wasMatched !== nowMatched) syncChatGate();
     if (!wasMatched && nowMatched) {
         await releaseHeldMessages(peerId);
-        if (operation.actorId === peerId) showToast(t('matching.matchWith', { name: getPeerPresentation(peerId).name || HIDDEN_PEER_NAME }), 'success');
+        if (operation.actorId === peerId) notifyInApp('match', t('matching.matchWith', { name: getPeerPresentation(peerId).name || HIDDEN_PEER_NAME }), 'success');
         // Das Profil ist jetzt fuer diesen Peer vollstaendig: neu anfragen.
         sendSecurePayload(peerId, { type: 'PROFILE_REQUEST' }).catch(logBackgroundError('applyMatchOperation'));
     } else if (operation.type === 'MATCH_PING' && operation.actorId === peerId && !nowMatched) {
-        showToast(t('matching.sentYouFlame', { value: getPeerPresentation(peerId).name || HIDDEN_PEER_NAME }), 'info');
+        notifyInApp('flame', t('matching.sentYouFlame', { value: getPeerPresentation(peerId).name || HIDDEN_PEER_NAME }));
     }
     if (wasMatched && !nowMatched) sendSecurePayload(peerId, { type: 'PROFILE_REQUEST' }).catch(logBackgroundError('applyMatchOperation'));
     renderMatchUi(peerId);
@@ -106,8 +106,13 @@ async function sendMatchOperation(peerId, type) {
     };
     await applyChatOperation(peerId, operation);
     const { peerId: _localPeerId, ...sharedOperation } = operation;
-    // Ohne direkte Verbindung nach 10 s ueber Pfad C (ohne Push).
-    await sendSecurePayload(peerId, { type: 'CHAT_OPERATION', operation: sharedOperation }, () => {});
+    // Benachrichtigung beim anderen: Flamme bzw. Match (wenn er schon eine geschickt hatte); ein Entmatchen
+    // meldet nichts. Ohne direkte Verbindung nach 10 s ueber Pfad C (mit Push dieser Art), direkt
+    // zugestellt an einen abwesenden Partner per Anstupsen.
+    const notifyKind = type === 'MATCH_PING' ? (isMatched(peerId) ? 'match' : 'flame') : null;
+    await sendSecurePayload(peerId, { type: 'CHAT_OPERATION', operation: sharedOperation }, path => {
+        if (path === 'p2p' && notifyKind) nudgeAwayPeer(peerId, notifyKind);
+    }, { notifyKind });
 }
 
 function flameCooldownLeft(peerId) {

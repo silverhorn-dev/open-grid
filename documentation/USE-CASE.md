@@ -887,3 +887,20 @@ Akzeptanzkriterien:
 - Ohne aktiven Entdecken-Bereich gibt es keine Flamme, der Flirt-Teil bleibt
   verborgen.
 - Nichts wird geloescht; das Gegenueber merkt nichts.
+
+## UC-54: Benachrichtigungen je Art
+
+**Als Nutzer** moechte ich festlegen, worueber ich benachrichtigt werde.
+
+Akzeptanzkriterien:
+
+- Einstellungen > Chat > Benachrichtigungen: Match, Flamme, Nachricht in
+  "Entdecken", Profilbesuch, Adden, Nachricht in "Chat & Freunde",
+  Chat-Ereignisse; nur die Arten der aktiven Bereiche sind sichtbar.
+- Ein Schalter gilt fuer Push (App geschlossen) und den Hinweis in der App.
+- Abgeschaltete Arten kommen gar nicht erst als Push.
+- Flamme, Match und Anfragen wecken die App jetzt auch im Hintergrund.
+- Profilbesuche: der Besucher muss "Meine Profilbesuche zeigen" einschalten
+  (Standard aus), der Besuchte "Profilbesuch" (Standard aus); nur in
+  "Entdecken", hoechstens alle 6 Stunden pro Person.
+

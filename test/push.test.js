@@ -256,6 +256,7 @@ test('pushes the sender ciphertext to the recipient when notify is set', async (
     assert.equal(sentPushes.length, 1);
     assert.deepEqual(sentPushes[0].payload, {
         type: 'PATH_C',
+        kind: 'chat',
         msgId: response.json().msgId,
         senderId: 'peer-a',
         ciphertextPayload: 'ciphertext-put',
@@ -279,7 +280,7 @@ test('nudges an absent recipient with a content-free push, rate limited per pair
     assert.equal(sent.statusCode, 202);
     assert.equal(sent.json().status, 'sent');
     await new Promise(resolve => setImmediate(resolve));
-    assert.deepEqual(sentPushes.at(-1).payload, { type: 'NUDGE', senderId: 'peer-a' });
+    assert.deepEqual(sentPushes.at(-1).payload, { type: 'NUDGE', senderId: 'peer-a', kind: 'chat' });
     assert.equal((await nudge('peer-a')).json().status, 'skipped', 'once per 15 s and pair');
 
     const forged = await app.inject({
@@ -298,11 +299,34 @@ test('nudges an absent recipient with a content-free push, rate limited per pair
     assert.equal(sentPushes.length, blockedCount);
 });
 
+// Einstellungen > Benachrichtigungen: abgeschaltete Arten gehen gar nicht erst als Push raus (ein still
+// verworfener Push fuehrt im Browser zu eigenen Meldungen bzw. zum Entzug des Push-Rechts).
+test('muted notification kinds are not pushed, others are, with the kind in the payload', async () => {
+    await subscribe('peer-b', createBrowserSubscription().subscription);
+    const forged = await app.inject({ method: 'POST', url: '/api/push/settings', headers: authHeaders('peer-a'), payload: { peerId: 'peer-b', mutedKinds: ['flame'] } });
+    assert.ok(forged.statusCode >= 400, 'only the owner sets their kinds');
+    const saved = await app.inject({ method: 'POST', url: '/api/push/settings', headers: authHeaders('peer-b'), payload: { peerId: 'peer-b', mutedKinds: ['flame', 'nonsense', 'flame'] } });
+    assert.deepEqual(saved.json(), { status: 'saved', mutedKinds: ['flame'] });
+
+    const flame = await enqueue({ ciphertextPayload: 'ciphertext-flame', notify: true, notifyKind: 'flame' });
+    assert.equal(flame.json().pushRequested, false, 'muted kind');
+    assert.equal(sentPushes.length, 0);
+    assert.equal(store.getMessages('peer-b').length, 1, 'the message itself is still queued');
+
+    const add = await enqueue({ ciphertextPayload: 'ciphertext-add', notify: true, notifyKind: 'add' });
+    assert.equal(add.json().pushRequested, true);
+    assert.equal(sentPushes.at(-1).payload.kind, 'add');
+
+    const nudge = await app.inject({ method: 'POST', url: '/api/push/nudge', headers: authHeaders('peer-a'), payload: { senderId: 'peer-a', recipientId: 'peer-b', kind: 'flame' } });
+    assert.equal(nudge.json().status, 'skipped', 'muted kind is not nudged either');
+});
+
 test('sends only a wake-up hint when the ciphertext does not fit into a push', async () => {
     await subscribe('peer-b', createBrowserSubscription().subscription);
     const response = await enqueue({ ciphertextPayload: 'x'.repeat(MAX_PUSH_PLAINTEXT_BYTES), notify: true });
     assert.deepEqual(sentPushes[0].payload, {
         type: 'PATH_C',
+        kind: 'chat',
         msgId: response.json().msgId,
         senderId: 'peer-a'
     });

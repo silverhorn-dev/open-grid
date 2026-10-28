@@ -115,6 +115,12 @@ export function createStore(databasePath, { credentialRetentionDays = DEFAULT_CR
         database.exec('UPDATE peer_credentials SET last_active_at = created_at WHERE last_active_at IS NULL');
     }
 
+    // Benachrichtigungsarten, die der Peer nicht per Push will (JSON-Liste, z. B. ["flame"]).
+    const pushColumns = database.prepare('PRAGMA table_info(push_subscriptions)').all();
+    if (!pushColumns.some(column => column.name === 'muted_kinds')) {
+        database.exec('ALTER TABLE push_subscriptions ADD COLUMN muted_kinds TEXT');
+    }
+
     const statements = {
         findPeer: database.prepare(`
             SELECT peer_id AS peerId, registration_id AS registrationId, auth_hash AS authHash, geohash, silent, scope
@@ -276,6 +282,8 @@ export function createStore(databasePath, { credentialRetentionDays = DEFAULT_CR
             WHERE peer_id = ?
         `),
         deletePushSubscription: database.prepare('DELETE FROM push_subscriptions WHERE peer_id = ?'),
+        setPushMutedKinds: database.prepare('UPDATE push_subscriptions SET muted_kinds = ? WHERE peer_id = ?'),
+        findPushMutedKinds: database.prepare('SELECT muted_kinds AS mutedKinds FROM push_subscriptions WHERE peer_id = ?'),
         deletePushSubscriptionEndpoint: database.prepare('DELETE FROM push_subscriptions WHERE peer_id = ? AND endpoint = ?'),
         findSetting: database.prepare('SELECT value FROM server_settings WHERE key = ?'),
         insertSetting: database.prepare('INSERT OR IGNORE INTO server_settings (key, value) VALUES (?, ?)'),
@@ -536,6 +544,19 @@ export function createStore(databasePath, { credentialRetentionDays = DEFAULT_CR
                 subscription.keys.auth,
                 now
             );
+        },
+
+        setPushMutedKinds(peerId, kinds) {
+            return Number(statements.setPushMutedKinds.run(JSON.stringify(kinds), peerId).changes);
+        },
+
+        getPushMutedKinds(peerId) {
+            try {
+                const value = JSON.parse(statements.findPushMutedKinds.get(peerId)?.mutedKinds || '[]');
+                return Array.isArray(value) ? value : [];
+            } catch {
+                return [];
+            }
         },
 
         getPushSubscription(peerId) {

@@ -697,6 +697,43 @@
                     </label>
                 </div>
 
+                <div class="settings-card" data-settings-tab="chat">
+                    <h3 class="settings-card-title"><i class="fa-solid fa-bell-concierge text-brand-400"></i> <span data-i18n="notifications.title">Benachrichtigungen</span></h3>
+                    <p data-i18n="notifications.intro" class="setting-note">Gilt für Push (App geschlossen) und Hinweise in der App.</p>
+                    <label class="setting-row" data-scope="discovery">
+                        <span class="setting-text"><span data-i18n="notifications.match" class="setting-title">Match</span><span data-i18n="notifications.matchDescription" class="setting-desc">Ihr habt euch gegenseitig eine Flamme geschickt.</span></span>
+                        <input type="checkbox" role="switch" id="notify-match-toggle" checked data-change="updateNotificationSetting" data-args='["match", "$checked"]' class="switch">
+                    </label>
+                    <label class="setting-row" data-scope="discovery">
+                        <span class="setting-text"><span data-i18n="notifications.flame" class="setting-title">Flamme</span><span data-i18n="notifications.flameDescription" class="setting-desc">Jemand hat dir eine Flamme geschickt.</span></span>
+                        <input type="checkbox" role="switch" id="notify-flame-toggle" checked data-change="updateNotificationSetting" data-args='["flame", "$checked"]' class="switch">
+                    </label>
+                    <label class="setting-row" data-scope="discovery">
+                        <span class="setting-text"><span data-i18n="notifications.discoveryMessage" class="setting-title">Nachricht in „Entdecken“</span><span data-i18n="notifications.discoveryMessageDescription" class="setting-desc">Neue Nachrichten aus Grid und Event.</span></span>
+                        <input type="checkbox" role="switch" id="notify-discovery-toggle" checked data-change="updateNotificationSetting" data-args='["discovery", "$checked"]' class="switch">
+                    </label>
+                    <label class="setting-row" data-scope="discovery">
+                        <span class="setting-text"><span data-i18n="notifications.profileView" class="setting-title">Profilbesuch</span><span data-i18n="notifications.profileViewDescription" class="setting-desc">Jemand hat dein Profil angesehen (nur, wenn der Besucher das erlaubt).</span></span>
+                        <input type="checkbox" role="switch" id="notify-profileView-toggle" checked data-change="updateNotificationSetting" data-args='["profileView", "$checked"]' class="switch">
+                    </label>
+                    <label class="setting-row" data-scope="social">
+                        <span class="setting-text"><span data-i18n="notifications.add" class="setting-title">Adden</span><span data-i18n="notifications.addDescription" class="setting-desc">Freundschaftsanfragen und angenommene Anfragen.</span></span>
+                        <input type="checkbox" role="switch" id="notify-add-toggle" checked data-change="updateNotificationSetting" data-args='["add", "$checked"]' class="switch">
+                    </label>
+                    <label class="setting-row" data-scope="social">
+                        <span class="setting-text"><span data-i18n="notifications.chatMessage" class="setting-title">Nachricht in „Chat & Freunde“</span><span data-i18n="notifications.chatMessageDescription" class="setting-desc">Neue Nachrichten von Kontakten und Freunden.</span></span>
+                        <input type="checkbox" role="switch" id="notify-chat-toggle" checked data-change="updateNotificationSetting" data-args='["chat", "$checked"]' class="switch">
+                    </label>
+                    <label class="setting-row">
+                        <span class="setting-text"><span data-i18n="notifications.chatEvents" class="setting-title">Chat-Ereignisse</span><span data-i18n="notifications.chatEventsDescription" class="setting-desc">Snap gespeichert, Chat gelöscht, Album fertig angesehen. Nur in der App.</span></span>
+                        <input type="checkbox" role="switch" id="notify-chatEvents-toggle" checked data-change="updateNotificationSetting" data-args='["chatEvents", "$checked"]' class="switch">
+                    </label>
+                    <label class="setting-row" data-scope="discovery">
+                        <span class="setting-text"><span data-i18n="notifications.shareProfileViews" class="setting-title">Meine Profilbesuche zeigen</span><span data-i18n="notifications.shareProfileViewsDescription" class="setting-desc">Siehst du in „Entdecken“ ein Profil an, sagt deine App dem anderen verschlüsselt Bescheid. Höchstens einmal in 6 Stunden pro Person.</span></span>
+                        <input type="checkbox" role="switch" id="share-profile-views-toggle" data-change="updateProfileViewSharing" data-args='["$checked"]' class="switch">
+                    </label>
+                </div>
+
                 <!-- ===== Medien ===== -->
                 <div class="settings-card" data-settings-tab="media">
                     <h3 class="settings-card-title"><i class="fa-solid fa-bolt text-amber-400"></i> <span data-i18n="settings.snaps">Snaps</span></h3>

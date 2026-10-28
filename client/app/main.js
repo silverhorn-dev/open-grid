@@ -101,6 +101,7 @@ window.onload = async () => {
             await loadChatSwitchSettings();
             await loadPullUpSetting();
             await loadChatSwipeCloseSetting();
+            await loadNotificationSettings();
             await loadListSwitchSettings();
         });
         // Deep Link (/chat/<id>, auch aus einer Push-Benachrichtigung): so frueh wie moeglich oeffnen.

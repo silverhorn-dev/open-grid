@@ -953,18 +953,22 @@ erste Nachricht = `message.scope` des Absenders (Feld im verschluesselten
 `MESSAGE_PUT`). Freunde sind immer `social`. Chats ohne Zuordnung (aeltere
 Versionen) erscheinen in beiden Listen.
 
-**Entdecken-Verlauf im Freundes-Chat** (`client/app/friends.js`): Pro Person
-gibt es nur einen Verlauf; jede Nachricht traegt den Bereich, in dem sie
+**Flirt-Modus im Freundes-Chat** (`client/app/friends.js`): Pro Person gibt
+es nur einen Verlauf; jede Nachricht traegt den Bereich, in dem sie
 geschrieben wurde (`message.scope`). Wird aus einem Match ein Freund, wandert
-der Chat nach `social`, und Nachrichten mit `scope: 'discovery'` werden dort
-ausgeblendet (nur Anzeige, nichts geloescht, das Gegenueber merkt nichts).
-Einstellung in `keys`/`discovery-history = { hide, flipped }`: `hide` ist die
-Grundeinstellung (Standard an, Router-Standard
-`CLIENT_DEFAULTS.hideDiscoveryHistory`), `flipped` die Chats, in denen man sie
-oben im Verlauf umgedreht hat ("Entdecken-Verlauf ausgeblendet (N) ·
-anzeigen"). Eine neue Grundeinstellung leert `flipped`. Ist der
-Entdecken-Bereich aus (Bereichswahl), bleibt der Teil immer verborgen und es
-gibt keine Umschaltung. Ausgeblendete Nachrichten zaehlen nicht als ungelesen.
+der Chat nach `social`. Die Flamme im Chat-Kopf (`#chat-flirt-btn`, nur bei
+aktivem Entdecken-Bereich und Match bzw. vorhandenen Flirt-Nachrichten)
+schaltet pro Chat in den Flirt-Modus: alles sichtbar, Flirt-Nachrichten
+markiert (`.flirt-message`), neue eigene Nachrichten mit `scope: 'discovery'`
+(`messageScopeFor`), Album-Knopf sichtbar. Im normalen Modus sind neue
+Nachrichten `social` und Flirt-Nachrichten ausgeblendet, solange die
+Einstellung "Flirt-Verlauf im normalen Chat ausblenden" an ist. Gespeichert in
+`keys`/`discovery-history = { hide, flirt }` (`hide` Standard an,
+Router-Standard `CLIENT_DEFAULTS.hideDiscoveryHistory`; `flirt` = Chats im
+Flirt-Modus). Ist die neueste Nachricht gerade ausgeblendet, zeigt die Flamme
+einen Punkt; sie zaehlt weiter als ungelesen. Ist der Entdecken-Bereich aus,
+gibt es keine Flamme, der Flirt-Teil bleibt verborgen und zaehlt nicht als
+ungelesen. Nur Anzeige: nichts wird geloescht, das Gegenueber merkt nichts.
 Nachrichten ohne `scope` (aeltere Versionen) bleiben sichtbar.
 
 **Ungelesen-Badges** (`client/app/unread.js`): Lesestand je Chat in

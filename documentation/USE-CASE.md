@@ -866,20 +866,20 @@ Akzeptanzkriterien:
 - Neue Nachrichten waehrend der Wiedergabe lassen Knopf und Leiste nicht
   flackern.
 
-## UC-53: Entdecken-Verlauf im Freundes-Chat
+## UC-53: Flirt-Modus im Freundes-Chat
 
-**Als Nutzer** moechte ich, dass ein Chat nach dem Adden aufgeraeumt wirkt:
-der Flirt aus "Entdecken" soll nicht im Freundes-Chat stehen, aber auch nicht
-verloren sein.
+**Als Nutzer** moechte ich nach dem Adden normal schreiben, aber mit derselben
+Person auch weiter flirten koennen.
 
 Akzeptanzkriterien:
 
 - Pro Person bleibt es ein Chat; er steht nach dem Adden unter "Chat &
   Freunde".
-- Nachrichten aus "Entdecken" sind dort standardmaessig ausgeblendet
-  (Einstellung "Entdecken-Verlauf ausblenden", Chat > Nach dem Adden).
-- Oben im Chat zeigt eine Zeile "Entdecken-Verlauf ausgeblendet (N)"; Tippen
-  blendet ihn fuer diesen Chat ein bzw. wieder aus.
-- Ohne aktiven Entdecken-Bereich bleibt der Teil immer verborgen.
-- Nichts wird geloescht; das Gegenueber merkt nichts. Ausgeblendetes zaehlt
-  nicht als ungelesen.
+- Eine Flamme im Chat-Kopf schaltet pro Chat in den Flirt-Modus: dort sehe ich
+  alles (Flirt-Nachrichten markiert) und schreibe Flirt-Nachrichten.
+- Im normalen Chat sind Flirt-Nachrichten standardmaessig ausgeblendet
+  (Einstellung "Flirt-Verlauf im normalen Chat ausblenden", Chat > Nach dem
+  Adden); kommt eine neue, zeigt die Flamme einen Punkt.
+- Ohne aktiven Entdecken-Bereich gibt es keine Flamme, der Flirt-Teil bleibt
+  verborgen.
+- Nichts wird geloescht; das Gegenueber merkt nichts.

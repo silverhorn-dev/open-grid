@@ -34,7 +34,7 @@ function isUnreadMessage(peerId, message) {
         && message.senderId === peerId
         && !message.deleted
         && !message.held
-        && !(typeof isDiscoveryMessageHidden === 'function' && isDiscoveryMessageHidden(peerId, message))
+        && !(typeof isDiscoveryMessageAlwaysHidden === 'function' && isDiscoveryMessageAlwaysHidden(peerId, message))
         && (Number(message.createdAt) || 0) > chatReadAt(peerId);
 }
 

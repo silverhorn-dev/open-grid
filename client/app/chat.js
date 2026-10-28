@@ -317,6 +317,7 @@ function updateChatActionButtons() {
     input.disabled = blocked;
     sendButton.disabled = blocked;
     updateChatAlbumButton();
+    updateFlirtButton();
     if (blocked) {
         updateChatConnectionStatus(peerId, t('chat.blocked'), 'bg-red-500/10 text-red-400 border-red-500/30');
         return;
@@ -469,7 +470,7 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
         downloadable: options.downloadable === 'none' ? 'none'
             : (snapData && options.asImage) || options.video ? state.mediaDownload : undefined,
         // Liste dieses Chats (Grid & Event oder Chat & Freunde), der Empfaenger uebernimmt sie fuer neue Chats.
-        scope: chatScopeOf(peerId) || currentChatScope(),
+        scope: messageScopeFor(peerId),
         timestamp: formatClockTime(Date.now()),
         createdAt: Date.now(),
         deliveredVia: 'Establishing secure channel...'
@@ -617,15 +618,15 @@ function renderChatHistory() {
     if (!container || !state.activeChatPeerId) return;
     // Zurueckgehaltene Nachrichten (Chat-Berechtigungen) erscheinen erst nach einem Match.
     const peerMessages = state.chats[state.activeChatPeerId] || [];
-    // Entdecken-Verlauf im Freundes-Chat: standardmaessig ausgeblendet (friends.js).
+    // Flirt-Teil im Freundes-Chat: nur im Flirt-Modus bzw. bei abgeschalteter Einstellung (friends.js).
     const allMessages = peerMessages.filter(message => !message.held
         && !isDiscoveryMessageHidden(state.activeChatPeerId, message));
     const msgs = filterChatMessages(allMessages);
+    const markFlirt = isFlirting(state.activeChatPeerId);
+    updateFlirtButton();
     // Wer nicht unten klebt, behaelt seine Position (der Inhalt darueber bleibt gleich).
     const previousScrollTop = container.scrollTop;
     container.innerHTML = '';
-    const historyToggle = createDiscoveryHistoryToggle(state.activeChatPeerId, peerMessages);
-    if (historyToggle) container.appendChild(historyToggle);
     if (allMessages.length === 0) {
         showEmptyState(container, { icon: 'fa-hand', title: t('chat.noMessagesYet'), text: t('chat.sayHello') });
         return;
@@ -642,6 +643,7 @@ function renderChatHistory() {
         row.className = `flex flex-col ${isMine ? 'items-end' : 'items-start'}`;
         if (message.replyTo && !message.deleted) row.appendChild(renderReplyQuote(message.replyTo, isMine));
         const bubble = document.createElement('div');
+        if (markFlirt && message.scope === 'discovery' && !message.deleted) row.classList.add('flirt-message');
         bubble.className = `chat-bubble whitespace-pre-wrap wrap-break-word max-w-[80%] rounded-2xl px-4 py-2 overflow-hidden ${message.deleted ? 'bg-slate-900 text-slate-500 border border-slate-800 italic' : isMine ? 'bg-brand-600 text-white rounded-br-none' : 'bg-slate-800 text-slate-100 rounded-bl-none'}`;
 
         if (message.deleted) {

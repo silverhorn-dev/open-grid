@@ -104,7 +104,8 @@ async function main() {
         await waitFor(carol, id => isFriend(id), daveId);
         assert.equal(await dave.evaluate(id => chatScopeOf(id), carolId), 'social', 'chat moved to "Chat & Freunde"');
 
-        // Im Freundes-Chat ist der Entdecken-Verlauf standardmaessig ausgeblendet, oben einblendbar.
+        // Freundes-Chat aus einem Match: normal ist der Flirt-Teil verborgen, die Flamme schaltet in den
+        // Flirt-Modus (alles sichtbar, neue Nachrichten sind Flirt-Nachrichten).
         await carol.evaluate(() => closeProfileModal());
         await carol.evaluate(id => openChatWithPeer(id), daveId);
         await carol.fill('#chat-input', 'jetzt als freunde');
@@ -112,11 +113,19 @@ async function main() {
         await dave.evaluate(() => { closeProfileModal(); setAppMode('chat'); });
         await dave.evaluate(id => openChatWithPeer(id), carolId);
         await waitFor(dave, () => document.querySelector('#chat-messages')?.textContent.includes('jetzt als freunde'));
-        assert.equal(await dave.evaluate(() => document.querySelector('#chat-messages').textContent.includes('hi dave')), false, 'discovery part hidden');
-        assert.match(await dave.textContent('.discovery-history-toggle'), /ausgeblendet \(1\)/);
-        await dave.click('.discovery-history-toggle');
+        assert.equal(await dave.evaluate(() => document.querySelector('#chat-messages').textContent.includes('hi dave')), false, 'flirt part hidden');
+        await dave.click('#chat-flirt-btn');
         await waitFor(dave, () => document.querySelector('#chat-messages')?.textContent.includes('hi dave'));
-        await dave.evaluate(() => updateDiscoveryHistorySetting(true));
+        assert.equal(await dave.evaluate(() => document.querySelector('#chat-messages').textContent.includes('jetzt als freunde')), true, 'flirt mode shows everything');
+        assert.equal(await dave.locator('.flirt-message').count(), 1, 'flirt messages are marked');
+        await dave.fill('#chat-input', 'flirt zurueck');
+        await dave.click('#send-chat-btn');
+        await waitFor(carol, id => (state.chats[id] || []).some(message => message.text === 'flirt zurueck' && message.scope === 'discovery'), daveId);
+        // Carol ist im normalen Chat: die neue Flirt-Nachricht ist verborgen, die Flamme zeigt einen Punkt.
+        await carol.evaluate(() => renderChatHistory());
+        assert.equal(await carol.evaluate(() => document.querySelector('#chat-messages').textContent.includes('flirt zurueck')), false);
+        await waitFor(carol, () => document.getElementById('chat-flirt-btn')?.classList.contains('has-news'));
+        await dave.click('#chat-flirt-btn');
         await waitFor(dave, () => !document.querySelector('#chat-messages')?.textContent.includes('hi dave'));
 
         assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);

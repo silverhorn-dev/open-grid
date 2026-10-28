@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 166 · 2026-10-28
+## Build 167 · 2026-10-28
+- Flirt-Modus: in Freundes-Chats, die aus einem Match kommen, schaltet die Flamme oben im Chat zwischen normal und Flirt. Im Flirt-Modus siehst du alles und schreibst Flirt-Nachrichten; im normalen Chat bleibt der Flirt verborgen, ein Punkt an der Flamme zeigt neue Flirt-Nachrichten. Ersetzt die Zeile "Entdecken-Verlauf ausgeblendet"
+
+## Build 166 · 2026-10-28 · `f6c1576`
 - Nach dem Adden bleibt es ein Chat, aber der Flirt aus "Entdecken" ist im Freundes-Chat erst einmal ausgeblendet; oben im Chat kannst du ihn jederzeit einblenden. Abschaltbar unter Einstellungen > Chat > Nach dem Adden
 
 ## Build 165 · 2026-10-28 · `3f86068`

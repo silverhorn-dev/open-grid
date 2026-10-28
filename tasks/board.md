@@ -276,4 +276,7 @@
 ## T11 Entdecken-Verlauf im Freundes-Chat (nutzer 2026-10-28)
 - [x] nach dem adden (chat wandert nach "Chat & Freunde") ist der entdecken-teil des verlaufs ausgeblendet, oben einblendbar; standard an, aber einstellung
   - done 2026-10-28: kein datenmodell-umbau (ein verlauf pro person, `message.scope`); `keys`/`discovery-history = { hide, flipped }`, router-standard `hideDiscoveryHistory`; zeile "Entdecken-Verlauf ausgeblendet (N) · anzeigen"; einstellung Chat > "Nach dem Adden" (nur bei beiden bereichen); ohne entdecken-bereich immer verborgen; ungelesen zaehlt nur sichtbares; tests `test/friends.test.js`, e2e `friends`; UC-53
+- [x] flirt-schalter im chat (nutzer 2026-10-28: "so kann man nicht mehr im chat flirten")
+  - entschieden: flamme im chat-kopf pro chat; flirt-modus zeigt alles (flirt markiert) und schreibt `scope: 'discovery'`; normal = social, flirt-teil verborgen (einstellung); punkt an der flamme bei neuer verborgener nachricht
+  - done 2026-10-28: `keys`/`discovery-history = { hide, flirt }` (ersetzt die zeile oben im verlauf), `canFlirt`/`isFlirting`/`messageScopeFor`, album-knopf im flirt-modus sichtbar; tests `test/friends.test.js`, e2e `friends`
 - [ ] chat laedt und zeichnet immer den ganzen verlauf (keine seiten) -> bei langen chats evtl. nur die letzten N zeichnen, aeltere beim hochscrollen nachladen (frage nutzer 2026-10-28, noch nicht entschieden)

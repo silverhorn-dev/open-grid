@@ -181,12 +181,15 @@ function isInCurrentChatList(peerId) {
     return !scope || scope === currentChatScope();
 }
 
-// ----- Entdecken-Verlauf im Freundes-Chat -----
+// ----- Flirt-Modus im Freundes-Chat -----
 // Es gibt pro Person nur einen Verlauf; jede Nachricht traegt den Bereich, in dem sie geschrieben wurde
-// (`scope`). Ist aus dem Match ein Freund geworden (Chat in "Chat & Freunde"), blendet der Chat die
-// Entdecken-Nachrichten standardmaessig aus (Einstellung, Router-Standard `hideDiscoveryHistory`).
-// Pro Chat laesst sich das umdrehen (`flipped`). Ist der Entdecken-Bereich hier aus, bleibt der Teil
-// immer verborgen. Nur Anzeige: nichts wird geloescht, das Gegenueber merkt nichts.
+// (`scope`). Ist aus dem Match ein Freund geworden (Chat in "Chat & Freunde"), schaltet die Flamme im
+// Chat-Kopf pro Chat zwischen normal und Flirt um:
+// - Flirt: man sieht alles (Flirt-Nachrichten markiert) und schreibt mit `scope: 'discovery'`.
+// - Normal: neue Nachrichten sind `social`; der Flirt-Teil ist ausgeblendet, solange die Einstellung
+//   "Flirt-Verlauf ausblenden" an ist (Standard, Router-Standard `hideDiscoveryHistory`).
+// Ist der Entdecken-Bereich hier aus, gibt es keine Flamme und der Flirt-Teil bleibt verborgen.
+// Nur Anzeige: nichts wird geloescht, das Gegenueber merkt nichts.
 const DISCOVERY_HISTORY_RECORD_ID = 'discovery-history';
 
 async function loadDiscoveryHistorySetting() {
@@ -194,7 +197,7 @@ async function loadDiscoveryHistorySetting() {
     const routerDefault = clientDefault('hideDiscoveryHistory', true);
     state.discoveryHistory = {
         hide: typeof stored?.hide === 'boolean' ? stored.hide : routerDefault !== false,
-        flipped: Array.isArray(stored?.flipped) ? stored.flipped.filter(id => typeof id === 'string').slice(0, 1000) : []
+        flirt: Array.isArray(stored?.flirt) ? stored.flirt.filter(id => typeof id === 'string').slice(0, 1000) : []
     };
     renderDiscoveryHistorySetting();
 }
@@ -209,8 +212,7 @@ async function saveDiscoveryHistory() {
 }
 
 async function updateDiscoveryHistorySetting(hide) {
-    // Neue Grundeinstellung gilt fuer alle Chats; einzelne Umschaltungen verfallen.
-    state.discoveryHistory = { hide: Boolean(hide), flipped: [] };
+    state.discoveryHistory = { ...state.discoveryHistory, hide: Boolean(hide) };
     await saveDiscoveryHistory();
     renderDiscoveryHistorySetting();
     if (state.activeChatPeerId) renderChatHistory();
@@ -221,47 +223,64 @@ function renderDiscoveryHistorySetting() {
     if (toggle) toggle.checked = state.discoveryHistory.hide;
 }
 
-// Betrifft dieser Chat den Entdecken-Verlauf? (Freundes-Chat mit Nachrichten aus "Entdecken")
 function hasDiscoveryHistory(peerId, messages = state.chats[peerId] || []) {
-    return chatScopeOf(peerId) === 'social' && messages.some(message => message.scope === 'discovery' && !message.held);
+    return messages.some(message => message.scope === 'discovery' && !message.held);
 }
 
-function isDiscoveryHistoryHidden(peerId) {
-    if (!scopeIncludes('discovery')) return true;
-    return state.discoveryHistory.hide !== state.discoveryHistory.flipped.includes(peerId);
+// Flamme nur in Freundes-Chats, die aus einem Match kommen (oder schon Flirt-Nachrichten haben).
+function canFlirt(peerId) {
+    return Boolean(peerId) && scopeIncludes('discovery') && chatScopeOf(peerId) === 'social'
+        && (isMatched(peerId) || hasDiscoveryHistory(peerId));
+}
+
+function isFlirting(peerId) {
+    return canFlirt(peerId) && state.discoveryHistory.flirt.includes(peerId);
+}
+
+// Ohne Entdecken-Bereich ist der Flirt-Teil immer weg (zaehlt dann auch nicht als ungelesen).
+function isDiscoveryMessageAlwaysHidden(peerId, message) {
+    return message?.scope === 'discovery' && chatScopeOf(peerId) === 'social' && !scopeIncludes('discovery');
 }
 
 function isDiscoveryMessageHidden(peerId, message) {
-    return message?.scope === 'discovery' && chatScopeOf(peerId) === 'social' && isDiscoveryHistoryHidden(peerId);
+    if (message?.scope !== 'discovery' || chatScopeOf(peerId) !== 'social') return false;
+    if (!scopeIncludes('discovery')) return true;
+    return state.discoveryHistory.hide && !isFlirting(peerId);
 }
 
-async function toggleDiscoveryHistory(peerId = state.activeChatPeerId) {
-    if (!peerId || !scopeIncludes('discovery')) return;
-    const flipped = new Set(state.discoveryHistory.flipped);
-    if (flipped.has(peerId)) flipped.delete(peerId);
-    else flipped.add(peerId);
-    state.discoveryHistory = { ...state.discoveryHistory, flipped: [...flipped] };
+// Bereich fuer eine neue eigene Nachricht.
+function messageScopeFor(peerId) {
+    if (isFlirting(peerId)) return 'discovery';
+    return chatScopeOf(peerId) || currentChatScope();
+}
+
+async function toggleFlirtMode(peerId = state.activeChatPeerId) {
+    if (!canFlirt(peerId)) return;
+    const flirt = new Set(state.discoveryHistory.flirt);
+    if (flirt.has(peerId)) flirt.delete(peerId);
+    else flirt.add(peerId);
+    state.discoveryHistory = { ...state.discoveryHistory, flirt: [...flirt] };
     await saveDiscoveryHistory();
-    if (state.activeChatPeerId === peerId) renderChatHistory();
+    if (state.activeChatPeerId === peerId) {
+        renderChatHistory();
+        updateChatAlbumButton();
+    }
 }
 
-// Zeile oben im Verlauf: "Entdecken-Verlauf ausgeblendet (N)" bzw. "... ausblenden". Nur mit aktivem
-// Entdecken-Bereich, sonst gibt es nichts umzuschalten.
-function createDiscoveryHistoryToggle(peerId, messages) {
-    if (!scopeIncludes('discovery') || !hasDiscoveryHistory(peerId, messages)) return null;
-    const hidden = isDiscoveryHistoryHidden(peerId);
-    const count = messages.filter(message => message.scope === 'discovery' && !message.held).length;
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'discovery-history-toggle';
-    button.dataset.click = 'toggleDiscoveryHistory';
-    button.dataset.args = JSON.stringify([peerId]);
-    const icon = document.createElement('i');
-    icon.className = `fa-solid ${hidden ? 'fa-eye' : 'fa-eye-slash'}`;
-    const label = document.createElement('span');
-    label.textContent = hidden ? t('friends.discoveryHistoryHidden', { count }) : t('friends.hideDiscoveryHistory');
-    button.append(icon, label);
-    return button;
+// Flamme im Chat-Kopf: aktiv im Flirt-Modus; Punkt, wenn die neueste Nachricht gerade ausgeblendet ist.
+function updateFlirtButton() {
+    const button = document.getElementById('chat-flirt-btn');
+    if (!button) return;
+    const peerId = state.activeChatPeerId;
+    const available = canFlirt(peerId);
+    button.classList.toggle('hidden', !available);
+    if (!available) return;
+    const flirting = isFlirting(peerId);
+    button.classList.toggle('is-active', flirting);
+    button.setAttribute('aria-pressed', String(flirting));
+    const visible = (state.chats[peerId] || []).filter(message => !message.held && !message.deleted);
+    const latest = visible[visible.length - 1];
+    button.classList.toggle('has-news', Boolean(latest && isDiscoveryMessageHidden(peerId, latest)));
 }
 
 // ----- UI -----

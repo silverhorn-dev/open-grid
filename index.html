@@ -235,6 +235,9 @@
                             <i class="fa-solid fa-chevron-down"></i>
                         </button>
                         <span data-i18n-attr="title:chat.offlineChatsAreAvailableLocally;aria-label:chat.offline" class="offline-indicator hidden w-9 h-9 items-center justify-center text-amber-400" role="img" title="Offline - Chats sind lokal verfügbar, neue Nachrichten kommen, sobald du wieder verbunden bist" aria-label="Offline"><i class="fa-solid fa-wifi wifi-off"></i></span>
+                        <button data-i18n-attr="title:friends.flirtMode;aria-label:friends.flirtMode" id="chat-flirt-btn" data-click="toggleFlirtMode" class="chat-flirt-btn hidden w-9 h-9 rounded-lg items-center justify-center" title="Flirt-Modus" aria-label="Flirt-Modus" aria-pressed="false">
+                            <i class="fa-solid fa-fire"></i>
+                        </button>
                         <button data-i18n-attr="title:chat.searchInChat;aria-label:chat.searchInChat" data-click="toggleChatSearch" class="w-9 h-9 rounded-lg text-slate-300 hover:bg-slate-800 flex items-center justify-center" title="Im Chat suchen" aria-label="Im Chat suchen">
                             <i class="fa-solid fa-magnifying-glass"></i>
                         </button>
@@ -641,7 +644,7 @@
                 <div class="settings-card" data-settings-tab="chat" data-scope="all">
                     <h3 class="settings-card-title"><i class="fa-solid fa-user-group text-brand-400"></i> <span data-i18n="friends.afterAdding">Nach dem Adden</span></h3>
                     <label class="setting-row">
-                        <span class="setting-text"><span data-i18n="friends.hideDiscoveryHistorySetting" class="setting-title">Entdecken-Verlauf ausblenden</span><span data-i18n="friends.hideDiscoveryHistoryDescription" class="setting-desc">Wird aus einem Match ein Freund, zeigt der Chat nur noch die Nachrichten aus "Chat &amp; Freunde". Oben im Chat kannst du den Rest jederzeit einblenden.</span></span>
+                        <span class="setting-text"><span data-i18n="friends.hideDiscoveryHistorySetting" class="setting-title">Flirt-Verlauf im normalen Chat ausblenden</span><span data-i18n="friends.hideDiscoveryHistoryDescription" class="setting-desc">Wird aus einem Match ein Freund, wechselst du mit der Flamme oben im Chat in den Flirt-Modus: dort siehst du alles. Im normalen Chat bleibt der Flirt dann verborgen.</span></span>
                         <input type="checkbox" role="switch" id="discovery-history-toggle" checked data-change="updateDiscoveryHistorySetting" data-args='["$checked"]' class="switch">
                     </label>
                 </div>

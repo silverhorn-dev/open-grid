@@ -470,8 +470,9 @@ function receiveChatFocus(peerId, open) {
 // Easteregg: lange auf "Snap" druecken zeigt ihn fuer diesen Chat (ohne die Kamera zu oeffnen).
 const SNAP_LONG_PRESS_MS = 600;
 
+// Im Flirt-Modus (friends.js) gilt der Freundes-Chat wie ein Entdecken-Chat.
 function isSocialChat(peerId) {
-    return (chatScopeOf(peerId) || currentChatScope()) === 'social';
+    return (chatScopeOf(peerId) || currentChatScope()) === 'social' && !isFlirting(peerId);
 }
 
 function updateChatAlbumButton() {

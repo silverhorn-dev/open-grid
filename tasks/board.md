@@ -434,3 +434,10 @@
 - [x] bug: "nur zeigen fuer" ohne waehlbare felder, wenn die app im chat-modus startet (aktives schema = chat-schema) (nutzer 2026-10-28)
   - done: regel nutzt immer das schema von "entdecken" (event: event-schema), neu zeichnen beim oeffnen von privatsphaere; e2e `audience` (start im chat-modus, mit altem code rot)
 
+## T24 Rueckmeldungen (nutzer 2026-10-28)
+- [ ] neu laden in der chatliste und im profil klappt nicht gut (pruefen: geste in der chatliste, im profil gibt es noch keins)
+- [ ] "nur zeigen fuer": als schalter ein-/ausschaltbar (regel bleibt gespeichert, wirkt nur wenn an); das badge "Regel aktiv" bleibt (gefaellt); zuruecksetzbar bleibt
+- [ ] sprache: seitenerkennung fuer google translate kaputt?
+  - befund: `index.html` hat fest `lang="de"`, auch wenn die app englisch anzeigt -> falsche erkennung; dazu `translate="no"` + `notranslate`, das schaltet uebersetzen bewusst ab
+  - plan: `lang` an der html-seite immer auf die aktive sprache setzen; besprechen, ob uebersetzen erlaubt sein soll (chats wuerden dann evtl. an google gehen -> datenschutz, eher nur die oberflaeche)
+

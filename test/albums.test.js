@@ -282,6 +282,9 @@ test('limited sharing: views are counted per opening, time limits cap the keys, 
     const owner = loadAlbums({ identity: ownerIdentity, peerKeys: { 'peer-allowed': viewerIdentity.jwkPublic }, time: { now: 10 * hour + 5000, epochMs: hour } });
     // Kein Timer bis zum Ende der Begrenzung (der wuerde den Testlauf offen halten).
     owner.context.scheduleAlbumLimitCheck = () => {};
+    const toasts = [];
+    owner.context.showToast = message => toasts.push(message);
+    owner.context.getPeerPresentation = () => ({ name: 'Bob' });
     const album = owner.context.state.albums.alb_1;
     album.keyEpochMinutes = 1440;
     album.keyEpochsAhead = 2;
@@ -319,6 +322,7 @@ test('limited sharing: views are counted per opening, time limits cap the keys, 
     owner.clock.now += 16 * 60000;
     await owner.context.handleAlbumKeyRequest('peer-allowed', { albumId: 'alb_1' });
     assert.equal(owner.sent.at(-1).payload.type, 'ALBUM_REVOKED', 'all views used: access revoked');
+    assert.ok(toasts.some(text => text.includes('Bob') && text.includes('fertig angesehen')), 'owner is told');
     const revoke = owner.sent.at(-2).payload;
     assert.equal(revoke.type, 'CHAT_OPERATION', 'revoke also goes as a chat operation (Path C when offline)');
     assert.deepEqual([revoke.operation.type, revoke.operation.albumId, revoke.operation.actorId], ['ALBUM_REVOKE', 'alb_1', 'me']);

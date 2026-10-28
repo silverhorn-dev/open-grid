@@ -274,7 +274,12 @@ async function enforceAlbumLimits(now = null) {
             const over = limit.kind === 'time'
                 ? limit.until <= current
                 : (limit.used || 0) >= limit.views && (limit.sessionEndsAt || 0) <= current;
-            if (over) await revokeAlbumAccess(album.id, viewerId);
+            if (!over) continue;
+            // Besitzer erfaehrt, dass jemand fertig ist (alle Ansichten verbraucht).
+            if (limit.kind === 'views') {
+                showToast(t('albums.viewerFinishedAlbum', { name: getPeerPresentation(viewerId).name || t('app.someone'), album: album.name }), 'info');
+            }
+            await revokeAlbumAccess(album.id, viewerId);
         }
     }
     scheduleAlbumLimitCheck(current);
@@ -1410,7 +1415,30 @@ async function endLimitedAlbumView(albumId) {
     await Promise.all(sessionBundles.map(record => deleteDatabaseRecord('keys', record.id)));
     // Auch die verschluesselten Bilder: nach der Ansicht bleibt nichts liegen (naechste Ansicht laedt neu).
     await deleteReceivedAlbumImages(albumId);
-    if (ownerId) await sendSecurePayload(ownerId, { type: 'ALBUM_VIEW_CLOSED', albumId });
+    if (ownerId) await reportAlbumViewClosed(ownerId, albumId);
+}
+
+// Dem Besitzer melden, dass die Ansicht vorbei ist. Ohne diese Meldung entzieht er erst nach der
+// 15-Minuten-Frist (und nur, wenn seine App dann laeuft). Deshalb als Chat-Operation: bei offenem
+// Kanal direkt, sonst sofort ueber Pfad C (nicht erst nach 10 s, die App wird nach dem Schliessen oft
+// gleich beendet). Die alte Direktnachricht geht fuer aeltere App-Versionen zusaetzlich mit; doppelt
+// ankommend schadet nicht (die Ansicht ist dann schon beendet).
+async function reportAlbumViewClosed(ownerId, albumId) {
+    const operation = {
+        operationId: `albumclosed:${albumId}:${window.crypto.randomUUID()}`,
+        type: 'ALBUM_VIEW_CLOSED',
+        actorId: state.myProfile.id,
+        createdAt: Date.now(),
+        albumId
+    };
+    const payload = { type: 'CHAT_OPERATION', operation };
+    const channel = state.dataChannels[ownerId];
+    if (channel?.readyState === 'open' && state.sessionKeys[ownerId]) {
+        await sendSecurePayload(ownerId, payload).catch(logBackgroundError('reportAlbumViewClosed'));
+    } else {
+        await queuePayloadInCache(ownerId, { payload, cacheQueued: false }).catch(logBackgroundError('reportAlbumViewClosed'));
+    }
+    sendSecurePayload(ownerId, { type: 'ALBUM_VIEW_CLOSED', albumId }).catch(logBackgroundError('reportAlbumViewClosed'));
 }
 
 async function deleteReceivedAlbumImages(albumId) {

@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 170 · 2026-10-28
+## Build 171 · 2026-10-28
+- Behoben: bei Alben mit 1x/2x/3x ansehen merkte der Besitzer oft nicht, dass alle Ansichten verbraucht waren, und die Person blieb in den Album-Einstellungen stehen. Jetzt kommt das Ende auch ohne direkte Verbindung an, und du bekommst den Hinweis "X hat ... fertig angesehen"
+
+## Build 170 · 2026-10-28 · `50c40dd`
 - Behoben: einen Chat loeschen oder blockieren kam beim Partner nicht an, wenn er gerade offline war; sein Chat blieb stehen. Jetzt erreicht ihn die Loeschung beim naechsten Oeffnen der App
 - Behoben: die Flamme (Flirt-Modus) erschien auch in Chats, in denen nie geflirtet wurde; jetzt nur noch bei Match und Nachrichten aus "Entdecken"
 

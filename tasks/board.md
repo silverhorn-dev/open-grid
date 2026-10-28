@@ -293,4 +293,7 @@
 - [x] flamme (flirt-modus) erschien in chats, die nur in social liefen
   - validiert: bedingung war match ODER `discovery`-nachrichten; ein match ohne flirt-chat (flammen im grid) bzw. markierte nachrichten aelterer chats ohne listen-zuordnung (aus der grid-liste beschrieben) reichten
   - done 2026-10-28: `hasFlirtPart` = match UND flirt-nachrichten; ohne flirt-teil keine flamme und nichts ausgeblendet; test `test/friends.test.js`
+- [x] album mit x-ansichten: besitzer merkte das ende nicht, person blieb in den album-einstellungen (nutzer 2026-10-28)
+  - validiert: `ALBUM_VIEW_CLOSED` ging nur direkt (P2P), ohne pfad c; ohne offenen kanal (handy, app im hintergrund) kam es nie an -> entzug erst nach 15 min und nur bei laufender besitzer-app. e2e mit altem code: person bleibt
+  - done 2026-10-28: `ALBUM_VIEW_CLOSED` auch als chat-operation (offen -> direkt, sonst sofort pfad c), besitzer bekommt hinweis "X hat ... fertig angesehen"; tests `test/albums.test.js`, e2e `album-views` (schliessen ohne kanal)
 

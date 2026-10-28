@@ -641,8 +641,11 @@ laufenden Ansicht zaehlt nicht, eine neue Oeffnung (z. B. nach Neu laden)
 zaehlt immer, auch vor Ablauf der alten Ansicht. Die
 Ansicht endet mit dem Schliessen: der Betrachter verwirft die Schluessel und
 die gespeicherten Ansichts-Buendel (spaet ankommende werden bei geschlossenem
-Album gar nicht gespeichert) und meldet `ALBUM_VIEW_CLOSED { albumId }`; der
-Besitzer beendet die Ansicht und entzieht sofort, wenn alle verbraucht sind.
+Album gar nicht gespeichert) und meldet das Ende als Chat-Operation
+`ALBUM_VIEW_CLOSED { albumId }` (bei offenem Kanal direkt, sonst sofort ueber
+Pfad C; zusaetzlich die alte Direktnachricht gleichen Namens); der Besitzer
+beendet die Ansicht und entzieht sofort, wenn alle verbraucht sind, mit
+Hinweis "X hat ... fertig angesehen".
 Endet die Ansicht ohne Schliessen (Neu laden, App beendet), liegen beim
 naechsten Start noch Ansichts-Buendel: `endInterruptedAlbumViews` beendet die
 Ansicht dann wie beim Schliessen. Die 15 Minuten bleiben als Sicherheitsnetz

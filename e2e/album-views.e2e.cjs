@@ -72,6 +72,34 @@ async function main() {
         await bob.waitForTimeout(3000);
         assert.equal(await bob.evaluate(() => Boolean(state.albumKeys.alb_once)), false, 'no second view');
 
+        // Schliessen ohne P2P-Verbindung zu Alice: die Meldung muss ueber Pfad C ankommen (vorher nur
+        // direkt, Alice entzog dann erst nach 15 Minuten). Alice bekommt einen Hinweis.
+        await alice.evaluate(() => {
+            window.__toasts = [];
+            const original = showToast;
+            showToast = (message, type) => { window.__toasts.push(message); original(message, type); };
+        });
+        await alice.evaluate(async id => {
+            await saveAlbum({
+                id: 'alb_cut', ownerId: state.myProfile.id, name: 'Ohne Kanal', items: [{ id: 'albimg_once', version: 1 }],
+                acl: [], secret: createAlbumSecret(), keyVersion: 1, keyEpochMinutes: 0, keyEpochsAhead: 1
+            });
+            await shareAlbumInChat('alb_cut', 'views1');
+        }, bobId);
+        await waitFor(bob, () => Object.values(state.chats).flat().some(message => message.album?.albumId === 'alb_cut'));
+        await bob.evaluate(id => openAlbumViewer('alb_cut', { ownerId: id, name: 'Ohne Kanal' }), aliceId);
+        await waitFor(bob, () => Boolean(state.albumKeys.alb_cut), null, 20000);
+        await bob.evaluate(id => {
+            initiateP2PConnection = async () => {};
+            state.dataChannels[id]?.close();
+            delete state.dataChannels[id];
+        }, aliceId);
+        await bob.evaluate(() => closeMediaModal());
+        await waitFor(alice, id => !state.albums.alb_cut.acl.includes(id), bobId, 15000);
+        assert.ok(await alice.evaluate(() => window.__toasts.some(text => text.includes('fertig angesehen'))), 'owner is told');
+        await bob.reload();
+        await waitFor(bob, () => Boolean(state.ws && state.ws.readyState === 1 && state.myProfile?.id));
+
         // Neu laden statt Schliessen: die Ansicht zaehlt trotzdem und endet beim naechsten Start.
         await alice.evaluate(async id => {
             await saveAlbum({

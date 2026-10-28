@@ -681,6 +681,11 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
         if (localOperation.actorId !== peerId) return false;
         await forgetReceivedAlbum(peerId, localOperation.albumId);
         return true;
+    } else if (localOperation.type === 'ALBUM_VIEW_CLOSED') {
+        // Betrachter hat eine begrenzte Ansicht beendet (auch ueber Pfad C). Nicht im Log.
+        if (localOperation.actorId !== peerId) return false;
+        await handleAlbumViewClosed(peerId, { albumId: localOperation.albumId });
+        return true;
     } else if (localOperation.type === 'ALBUM_KEYS') {
         // Schluessel-Buendel werden separat gespeichert und nicht im Operations-Log synchronisiert.
         if (localOperation.actorId !== peerId) return false;

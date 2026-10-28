@@ -254,6 +254,12 @@
                     </div>
                 </div>
 
+                <!-- Chat nach Tagen (chat-tools.js): Tag mit Pfeilen bzw. seitlich wischen wechseln -->
+                <div id="chat-day-bar" class="chat-day-bar hidden" data-no-tab-swipe>
+                    <button type="button" id="chat-day-prev" data-click="stepChatDay" data-args='[-1]' data-i18n-attr="aria-label:chat.previousDay;title:chat.previousDay" class="chat-day-arrow" aria-label="Vorheriger Tag" title="Vorheriger Tag"><i class="fa-solid fa-chevron-left"></i></button>
+                    <span id="chat-day-label" class="chat-day-label"></span>
+                    <button type="button" id="chat-day-next" data-click="stepChatDay" data-args='[1]' data-i18n-attr="aria-label:chat.nextDay;title:chat.nextDay" class="chat-day-arrow" aria-label="Nächster Tag" title="Nächster Tag"><i class="fa-solid fa-chevron-right"></i></button>
+                </div>
                 <div data-i18n-attr="aria-label:common.switchingChats" id="chat-switch-bar" class="hidden flex gap-1.5 px-3 py-2 border-b border-slate-800 overflow-x-auto" data-no-tab-swipe aria-label="Chats wechseln"></div>
 
                 <div id="chat-search-bar" class="hidden px-4 py-2 border-b border-slate-800 flex items-center gap-3">
@@ -660,6 +666,10 @@
                     <label class="setting-row">
                         <span class="setting-text"><span data-i18n="settings.inputSwipeClosesChat" class="setting-title">Eingabeleiste nach rechts wischen</span><span data-i18n="settings.inputSwipeClosesChatDescription" class="setting-desc">Schließt den Chat und zeigt wieder die Chatliste.</span></span>
                         <input type="checkbox" role="switch" id="chat-swipe-close-toggle" checked data-change="updateChatSwipeCloseSetting" data-args='["$checked"]' class="switch">
+                    </label>
+                    <label class="setting-row">
+                        <span class="setting-text"><span data-i18n="settings.chatByDay" class="setting-title">Chat nach Tagen</span><span data-i18n="settings.chatByDayDescription" class="setting-desc">Zeigt einen Tag nach dem anderen; unter der Kontaktleiste wechselst du mit Pfeilen oder Wischen den Tag.</span></span>
+                        <input type="checkbox" role="switch" id="chat-by-day-toggle" data-change="updateChatViewSetting" data-args='["$checked"]' class="switch">
                     </label>
                 </div>
 

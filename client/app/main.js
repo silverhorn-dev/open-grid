@@ -54,6 +54,7 @@ window.onload = async () => {
     initGestures();
     initFlirtControls();
     initMessageHoverTracking();
+    initChatDayBar();
     initSnapEditor();
     initSnapCamera();
     initChatSwitchSwipe();
@@ -102,6 +103,7 @@ window.onload = async () => {
             await loadPullUpSetting();
             await loadChatSwipeCloseSetting();
             await loadNotificationSettings();
+            await loadChatViewSetting();
             await loadListSwitchSettings();
         });
         // Deep Link (/chat/<id>, auch aus einer Push-Benachrichtigung): so frueh wie moeglich oeffnen.

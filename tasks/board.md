@@ -279,7 +279,9 @@
 - [x] flirt-schalter im chat (nutzer 2026-10-28: "so kann man nicht mehr im chat flirten")
   - entschieden: flamme im chat-kopf pro chat; flirt-modus zeigt alles (flirt markiert) und schreibt `scope: 'discovery'`; normal = social, flirt-teil verborgen (einstellung); punkt an der flamme bei neuer verborgener nachricht
   - done 2026-10-28: `keys`/`discovery-history = { hide, flirt }` (ersetzt die zeile oben im verlauf), `canFlirt`/`isFlirting`/`messageScopeFor`, album-knopf im flirt-modus sichtbar; tests `test/friends.test.js`, e2e `friends`
-- [ ] chat laedt und zeichnet immer den ganzen verlauf (keine seiten) -> bei langen chats evtl. nur die letzten N zeichnen, aeltere beim hochscrollen nachladen (frage nutzer 2026-10-28, noch nicht entschieden)
+- [x] chat laedt und zeichnet immer den ganzen verlauf (keine seiten) -> bei langen chats evtl. nur die letzten N zeichnen, aeltere beim hochscrollen nachladen (frage nutzer 2026-10-28)
+  - entschieden (nutzer): dazu option "seiten pro tag" mit tagesleiste unter der kontaktleiste, wischbar, pfeile links/rechts
+  - done 2026-10-28: durchgehend 150 + je 150 beim hochscrollen (position bleibt, knopf "aeltere laden"); `keys`/`chat-view.byDay`, `CLIENT_DEFAULTS.chatPagesByDay`; tagesleiste mit pfeilen/wischen, nur tage mit nachrichten, senden springt zu heute; suche ueber alles; zitat holt nicht gezeichnete nachricht; tests `test/chat-pages.test.js`, e2e `chat-pages`; UC-55
 
 ## T12 Bug: Album-Ansichten und Neu laden (nutzer 2026-10-28)
 - [x] album mit 1x/2x/3x ansehen: oeffnen + neu laden zaehlte nicht (wie frueher bei snaps)

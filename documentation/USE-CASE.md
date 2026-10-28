@@ -904,3 +904,17 @@ Akzeptanzkriterien:
   (Standard aus), der Besuchte "Profilbesuch" (Standard aus); nur in
   "Entdecken", hoechstens alle 6 Stunden pro Person.
 
+## UC-55: Lange Chats
+
+**Als Nutzer** moechte ich, dass auch lange Chats schnell oeffnen, und auf Wunsch
+Tag fuer Tag lesen.
+
+Akzeptanzkriterien:
+
+- Ein Chat zeigt zuerst die letzten 150 Nachrichten; oben angekommen kommen
+  aeltere dazu, ohne dass die Ansicht springt.
+- Option "Chat nach Tagen" (Einstellungen > Chat): eine Leiste unter der
+  Kontaktleiste zeigt den Tag; Pfeile links/rechts oder seitlich wischen
+  wechseln zu Tagen mit Nachrichten. Nach dem Senden steht der Chat auf heute.
+- Suche und "nur markierte" finden Nachrichten aus allen Tagen.
+

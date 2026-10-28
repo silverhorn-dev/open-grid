@@ -139,6 +139,12 @@ const state = {
     flirtTabPinnedOpen: false,
     // Benachrichtigungen je Art und ob eigene Profilbesuche gemeldet werden (push.js).
     notificationSettings: null,
+    // Verlauf in Seiten (chat-tools.js): gezeichnete Nachrichten, nicht gezeichnete aeltere, Chat nach Tagen.
+    chatRenderLimit: 150,
+    chatOlderCount: 0,
+    chatDayMode: false,
+    chatDay: null,
+    chatDays: [],
     shareProfileViews: false,
     // Wer eigene Chat-Bilder/Videos speichern darf: 'friends' | 'all' (media-rights.js).
     mediaDownload: 'friends',

@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 179 · 2026-10-28
+## Build 180 · 2026-10-28
+- Lange Chats oeffnen schneller: zuerst die letzten 150 Nachrichten, beim Hochscrollen kommen aeltere dazu
+- Neu: "Chat nach Tagen" (Einstellungen > Chat): unter der Kontaktleiste blaetterst du mit Pfeilen oder Wischen Tag fuer Tag
+
+## Build 179 · 2026-10-28 · `e830517`
 - Benachrichtigungen einzeln einstellbar (Einstellungen > Chat > Benachrichtigungen): Match, Flamme, Adden, Nachrichten aus "Entdecken" und aus "Chat & Freunde", Profilbesuche und Chat-Ereignisse. Jeder Schalter gilt fuer Push und Hinweise in der App
 - Flammen, Matches und Freundschaftsanfragen melden sich jetzt auch, wenn die App geschlossen ist
 - Neu: Profilbesuche in "Entdecken" (beidseitig freiwillig): nur wenn der Besucher "Meine Profilbesuche zeigen" einschaltet und du "Profilbesuch" an hast, hoechstens alle 6 Stunden pro Person

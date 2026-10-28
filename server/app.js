@@ -63,6 +63,7 @@ const CLIENT_DEFAULT_RULES = {
     chatSwitchStyle: ['bar', 'arrows', 'swipe'],
     pullUpAction: ['reload', 'next', 'switcher', 'snap', 'album'],
     inputSwipeClosesChat: 'boolean',
+    chatPagesByDay: 'boolean',
     listSwitchEnabled: 'boolean',
     listSwitchBehavior: ['mode', 'view'],
     statusDirectOnly: 'boolean',

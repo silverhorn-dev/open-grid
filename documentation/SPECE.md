@@ -1025,6 +1025,17 @@ es keine Flamme, der Flirt-Teil bleibt verborgen und zaehlt nicht als
 ungelesen. Nur Anzeige: nichts wird geloescht, das Gegenueber merkt nichts.
 Nachrichten ohne `scope` (aeltere Versionen) bleiben sichtbar.
 
+**Verlauf in Seiten** (`client/app/chat-tools.js`): Ein Chat laedt weiter den
+ganzen Verlauf aus IndexedDB, zeichnet aber nur einen Teil. Durchgehend: die
+letzten 150 Nachrichten (`state.chatRenderLimit`), oben angekommen (bzw.
+Knopf "Aeltere Nachrichten laden (N)") 150 mehr, die Position bleibt. Option
+"Chat nach Tagen" (`keys`/`chat-view = { byDay }`, Router-Standard
+`CLIENT_DEFAULTS.chatPagesByDay`, sonst aus): eine Leiste unter der
+Kontaktleiste zeigt den Tag ("Heute", "Gestern", sonst Datum), Pfeile bzw.
+seitlich wischen wechseln zu Tagen mit Nachrichten; Senden springt zu heute.
+Suche und "nur markierte" durchsuchen immer alles. Tippen auf ein Zitat holt
+auch eine nicht gezeichnete Nachricht (`revealChatMessage`).
+
 **Ungelesen-Badges** (`client/app/unread.js`): Lesestand je Chat in
 `keys`/`chat-reads` (`{ reads: { <peerId>: ms, '*': ms } }`), nur lokal, geht
 weder an den Server noch an den Partner (keine Lesebestaetigung). Ungelesen =

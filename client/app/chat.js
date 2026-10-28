@@ -487,6 +487,8 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
     if (options.original) await storeOwnOriginal(message.id, options.original.dataUrl);
     if (!state.chats[peerId]) state.chats[peerId] = [];
     state.chats[peerId].push(message);
+    // Chat nach Tagen: nach dem Senden zum heutigen Tag.
+    if (state.chatDayMode) state.chatDay = null;
     rememberChatPeer(peerId);
     await persistChatMessage(peerId, message);
     const operation = createPutOperation(peerId, message);
@@ -616,6 +618,8 @@ function initChatScroll() {
     container.addEventListener('scroll', () => {
         state.chatPinned = chatDistanceFromBottom(container) <= CHAT_PINNED_PX;
         updateChatJumpButton();
+        // Oben angekommen: die naechste Seite aelterer Nachrichten dazu.
+        if (container.scrollTop < 80 && state.chatOlderCount) loadOlderChatMessages();
         updateFlirtTabCollapse(container);
     }, { passive: true });
     // Canvas-Bilder bekommen ihre Groesse erst nach dem Zeichnen: unten bleiben, wenn man dort war.
@@ -632,7 +636,11 @@ function renderChatHistory() {
     // Flirt-Teil im Freundes-Chat: nur im Flirt-Modus bzw. bei abgeschalteter Einstellung (friends.js).
     const allMessages = peerMessages.filter(message => !message.held
         && !isDiscoveryMessageHidden(state.activeChatPeerId, message));
-    const msgs = filterChatMessages(allMessages);
+    const filtering = Boolean(state.chatSearch) || state.chatStarredOnly;
+    // Seiten: nur die letzten Nachrichten bzw. ein Tag (chat-tools.js).
+    const page = chatHistoryWindow(filterChatMessages(allMessages), filtering);
+    const msgs = page.messages;
+    state.chatOlderCount = page.older;
     const markFlirt = isFlirting(state.activeChatPeerId);
     updateFlirtButton();
     // Wer nicht unten klebt, behaelt seine Position (der Inhalt darueber bleibt gleich).
@@ -646,7 +654,14 @@ function renderChatHistory() {
         showEmptyState(container, { icon: 'fa-magnifying-glass', text: t('chat.noMatchingMessages'), compact: true });
         return;
     }
-    const filtering = Boolean(state.chatSearch) || state.chatStarredOnly;
+    if (page.older) {
+        const older = document.createElement('button');
+        older.type = 'button';
+        older.className = 'chat-load-older';
+        older.textContent = t('chat.loadOlderMessages', { count: page.older });
+        older.onclick = loadOlderChatMessages;
+        container.appendChild(older);
+    }
     msgs.forEach(message => {
         const isMine = message.senderId === state.myProfile.id;
         const row = document.createElement('div');

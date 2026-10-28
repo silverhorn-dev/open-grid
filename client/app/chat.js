@@ -721,6 +721,8 @@ function renderChatHistory() {
         // Bubble + Aktionsleiste, die zur Haelfte ueber der Nachricht sitzt.
         const bubbleWrap = document.createElement('div');
         bubbleWrap.className = `chat-bubble-wrap ${isMine ? 'is-mine' : 'is-theirs'} relative max-w-[80%] flex ${isMine ? 'justify-end' : 'justify-start'}`;
+        // Neu gezeichnet unter der Maus: Leiste sofort wieder zeigen (sonst flackert sie, chat-tools.js).
+        if (message.id === state.hoveredMessageId) bubbleWrap.classList.add('is-hovered');
         bubble.classList.remove('max-w-[80%]');
         bubbleWrap.appendChild(bubble);
         if (!message.deleted) bubbleWrap.appendChild(renderMessageActions(message, isMine, row));

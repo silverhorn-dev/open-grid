@@ -310,7 +310,10 @@
   - wunsch: zustand "abwesend" (o. ae.), wenn die app nicht sichtbar ist
   - zu pruefen: wird bei `visibilityState === 'hidden'` eine benachrichtigung gezeigt (seite selbst bzw. SW), oder unterdrueckt die app sie, weil die seite noch "lebt"? push kommt evtl. gar nicht, solange die WS-verbindung steht (server haelt peer fuer online)
 - [x] flirt-lasche ueber dem senden-knopf (nutzer 2026-10-28): ersetzt die flamme im chat-kopf; lasche tippen = flirt-modus, lasche lange druecken = in diesem chat ausblenden (zurueck ueber ⋮), senden lange druecken = diese nachricht als flirt; im flirt-modus lasche + senden als ein block, eingabefeld mit rand und "Flirt-Nachricht…"; einstellung "Flirt-Knopf über Senden"; verlauf unten mit platz fuer die lasche; e2e `friends`
-  - offen: volle e2e-suite nach dieser aenderung noch nicht gelaufen; screenshots normal/flirt noch nicht angesehen
+  - nachgezogen 2026-10-28 (nutzer): fokus des eingabefelds bleibt beim tippen auf die lasche; lasche hoeher und auf der oberkante der eingabeleiste (antwort-leiste darunter, nichts verdeckt, verlauf unten mehr platz, runter-knopf ueber der lasche); punkt fuer jede neue verborgene flirt-nachricht seit dem letzten blick (`seen`), nicht nur die letzte; im flirt-modus album + video hinter einem medien-knopf, der nach oben aufklappt (+ foto aus der galerie)
+- [x] pc: hover-leiste an nachrichten flackert (nutzer 2026-10-28)
+  - ursache: der verlauf zeichnet sich neu, das neue element verliert kurz `:hover` und die leiste blendete von 0 ein
+  - done 2026-10-28: `state.hoveredMessageId` (mouseover), neu gezeichnete nachricht bekommt `.is-hovered` ohne ueberblenden
 
 ## T16 Wisch-Bugs (nutzer 2026-10-28, offen)
 - [ ] seitenmenue laesst sich nicht per wischen (nach rechts) schliessen

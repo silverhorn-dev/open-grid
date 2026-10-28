@@ -2,7 +2,12 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 174 · 2026-10-28
+## Build 175 · 2026-10-28
+- Flirt-Knopf: hoeher und auf der Oberkante der Eingabeleiste, die Antwort-Leiste liegt jetzt darunter statt verdeckt; der Punkt zeigt jede neue Flirt-Nachricht, nicht nur die letzte; das Eingabefeld behaelt beim Umschalten den Fokus
+- Flirt-Modus: Album und Video stecken hinter einem Medien-Knopf, der nach oben aufklappt (dazu Foto aus der Galerie)
+- Behoben: am PC flackerte die Leiste an Nachrichten beim Darueberfahren
+
+## Build 174 · 2026-10-28 · `aae8e7c`
 - Flirt-Knopf neu: kleine Flamme ueber dem Senden-Knopf statt oben im Chat. Tippen schaltet den Flirt-Modus (Flamme und Senden werden zu einem Block, das Eingabefeld zeigt "Flirt-Nachricht…"), Senden lange druecken schickt nur diese Nachricht als Flirt, die Flamme lange druecken blendet sie fuer diesen Chat aus (zurueck ueber ⋮). Abschaltbar unter Einstellungen > Chat > Nach dem Adden
 
 ## Build 173 · 2026-10-28 · `e56bb82`

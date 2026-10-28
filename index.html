@@ -276,7 +276,13 @@
                     <i class="fa-solid fa-arrow-up"></i><span data-i18n="common.keepPulling">Weiter ziehen</span>
                 </div>
 
-                <div class="chat-input-bar p-3 border-t border-slate-800 bg-slate-900/80 flex flex-col gap-2">
+                <div id="chat-input-bar" class="chat-input-bar relative p-3 border-t border-slate-800 bg-slate-900/80 flex flex-col gap-2">
+                    <!-- Flirt-Lasche (friends.js) auf der Oberkante der Eingabeleiste, ueber dem Senden-Knopf:
+                         tippen = Flirt-Modus, lange druecken = hier ausblenden. Antwort-Leiste und Hinweise liegen
+                         darunter, nichts wird verdeckt. -->
+                    <button type="button" data-i18n-attr="title:friends.flirtMode;aria-label:friends.flirtMode" id="chat-flirt-tab" data-click="toggleFlirtMode" class="flirt-tab hidden" title="Flirt-Modus" aria-label="Flirt-Modus" aria-pressed="false">
+                        <i class="fa-solid fa-fire"></i>
+                    </button>
                     <div id="chat-allowance-hint" class="hidden text-xs text-slate-300 bg-slate-950/60 border border-slate-800 rounded-lg px-3 py-1.5"></div>
                     <div id="chat-reply-bar" class="hidden flex items-center gap-2 border-l-2 border-brand-400 bg-slate-950/60 rounded-r-lg px-3 py-1.5">
                         <div class="min-w-0 flex-1">
@@ -309,13 +315,20 @@
                         <button data-i18n-attr="title:chat.sendVideoDirectOnly;aria-label:chat.sendVideo" id="chat-video-btn" data-chat-image-action data-click="pickChatVideo" class="compose-btn compose-btn-icon" title="Video senden (nur direkt)" aria-label="Video senden">
                             <i class="fa-solid fa-film"></i>
                         </button>
-                        <textarea data-i18n-attr="placeholder:chat.writeMessage" id="chat-input" rows="1" placeholder="Nachricht schreiben..." class="chat-input flex-1 min-w-0 text-base md:text-sm"></textarea>
-                        <!-- Senden/Mikrofon mit Flirt-Lasche (friends.js): Lasche tippen = Flirt-Modus, lange druecken =
-                             hier ausblenden; Senden lange druecken = diese Nachricht als Flirt -->
-                        <div id="chat-send-group" class="compose-send">
-                            <button type="button" data-i18n-attr="title:friends.flirtMode;aria-label:friends.flirtMode" id="chat-flirt-tab" data-click="toggleFlirtMode" class="flirt-tab hidden" title="Flirt-Modus" aria-label="Flirt-Modus" aria-pressed="false">
-                                <i class="fa-solid fa-fire"></i>
+                        <!-- Flirt-Modus (friends.js): Album und Video als ein Knopf, der nach oben aufklappt -->
+                        <div class="compose-media">
+                            <button type="button" data-i18n-attr="title:chat.sendMedia;aria-label:chat.sendMedia" id="chat-media-btn" data-chat-image-action data-click="toggleComposeMediaMenu" class="compose-btn compose-btn-icon" title="Medien senden" aria-label="Medien senden" aria-haspopup="menu" aria-expanded="false">
+                                <i class="fa-solid fa-photo-film"></i>
                             </button>
+                            <div id="chat-media-menu" class="compose-media-menu hidden" role="menu">
+                                <button type="button" data-i18n-attr="title:chat.photoFromGallery;aria-label:chat.photoFromGallery" data-chat-image-action data-click="composeMediaGallery" class="compose-btn compose-btn-icon" role="menuitem" title="Foto aus der Galerie" aria-label="Foto aus der Galerie"><i class="fa-regular fa-image"></i></button>
+                                <button type="button" data-i18n-attr="title:common.shareAlbum;aria-label:common.shareAlbum" data-chat-image-action data-click="composeMediaAlbum" class="compose-btn compose-btn-icon" role="menuitem" title="Album teilen" aria-label="Album teilen"><i class="fa-solid fa-images"></i></button>
+                                <button type="button" data-i18n-attr="title:chat.sendVideo;aria-label:chat.sendVideo" data-chat-image-action data-click="composeMediaVideo" class="compose-btn compose-btn-icon" role="menuitem" title="Video senden" aria-label="Video senden"><i class="fa-solid fa-film"></i></button>
+                            </div>
+                        </div>
+                        <textarea data-i18n-attr="placeholder:chat.writeMessage" id="chat-input" rows="1" placeholder="Nachricht schreiben..." class="chat-input flex-1 min-w-0 text-base md:text-sm"></textarea>
+                        <!-- Senden lange druecken = diese Nachricht als Flirt (friends.js) -->
+                        <div id="chat-send-group" class="compose-send">
                             <button data-i18n-attr="title:chat.send;aria-label:chat.send" id="send-chat-btn" data-click="sendChatMessage" class="compose-btn compose-btn-primary" title="Senden" aria-label="Senden">
                                 <i class="fa-solid fa-paper-plane"></i><span data-i18n="chat.send" class="hidden sm:inline">Senden</span>
                             </button>

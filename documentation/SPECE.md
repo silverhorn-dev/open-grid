@@ -977,18 +977,31 @@ der Chat nach `social`. Einen Flirt-Teil (`hasFlirtPart`) hat ein
 Freundes-Chat nur mit Match UND Nachrichten aus "Entdecken"; eins allein
 reicht nicht (ein Match ohne Flirt-Chat, oder als `discovery` markierte
 Nachrichten aelterer Chats ohne Listen-Zuordnung). Ohne Flirt-Teil gibt es
-keine Flamme und nichts wird ausgeblendet. Die Flamme im Chat-Kopf
-(`#chat-flirt-btn`, nur bei aktivem Entdecken-Bereich und Flirt-Teil)
-schaltet pro Chat in den Flirt-Modus: alles sichtbar, Flirt-Nachrichten
-markiert (`.flirt-message`), neue eigene Nachrichten mit `scope: 'discovery'`
-(`messageScopeFor`), Album-Knopf sichtbar. Im normalen Modus sind neue
-Nachrichten `social` und Flirt-Nachrichten ausgeblendet, solange die
-Einstellung "Flirt-Verlauf im normalen Chat ausblenden" an ist. Gespeichert in
-`keys`/`discovery-history = { hide, flirt }` (`hide` Standard an,
-Router-Standard `CLIENT_DEFAULTS.hideDiscoveryHistory`; `flirt` = Chats im
-Flirt-Modus). Ist die neueste Nachricht gerade ausgeblendet, zeigt die Flamme
-einen Punkt; sie zaehlt weiter als ungelesen. Ist der Entdecken-Bereich aus,
-gibt es keine Flamme, der Flirt-Teil bleibt verborgen und zaehlt nicht als
+keine Flamme und nichts wird ausgeblendet. Bedienung (nur bei aktivem
+Entdecken-Bereich und Flirt-Teil):
+
+- Lasche mit Flamme (`#chat-flirt-tab`) auf der Oberkante der Eingabeleiste
+  ueber dem Senden-Knopf; Antwort-Leiste und Hinweise liegen darunter, der
+  Verlauf bekommt unten Platz (`.has-flirt-tab`). Tippen = Flirt-Modus pro
+  Chat an/aus (der Fokus des Eingabefelds bleibt, wie er war); lange druecken
+  = in diesem Chat ausblenden (zurueck ueber das Chat-Menue). Einstellung
+  "Flirt-Knopf über Senden" (`tab`), pro Chat `tabHidden`.
+- Flirt-Modus: alles sichtbar, Flirt-Nachrichten markiert (`.flirt-message`),
+  neue eigene Nachrichten mit `scope: 'discovery'` (`messageScopeFor`);
+  Lasche, Oberkante und Senden in Markenfarbe, Eingabefeld mit Rand und
+  "Flirt-Nachricht…"; Album und Video stehen hinter einem Medien-Knopf, der
+  nach oben aufklappt (Foto aus der Galerie, Album, Video).
+- Senden lange druecken = nur diese Nachricht als Flirt (`flirtSendOnce`).
+- Normal: neue Nachrichten `social`; Flirt-Nachrichten ausgeblendet, solange
+  "Flirt-Verlauf im normalen Chat ausblenden" an ist. Punkt an der Lasche, wenn
+  seit dem letzten Blick in den Flirt-Teil (`seen[peerId]`) eine neue,
+  ausgeblendete Flirt-Nachricht des anderen kam.
+- Chat-Menue: "Flirt-Modus an/aus", "Flirt-Knopf zeigen".
+
+Gespeichert in `keys`/`discovery-history = { hide, flirt, tab, tabHidden,
+seen }` (`hide` Standard an, Router-Standard
+`CLIENT_DEFAULTS.hideDiscoveryHistory`). Ist der Entdecken-Bereich aus, gibt
+es keine Flamme, der Flirt-Teil bleibt verborgen und zaehlt nicht als
 ungelesen. Nur Anzeige: nichts wird geloescht, das Gegenueber merkt nichts.
 Nachrichten ohne `scope` (aeltere Versionen) bleiben sichtbar.
 

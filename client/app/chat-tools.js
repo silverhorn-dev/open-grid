@@ -239,6 +239,26 @@ async function openChatImageViewer(messageId) {
     openImageViewer(images, snaps.findIndex(message => message.id === messageId), { allowSave: snaps.map(canDownloadMedia) });
 }
 
+// Desktop: welche Nachricht liegt unter der Maus? Zeichnet sich der Verlauf neu (Status, Praesenz ...),
+// verliert das neue Element kurz sein :hover und die Leiste blendete von 0 ein (Flackern). Mit der
+// gemerkten ID bekommt die neu gezeichnete Nachricht die Leiste sofort ohne Ueberblenden.
+function initMessageHoverTracking() {
+    const container = document.getElementById('chat-messages');
+    if (!container || !window.matchMedia?.('(hover: hover)').matches) return;
+    container.addEventListener('mouseover', event => {
+        const wrap = event.target.closest?.('.chat-bubble-wrap');
+        const row = wrap?.closest('[id^="chat-message-"]');
+        const id = row ? row.id.slice('chat-message-'.length) : null;
+        if (id === state.hoveredMessageId) return;
+        container.querySelectorAll('.chat-bubble-wrap.is-hovered').forEach(element => element.classList.remove('is-hovered'));
+        state.hoveredMessageId = id;
+    });
+    container.addEventListener('mouseleave', () => {
+        state.hoveredMessageId = null;
+        container.querySelectorAll('.chat-bubble-wrap.is-hovered').forEach(element => element.classList.remove('is-hovered'));
+    });
+}
+
 // Desktop: beim Hovern eine kleine Leiste (Antworten, Reagieren, mehr). Touch: nur der Pfeil in der
 // Ecke; beide oeffnen das Kontextmenue.
 function renderMessageActions(message, isMine) {

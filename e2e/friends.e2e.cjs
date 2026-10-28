@@ -124,10 +124,28 @@ async function main() {
         await dave.mouse.up();
         await waitFor(dave, id => (state.chats[id] || []).some(message => message.text === 'nur einmal flirt' && message.scope === 'discovery'), carolId);
         assert.equal(await dave.evaluate(id => isFlirting(id), carolId), false, 'one message only, mode stays normal');
+        // Fokus bleibt im Eingabefeld, wenn es ihn hatte.
+        await dave.focus('#chat-input');
         await dave.click('#chat-flirt-tab');
         await waitFor(dave, () => document.querySelector('#chat-messages')?.textContent.includes('hi dave'));
+        assert.equal(await dave.evaluate(() => document.activeElement?.id), 'chat-input', 'input keeps the focus');
         assert.equal(await dave.evaluate(() => document.querySelector('#chat-messages').textContent.includes('jetzt als freunde')), true, 'flirt mode shows everything');
         assert.equal(await dave.locator('.flirt-message').count(), 2, 'flirt messages are marked');
+        // Flirt-Modus: Album und Video hinter einem Knopf, der nach oben aufklappt.
+        assert.equal(await dave.isVisible('#chat-video-btn'), false, 'video folded away');
+        await dave.click('#chat-media-btn');
+        assert.equal(await dave.isVisible('#chat-media-menu'), true, 'media menu opens');
+        const menuBox = await dave.locator('#chat-media-menu').boundingBox();
+        const buttonBox = await dave.locator('#chat-media-btn').boundingBox();
+        assert.ok(menuBox.y + menuBox.height <= buttonBox.y, 'menu opens upwards');
+        await dave.click('#chat-messages');
+        assert.equal(await dave.isVisible('#chat-media-menu'), false, 'closes on a tap elsewhere');
+        // Antworten: die Antwort-Leiste liegt in der Eingabeleiste, die Lasche darueber verdeckt sie nicht.
+        await dave.evaluate(id => startReply(state.chats[id].at(-1).id), carolId);
+        const tabBox = await dave.locator('#chat-flirt-tab').boundingBox();
+        const replyBox = await dave.locator('#chat-reply-bar').boundingBox();
+        assert.ok(tabBox.y + tabBox.height <= replyBox.y + 1, 'tab sits above the reply bar');
+        await dave.evaluate(() => cancelReply());
         await dave.fill('#chat-input', 'flirt zurueck');
         await dave.click('#send-chat-btn');
         await waitFor(carol, id => (state.chats[id] || []).some(message => message.text === 'flirt zurueck' && message.scope === 'discovery'), daveId);
@@ -135,7 +153,9 @@ async function main() {
         await carol.evaluate(() => renderChatHistory());
         assert.equal(await carol.evaluate(() => document.querySelector('#chat-messages').textContent.includes('flirt zurueck')), false);
         await waitFor(carol, () => document.getElementById('chat-flirt-tab')?.classList.contains('has-news'));
+        await dave.evaluate(() => document.activeElement?.blur());
         await dave.click('#chat-flirt-tab');
+        assert.notEqual(await dave.evaluate(() => document.activeElement?.id), 'chat-input', 'no focus without focus before');
         await waitFor(dave, () => !document.querySelector('#chat-messages')?.textContent.includes('hi dave'));
         // Lasche lange druecken = hier ausblenden; ueber das Menue wieder einblenden.
         await dave.hover('#chat-flirt-tab');

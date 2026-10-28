@@ -125,9 +125,11 @@ const state = {
     albumSelfDestructTimer: null,
     // Flirt-Modus in Freundes-Chats: Flirt-Teil im normalen Chat ausblenden, Chats im Flirt-Modus, Lasche
     // ueber dem Senden-Knopf (an/aus, pro Chat ausgeblendet) (friends.js).
-    discoveryHistory: { hide: true, flirt: [], tab: true, tabHidden: [] },
+    discoveryHistory: { hide: true, flirt: [], tab: true, tabHidden: [], seen: {} },
     // Senden lange gedrueckt: naechste Nachricht an diesen Peer als Flirt (friends.js).
     flirtSendOnce: null,
+    // Nachricht unter der Maus (Desktop), damit die Hover-Leiste beim Neuzeichnen nicht flackert (chat-tools.js).
+    hoveredMessageId: null,
     // Wer eigene Chat-Bilder/Videos speichern darf: 'friends' | 'all' (media-rights.js).
     mediaDownload: 'friends',
     // Snap-Editor: darf der Empfaenger diese Aufnahme speichern (snaps.js).

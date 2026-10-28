@@ -875,11 +875,14 @@ Akzeptanzkriterien:
 
 - Pro Person bleibt es ein Chat; er steht nach dem Adden unter "Chat &
   Freunde".
-- Eine Flamme im Chat-Kopf schaltet pro Chat in den Flirt-Modus: dort sehe ich
-  alles (Flirt-Nachrichten markiert) und schreibe Flirt-Nachrichten.
+- Eine Flamme ueber dem Senden-Knopf schaltet pro Chat in den Flirt-Modus:
+  dort sehe ich alles (Flirt-Nachrichten markiert) und schreibe
+  Flirt-Nachrichten; Senden lange druecken schickt nur eine Nachricht als
+  Flirt. Die Flamme laesst sich ausblenden (Einstellung oder pro Chat).
 - Im normalen Chat sind Flirt-Nachrichten standardmaessig ausgeblendet
   (Einstellung "Flirt-Verlauf im normalen Chat ausblenden", Chat > Nach dem
-  Adden); kommt eine neue, zeigt die Flamme einen Punkt.
+  Adden); kommt eine neue, zeigt die Flamme einen Punkt (auch wenn danach
+  schon weitere normale Nachrichten kamen).
 - Ohne aktiven Entdecken-Bereich gibt es keine Flamme, der Flirt-Teil bleibt
   verborgen.
 - Nichts wird geloescht; das Gegenueber merkt nichts.

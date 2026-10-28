@@ -201,7 +201,10 @@ async function loadDiscoveryHistorySetting() {
         hide: typeof stored?.hide === 'boolean' ? stored.hide : routerDefault !== false,
         flirt: peerIdList(stored?.flirt),
         tab: stored?.tab !== false,
-        tabHidden: peerIdList(stored?.tabHidden)
+        tabHidden: peerIdList(stored?.tabHidden),
+        // Wann man den Flirt-Teil eines Chats zuletzt gesehen hat (Punkt an der Lasche fuer Neues danach).
+        seen: Object.fromEntries(Object.entries(stored?.seen && typeof stored.seen === 'object' ? stored.seen : {})
+            .filter(([peerId, at]) => typeof peerId === 'string' && Number.isFinite(at)).slice(0, 1000))
     };
     renderDiscoveryHistorySetting();
 }
@@ -293,6 +296,7 @@ function messageScopeFor(peerId) {
         if (canFlirt(peerId)) {
             // Im normalen Chat ist der Flirt-Teil ausgeblendet: sagen, wo die Nachricht hin ist.
             document.getElementById('chat-send-group')?.classList.remove('is-flirt-once');
+            document.getElementById('chat-input-bar')?.classList.remove('is-flirt-once');
             if (state.discoveryHistory.hide) showToast(t('friends.sentAsFlirt'), 'info');
             return 'discovery';
         }
@@ -306,11 +310,14 @@ async function toggleFlirtMode(peerId = state.activeChatPeerId) {
     const flirt = new Set(state.discoveryHistory.flirt);
     if (flirt.has(peerId)) flirt.delete(peerId);
     else flirt.add(peerId);
-    state.discoveryHistory = { ...state.discoveryHistory, flirt: [...flirt] };
+    // Beim Ein- wie beim Ausschalten ist der Flirt-Teil gerade gesehen.
+    const seen = { ...state.discoveryHistory.seen, [peerId]: Date.now() };
+    state.discoveryHistory = { ...state.discoveryHistory, flirt: [...flirt], seen };
     await saveDiscoveryHistory();
     if (state.activeChatPeerId === peerId) {
         renderChatHistory();
         updateChatAlbumButton();
+        restoreInputFocusAfterFlirtTab();
     }
 }
 
@@ -327,12 +334,12 @@ function updateFlirtButton() {
         tab.classList.toggle('hidden', !tabShown);
         tab.classList.toggle('is-active', flirting);
         tab.setAttribute('aria-pressed', String(flirting));
-        const visible = (state.chats[peerId] || []).filter(message => !message.held && !message.deleted);
-        const latest = visible[visible.length - 1];
-        tab.classList.toggle('has-news', Boolean(available && latest && isDiscoveryMessageHidden(peerId, latest)));
+        tab.classList.toggle('has-news', available && hasUnseenFlirt(peerId));
     }
     document.getElementById('chat-send-group')?.classList.toggle('is-flirt', flirting);
+    document.getElementById('chat-input-bar')?.classList.toggle('is-flirt', flirting);
     document.getElementById('chat-compose-row')?.classList.toggle('is-flirt', flirting);
+    if (!flirting) closeComposeMediaMenu();
     // Platz unten im Verlauf, damit die Lasche nie die letzte Nachricht verdeckt.
     document.getElementById('chat-messages')?.classList.toggle('has-flirt-tab', tabShown);
     const input = document.getElementById('chat-input');
@@ -344,6 +351,56 @@ function updateFlirtButton() {
         if (label) label.textContent = flirting ? t('friends.flirtModeOff') : t('friends.flirtModeOn');
     }
     document.getElementById('chat-menu-flirt-tab')?.classList.toggle('hidden', !available || tabShown);
+}
+
+// Neue, gerade ausgeblendete Flirt-Nachrichten des anderen seit dem letzten Blick in den Flirt-Teil.
+// Ohne Eintrag (Chat zum ersten Mal mit Lasche) gilt "jetzt": alter Verlauf bekommt keinen Punkt.
+function hasUnseenFlirt(peerId) {
+    if (isFlirting(peerId)) {
+        state.discoveryHistory.seen[peerId] = Date.now();
+        return false;
+    }
+    if (!Number.isFinite(state.discoveryHistory.seen[peerId])) {
+        state.discoveryHistory.seen[peerId] = Date.now();
+        saveDiscoveryHistory();
+        return false;
+    }
+    const seenAt = state.discoveryHistory.seen[peerId];
+    return (state.chats[peerId] || []).some(message => message.senderId === peerId && !message.held && !message.deleted
+        && (message.createdAt || 0) > seenAt && isDiscoveryMessageHidden(peerId, message));
+}
+
+// ----- Flirt-Modus: Medien-Knopf -----
+// Im Flirt-Modus stehen Album und Video nicht einzeln in der Leiste, sondern hinter einem Knopf, der nach
+// oben aufklappt (dazu ein Foto aus der Galerie). Die Leiste bleibt so schmal.
+function toggleComposeMediaMenu(force = null) {
+    const menu = document.getElementById('chat-media-menu');
+    const button = document.getElementById('chat-media-btn');
+    if (!menu || !button) return;
+    const open = force === null ? menu.classList.contains('hidden') : force;
+    menu.classList.toggle('hidden', !open);
+    button.setAttribute('aria-expanded', String(open));
+}
+
+function closeComposeMediaMenu() {
+    toggleComposeMediaMenu(false);
+}
+
+function composeMediaGallery() {
+    closeComposeMediaMenu();
+    // Galerie ueber den Snap-Editor: dort waehlt man Bild oder Snap, wie beim Hochwischen in der Kamera.
+    openSnapUploadModal();
+    document.getElementById('snap-file-input')?.click();
+}
+
+function composeMediaAlbum() {
+    closeComposeMediaMenu();
+    openAlbumPicker();
+}
+
+function composeMediaVideo() {
+    closeComposeMediaMenu();
+    pickChatVideo();
 }
 
 function chatMenuToggleFlirt() {
@@ -393,11 +450,32 @@ function attachLongPress(element, onLongPress) {
     }, true);
 }
 
+// Lasche antippen nimmt dem Eingabefeld nicht den Fokus: hatte es ihn, bekommt es ihn nach dem
+// Umschalten zurueck (Tastatur bleibt offen); hatte es ihn nicht, bleibt das so.
+let flirtTabKeepsInputFocus = false;
+
+function restoreInputFocusAfterFlirtTab() {
+    if (!flirtTabKeepsInputFocus) return;
+    flirtTabKeepsInputFocus = false;
+    document.getElementById('chat-input')?.focus({ preventScroll: true });
+}
+
 function initFlirtControls() {
-    attachLongPress(document.getElementById('chat-flirt-tab'), () => {
+    // Medien-Menue schliesst bei einem Tipp daneben.
+    document.addEventListener('pointerdown', event => {
+        if (!event.target.closest?.('.compose-media')) closeComposeMediaMenu();
+    });
+    const tab = document.getElementById('chat-flirt-tab');
+    tab?.addEventListener('pointerdown', () => {
+        flirtTabKeepsInputFocus = document.activeElement?.id === 'chat-input';
+    });
+    // Maus: der Knopf nimmt den Fokus gar nicht erst (Klick kommt trotzdem an).
+    tab?.addEventListener('mousedown', event => event.preventDefault());
+    attachLongPress(tab, () => {
         const peerId = state.activeChatPeerId;
         if (!peerId) return;
         hapticTick();
+        restoreInputFocusAfterFlirtTab();
         setFlirtTabHidden(peerId, true).catch(logBackgroundError('initFlirtControls'));
         showToast(t('friends.flirtTabHiddenHere'), 'info');
     });
@@ -408,9 +486,11 @@ function initFlirtControls() {
         hapticTick();
         state.flirtSendOnce = peerId;
         document.getElementById('chat-send-group')?.classList.add('is-flirt-once');
+        document.getElementById('chat-input-bar')?.classList.add('is-flirt-once');
         setTimeout(() => {
             if (state.flirtSendOnce === peerId) state.flirtSendOnce = null;
             document.getElementById('chat-send-group')?.classList.remove('is-flirt-once');
+            document.getElementById('chat-input-bar')?.classList.remove('is-flirt-once');
         }, 3000);
     });
 }

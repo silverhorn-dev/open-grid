@@ -48,4 +48,6 @@ test('album revoke operations need an album id', () => {
     const revoke = albumId => ({ type: 'CHAT_OPERATION', operation: { operationId: 'albumrevoke:1', type: 'ALBUM_REVOKE', actorId: 'peer', createdAt: 1, albumId } });
     assert.equal(valid(revoke('alb_1')), true);
     assert.equal(valid(revoke('')), false);
+    assert.equal(valid({ type: 'ALBUM_VIEW_CLOSED', albumId: 'alb_1' }), true);
+    assert.equal(valid({ type: 'ALBUM_VIEW_CLOSED' }), false);
 });

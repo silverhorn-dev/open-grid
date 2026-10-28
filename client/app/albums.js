@@ -419,7 +419,10 @@ function runMediaModalCleanup() {
 
 function hideMediaModal() {
     runMediaModalCleanup();
+    const viewing = state.albumViewer;
     state.albumViewer = null;
+    // Begrenzte Ansicht endet mit dem Schliessen (nicht erst nach 15 Minuten).
+    if (viewing) endLimitedAlbumView(viewing.albumId).catch(logBackgroundError('endLimitedAlbumView'));
     document.getElementById('media-modal').classList.add('hidden');
     document.getElementById('media-modal-content').innerHTML = '';
 }
@@ -1289,6 +1292,9 @@ async function handleAlbumKeysOperation(ownerId, operation) {
         await putDatabaseRecord('keys', { id: `${ALBUM_TICKET_PREFIX}${ticketAlbumId}`, ownerId, ticket: operation.ticket });
     }
     for (const bundle of valid) {
+        // Ansichts-Buendel nur, solange das Album offen ist (kommt es nach dem Schliessen an, waere es
+        // eine Ansicht gratis).
+        if (bundle.session === true && state.albumViewer?.albumId !== bundle.albumId) continue;
         await putDatabaseRecord('keys', {
             id: `${ALBUM_KEY_BUNDLE_PREFIX}${bundle.albumId}:${bundle.keyVersion}:${bundle.epoch}`,
             ownerId,
@@ -1366,6 +1372,32 @@ async function requestAlbumKeys(ownerId, albumId) {
         return;
     }
     await sendSecurePayload(ownerId, { type: 'ALBUM_KEY_REQUEST', albumId });
+}
+
+// Betrachter: Album mit begrenzten Ansichten geschlossen -> Schluessel und gespeicherte Ansichts-Buendel
+// sofort weg und dem Besitzer melden (er beendet die Ansicht und entzieht, wenn alle verbraucht sind).
+async function endLimitedAlbumView(albumId) {
+    const entry = state.albumKeys[albumId];
+    const records = await getAllDatabaseRecords('keys').catch(() => []);
+    const sessionBundles = records.filter(record => typeof record.id === 'string'
+        && record.id.startsWith(`${ALBUM_KEY_BUNDLE_PREFIX}${albumId}:`) && record.session === true);
+    if (!entry?.session && !sessionBundles.length) return;
+    const ownerId = entry?.ownerId || sessionBundles[0]?.ownerId;
+    if (entry?.session) expireAlbumKeys(albumId, false);
+    await Promise.all(sessionBundles.map(record => deleteDatabaseRecord('keys', record.id)));
+    if (ownerId) await sendSecurePayload(ownerId, { type: 'ALBUM_VIEW_CLOSED', albumId });
+}
+
+// Besitzer: Ansicht vorzeitig beendet.
+async function handleAlbumViewClosed(peerId, payload) {
+    const album = state.albums[payload.albumId];
+    const limit = albumLimitFor(album, peerId);
+    if (!album || album.ownerId !== state.myProfile.id || limit?.kind !== 'views') return;
+    const now = (await fetchServerTime().catch(() => ({ now: Date.now() }))).now;
+    if ((limit.sessionEndsAt || 0) <= now) return;
+    album.limits = { ...album.limits, [peerId]: { ...limit, sessionEndsAt: now } };
+    await saveAlbum(album);
+    await enforceAlbumLimits(now);
 }
 
 async function handleAlbumKeyRequest(peerId, payload) {

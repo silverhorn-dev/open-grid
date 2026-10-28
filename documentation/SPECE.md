@@ -634,7 +634,12 @@ oder `{ kind: 'time', until }` (15 min, 1 h, 24 h). Ansichten: keine Buendel
 vorab (`pushAlbumKeys` ueberspringt die Person); jede `ALBUM_KEY_REQUEST`
 (Oeffnen) zaehlt eine Ansicht und bekommt nur das laufende Buendel, gekuerzt
 auf 15 Minuten und mit `session: true` (der Betrachter fragt danach nicht von
-selbst nach); eine erneute Anfrage in derselben Ansicht zaehlt nicht. Zeit:
+selbst nach); eine erneute Anfrage in derselben Ansicht zaehlt nicht. Die
+Ansicht endet mit dem Schliessen: der Betrachter verwirft die Schluessel und
+die gespeicherten Ansichts-Buendel (spaet ankommende werden bei geschlossenem
+Album gar nicht gespeichert) und meldet `ALBUM_VIEW_CLOSED { albumId }`; der
+Besitzer beendet die Ansicht und entzieht sofort, wenn alle verbraucht sind.
+Die 15 Minuten bleiben als Sicherheitsnetz (z. B. Betrachter offline). Zeit:
 Buendel enden spaetestens mit `until` (`epochEndsAt` gekuerzt, spaetere
 Epochen entfallen, `epochStartsAt` steht dabei). Ist die Frist vorbei bzw.
 sind alle Ansichten verbraucht und die letzte vorbei, entzieht

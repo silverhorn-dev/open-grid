@@ -887,6 +887,8 @@ async function handleSecurePayload(peerId, payload, deliveredVia = 'E2EE P2P') {
         handleSnapViewClosed(peerId, payload);
     } else if (payload.type === 'ALBUM_KEY_REQUEST') {
         await handleAlbumKeyRequest(peerId, payload);
+    } else if (payload.type === 'ALBUM_VIEW_CLOSED') {
+        await handleAlbumViewClosed(peerId, payload);
     } else if (payload.type === 'ALBUM_REVOKED') {
         await forgetReceivedAlbum(peerId, payload.albumId);
     } else if (payload.type === 'IMAGE_REQUEST') {

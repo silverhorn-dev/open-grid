@@ -304,8 +304,11 @@ test('limited sharing: views are counted per opening, time limits cap the keys, 
     await owner.context.handleAlbumKeyRequest('peer-allowed', { albumId: 'alb_1' });
     assert.equal(owner.context.state.albums.alb_1.limits['peer-allowed'].used, 1);
 
-    // Zweite Ansicht nach Ablauf der ersten, dann ist Schluss.
-    owner.clock.now += 16 * 60000;
+    // Schliesst Bob das Album, ist die Ansicht vorbei: das naechste Oeffnen zaehlt sofort.
+    await owner.context.handleAlbumViewClosed('peer-allowed', { albumId: 'alb_1' });
+    assert.equal(owner.context.state.albums.alb_1.limits['peer-allowed'].sessionEndsAt, owner.clock.now);
+    assert.equal(owner.context.state.albums.alb_1.acl.includes('peer-allowed'), true, 'one view left');
+    owner.clock.now += 1000;
     await owner.context.handleAlbumKeyRequest('peer-allowed', { albumId: 'alb_1' });
     assert.equal(owner.context.state.albums.alb_1.limits['peer-allowed'].used, 2);
     owner.clock.now += 16 * 60000;

@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 159 · 2026-10-28
+## Build 160 · 2026-10-28
+- Behoben: Alben mit 1x/2x/3x ansehen liessen sich nach dem Oeffnen noch 15 Minuten lang beliebig oft wieder oeffnen. Jetzt endet eine Ansicht mit dem Schliessen, und nach der letzten ist der Zugriff sofort weg
+
+## Build 159 · 2026-10-28 · `fb52534`
 - Behoben: entzogener Album-Zugriff kam bei Personen, die gerade offline waren, nicht an; sie behielten die Schluessel bis zum Ablauf. Der Entzug geht jetzt auch ueber den Server-Zwischenspeicher, und die Schluessel werden geloescht
 
 ## Build 158 · 2026-10-27 · `f552228`

@@ -147,6 +147,7 @@ const PAYLOAD_VALIDATORS = {
         && isSmallInt(payload.version) && isSmallInt(payload.keyVersion) && isEncryptedImage(payload.encrypted),
     ALBUM_DENIED: payload => isId(payload.albumId),
     ALBUM_REVOKED: payload => isId(payload.albumId),
+    ALBUM_VIEW_CLOSED: payload => isId(payload.albumId),
     ALBUM_KEY_REQUEST: payload => isId(payload.albumId),
     SNAP_VIEW_REQUEST: payload => isId(payload.snapId),
     SNAP_VIEW_GRANT: payload => isId(payload.snapId) && isOptionalString(payload.key, 100),

@@ -175,6 +175,9 @@
 - [x] album wie einen snap 1x/2x/3x oder 15 min/1 h/24 h teilen, im sendemenue einstellbar, ueberspringbar; begrenzte nutzer in der alben-verwaltung; ab 3 personen eingeklappt
   - nutzer 2026-10-28: eintrag soll nach der frist aus der zugriffsliste verschwinden; pruefen, ob der entzug ueber pfad c laeuft
     - befund: verschwinden klappte; der entzug ging aber nur als direktnachricht ohne pfad c (offline = verloren, schluessel bis epochenende); das vergessen loeschte die schluessel-buendel nicht
+  - nutzer 2026-10-28: alben mit 1-3 ansichten laufen beim oeffnen nicht ab
+    - befund: nach dem schliessen blieben schluessel + ansichts-buendel 15 min lang, beliebig oft neu oeffnen; entzug erst nach 15 min
+    - fix 2026-10-28: ansicht endet beim schliessen (`endLimitedAlbumView`, `ALBUM_VIEW_CLOSED`, `handleAlbumViewClosed`), spaete ansichts-buendel verworfen; e2e `album-views`
     - fix 2026-10-28: `ALBUM_REVOKE` als chat-operation mit pfad-c-rueckfall, `forgetReceivedAlbum` loescht buendel + ticket; e2e `album-revoke` (schlaegt mit altem code fehl)
   - done 2026-10-27: `album.limits`, `openAlbumShareOptions`, ansichten ueber `handleAlbumKeyRequest` (15-min-ansicht, `session`), zeit ueber gekuerzte buendel, `enforceAlbumLimits`; tests `test/albums.test.js`, e2e `album-preview`; UC-51
 

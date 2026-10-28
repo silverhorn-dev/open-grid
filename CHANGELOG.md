@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 188 · 2026-10-28
+## Build 189 · 2026-10-28
+- Grid-Filter (Pfeil-Knopf neben den Grid-Bereichen): Entfernung, nur mit Foto, Alter und Auswahlfelder aus dem Profil. Gefiltert wird nur auf deinem Geraet; wessen Profil noch nicht geladen ist, steht als "unbekannt" hinten
+- Im geoeffneten Profil wischst du seitlich zum naechsten Profil (am PC Pfeiltasten)
+
+## Build 188 · 2026-10-28 · `b3bfbed`
 - Grid in drei Bereichen (in "Entdecken"): Grid, Interaktionen (wer dir eine Flamme geschickt oder dein Profil angesehen hat, mit "Flamme zurueck") und Matches (noch nicht angeschriebene oben). Die Interaktionen liegen nur auf deinem Geraet
 
 ## Build 181 · 2026-10-28 · `5fb8dcd`

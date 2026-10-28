@@ -148,6 +148,12 @@ const state = {
     // Grid-Bereich ('grid' | 'interactions' | 'matches') und lokale Interaktionen (grid-tabs.js).
     gridView: 'grid',
     interactions: { items: [], seenAt: 0 },
+    // Grid-Filter (nur lokal), gebuendeltes Neusortieren und die Liste zum Blaettern im Profil (grid-filter.js).
+    gridFilter: { maxDistance: null, photo: false, unknown: true, ranges: {}, options: {} },
+    gridRefilterTimer: null,
+    gridPrefetchTimer: null,
+    gridPrefetchPeerIds: [],
+    profileBrowseList: [],
     shareProfileViews: false,
     // Wer eigene Chat-Bilder/Videos speichern darf: 'friends' | 'all' (media-rights.js).
     mediaDownload: 'friends',

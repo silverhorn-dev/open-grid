@@ -55,6 +55,7 @@ window.onload = async () => {
     initFlirtControls();
     initMessageHoverTracking();
     initChatDayBar();
+    initProfileBrowsing();
     initSnapEditor();
     initSnapCamera();
     initChatSwitchSwipe();
@@ -104,6 +105,7 @@ window.onload = async () => {
             await loadChatSwipeCloseSetting();
             await loadNotificationSettings();
             await loadChatViewSetting();
+            await loadGridFilter();
             await loadInteractions();
             await loadListSwitchSettings();
         });

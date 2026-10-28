@@ -157,6 +157,7 @@ const clientAssetFiles = [
     'app/matching.js',
     'app/friends.js',
     'app/grid-tabs.js',
+    'app/grid-filter.js',
     'app/status.js',
     'app/gestures.js',
     'app/modes.js',

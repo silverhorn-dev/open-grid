@@ -385,7 +385,9 @@
   - matches-tab: noch nicht angeschriebene matches oben, jede karte mit chat-knopf (keine doppelung zur chatliste)
   - done 2026-10-28: `client/app/grid-tabs.js`, `keys`/`interactions`, badge, flamme zurueck / schreiben; e2e `grid-tabs`; UC-56
   - interaktionen: neueste oben, "flamme zurueck"-knopf, badge am tab fuer neue
-- [ ] filter (lokal auf die grid-ergebnisse): alter von-bis, entfernung, gerade online, mit foto, plus jedes select-/tag-feld aus dem profil-schema; mehrere selektoren: UND zwischen feldern, ODER innerhalb eines felds; zu wenige treffer -> "mehr laden"
+- [x] filter (lokal auf die grid-ergebnisse): alter von-bis, entfernung, gerade online, mit foto, plus jedes select-/tag-feld aus dem profil-schema; mehrere selektoren: UND zwischen feldern, ODER innerhalb eines felds; zu wenige treffer -> "mehr laden"
+  - entschieden (nutzer 2026-10-28): kein filter-code auf der karte; stattdessen die ersten ~10 profile im hintergrund laden und auf dem client filtern/sortieren; filter auch in interaktionen und matches; panel nur ueber pfeil-knopf; dazu im profil seitlich zwischen den karten wischen
+  - done 2026-10-28: `client/app/grid-filter.js` (`keys`/`grid-filter`), entfernung/foto/zahlen/auswahl, unbekannte hinten (abschaltbar), direktes `PROFILE_REQUEST` fuer die ersten 10, neu sortieren bei ankunft, blaettern im profil (wischen, pfeiltasten); tests `test/grid-filter.test.js`, e2e `grid-filter`
 - [ ] "nur zeigen fuer ..." (sichtbarkeitsregel), auf jedem select-/tag-feld (z. B. tribe: twink, femme), symmetrisch zum filter
   - entschieden (nutzer 2026-10-28): der router setzt die regel durch (P2P-pruefung skaliert nicht und wirkt offline nicht); die regel darf klartext sein ("wen ich sehen lassen will", keine aussage ueber den eigenen typ) - das ist der preis, deshalb steht ein hinweis bei der einstellung
   - korrigiert (nutzer 2026-10-28): der router bekommt NIE die tags des betrachters. er liefert jede grid-karte mit der regel des besitzers (klartext) aus, die **app des betrachters filtert** mit ihren eigenen tags (die das geraet nie verlassen)

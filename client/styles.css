@@ -1284,3 +1284,38 @@ html:has(#view-chat.chat-open:not(.hidden)) {
 }
 .grid-list-action.is-primary { border-color: transparent; background: rgb(var(--brand-600)); color: #fff; }
 
+/* Grid-Filter (grid-filter.js): Pfeil-Knopf in der Tab-Leiste, aufklappbares Panel */
+.grid-filter-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.5rem 0.625rem;
+    border-radius: 0.625rem;
+    color: rgb(var(--slate-400));
+}
+.grid-filter-btn[aria-expanded="true"] .fa-chevron-down { transform: rotate(180deg); }
+.grid-filter-btn.is-active { color: rgb(var(--brand-400)); background: rgb(var(--brand-500) / 0.12); }
+.grid-filter-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    padding: 0.875rem;
+    border-radius: 0.875rem;
+    border: 1px solid rgb(var(--slate-800));
+    background: rgb(var(--slate-900));
+}
+.grid-filter-panel.hidden { display: none; }
+.grid-filter-row { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+.grid-filter-label { font-size: 0.8125rem; color: rgb(var(--slate-300)); }
+.grid-filter-range { display: flex; align-items: center; gap: 0.375rem; color: rgb(var(--slate-500)); }
+.grid-filter-chips { display: flex; flex-wrap: wrap; gap: 0.375rem; }
+.grid-filter-chip {
+    padding: 0.3rem 0.7rem;
+    border-radius: 9999px;
+    border: 1px solid rgb(var(--slate-700));
+    font-size: 0.75rem;
+    color: rgb(var(--slate-300));
+}
+.grid-filter-chip.is-active { border-color: transparent; background: rgb(var(--brand-600)); color: #fff; }
+.grid-filter-reset { align-self: flex-start; font-size: 0.75rem; color: rgb(var(--slate-400)); text-decoration: underline; }
+

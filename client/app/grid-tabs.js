@@ -130,9 +130,10 @@ function gridListButton(icon, label, onClick, primary = false) {
 
 function renderInteractionList(container) {
     container.innerHTML = '';
-    const items = state.interactions.items.filter(item => !isPeerBlocked(item.peerId));
+    const items = applyGridFilter(state.interactions.items.filter(item => !isPeerBlocked(item.peerId)), item => item.peerId, () => null);
+    setProfileBrowseList([...new Set(items.map(item => item.peerId))]);
     if (!items.length) {
-        container.appendChild(createEmptyState({ icon: 'fa-eye', text: t('grid.noInteractionsYet') }));
+        container.appendChild(createEmptyState({ icon: 'fa-eye', text: state.interactions.items.length ? t('grid.noFilterResults') : t('grid.noInteractionsYet') }));
         return;
     }
     items.forEach(item => {
@@ -160,6 +161,13 @@ function renderMatchList(container) {
     };
     // Noch nicht angeschriebene zuerst, sonst neueste Matches oben.
     matched.sort((left, right) => Number(written(left)) - Number(written(right)) || matchedAt(right) - matchedAt(left));
+    const filtered = applyGridFilter(matched, peerId => peerId, () => null);
+    setProfileBrowseList(filtered);
+    if (!filtered.length) {
+        container.appendChild(createEmptyState({ icon: 'fa-filter', text: t('grid.noFilterResults') }));
+        return;
+    }
+    matched.splice(0, matched.length, ...filtered);
     matched.forEach(peerId => {
         const text = written(peerId) ? t('common.match') : t('grid.notWrittenYet');
         const action = gridListButton('fa-solid fa-comment', t('grid.write'), () => openMatchChat(peerId), !written(peerId));

@@ -930,4 +930,8 @@ Akzeptanzkriterien:
 - Interaktionen: Flammen und Profilbesuche, neueste oben, mit "Flamme
   zurueck"; ein Badge zeigt Neues. Die Liste liegt nur auf dem Geraet.
 - Matches: noch nicht angeschriebene oben, "Schreiben" oeffnet den Chat.
+- Filter hinter einem Pfeil-Knopf: Entfernung, mit Foto, Zahlen von-bis und
+  Auswahlfelder aus dem Profil; nur auf dem Geraet. Wer noch ohne geladenes
+  Profil ist, steht als "unbekannt" hinten (abschaltbar).
+- Im geoeffneten Profil wische ich seitlich zum naechsten Profil.
 

@@ -1036,6 +1036,22 @@ am Tab fuer Neues seit `seenAt`, "Flamme zurueck" bzw. "Schreiben" je Zeile.
 Matches: alle gematchten Peers, noch nicht angeschriebene (ohne Chat-Vorschau)
 oben, "Schreiben" oeffnet den Chat. Im Social-Bereich gibt es die Tabs nicht.
 
+Filter (`client/app/grid-filter.js`, nur auf dem Geraet, `keys`/`grid-filter`):
+Panel ueber den Pfeil-Knopf in der Tab-Leiste, gilt fuer alle drei Bereiche.
+Entfernung (hoechstens Stufe X) und "nur mit Foto" aus der Grid-Karte;
+Zahlenfelder (von-bis) und Auswahlfelder (ODER im Feld) aus dem Profil-Schema,
+UND zwischen Feldern. Profile kommen nur P2P: fehlt eins, gilt der Peer als
+unbekannt ("Unbekannte zeigen", Standard an). Passende stehen vorne,
+unbekannte danach. Die ersten 10 sichtbaren Grid-Peers ohne Profil bekommen
+2 s nach dem Zeichnen (gebuendelt) direkt ein `PROFILE_REQUEST` (je Peer
+hoechstens einmal pro Minute; nicht fuer Chat-Partner oder laufende
+Verbindungsaufbauten; die hoefliche Seite wartet 1,5 s, sonst verbinden sich
+zwei, die sich gegenseitig im Grid sehen, gleichzeitig und der Aufbau bricht
+ab, z. B. bei einer gerade geoeffneten Einladung); kommt ein
+Profil an, wird das Grid gebuendelt neu sortiert. Im offenen Profil blaettert
+seitliches Wischen (bzw. Pfeiltasten) zum naechsten/vorigen Profil der Liste,
+aus der es geoeffnet wurde.
+
 **Verlauf in Seiten** (`client/app/chat-tools.js`): Ein Chat laedt weiter den
 ganzen Verlauf aus IndexedDB, zeichnet aber nur einen Teil. Durchgehend: die
 letzten 150 Nachrichten (`state.chatRenderLimit`), oben angekommen (bzw.

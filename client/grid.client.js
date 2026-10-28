@@ -30,7 +30,13 @@ function renderDiscoveryGrid() {
     if (!container) return;
 
     const hiddenList = JSON.parse(localStorage.getItem('hiddenByPeers') || '[]');
-    const visiblePeers = state.peers.filter(peer => !isPeerBlocked(peer.id) && !hiddenList.includes(peer.id));
+    const listedPeers = state.peers.filter(peer => !isPeerBlocked(peer.id) && !hiddenList.includes(peer.id));
+    // Filter nur auf dem Geraet (grid-filter.js); die ersten Profile im Hintergrund holen.
+    const discovery = gridTabsAvailable();
+    const visiblePeers = discovery ? applyGridFilter(listedPeers) : listedPeers;
+    if (discovery) prefetchGridProfiles(listedPeers.map(peer => peer.id));
+    setProfileBrowseList(visiblePeers.map(peer => peer.id));
+    const groupByDistance = !(discovery && profileFilterActive());
     container.innerHTML = '';
     document.getElementById('grid-peer-count').textContent = visiblePeers.length === 1 ? t('grid.1Person') : t('grid.people', { count: visiblePeers.length });
     const geohashLabel = document.getElementById('current-geohash');
@@ -57,7 +63,7 @@ function renderDiscoveryGrid() {
     let currentBucket = null;
     visiblePeers.forEach(peer => {
         // Der Router liefert die Peers bereits nach Entfernung sortiert.
-        if (peer.distanceBucket && peer.distanceBucket !== currentBucket) {
+        if (groupByDistance && peer.distanceBucket && peer.distanceBucket !== currentBucket) {
             currentBucket = peer.distanceBucket;
             const heading = document.createElement('h3');
             heading.className = 'col-span-full text-xs font-bold uppercase tracking-wider text-slate-400 pt-2';

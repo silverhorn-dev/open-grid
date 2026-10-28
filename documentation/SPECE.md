@@ -1001,8 +1001,8 @@ Entdecken-Bereich und Flirt-Teil):
 - Flirt-Modus: alles sichtbar, Flirt-Nachrichten markiert (`.flirt-message`),
   neue eigene Nachrichten mit `scope: 'discovery'` (`messageScopeFor`);
   Lasche, Oberkante und Senden in Markenfarbe, Eingabefeld mit Rand und
-  "Flirt-Nachricht…"; Album und Video stehen hinter einem Medien-Knopf, der
-  nach oben aufklappt (Foto aus der Galerie, Album, Video).
+  "Flirt-Nachricht…"; Album und Video stehen hinter einem Medien-Knopf mit
+  einem Menue, das nach oben aufklappt.
 - Senden lange druecken = nur diese Nachricht als Flirt (`flirtSendOnce`).
 - Normal: neue Nachrichten `social`; Flirt-Nachrichten ausgeblendet, solange
   "Flirt-Verlauf im normalen Chat ausblenden" an ist. Punkt an der Lasche, wenn

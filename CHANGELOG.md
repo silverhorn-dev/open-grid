@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 176 · 2026-10-28
+## Build 177 · 2026-10-28
+- Eingabeleiste aufgeraeumt: die Flamme sitzt genau ueber dem Senden-Knopf und gehoert sichtbar zur Leiste; das Medien-Menue im Flirt-Modus sieht aus wie das Chat-Menue (Album teilen, Video senden). Den Eintrag "Foto aus der Galerie" gibt es nicht mehr (er fuehrte ins Snap-Menue)
+
+## Build 176 · 2026-10-28 · `1f3a9b4`
 - Wischen: Seitenmenue nach rechts schliesst es; Einstellungen am ersten Bereich nach rechts schliessen; im Chat die Eingabeleiste nach rechts wischen fuehrt zur Chatliste (abschaltbar unter Einstellungen > Chat); Wischen klappt jetzt auch, wenn der Finger auf einem Schalter oder einer Auswahl startet
 - Behoben: Profil im Chat liess sich im Browser oft nicht nach unten wegwischen (der Browser wollte stattdessen die Seite neu laden)
 - Neuer Status "Abwesend": ist deine App im Hintergrund (Handy weggewischt, Tab am PC nicht sichtbar), sehen deine Kontakte "Abwesend" statt "online"

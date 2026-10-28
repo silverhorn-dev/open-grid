@@ -131,7 +131,7 @@ async function main() {
         assert.equal(await dave.evaluate(() => document.activeElement?.id), 'chat-input', 'input keeps the focus');
         assert.equal(await dave.evaluate(() => document.querySelector('#chat-messages').textContent.includes('jetzt als freunde')), true, 'flirt mode shows everything');
         assert.equal(await dave.locator('.flirt-message').count(), 2, 'flirt messages are marked');
-        // Flirt-Modus: Album und Video hinter einem Knopf, der nach oben aufklappt.
+        // Flirt-Modus: Album und Video hinter einem Knopf, Menue klappt nach oben auf.
         assert.equal(await dave.isVisible('#chat-video-btn'), false, 'video folded away');
         await dave.click('#chat-media-btn');
         assert.equal(await dave.isVisible('#chat-media-menu'), true, 'media menu opens');

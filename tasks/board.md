@@ -331,3 +331,10 @@
 - [x] im chat auf der eingabeleiste nach rechts wischen = chat schliessen (zur chat-uebersicht); einstellbar, standard vom router (`CLIENT_DEFAULTS`) (nutzer 2026-10-28)
   - done 2026-10-28: `keys`/`chat-swipe-close`, `CLIENT_DEFAULTS.inputSwipeClosesChat`, schalter unter Chat; e2e `chat-gestures`
 
+- [x] gui der neuen eingabeleisten-funktionen ueberarbeitet (nutzer 2026-10-28): lasche genau ueber dem senden-knopf und optisch teil der leiste; medien-menue im stil des chat-menues (symbol + text); "foto aus der galerie" entfernt (fuehrte ins snap-menue)
+
+## T17 Mehrere Bilder/Snaps vor dem Senden durchsehen (nutzer 2026-10-28)
+- [ ] beim versenden mehrerer bilder/snaps (mehrfachauswahl aus der galerie) alle vor dem senden durchsehen koennen
+  - ist-stand: `sendPickedImages` (snaps.js) schickt bei mehrfachauswahl jedes bild sofort einzeln, ohne editor/vorschau
+  - idee: vorschau-streifen mit allen bildern, durchwischen, einzelne entfernen, ggf. pro bild snap/bild/secure; dann "alle senden"
+

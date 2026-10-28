@@ -371,8 +371,8 @@ function hasUnseenFlirt(peerId) {
 }
 
 // ----- Flirt-Modus: Medien-Knopf -----
-// Im Flirt-Modus stehen Album und Video nicht einzeln in der Leiste, sondern hinter einem Knopf, der nach
-// oben aufklappt (dazu ein Foto aus der Galerie). Die Leiste bleibt so schmal.
+// Im Flirt-Modus stehen Album und Video nicht einzeln in der Leiste, sondern hinter einem Knopf mit einem
+// Menue, das nach oben aufklappt. Die Leiste bleibt so schmal.
 function toggleComposeMediaMenu(force = null) {
     const menu = document.getElementById('chat-media-menu');
     const button = document.getElementById('chat-media-btn');
@@ -384,13 +384,6 @@ function toggleComposeMediaMenu(force = null) {
 
 function closeComposeMediaMenu() {
     toggleComposeMediaMenu(false);
-}
-
-function composeMediaGallery() {
-    closeComposeMediaMenu();
-    // Galerie ueber den Snap-Editor: dort waehlt man Bild oder Snap, wie beim Hochwischen in der Kamera.
-    openSnapUploadModal();
-    document.getElementById('snap-file-input')?.click();
 }
 
 function composeMediaAlbum() {

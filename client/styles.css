@@ -1054,40 +1054,42 @@ html:has(#view-chat.chat-open:not(.hidden)) {
     .info-content { max-width: 46rem; }
 }
 
-/* Freundes-Chat: Flirt-Modus (friends.js). Lasche mit Flamme auf der Oberkante der Eingabeleiste, ueber
-   dem Senden-Knopf; die Leiste wird dadurch nicht hoeher. Im Flirt-Modus Lasche, Oberkante und Senden in
-   Markenfarbe, das Eingabefeld mit Rand. */
+/* Freundes-Chat: Flirt-Modus (friends.js). Lasche mit Flamme auf der Oberkante der Eingabeleiste, genau
+   ueber dem Senden-Knopf; sie gehoert optisch zur Leiste (gleicher Hintergrund, Rand laeuft weiter), die
+   Leiste wird nicht hoeher. Im Flirt-Modus Lasche, Oberkante und Senden in Markenfarbe. */
 .compose-send { position: relative; display: flex; flex-shrink: 0; }
 .flirt-tab {
     position: absolute;
     right: 0.75rem;
-    bottom: calc(100% + 1px);
-    width: 3.25rem;
-    height: 2.5rem;
+    bottom: 100%;
+    z-index: 5;
+    width: 2.75rem;
+    height: 2.25rem;
     display: flex;
     align-items: center;
     justify-content: center;
+    margin-bottom: -1px;
     border: 1px solid rgb(var(--slate-800));
-    border-bottom: none;
-    border-radius: 0.875rem 0.875rem 0 0;
+    border-bottom: 0;
+    border-radius: 0.75rem 0.75rem 0 0;
     background: rgb(var(--slate-900));
     color: rgb(var(--slate-400));
-    font-size: 1rem;
-    z-index: 5;
-    transition: background-color 150ms ease, color 150ms ease, transform 150ms ease;
+    font-size: 0.95rem;
+    transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
 }
 .flirt-tab.hidden { display: none; }
 .flirt-tab:hover { color: rgb(var(--brand-400)); }
-.flirt-tab.is-pressing { transform: scale(0.94); }
+.flirt-tab.is-pressing { color: rgb(var(--brand-400)); }
 .flirt-tab.has-news::after {
     content: '';
     position: absolute;
-    top: 0.4rem;
-    right: 0.5rem;
+    top: 0.375rem;
+    right: 0.375rem;
     width: 0.5rem;
     height: 0.5rem;
     border-radius: 9999px;
-    background: rgb(var(--brand-400));
+    background: rgb(var(--brand-500));
+    box-shadow: 0 0 0 2px rgb(var(--slate-900));
 }
 #chat-input-bar.is-flirt { border-top-color: rgb(var(--brand-600)); }
 #chat-input-bar.is-flirt .flirt-tab,
@@ -1096,11 +1098,17 @@ html:has(#view-chat.chat-open:not(.hidden)) {
     border-color: rgb(var(--brand-600));
     color: #fff;
 }
-#chat-input-bar.is-flirt .flirt-tab.has-news::after { background: #fff; }
-#send-chat-btn.is-pressing { background: rgb(var(--brand-500)); transform: scale(0.97); }
+#chat-input-bar.is-flirt .flirt-tab.has-news::after { background: #fff; box-shadow: 0 0 0 2px rgb(var(--brand-600)); }
+#send-chat-btn.is-pressing { background: rgb(var(--brand-500)); }
 .compose-send.is-flirt-once #send-chat-btn { box-shadow: 0 0 0 2px rgb(var(--brand-400) / 0.6); }
 #chat-compose-row.is-flirt .chat-input { box-shadow: 0 0 0 1.5px rgb(var(--brand-500) / 0.8); }
-/* Flirt-Modus: Album + Video hinter einem Knopf, der nach oben aufklappt. */
+/* Platz unten im Verlauf (Lasche + Pfeil der letzten Nachricht), Runter-Knopf ueber der Lasche. */
+#chat-messages.has-flirt-tab { padding-bottom: 3.25rem; }
+#chat-messages.has-flirt-tab ~ #chat-jump-bottom { bottom: 3.25rem; }
+@media (prefers-reduced-motion: reduce) {
+    .flirt-tab { transition: none; }
+}
+/* Flirt-Modus: Album + Video hinter einem Knopf; Menue im Stil des Chat-Menues, klappt nach oben auf. */
 .compose-media { position: relative; display: none; flex-shrink: 0; }
 #chat-compose-row.is-flirt .compose-media { display: flex; }
 #chat-compose-row.is-flirt #chat-album-btn,
@@ -1109,22 +1117,15 @@ html:has(#view-chat.chat-open:not(.hidden)) {
     position: absolute;
     left: 0;
     bottom: calc(100% + 0.5rem);
-    z-index: 20;
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-    padding: 0.375rem;
+    z-index: 30;
+    width: 11rem;
+    padding: 0.25rem 0;
     border: 1px solid rgb(var(--slate-700));
-    border-radius: 1rem;
+    border-radius: 0.75rem;
     background: rgb(var(--slate-900));
-    box-shadow: 0 10px 25px rgb(0 0 0 / 0.35);
+    box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.35), 0 8px 10px -6px rgb(0 0 0 / 0.35);
 }
 .compose-media-menu.hidden { display: none; }
-#chat-media-btn[aria-expanded="true"] { background: rgb(var(--brand-600)); color: #fff; border-color: transparent; }
-/* Platz unten im Verlauf (Lasche + Pfeil der letzten Nachricht), Runter-Knopf ueber der Lasche. */
-#chat-messages.has-flirt-tab { padding-bottom: 3.5rem; }
-#chat-messages.has-flirt-tab ~ #chat-jump-bottom { bottom: 3.5rem; }
-@media (prefers-reduced-motion: reduce) {
-    .flirt-tab { transition: none; }
-}
+.compose-media-menu .chat-menu-item:disabled { opacity: 0.4; }
+#chat-media-btn[aria-expanded="true"] { color: rgb(var(--brand-400)); border-color: rgb(var(--brand-500) / 0.6); }
 .flirt-message .chat-bubble { box-shadow: 0 0 0 1.5px rgb(var(--brand-400) / 0.6); }

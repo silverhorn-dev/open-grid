@@ -315,15 +315,14 @@
                         <button data-i18n-attr="title:chat.sendVideoDirectOnly;aria-label:chat.sendVideo" id="chat-video-btn" data-chat-image-action data-click="pickChatVideo" class="compose-btn compose-btn-icon" title="Video senden (nur direkt)" aria-label="Video senden">
                             <i class="fa-solid fa-film"></i>
                         </button>
-                        <!-- Flirt-Modus (friends.js): Album und Video als ein Knopf, der nach oben aufklappt -->
+                        <!-- Flirt-Modus (friends.js): Album und Video hinter einem Knopf, Menue klappt nach oben auf -->
                         <div class="compose-media">
                             <button type="button" data-i18n-attr="title:chat.sendMedia;aria-label:chat.sendMedia" id="chat-media-btn" data-chat-image-action data-click="toggleComposeMediaMenu" class="compose-btn compose-btn-icon" title="Medien senden" aria-label="Medien senden" aria-haspopup="menu" aria-expanded="false">
                                 <i class="fa-solid fa-photo-film"></i>
                             </button>
                             <div id="chat-media-menu" class="compose-media-menu hidden" role="menu">
-                                <button type="button" data-i18n-attr="title:chat.photoFromGallery;aria-label:chat.photoFromGallery" data-chat-image-action data-click="composeMediaGallery" class="compose-btn compose-btn-icon" role="menuitem" title="Foto aus der Galerie" aria-label="Foto aus der Galerie"><i class="fa-regular fa-image"></i></button>
-                                <button type="button" data-i18n-attr="title:common.shareAlbum;aria-label:common.shareAlbum" data-chat-image-action data-click="composeMediaAlbum" class="compose-btn compose-btn-icon" role="menuitem" title="Album teilen" aria-label="Album teilen"><i class="fa-solid fa-images"></i></button>
-                                <button type="button" data-i18n-attr="title:chat.sendVideo;aria-label:chat.sendVideo" data-chat-image-action data-click="composeMediaVideo" class="compose-btn compose-btn-icon" role="menuitem" title="Video senden" aria-label="Video senden"><i class="fa-solid fa-film"></i></button>
+                                <button type="button" data-chat-image-action data-click="composeMediaAlbum" class="chat-menu-item" role="menuitem"><i class="fa-solid fa-images"></i> <span data-i18n="common.shareAlbum">Album teilen</span></button>
+                                <button type="button" data-chat-image-action data-click="composeMediaVideo" class="chat-menu-item" role="menuitem"><i class="fa-solid fa-film"></i> <span data-i18n="chat.sendVideo">Video senden</span></button>
                             </div>
                         </div>
                         <textarea data-i18n-attr="placeholder:chat.writeMessage" id="chat-input" rows="1" placeholder="Nachricht schreiben..." class="chat-input flex-1 min-w-0 text-base md:text-sm"></textarea>

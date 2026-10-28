@@ -358,3 +358,22 @@
   - nutzer hat auf dem geraet getestet (2026-10-28): passt
   - done 2026-10-28: router-standards `CLIENT_DEFAULTS.notifyMatch` ... `notifyChatEvents`, `shareProfileViews`
 
+## T19 Skalierung: mehrere Router, der Client waehlt (nutzer 2026-10-28)
+- [ ] ein 2. container registriert sich beim 1.; der 1. gibt ihn per config an die clients; die clients entscheiden selbst, wohin sie ihren verkehr schicken (kein weiterleiten zwischen routern)
+  - entschieden (nutzer): aufteilung nach region (geohash); kein forwarding; zellen sind teilbar (laengeres praefix), sonst bekommt ein router alles; optional "sharing": zellen unter einem praefix abwechselnd verteilen (2 router = gerade/ungerade); der client ordnet anhand des hashs zu, ohne vorher einen router anzupingen; die regeln kommen mit der config vom router
+  - plan P1 (router-seite, ein router bleibt wie heute):
+    - `FEDERATION_SECRET`; `POST /api/federation/join { url, secret }` vom 2. container, health-check, faellt er aus -> seine zellen zurueck an den 1.
+    - regeln per env (`FEDERATION_RULES`, z. B. `[{"prefix":"u1","routers":["r1"]},{"prefix":"u1hx","routers":["r2"]},{"prefix":"u0","routers":["r1","r2"],"mode":"share"}]`)
+    - `/api/config` liefert `routers: [{ id, url }]` + `rules`
+    - unit-tests: laengstes praefix gewinnt, share = wert des letzten zeichens mod anzahl, ausgefallener router faellt zurueck
+  - plan P2 (client):
+    - `routerForCell(cell)` (gleiche regeln wie der server, test fuer gleichlauf wie sw-parity)
+    - heimat-router = router der eigenen zelle: registrieren + WS dort
+    - grid: die 9 zellen (eigene + nachbarn) je router abfragen (parallel), ergebnisse mischen
+    - signaling an einen peer auf einem anderen router: kurzer WS dorthin (mit derselben identitaet registrieren), nach dem verbindungsaufbau wieder zu
+    - praesenz: WS auch zu den routern aktiver chat-partner (begrenzt)
+  - plan P3: pfad C und push immer beim heimat-router des empfaengers; peers nennen ihren heimat-router (grid-ergebnis, profil bzw. P2P); unbekannt -> alle router (wenige) versuchen
+  - plan P4: e2e mit zwei containern (compose mit r1 + r2), zelle teilen, sharing gerade/ungerade, ausfall von r2
+  - spaeter: automatisches teilen voller zellen, uebersicht fuer betreiber
+  - offen: duerfen auch andere betreiber router beisteuern (nur mit freigabe/signiertem schluessel)? metadaten: jeder router sieht nur seine zellen
+

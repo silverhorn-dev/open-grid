@@ -120,20 +120,58 @@ function audienceAllows(code, fields = state.myProfile?.fields || {}, schema = P
     });
 }
 
+// ----- Relative Regeln -----
+// Zahl: { relative: 'same' } = eigener Wert +-3, 'older' = ab eigenem Wert, 'younger' = bis eigenem Wert.
+// Auswahl: 'same' = die eigenen Werte. Aufgeloest wird bei jeder Registrierung mit dem aktuellen Profil;
+// fehlt der eigene Wert, entfaellt dieser Teil der Regel.
+const AUDIENCE_SAME_TOLERANCE = 3;
+const AUDIENCE_RELATIVE_MODES = ['same', 'older', 'younger'];
+
+function resolveAudienceRule(rule, fields = state.myProfile?.fields || {}, schema = PROFILE_SCHEMA) {
+    const resolved = { ranges: {}, options: {} };
+    (schema || []).forEach(field => {
+        const range = rule?.ranges?.[field.key];
+        if (field.type === 'number' && range) {
+            if (AUDIENCE_RELATIVE_MODES.includes(range.relative)) {
+                const mine = Number(fields[field.key]);
+                if (fields[field.key] === '' || fields[field.key] == null || !Number.isFinite(mine)) return;
+                resolved.ranges[field.key] = range.relative === 'same'
+                    ? { min: mine - AUDIENCE_SAME_TOLERANCE, max: mine + AUDIENCE_SAME_TOLERANCE }
+                    : range.relative === 'older' ? { min: mine, max: null } : { min: null, max: mine };
+            } else {
+                resolved.ranges[field.key] = range;
+            }
+        }
+        const option = rule?.options?.[field.key];
+        if (['select', 'multiselect'].includes(field.type) && option) {
+            if (option === 'same') {
+                const mine = Array.isArray(fields[field.key]) ? fields[field.key] : fields[field.key] ? [fields[field.key]] : [];
+                if (mine.length) resolved.options[field.key] = mine;
+            } else if (Array.isArray(option)) {
+                resolved.options[field.key] = option;
+            }
+        }
+    });
+    return resolved;
+}
+
 // ----- Eigene Regel (Einstellungen > Privatsphaere) -----
+// Ohne eigene Wahl gilt die Startregel des Betreibers (`CLIENT_DEFAULTS.audience`).
 async function loadAudienceRule() {
     const stored = await databaseRequest('keys', 'readonly', store => store.get(AUDIENCE_RECORD_ID)).catch(() => null);
+    const source = stored || clientDefault('audience', null) || {};
     state.audienceRule = {
-        ranges: stored?.ranges && typeof stored.ranges === 'object' ? stored.ranges : {},
-        options: stored?.options && typeof stored.options === 'object' ? stored.options : {}
+        ranges: source.ranges && typeof source.ranges === 'object' ? source.ranges : {},
+        options: source.options && typeof source.options === 'object' ? source.options : {}
     };
     renderAudienceSettings();
 }
 
-// Code fuer die Registrierung (nur in "Entdecken"; sonst keine Regel).
+// Code fuer die Registrierung (nur in "Entdecken"; sonst keine Regel). Mindestwerte des Betreibers
+// mischt der Router selbst hinein.
 function myAudienceCode() {
     if (!state.audienceRule || isSocialMode()) return undefined;
-    return encodeAudience(state.audienceRule) || undefined;
+    return encodeAudience(resolveAudienceRule(state.audienceRule)) || undefined;
 }
 
 async function updateAudienceRule(change) {
@@ -167,6 +205,30 @@ function renderAudienceSettings() {
         row.appendChild(label);
         if (field.type === 'number') {
             const range = rule.ranges[field.key] || {};
+            // Art: Bereich (von-bis) oder relativ zum eigenen Wert.
+            const mode = document.createElement('select');
+            mode.className = 'setting-select';
+            mode.dataset.audienceMode = field.key;
+            [['', t('audience.anyValue')], ['range', t('audience.range')], ['same', t('audience.sameAsMe')], ['older', t('audience.olderThanMe')], ['younger', t('audience.youngerThanMe')]]
+                .forEach(([value, text]) => {
+                    const option = document.createElement('option');
+                    option.value = value;
+                    option.textContent = text;
+                    option.selected = (range.relative || (Number.isFinite(range.min) || Number.isFinite(range.max) ? 'range' : '')) === value;
+                    mode.appendChild(option);
+                });
+            mode.onchange = () => {
+                const next = mode.value === 'range' ? { min: null, max: null, open: true } : mode.value ? { relative: mode.value } : null;
+                const ranges = { ...state.audienceRule.ranges };
+                if (next) ranges[field.key] = next;
+                else delete ranges[field.key];
+                updateAudienceRule({ ranges });
+            };
+            row.appendChild(mode);
+            if (range.relative || !(range.open || Number.isFinite(range.min) || Number.isFinite(range.max))) {
+                container.appendChild(row);
+                return;
+            }
             const box = document.createElement('span');
             box.className = 'grid-filter-range';
             const number = (value, placeholder, key) => {
@@ -189,7 +251,22 @@ function renderAudienceSettings() {
         } else {
             const chips = document.createElement('span');
             chips.className = 'grid-filter-chips';
-            const selected = new Set(rule.options[field.key] || []);
+            const same = rule.options[field.key] === 'same';
+            const selected = new Set(Array.isArray(rule.options[field.key]) ? rule.options[field.key] : []);
+            // "Wie ich": dieselben Werte wie im eigenen Profil (schliesst die einzelnen Chips aus).
+            const sameChip = document.createElement('button');
+            sameChip.type = 'button';
+            sameChip.className = `grid-filter-chip${same ? ' is-active' : ''}`;
+            sameChip.textContent = t('audience.sameAsMe');
+            sameChip.dataset.audienceOption = `${field.key}:__same`;
+            sameChip.setAttribute('aria-pressed', String(same));
+            sameChip.onclick = () => {
+                const options = { ...state.audienceRule.options };
+                if (same) delete options[field.key];
+                else options[field.key] = 'same';
+                updateAudienceRule({ options });
+            };
+            chips.appendChild(sameChip);
             field.options.forEach(value => {
                 const chip = document.createElement('button');
                 chip.type = 'button';
@@ -202,6 +279,7 @@ function renderAudienceSettings() {
                     else selected.add(value);
                     updateAudienceRule({ options: { ...state.audienceRule.options, [field.key]: [...selected] } });
                 };
+                if (same) chip.classList.add('opacity-50');
                 chips.appendChild(chip);
             });
             row.appendChild(chips);
@@ -209,7 +287,28 @@ function renderAudienceSettings() {
         container.appendChild(row);
     });
     const summary = document.getElementById('audience-summary');
-    if (summary) summary.textContent = encodeAudience(rule) ? t('audience.active') : t('audience.everyone');
+    if (summary) summary.textContent = encodeAudience(resolveAudienceRule(rule)) ? t('audience.active') : t('audience.everyone');
+    renderAudienceMinimum();
+}
+
+// Vom Betreiber vorgegebene Mindestwerte (der Router setzt sie in jede Karte, auch ohne eigene Regel).
+function renderAudienceMinimum() {
+    const note = document.getElementById('audience-minimum');
+    if (!note) return;
+    const minimum = state.appConfig?.audienceMinimum;
+    const parts = [];
+    (PROFILE_SCHEMA || []).forEach(field => {
+        const range = minimum?.ranges?.[field.key];
+        if (field.type === 'number' && range) {
+            const text = Number.isFinite(range.min) && Number.isFinite(range.max) ? `${range.min}-${range.max}`
+                : Number.isFinite(range.min) ? t('audience.atLeast', { value: range.min }) : Number.isFinite(range.max) ? t('audience.atMost', { value: range.max }) : '';
+            if (text) parts.push(`${localizedText(field.label)} ${text}`);
+        }
+        const options = minimum?.options?.[field.key];
+        if (Array.isArray(options) && options.length) parts.push(`${localizedText(field.label)}: ${options.join(', ')}`);
+    });
+    note.classList.toggle('hidden', !parts.length);
+    note.textContent = parts.length ? t('audience.minimumByServer', { rule: parts.join(' · ') }) : '';
 }
 
 async function resetAudienceRule() {

@@ -409,7 +409,8 @@
 
 ## T21 Grid-Kopf und Router-Standards fuer "nur zeigen fuer" (nutzer 2026-10-28)
 - [x] grid-kopf: tabs ueber die kachel, graue zahlen an den tabs (rot bleibt fuer neues), kachel "in deiner naehe" zur schmalen statuszeile, aktualisieren per runterziehen (eigene geste, iOS-PWA hat keins), am PC kleiner knopf; e2e `mobile-layout`
-- [ ] router-standards fuer die sichtbarkeitsregel
+- [x] router-standards fuer die sichtbarkeitsregel
   - entschieden (nutzer 2026-10-28): startregel fuer neue nutzer (`CLIENT_DEFAULTS.audience`), router erzwingt mindestwerte (`AUDIENCE_MINIMUM`, router mischt sie in jeden karten-code, auch ohne eigene regel); relative regeln: alter "wie ich" (+-3), "aelter als ich" (>=), "juenger als ich" (<=); auswahlfelder "wie ich"
   - folge: wer den wert (z. B. alter) nicht angibt, sieht bei einem mindestwert niemanden (fail closed, gewollt fuer 18+)
+  - done 2026-10-28: `resolveAudienceRule`, `CLIENT_DEFAULTS.audience`, `AUDIENCE_MINIMUM` + `server/audience.js` (gleicher code, parity-test), `audienceMinimum` in `/api/config`, hinweis "Vom Server vorgegeben"; tests `test/audience-parity.test.js`, server-tests
 

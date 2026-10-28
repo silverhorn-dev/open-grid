@@ -41,7 +41,9 @@ async function loadAppMode() {
         // Standards des Betreibers fuer Client-Einstellungen (gelten, solange nichts Eigenes gespeichert ist).
         clientDefaults: config?.clientDefaults && typeof config.clientDefaults === 'object' ? config.clientDefaults : {},
         // Info-Seite fuer alle (eigene Subdomain oder /info), vom Router vorgegeben.
-        infoUrl: typeof config?.infoUrl === 'string' && /^(https:\/\/|\/)/.test(config.infoUrl) ? config.infoUrl : '/info'
+        infoUrl: typeof config?.infoUrl === 'string' && /^(https:\/\/|\/)/.test(config.infoUrl) ? config.infoUrl : '/info',
+        // Mindestwerte des Betreibers fuer "Nur zeigen fuer ..." (der Router mischt sie selbst in die Karte).
+        audienceMinimum: config?.audienceMinimum && typeof config.audienceMinimum === 'object' ? config.audienceMinimum : null
     };
     document.querySelectorAll('[data-info-link]').forEach(link => { link.href = state.appConfig.infoUrl; });
     // Sprache: Standard des Betreibers gilt ab dem naechsten Start (oder sofort, wenn noch nichts gewaehlt).

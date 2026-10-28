@@ -28,6 +28,7 @@ import {
     parseTrustProxy,
     securityHeaders
 } from './security.js';
+import { applyAudienceMinimum, parseAudienceMinimum } from './audience.js';
 
 const MAX_GRID_RESULTS = 100;
 // Quoten fuer den Pfad-C-Zwischenspeicher, damit niemand die Queue eines Empfaengers flutet.
@@ -72,6 +73,8 @@ const CLIENT_DEFAULT_RULES = {
     notifyProfileView: 'boolean',
     notifyChatEvents: 'boolean',
     shareProfileViews: 'boolean',
+    // Startregel fuer "Nur zeigen fuer ..." (Objekt, eigene Pruefung in isAudienceRule).
+    audience: 'audience',
     listSwitchEnabled: 'boolean',
     listSwitchBehavior: ['mode', 'view'],
     statusDirectOnly: 'boolean',
@@ -99,8 +102,26 @@ export function parseClientDefaults(value) {
     return Object.fromEntries(Object.entries(parsed).filter(([key, entry]) => {
         const rule = CLIENT_DEFAULT_RULES[key];
         if (!rule) return false;
+        if (rule === 'audience') return isAudienceRule(entry);
         return rule === 'boolean' ? typeof entry === 'boolean' : rule.includes(entry);
     }));
+}
+
+// Regel { ranges: { feld: { min, max } | { relative: 'same'|'older'|'younger' } }, options: { feld: [werte] | 'same' } }.
+const AUDIENCE_RELATIVE = ['same', 'older', 'younger'];
+function isAudienceRule(rule) {
+    if (!rule || typeof rule !== 'object' || Array.isArray(rule)) return false;
+    const keyOk = key => /^[A-Za-z0-9_-]{1,64}$/.test(key);
+    const ranges = rule.ranges ?? {};
+    const options = rule.options ?? {};
+    if (typeof ranges !== 'object' || Array.isArray(ranges) || typeof options !== 'object' || Array.isArray(options)) return false;
+    const rangeOk = range => range && typeof range === 'object' && (AUDIENCE_RELATIVE.includes(range.relative)
+        || ((range.min == null || (Number.isFinite(range.min) && range.min >= 0 && range.min <= 255))
+            && (range.max == null || (Number.isFinite(range.max) && range.max >= 0 && range.max <= 255))));
+    const optionOk = value => value === 'same' || (Array.isArray(value) && value.length <= 32 && value.every(item => typeof item === 'string' && item.length <= 100));
+    return Object.keys(ranges).length + Object.keys(options).length <= 32
+        && Object.entries(ranges).every(([key, range]) => keyOk(key) && rangeOk(range))
+        && Object.entries(options).every(([key, value]) => keyOk(key) && optionOk(value));
 }
 
 function isEventHash(value) {
@@ -423,6 +444,14 @@ export async function buildApp(options = {}) {
     const clientDefaults = parseClientDefaults(options.clientDefaults ?? process.env.CLIENT_DEFAULTS);
     const profileSchemas = options.profileSchemas
         || parseProfileSchemas(process.env.PROFILE_SCHEMAS, profileSchema, appModes);
+    // Mindestwerte fuer "Nur zeigen fuer ..." (z. B. {"ranges":{"age":{"min":18}}}), je Grid-Bereich gegen
+    // dessen Profil-Schema; der Router mischt sie in jeden Karten-Code.
+    const audienceMinimumRule = options.audienceMinimum ?? process.env.AUDIENCE_MINIMUM ?? null;
+    const audienceSchemaFor = scope => (scope === 'event' ? profileSchemas.event : null) || profileSchemas.discovery || profileSchema;
+    const audienceMinimums = {
+        public: parseAudienceMinimum(audienceMinimumRule, audienceSchemaFor('public')),
+        event: parseAudienceMinimum(audienceMinimumRule, audienceSchemaFor('event'))
+    };
 
     // Verlaessliche Zeit fuer die Schluessel-Rotation; die Geraetezeit wird dafuer ignoriert.
     app.get('/api/time', async (_request, reply) => {
@@ -669,8 +698,11 @@ export async function buildApp(options = {}) {
             eventHash: peerScope === 'event' ? eventHash : null,
             // Nur der Zaehler der Profil-Version (Clients holen das Profil P2P nur bei Aenderung neu).
             profileVersion: Number.isSafeInteger(profileVersion) && profileVersion >= 0 && profileVersion <= 1e9 ? profileVersion : null,
-            // Sichtbarkeitsregel als kurzer Code; der Router prueft nur die Form, nie den Inhalt.
-            audience: typeof audience === 'string' && /^[A-Za-z0-9_-]{2,64}$/.test(audience) ? audience : null
+            // Sichtbarkeitsregel als kurzer Code; der Router prueft die Form und mischt die Mindestwerte
+            // des Betreibers hinein (auch ohne eigene Regel), wertet sie aber nie fuer Betrachter aus.
+            audience: peerScope === 'friends' ? null : applyAudienceMinimum(
+                typeof audience === 'string' && /^[A-Za-z0-9_-]{2,64}$/.test(audience) ? audience : null,
+                audienceMinimums[peerScope], audienceSchemaFor(peerScope))
         };
         if (!store.registerPeer(session)) {
             return reply.code(403).send({ error: 'Peer identity is already registered' });
@@ -698,7 +730,9 @@ export async function buildApp(options = {}) {
     app.delete('/api/register', unregister);
     app.post('/api/unregister', unregister);
 
-    app.get('/api/config', async () => ({ modes: appModes, defaultMode: defaultAppMode, profileSchemas, lanMode: isLanMode, clientDefaults, infoUrl: infoSiteUrl(infoHost) }));
+    app.get('/api/config', async () => ({ modes: appModes, defaultMode: defaultAppMode, profileSchemas, lanMode: isLanMode, clientDefaults, infoUrl: infoSiteUrl(infoHost),
+        // Fuer die Anzeige in den Einstellungen ("vom Server vorgegeben").
+        audienceMinimum: audienceMinimumRule ? (typeof audienceMinimumRule === 'string' ? JSON.parse(audienceMinimumRule) : audienceMinimumRule) : null }));
 
     const toGridPeer = (origin) => ({ peer, km }) => ({
         id: peer.peerId,

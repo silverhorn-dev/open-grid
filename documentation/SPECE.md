@@ -1080,6 +1080,19 @@ Router erfaehrt nichts ueber Betrachter; die Regel ist fuer jeden lesbar, der
 die Karte abruft, und ein veraenderter Client koennte sie ignorieren (Hinweis
 bei der Einstellung).
 
+Relative Regeln (in `keys`/`audience-rule`, aufgeloest bei jeder Registrierung
+mit dem aktuellen Profil, `resolveAudienceRule`): Zahl `{ relative: 'same' }`
+= eigener Wert +-3, `'older'` = ab eigenem Wert, `'younger'` = bis eigenem
+Wert; Auswahl `'same'` = die eigenen Werte. Fehlt der eigene Wert, entfaellt
+der Teil. Startregel ohne eigene Wahl: `CLIENT_DEFAULTS.audience` (gleiche
+Form). Mindestwerte des Betreibers: `AUDIENCE_MINIMUM` (JSON wie eine Regel,
+nur feste Werte, z. B. `{"ranges":{"age":{"min":18}}}`); der Router mischt sie
+beim Registrieren in jeden Karten-Code in "Entdecken"/"Event" (auch ohne
+eigene Regel; Bereiche werden enger, Auswahlen geschnitten;
+`server/audience.js`, gleicher Code wie der Client, `test/audience-parity.test.js`)
+und nennt sie in `/api/config` (`audienceMinimum`) zur Anzeige. Wer den
+Wert nicht angegeben hat, sieht dann niemanden (fail closed, gewollt z. B. fuer 18+).
+
 **Verlauf in Seiten** (`client/app/chat-tools.js`): Ein Chat laedt weiter den
 ganzen Verlauf aus IndexedDB, zeichnet aber nur einen Teil. Durchgehend: die
 letzten 150 Nachrichten (`state.chatRenderLimit`), oben angekommen (bzw.

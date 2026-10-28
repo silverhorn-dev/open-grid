@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 192 · 2026-10-28
+## Build 193 · 2026-10-28
+- "Wer mich im Grid sieht": auch relativ zu dir moeglich (Alter wie ich, aelter oder juenger als ich; Auswahlfelder wie ich), passt sich an, wenn du dein Profil aenderst
+- Betrieb: Startregel fuer neue Nutzer (`CLIENT_DEFAULTS.audience`) und Mindestwerte, die der Router in jede Karte setzt (`AUDIENCE_MINIMUM`, z. B. ab 18)
+
+## Build 192 · 2026-10-28 · `166277f`
 - Grid aufgeraeumt: die Bereiche stehen oben, mit Anzahl (Grid, Matches); die Kachel "In deiner Naehe" ist jetzt eine schmale Zeile. Aktualisieren durch Herunterziehen, auch in der installierten App auf dem iPhone
 
 ## Build 191 · 2026-10-28 · `b3bcfb0`

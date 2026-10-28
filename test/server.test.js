@@ -997,6 +997,11 @@ test('client defaults from the operator are validated and delivered with the app
         { pullUpAction: 'switcher', statusDirectOnly: true });
     assert.deepEqual(parseClientDefaults('{"notifyFlame":false,"notifyProfileView":true,"shareProfileViews":"yes"}'),
         { notifyFlame: false, notifyProfileView: true }, 'notification defaults are booleans only');
+    // Startregel fuer "Nur zeigen fuer ...": feste und relative Werte, sonst verworfen.
+    assert.deepEqual(parseClientDefaults('{"audience":{"ranges":{"age":{"relative":"same"}},"options":{"role":"same"}}}'),
+        { audience: { ranges: { age: { relative: 'same' } }, options: { role: 'same' } } });
+    assert.deepEqual(parseClientDefaults('{"audience":{"ranges":{"age":{"min":999}}}}'), {}, 'out of range');
+    assert.deepEqual(parseClientDefaults('{"audience":"everyone"}'), {});
     assert.deepEqual(parseClientDefaults('kaputt'), {});
     assert.deepEqual(parseClientDefaults('[1,2]'), {});
     const configured = await buildApp({ databasePath: ':memory:', clientDefaults: '{"listSwitchBehavior":"view","traceWatermark":false}' });
@@ -1060,4 +1065,15 @@ test('serves the web app manifest with a share target and redirects shares witho
     });
     assert.equal(share.statusCode, 303);
     assert.equal(share.headers.location, '/chat?share=unavailable', 'nothing is stored on the server');
+});
+
+// Mindestwerte des Betreibers: der Router mischt sie in jede Karte, auch ohne eigene Regel.
+test('the operator minimum ends up in every grid card code', async () => {
+    await app.close();
+    app = await buildApp({ store, buildVersion: 'test-build', buildTimestamp: '2026-10-21T00:00:00.000Z', audienceMinimum: '{"ranges":{"age":{"min":18}}}' });
+    await registerPeer('peer-a');
+    const card = (await gridPeerIds('geohash=u10j2k')).peers[0];
+    assert.match(card.audience, /^[A-Za-z0-9_-]+$/, 'card without own rule still carries the minimum');
+    const config = (await app.inject({ method: 'GET', url: '/api/config' })).json();
+    assert.deepEqual(config.audienceMinimum, { ranges: { age: { min: 18 } } });
 });

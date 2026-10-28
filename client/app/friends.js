@@ -227,10 +227,16 @@ function hasDiscoveryHistory(peerId, messages = state.chats[peerId] || []) {
     return messages.some(message => message.scope === 'discovery' && !message.held);
 }
 
-// Flamme nur in Freundes-Chats, die aus einem Match kommen (oder schon Flirt-Nachrichten haben).
+// Ein Flirt-Teil gibt es nur in Freundes-Chats mit Match UND Nachrichten aus "Entdecken". Eins allein
+// reicht nicht: ein Match ohne Flirt-Chat (Flammen im Grid, geschrieben nur in "Chat & Freunde") oder
+// als `discovery` markierte Nachrichten ohne Match (aeltere Chats ohne Listen-Zuordnung, aus der
+// Grid-Liste beschrieben) machen noch keinen Flirt. Ohne Flirt-Teil wird nichts ausgeblendet.
+function hasFlirtPart(peerId) {
+    return Boolean(peerId) && chatScopeOf(peerId) === 'social' && isMatched(peerId) && hasDiscoveryHistory(peerId);
+}
+
 function canFlirt(peerId) {
-    return Boolean(peerId) && scopeIncludes('discovery') && chatScopeOf(peerId) === 'social'
-        && (isMatched(peerId) || hasDiscoveryHistory(peerId));
+    return scopeIncludes('discovery') && hasFlirtPart(peerId);
 }
 
 function isFlirting(peerId) {
@@ -239,11 +245,11 @@ function isFlirting(peerId) {
 
 // Ohne Entdecken-Bereich ist der Flirt-Teil immer weg (zaehlt dann auch nicht als ungelesen).
 function isDiscoveryMessageAlwaysHidden(peerId, message) {
-    return message?.scope === 'discovery' && chatScopeOf(peerId) === 'social' && !scopeIncludes('discovery');
+    return message?.scope === 'discovery' && !scopeIncludes('discovery') && hasFlirtPart(peerId);
 }
 
 function isDiscoveryMessageHidden(peerId, message) {
-    if (message?.scope !== 'discovery' || chatScopeOf(peerId) !== 'social') return false;
+    if (message?.scope !== 'discovery' || !hasFlirtPart(peerId)) return false;
     if (!scopeIncludes('discovery')) return true;
     return state.discoveryHistory.hide && !isFlirting(peerId);
 }

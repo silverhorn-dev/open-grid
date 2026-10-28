@@ -962,8 +962,12 @@ Versionen) erscheinen in beiden Listen.
 **Flirt-Modus im Freundes-Chat** (`client/app/friends.js`): Pro Person gibt
 es nur einen Verlauf; jede Nachricht traegt den Bereich, in dem sie
 geschrieben wurde (`message.scope`). Wird aus einem Match ein Freund, wandert
-der Chat nach `social`. Die Flamme im Chat-Kopf (`#chat-flirt-btn`, nur bei
-aktivem Entdecken-Bereich und Match bzw. vorhandenen Flirt-Nachrichten)
+der Chat nach `social`. Einen Flirt-Teil (`hasFlirtPart`) hat ein
+Freundes-Chat nur mit Match UND Nachrichten aus "Entdecken"; eins allein
+reicht nicht (ein Match ohne Flirt-Chat, oder als `discovery` markierte
+Nachrichten aelterer Chats ohne Listen-Zuordnung). Ohne Flirt-Teil gibt es
+keine Flamme und nichts wird ausgeblendet. Die Flamme im Chat-Kopf
+(`#chat-flirt-btn`, nur bei aktivem Entdecken-Bereich und Flirt-Teil)
 schaltet pro Chat in den Flirt-Modus: alles sichtbar, Flirt-Nachrichten
 markiert (`.flirt-message`), neue eigene Nachrichten mit `scope: 'discovery'`
 (`messageScopeFor`), Album-Knopf sichtbar. Im normalen Modus sind neue
@@ -1183,6 +1187,17 @@ beide Richtungen. Eine Blockierung verhindert weitere Queue-Zustellungen vom
 blockierten Absender. Der Client liest die Tabelle beim Start, nach
 WebSocket-Reconnect und bei erneuter Aktivierung. Operationen vor dem
 Loesch-Cutoff sowie alle Payloads blockierter Peers werden verworfen.
+
+Der Partner erfaehrt das Loeschen/Blockieren ueber die Chat-Operation
+`CHAT_WIPE` (`wipeChatWithPeer`, `client/app/chat.js`). Reihenfolge: bei
+offenem Kanal sofort direkt; dann die Chat-Steuerung am Router (die alle
+wartenden Payloads des Chats loescht, also auch einen vorher eingereihten
+Wipe); danach den Wipe immer ueber Path C einreihen, damit ein offline
+Partner ihn beim naechsten Abruf bekommt. Ungesendetes in der lokalen
+Warteschlange fuer diesen Chat wird verworfen. Der Empfaenger merkt sich die
+`operationId` angewandter Wipes (`localStorage`/`appliedChatWipes`, max. 100)
+und ignoriert Doppelgaenger, sonst wuerde ein spaet ankommender zweiter Wipe
+auch seither geschriebene Nachrichten loeschen.
 
 Lokale Chatkontakte werden unabhaengig vom Discovery-Grid aus `messages` und
 `chatOperations` rekonstruiert. Dadurch kann ein Verlauf auch geoeffnet

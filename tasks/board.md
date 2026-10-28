@@ -286,3 +286,11 @@
   - ursache: neu laden ueberspringt das schliessen -> ansichts-buendel blieben gespeichert (oeffnen ohne nachfrage), und der besitzer wertete jede anfrage innerhalb der 15-min-ansicht als dieselbe ansicht
   - done 2026-10-28: `viewId` pro oeffnung in `ALBUM_KEY_REQUEST` (besitzer zaehlt neu bei anderer/fehlender viewId), `endInterruptedAlbumViews` beim start; tests `test/albums.test.js`, e2e `album-views` (mit neu laden)
 
+## T13 Bugs: Chat loeschen offline, Flamme in Social-Chats (nutzer 2026-10-28)
+- [x] chat loeschen/blockieren kam beim offline partner nicht an
+  - validiert: `deleteActiveChat` reihte den `CHAT_WIPE` per path c ein und setzte danach `DELETE_CHAT` am router; der loescht alle wartenden payloads des chats in beide richtungen, also auch den wipe. gleiches beim blockieren. e2e mit altem code: wipe kommt nie an
+  - done 2026-10-28: `wipeChatWithPeer`: direkt bei offenem kanal -> chat-steuerung -> danach path c; lokale warteschlange verworfen; empfaenger ignoriert doppelte wipes (`appliedChatWipes`); e2e `chat-wipe-offline`
+- [x] flamme (flirt-modus) erschien in chats, die nur in social liefen
+  - validiert: bedingung war match ODER `discovery`-nachrichten; ein match ohne flirt-chat (flammen im grid) bzw. markierte nachrichten aelterer chats ohne listen-zuordnung (aus der grid-liste beschrieben) reichten
+  - done 2026-10-28: `hasFlirtPart` = match UND flirt-nachrichten; ohne flirt-teil keine flamme und nichts ausgeblendet; test `test/friends.test.js`
+

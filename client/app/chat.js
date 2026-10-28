@@ -325,24 +325,40 @@ function updateChatActionButtons() {
     renderChatAllowance();
 }
 
+// Chat loeschen/blockieren: der Partner bekommt CHAT_WIPE. Reihenfolge ist wichtig: die Chat-Steuerung
+// am Server (DELETE_CHAT/BLOCK) loescht alle Router-Nachrichten dieses Chats, also auch einen vorher
+// eingereihten Wipe. Deshalb: offener Kanal -> sofort direkt; dann die Steuerung; danach den Wipe
+// immer ueber Path C einreihen (fuer einen offline Partner bzw. falls der Kanal doch tot war). Doppelt
+// ankommende Wipes ignoriert der Empfaenger (operationId).
+async function wipeChatWithPeer(peerId, action, extra = {}) {
+    const operation = {
+        operationId: `wipe:${window.crypto.randomUUID()}`,
+        type: 'CHAT_WIPE',
+        actorId: state.myProfile.id,
+        createdAt: Date.now(),
+        ...extra
+    };
+    const payload = { type: 'CHAT_OPERATION', operation };
+    const channel = state.dataChannels[peerId];
+    if (channel?.readyState === 'open' && state.sessionKeys[peerId]) {
+        await sendSecurePayload(peerId, payload).catch(logBackgroundError('wipeChatWithPeer'));
+    }
+    // Ungesendetes fuer diesen Chat verwerfen (es wuerde nach dem Wipe noch ankommen).
+    (state.secureMessageQueues[peerId] || []).forEach(item => { item.discarded = true; });
+    state.secureMessageQueues[peerId] = [];
+    await storeChatControl(peerId, action);
+    const queued = await queuePayloadInCache(peerId, { payload, cacheQueued: false }).catch(error => {
+        logDebug(`Chat wipe for ${peerId} could not go through Path C: ${error.message}`);
+        return false;
+    });
+    if (!queued) logDebug(`Chat wipe for ${peerId} not queued in the router cache.`);
+}
+
 async function deleteActiveChat() {
     const peerId = state.activeChatPeerId;
     if (!peerId || !window.confirm(t('chat.deleteThisChatLocallyAnd'))) return;
     try {
-        // Sende den Wipe-Befehl an den Peer, bevor wir den Chat lokal schliessen
-        const operation = {
-            operationId: `wipe:${window.crypto.randomUUID()}`,
-            type: 'CHAT_WIPE',
-            actorId: state.myProfile.id,
-            createdAt: Date.now()
-        };
-        sendSecurePayload(peerId, { type: 'CHAT_OPERATION', operation });
-
-        // Garantiere, dass das Kommando gesendet wird, bevor der Channel gekillt wird
-        if (typeof flushPeerQueueToCache === 'function') await flushPeerQueueToCache(peerId);
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        await storeChatControl(peerId, 'DELETE_CHAT');
+        await wipeChatWithPeer(peerId, 'DELETE_CHAT');
         resetActiveChat('Chat geloescht.');
         showToast(t('chat.andCachedRouterMessages'), 'success');
     } catch (error) {
@@ -377,21 +393,8 @@ async function toggleActivePeerBlock() {
         } else {
             if (!window.confirm(t('chat.blockThisPeerAndDelete'))) return;
 
-            // Sende Wipe-Befehl an den Peer, bevor die lokale Blockierung weitere P2P-Payloads verhindert
-            const operation = {
-                operationId: `wipe:${window.crypto.randomUUID()}`,
-                type: 'CHAT_WIPE',
-                actorId: state.myProfile.id,
-                hidePeer: true,
-                createdAt: Date.now()
-            };
-            sendSecurePayload(peerId, { type: 'CHAT_OPERATION', operation });
-
-            // Garantiere Zustellung ueber Cloud Cache oder P2P, bevor Block aktiv wird
-            if (typeof flushPeerQueueToCache === 'function') await flushPeerQueueToCache(peerId);
-            await new Promise(resolve => setTimeout(resolve, 500));
-
-            await storeChatControl(peerId, 'BLOCK');
+            // Wipe an den Partner (direkt und ueber Path C), dann blockieren.
+            await wipeChatWithPeer(peerId, 'BLOCK', { hidePeer: true });
             showToast(t('chat.peerBlockedPermanently'), 'success');
         }
         updateChatActionButtons();

@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 169 · 2026-10-28
+## Build 170 · 2026-10-28
+- Behoben: einen Chat loeschen oder blockieren kam beim Partner nicht an, wenn er gerade offline war; sein Chat blieb stehen. Jetzt erreicht ihn die Loeschung beim naechsten Oeffnen der App
+- Behoben: die Flamme (Flirt-Modus) erschien auch in Chats, in denen nie geflirtet wurde; jetzt nur noch bei Match und Nachrichten aus "Entdecken"
+
+## Build 169 · 2026-10-28 · `b16cd7d`
 - Behoben: Alben mit 1x/2x/3x ansehen liessen sich nach dem Oeffnen per Neu laden erneut ansehen, ohne dass es zaehlte; jetzt zaehlt jedes Oeffnen, und eine durch Neu laden unterbrochene Ansicht endet beim naechsten Start
 
 ## Build 168 · 2026-10-28 · `02cc811`

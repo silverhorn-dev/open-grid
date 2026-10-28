@@ -743,6 +743,12 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
         }
     } else if (localOperation.type === 'CHAT_WIPE') {
         if (localOperation.actorId !== peerId) return false;
+        // Derselbe Wipe kommt oft zweimal (direkt und ueber Path C). Ein spaeter Doppelgaenger wuerde
+        // sonst auch die seither geschriebenen Nachrichten loeschen.
+        if (typeof localOperation.operationId !== 'string') return false;
+        const appliedWipes = JSON.parse(localStorage.getItem('appliedChatWipes') || '[]');
+        if (appliedWipes.includes(localOperation.operationId)) return true;
+        localStorage.setItem('appliedChatWipes', JSON.stringify([...appliedWipes, localOperation.operationId].slice(-100)));
         await storeChatControl(peerId, 'DELETE_CHAT');
 
         if (localOperation.hidePeer) {

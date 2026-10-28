@@ -215,6 +215,8 @@
 
 
 ## S3 Aufraeumen
+- [x] jenkins: sub-branches bauen, aber nie deployen (nutzer 2026-10-28)
+  - deploy lief schon nur auf main; neu: stage "Image bauen (ohne Deploy)" baut auf anderen branches das echte image zur probe und loescht es wieder
 - [x] tailwind 4 migration (behebt die 3 moderate `npm audit`-funde in dev-abhaengigkeiten)
   - done 2026-10-28: `@tailwindcss/cli` 4, konfiguration in `client/tailwind.input.css` (`@theme inline` aus css-variablen, schriften wie v3, rahmenfarbe wie v3), `tailwind.config.cjs` entfernt; klassen per upgrade-tool umbenannt, dessen 3 fehler zurueckgenommen (`'blur'`-wert der album-vorschau, api-parameter `ring`, text-schluessel `grid.ring`); `npm audit` 0 funde; vorher/nachher-screenshots: farben/hell/dunkel gleich, nur etwas engere abstaende wo versteckte elemente bei `space-y` vorher extra luecken machten
 

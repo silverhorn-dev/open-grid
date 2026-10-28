@@ -94,7 +94,9 @@ Englisch, mit Umschalter "Einfach erklaert" / "Mit Fachbegriffen".
 Das `Jenkinsfile` baut bei jedem Push auf `main`: Syntax-Check und Unit-Tests
 (`Dockerfile.test`), E2E-Tests (`scripts/e2e.sh`), danach
 `docker compose up -d --build` und Warten auf den Healthcheck. Die angezeigte
-Version ist `Build <Commit-Anzahl> (<Hash>)`.
+Version ist `Build <Commit-Anzahl> (<Hash>)`. Andere Branches (Multibranch)
+laufen durch dieselben Tests und bauen das echte Image zur Probe
+(`open-grid-branch-check:<Build>`, danach geloescht), deployen aber nie.
 
 - Der Jenkins-Agent laeuft als Container auf demselben Host und nutzt den
   Docker-Daemon des Hosts ueber den eingehaengten Socket

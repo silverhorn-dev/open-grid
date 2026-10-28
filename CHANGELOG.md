@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 162 · 2026-10-28
+## Build 164 · 2026-10-28
+- Betrieb: Jenkins baut auf Neben-Branches jetzt auch das echte Image zur Probe, deployt dort aber nie (wie bisher nur main)
+
+## Build 162–163 · 2026-10-28 · `366ef79`, `90cb2fd`
 - Technik: Umstieg auf Tailwind CSS 4 (behebt die gemeldeten Sicherheitshinweise in den Build-Werkzeugen); einige Abstaende sind minimal enger
 
 ## Build 161 · 2026-10-28 · `8d53162`

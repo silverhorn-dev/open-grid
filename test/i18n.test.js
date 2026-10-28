@@ -39,6 +39,18 @@ test('every used key exists in every language, nothing unused, placeholders matc
     }
 });
 
+// Doppelte Schluessel ueberschreiben sich still (der letzte gewinnt).
+test('no key is defined twice in a language file', () => {
+    for (const language of ['de', 'en']) {
+        const keys = read(`i18n/${language}.properties`).split('\n')
+            .map(line => line.trim())
+            .filter(line => line && !line.startsWith('#') && !line.startsWith('!') && line.includes('='))
+            .map(line => line.slice(0, line.indexOf('=')).trim());
+        const duplicates = keys.filter((key, index) => keys.indexOf(key) !== index);
+        assert.deepEqual(duplicates, [], `${language}: ${duplicates.join(', ')}`);
+    }
+});
+
 test('properties parser: separators, escapes, leading spaces, continuation', () => {
     const parsed = parseProperties('# comment\na.b=Hallo {name}\nc.d : Wert\ne.f=\\ · mit Leerzeichen\ng.h=Zeile\\\n    weiter\ni.j=Gr\\u00fc\\u00dfe\nk.l=echtes ü\n');
     assert.deepEqual(parsed, { 'a.b': 'Hallo {name}', 'c.d': 'Wert', 'e.f': ' · mit Leerzeichen', 'g.h': 'Zeileweiter', 'i.j': 'Grüße', 'k.l': 'echtes ü' });

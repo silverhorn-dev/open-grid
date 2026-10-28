@@ -127,7 +127,11 @@ async function main() {
         await swipe(330, 80);
         await waitFor(page, () => document.getElementById('app-menu').classList.contains('is-open'));
         assert.equal(await page.evaluate(() => document.getElementById('view-editprofile').classList.contains('hidden')), false, 'profile stays');
-        await page.evaluate(() => closeMenu());
+        // Menue nach rechts wischen = schliessen.
+        await page.waitForTimeout(400);
+        const menuBox = await page.locator('#app-menu').boundingBox();
+        await drag({ x: menuBox.x + 60, y: menuBox.y + menuBox.height / 2 }, { x: menuBox.x + 260, y: menuBox.y + menuBox.height / 2 });
+        await waitFor(page, () => !document.getElementById('app-menu').classList.contains('is-open'));
         await page.waitForTimeout(800);
 
         await page.click('#profile-settings-btn');
@@ -138,8 +142,22 @@ async function main() {
         await waitFor(page, () => state.settingsTab === 'privacy');
         await swipe(80, 330);
         await waitFor(page, () => state.settingsTab === 'general');
+        // Wischen darf auf einem Schalter starten (der reagiert auf Tippen) und schaltet ihn nicht um.
+        await page.evaluate(() => switchSettingsTab('chat'));
+        await page.evaluate(() => document.getElementById('chat-swipe-close-toggle').scrollIntoView({ block: 'center' }));
+        await page.waitForTimeout(200);
+        const toggle = await page.locator('#chat-swipe-close-toggle').boundingBox();
+        const toggleBefore = await page.evaluate(() => document.getElementById('chat-swipe-close-toggle').checked);
+        await drag({ x: toggle.x + toggle.width / 2, y: toggle.y + toggle.height / 2 }, { x: toggle.x + toggle.width / 2 - 240, y: toggle.y + toggle.height / 2 });
+        await waitFor(page, () => state.settingsTab === 'media');
+        assert.equal(await page.evaluate(() => document.getElementById('chat-swipe-close-toggle').checked), toggleBefore, 'switch unchanged');
+        // Am ersten Bereich nach rechts = Einstellungen verlassen.
+        await page.evaluate(() => switchSettingsTab('general'));
         await swipe(80, 330);
-        assert.equal(await page.evaluate(() => document.getElementById('view-keys').classList.contains('hidden')), false, 'sideways never leaves the settings');
+        await waitFor(page, () => !document.getElementById('view-editprofile').classList.contains('hidden'));
+        await page.click('#profile-settings-btn');
+        await waitFor(page, () => !document.getElementById('view-keys').classList.contains('hidden'));
+        await page.evaluate(() => { switchSettingsTab('privacy'); window.scrollTo(0, 0); });
         const y = await headingY();
         await drag({ x: 200, y }, { x: 200, y: y + 260 });
         await waitFor(page, () => !document.getElementById('view-editprofile').classList.contains('hidden'));

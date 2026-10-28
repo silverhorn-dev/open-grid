@@ -107,7 +107,16 @@ async function main() {
         await waitFor(page, () => !document.getElementById('profile-detail-modal').classList.contains('hidden'));
         assert.equal(await page.evaluate(() => state.activeModalPeerId), 'node_fake_gestures');
 
-        // Profil im Chat: nach unten wischen schliesst es.
+        // Profil im Chat: nach unten wischen schliesst es (erst die Eingabeleisten-Geste, Profil danach).
+        await page.evaluate(() => closeProfileModal());
+        await page.waitForTimeout(400);
+        // Eingabeleiste nach rechts wischen = Chat schliessen (Standard an).
+        const bar = await page.locator('#chat-input-bar').boundingBox();
+        await drag({ x: bar.x + 40, y: bar.y + 12 }, 220, 0);
+        await waitFor(page, () => !state.activeChatPeerId, null, 3000);
+        await page.evaluate(() => openChatWithPeer('node_fake_gestures'));
+        await page.waitForTimeout(400);
+        await page.evaluate(() => openProfileModal('node_fake_gestures'));
         await page.waitForTimeout(400);
         const profileTop = await page.locator('#profile-detail-modal > div').boundingBox();
         await drag({ x: profileTop.x + profileTop.width / 2, y: Math.max(profileTop.y + 80, 120) }, 0, 260);

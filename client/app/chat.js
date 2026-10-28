@@ -41,7 +41,10 @@ function openProfileModal(peerId) {
     const peer = state.peers.find(p => p.id === peerId) || getPeerPresentation(peerId);
     if (!peer) return;
 
-    document.getElementById('profile-detail-modal').classList.remove('hidden');
+    const profileModal = document.getElementById('profile-detail-modal');
+    profileModal.classList.remove('hidden');
+    // Immer oben starten: nach unten wischen schliesst nur von ganz oben.
+    profileModal.scrollTop = 0;
     pushModalEntry('profile', hideProfileModal);
     document.getElementById('modal-profile-name').textContent = peer.name || HIDDEN_PEER_NAME;
     document.getElementById('modal-profile-id').textContent = peer.id;
@@ -505,6 +508,8 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
         }
     }, (deliveryPath, details = {}) => {
         message.deliveredVia = DELIVERY_PATH_LABELS[deliveryPath] || 'E2EE P2P';
+        // Direkt zugestellt, Partner aber abwesend: Benachrichtigung per Push anstossen (push.js).
+        if (deliveryPath === 'p2p') nudgeAwayPeer(peerId);
         // Path C haelt die Nachricht nur bis zum Ablauf der Queue-TTL.
         if (deliveryPath === 'cache' && details.expiresAt) message.cacheExpiresAt = details.expiresAt;
         persistChatMessage(peerId, message).catch(error => logDebug(`Could not update chat message: ${error.message}`));

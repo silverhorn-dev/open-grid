@@ -130,6 +130,11 @@ const state = {
     flirtSendOnce: null,
     // Nachricht unter der Maus (Desktop), damit die Hover-Leiste beim Neuzeichnen nicht flackert (chat-tools.js).
     hoveredMessageId: null,
+    // Eingabeleiste nach rechts wischen = Chat schliessen (gestures.js).
+    chatSwipeClose: true,
+    // Abwesende Chat-Partner (verbunden, App nicht sichtbar) und der eigene zuletzt gemeldete Zustand.
+    peerAway: {},
+    reportedAway: null,
     // Wer eigene Chat-Bilder/Videos speichern darf: 'friends' | 'all' (media-rights.js).
     mediaDownload: 'friends',
     // Snap-Editor: darf der Empfaenger diese Aufnahme speichern (snaps.js).

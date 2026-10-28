@@ -255,6 +255,8 @@ async function handleSignalingMessage(message) {
     }
 
     if (message.type === 'SOCKET_REGISTERED') {
+        // Neue Verbindung: der Server kennt den Abwesend-Zustand noch nicht.
+        reportAway(undefined, true);
         document.getElementById('network-indicator').className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse';
         document.getElementById('network-status-text').textContent = t('connection.connectedToRouter');
         refreshChatControls()
@@ -273,7 +275,9 @@ async function handleSignalingMessage(message) {
 
     if (message.type === 'PRESENCE_SNAPSHOT') {
         const online = new Set(Array.isArray(message.online) ? message.online : []);
+        const away = new Set(Array.isArray(message.away) ? message.away : []);
         state.peerPresence = Object.fromEntries(state.presenceSubscription.map(peerId => [peerId, online.has(peerId)]));
+        state.peerAway = Object.fromEntries([...away].filter(peerId => online.has(peerId)).map(peerId => [peerId, true]));
         online.forEach(peerId => handlePeerCameOnline(peerId));
         renderPresenceChange();
         return;
@@ -281,6 +285,8 @@ async function handleSignalingMessage(message) {
     if (message.type === 'PRESENCE') {
         if (typeof message.peerId !== 'string' || !state.presenceSubscription.includes(message.peerId)) return;
         state.peerPresence[message.peerId] = message.online === true;
+        if (message.online === true && message.away === true) state.peerAway[message.peerId] = true;
+        else delete state.peerAway[message.peerId];
         if (message.online === true) handlePeerCameOnline(message.peerId);
         else {
             updateProfilePresence(message.peerId, 'offline');
@@ -374,6 +380,21 @@ function subscribePresence() {
     if (state.ws?.readyState !== WebSocket.OPEN) return;
     state.presenceSubscription = state.chatPeerIds.filter(peerId => !isPeerBlocked(peerId));
     state.ws.send(JSON.stringify({ type: 'PRESENCE_SUBSCRIBE', peerIds: state.presenceSubscription }));
+}
+
+// Abwesend: verbunden, aber App/Tab nicht sichtbar (Server meldet es per PRESENCE.away).
+function isPeerAway(peerId) {
+    return state.peerAway[peerId] === true && isPeerOnline(peerId);
+}
+
+// Eigenen Zustand melden: versteckte Seite = abwesend. `force` meldet auch ohne Aenderung (neue
+// WS-Verbindung). Bei `pagehide` gilt abwesend, egal was visibilityState gerade sagt.
+function reportAway(forceAway = undefined, force = false) {
+    const away = forceAway === undefined ? document.visibilityState === 'hidden' : forceAway;
+    if (!force && state.reportedAway === away) return;
+    if (state.ws?.readyState !== WebSocket.OPEN) return;
+    state.reportedAway = away;
+    state.ws.send(JSON.stringify({ type: 'PRESENCE_AWAY', away }));
 }
 
 function isPeerOnline(peerId) {

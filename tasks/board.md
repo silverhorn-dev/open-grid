@@ -306,7 +306,10 @@
   - done 2026-10-28: `SWIPE_TABS` ohne einstellungen, `stepSettingsTab`, runterziehen ab 120 px oben = zurueck ins profil; `overscroll-behavior-y: contain` solange die einstellungen offen sind (kein neu laden); e2e `mobile-layout`
 
 ## T15 Praesenz: Abwesend + Benachrichtigung bei verstecktem Tab (nutzer 2026-10-28)
-- [ ] PWA auf dem handy weggewischt/im hintergrund (und browser-tab/fenster am pc nicht sichtbar): status bleibt "online", nachrichten kommen an, aber keine benachrichtigung
+- [x] PWA auf dem handy weggewischt/im hintergrund (und browser-tab/fenster am pc nicht sichtbar): status bleibt "online", nachrichten kommen an, aber keine benachrichtigung
+  - ursache: benachrichtigungen kamen nur per web push vom service worker; solange die app im hintergrund noch verbunden ist, stellt der absender direkt (P2P) zu und es geht kein push raus; die seite selbst zeigte nichts
+  - done 2026-10-28: `PRESENCE_AWAY` (versteckt/`pagehide`) -> partner sehen "Abwesend" (gelb); direkt zugestellt an einen abwesenden partner -> `POST /api/push/nudge` -> push ohne inhalt `{ type: 'NUDGE', senderId }` -> SW zeigt kompakt bzw. "Neue Nachricht von X" (nicht bei sichtbarem fenster); server prueft abwesend/offline, block, subscription, 15 s pro paar, rate-limit `nudge`; tests `test/server.test.js`, `test/push.test.js`, e2e `presence-away`
+  - nebenbei: doppelte i18n-schluessel (`chat.moreActions`) entfernt, neuer test findet doppelte schluessel
   - wunsch: zustand "abwesend" (o. ae.), wenn die app nicht sichtbar ist
   - zu pruefen: wird bei `visibilityState === 'hidden'` eine benachrichtigung gezeigt (seite selbst bzw. SW), oder unterdrueckt die app sie, weil die seite noch "lebt"? push kommt evtl. gar nicht, solange die WS-verbindung steht (server haelt peer fuer online)
 - [x] flirt-lasche ueber dem senden-knopf (nutzer 2026-10-28): ersetzt die flamme im chat-kopf; lasche tippen = flirt-modus, lasche lange druecken = in diesem chat ausblenden (zurueck ueber ⋮), senden lange druecken = diese nachricht als flirt; im flirt-modus lasche + senden als ein block, eingabefeld mit rand und "Flirt-Nachricht…"; einstellung "Flirt-Knopf über Senden"; verlauf unten mit platz fuer die lasche; e2e `friends`
@@ -315,10 +318,16 @@
   - ursache: der verlauf zeichnet sich neu, das neue element verliert kurz `:hover` und die leiste blendete von 0 ein
   - done 2026-10-28: `state.hoveredMessageId` (mouseover), neu gezeichnete nachricht bekommt `.is-hovered` ohne ueberblenden
 
-## T16 Wisch-Bugs (nutzer 2026-10-28, offen)
-- [ ] seitenmenue laesst sich nicht per wischen (nach rechts) schliessen
-- [ ] profil im chat laesst sich (beim nutzer) nicht nach unten wischen; im e2e geht es -> auf echtem geraet pruefen
-- [ ] profil und einstellungen: wischen soll auch auf schaltern und auswahlen starten duerfen (die reagieren auf klick, nicht auf wischen)
-- [ ] einstellungen auch per wischen nach rechts schliessen (an "Allgemein" -> zurueck ins profil)
-- [ ] im chat auf der eingabeleiste nach rechts wischen = chat schliessen (zur chat-uebersicht); einstellbar, standard vom router (`CLIENT_DEFAULTS`) (nutzer 2026-10-28)
+## T16 Wisch-Bugs (nutzer 2026-10-28)
+- [x] seitenmenue laesst sich nicht per wischen (nach rechts) schliessen
+  - done 2026-10-28: `attachSwipeRight` am menue
+- [x] profil im chat laesst sich (beim nutzer) nicht nach unten wischen; im e2e geht es -> auf echtem geraet pruefen
+  - wahrscheinliche ursache: im browser startet oben das eigene pull-to-refresh und bricht die geste ab (`touchcancel`); das e2e schickt rohe touch-events und sieht das nicht
+  - done 2026-10-28: `overscroll-behavior-y: contain` solange profil/medien-fenster, menue, einstellungen oder chat offen sind; profil startet immer oben (`scrollTop = 0`). auf dem geraet bestaetigen
+- [x] profil und einstellungen: wischen soll auch auf schaltern und auswahlen starten duerfen (die reagieren auf klick, nicht auf wischen)
+  - done 2026-10-28: `blocksTabSwipe` sperrt nur noch textfelder und regler
+- [x] einstellungen auch per wischen nach rechts schliessen (an "Allgemein" -> zurueck ins profil)
+  - done 2026-10-28: `stepSettingsTab` am ersten bereich nach rechts = profil
+- [x] im chat auf der eingabeleiste nach rechts wischen = chat schliessen (zur chat-uebersicht); einstellbar, standard vom router (`CLIENT_DEFAULTS`) (nutzer 2026-10-28)
+  - done 2026-10-28: `keys`/`chat-swipe-close`, `CLIENT_DEFAULTS.inputSwipeClosesChat`, schalter unter Chat; e2e `chat-gestures`
 

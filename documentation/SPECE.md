@@ -213,10 +213,16 @@
   (450 ms) = Kontextmenue; doppelt tippen = Reaktion ❤️; seitlich wischen
   (ab 80 px, nicht in den 24-px-Kantenzonen, nicht in horizontal scrollbaren
   Bereichen oder im offenen Chat) = Tab Grid/Chat/Profil wechseln; im Profil
-  nach links = Menue oeffnen; in den Einstellungen seitlich = Bereiche
-  blaettern (nicht auf Eingabefeldern/Schaltern/Reglern, an den Enden nichts),
-  verlassen nur ganz oben nach unten ziehen (ab 120 px, zurueck ins Profil;
-  `overscroll-behavior` verhindert dort das Neuladen der Seite); Profil- und
+  nach links = Menue oeffnen; Seitenmenue nach rechts wischen = schliessen; in
+  den Einstellungen seitlich = Bereiche blaettern, am ersten Bereich nach
+  rechts oder ganz oben nach unten ziehen (ab 120 px) = zurueck ins Profil;
+  Wischen darf auf Schaltern und Auswahlen starten (die reagieren auf Tippen),
+  nicht auf Textfeldern und Reglern; im offenen Chat die Eingabeleiste nach
+  rechts wischen = zur Chatliste (`keys`/`chat-swipe-close`, Router-Standard
+  `CLIENT_DEFAULTS.inputSwipeClosesChat`, sonst an); in Einstellungen, offenen
+  Fenstern, Menue und offenem Chat verhindert `overscroll-behavior` das
+  Neuladen der Seite durch den Browser (das brach sonst z. B. das Wischen im
+  Profil ab); Profil- und
   Medienfenster von oben nach unten wischen = schliessen (ab 100 px; in der
   Album-Ansicht erst ab 40 % der Bildschirmhoehe, mind. 220 px, damit 1x-Alben
   nicht aus Versehen enden; ab der Schwelle wird die Karte durchsichtig =
@@ -511,8 +517,14 @@ Online-Status von Chat-Partnern haengt nicht vom Grid ab:
   `{ type: 'PRESENCE_SUBSCRIBE', peerIds }` mit allen nicht blockierten
   Chat-Partnern (max. 500); erneut bei neuem Chat-Partner und nach
   Block-Aenderungen.
-- Der Server antwortet mit `{ type: 'PRESENCE_SNAPSHOT', online: [...] }` und
-  meldet danach Wechsel als `{ type: 'PRESENCE', peerId, online }`.
+- Der Server antwortet mit `{ type: 'PRESENCE_SNAPSHOT', online: [...],
+  away: [...] }` und meldet danach Wechsel als `{ type: 'PRESENCE', peerId,
+  online }` (mit `away`, wenn der Partner abwesend ist oder es sich aendert).
+- Abwesend: der Client meldet `{ type: 'PRESENCE_AWAY', away }`, sobald die
+  Seite versteckt (`visibilitychange`, `pagehide`) bzw. wieder sichtbar ist,
+  und nach jedem `SOCKET_REGISTERED`. Partner sehen dann "Abwesend" (gelber
+  Punkt) statt "online"; abwesend geht vor "hat den Chat offen". Nur im
+  Speicher, endet mit der Verbindung.
 - Sichtbar ist der Status nur **gegenseitig**: A sieht B nur, wenn A B und B A
   abonniert hat und keiner den anderen blockiert hat. Einseitige Abos liefern
   nichts.
@@ -1237,6 +1249,18 @@ Der Server liefert `client/sw.js` unter `/sw.js` mit Scope `/` aus.
 | `GET` | `/api/push/vapid-public-key` | Oeffentlichen VAPID-Schluessel lesen |
 | `POST` | `/api/push/subscribe` | Push-Subscription eines Peers speichern (authentifiziert) |
 | `DELETE` | `/api/push/subscribe/:peerId` | Push-Subscription entfernen (authentifiziert) |
+| `POST` | `/api/push/nudge` | Abwesenden Empfaenger anstupsen (authentifiziert als Absender) |
+
+Anstupsen: eine direkt (P2P) zugestellte Nachricht loest keinen Push aus. Ist
+der Empfaenger abwesend (App im Hintergrund, Verbindung steht noch), sieht er
+sonst keine Benachrichtigung. Der Absender ruft dann `POST /api/push/nudge
+{ senderId, recipientId }` auf (hoechstens alle 15 s pro Partner, `push.js`).
+Der Server schickt nur, wenn der Empfaenger laut Signaling wirklich abwesend
+oder offline ist, den Absender nicht blockiert hat und eine Subscription hat;
+hoechstens einmal pro 15 s und Paar, Rate-Limit `nudge`. Der Push enthaelt nur
+`{ type: 'NUDGE', senderId }`, keinen Inhalt. Der Service Worker zeigt dann
+(nur ohne sichtbares Fenster) die Kompakt-Meldung bzw. "Neue Nachricht von X"
+mit dem gespeicherten Namen.
 
 SQLite speichert pro Peer genau eine Subscription in `push_subscriptions`.
 Endpunkte muessen https sein und zu einem bekannten Push-Dienst gehoeren

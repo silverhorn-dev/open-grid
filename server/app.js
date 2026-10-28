@@ -62,6 +62,7 @@ const CLIENT_DEFAULT_RULES = {
     chatSwitchEnabled: 'boolean',
     chatSwitchStyle: ['bar', 'arrows', 'swipe'],
     pullUpAction: ['reload', 'next', 'switcher', 'snap', 'album'],
+    inputSwipeClosesChat: 'boolean',
     listSwitchEnabled: 'boolean',
     listSwitchBehavior: ['mode', 'view'],
     statusDirectOnly: 'boolean',
@@ -789,6 +790,34 @@ export async function buildApp(options = {}) {
         if (!requirePeerAuth(request, reply, peerId)) return;
         const removed = store.deletePushSubscription(peerId);
         return { status: 'unsubscribed', peerId, removed };
+    });
+
+    // Anstupsen: der Absender hat direkt (P2P) zugestellt, der Empfaenger ist aber abwesend (App im
+    // Hintergrund) oder offline. Dann kommt sonst keine Benachrichtigung, weil kein Push ueber den
+    // Zwischenspeicher lief. Der Push traegt nur die Absender-ID, keinen Inhalt. Nur wenn der Empfaenger
+    // wirklich abwesend/offline ist, den Absender nicht blockiert hat und Push eingerichtet hat.
+    const NUDGE_PAIR_INTERVAL_MS = 15_000;
+    const lastNudges = new Map();
+    app.post('/api/push/nudge', async (request, reply) => {
+        const { senderId, recipientId } = request.body || {};
+        if (!isString(senderId, 200) || !isString(recipientId, 200) || senderId === recipientId) {
+            return reply.code(400).send({ error: 'Invalid parameters' });
+        }
+        if (!requirePeerAuth(request, reply, senderId)) return;
+        if (!allowRequest('nudge', senderId, reply)) return;
+        const pair = `${senderId}:${recipientId}`;
+        const current = now();
+        if (store.isBlocked(recipientId, senderId)) return reply.code(202).send({ status: 'skipped' });
+        if (signaling.isPeerOnline(recipientId) && !signaling.isPeerAway(recipientId)) return reply.code(202).send({ status: 'skipped' });
+        if (current - (lastNudges.get(pair) || 0) < NUDGE_PAIR_INTERVAL_MS) return reply.code(202).send({ status: 'skipped' });
+        const subscription = store.getPushSubscription(recipientId);
+        if (!subscription || !isAllowedPushEndpoint(subscription.endpoint, pushHostAllowlist)) return reply.code(202).send({ status: 'skipped' });
+        lastNudges.set(pair, current);
+        if (lastNudges.size > 5000) lastNudges.delete(lastNudges.keys().next().value);
+        sendPush(subscription, { type: 'NUDGE', senderId })
+            .then(result => { if (result.expired) store.deletePushSubscription(recipientId, subscription.endpoint); })
+            .catch(error => app.log.warn(`Web Push nudge failed: ${error.message}`));
+        return reply.code(202).send({ status: 'sent' });
     });
 
     // Groesseres Limit nur hier: Sprachnachrichten (bis 60 s) gehen als Ganzes durch den Cache.

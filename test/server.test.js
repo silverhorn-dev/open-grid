@@ -688,6 +688,20 @@ test('shares presence only between mutually subscribed, unblocked chat partners 
     await new Promise(resolve => setTimeout(resolve, 100));
     assert.equal(peerC.has('PRESENCE'), false);
 
+    // Abwesend (App nicht sichtbar): Partner erfaehrt es, ein neues Abo bekommt es im Snapshot.
+    const peerB2 = await connectSocket(url, 'peer-b');
+    peerB2.send(JSON.stringify({ type: 'PRESENCE_SUBSCRIBE', peerIds: ['peer-a'] }));
+    await peerB2.next('PRESENCE_SNAPSHOT');
+    assert.deepEqual(await peerA.next('PRESENCE'), { type: 'PRESENCE', peerId: 'peer-b', online: true });
+    peerB2.send(JSON.stringify({ type: 'PRESENCE_AWAY', away: true }));
+    assert.deepEqual(await peerA.next('PRESENCE'), { type: 'PRESENCE', peerId: 'peer-b', online: true, away: true });
+    peerA.send(JSON.stringify({ type: 'PRESENCE_SUBSCRIBE', peerIds: ['peer-b'] }));
+    assert.deepEqual(await peerA.next('PRESENCE_SNAPSHOT'), { type: 'PRESENCE_SNAPSHOT', online: ['peer-b'], away: ['peer-b'] });
+    peerB2.send(JSON.stringify({ type: 'PRESENCE_AWAY', away: false }));
+    assert.deepEqual(await peerA.next('PRESENCE'), { type: 'PRESENCE', peerId: 'peer-b', online: true, away: false });
+    peerB2.close();
+    assert.deepEqual(await peerA.next('PRESENCE'), { type: 'PRESENCE', peerId: 'peer-b', online: false });
+
     // Blockiert: kein Status mehr.
     store.setChatControl('peer-a', 'peer-c', 'BLOCK');
     peerA.send(JSON.stringify({ type: 'PRESENCE_SUBSCRIBE', peerIds: ['peer-b', 'peer-c'] }));

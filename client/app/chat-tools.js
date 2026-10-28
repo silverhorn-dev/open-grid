@@ -429,15 +429,21 @@ function renderChatPeerIndicator() {
     if (!dot || !status) return;
     const peerId = state.activeChatPeerId;
     const online = Boolean(peerId) && isPeerOnline(peerId) && !isPeerBlocked(peerId);
-    const watching = online && isSecureChannelOpen(peerId) && Boolean(state.peerChatFocus[peerId]);
+    // Abwesend (App nicht sichtbar) geht vor "hat den Chat offen": wer weg ist, schaut nicht zu.
+    const away = online && isPeerAway(peerId);
+    const watching = online && !away && isSecureChannelOpen(peerId) && Boolean(state.peerChatFocus[peerId]);
     dot.classList.toggle('hidden', !online);
     const sameNetwork = online && state.peerTransport[peerId] === 'lan' ? t('chat.onSameWiFi') : '';
     const presence = peerId ? presenceTextOf(peerId) : '';
     const presenceSuffix = presence ? ` · ${presence}` : '';
-    const state_ = !peerId ? '' : watching ? `\u{1F440} ${t('chat.hasChatOpen')}` : online ? t('chat.online') : t('chat.offline2');
+    const state_ = !peerId ? '' : watching ? `\u{1F440} ${t('chat.hasChatOpen')}` : away ? t('chat.away') : online ? t('chat.online') : t('chat.offline2');
     status.textContent = peerId ? `${state_}${online ? sameNetwork : ''}${presenceSuffix}` : '';
-    status.classList.toggle('text-emerald-400', online);
+    status.classList.toggle('text-emerald-400', online && !away);
+    status.classList.toggle('text-amber-400', away);
     status.classList.toggle('text-slate-400', !online);
+    dot.classList.toggle('bg-emerald-400', !away);
+    dot.classList.toggle('bg-amber-400', away);
+    dot.title = away ? t('chat.away') : t('common.online');
 }
 
 function toggleChatHeaderMenu(event) {

@@ -263,6 +263,41 @@ test('pushes the sender ciphertext to the recipient when notify is set', async (
     });
 });
 
+// Direkt (P2P) zugestellt, Empfaenger abwesend/offline: Push ohne Inhalt, nur Absender-ID.
+test('nudges an absent recipient with a content-free push, rate limited per pair', async () => {
+    const nudge = sender => app.inject({
+        method: 'POST',
+        url: '/api/push/nudge',
+        headers: authHeaders(sender),
+        payload: { senderId: sender, recipientId: 'peer-b' }
+    });
+    assert.equal((await nudge('peer-a')).json().status, 'skipped', 'no subscription yet');
+    const { subscription } = createBrowserSubscription();
+    await subscribe('peer-b', subscription);
+
+    const sent = await nudge('peer-a');
+    assert.equal(sent.statusCode, 202);
+    assert.equal(sent.json().status, 'sent');
+    await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(sentPushes.at(-1).payload, { type: 'NUDGE', senderId: 'peer-a' });
+    assert.equal((await nudge('peer-a')).json().status, 'skipped', 'once per 15 s and pair');
+
+    const forged = await app.inject({
+        method: 'POST',
+        url: '/api/push/nudge',
+        headers: authHeaders('peer-b'),
+        payload: { senderId: 'peer-a', recipientId: 'peer-b' }
+    });
+    assert.ok(forged.statusCode >= 400, 'only the sender itself');
+
+    store.setChatControl('peer-b', 'peer-a', 'BLOCK');
+    await registerPeer('peer-c');
+    const blockedCount = sentPushes.length;
+    store.setChatControl('peer-b', 'peer-c', 'BLOCK');
+    assert.equal((await nudge('peer-c')).json().status, 'skipped', 'blocked senders get no nudge through');
+    assert.equal(sentPushes.length, blockedCount);
+});
+
 test('sends only a wake-up hint when the ciphertext does not fit into a push', async () => {
     await subscribe('peer-b', createBrowserSubscription().subscription);
     const response = await enqueue({ ciphertextPayload: 'x'.repeat(MAX_PUSH_PLAINTEXT_BYTES), notify: true });

@@ -2,7 +2,13 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 175 · 2026-10-28
+## Build 176 · 2026-10-28
+- Wischen: Seitenmenue nach rechts schliesst es; Einstellungen am ersten Bereich nach rechts schliessen; im Chat die Eingabeleiste nach rechts wischen fuehrt zur Chatliste (abschaltbar unter Einstellungen > Chat); Wischen klappt jetzt auch, wenn der Finger auf einem Schalter oder einer Auswahl startet
+- Behoben: Profil im Chat liess sich im Browser oft nicht nach unten wegwischen (der Browser wollte stattdessen die Seite neu laden)
+- Neuer Status "Abwesend": ist deine App im Hintergrund (Handy weggewischt, Tab am PC nicht sichtbar), sehen deine Kontakte "Abwesend" statt "online"
+- Behoben: lief die App im Hintergrund noch, kamen Nachrichten zwar an, aber ohne Benachrichtigung. Jetzt stoesst der Absender dann eine Benachrichtigung an (ohne Inhalt, nur wer geschrieben hat)
+
+## Build 175 · 2026-10-28 · `f15cfc1`
 - Flirt-Knopf: hoeher und auf der Oberkante der Eingabeleiste, die Antwort-Leiste liegt jetzt darunter statt verdeckt; der Punkt zeigt jede neue Flirt-Nachricht, nicht nur die letzte; das Eingabefeld behaelt beim Umschalten den Fokus
 - Flirt-Modus: Album und Video stecken hinter einem Medien-Knopf, der nach oben aufklappt (dazu Foto aus der Galerie)
 - Behoben: am PC flackerte die Leiste an Nachrichten beim Darueberfahren

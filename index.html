@@ -658,6 +658,10 @@
                             <option data-i18n="common.shareAlbum" value="album">Album teilen</option>
                         </select>
                     </label>
+                    <label class="setting-row">
+                        <span class="setting-text"><span data-i18n="settings.inputSwipeClosesChat" class="setting-title">Eingabeleiste nach rechts wischen</span><span data-i18n="settings.inputSwipeClosesChatDescription" class="setting-desc">Schließt den Chat und zeigt wieder die Chatliste.</span></span>
+                        <input type="checkbox" role="switch" id="chat-swipe-close-toggle" checked data-change="updateChatSwipeCloseSetting" data-args='["$checked"]' class="switch">
+                    </label>
                 </div>
 
                 <div class="settings-card" data-settings-tab="chat" data-scope="all">

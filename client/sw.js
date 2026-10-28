@@ -271,6 +271,29 @@ async function handlePush(event) {
         data = null;
     }
     const compact = await loadCompactSetting();
+    // Anstupsen: Nachricht kam direkt (P2P) an, die App ist aber im Hintergrund. Kein Inhalt im Push,
+    // nur der Absender; bei sichtbarer App nichts zeigen.
+    if (data?.type === 'NUDGE' && typeof data.senderId === 'string') {
+        const openWindows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        if (openWindows.some(client => client.visibilityState === 'visible')) return undefined;
+        if (compact) return showCompactNotification();
+        let senderName = null;
+        try {
+            const database = await openDatabase();
+            try {
+                senderName = await findPeerName(database, data.senderId);
+            } finally {
+                database.close();
+            }
+        } catch {
+            senderName = null;
+        }
+        return showChatNotification(
+            senderName ? swText('sw.newMessageFrom', { name: senderName }) : swText('sw.newMessage'),
+            swText('sw.tapToOpen'),
+            data.senderId
+        );
+    }
     if (data?.type !== 'PATH_C' || typeof data.msgId !== 'string' || typeof data.senderId !== 'string') {
         return compact ? showCompactNotification() : showGenericNotification(null);
     }

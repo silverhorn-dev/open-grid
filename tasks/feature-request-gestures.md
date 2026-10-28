@@ -149,4 +149,7 @@ pinch / double tap / wheel zoom, drag to pan, swipe down to close.
   (und Eingabefelder/Schalter).
 - Einstellungen verlassen: nur nach unten wischen (oben im Fenster), zurueck ins Profil.
 - Umgesetzt 2026-10-28, E2E `mobile-layout`.
+- Nachtrag 2 (2026-10-28): Seitenmenue nach rechts wischen = schliessen; Einstellungen am ersten
+  Bereich nach rechts = schliessen; Wischen darf auf Schaltern/Auswahlen starten; Eingabeleiste im
+  Chat nach rechts = zur Chatliste (einstellbar, Router-Standard). E2E `mobile-layout`, `chat-gestures`.
 

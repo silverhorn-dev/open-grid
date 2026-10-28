@@ -4,7 +4,10 @@
 //   - Nachricht wischen (fremde nach rechts, eigene nach links) = antworten
 //   - Nachricht lange druecken = Aktionsleiste, doppelt tippen = Herz-Reaktion
 //   - Zwischen Grid, Chat und Profil seitlich wischen; im Profil nach links = Menue
-//   - Einstellungen: seitlich = Bereiche blaettern (nicht auf Reglern), oben nach unten = verlassen
+//   - Einstellungen: seitlich = Bereiche blaettern (nicht auf Reglern), oben nach unten = verlassen,
+//     am ersten Bereich nach rechts = verlassen
+//   - Seitenmenue nach rechts wischen = schliessen
+//   - Im Chat auf der Eingabeleiste nach rechts wischen = zur Chatliste (einstellbar)
 //   - Profil- und Medienfenster nach unten wischen = schliessen
 //   - Im Chat am Ende nach oben ziehen = aktualisieren
 // Die Kanten-Geste "zurueck" und Pull-to-Refresh der Seite bleiben dem Betriebssystem/Browser.
@@ -162,7 +165,9 @@ function currentTab() {
 
 // Nicht in Bereichen, die selbst horizontal reagieren.
 function blocksTabSwipe(target) {
-    if (target.closest('input, textarea, select, [data-no-tab-swipe], #chat-messages, .chat-bubble-wrap')) return true;
+    // Schalter und Auswahlen reagieren auf Tippen, nicht auf Wischen: dort darf das Wischen starten.
+    // Textfelder (Cursor, Markieren) und Regler gehoeren dem Finger.
+    if (target.closest('textarea, input:not([type="checkbox"]):not([type="radio"]), [data-no-tab-swipe], #chat-messages, .chat-bubble-wrap')) return true;
     // Offener Chat (Smartphone, Vollbild): dort gehoert das seitliche Wischen den Nachrichten. Nur solange
     // er sichtbar ist; im Hintergrund behaelt die Ansicht "chat-open", andere Tabs wischen trotzdem.
     const chatView = document.getElementById('view-chat');
@@ -261,9 +266,80 @@ function handleTabTouchEnd() {
 function stepSettingsTab(direction) {
     const tabs = SETTINGS_TABS.filter(name => name !== 'debug' || CONFIG.DEBUG_MODE);
     const index = tabs.indexOf(state.settingsTab || 'general') + direction;
-    if (index < 0 || index >= tabs.length) return;
+    // Am ersten Bereich nach rechts: Einstellungen verlassen (zurueck ins Profil).
+    if (index < 0) {
+        hapticTick();
+        switchTab('editprofile');
+        return;
+    }
+    if (index >= tabs.length) return;
     hapticTick();
     switchSettingsTab(tabs[index]);
+}
+
+// ----- Seitlich wischen = schliessen (Seitenmenue, Chat ueber die Eingabeleiste) -----
+// `move` bewegt das Element mit dem Finger (nur nach rechts), ab TAB_SWIPE_TRIGGER oder schnell = `close`.
+function attachSwipeRight(area, { moving = () => area, close, enabled = () => true }) {
+    if (!area) return;
+    let gesture = null;
+    const reset = () => {
+        const element = moving();
+        if (!element) return;
+        element.style.transition = prefersReducedMotion() ? 'none' : 'transform 180ms ease-out';
+        element.style.transform = '';
+    };
+    area.addEventListener('touchstart', event => {
+        gesture = null;
+        if (event.touches.length !== 1 || !enabled()) return;
+        if (event.target.closest('textarea:focus, [role="slider"], input[type="range"], [data-no-tab-swipe]')) return;
+        const touch = event.touches[0];
+        gesture = { startX: touch.clientX, startY: touch.clientY, axis: null, deltaX: 0, startedAt: performance.now() };
+    }, { passive: true });
+    area.addEventListener('touchmove', event => {
+        if (!gesture) return;
+        const deltaX = event.touches[0].clientX - gesture.startX;
+        const deltaY = event.touches[0].clientY - gesture.startY;
+        if (!gesture.axis) {
+            if (Math.hypot(deltaX, deltaY) < GESTURE_LOCK_DISTANCE * 1.5) return;
+            gesture.axis = deltaX > 0 && Math.abs(deltaX) > Math.abs(deltaY) * 1.5 ? 'right' : 'other';
+        }
+        if (gesture.axis !== 'right') return;
+        gesture.deltaX = Math.max(0, deltaX);
+        const element = moving();
+        if (element && !prefersReducedMotion()) {
+            element.style.transition = 'none';
+            element.style.transform = `translate3d(${gesture.deltaX}px, 0, 0)`;
+        }
+    }, { passive: true });
+    const finish = cancelled => {
+        const finished = gesture;
+        gesture = null;
+        reset();
+        if (cancelled || finished?.axis !== 'right') return;
+        const fast = finished.deltaX / Math.max(1, performance.now() - finished.startedAt) > 0.5;
+        if (finished.deltaX < TAB_SWIPE_TRIGGER && !fast) return;
+        hapticTick();
+        close();
+    };
+    area.addEventListener('touchend', () => finish(false), { passive: true });
+    area.addEventListener('touchcancel', () => finish(true), { passive: true });
+}
+
+// Einstellung: Eingabeleiste nach rechts wischen schliesst den Chat (`keys`/`chat-swipe-close`,
+// Router-Standard `CLIENT_DEFAULTS.inputSwipeClosesChat`, sonst an).
+const CHAT_SWIPE_CLOSE_RECORD_ID = 'chat-swipe-close';
+
+async function loadChatSwipeCloseSetting() {
+    const stored = await databaseRequest('keys', 'readonly', store => store.get(CHAT_SWIPE_CLOSE_RECORD_ID)).catch(() => null);
+    state.chatSwipeClose = typeof stored?.enabled === 'boolean' ? stored.enabled : clientDefault('inputSwipeClosesChat', true) !== false;
+    const toggle = document.getElementById('chat-swipe-close-toggle');
+    if (toggle) toggle.checked = state.chatSwipeClose;
+}
+
+async function updateChatSwipeCloseSetting(enabled) {
+    state.chatSwipeClose = Boolean(enabled);
+    await putDatabaseRecord('keys', { id: CHAT_SWIPE_CLOSE_RECORD_ID, enabled: state.chatSwipeClose })
+        .catch(error => logDebug(`Could not store chat swipe setting: ${error.message}`));
 }
 
 // ----- Fenster nach unten wischen = schliessen -----
@@ -416,6 +492,12 @@ function initGestures() {
         document.querySelector('#profile-detail-modal > div'),
         closeProfileModal
     );
+    attachSwipeRight(document.getElementById('app-menu'), { close: closeMenu });
+    attachSwipeRight(document.getElementById('chat-input-bar'), {
+        moving: () => document.getElementById('view-chat'),
+        enabled: () => state.chatSwipeClose && Boolean(state.activeChatPeerId),
+        close: leaveActiveChat
+    });
     // Album-Ansicht: deutlich weiter ziehen, sonst ist eine 1x-Ansicht schnell aus Versehen vorbei.
     attachSwipeToClose(
         document.getElementById('media-modal-content'),

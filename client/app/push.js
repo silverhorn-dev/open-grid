@@ -75,6 +75,24 @@ function handleServiceWorkerMessage(event) {
     }
 }
 
+// Direkt (P2P) zugestellt, der Partner ist aber abwesend: Server um einen Push ohne Inhalt bitten, sonst
+// bekommt er keine Benachrichtigung (es lief kein Push ueber den Zwischenspeicher). Hoechstens alle 15 s
+// pro Partner; der Server prueft selbst, ob der Partner wirklich abwesend/offline ist.
+const PUSH_NUDGE_INTERVAL_MS = 15000;
+const lastPushNudges = {};
+
+function nudgeAwayPeer(peerId) {
+    if (!peerId || !isPeerAway(peerId)) return;
+    const now = Date.now();
+    if (now - (lastPushNudges[peerId] || 0) < PUSH_NUDGE_INTERVAL_MS) return;
+    lastPushNudges[peerId] = now;
+    fetch(`${API_BASE}/api/push/nudge`, {
+        method: 'POST',
+        headers: peerAuthHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ senderId: state.myProfile.id, recipientId: peerId })
+    }).catch(error => logDebug(`Push nudge failed: ${error.message}`));
+}
+
 async function getPushSubscription() {
     const registration = state.serviceWorkerRegistration;
     return registration ? registration.pushManager.getSubscription() : null;

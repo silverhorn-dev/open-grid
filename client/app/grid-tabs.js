@@ -42,8 +42,10 @@ function gridTabsAvailable() {
     return scopeIncludes('discovery') && !isSocialMode();
 }
 
+// Badge: Personen mit neuer Aktivitaet seit dem letzten Blick.
 function unseenInteractionCount() {
-    return state.interactions.items.filter(item => item.at > state.interactions.seenAt && !isPeerBlocked(item.peerId)).length;
+    return new Set(state.interactions.items.filter(item => item.at > state.interactions.seenAt && !isPeerBlocked(item.peerId))
+        .map(item => item.peerId)).size;
 }
 
 function matchedPeerIds() {
@@ -137,22 +139,43 @@ function gridListButton(icon, label, onClick, primary = false) {
     return button;
 }
 
+// Eine Zeile pro Person, neueste Aktivitaet oben, kurz zusammengefasst ("Flamme · 3x angesehen").
+function interactionsByPerson(items = state.interactions.items) {
+    const people = new Map();
+    for (const item of items) {
+        const entry = people.get(item.peerId) || { peerId: item.peerId, at: 0, flame: false, views: 0 };
+        entry.at = Math.max(entry.at, item.at);
+        if (item.kind === 'flame') entry.flame = true;
+        else entry.views += 1;
+        people.set(item.peerId, entry);
+    }
+    return [...people.values()].sort((left, right) => right.at - left.at);
+}
+
+function interactionSummary(person) {
+    const parts = [];
+    if (person.flame) parts.push(t('grid.sentYouAFlame'));
+    if (person.views === 1) parts.push(t('grid.viewedYourProfile'));
+    else if (person.views > 1) parts.push(t('grid.viewedYourProfileTimes', { count: person.views }));
+    return parts.join(' · ');
+}
+
 function renderInteractionList(container) {
     container.innerHTML = '';
-    const items = applyGridFilter(state.interactions.items.filter(item => !isPeerBlocked(item.peerId)), item => item.peerId, () => null);
-    setProfileBrowseList([...new Set(items.map(item => item.peerId))]);
-    if (!items.length) {
+    const people = applyGridFilter(interactionsByPerson(state.interactions.items.filter(item => !isPeerBlocked(item.peerId))),
+        person => person.peerId, () => null);
+    setProfileBrowseList(people.map(person => person.peerId));
+    if (!people.length) {
         container.appendChild(createEmptyState({ icon: 'fa-eye', text: state.interactions.items.length ? t('grid.noFilterResults') : t('grid.noInteractionsYet') }));
         return;
     }
-    items.forEach(item => {
-        const text = item.kind === 'view' ? t('grid.viewedYourProfile') : t('grid.sentYouAFlame');
+    people.forEach(person => {
         // Flamme zurueck: nur ohne Match und ohne laufende Sperre.
-        const canFlame = !isMatched(item.peerId) && !hasSentFlame(item.peerId) && flameCooldownLeft(item.peerId) === 0;
-        const action = isMatched(item.peerId)
-            ? gridListButton('fa-solid fa-comment', t('grid.write'), () => openMatchChat(item.peerId), true)
-            : canFlame ? gridListButton('fa-solid fa-fire', t('grid.flameBack'), () => sendFlame(item.peerId).then(renderGridTabs)) : null;
-        container.appendChild(createGridListRow(item.peerId, text, item.at, action));
+        const canFlame = !isMatched(person.peerId) && !hasSentFlame(person.peerId) && flameCooldownLeft(person.peerId) === 0;
+        const action = isMatched(person.peerId)
+            ? gridListButton('fa-solid fa-comment', t('grid.write'), () => openMatchChat(person.peerId), true)
+            : canFlame ? gridListButton('fa-solid fa-fire', t('grid.flameBack'), () => sendFlame(person.peerId).then(renderGridTabs)) : null;
+        container.appendChild(createGridListRow(person.peerId, interactionSummary(person), person.at, action));
     });
 }
 

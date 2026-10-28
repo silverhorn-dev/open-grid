@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 195 · 2026-10-28
+## Build 197 · 2026-10-28
+- Interaktionen: eine Zeile pro Person, neueste Aktivitaet oben ("hat dir eine Flamme geschickt · 3× dein Profil angesehen")
+- Behoben: "Nur zeigen fuer" hatte keine waehlbaren Felder, wenn die App im Chat-Modus gestartet war
+
+## Build 195 · 2026-10-28 · `06dabdd`
 - Neu laden einstellbar (Einstellungen > Allgemein > Erweitert): ganze Seite (Standard) oder nur die Daten. Gilt fuer Runterziehen im Grid und in der Chatliste (neu) und Hochziehen im Chat; bei "Nur Daten" laedt "Seite neu laden" im Menue die ganze Seite
 - Behoben: beim Aktualisieren des Grids stapelten sich Hinweise
 

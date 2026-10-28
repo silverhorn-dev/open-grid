@@ -426,7 +426,10 @@
   - offen (nutzer fragen): chats bei den kontakten mitloeschen (wipe an alle) oder nur hinweis "konto geloescht"?
 
 ## T23 Interaktionen: eine Zeile pro Person? (nutzer 2026-10-28, besprechen)
-- [ ] heute: jedes ereignis eine zeile (gleiche person + art innerhalb 10 min zusammengefasst); jemand kann mehrfach als "hat dir eine flamme geschickt" erscheinen
+- [x] heute: jedes ereignis eine zeile (gleiche person + art innerhalb 10 min zusammengefasst); jemand kann mehrfach als "hat dir eine flamme geschickt" erscheinen
+  - entschieden + done 2026-10-28: eine zeile pro person, neueste aktivitaet oben, zusammengefasst; badge zaehlt personen; e2e `grid-tabs`
   - nutzer: "ungewoehnlich aber nicht schlecht"
   - vorschlag: eine zeile pro person, neueste aktivitaet oben, kurz zusammengefasst ("flamme · 3x angesehen · zuletzt 18:05")
+- [x] bug: "nur zeigen fuer" ohne waehlbare felder, wenn die app im chat-modus startet (aktives schema = chat-schema) (nutzer 2026-10-28)
+  - done: regel nutzt immer das schema von "entdecken" (event: event-schema), neu zeichnen beim oeffnen von privatsphaere; e2e `audience` (start im chat-modus, mit altem code rot)
 

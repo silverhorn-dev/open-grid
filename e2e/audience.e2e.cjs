@@ -54,8 +54,15 @@ async function main() {
         await waitFor(alice, async name => { await fetchPeersFromWorkerGrid(); return state.peers.some(peer => peer.name === name); }, bobName);
         assert.ok((await gridNames(alice)).includes(bobName));
 
-        // Regel in den Einstellungen: nur Position "Top".
+        // Regel in den Einstellungen: nur Position "Top". Auch im Chat-Modus (Bereich "Entdecken & Freunde")
+        // stehen die Felder aus "Entdecken" zur Wahl (vorher: keine, weil das Chat-Schema keine hat).
+        await bob.evaluate(async () => { await setAppMode('chat'); });
+        // App startet im Chat-Modus (neu laden): beim Laden ist das aktive Schema das Chat-Schema.
+        await bob.reload();
+        await waitFor(bob, () => Boolean(state.ws && state.ws.readyState === 1 && state.audienceRule));
         await bob.evaluate(() => { switchTab('keys'); switchSettingsTab('privacy'); });
+        assert.ok(await bob.locator('[data-audience-option^="role:"]').count() > 0, 'explore fields selectable when the app starts in chat mode');
+        await bob.evaluate(async () => { await setAppMode('discovery'); switchTab('keys'); switchSettingsTab('privacy'); });
         await bob.click('[data-audience-option="role:Top"]');
         await waitFor(bob, () => /Regel aktiv/.test(document.getElementById('audience-summary').textContent));
 

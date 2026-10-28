@@ -1038,8 +1038,10 @@ Eintrag.
 **Grid: drei Bereiche** (`client/app/grid-tabs.js`, nur in "Entdecken"):
 Grid · Interaktionen · Matches. Interaktionen = eingegangene Flammen und
 Profilbesuche (`keys`/`interactions = { items: [{ peerId, kind, at }], seenAt }`,
-max. 200, dieselbe Person/Art innerhalb 10 Minuten einmal), nur lokal; Badge
-am Tab fuer Neues seit `seenAt`, "Flamme zurueck" bzw. "Schreiben" je Zeile.
+max. 200), nur lokal; angezeigt als eine Zeile pro Person, neueste Aktivitaet
+oben, kurz zusammengefasst ("hat dir eine Flamme geschickt · 3x dein Profil
+angesehen"); Badge am Tab = Personen mit Neuem seit `seenAt`; "Flamme zurueck"
+bzw. "Schreiben" je Zeile.
 Matches: alle gematchten Peers, noch nicht angeschriebene (ohne Chat-Vorschau)
 oben, "Schreiben" oeffnet den Chat. Im Social-Bereich gibt es die Tabs nicht.
 Kopf: die Tabs stehen oben, mit grauen Zahlen (sichtbare Karten am Grid-Tab,
@@ -1078,7 +1080,9 @@ und das neue Profil kommt von der anderen Seite; ohne Nachbarn federt sie
 zurueck (ohne Animation bei "reduced motion").
 
 **"Nur zeigen fuer ..."** (`client/app/audience.js`, Einstellungen >
-Privatsphaere > Sichtbarkeit im Grid, nur "Entdecken"): Regel ueber das Alter
+Privatsphaere > Sichtbarkeit im Grid, nur "Entdecken"; immer mit dem Schema von
+"Entdecken" bzw. im Event-Modus dem Event-Schema, nicht dem gerade aktiven
+Modus, `audienceSchema`): Regel ueber das Alter
 und alle Auswahlfelder (Einfach- und Mehrfachauswahl) des Profil-Schemas; der
 Router laesst alle diese Felder zu (keine Einschraenkung). Freitext-Tags (Typ
 `tag`) gehen nicht, sie haben keine feste Werteliste (`keys`/`audience-rule = { ranges, options }`). Sie geht als

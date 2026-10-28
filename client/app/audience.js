@@ -15,7 +15,14 @@ const AUDIENCE_VERSION = 1;
 const AUDIENCE_RECORD_ID = 'audience-rule';
 const AUDIENCE_MAX_CODE_LENGTH = 64;
 
-function audienceSchemaFingerprint(schema = PROFILE_SCHEMA) {
+// Die Regel gehoert zu "Entdecken" (im Event-Modus zum Event-Schema), nicht zum gerade aktiven Modus:
+// im Chat-/Freunde-Modus hat das aktive Schema meist weder Alter noch Auswahlfelder.
+function audienceSchema() {
+    const schemas = typeof PROFILE_SCHEMAS === 'object' && PROFILE_SCHEMAS ? PROFILE_SCHEMAS : {};
+    return (state?.appMode === 'event' && schemas.event) || schemas.discovery || PROFILE_SCHEMA;
+}
+
+function audienceSchemaFingerprint(schema = audienceSchema()) {
     const text = (schema || []).map((field, index) => (
         field.type === 'number' || ['select', 'multiselect'].includes(field.type)
             ? `${index}:${field.key}:${field.type}:${(field.options || []).join(',')}` : ''
@@ -42,7 +49,7 @@ function audienceCodeToBytes(code) {
 }
 
 // Regel { ranges: { key: { min, max } }, options: { key: [werte] } } -> Code oder null (keine Regel).
-function encodeAudience(rule, schema = PROFILE_SCHEMA) {
+function encodeAudience(rule, schema = audienceSchema()) {
     const bytes = [AUDIENCE_VERSION, audienceSchemaFingerprint(schema)];
     (schema || []).forEach((field, index) => {
         if (index > 127) return;
@@ -69,7 +76,7 @@ function encodeAudience(rule, schema = PROFILE_SCHEMA) {
 }
 
 // Code -> [{ index, kind: 'mask', mask } | { index, kind: 'range', min, max }] oder null (ignorieren).
-function decodeAudience(code, schema = PROFILE_SCHEMA) {
+function decodeAudience(code, schema = audienceSchema()) {
     if (typeof code !== 'string' || !code || code.length > AUDIENCE_MAX_CODE_LENGTH || !/^[A-Za-z0-9_-]+$/.test(code)) return null;
     let bytes;
     try {
@@ -101,7 +108,7 @@ function decodeAudience(code, schema = PROFILE_SCHEMA) {
 }
 
 // Darf ich (eigene Felder) diese Karte sehen? Ohne gueltige Regel: ja. Fehlt mir ein Wert: nein.
-function audienceAllows(code, fields = state.myProfile?.fields || {}, schema = PROFILE_SCHEMA) {
+function audienceAllows(code, fields = state.myProfile?.fields || {}, schema = audienceSchema()) {
     const entries = decodeAudience(code, schema);
     if (!entries) return true;
     return entries.every(entry => {
@@ -127,7 +134,7 @@ function audienceAllows(code, fields = state.myProfile?.fields || {}, schema = P
 const AUDIENCE_SAME_TOLERANCE = 3;
 const AUDIENCE_RELATIVE_MODES = ['same', 'older', 'younger'];
 
-function resolveAudienceRule(rule, fields = state.myProfile?.fields || {}, schema = PROFILE_SCHEMA) {
+function resolveAudienceRule(rule, fields = state.myProfile?.fields || {}, schema = audienceSchema()) {
     const resolved = { ranges: {}, options: {} };
     (schema || []).forEach(field => {
         const range = rule?.ranges?.[field.key];
@@ -184,7 +191,7 @@ async function updateAudienceRule(change) {
 }
 
 // Felder fuer die Regel: das Alter und alle Auswahlfelder (Einfach- und Mehrfachauswahl).
-function audienceFields(schema = PROFILE_SCHEMA) {
+function audienceFields(schema = audienceSchema()) {
     return (schema || []).filter(field => (field.type === 'number' && field.key === 'age')
         || (['select', 'multiselect'].includes(field.type) && Array.isArray(field.options) && field.options.length));
 }
@@ -308,7 +315,7 @@ function renderAudienceMinimum() {
     if (!note) return;
     const minimum = state.appConfig?.audienceMinimum;
     const parts = [];
-    (PROFILE_SCHEMA || []).forEach(field => {
+    (audienceSchema() || []).forEach(field => {
         const range = minimum?.ranges?.[field.key];
         if (field.type === 'number' && range) {
             const text = Number.isFinite(range.min) && Number.isFinite(range.max) ? `${range.min}-${range.max}`

@@ -46,12 +46,12 @@ async function main() {
         await alice.evaluate(id => { openProfileModal(id); closeProfileModal(); }, bobId);
         await alice.evaluate(id => sendFlame(id), bobId);
         await waitFor(bob, () => state.interactions.items.some(item => item.kind === 'flame') && state.interactions.items.some(item => item.kind === 'view'));
-        await waitFor(bob, () => document.getElementById('grid-interactions-badge').textContent === '2');
+        await waitFor(bob, () => document.getElementById('grid-interactions-badge').textContent === '1');
 
         await bob.click('[data-grid-view="interactions"]');
-        await waitFor(bob, () => document.querySelectorAll('#grid-interactions .grid-list-row').length === 2);
-        assert.match(await bob.textContent('#grid-interactions'), /hat dir eine Flamme geschickt/);
-        assert.match(await bob.textContent('#grid-interactions'), /hat dein Profil angesehen/);
+        // Eine Zeile pro Person (Flamme und Besuch von Alice zusammen).
+        await waitFor(bob, () => document.querySelectorAll('#grid-interactions .grid-list-row').length === 1);
+        assert.match(await bob.textContent('#grid-interactions'), /hat dir eine Flamme geschickt · hat dein Profil angesehen/);
         assert.equal(await bob.isVisible('#grid-interactions-badge'), false, 'seen');
         assert.equal(await bob.isVisible('#grid-container'), false);
 

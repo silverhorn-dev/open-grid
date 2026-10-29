@@ -31,6 +31,19 @@ document.addEventListener('DOMContentLoaded', () => fetchIceConfig());
 
 // Club-/LAN-Modus (Server LAN_MODE oder Einstellung "Nur lokales Netz"): keine STUN/TURN-Server,
 // nur lokale host/mDNS-Kandidaten. Verbindungen klappen dann nur im selben Netz.
+
+// Hinweis "nicht erreichbar" (Debug-Modus) nur fuer den offenen Chat und hoechstens alle 5 Minuten je
+// Peer; Hintergrund-Versuche (Grid-Prefetch, Wiederverbinden) landen nur im Debug-Log.
+const PEER_UNAVAILABLE_TOAST_INTERVAL_MS = 5 * 60 * 1000;
+const peerUnavailableToastAt = new Map();
+
+function shouldToastPeerUnavailable(peerId, now = Date.now()) {
+    if (!CONFIG.DEBUG_MODE || !peerId || state.activeChatPeerId !== peerId) return false;
+    if (peerUnavailableToastAt.has(peerId) && now - peerUnavailableToastAt.get(peerId) < PEER_UNAVAILABLE_TOAST_INTERVAL_MS) return false;
+    peerUnavailableToastAt.set(peerId, now);
+    return true;
+}
+
 function getRtcConfig() {
     const lanOnly = state.serverLanMode || state.gridSettings.lanOnly;
     return { ...rtcConfig, iceServers: lanOnly ? [] : rtcConfig.iceServers };
@@ -317,7 +330,8 @@ async function handleSignalingMessage(message) {
             logDebug(`Path C fallback failed: ${error.message}`);
         });
         updateChatConnectionStatus(message.targetPeerId, t('connection.unavailable'), 'bg-amber-500/10 text-amber-400 border-amber-500/30');
-        showDebugToast('Peer is currently unavailable for a direct P2P connection.', 'warning');
+        if (shouldToastPeerUnavailable(message.targetPeerId)) showToast('Peer is currently unavailable for a direct P2P connection.', 'warning');
+        else logDebug(`Peer ${String(message.targetPeerId).slice(0, 8)} is currently unavailable for a direct P2P connection.`);
         return;
     }
     if (message.type === 'SIGNALING_ERROR') {

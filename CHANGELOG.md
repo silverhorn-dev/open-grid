@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 215 · 2026-10-29
+## Build 216 · 2026-10-29
+- Behoben (Debug-Modus): der Hinweis "Peer is currently unavailable" kam bei jedem Verbindungsversuch im Hintergrund; jetzt nur noch fuer den offenen Chat und hoechstens alle 5 Minuten
+
+## Build 215 · 2026-10-29 · `f200a99`
 - Fuer Betreiber: E-Mail-Codes koennen ueber den eigenen Mailserver verschickt werden (`EMAIL_TRANSPORT=smtp`, `SMTP_URL`, `SMTP_FROM`)
 
 ## Build 214 · 2026-10-29 · `cfbe6a4`

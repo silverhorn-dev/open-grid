@@ -477,3 +477,6 @@
 - [x] grid laedt die naechsten ringe nicht automatisch + "mehr laden"-knopf fehlt (nutzer 2026-10-29)
   - ursache: router meldete `hasMore` nur, wenn ring + 1 neue peers hatte; war der leer, endete das nachladen und der knopf blieb versteckt, obwohl weiter weg jemand war
   - done 2026-10-29: router sucht alle folgenden ringe und liefert `nextRing`, app springt direkt dorthin (auto bis ring 3, knopf bis 5), unter dem grid "Mehr laden" bzw. "Alle in Reichweite geladen"; tests server-test, chat-ui
+- [x] hinweis "Peer is currently unavailable" spammt (nutzer 2026-10-29)
+  - ursache: debug-toast bei jedem `PEER_OFFLINE_FALLBACK`, auch fuer hintergrund-versuche (grid-prefetch, wiederverbinden)
+  - done 2026-10-29: toast nur fuer den offenen chat, hoechstens alle 5 min je peer, sonst nur debug-log; test `test/p2p-transport.test.js`

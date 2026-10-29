@@ -157,7 +157,9 @@ laufen durch dieselben Tests und bauen das echte Image zur Probe
 | `AGE_CHECK` | `off` | Altersnachweis: `off`, `confirm` (Nutzer bestaetigt "mindestens 18"), `provider` (Nachweis ueber einen Anbieter, siehe `AGE_PROVIDER`). Bis zum Nachweis ist ein Nutzer unsichtbar und bekommt kein Grid |
 | `AGE_PROVIDER` | - | Anbieter fuer `AGE_CHECK=provider`. Enthalten ist nur `dev` (bestaetigt auf Knopfdruck, nur zum Testen); unbekannt = es gilt `confirm` |
 | `EMAIL_CHECK` | `off` | `required`: Nutzer bestaetigen eine E-Mail-Adresse per 6-stelligem Code. Gespeichert wird sie verschluesselt (`SAFETY_KEY`) plus ein HMAC fuer Sperren |
-| `EMAIL_TRANSPORT` | `log` | Versand der E-Mail-Codes. Bisher nur `log` (Code im Server-Log, zum Testen); SMTP folgt |
+| `EMAIL_TRANSPORT` | `log` | Versand der E-Mail-Codes: `log` (Code im Server-Log, nur zum Testen) oder `smtp` (Mailserver des Betreibers, siehe `SMTP_URL`) |
+| `SMTP_URL` | - | Fuer `EMAIL_TRANSPORT=smtp`: `smtp://user:pass@mail.example.org:587` (STARTTLS) oder `smtps://user:pass@mail.example.org:465` (TLS). Der Mailserver erfaehrt nur Adresse und Code. Fuer gute Zustellung SPF/DKIM der Absender-Domain einrichten |
+| `SMTP_FROM` | - | Absender, z. B. `OpenGrid <no-reply@example.org>` |
 | `SAFETY_KEY` | in SQLite erzeugt | 32 Byte (base64 oder hex) fuer E-Mail-Verschluesselung und HMACs. Im Betrieb setzen, damit Schluessel und Daten getrennt liegen |
 | `ABUSE_LOG_DAYS` | `0` | IP-Protokoll fuer Anfragen der Strafverfolgung: Peer-ID, IP und Zeit, so viele Tage (0 = aus, hoechstens 14) |
 | `MEDIA_KEY_EPOCH_MINUTES` | `5` | Laenge einer Schluessel-Epoche fuer Alben und View-once-Snaps (1 bis 10080). 5 ist ein Testwert, im echten Betrieb `180` (3 Stunden). Album-Besitzer koennen pro Album eine eigene Laenge waehlen |
@@ -208,8 +210,10 @@ registriert sich ein neuer Nutzer, bleibt aber unsichtbar und bekommt kein
 Grid, bis er ihn erbracht hat. Chats ueber Einladungslinks funktionieren
 weiter. Der Router speichert nur den Status, die E-Mail verschluesselt und bei
 Anbieter-Nachweisen einen HMAC des Pseudonyms, nie Ausweis- oder
-Gesichtsdaten. Echte Anbieter (EU-Altersnachweis, KJM-anerkannte Dienste) und
-SMTP-Versand folgen, siehe `tasks/board.md` (T2).
+Gesichtsdaten. E-Mail-Codes gehen ueber den eigenen Mailserver
+(`EMAIL_TRANSPORT=smtp`, nodemailer ist eine optionale Abhaengigkeit). Echte
+Alters-Anbieter (EU-Altersnachweis, KJM-anerkannte Dienste) folgen, siehe
+`tasks/board.md` (T2).
 
 Sperren und Auskunft (nur auf richterlichen Beschluss) im Container:
 

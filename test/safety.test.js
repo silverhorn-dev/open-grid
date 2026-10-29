@@ -8,6 +8,7 @@ import { EMAIL_TRANSPORTS, createSafetyCrypto, normalizeEmail, parseSafetyConfig
 const apps = [];
 const codes = [];
 EMAIL_TRANSPORTS.test = { send: ({ email, code }) => codes.push({ email, code }) };
+EMAIL_TRANSPORTS.failing = { send: async () => { throw new Error('SMTP down'); } };
 
 async function startApp(safety, { now } = {}) {
     const store = createStore(':memory:');
@@ -45,7 +46,7 @@ const grid = (app, peerId, headers) => app.inject({ method: 'GET', url: `/api/gr
 
 test('safety config defaults to everything off and clamps values', () => {
     assert.deepEqual(parseSafetyConfig({}), {
-        ageCheck: 'off', ageProvider: null, emailCheck: 'off', emailTransport: 'log', abuseLogDays: 0, safetyKey: null
+        ageCheck: 'off', ageProvider: null, emailCheck: 'off', emailTransport: 'log', abuseLogDays: 0, safetyKey: null, smtp: null
     });
     const parsed = parseSafetyConfig({ ageCheck: 'PROVIDER', ageProvider: 'Dev', emailCheck: 'required', abuseLogDays: '99' });
     assert.equal(parsed.ageCheck, 'provider');
@@ -128,6 +129,14 @@ test('email check: code by mail, wrong codes count, address stored encrypted', a
     const second = await register(app, 'bob');
     const banned = await app.inject({ method: 'POST', url: '/api/safety/email/start', headers: second.headers, payload: { peerId: 'bob', email: 'alex@example.org' } });
     assert.equal(banned.statusCode, 403);
+});
+
+test('email check: a failed send answers 502 and keeps no code', async () => {
+    const { app, store } = await startApp({ emailCheck: 'required', emailTransport: 'failing' });
+    const { headers } = await register(app, 'alice');
+    const started = await app.inject({ method: 'POST', url: '/api/safety/email/start', headers, payload: { peerId: 'alice', email: 'alex@example.org' } });
+    assert.equal(started.statusCode, 502);
+    assert.equal(store.safety.getEmailCode('alice'), null);
 });
 
 test('email codes expire and lock after too many attempts', async () => {

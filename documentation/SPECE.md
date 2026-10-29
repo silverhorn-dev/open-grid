@@ -1558,7 +1558,12 @@ Ein Klick auf die Benachrichtigung fokussiert die App und oeffnet den Chat
   standardmaessig aus:
   - `AGE_CHECK` (`off`/`confirm`/`provider`), `AGE_PROVIDER` (nur `dev`,
     unbekannt = `confirm`), `EMAIL_CHECK` (`off`/`required`),
-    `EMAIL_TRANSPORT` (nur `log`), `SAFETY_KEY`, `ABUSE_LOG_DAYS` (0-14).
+    `EMAIL_TRANSPORT` (`log` oder `smtp`), `SMTP_URL`, `SMTP_FROM`,
+    `SAFETY_KEY`, `ABUSE_LOG_DAYS` (0-14).
+  - SMTP (`server/email-smtp.js`): nodemailer als optionale Abhaengigkeit, erst
+    beim ersten Versand geladen; zweisprachige Mail (Betreff `OpenGrid: <code>`),
+    Zeitlimit 15 s. Schlaegt der Versand fehl, wird der Code verworfen und
+    `/api/safety/email/start` antwortet 502.
   - `GET /api/config` liefert `safety: { ageCheck, ageProvider, emailCheck }`.
   - `POST /api/register`: gesperrte Peers (`safety_bans`, kind `peer`) -> 403.
     Fehlt ein Nachweis, wird der Peer `silent` registriert und die Antwort

@@ -63,7 +63,7 @@
   - [x] betreiber-werkzeug `scripts/safety-admin.mjs` (sperren, ip-protokoll, e-mail entschluesseln)
   - [x] tests `test/safety.test.js`, e2e `safety-gate` (nur mit `E2E_SAFETY=1` gegen `AGE_CHECK=confirm`)
   - [ ] echter anbieter (EU-Altersnachweis per OpenID4VP oder KJM-anbieter) -> entscheidung
-  - [ ] SMTP-versand der codes (mailserver des betreibers) -> entscheidung
+  - [x] SMTP-versand der codes (2026-10-29, nutzer: nodemailer, optional): `EMAIL_TRANSPORT=smtp`, `SMTP_URL`, `SMTP_FROM` (`server/email-smtp.js`), nodemailer in `optionalDependencies`, erst beim ersten versand geladen; fehlversand -> 502, code verworfen; tests `test/email-smtp.test.js`, `test/safety.test.js`; einmal echt gegen mailpit verschickt
   - [ ] meldeweg mit wasserzeichen-nachweis -> sperre (nur werkzeug da, kein UI)
 
 ## T3 Nacktbild-Erkennung beim Empfaenger (idee 2026-10-26, besprechen)

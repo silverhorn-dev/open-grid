@@ -28,5 +28,8 @@
   "devDependencies": {
     "@tailwindcss/cli": "^4.1.0",
     "tailwindcss": "^4.1.0"
+  },
+  "optionalDependencies": {
+    "nodemailer": "^7.0.0"
   }
 }

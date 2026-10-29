@@ -647,7 +647,9 @@ export async function buildApp(options = {}) {
             emailCheck: process.env.EMAIL_CHECK,
             emailTransport: process.env.EMAIL_TRANSPORT,
             abuseLogDays: process.env.ABUSE_LOG_DAYS,
-            safetyKey: process.env.SAFETY_KEY
+            safetyKey: process.env.SAFETY_KEY,
+            smtpUrl: process.env.SMTP_URL,
+            smtpFrom: process.env.SMTP_FROM
         }),
         store,
         log: app.log,

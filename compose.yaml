@@ -26,6 +26,8 @@ services:
       AGE_PROVIDER: ${AGE_PROVIDER:-}
       EMAIL_CHECK: ${EMAIL_CHECK:-off}
       EMAIL_TRANSPORT: ${EMAIL_TRANSPORT:-log}
+      SMTP_URL: ${SMTP_URL:-}
+      SMTP_FROM: ${SMTP_FROM:-}
       SAFETY_KEY: ${SAFETY_KEY:-}
       ABUSE_LOG_DAYS: ${ABUSE_LOG_DAYS:-0}
       PORT: 3000

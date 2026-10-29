@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 214 · 2026-10-29
+## Build 215 · 2026-10-29
+- Fuer Betreiber: E-Mail-Codes koennen ueber den eigenen Mailserver verschickt werden (`EMAIL_TRANSPORT=smtp`, `SMTP_URL`, `SMTP_FROM`)
+
+## Build 214 · 2026-10-29 · `cfbe6a4`
 - Behoben: das Grid lud weiter entfernte Profile nicht nach, wenn der naechste Umkreis leer war; leere Umkreise werden jetzt uebersprungen
 - Unter dem Grid: "Mehr laden" fuer den naechsten Umkreis mit neuen Leuten, sonst "Alle in Reichweite geladen"
 

@@ -7,6 +7,7 @@
 // nie Ausweis-, Gesichts- oder Geburtsdaten. Echte Anbieter (EU-Altersnachweis, KJM-anerkannte
 // Dienste) kommen spaeter; enthalten ist nur der Test-Anbieter `dev`.
 import { createCipheriv, createDecipheriv, createHmac, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
+import { createSmtpTransport, parseSmtpConfig } from './email-smtp.js';
 
 export const AGE_CHECK_MODES = ['off', 'confirm', 'provider'];
 export const EMAIL_CHECK_MODES = ['off', 'required'];
@@ -44,7 +45,9 @@ export function parseSafetyConfig(source = {}) {
         emailCheck: pick(source.emailCheck, EMAIL_CHECK_MODES, 'off'),
         emailTransport: String(source.emailTransport ?? '').trim().toLowerCase() || 'log',
         abuseLogDays: Number.isFinite(days) ? Math.min(MAX_ABUSE_LOG_DAYS, Math.max(0, days)) : 0,
-        safetyKey: source.safetyKey ? String(source.safetyKey).trim() : null
+        safetyKey: source.safetyKey ? String(source.safetyKey).trim() : null,
+        // Nur fuer EMAIL_TRANSPORT=smtp (email-smtp.js).
+        smtp: parseSmtpConfig({ url: source.smtpUrl, from: source.smtpFrom })
     };
 }
 
@@ -108,8 +111,13 @@ export function createSafety({ config, store, log, now = Date.now }) {
             log.warn('AGE_PROVIDER=dev bestaetigt jedes Alter auf Knopfdruck. Nur zum Testen verwenden.');
         }
     }
-    const transport = EMAIL_TRANSPORTS[config.emailTransport] || null;
-    if (config.emailCheck === 'required' && !transport) {
+    let transport = EMAIL_TRANSPORTS[config.emailTransport] || null;
+    if (config.emailTransport === 'smtp') {
+        transport = config.smtp ? createSmtpTransport(config.smtp) : null;
+        if (!transport && config.emailCheck === 'required') {
+            log.error('EMAIL_TRANSPORT=smtp braucht SMTP_URL (smtp:// oder smtps://) und SMTP_FROM; E-Mail-Codes koennen nicht verschickt werden.');
+        }
+    } else if (config.emailCheck === 'required' && !transport) {
         log.error(`EMAIL_TRANSPORT "${config.emailTransport}" ist unbekannt; E-Mail-Codes koennen nicht verschickt werden.`);
     }
     const needsKey = config.emailCheck === 'required' || ageCheck === 'provider';
@@ -200,7 +208,14 @@ export function createSafety({ config, store, log, now = Date.now }) {
                 codeHash: safetyCrypto.hash('code', `${peerId}:${code}`),
                 expiresAt: now() + EMAIL_CODE_TTL_MS
             });
-            await transport.send({ email, code }, log);
+            try {
+                await transport.send({ email, code }, log);
+            } catch (error) {
+                // Ohne Versand ist der Code nutzlos; der Nutzer kann es gleich erneut versuchen.
+                safetyStore.deleteEmailCode(peerId);
+                log.error(`E-Mail-Code konnte nicht verschickt werden: ${error.message}`);
+                return { error: 'Email could not be sent', code: 502 };
+            }
             return { ok: true, expiresAt: now() + EMAIL_CODE_TTL_MS };
         },
 

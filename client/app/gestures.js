@@ -25,10 +25,22 @@ function chatSwipePanel() {
     return document.getElementById('chat-window-panel') || document.getElementById('view-chat');
 }
 
+// Bewegung einmal je Bild zeichnen (requestAnimationFrame) statt bei jedem Touch-Ereignis: ruckelt weniger.
+let chatSwipeFrame = 0;
+let chatSwipePending = 0;
+function scheduleChatSwipe(deltaX) {
+    chatSwipePending = deltaX;
+    if (!chatSwipeFrame) chatSwipeFrame = requestAnimationFrame(() => {
+        chatSwipeFrame = 0;
+        renderChatSwipe(chatSwipePending);
+    });
+}
+
 function renderChatSwipe(deltaX) {
     const panel = chatSwipePanel();
     if (!panel) return;
     if (prefersReducedMotion()) return;
+    panel.style.willChange = 'transform';
     const progress = Math.min(1, deltaX / (TAB_SWIPE_TRIGGER * 2));
     panel.style.transition = 'none';
     panel.style.transformOrigin = 'center center';
@@ -37,11 +49,38 @@ function renderChatSwipe(deltaX) {
 }
 
 function resetChatSwipe() {
+    if (chatSwipeFrame) cancelAnimationFrame(chatSwipeFrame);
+    chatSwipeFrame = 0;
     const panel = chatSwipePanel();
     if (!panel) return;
     panel.style.transition = prefersReducedMotion() ? 'none' : 'transform 180ms ease-out, border-radius 180ms ease-out';
     panel.style.transform = '';
     panel.style.borderRadius = '';
+    panel.style.willChange = '';
+}
+
+// Geschlossen wird erst, wenn das Fenster ganz hinausgeglitten ist (vorher sprang es zurueck und
+// verschwand gleichzeitig: sichtbares Ruckeln).
+const CHAT_OUT_MS = 160;
+function animateChatOut(done) {
+    if (chatSwipeFrame) cancelAnimationFrame(chatSwipeFrame);
+    chatSwipeFrame = 0;
+    const panel = chatSwipePanel();
+    if (!panel || prefersReducedMotion()) {
+        done();
+        return;
+    }
+    panel.style.transition = `transform ${CHAT_OUT_MS}ms ease-in, border-radius ${CHAT_OUT_MS}ms ease-in`;
+    panel.style.transform = `translate3d(${window.innerWidth || 400}px, 0, 0) scale(${CHAT_SWIPE_MIN_SCALE})`;
+    panel.style.borderRadius = `${CHAT_SWIPE_MAX_RADIUS}px`;
+    setTimeout(() => {
+        done();
+        // Danach ohne Animation zuruecksetzen (das Fenster ist dann schon zu).
+        panel.style.transition = 'none';
+        panel.style.transform = '';
+        panel.style.borderRadius = '';
+        panel.style.willChange = '';
+    }, CHAT_OUT_MS);
 }
 const LONG_PRESS_MS = 450;
 const DOUBLE_TAP_MS = 300;
@@ -206,7 +245,7 @@ function moveChatCloseGesture(event) {
     }
     if (gesture.axis !== 'right') return true;
     gesture.deltaX = Math.max(0, deltaX);
-    renderChatSwipe(gesture.deltaX);
+    scheduleChatSwipe(gesture.deltaX);
     return true;
 }
 
@@ -216,11 +255,12 @@ function finishChatCloseGesture(event, cancelled) {
     chatCloseGesture.active = null;
     if (gesture.axis !== 'right') return true;
     messageGesture.suppressClickUntil = Date.now() + 400;
-    resetChatSwipe();
     const fast = gesture.deltaX / Math.max(1, performance.now() - gesture.startedAt) > 0.5;
     if (!cancelled && (gesture.deltaX >= TAB_SWIPE_TRIGGER || fast)) {
         hapticTick();
-        leaveActiveChat();
+        animateChatOut(leaveActiveChat);
+    } else {
+        resetChatSwipe();
     }
     return true;
 }
@@ -257,7 +297,7 @@ function finishMessageGesture(event, cancelled) {
 }
 
 // ----- Seitlich zwischen den Tabs wischen -----
-const tabSwipe = { active: null };
+const tabSwipe = { active: null, frame: 0 };
 
 function currentTab() {
     return TAB_ORDER.find(tab => !document.getElementById(`view-${tab}`)?.classList.contains('hidden')) || null;
@@ -324,22 +364,80 @@ function handleTabTouchMove(event) {
     }
     if (gesture.axis !== 'x') return;
     gesture.deltaX = deltaX;
-    if (view && !prefersReducedMotion()) {
-        view.style.transition = 'none';
-        view.style.transform = `translate3d(${deltaX * 0.25}px, 0, 0)`;
-        view.style.opacity = String(1 - Math.min(0.4, Math.abs(deltaX) / 600));
+    // Einmal je Bild, nur verschieben (Ausblenden einer ganzen Seite ist auf Handys teuer und ruckelte).
+    const target = tabSwipeTarget(currentTab());
+    if (target && !prefersReducedMotion() && !tabSwipe.frame) {
+        tabSwipe.frame = requestAnimationFrame(() => {
+            tabSwipe.frame = 0;
+            if (tabSwipe.active !== gesture) return;
+            target.style.transition = 'none';
+            target.style.willChange = 'transform';
+            target.style.transform = `translate3d(${gesture.deltaX * 0.25}px, 0, 0)`;
+        });
     }
+}
+
+// Was beim Tab-Wischen bewegt wird. Die Chatliste ist am Handy fest positioniert (position: fixed); ein
+// transform auf einem Vorfahren macht diesen zum Bezugsrahmen, die Liste nahm dann dessen (kleine) Hoehe
+// an und schrumpfte sichtbar. Darum den festen Bereich selbst bewegen.
+function tabSwipeTarget(tab) {
+    if (tab === 'chat') {
+        const panel = document.getElementById('chat-list-panel');
+        if (panel && getComputedStyle(panel).position === 'fixed') return panel;
+    }
+    return document.getElementById(`view-${tab}`);
+}
+
+// Tab-Wechsel per Wischen: alte Ansicht gleitet hinaus, neue von der anderen Seite herein (statt hart
+// umzuschalten).
+const TAB_OUT_MS = 110;
+const TAB_IN_MS = 160;
+function animateTabChange(view, forward, apply) {
+    if (!view || prefersReducedMotion()) {
+        apply();
+        return;
+    }
+    const offset = forward ? -48 : 48;
+    view.style.transition = `transform ${TAB_OUT_MS}ms ease-in, opacity ${TAB_OUT_MS}ms ease-in`;
+    view.style.transform = `translate3d(${offset}px, 0, 0)`;
+    view.style.opacity = '0';
+    setTimeout(() => {
+        view.style.transition = 'none';
+        view.style.transform = '';
+        view.style.opacity = '';
+        view.style.willChange = '';
+        apply();
+        const next = tabSwipeTarget(currentTab());
+        if (!next || next === view) return;
+        next.style.transition = 'none';
+        next.style.transform = `translate3d(${-offset}px, 0, 0)`;
+        next.style.opacity = '0';
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            next.style.transition = `transform ${TAB_IN_MS}ms ease-out, opacity ${TAB_IN_MS}ms ease-out`;
+            next.style.transform = '';
+            next.style.opacity = '';
+        }));
+    }, TAB_OUT_MS);
 }
 
 function handleTabTouchEnd() {
     const gesture = tabSwipe.active;
     tabSwipe.active = null;
+    if (tabSwipe.frame) cancelAnimationFrame(tabSwipe.frame);
+    tabSwipe.frame = 0;
     const tab = currentTab();
     const view = tab ? document.getElementById(`view-${tab}`) : null;
+    const target = tab ? tabSwipeTarget(tab) : null;
+    if (target && target !== view) {
+        target.style.transition = prefersReducedMotion() ? 'none' : 'transform 180ms ease-out';
+        target.style.transform = '';
+        target.style.willChange = '';
+    }
     if (view) {
         view.style.transition = prefersReducedMotion() ? 'none' : 'transform 180ms ease-out, opacity 180ms ease-out';
         view.style.transform = '';
         view.style.opacity = '';
+        view.style.willChange = '';
     }
     if (!gesture) return;
     if (PULL_REFRESH_TABS[tab] && gesture.axis === 'y') {
@@ -374,7 +472,7 @@ function handleTabTouchEnd() {
     const index = order.indexOf(tab) + (forward ? 1 : -1);
     if (index < 0 || index >= order.length) return;
     hapticTick();
-    switchTab(order[index]);
+    animateTabChange(target, forward, () => switchTab(order[index]));
 }
 
 // Ansichten mit eigenem Runterziehen ueber den Tab-Wischer und ihre Anzeige.
@@ -409,7 +507,7 @@ function stepSettingsTab(direction) {
 // ----- Seitlich wischen = schliessen (Seitenmenue, Chat ueber die Eingabeleiste) -----
 // `move` bewegt das Element mit dem Finger (nur nach rechts), ab TAB_SWIPE_TRIGGER oder schnell = `close`.
 // `render`/`reset` (optional) zeichnen die Bewegung selbst (Chat: mit leichter Verkleinerung).
-function attachSwipeRight(area, { moving = () => area, close, enabled = () => true, render = null, resetView = null }) {
+function attachSwipeRight(area, { moving = () => area, close, enabled = () => true, render = null, resetView = null, animateOut = null }) {
     if (!area) return;
     let gesture = null;
     const reset = () => {
@@ -449,11 +547,18 @@ function attachSwipeRight(area, { moving = () => area, close, enabled = () => tr
     const finish = cancelled => {
         const finished = gesture;
         gesture = null;
-        reset();
-        if (cancelled || finished?.axis !== 'right') return;
-        const fast = finished.deltaX / Math.max(1, performance.now() - finished.startedAt) > 0.5;
-        if (finished.deltaX < TAB_SWIPE_TRIGGER && !fast) return;
+        const fast = finished?.axis === 'right' && finished.deltaX / Math.max(1, performance.now() - finished.startedAt) > 0.5;
+        const closing = !cancelled && finished?.axis === 'right' && (finished.deltaX >= TAB_SWIPE_TRIGGER || fast);
+        if (!closing) {
+            reset();
+            return;
+        }
         hapticTick();
+        if (animateOut) {
+            animateOut(close);
+            return;
+        }
+        reset();
         close();
     };
     area.addEventListener('touchend', () => finish(false), { passive: true });
@@ -733,8 +838,9 @@ function initGestures() {
     attachChatListPullRefresh();
     attachSwipeRight(document.getElementById('chat-input-bar'), {
         enabled: () => state.chatSwipeClose && Boolean(state.activeChatPeerId),
-        render: renderChatSwipe,
+        render: scheduleChatSwipe,
         resetView: resetChatSwipe,
+        animateOut: animateChatOut,
         close: leaveActiveChat
     });
     // Album-Ansicht: deutlich weiter ziehen, sonst ist eine 1x-Ansicht schnell aus Versehen vorbei.

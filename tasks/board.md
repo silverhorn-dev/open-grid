@@ -520,6 +520,9 @@
 - [x] bug (nutzer 2026-10-29): "man kann auf geloeschte nachrichten reagieren" -> wischen (antworten), langes druecken und doppelt tippen starteten auch auf geloeschten nachrichten; `startReply` prueft jetzt, keine gesten auf geloeschten, offene antwort wird beim loeschen abgebrochen
 - [x] chat per wischen nach rechts schliessen (nutzer 2026-10-29): unsichtbares band (~1 cm, 40 px) in der mitte des verlaufs schliesst immer; daneben wird die nachricht auf der hoehe gewischt; ohne nachricht, auf geloeschten und auf eigenen nachrichten (nach rechts) schliesst die hintergrund-geste; gleiche einstellung wie die eingabeleiste; tests `test/gestures.test.js`, e2e `chat-gestures`; UC-62
   - nachtrag (nutzer 2026-10-29): seite wurde beim wischen ~10 % kleiner (zurueck-wischen des browsers) -> `overscroll-behavior-x: none`; stattdessen folgt das chatfenster dem finger und wird leicht kleiner, hoechstens 97 % (nutzer: "shrink only a little")
+  - nachtrag 2 (nutzer 2026-10-29): "nur die chatuebersicht schrumpft extrem beim seitlichen wischen" + animationen abgehackt (tab-wischen, chat schliessen)
+    - ursache schrumpfen: tab-wischen setzte `transform` auf `#view-chat`; die chatliste ist am handy `position: fixed`, ein transformierter vorfahre wird ihr bezugsrahmen -> sie nahm dessen kleine hoehe an (e2e: 546 -> 365 px); jetzt wird der feste bereich selbst bewegt (`tabSwipeTarget`); e2e `mobile-layout` (schlaegt auf dem alten code fehl)
+    - ruckeln: bewegung je bild (`requestAnimationFrame`), `will-change`, beim ziehen kein ausblenden der ganzen seite; tab-wechsel gleitet aus/ein (`animateTabChange`); chat gleitet erst ganz hinaus, dann schliesst er (`animateChatOut`, vorher sprang er zurueck und verschwand gleichzeitig)
 
 ## T25 Admin-Panel (nutzer 2026-10-29: "do the admin panel"; aus dem backlog)
 - [x] entschieden (nutzer 2026-10-29): login per **admin-passkey**; umfang: status, live-config, sperren, meldungen, "most of all, auslastung"

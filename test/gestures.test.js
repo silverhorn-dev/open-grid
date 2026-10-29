@@ -40,8 +40,18 @@ function setup({ isMine = false, deleted = false, noRow = false, swipeClose = tr
         window: { matchMedia: () => ({ matches: false }) },
         navigator: {},
         document: { createElement: () => fakeElement() },
-        requestAnimationFrame: () => 1,
-        setTimeout: (callback, ms) => { timers.push({ callback, ms }); return timers.length; },
+        // Bilder sofort zeichnen (im Test gibt es keine Bildwiederholung).
+        requestAnimationFrame: callback => { callback(); return 0; },
+        cancelAnimationFrame: () => {},
+        // Die Schliess-Animation des Chats (160 ms) im Test sofort beenden.
+        setTimeout: (callback, ms) => {
+            if (ms === 160) {
+                callback();
+                return 0;
+            }
+            timers.push({ callback, ms });
+            return timers.length;
+        },
         clearTimeout: handle => { if (timers[handle - 1]) timers[handle - 1].cleared = true; },
         startReply: id => calls.reply.push(id),
         reactToMessage: (id, emoji) => calls.react.push([id, emoji]),

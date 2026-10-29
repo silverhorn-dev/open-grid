@@ -151,6 +151,27 @@ async function main() {
         const list = await page.locator('#active-peers-list').boundingBox();
         await drag({ x: 200, y: list.y + 10 }, { x: 200, y: list.y + 220 });
         await waitFor(page, () => window.__chatReloads === 1);
+        // Chatliste seitlich wischen: die (feste) Liste wird selbst verschoben und behaelt ihre Groesse.
+        // Vorher bekam #view-chat das transform, die feste Liste nahm dessen kleine Hoehe an ("Schrumpfen").
+        const panelBefore = await page.locator('#chat-list-panel').boundingBox();
+        const middleY = panelBefore.y + panelBefore.height / 2;
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 120, y: middleY }] });
+        for (let step = 1; step <= 6; step++) {
+            await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 120 + step * 10, y: middleY }] });
+            await page.waitForTimeout(20);
+        }
+        await page.waitForTimeout(60);
+        const during = await page.evaluate(() => {
+            const panel = document.getElementById('chat-list-panel');
+            const box = panel.getBoundingClientRect();
+            return { height: box.height, width: box.width, moved: panel.style.transform, viewTransform: document.getElementById('view-chat').style.transform };
+        });
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+        await page.waitForTimeout(300);
+        assert.ok(Math.abs(during.height - panelBefore.height) < 2, `chat list keeps its height while swiping (${panelBefore.height} -> ${during.height})`);
+        assert.ok(Math.abs(during.width - panelBefore.width) < 2, 'and its width');
+        assert.match(during.moved, /translate3d\(15px/, 'the list itself follows the finger');
+        assert.equal(during.viewTransform, '', 'not the surrounding view');
         // Profil: ebenso (vorher keine eigene Geste, die des Browsers konkurrierte).
         await page.evaluate(() => { switchTab('editprofile'); window.scrollTo(0, 0); window.__profileReloads = 0; loadMyLocalProfile = async () => { window.__profileReloads += 1; }; });
         await page.waitForTimeout(300);

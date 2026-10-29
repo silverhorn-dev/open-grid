@@ -235,7 +235,11 @@
   lehnt sie ab; beim Wegwischen folgt das Chatfenster dem Finger und wird mit der
   Strecke leicht kleiner (hoechstens auf 97 %, runde Ecken), `html` hat
   `overscroll-behavior-x: none` (kein Zurueck-Wischen des Browsers, das die Seite
-  um ~10 % verkleinerte); in Einstellungen, offenen
+  um ~10 % verkleinerte); Tab-Wischen bewegt feste Bereiche selbst (Chatliste am
+  Handy, `tabSwipeTarget`; ein transform auf dem Vorfahren liess sie schrumpfen),
+  zeichnet je Bild (`requestAnimationFrame`) und wechselt mit Aus-/Einblenden
+  (`animateTabChange`, 110/160 ms); der Chat gleitet vor dem Schliessen ganz hinaus
+  (`animateChatOut`, 160 ms); in Einstellungen, offenen
   Fenstern, Menue und offenem Chat verhindert `overscroll-behavior` das
   Neuladen der Seite durch den Browser (das brach sonst z. B. das Wischen im
   Profil ab); Profil- und

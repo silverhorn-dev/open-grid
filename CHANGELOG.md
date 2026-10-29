@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 242 · 2026-10-29
+## Build 243 · 2026-10-29
+- Behoben: die Chatuebersicht schrumpfte beim seitlichen Wischen stark zusammen
+- Fluessigere Animationen: Tab-Wechsel per Wischen gleiten aus und ein, ein weggewischter Chat gleitet ganz hinaus statt zurueckzuspringen
+
+## Build 242 · 2026-10-29 · `f257ea5`
 - Chat wegwischen: kein Verkleinern der ganzen Seite mehr; das Chatfenster folgt dem Finger und wird dabei nur leicht kleiner
 
 ## Build 241 · 2026-10-29 · `1fd945c`

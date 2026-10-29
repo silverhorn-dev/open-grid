@@ -1601,6 +1601,16 @@ Ein Klick auf die Benachrichtigung fokussiert die App und oeffnet den Chat
       `recognized`/`granted`. Import beim Start und alle 24 h; die letzte gueltige
       Liste liegt als `age-trusted-list.xml` im Datenordner, ein fehlgeschlagener
       Import laesst sie in Kraft.
+    - Testseite (`AGE_EUDI_TEST`, Standard an, unabhaengig von `AGE_CHECK`):
+      `POST /api/safety/age-test/start` und `/finish` (Peer + Bearer, Rate-Limit
+      `safety`) laufen wie `age/*`, aber mit eigenem Anbieter, der der EU-Testliste
+      (`acceptance.trust.tech.ec.europa.eu`, Unterzeichner "TEST European
+      Commission" `0ccf87a5...`) und der echten Liste vertraut; beide erst beim
+      ersten Test geladen, hoechstens taeglich erneuert. Antwort `{ over18, reason,
+      details: { origin, transcript, documents: [{ docType, issuer: { name, country },
+      ageOver18 }] } }` bzw. `details.errors`; nichts wird gespeichert oder
+      freigeschaltet. App: debug-Karte "Altersnachweis testen (Wallet)" unter
+      Privatsphaere.
   - SMTP (`server/email-smtp.js`): nodemailer als optionale Abhaengigkeit, erst
     beim ersten Versand geladen; zweisprachige Mail (Betreff `OpenGrid: <code>`),
     Zeitlimit 15 s. Schlaegt der Versand fehl, wird der Code verworfen und

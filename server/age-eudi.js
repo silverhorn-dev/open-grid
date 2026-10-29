@@ -156,19 +156,32 @@ export function createEudiAgeProvider({ trust, doctypes = ['av', 'pid', 'mdl'], 
 
     async function verifyOne(encoded, nonce, origin) {
         let lastError = null;
-        for (const transcript of eudiSessionTranscripts({ origin, nonce })) {
+        const transcripts = eudiSessionTranscripts({ origin, nonce });
+        for (const [index, transcript] of transcripts.entries()) {
             try {
-                return await verifier.verifyDeviceResponse({
+                const mdoc = await verifier.verifyDeviceResponse({
                     encodedDeviceResponse: encoded,
                     encodedSessionTranscript: transcript,
                     trustedCertificates: trust.certificates(),
                     now: now()
                 }, context);
+                return { mdoc, transcript: index === 0 ? 'openid4vp-1.0' : 'openid4vp-draft-24' };
             } catch (error) {
                 lastError = error;
             }
         }
         throw lastError || new Error('Verification failed');
+    }
+
+    // Nur fuer die Testseite: Aussteller ohne persoenliche Daten (Name des Zertifikats, Land).
+    function issuerOf(document) {
+        try {
+            const certificate = new X509Certificate(Buffer.from(document.issuerSigned.issuerAuth.certificate));
+            const field = name => nameField(certificate.subject, name)[0] || null;
+            return { name: field('CN') || field('O'), country: field('C') };
+        } catch {
+            return null;
+        }
     }
 
     return {
@@ -186,24 +199,78 @@ export function createEudiAgeProvider({ trust, doctypes = ['av', 'pid', 'mdl'], 
             if (!entry) return { over18: false, reason: 'No open request' };
             if (!trust.certificates().length) return { over18: false, reason: 'No trusted issuers configured' };
             const expectedOrigins = origins.length ? origins : [origin].filter(Boolean);
-            for (const encoded of deviceResponsesFrom(payload)) {
+            const errors = [];
+            const responses = deviceResponsesFrom(payload);
+            for (const encoded of responses) {
                 for (const candidate of expectedOrigins) {
                     try {
-                        const mdoc = await verifyOne(encoded, entry.nonce, candidate);
-                        for (const document of mdoc.documents) {
-                            const nameSpace = accepted.get(document.docType);
-                            if (!nameSpace || document.getIssuerNameSpace(nameSpace)?.get('age_over_18') !== true) continue;
-                            const deviceKey = document.issuerSigned.issuerAuth.decodedPayload.deviceKeyInfo?.deviceKey;
-                            const subject = deviceKey ? `eudi:${createHash('sha256').update(cborEncode(deviceKey)).digest('hex')}` : null;
-                            return { over18: true, subject };
-                        }
-                        return { over18: false, reason: 'No accepted credential with age_over_18 = true' };
+                        const { mdoc, transcript } = await verifyOne(encoded, entry.nonce, candidate);
+                        const documents = mdoc.documents.map(document => ({
+                            docType: document.docType,
+                            issuer: issuerOf(document),
+                            ageOver18: document.getIssuerNameSpace(accepted.get(document.docType) || document.docType)?.get('age_over_18') ?? null
+                        }));
+                        const details = { origin: candidate, transcript, documents };
+                        const match = mdoc.documents.find(document => accepted.has(document.docType)
+                            && document.getIssuerNameSpace(accepted.get(document.docType))?.get('age_over_18') === true);
+                        if (!match) return { over18: false, reason: 'No accepted credential with age_over_18 = true', details };
+                        const deviceKey = match.issuerSigned.issuerAuth.decodedPayload.deviceKeyInfo?.deviceKey;
+                        const subject = deviceKey ? `eudi:${createHash('sha256').update(cborEncode(deviceKey)).digest('hex')}` : null;
+                        return { over18: true, subject, details };
                     } catch (error) {
+                        errors.push(error.message);
                         log?.info?.(`EUDI age check rejected: ${error.message}`);
                     }
                 }
             }
-            return { over18: false, reason: 'Invalid presentation' };
+            return { over18: false, reason: responses.length ? 'Invalid presentation' : 'No presentation in the answer', details: { errors: [...new Set(errors)] } };
         }
     };
 }
+
+// ----- Testseite (Debug-Modus): echte Pruefung, aber ohne Speichern und ohne Freischalten -----
+// Vertraut der Test-Liste der EU (Demo- und Test-Aussteller) und der echten Liste; beide werden erst
+// beim ersten Test geladen (danach hoechstens taeglich). AGE_EUDI_TEST=false schaltet es ab.
+export function registerEudiTestRoutes(app, { allowRequest, requirePeerAuth, isString, createTrust, appOrigins = [], log }) {
+    let provider = null;
+    let trusts = null;
+    let loadedAt = 0;
+    async function ready() {
+        if (!trusts) {
+            trusts = createTrust();
+            provider = createEudiAgeProvider({
+                trust: { certificates: () => trusts.flatMap(trust => trust.certificates()) },
+                origins: appOrigins,
+                log
+            });
+        }
+        if (Date.now() - loadedAt > 24 * 60 * 60 * 1000) {
+            await Promise.all(trusts.map(trust => trust.refresh()));
+            loadedAt = Date.now();
+        }
+        return provider;
+    }
+    const authed = (request, reply) => {
+        if (!allowRequest('safety', request.ip, reply)) return null;
+        const peerId = request.body?.peerId;
+        if (!isString(peerId, 200)) {
+            reply.code(400).send({ error: 'peerId required' });
+            return null;
+        }
+        return requirePeerAuth(request, reply, peerId) ? peerId : null;
+    };
+    app.post('/api/safety/age-test/start', async (request, reply) => {
+        const peerId = authed(request, reply);
+        if (!peerId) return reply;
+        const current = await ready();
+        return { ...current.start({ peerId: `test:${peerId}` }), issuers: trusts.flatMap(trust => trust.status().imported).length };
+    });
+    app.post('/api/safety/age-test/finish', async (request, reply) => {
+        const peerId = authed(request, reply);
+        if (!peerId) return reply;
+        const current = await ready();
+        const result = await current.finish({ peerId: `test:${peerId}`, payload: request.body?.payload, origin: `${request.protocol}://${request.host}` });
+        return { over18: result.over18 === true, reason: result.reason || null, details: result.details || null };
+    });
+}
+

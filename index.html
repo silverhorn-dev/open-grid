@@ -665,6 +665,16 @@
                         <button data-i18n="safety.verifyNow" id="safety-card-btn" data-click="reopenSafetyGate" class="btn-secondary hidden">Jetzt nachweisen</button>
                     </div>
                 </div>
+                <!-- Testseite Wallet-Altersnachweis (Debug-Modus, safety.js): prueft echt, speichert nichts -->
+                <div id="age-test-card" class="settings-card debug-only" data-settings-tab="privacy">
+                    <h3 data-i18n="safety.walletTestTitle" class="settings-card-title">Altersnachweis testen (Wallet)</h3>
+                    <div class="setting-block">
+                        <p data-i18n="safety.walletTestDescription" class="setting-desc">Fragt deine Wallet wie beim echten Nachweis, schaltet aber nichts frei und speichert nichts. Erkannt werden auch Test- und Demo-Aussteller der EU (z. B. die Demo-App der EU-Altersverifikation).</p>
+                        <p id="age-test-support" class="setting-desc mt-2"></p>
+                        <button data-i18n="safety.walletTestStart" data-click="testEudiWallet" class="btn-secondary mt-2">Wallet fragen</button>
+                        <pre id="age-test-result" class="hidden mt-2 text-xs whitespace-pre-wrap break-words text-slate-300"></pre>
+                    </div>
+                </div>
 
                 <!-- ===== Chat ===== -->
                 <div class="settings-card" data-settings-tab="chat">

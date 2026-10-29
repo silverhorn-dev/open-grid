@@ -232,3 +232,37 @@ test('app explains unsupported browsers and cancelled wallet dialogs', async () 
     assert.deepEqual(cancelled.toasts, [['safety.walletCancelled', 'warning']]);
     assert.equal(cancelled.posted.length, 0);
 });
+
+test('wallet test page verifies like the real check but stores and unlocks nothing', async () => {
+    const issuer = await testIssuer();
+    const store = createStore(':memory:');
+    const app = await buildApp({
+        store, buildVersion: 'x', buildTimestamp: 'y', appUrl: 'https://og.example.org',
+        safety: { ageCheck: 'confirm' },
+        ageTestTrust: () => [{ certificates: () => [issuer.der], refresh: async () => ({ ok: true }), status: () => ({ imported: [{ provider: 'Test' }] }) }]
+    });
+    cleanup.push(async () => { await app.close(); store.close(); });
+    const headers = await register(app, 'erin');
+    const start = await app.inject({ method: 'POST', url: '/api/safety/age-test/start', headers, payload: { peerId: 'erin' } });
+    assert.equal(start.statusCode, 200);
+    assert.equal(start.json().issuers, 1);
+    const payload = await walletPresentation({ issuer, origin: 'https://og.example.org', nonce: start.json().request.nonce });
+    const finish = await app.inject({ method: 'POST', url: '/api/safety/age-test/finish', headers, payload: { peerId: 'erin', payload } });
+    assert.equal(finish.statusCode, 200);
+    const result = finish.json();
+    assert.equal(result.over18, true);
+    assert.equal(result.details.transcript, 'openid4vp-1.0');
+    assert.deepEqual(result.details.documents, [{ docType: 'eu.europa.ec.av.1', issuer: { name: 'Test Proof of Age Issuer', country: 'DK' }, ageOver18: true }]);
+    // Nichts freigeschaltet: der Nachweis fehlt weiter.
+    const grid = await app.inject({ method: 'GET', url: '/api/grid?geohash=u10j2k&peerId=erin', headers });
+    assert.equal(grid.statusCode, 403);
+    // Ohne Anmeldung keine Tests.
+    assert.equal((await app.inject({ method: 'POST', url: '/api/safety/age-test/start', payload: { peerId: 'erin' } })).statusCode, 401);
+});
+
+test('wallet test page can be switched off', async () => {
+    const store = createStore(':memory:');
+    const app = await buildApp({ store, buildVersion: 'x', buildTimestamp: 'y', ageEudiTest: 'false' });
+    cleanup.push(async () => { await app.close(); store.close(); });
+    assert.equal((await app.inject({ method: 'POST', url: '/api/safety/age-test/start', payload: { peerId: 'x' } })).statusCode, 404);
+});

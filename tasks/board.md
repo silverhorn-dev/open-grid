@@ -67,6 +67,8 @@
     - anker: EU "Age Verification Trusted List" (`server/age-trust.js`): XML-signatur (`xml-crypto`) + gepinnter unterzeichner der kommission, nur signierter inhalt, PAA + recognized/granted, taeglich, cache im datenordner; dazu eigene PEMs (`AGE_TRUST_CERTS`); `safety-admin.mjs age-trust`
     - stand der EU-liste 10/2026: nur Daenemark (AltID); DE-wallet laut tracker ab 01/2027
     - tests `test/age-eudi.test.js` (echte EU-liste als fixture, test-aussteller + test-wallet, negativfaelle, app-seite); UC-59
+  - [x] eudi testseite (nutzer 2026-10-29: "activate the age provider for test", gewaehlt: debug-testseite statt live-sperre): debug-karte "Altersnachweis testen (Wallet)", routen `/api/safety/age-test/*` pruefen echt gegen EU-testliste (13 test-/demo-aussteller inkl. "Age Verification Reference Implementation") + echte liste, speichern nichts; `AGE_EUDI_TEST` (std an); tests unit + e2e `age-test`
+    - testen: demo-app (android, github eu-digital-identity-wallet/av-app-android-wallet-ui/releases) -> "National eID" (demo-aussteller) -> in OpenGrid debug "Wallet fragen" (Chrome/Edge 141+)
   - [ ] eudi: signierte anfragen (relying-party-zugangszertifikat), sobald wallets/laender das verlangen; erster echter test mit AltID oder DE-wallet
   - [ ] eudi: QR-ablauf fuer "website am PC, wallet am handy" (cross-device)
   - [ ] eudi: aussteller der EUDI-wallets (PID-anbieter) automatisch importieren, sobald die EU deren "List of Trusted Entities" (ETSI TS 119 602, JSON/JAdES) veroeffentlicht; bis dahin PID-anbieter per `AGE_TRUST_CERTS`

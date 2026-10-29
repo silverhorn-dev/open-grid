@@ -9,8 +9,8 @@ import { registerSignalingRoute } from './signaling.js';
 import { loadTranslations, translationScript } from './i18n.js';
 import { infoSiteUrl, registerInfoSite } from './info-site.js';
 import { createSafety, parseSafetyConfig, registerSafetyRoutes } from './safety.js';
-import { createEudiAgeProvider, parseEudiDoctypes } from './age-eudi.js';
-import { createAgeTrustStore, parseAgeTrustConfig } from './age-trust.js';
+import { createEudiAgeProvider, parseEudiDoctypes, registerEudiTestRoutes } from './age-eudi.js';
+import { createAgeTrustStore, EU_AGE_TEST_TRUSTED_LIST_SIGNERS, EU_AGE_TEST_TRUSTED_LIST_URL, EU_AGE_TRUSTED_LIST_SIGNERS, EU_AGE_TRUSTED_LIST_URL, parseAgeTrustConfig } from './age-trust.js';
 import {
     GRID_PRECISION,
     MAX_GRID_RING,
@@ -688,6 +688,25 @@ export async function buildApp(options = {}) {
         app.decorate('ageTrust', ageTrust);
     }
     const safety = createSafety({ config: safetyConfig, store, log: app.log, now, ageProviders });
+    // Testseite fuer den Wallet-Nachweis (Debug-Modus): prueft echt, speichert nichts (age-eudi.js).
+    if (String(options.ageEudiTest ?? process.env.AGE_EUDI_TEST ?? 'true').toLowerCase() !== 'false') {
+        let testOrigins = [];
+        try {
+            const appUrl = String(options.appUrl ?? process.env.APP_URL ?? '').trim();
+            testOrigins = appUrl ? [new URL(appUrl).origin] : [];
+        } catch {
+            testOrigins = [];
+        }
+        registerEudiTestRoutes(app, {
+            allowRequest, requirePeerAuth, isString, appOrigins: testOrigins, log: app.log,
+            createTrust: options.ageTestTrust ?? (() => [
+                [EU_AGE_TEST_TRUSTED_LIST_URL, EU_AGE_TEST_TRUSTED_LIST_SIGNERS],
+                [EU_AGE_TRUSTED_LIST_URL, EU_AGE_TRUSTED_LIST_SIGNERS]
+            ].map(([listUrl, listSigners]) => createAgeTrustStore({
+                config: { certsDirectory: null, listUrl, listSigners }, dataDirectory: null, log: app.log
+            })))
+        });
+    }
     registerSafetyRoutes(app, { safety, allowRequest, requirePeerAuth, isString });
 
     function verifyRegistrationProof(peerId, registrationId, authToken, proof) {

@@ -367,6 +367,7 @@ function switchSettingsTab(name) {
     if (!document.getElementById('view-keys')?.classList.contains('hidden')) window.scrollTo(0, 0);
     // "Nur zeigen fuer ..." mit dem aktuellen Schema und Profil zeichnen (audience.js).
     if (tab === 'privacy' && typeof renderAudienceSettings === 'function') renderAudienceSettings();
+    if (tab === 'privacy' && typeof renderAgeTestSupport === 'function') renderAgeTestSupport();
 }
 
 function initSettingsTabs() {

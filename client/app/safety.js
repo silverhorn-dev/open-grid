@@ -160,6 +160,44 @@ async function presentEudiCredential(start) {
     await afterVerificationStep(t('safety.ageConfirmed'));
 }
 
+// ----- Testseite (Debug-Modus): Wallet-Nachweis pruefen, ohne etwas freizuschalten -----
+function renderAgeTestSupport() {
+    const line = document.getElementById('age-test-support');
+    if (line) line.textContent = digitalCredentialsSupported() ? t('safety.walletTestSupported') : t('safety.walletUnsupported');
+}
+
+async function testEudiWallet() {
+    const output = document.getElementById('age-test-result');
+    const show = text => {
+        if (!output) return;
+        output.textContent = text;
+        output.classList.remove('hidden');
+    };
+    renderAgeTestSupport();
+    if (!digitalCredentialsSupported()) return;
+    try {
+        show(t('safety.walletTestAsking'));
+        const start = await safetyRequest('age-test/start', {});
+        let credential;
+        try {
+            credential = await navigator.credentials.get({
+                mediation: 'required',
+                digital: { requests: [{ protocol: start.protocol, data: start.request }] }
+            });
+        } catch (error) {
+            show(`${t('safety.walletCancelled')}\n${error.name}: ${error.message}`);
+            return;
+        }
+        const result = await safetyRequest('age-test/finish', { payload: { protocol: credential?.protocol, data: credential?.data } });
+        show([
+            result.over18 ? t('safety.walletTestPassed') : t('safety.walletTestFailed', { reason: result.reason || '?' }),
+            JSON.stringify(result.details || {}, null, 2)
+        ].join('\n'));
+    } catch (error) {
+        show(t('safety.walletTestFailed', { reason: error.message }));
+    }
+}
+
 async function sendEmailCode() {
     const email = document.getElementById('safety-email-input')?.value.trim();
     if (!email) return;

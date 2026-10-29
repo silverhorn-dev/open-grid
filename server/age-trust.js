@@ -18,6 +18,11 @@ import xpath from 'xpath';
 export const EU_AGE_TRUSTED_LIST_URL = 'https://trust.tech.ec.europa.eu/lists/age-verification/av-tl.xml';
 // Signaturzertifikat der Kommission ("EUROPEAN COMMISSION", DIGIT), 2023-11-17 bis 2027-11-17.
 export const EU_AGE_TRUSTED_LIST_SIGNERS = ['e0a620fbb6747362bb933ac44169d676a553444716cf5f31605f12a22b8396b1'];
+// Test-Liste (Abnahmeumgebung) mit Test- und Demo-Ausstellern, u. a. "Age Verification Reference
+// Implementation" (Demo-App der EU); nur fuer die Testseite, nie fuer echte Nachweise.
+export const EU_AGE_TEST_TRUSTED_LIST_URL = 'https://acceptance.trust.tech.ec.europa.eu/lists/age-verification/av-tl.xml';
+// "TEST European Commission" (DIGIT.B.3), 2025-11-20 bis 2028-11-20.
+export const EU_AGE_TEST_TRUSTED_LIST_SIGNERS = ['0ccf87a5abf4db89bde4e10202e2523296bea7d835ba6a5a41054b9e1e6b8949'];
 const TRUSTED_SERVICE_TYPE_SUFFIX = '/paa';
 const TRUSTED_SERVICE_STATUS = ['recognized', 'granted'];
 const REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000;

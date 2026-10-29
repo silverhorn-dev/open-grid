@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 221 · 2026-10-29
+## Build 223 · 2026-10-29
+- Debug-Modus: "Altersnachweis testen (Wallet)" unter Privatsphaere. Prueft einen Wallet-Nachweis wie echt (auch mit der Demo-App der EU), speichert aber nichts und schaltet nichts frei
+
+## Build 221 · 2026-10-29 · `9e71222`
 - Fuer Betreiber: Altersnachweis mit der digitalen Wallet (EU-Altersnachweis, EU-Wallet, Fuehrerschein in der Wallet). Abgefragt wird nur "ueber 18"; anerkannte Aussteller kommen automatisch aus der signierten EU-Liste
 
 ## Build 220 · 2026-10-29 · `a1fe983`

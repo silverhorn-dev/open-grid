@@ -160,6 +160,7 @@ laufen durch dieselben Tests und bauen das echte Image zur Probe
 | `AGE_TRUST_CERTS` | - | Fuer `eudi`: Ordner mit PEM-Dateien zusaetzlich anerkannter Aussteller (Aussteller- oder CA-Zertifikate) |
 | `AGE_TRUSTED_LIST_URL` | EU-Liste | Fuer `eudi`: automatischer Import der "Age Verification Trusted List" der Kommission (taeglich, nur mit gueltiger Signatur); `off` = kein Import |
 | `AGE_TRUSTED_LIST_SIGNER` | Zertifikat der Kommission | SHA-256-Fingerabdruecke (Komma-Liste) erlaubter Unterzeichner der Liste; bei einem Zertifikatswechsel der Kommission hier den neuen eintragen |
+| `AGE_EUDI_TEST` | `true` | Testseite fuer den Wallet-Nachweis im Debug-Modus (`/api/safety/age-test/...`, prueft gegen EU-Test- und echte Liste, speichert nichts); `false` = aus |
 | `AGE_EUDI_DOCTYPES` | `av,pid,mdl` | Welche Nachweise gelten: `av` (EU-Altersnachweis), `pid` (EU-Personalausweis in der Wallet), `mdl` (ISO-Fuehrerschein, z. B. in Apple/Google Wallet); gelesen wird nur `age_over_18` |
 | `EMAIL_CHECK` | `off` | `required`: Nutzer bestaetigen eine E-Mail-Adresse per 6-stelligem Code. Gespeichert wird sie verschluesselt (`SAFETY_KEY`) plus ein HMAC fuer Sperren |
 | `EMAIL_TRANSPORT` | `log` | Versand der E-Mail-Codes: `log` (Code im Server-Log, nur zum Testen) oder `smtp` (Mailserver des Betreibers, siehe `SMTP_URL`) |
@@ -239,6 +240,14 @@ EU-Altersnachweis ueber die Wallet (`AGE_CHECK=provider`, `AGE_PROVIDER=eudi`):
   eingebaut.
 - Status und sofortiger Import:
   `docker compose exec open-grid node scripts/safety-admin.mjs age-trust`.
+- Testen ohne Sperre: im Debug-Modus unter Einstellungen > Privatsphaere
+  "Altersnachweis testen (Wallet)". Prueft wie echt, speichert und schaltet aber
+  nichts frei, und erkennt zusaetzlich die Test- und Demo-Aussteller der EU-Testliste
+  (`acceptance.trust.tech.ec.europa.eu`, eigener gepinnter Test-Unterzeichner).
+  Zum Ausprobieren: die Demo-App der EU-Altersverifikation fuer Android
+  (`github.com/eu-digital-identity-wallet/av-app-android-wallet-ui/releases`),
+  darin "National eID" (Demo-Aussteller). Funktioniert unabhaengig von
+  `AGE_CHECK`; abschalten mit `AGE_EUDI_TEST=false`.
 
 Sperren und Auskunft (nur auf richterlichen Beschluss) im Container:
 

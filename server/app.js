@@ -11,6 +11,7 @@ import { infoSiteUrl, registerInfoSite } from './info-site.js';
 import { createSafety, parseSafetyConfig, registerSafetyRoutes } from './safety.js';
 import { registerAdminRoutes } from './admin.js';
 import { createMetrics } from './metrics.js';
+import { createLiveConfig } from './live-config.js';
 import { createEudiAgeProvider, parseEudiDoctypes, registerEudiTestRoutes } from './age-eudi.js';
 import { createAgeTrustStore, EU_AGE_TEST_TRUSTED_LIST_SIGNERS, EU_AGE_TEST_TRUSTED_LIST_URL, EU_AGE_TRUSTED_LIST_SIGNERS, EU_AGE_TRUSTED_LIST_URL, parseAgeTrustConfig } from './age-trust.js';
 import {
@@ -478,15 +479,16 @@ export async function buildApp(options = {}) {
     const isLanMode = String(options.lanMode ?? process.env.LAN_MODE ?? '').toLowerCase() === 'true';
     const requestedDefaultMode = options.defaultAppMode ?? process.env.DEFAULT_APP_MODE;
     const defaultAppMode = appModes.includes(requestedDefaultMode) ? requestedDefaultMode : appModes[0];
-    const clientDefaults = parseClientDefaults(options.clientDefaults ?? process.env.CLIENT_DEFAULTS);
+    // Live aenderbar (Admin-Panel, server/live-config.js): CLIENT_DEFAULTS, AUDIENCE_MINIMUM, NUDITY_*.
+    let clientDefaults = parseClientDefaults(options.clientDefaults ?? process.env.CLIENT_DEFAULTS);
     const profileSchemas = options.profileSchemas
         || parseProfileSchemas(process.env.PROFILE_SCHEMAS, profileSchema, appModes);
     // Mindestwerte fuer "Nur zeigen fuer ..." (z. B. {"ranges":{"age":{"min":18}}}), je Grid-Bereich gegen
     // dessen Profil-Schema; der Router mischt sie in jeden Karten-Code.
-    const audienceMinimumRule = options.audienceMinimum ?? process.env.AUDIENCE_MINIMUM ?? null;
+    let audienceMinimumRule = options.audienceMinimum ?? process.env.AUDIENCE_MINIMUM ?? null;
     const audienceSchemaFor = scope => (scope === 'event' ? profileSchemas.event : null) || profileSchemas.discovery || profileSchema;
     // Nacktbild-Modell (Board T3): vom Router konfiguriert und ausgeliefert, nur bei eingeschaltetem Filter geladen.
-    const nudityConfig = parseNudityConfig({
+    let nudityConfig = parseNudityConfig({
         model: options.nudityModel ?? process.env.NUDITY_MODEL,
         threshold: options.nudityThreshold ?? process.env.NUDITY_THRESHOLD,
         classes: options.nudityClasses ?? process.env.NUDITY_CLASSES
@@ -496,8 +498,8 @@ export async function buildApp(options = {}) {
     const nudityAssets = await registerNudityModelRoutes(app, nudityConfig, {
         modelDirectories: [nudityModelDirectory, ...(options.nudityBuiltInModels === false ? [] : [join(projectDirectory, 'models')])]
     });
-    const nudityPublicConfig = describeNudityModels(nudityConfig, nudityAssets);
-    const audienceMinimums = {
+    let nudityPublicConfig = describeNudityModels(nudityConfig, nudityAssets);
+    let audienceMinimums = {
         public: parseAudienceMinimum(audienceMinimumRule, audienceSchemaFor('public')),
         event: parseAudienceMinimum(audienceMinimumRule, audienceSchemaFor('event'))
     };
@@ -680,7 +682,8 @@ export async function buildApp(options = {}) {
     });
     // EU-Altersnachweis ueber die Wallet (age-eudi.js) mit Vertrauensankern aus age-trust.js.
     const ageProviders = {};
-    if (safetyConfig.ageCheck === 'provider' && safetyConfig.ageProvider === 'eudi') {
+    // Auch ohne AGE_CHECK=provider vorbereitet: das Admin-Panel kann den Nachweis live einschalten.
+    if (safetyConfig.ageProvider === 'eudi') {
         const ageTrust = createAgeTrustStore({
             config: parseAgeTrustConfig(options.ageTrust ?? {
                 certs: process.env.AGE_TRUST_CERTS,
@@ -710,8 +713,89 @@ export async function buildApp(options = {}) {
         app.decorate('ageTrust', ageTrust);
     }
     const safety = createSafety({ config: safetyConfig, store, log: app.log, now, ageProviders });
-    // Admin-Panel (server/admin.js): Passkey-Login, Status, Auslastung.
+    // Live-Konfiguration (server/live-config.js): Panel-Werte gewinnen ueber die Umgebung, ohne Neustart.
+    const jsonSetting = (value, name) => {
+        if (value === null || value === undefined || value === '') return null;
+        if (typeof value !== 'string') return value;
+        try {
+            return JSON.parse(value);
+        } catch {
+            throw new Error(`${name} must be JSON`);
+        }
+    };
+    const refreshNudity = next => {
+        if (next.model !== 'off' && !nudityAssets?.models?.[next.model]) throw new Error(`Model ${next.model} is not installed`);
+        nudityConfig = next;
+        nudityPublicConfig = describeNudityModels(nudityConfig, nudityAssets);
+    };
+    const liveConfig = createLiveConfig({
+        store, log: app.log, now,
+        entries: {
+            CLIENT_DEFAULTS: {
+                env: clientDefaults,
+                apply: value => {
+                    const parsed = jsonSetting(value, 'CLIENT_DEFAULTS');
+                    if (parsed !== null && (typeof parsed !== 'object' || Array.isArray(parsed))) throw new Error('CLIENT_DEFAULTS must be a JSON object');
+                    clientDefaults = parseClientDefaults(parsed);
+                }
+            },
+            AUDIENCE_MINIMUM: {
+                env: jsonSetting(audienceMinimumRule, 'AUDIENCE_MINIMUM'),
+                apply: value => {
+                    const parsed = jsonSetting(value, 'AUDIENCE_MINIMUM');
+                    const next = { public: parseAudienceMinimum(parsed, audienceSchemaFor('public')), event: parseAudienceMinimum(parsed, audienceSchemaFor('event')) };
+                    audienceMinimumRule = parsed;
+                    audienceMinimums = next;
+                }
+            },
+            NUDITY_MODEL: {
+                env: nudityConfig.model,
+                apply: value => refreshNudity({ ...nudityConfig, model: String(value ?? 'nsfwjs').trim().toLowerCase() }),
+                options: () => ['off', ...Object.keys(nudityAssets?.models || {})]
+            },
+            NUDITY_THRESHOLD: {
+                env: nudityConfig.threshold,
+                apply: value => {
+                    const threshold = Number(value);
+                    if (!(threshold >= 0.5 && threshold <= 0.95)) throw new Error('NUDITY_THRESHOLD must be 0.5-0.95');
+                    refreshNudity({ ...nudityConfig, threshold });
+                }
+            },
+            NUDITY_CLASSES: {
+                // Leer = Standard des Modells; angezeigt werden die wirksamen Klassen.
+                env: nudityConfig.classes.length ? nudityConfig.classes : (nudityPublicConfig.classes || []),
+                apply: value => refreshNudity({ ...nudityConfig, classes: (Array.isArray(value) ? value : String(value ?? '').split(',')).map(entry => String(entry).trim()).filter(Boolean) }),
+                options: () => nudityAssets?.models?.[nudityPublicConfig.model]?.classes || []
+            },
+            AGE_CHECK: {
+                env: safety.publicConfig().ageCheck,
+                apply: value => safety.updateConfig({ ageCheck: value }),
+                options: () => safety.options().ageCheck
+            },
+            EMAIL_CHECK: {
+                env: safetyConfig.emailCheck,
+                apply: value => safety.updateConfig({ emailCheck: value }),
+                options: () => safety.options().emailCheck
+            },
+            ABUSE_LOG_DAYS: {
+                env: safetyConfig.abuseLogDays,
+                apply: value => safety.updateConfig({ abuseLogDays: Number(value) })
+            }
+        }
+    });
+    // Nur mit Neustart aenderbar: im Panel zur Ansicht, Geheimnisse nur als "gesetzt".
+    const RESTART_ONLY = ['APP_MODES', 'DEFAULT_APP_MODE', 'LAN_MODE', 'APP_URL', 'INFO_HOST', 'TURN_SERVER', 'TURN_PORT', 'STUN_SERVER',
+        'DATABASE_PATH', 'CREDENTIAL_RETENTION_DAYS', 'MEDIA_KEY_EPOCH_MINUTES', 'TRUST_PROXY', 'RATE_LIMIT_SCALE', 'VAPID_SUBJECT',
+        'AGE_PROVIDER', 'AGE_TRUST_CERTS', 'AGE_TRUSTED_LIST_URL', 'AGE_EUDI_DOCTYPES', 'AGE_EUDI_TEST', 'EMAIL_TRANSPORT', 'SMTP_FROM', 'NUDITY_MODEL_DIR'];
+    const RESTART_ONLY_SECRETS = ['TURN_SECRET', 'SAFETY_KEY', 'SMTP_URL', 'VAPID_PRIVATE_KEY', 'ADMIN_SETUP_TOKEN'];
+    const restartOnly = () => [
+        ...RESTART_ONLY.map(key => ({ key, value: process.env[key] ?? null })),
+        ...RESTART_ONLY_SECRETS.map(key => ({ key, secret: true, set: Boolean(process.env[key]) }))
+    ];
+
+    // Admin-Panel (server/admin.js): Passkey-Login, Status, Auslastung, Sperren, Live-Konfiguration.
     registerAdminRoutes(app, {
+        liveConfig, restartOnly, safety, disconnectPeer: peerId => signaling.disconnectPeer(peerId),
         store, metrics, allowRequest, log: app.log, now,
         appUrl: options.appUrl ?? process.env.APP_URL ?? '',
         // Fester Setup-Token (z. B. automatisiertes Aufsetzen, E2E); gilt nur, solange kein Passkey existiert.

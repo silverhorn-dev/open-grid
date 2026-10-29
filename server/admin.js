@@ -25,7 +25,8 @@ function parseCookies(header) {
 
 export function registerAdminRoutes(app, {
     store, metrics, status, appUrl = '', log, now = Date.now,
-    allowRequest, setupToken: fixedSetupToken = null
+    allowRequest, setupToken: fixedSetupToken = null,
+    liveConfig = null, restartOnly = () => [], safety = null, disconnectPeer = () => {}
 }) {
     const sessions = new Map();
     const challenges = new Map();
@@ -217,6 +218,63 @@ export function registerAdminRoutes(app, {
     app.get('/api/admin/metrics', async (request, reply) => {
         if (!requireAdmin(request, reply)) return reply;
         return metrics.series(request.query?.range === '24h' ? '24h' : '1h');
+    });
+
+    // ----- Live-Konfiguration (server/live-config.js) -----
+    app.get('/api/admin/config', async (request, reply) => {
+        if (!requireAdmin(request, reply)) return reply;
+        return { live: liveConfig?.list() || {}, restartOnly: restartOnly() };
+    });
+
+    app.put('/api/admin/config/:key', async (request, reply) => {
+        if (!requireAdmin(request, reply, { change: true })) return reply;
+        try {
+            liveConfig.set(request.params.key, request.body?.value ?? null);
+        } catch (error) {
+            return reply.code(400).send({ error: 'Invalid value', reason: error.message });
+        }
+        return { ok: true, setting: liveConfig.list()[request.params.key] };
+    });
+
+    app.delete('/api/admin/config/:key', async (request, reply) => {
+        if (!requireAdmin(request, reply, { change: true })) return reply;
+        try {
+            liveConfig.reset(request.params.key);
+        } catch (error) {
+            return reply.code(400).send({ error: 'Invalid setting', reason: error.message });
+        }
+        return { ok: true, setting: liveConfig.list()[request.params.key] };
+    });
+
+    // ----- Sperren (wie scripts/safety-admin.mjs) -----
+    // Peer-IDs im Klartext; E-Mail und Wallet nur als HMAC (gekuerzt angezeigt).
+    app.get('/api/admin/bans', async (request, reply) => {
+        if (!requireAdmin(request, reply)) return reply;
+        return { bans: store.safety.listBans() };
+    });
+
+    app.post('/api/admin/bans', async (request, reply) => {
+        if (!requireAdmin(request, reply, { change: true })) return reply;
+        const { kind, value, reason } = request.body || {};
+        if (!['peer', 'email'].includes(kind) || typeof value !== 'string' || !value.trim() || value.length > 254) {
+            return reply.code(400).send({ error: 'Invalid ban' });
+        }
+        try {
+            safety.ban(kind, value.trim(), typeof reason === 'string' ? reason.trim().slice(0, 200) || null : null);
+        } catch (error) {
+            return reply.code(400).send({ error: 'Invalid ban', reason: error.message });
+        }
+        // Eine offene Verbindung trennen; beim naechsten Registrieren greift die Sperre.
+        if (kind === 'peer') disconnectPeer(value.trim());
+        log.info(`Admin panel: ${kind} ban added.`);
+        return { ok: true };
+    });
+
+    app.delete('/api/admin/bans/:kind/:value', async (request, reply) => {
+        if (!requireAdmin(request, reply, { change: true })) return reply;
+        const removed = store.safety.removeBan(request.params.kind, request.params.value);
+        if (removed) log.info(`Admin panel: ${request.params.kind} ban lifted.`);
+        return removed ? { ok: true } : reply.code(404).send({ error: 'Unknown ban' });
     });
 
     return { sessionCount: () => sessions.size };

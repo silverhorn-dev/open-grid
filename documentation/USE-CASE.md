@@ -1036,4 +1036,10 @@ Akzeptanzkriterien:
 - "Status" zeigt Version, Peers, Push-Abos, Zwischenspeicher, Nacktbild-Modell
   und Nachweise; Nutzerinhalte zeigt das Panel nie.
 - Weitere Passkeys lassen sich anlegen, der letzte nicht entfernen.
+- "Einstellungen" aendert u. a. Nachweis-Pflichten, Nacktbild-Modell und
+  App-Standards ohne Neustart; ungueltige Werte werden mit Grund abgelehnt,
+  "Zuruecksetzen" stellt die Umgebung wieder her, Panel-Werte gelten auch nach
+  einem Neustart.
+- "Sperren" sperrt Peer-IDs und E-Mail-Adressen (nur als HMAC gespeichert) und
+  hebt Sperren auf; ein gesperrter Peer kann sich nicht mehr registrieren.
 

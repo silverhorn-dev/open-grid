@@ -197,8 +197,8 @@ async function registerNudenet(app, require, modelDirectories, log) {
 }
 
 // Routen fuer alle verfuegbaren Modelle; Rueckgabe = oeffentliche Beschreibung je Modell (fuer /api/config).
+// Auch bei NUDITY_MODEL=off registriert: das Admin-Panel kann das Modell live einschalten.
 export async function registerNudityModelRoutes(app, config, { modelDirectories = [] } = {}) {
-    if (config.model === 'off') return null;
     const require = createRequire(import.meta.url);
     const found = {
         ...await registerNsfwjs(app, require),
@@ -213,22 +213,25 @@ export async function registerNudityModelRoutes(app, config, { modelDirectories 
         app.log.warn('No nudity model available: nudity filter without model.');
         return null;
     }
-    let active = config.model;
-    if (!models[active]) {
-        app.log.warn(`NUDITY_MODEL=${active} is not installed (models/README.md); using nsfwjs.`);
-        active = models[DEFAULT_MODEL] ? DEFAULT_MODEL : Object.keys(models)[0];
-    }
-    return { active, models };
+    if (config.model !== 'off' && !models[config.model]) app.log.warn(`NUDITY_MODEL=${config.model} is not installed (models/README.md); using nsfwjs.`);
+    return { models };
+}
+
+// Gewaehltes Modell, sonst nsfwjs bzw. das erste verfuegbare.
+function activeModel(config, assets) {
+    if (assets.models[config.model]) return config.model;
+    return assets.models[DEFAULT_MODEL] ? DEFAULT_MODEL : Object.keys(assets.models)[0];
 }
 
 // Fuer /api/config: aktives Modell (flach) + alle verfuegbaren (Testseite im Debug-Modus).
 export function nudityPublicConfig(config, assets) {
-    if (!assets) return { model: 'off' };
+    if (!assets || config.model === 'off') return { model: 'off' };
+    const active = activeModel(config, assets);
     return {
-        ...assets.models[assets.active],
-        model: assets.active,
+        ...assets.models[active],
+        model: active,
         threshold: config.threshold,
-        classes: nudityModelClasses(assets.active, config.classes),
+        classes: nudityModelClasses(active, config.classes),
         models: assets.models
     };
 }

@@ -69,6 +69,8 @@ export function createSafetyStore(database) {
         countEmailAttempt: database.prepare('UPDATE safety_email_codes SET attempts = attempts + 1 WHERE peer_id = ?'),
         deleteEmailCode: database.prepare('DELETE FROM safety_email_codes WHERE peer_id = ?'),
         findBan: database.prepare('SELECT 1 FROM safety_bans WHERE kind = ? AND value = ?'),
+        listBans: database.prepare('SELECT kind, value, created_at AS createdAt, reason FROM safety_bans ORDER BY created_at DESC'),
+        deleteBan: database.prepare('DELETE FROM safety_bans WHERE kind = ? AND value = ?'),
         insertBan: database.prepare('INSERT OR IGNORE INTO safety_bans (kind, value, created_at, reason) VALUES (?, ?, ?, ?)'),
         insertAbuseLog: database.prepare('INSERT INTO abuse_log (peer_id, ip, seen_at) VALUES (?, ?, ?)'),
         lastAbuseLog: database.prepare('SELECT ip, seen_at AS seenAt FROM abuse_log WHERE peer_id = ? ORDER BY seen_at DESC LIMIT 1'),
@@ -121,6 +123,9 @@ export function createSafetyStore(database) {
         addBan(kind, value, reason = null, now = Date.now()) {
             statements.insertBan.run(kind, value, now, reason);
         },
+
+        listBans: () => statements.listBans.all(),
+        removeBan: (kind, value) => statements.deleteBan.run(kind, value).changes > 0,
 
         peersWithSubject(subjectHash) {
             return statements.peersBySubject.all(subjectHash).map(row => row.peerId);

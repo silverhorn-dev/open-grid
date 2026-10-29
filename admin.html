@@ -28,7 +28,7 @@
             <h2 id="admin-login-title" data-i18n="admin.loginTitle" class="settings-card-title">Anmelden</h2>
             <div class="setting-block">
                 <p id="admin-login-text" data-i18n="admin.loginText" class="setting-desc">Melde dich mit deinem Admin-Passkey an (Gesichtserkennung, Fingerabdruck oder Sicherheitsschlüssel).</p>
-                <input id="admin-passkey-name" type="text" maxlength="60" class="input-field w-full mt-3 hidden" data-i18n-attr="placeholder:admin.passkeyNamePlaceholder" placeholder="Name des Geräts, z. B. Handy">
+                <input id="admin-passkey-name" type="text" maxlength="60" class="setting-input w-full mt-3 hidden" data-i18n-attr="placeholder:admin.passkeyNamePlaceholder" placeholder="Name des Geräts, z. B. Handy">
                 <button id="admin-login-btn" data-admin-action="login" class="btn-primary w-full mt-3" data-i18n="admin.loginButton">Mit Passkey anmelden</button>
                 <p id="admin-login-error" class="setting-desc text-red-300 mt-2 hidden" role="alert"></p>
             </div>
@@ -40,6 +40,8 @@
         <nav class="admin-tabs" role="tablist">
             <button data-admin-tab="load" role="tab" class="admin-tab" data-i18n="admin.tabLoad">Auslastung</button>
             <button data-admin-tab="status" role="tab" class="admin-tab" data-i18n="admin.tabStatus">Status</button>
+            <button data-admin-tab="settings" role="tab" class="admin-tab" data-i18n="admin.tabSettings">Einstellungen</button>
+            <button data-admin-tab="bans" role="tab" class="admin-tab" data-i18n="admin.tabBans">Sperren</button>
             <button data-admin-tab="passkeys" role="tab" class="admin-tab" data-i18n="admin.tabPasskeys">Passkeys</button>
         </nav>
 
@@ -66,12 +68,41 @@
             <dl id="admin-status" class="admin-status"></dl>
         </section>
 
+        <section data-admin-view="settings" class="admin-view hidden">
+            <section class="settings-card">
+                <h2 data-i18n="admin.liveTitle" class="settings-card-title">Sofort wirksam</h2>
+                <p data-i18n="admin.liveText" class="setting-desc px-4 pb-2">Änderungen gelten ohne Neustart und bleiben gespeichert. „Zurücksetzen“ nimmt wieder den Wert aus der Umgebung.</p>
+                <div id="admin-live-settings"></div>
+            </section>
+            <section class="settings-card mt-4">
+                <h2 data-i18n="admin.restartTitle" class="settings-card-title">Nur mit Neustart</h2>
+                <dl id="admin-restart-settings" class="admin-status px-4 pb-4"></dl>
+            </section>
+        </section>
+
+        <section data-admin-view="bans" class="admin-view hidden">
+            <section class="settings-card">
+                <h2 data-i18n="admin.bansTitle" class="settings-card-title">Sperren</h2>
+                <div class="setting-block admin-ban-form">
+                    <select id="admin-ban-kind" class="setting-select" data-i18n-attr="aria-label:admin.banKind" aria-label="Art">
+                        <option value="peer" data-i18n="admin.banKindPeer">Peer-ID</option>
+                        <option value="email" data-i18n="admin.banKindEmail">E-Mail-Adresse</option>
+                    </select>
+                    <input id="admin-ban-value" type="text" maxlength="254" class="setting-input" data-i18n-attr="placeholder:admin.banValue" placeholder="Peer-ID bzw. Adresse">
+                    <input id="admin-ban-reason" type="text" maxlength="200" class="setting-input" data-i18n-attr="placeholder:admin.banReason" placeholder="Grund (optional)">
+                    <button data-admin-action="add-ban" class="btn-primary" data-i18n="admin.ban">Sperren</button>
+                </div>
+                <p id="admin-ban-error" class="setting-desc text-red-300 px-4 pb-2 hidden" role="alert"></p>
+                <ul id="admin-ban-list" class="admin-list"></ul>
+            </section>
+        </section>
+
         <section data-admin-view="passkeys" class="admin-view hidden">
             <section class="settings-card">
                 <h2 data-i18n="admin.passkeysTitle" class="settings-card-title">Admin-Passkeys</h2>
                 <ul id="admin-passkey-list" class="admin-list"></ul>
                 <div class="setting-block flex gap-2">
-                    <input id="admin-new-passkey-name" type="text" maxlength="60" class="input-field flex-1" data-i18n-attr="placeholder:admin.passkeyNamePlaceholder" placeholder="Name des Geräts, z. B. Handy">
+                    <input id="admin-new-passkey-name" type="text" maxlength="60" class="setting-input flex-1" data-i18n-attr="placeholder:admin.passkeyNamePlaceholder" placeholder="Name des Geräts, z. B. Handy">
                     <button data-admin-action="add-passkey" class="btn-secondary" data-i18n="admin.addPasskey">Passkey hinzufügen</button>
                 </div>
             </section>

@@ -159,6 +159,8 @@ async function refreshTab() {
     if (adminState.tab === 'load') return refreshLoad();
     if (adminState.tab === 'status') return refreshStatus();
     if (adminState.tab === 'passkeys') return refreshPasskeys();
+    if (adminState.tab === 'settings') return refreshSettings();
+    if (adminState.tab === 'bans') return refreshBans();
 }
 
 // ----- Auslastung -----
@@ -383,6 +385,181 @@ async function refreshStatus() {
     }));
 }
 
+// ----- Einstellungen (Live-Konfiguration) -----
+// Welche Eingabe je Einstellung; Optionen kommen vom Router (nur was dort moeglich ist).
+const LIVE_SETTINGS = {
+    AGE_CHECK: { type: 'select', label: () => t('admin.settingAgeCheck') },
+    EMAIL_CHECK: { type: 'select', label: () => t('admin.settingEmailCheck') },
+    ABUSE_LOG_DAYS: { type: 'number', min: 0, max: 14, step: 1, label: () => t('admin.settingAbuseLog') },
+    NUDITY_MODEL: { type: 'select', label: () => t('admin.settingNudityModel') },
+    NUDITY_THRESHOLD: { type: 'number', min: 0.5, max: 0.95, step: 0.05, label: () => t('admin.settingNudityThreshold') },
+    NUDITY_CLASSES: { type: 'checkboxes', label: () => t('admin.settingNudityClasses') },
+    CLIENT_DEFAULTS: { type: 'json', label: () => t('admin.settingClientDefaults') },
+    AUDIENCE_MINIMUM: { type: 'json', label: () => t('admin.settingAudienceMinimum') }
+};
+
+async function refreshSettings() {
+    // Waehrend der Eingabe nicht neu zeichnen (der 10-s-Takt wuerde Eingaben verwerfen).
+    if (document.activeElement?.closest?.('#admin-live-settings')) return;
+    const { live, restartOnly } = await adminApi('config');
+    const container = document.getElementById('admin-live-settings');
+    const restart = document.getElementById('admin-restart-settings');
+    if (!container || !restart) return;
+    container.replaceChildren(...Object.entries(LIVE_SETTINGS).filter(([key]) => live[key]).map(([key, spec]) => settingRow(key, spec, live[key])));
+    restart.replaceChildren(...restartOnly.flatMap(entry => {
+        const dt = document.createElement('dt');
+        dt.textContent = entry.key;
+        const dd = document.createElement('dd');
+        dd.textContent = entry.secret ? (entry.set ? t('admin.secretSet') : t('admin.notSet')) : (entry.value ?? t('admin.notSet'));
+        return [dt, dd];
+    }));
+}
+
+function settingRow(key, spec, setting) {
+    const row = document.createElement('div');
+    row.className = 'setting-block admin-setting';
+    const head = document.createElement('div');
+    head.className = 'admin-setting-head';
+    const title = document.createElement('span');
+    title.className = 'setting-title';
+    title.textContent = spec.label();
+    const code = document.createElement('code');
+    code.className = 'admin-setting-key';
+    code.textContent = key;
+    const source = document.createElement('span');
+    source.className = `admin-source${setting.source === 'panel' ? ' is-panel' : ''}`;
+    source.textContent = setting.source === 'panel'
+        ? t('admin.sourcePanel', { time: new Date(setting.updatedAt).toLocaleString(i18nLocale()) })
+        : t('admin.sourceEnv');
+    head.append(title, code, source);
+
+    let input;
+    let read;
+    if (spec.type === 'select') {
+        input = document.createElement('select');
+        input.className = 'setting-select';
+        for (const option of setting.options || []) {
+            const element = document.createElement('option');
+            element.value = option;
+            element.textContent = option;
+            element.selected = option === setting.value;
+            input.append(element);
+        }
+        read = () => input.value;
+    } else if (spec.type === 'number') {
+        input = document.createElement('input');
+        Object.assign(input, { type: 'number', min: spec.min, max: spec.max, step: spec.step, value: setting.value ?? '' });
+        input.className = 'setting-input w-32';
+        read = () => Number(input.value);
+    } else if (spec.type === 'checkboxes') {
+        input = document.createElement('div');
+        input.className = 'admin-checkboxes';
+        const selected = new Set(setting.value || []);
+        for (const option of setting.options || []) {
+            const label = document.createElement('label');
+            const box = document.createElement('input');
+            Object.assign(box, { type: 'checkbox', value: option, checked: selected.has(option) });
+            label.append(box, ` ${option}`);
+            input.append(label);
+        }
+        read = () => [...input.querySelectorAll('input:checked')].map(box => box.value);
+    } else {
+        input = document.createElement('textarea');
+        input.className = 'setting-input w-full font-mono text-xs';
+        input.rows = 3;
+        input.value = setting.value == null ? '' : JSON.stringify(setting.value, null, 2);
+        read = () => input.value.trim() || null;
+    }
+    input.setAttribute('aria-label', spec.label());
+
+    const actions = document.createElement('div');
+    actions.className = 'admin-setting-actions';
+    const error = document.createElement('p');
+    error.className = 'setting-desc text-red-300 hidden';
+    error.setAttribute('role', 'alert');
+    const save = document.createElement('button');
+    save.className = 'btn-primary';
+    save.textContent = t('admin.save');
+    save.addEventListener('click', () => changeSetting(key, 'PUT', read(), error));
+    actions.append(save);
+    if (setting.source === 'panel') {
+        const reset = document.createElement('button');
+        reset.className = 'btn-secondary';
+        reset.textContent = t('admin.reset');
+        reset.addEventListener('click', () => changeSetting(key, 'DELETE', undefined, error));
+        actions.append(reset);
+    }
+    row.append(head, input, actions, error);
+    return row;
+}
+
+async function changeSetting(key, method, value, errorElement) {
+    try {
+        await adminApi(`config/${encodeURIComponent(key)}`, { method, body: method === 'PUT' ? { value } : undefined });
+        document.activeElement?.blur();
+        await refreshSettings();
+    } catch (error) {
+        errorElement.textContent = t('admin.settingRejected', { reason: error.message });
+        errorElement.classList.remove('hidden');
+    }
+}
+
+// ----- Sperren -----
+async function refreshBans() {
+    const { bans } = await adminApi('bans');
+    const list = document.getElementById('admin-ban-list');
+    if (!list) return;
+    if (!bans.length) {
+        const empty = document.createElement('li');
+        empty.className = 'admin-list-item text-slate-500';
+        empty.textContent = t('admin.noBans');
+        list.replaceChildren(empty);
+        return;
+    }
+    list.replaceChildren(...bans.map(ban => {
+        const item = document.createElement('li');
+        item.className = 'admin-list-item';
+        const label = document.createElement('span');
+        const kind = { peer: t('admin.banKindPeer'), email: t('admin.banKindEmail'), subject: t('admin.banKindWallet') }[ban.kind] || ban.kind;
+        // E-Mail und Wallet liegen nur als HMAC vor: gekuerzt anzeigen.
+        const value = ban.kind === 'peer' ? ban.value : `${ban.value.slice(0, 12)}…`;
+        label.textContent = `${kind}: ${value} · ${new Date(ban.createdAt).toLocaleString(i18nLocale())}${ban.reason ? ` · ${ban.reason}` : ''}`;
+        const lift = document.createElement('button');
+        lift.className = 'btn-secondary';
+        lift.textContent = t('admin.liftBan');
+        lift.dataset.adminAction = 'lift-ban';
+        lift.dataset.banKind = ban.kind;
+        lift.dataset.banValue = ban.value;
+        item.append(label, lift);
+        return item;
+    }));
+}
+
+async function addBan() {
+    const error = document.getElementById('admin-ban-error');
+    const value = document.getElementById('admin-ban-value');
+    try {
+        await adminApi('bans', { method: 'POST', body: {
+            kind: document.getElementById('admin-ban-kind').value,
+            value: value.value,
+            reason: document.getElementById('admin-ban-reason').value
+        } });
+        value.value = '';
+        document.getElementById('admin-ban-reason').value = '';
+        error.classList.add('hidden');
+        await refreshBans();
+    } catch (failure) {
+        error.textContent = t('admin.banRejected', { reason: failure.message });
+        error.classList.remove('hidden');
+    }
+}
+
+async function liftBan(kind, value) {
+    if (!window.confirm(t('admin.confirmLiftBan'))) return;
+    await adminApi(`bans/${encodeURIComponent(kind)}/${encodeURIComponent(value)}`, { method: 'DELETE' }).catch(error => window.alert(error.message));
+    await refreshBans();
+}
+
 // ----- Passkeys -----
 async function refreshPasskeys() {
     const { passkeys } = await adminApi('passkeys');
@@ -436,6 +613,8 @@ document.addEventListener('click', event => {
     else if (action === 'logout') adminLogout();
     else if (action === 'add-passkey') addPasskey();
     else if (action === 'remove-passkey') removePasskey(target.dataset.passkeyId);
+    else if (action === 'add-ban') addBan();
+    else if (action === 'lift-ban') liftBan(target.dataset.banKind, target.dataset.banValue);
 });
 window.addEventListener('resize', () => adminState.tab === 'load' && renderLoad());
 document.addEventListener('DOMContentLoaded', adminStart);

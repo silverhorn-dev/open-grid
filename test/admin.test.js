@@ -150,3 +150,85 @@ test('admin page is served with the app CSP, never indexed, and the cookie is st
     assert.match(response.headers['set-cookie'], /HttpOnly; SameSite=Strict; Max-Age=43200; Secure/);
     assert.match(response.headers['set-cookie'], /Path=\/api\/admin/);
 });
+
+// ----- Phase 2: Live-Konfiguration und Sperren -----
+const H = cookie => ({ cookie, 'x-opengrid-admin': '1' });
+const put = (app, key, value, cookie) => app.inject({ method: 'PUT', url: `/api/admin/config/${key}`, payload: { value }, headers: H(cookie) });
+const appConfig = async app => (await app.inject({ method: 'GET', url: '/api/config' })).json();
+
+test('admin live config: takes effect at once, survives a restart, rejects invalid values, resets to env', async () => {
+    const store = createStore(':memory:');
+    const build = () => buildApp({ store, buildVersion: 'test', buildTimestamp: 'x', appUrl: ORIGIN, adminSetupToken: SETUP, metrics: false });
+    let app = await build();
+    cleanup.push(async () => store.close());
+    const cookie = await setupPasskey(app, authenticator());
+
+    const config = (await app.inject({ method: 'GET', url: '/api/admin/config', headers: { cookie } })).json();
+    assert.equal(config.live.NUDITY_THRESHOLD.source, 'env');
+    assert.ok(config.live.NUDITY_MODEL.options.includes('off'));
+    assert.deepEqual(config.live.AGE_CHECK.options, ['off', 'confirm'], 'provider only with a configured provider');
+    const secret = config.restartOnly.find(entry => entry.key === 'SAFETY_KEY');
+    assert.deepEqual(Object.keys(secret).sort(), ['key', 'secret', 'set'], 'secrets never with their value');
+
+    assert.equal((await put(app, 'NUDITY_THRESHOLD', 0.85, cookie)).statusCode, 200);
+    assert.equal((await appConfig(app)).nudity.threshold, 0.85, 'effective without restart');
+    assert.equal((await put(app, 'NUDITY_THRESHOLD', 2, cookie)).statusCode, 400);
+    assert.equal((await put(app, 'CLIENT_DEFAULTS', '{"language":"en"}', cookie)).statusCode, 200);
+    assert.equal((await appConfig(app)).clientDefaults.language, 'en');
+    assert.equal((await put(app, 'CLIENT_DEFAULTS', '{oops', cookie)).statusCode, 400);
+    assert.equal((await put(app, 'AGE_CHECK', 'provider', cookie)).statusCode, 400);
+    assert.equal((await put(app, 'AGE_CHECK', 'confirm', cookie)).statusCode, 200);
+    assert.equal((await appConfig(app)).safety.ageCheck, 'confirm');
+    assert.equal((await put(app, 'AUDIENCE_MINIMUM', { ranges: { age: { min: 18 } } }, cookie)).statusCode, 200);
+    assert.deepEqual((await appConfig(app)).audienceMinimum, { ranges: { age: { min: 18 } } });
+    assert.equal((await put(app, 'NUDITY_MODEL', 'off', cookie)).statusCode, 200);
+    assert.equal((await appConfig(app)).nudity.model, 'off');
+    assert.equal((await put(app, 'NUDITY_MODEL', 'missing-model', cookie)).statusCode, 400);
+    assert.equal((await app.inject({ method: 'PUT', url: '/api/admin/config/NUDITY_THRESHOLD', payload: { value: 0.9 }, headers: { cookie } })).statusCode, 403, 'admin header required');
+
+    // Neustart: Panel-Werte gelten weiter.
+    await app.close();
+    app = await build();
+    cleanup.push(async () => app.close());
+    assert.equal((await appConfig(app)).nudity.model, 'off');
+    assert.equal((await appConfig(app)).safety.ageCheck, 'confirm');
+
+    // Sitzungen liegen nur im Speicher: nach dem Neustart neu anmelden.
+    assert.equal((await app.inject({ method: 'GET', url: '/api/admin/session', headers: { cookie } })).json().loggedIn, false);
+});
+
+test('admin live config: reset brings back the environment value', async () => {
+    const app = await adminApp();
+    const cookie = await setupPasskey(app, authenticator());
+    assert.equal((await put(app, 'NUDITY_THRESHOLD', 0.9, cookie)).statusCode, 200);
+    const reset = await app.inject({ method: 'DELETE', url: '/api/admin/config/NUDITY_THRESHOLD', headers: H(cookie) });
+    assert.equal(reset.statusCode, 200);
+    assert.equal(reset.json().setting.source, 'env');
+    assert.equal((await appConfig(app)).nudity.threshold, 0.7);
+    assert.equal((await app.inject({ method: 'DELETE', url: '/api/admin/config/UNKNOWN', headers: H(cookie) })).statusCode, 400);
+});
+
+test('admin bans: list, ban a peer (registration refused), lift it; email only as HMAC', async () => {
+    const app = await adminApp();
+    const cookie = await setupPasskey(app, authenticator());
+    const register = peerId => {
+        const keys = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+        const registrationId = `registration-${peerId}`;
+        const authToken = randomBytes(32).toString('base64url');
+        const signature = sign('sha256', Buffer.from(JSON.stringify({ peerId, registrationId, authToken })), { key: keys.privateKey, dsaEncoding: 'ieee-p1363' });
+        return app.inject({ method: 'POST', url: '/api/register', payload: { peerId, registrationId, geohash: 'u10j2k', authToken, registrationProof: { publicKey: keys.publicKey.export({ format: 'jwk' }), signature: signature.toString('base64') } } });
+    };
+    assert.equal((await post(app, '/api/admin/bans', { kind: 'peer', value: 'mallory', reason: 'leak' }, { cookie })).statusCode, 403, 'admin header required');
+    assert.equal((await post(app, '/api/admin/bans', { kind: 'peer', value: 'mallory', reason: 'leak' }, H(cookie))).statusCode, 200);
+    assert.equal((await post(app, '/api/admin/bans', { kind: 'email', value: 'Leaker@Example.org' }, H(cookie))).statusCode, 200);
+    assert.equal((await post(app, '/api/admin/bans', { kind: 'email', value: 'not-an-email' }, H(cookie))).statusCode, 400);
+    assert.equal((await post(app, '/api/admin/bans', { kind: 'nope', value: 'x' }, H(cookie))).statusCode, 400);
+    const bans = (await app.inject({ method: 'GET', url: '/api/admin/bans', headers: { cookie } })).json().bans;
+    assert.equal(bans.length, 2);
+    assert.equal(bans.find(ban => ban.kind === 'peer').reason, 'leak');
+    assert.doesNotMatch(bans.find(ban => ban.kind === 'email').value, /@/, 'email stored as HMAC only');
+    assert.equal((await register('mallory')).statusCode, 403);
+    assert.equal((await app.inject({ method: 'DELETE', url: '/api/admin/bans/peer/mallory', headers: H(cookie) })).statusCode, 200);
+    assert.equal((await register('mallory')).statusCode, 200);
+    assert.equal((await app.inject({ method: 'DELETE', url: '/api/admin/bans/peer/mallory', headers: H(cookie) })).statusCode, 404);
+});

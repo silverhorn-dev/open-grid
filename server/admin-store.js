@@ -11,6 +11,13 @@ export function createAdminStore(database) {
             created_at INTEGER NOT NULL,
             last_used_at INTEGER
         );
+
+        -- Live-Konfiguration aus dem Panel (server/live-config.js); gewinnt ueber die Umgebungsvariablen.
+        CREATE TABLE IF NOT EXISTS admin_settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            updated_at INTEGER NOT NULL
+        );
     `);
     const statements = {
         list: database.prepare('SELECT id, name, created_at AS createdAt, last_used_at AS lastUsedAt FROM admin_passkeys ORDER BY created_at'),
@@ -19,6 +26,9 @@ export function createAdminStore(database) {
         insert: database.prepare('INSERT INTO admin_passkeys (id, public_key, counter, transports, name, created_at) VALUES (?, ?, ?, ?, ?, ?)'),
         touch: database.prepare('UPDATE admin_passkeys SET counter = ?, last_used_at = ? WHERE id = ?'),
         remove: database.prepare('DELETE FROM admin_passkeys WHERE id = ?'),
+        listSettings: database.prepare('SELECT key, value, updated_at AS updatedAt FROM admin_settings'),
+        upsertSetting: database.prepare('INSERT INTO admin_settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at'),
+        deleteSetting: database.prepare('DELETE FROM admin_settings WHERE key = ?'),
         queueTotals: database.prepare('SELECT COUNT(*) AS count, COALESCE(SUM(LENGTH(ciphertext_payload)), 0) AS bytes FROM queued_messages WHERE expires_at > ?'),
         peerTotals: database.prepare('SELECT COUNT(*) AS count FROM peers'),
         pushTotals: database.prepare('SELECT COUNT(*) AS count FROM push_subscriptions')
@@ -35,6 +45,9 @@ export function createAdminStore(database) {
         },
         touchPasskey: (id, counter, now = Date.now()) => statements.touch.run(counter, now, id),
         removePasskey: id => statements.remove.run(id).changes > 0,
+        settings: () => Object.fromEntries(statements.listSettings.all().map(row => [row.key, { value: JSON.parse(row.value), updatedAt: row.updatedAt }])),
+        saveSetting: (key, value, now = Date.now()) => statements.upsertSetting.run(key, JSON.stringify(value), now),
+        deleteSetting: key => statements.deleteSetting.run(key).changes > 0,
         queueTotals: (now = Date.now()) => statements.queueTotals.get(now),
         peerCount: () => statements.peerTotals.get().count,
         pushCount: () => statements.pushTotals.get().count

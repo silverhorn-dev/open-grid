@@ -305,7 +305,16 @@ Sicherheitsschluessel), kein Passwort.
   Neustart leer.
 - Status: Version, Laufzeit, Peers, Push-Abos, Nacktbild-Modell, Nachweise,
   Alters-Aussteller.
-- Sperren, Live-Konfiguration und Meldungen folgen (`tasks/board.md`, T25).
+- Einstellungen: sofort wirksam (ohne Neustart, gespeichert, gewinnt ueber die
+  Umgebungsvariable, "Zuruecksetzen" nimmt wieder deren Wert): `AGE_CHECK`,
+  `EMAIL_CHECK`, `ABUSE_LOG_DAYS`, `NUDITY_MODEL`, `NUDITY_THRESHOLD`,
+  `NUDITY_CLASSES`, `CLIENT_DEFAULTS`, `AUDIENCE_MINIMUM`. Der Rest (Ports,
+  Datenbank, TURN, SMTP, `AGE_PROVIDER`, ...) steht zur Ansicht da und braucht
+  einen Neustart; Geheimnisse nur als "gesetzt". `AGE_CHECK=provider` geht nur
+  mit gesetztem `AGE_PROVIDER`.
+- Sperren: Peer-ID oder E-Mail-Adresse sperren (gespeichert nur als HMAC),
+  aufheben; eine offene Verbindung des Peers wird getrennt.
+- Meldungen folgen (`tasks/board.md`, T25).
 
 ## Club-/LAN-Betrieb
 

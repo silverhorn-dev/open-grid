@@ -61,6 +61,32 @@ async function main() {
         await page.waitForSelector('#admin-passkey-list li');
         assert.match(await page.textContent('#admin-passkey-list'), /E2E/);
 
+        // Einstellungen: Schwelle live aendern (wirkt sofort in /api/config), dann zuruecksetzen.
+        page.on('dialog', dialog => dialog.accept());
+        await page.click('[data-admin-tab="settings"]');
+        await page.waitForSelector('#admin-live-settings .admin-setting');
+        const threshold = page.locator('.admin-setting', { has: page.locator('code', { hasText: /^NUDITY_THRESHOLD$/ }) });
+        await threshold.locator('input').fill('0.8');
+        await threshold.locator('button', { hasText: 'Speichern' }).click();
+        await page.waitForSelector('.admin-setting:has(code:text-is("NUDITY_THRESHOLD")) .admin-source.is-panel');
+        assert.equal((await (await page.request.get(`${BASE_URL}/api/config`)).json()).nudity.threshold, 0.8);
+        await page.screenshot({ path: process.env.SCREENSHOT_DIR ? `${process.env.SCREENSHOT_DIR}/admin-settings.png` : '/tmp/admin-settings.png', fullPage: true });
+        await page.locator('.admin-setting:has(code:text-is("NUDITY_THRESHOLD")) button', { hasText: 'Zurücksetzen' }).click();
+        await page.waitForSelector('.admin-setting:has(code:text-is("NUDITY_THRESHOLD")) .admin-source:not(.is-panel)');
+        assert.equal((await (await page.request.get(`${BASE_URL}/api/config`)).json()).nudity.threshold, 0.7);
+        assert.match(await page.textContent('#admin-restart-settings'), /SAFETY_KEY/);
+
+        // Sperren: Peer sperren, in der Liste sehen, aufheben.
+        await page.click('[data-admin-tab="bans"]');
+        await page.waitForSelector('#admin-ban-list li');
+        await page.fill('#admin-ban-value', 'e2e-banned-peer');
+        await page.fill('#admin-ban-reason', 'E2E');
+        await page.click('[data-admin-action="add-ban"]');
+        await page.waitForSelector('#admin-ban-list li:has-text("e2e-banned-peer")');
+        await page.click('#admin-ban-list li:has-text("e2e-banned-peer") [data-admin-action="lift-ban"]');
+        for (let attempt = 0; attempt < 20 && (await page.textContent('#admin-ban-list')).includes('e2e-banned-peer'); attempt += 1) await page.waitForTimeout(250);
+        assert.equal((await page.textContent('#admin-ban-list')).includes('e2e-banned-peer'), false, 'ban lifted');
+
         // Abmelden, mit dem Passkey wieder anmelden.
         await page.click('#admin-logout');
         await page.waitForSelector('#admin-login:not(.hidden)');

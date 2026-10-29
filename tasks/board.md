@@ -508,6 +508,7 @@
     - erster start ohne admin-passkey: einmaliger setup-link im server-log (24 h), damit passkey anlegen; weitere passkeys im panel; sitzung per HttpOnly-cookie (SameSite=Strict, 12 h)
     - auslastung: alle 10 s messen (CPU, speicher, event-loop-verzoegerung, WS-verbindungen, peers online, anfragen/s + fehler, queue, push, platz auf der platte, datenbankgroesse), 1 h in 10-s-schritten + 24 h in minuten, nur im speicher
     - status: version, laufzeit, peers, push-abos, nacktbild-modell, alters-anker (EU-listen)
+  - [x] phase 2 done 2026-10-29: `server/live-config.js` (`admin_settings`), `safety.updateConfig`/`options`, sperren-routen (`listBans`, `removeBan`), tabs "Einstellungen" + "Sperren"; tests `test/admin.test.js`, e2e `admin` erweitert
   - phase 2: sperren (liste, setzen, aufheben) + live-config (tabelle `admin_settings`, gewinnt ueber env; nur was ohne neustart geht: CLIENT_DEFAULTS, AUDIENCE_MINIMUM, nacktbild, nachweise, IP-protokoll; rest nur anzeigen)
   - phase 3: meldungen: in der app "Weitergabe melden" (bild mit spur-wasserzeichen -> peer-id des weitergebers, nie das bild selbst), panel zeigt meldung + sperren mit einem klick
 

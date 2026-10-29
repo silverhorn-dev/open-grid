@@ -1364,12 +1364,26 @@ Anfrage. Tabelle `admin_passkeys` (`id`, `public_key`, `counter`,
 | GET/DELETE | `/api/admin/passkeys`, `/api/admin/passkeys/:id` | Liste, entfernen (nicht den letzten) |
 | GET | `/api/admin/status` | Version, System, Peers, Push, Queue, Nacktbild-Modell, Nachweise, Alters-Anker |
 | GET | `/api/admin/metrics?range=1h\|24h` | Messreihe |
+| GET | `/api/admin/config` | `{ live: { KEY: { value, env, source: env\|panel, updatedAt, options? } }, restartOnly: [{ key, value }\|{ key, secret, set }] }` |
+| PUT/DELETE | `/api/admin/config/:key` | Wert setzen (`{ value }`, ungueltig -> 400 mit `reason`) bzw. auf die Umgebung zuruecksetzen |
+| GET | `/api/admin/bans` | Sperren (`kind`, `value`, `reason`, `createdAt`; E-Mail/Wallet als HMAC) |
+| POST/DELETE | `/api/admin/bans`, `/api/admin/bans/:kind/:value` | Sperre setzen (`peer` oder `email`; Peer wird getrennt) bzw. aufheben |
 
 Setup-Token: zufaellig (oder `ADMIN_SETUP_TOKEN`), 24 h, nur solange kein
 Passkey existiert, steht beim Start im Log. Sitzung: Cookie `og_admin`
 (HttpOnly, SameSite=Strict, Pfad `/api/admin`, 12 h, `Secure` bei https), nur
 im Speicher; aendernde Anfragen mit Sitzung brauchen `x-opengrid-admin: 1`.
 Rate-Limit `admin` 120/min.
+
+Live-Konfiguration (`server/live-config.js`): Tabelle `admin_settings` (`key`,
+`value` JSON, `updated_at`). Beim Start gilt ein gespeicherter Wert vor der
+Umgebungsvariable (ungueltig -> Warnung, Umgebung). Live: `CLIENT_DEFAULTS`,
+`AUDIENCE_MINIMUM` (neu gegen die Schemas berechnet), `NUDITY_MODEL` (nur
+installierte oder `off`; die Modell-Routen sind dafuer immer registriert),
+`NUDITY_THRESHOLD`, `NUDITY_CLASSES`, `AGE_CHECK` (`provider` nur mit Anbieter,
+der dafuer immer vorbereitet wird), `EMAIL_CHECK` (`required` nur mit Versand),
+`ABUSE_LOG_DAYS` (`safety.updateConfig`). `/api/config` liefert sofort die neuen
+Werte; Apps uebernehmen sie beim naechsten Laden.
 
 Auslastung (`server/metrics.js`): alle 10 s `cpu` (Prozess, Anteil aller Kerne),
 `memory` (RSS), `systemMemory` (%), `load`, `eventLoopMs` (p99), `sockets`,

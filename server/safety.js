@@ -97,12 +97,15 @@ function sameHash(left, right) {
     return a.length === b.length && timingSafeEqual(a, b);
 }
 
-export function createSafety({ config, store, log, now = Date.now, ageProviders = {} }) {
+export function createSafety({ config: startConfig, store, log, now = Date.now, ageProviders = {} }) {
     const safetyStore = store.safety;
+    // Eigene Kopie: AGE_CHECK, EMAIL_CHECK und ABUSE_LOG_DAYS lassen sich zur Laufzeit aendern (updateConfig,
+    // Admin-Panel); Anbieter und Versand stehen ab dem Start fest.
+    const config = { ...startConfig };
     let ageCheck = config.ageCheck;
-    let provider = null;
+    // Der Anbieter wird auch ohne AGE_CHECK=provider vorbereitet, damit das Panel ihn spaeter einschalten kann.
+    const provider = config.ageProvider ? (ageProviders[config.ageProvider] || AGE_PROVIDERS[config.ageProvider] || null) : null;
     if (ageCheck === 'provider') {
-        provider = ageProviders[config.ageProvider] || AGE_PROVIDERS[config.ageProvider] || null;
         if (!provider) {
             // Ohne Anbieter kann niemand den Nachweis erbringen; dann wenigstens die Bestaetigung.
             log.error(`AGE_CHECK=provider, aber AGE_PROVIDER "${config.ageProvider || ''}" ist unbekannt. Es gilt AGE_CHECK=confirm.`);
@@ -120,8 +123,12 @@ export function createSafety({ config, store, log, now = Date.now, ageProviders 
     } else if (config.emailCheck === 'required' && !transport) {
         log.error(`EMAIL_TRANSPORT "${config.emailTransport}" ist unbekannt; E-Mail-Codes koennen nicht verschickt werden.`);
     }
-    const needsKey = config.emailCheck === 'required' || ageCheck === 'provider';
-    const safetyCrypto = needsKey ? createSafetyCrypto(loadSafetyKey(config, store)) : null;
+    // Betreiber-Schluessel erst bei Bedarf laden (auch wenn ein Nachweis spaeter eingeschaltet wird).
+    let cryptoInstance = null;
+    const safetyCrypto = {
+        hash: (...args) => (cryptoInstance ||= createSafetyCrypto(loadSafetyKey(config, store))).hash(...args),
+        encrypt: (...args) => (cryptoInstance ||= createSafetyCrypto(loadSafetyKey(config, store))).encrypt(...args)
+    };
 
     function required() {
         const kinds = [];
@@ -153,7 +160,35 @@ export function createSafety({ config, store, log, now = Date.now, ageProviders 
             return required().length > 0;
         },
         publicConfig() {
-            return { ageCheck, ageProvider: provider?.id || null, emailCheck: config.emailCheck };
+            return { ageCheck, ageProvider: ageCheck === 'provider' ? provider?.id || null : null, emailCheck: config.emailCheck };
+        },
+        // Was das Panel einstellen darf (provider nur mit Anbieter, required nur mit Versand).
+        options() {
+            return {
+                ageCheck: AGE_CHECK_MODES.filter(mode => mode !== 'provider' || provider),
+                emailCheck: EMAIL_CHECK_MODES.filter(mode => mode !== 'required' || transport),
+                ageProvider: provider?.id || null,
+                abuseLogDays: config.abuseLogDays
+            };
+        },
+        // Live-Aenderung aus dem Admin-Panel; ungueltige Werte werden abgelehnt (Fehler).
+        updateConfig({ ageCheck: nextAgeCheck, emailCheck, abuseLogDays } = {}) {
+            const allowed = this.options();
+            if (nextAgeCheck !== undefined) {
+                if (!allowed.ageCheck.includes(nextAgeCheck)) throw new Error(`AGE_CHECK=${nextAgeCheck} is not possible here`);
+                ageCheck = nextAgeCheck;
+                if (ageCheck === 'provider' && provider?.id === 'dev') log.warn('AGE_PROVIDER=dev bestaetigt jedes Alter auf Knopfdruck. Nur zum Testen verwenden.');
+            }
+            if (emailCheck !== undefined) {
+                if (!allowed.emailCheck.includes(emailCheck)) throw new Error(`EMAIL_CHECK=${emailCheck} is not possible here`);
+                config.emailCheck = emailCheck;
+            }
+            if (abuseLogDays !== undefined) {
+                const days = Number(abuseLogDays);
+                if (!Number.isInteger(days) || days < 0 || days > MAX_ABUSE_LOG_DAYS) throw new Error('ABUSE_LOG_DAYS must be 0-14');
+                config.abuseLogDays = days;
+            }
+            return this.publicConfig();
         },
         missing,
         status,
@@ -176,12 +211,12 @@ export function createSafety({ config, store, log, now = Date.now, ageProviders 
         },
 
         async startAgeCheck(peerId) {
-            if (!provider) return { error: 'Age provider not enabled', code: 400 };
+            if (!provider || ageCheck !== 'provider') return { error: 'Age provider not enabled', code: 400 };
             return { ok: true, provider: provider.id, ...(await provider.start({ peerId })) };
         },
 
         async finishAgeCheck(peerId, payload, { origin } = {}) {
-            if (!provider) return { error: 'Age provider not enabled', code: 400 };
+            if (!provider || ageCheck !== 'provider') return { error: 'Age provider not enabled', code: 400 };
             const result = await provider.finish({ peerId, payload, origin });
             if (!result?.over18) return { error: 'Age not confirmed', code: 403, ...(result?.reason ? { reason: result.reason } : {}) };
             const subjectHash = result.subject ? safetyCrypto.hash('subject', result.subject) : null;
@@ -241,7 +276,11 @@ export function createSafety({ config, store, log, now = Date.now, ageProviders 
         // Fuer Betreiber-Skripte: Sperren per Peer-ID, E-Mail-Adresse oder Anbieter-Pseudonym.
         ban(kind, value, reason = null) {
             if (kind === 'peer') safetyStore.addBan('peer', value, reason, now());
-            else if (kind === 'email') safetyStore.addBan('email', createSafetyCrypto(loadSafetyKey(config, store)).hash('email', normalizeEmail(value)), reason, now());
+            else if (kind === 'email') {
+                const email = normalizeEmail(value);
+                if (!email) throw new Error('Invalid email');
+                safetyStore.addBan('email', safetyCrypto.hash('email', email), reason, now());
+            }
             else if (kind === 'subject') safetyStore.addBan('subject', value, reason, now());
             else throw new Error(`Unknown ban kind ${kind}`);
         }

@@ -232,3 +232,53 @@ test('admin bans: list, ban a peer (registration refused), lift it; email only a
     assert.equal((await register('mallory')).statusCode, 200);
     assert.equal((await app.inject({ method: 'DELETE', url: '/api/admin/bans/peer/mallory', headers: H(cookie) })).statusCode, 404);
 });
+
+// ----- Phase 3: Meldungen -----
+async function registerPeer(app, peerId) {
+    const keys = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+    const registrationId = `registration-${peerId}`;
+    const authToken = randomBytes(32).toString('base64url');
+    const signature = sign('sha256', Buffer.from(JSON.stringify({ peerId, registrationId, authToken })), { key: keys.privateKey, dsaEncoding: 'ieee-p1363' });
+    const response = await app.inject({ method: 'POST', url: '/api/register', payload: { peerId, registrationId, geohash: 'u10j2k', authToken, registrationProof: { publicKey: keys.publicKey.export({ format: 'jwk' }), signature: signature.toString('base64') } } });
+    return { response, headers: { authorization: `Bearer ${authToken}` } };
+}
+
+test('reports: peers report a leak (no image), the panel bans with one click or dismisses', async () => {
+    const app = await adminApp();
+    const cookie = await setupPasskey(app, authenticator());
+    const alice = await registerPeer(app, 'alice');
+    const bob = await registerPeer(app, 'bob');
+    await registerPeer(app, 'mallory');
+    const report = (who, payload) => post(app, '/api/reports', { kind: 'leak', matches: 31, ...payload, peerId: who }, who === 'alice' ? alice.headers : bob.headers);
+
+    assert.equal((await post(app, '/api/reports', { peerId: 'alice', reportedPeerId: 'mallory', matches: 31 })).statusCode, 401, 'peer login required');
+    assert.equal((await report('alice', { reportedPeerId: 'alice' })).statusCode, 400, 'not yourself');
+    assert.equal((await report('alice', { reportedPeerId: 'mallory', matches: 40 })).statusCode, 400);
+    assert.equal((await report('alice', { reportedPeerId: 'mallory', note: 'auf einer Seite gefunden' })).statusCode, 200);
+    assert.equal((await report('alice', { reportedPeerId: 'mallory' })).json().duplicate, true, 'no duplicate open report');
+    assert.equal((await report('bob', { reportedPeerId: 'mallory', matches: 29 })).statusCode, 200);
+    assert.equal((await report('bob', { reportedPeerId: 'alice', matches: 28 })).statusCode, 200);
+
+    const listed = (await app.inject({ method: 'GET', url: '/api/admin/reports', headers: { cookie } })).json();
+    assert.equal(listed.open, 3);
+    const aboutMallory = listed.reports.filter(entry => entry.reportedId === 'mallory');
+    assert.equal(aboutMallory.length, 2);
+    assert.equal(aboutMallory[0].reportersAboutPeer, 2);
+    assert.equal(listed.reports.find(entry => entry.reporterId === 'alice').note, 'auf einer Seite gefunden');
+    assert.ok(listed.reports.every(entry => !('image' in entry)));
+
+    // Sperren: Peer gesperrt, alle offenen Meldungen zu ihm erledigt.
+    assert.equal((await post(app, `/api/admin/reports/${aboutMallory[0].id}`, { action: 'ban' }, { cookie })).statusCode, 403, 'admin header required');
+    assert.equal((await post(app, `/api/admin/reports/${aboutMallory[0].id}`, { action: 'ban' }, H(cookie))).statusCode, 200);
+    assert.equal((await registerPeer(app, 'mallory')).response.statusCode, 403);
+    const afterBan = (await app.inject({ method: 'GET', url: '/api/admin/reports', headers: { cookie } })).json();
+    assert.equal(afterBan.open, 1);
+    const other = afterBan.reports[0];
+    assert.equal(other.reportedId, 'alice');
+    assert.equal((await post(app, `/api/admin/reports/${other.id}`, { action: 'dismiss' }, H(cookie))).statusCode, 200);
+    const bans = (await app.inject({ method: 'GET', url: '/api/admin/bans', headers: { cookie } })).json().bans;
+    assert.deepEqual(bans.map(ban => ban.value), ['mallory'], 'dismiss does not ban');
+    const all = (await app.inject({ method: 'GET', url: '/api/admin/reports?status=all', headers: { cookie } })).json();
+    assert.deepEqual(all.reports.map(entry => entry.status).sort(), ['banned', 'banned', 'dismissed']);
+    assert.equal((await post(app, '/api/admin/reports/unknown', { action: 'ban' }, H(cookie))).statusCode, 404);
+});

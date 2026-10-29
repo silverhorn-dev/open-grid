@@ -87,6 +87,31 @@ async function main() {
         for (let attempt = 0; attempt < 20 && (await page.textContent('#admin-ban-list')).includes('e2e-banned-peer'); attempt += 1) await page.waitForTimeout(250);
         assert.equal((await page.textContent('#admin-ban-list')).includes('e2e-banned-peer'), false, 'ban lifted');
 
+        // Meldung aus der App (wie der Knopf nach einem Wasserzeichen-Treffer) -> Panel -> mit einem Klick sperren.
+        const appPage = await context.newPage();
+        appPage.on('pageerror', error => pageErrors.push(error.message));
+        await appPage.goto(`${BASE_URL}/`);
+        await appPage.waitForSelector('#complete-onboarding-btn', { state: 'visible', timeout: 20000 });
+        const nameInput = appPage.locator('#onboarding-profile-form input').first();
+        await nameInput.fill('Melder');
+        await nameInput.dispatchEvent('change');
+        await appPage.click('#complete-onboarding-btn');
+        await appPage.waitForTimeout(2000);
+        await appPage.evaluate(() => reportLeak('e2e-reported-peer', 30));
+        await appPage.close();
+        await page.click('[data-admin-tab="reports"]');
+        await page.waitForSelector('#admin-report-list li:has-text("e2e-reported-peer")');
+        assert.match(await page.textContent('#admin-report-list'), /30\/32/);
+        assert.equal(await page.isVisible('#admin-report-badge'), true, 'badge for open reports');
+        await page.click('#admin-report-list li:has-text("e2e-reported-peer") [data-report-action="ban"]');
+        for (let attempt = 0; attempt < 20 && (await page.textContent('#admin-report-list')).includes('e2e-reported-peer'); attempt += 1) await page.waitForTimeout(250);
+        assert.equal((await page.textContent('#admin-report-list')).includes('e2e-reported-peer'), false, 'report resolved');
+        // Aufraeumen (geteilter E2E-Server): Sperre wieder aufheben.
+        await page.click('[data-admin-tab="bans"]');
+        await page.waitForSelector('#admin-ban-list li:has-text("e2e-reported-peer")');
+        await page.click('#admin-ban-list li:has-text("e2e-reported-peer") [data-admin-action="lift-ban"]');
+        for (let attempt = 0; attempt < 20 && (await page.textContent('#admin-ban-list')).includes('e2e-reported-peer'); attempt += 1) await page.waitForTimeout(250);
+
         // Abmelden, mit dem Passkey wieder anmelden.
         await page.click('#admin-logout');
         await page.waitForSelector('#admin-login:not(.hidden)');

@@ -1042,4 +1042,7 @@ Akzeptanzkriterien:
   einem Neustart.
 - "Sperren" sperrt Peer-IDs und E-Mail-Adressen (nur als HMAC gespeichert) und
   hebt Sperren auf; ein gesperrter Peer kann sich nicht mehr registrieren.
+- Nach einem Wasserzeichen-Treffer kann ein Nutzer den Peer melden (ohne das
+  Bild hochzuladen); im Panel unter "Meldungen" sperrt der Betreiber mit einem
+  Klick oder legt die Meldung ab.
 

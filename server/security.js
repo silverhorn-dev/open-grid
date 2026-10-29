@@ -27,6 +27,8 @@ export function createRateLimiter({ windowMs, max }) {
 export const DEFAULT_RATE_LIMITS = {
     register: { windowMs: 60_000, max: 30 },
     admin: { windowMs: 60_000, max: 120 },
+    // Meldungen aus der App: je Peer hoechstens 10 pro Stunde.
+    reports: { windowMs: 60 * 60_000, max: 10 },
     grid: { windowMs: 60_000, max: 90 },
     cache: { windowMs: 60_000, max: 120 },
     chatControls: { windowMs: 60_000, max: 30 },

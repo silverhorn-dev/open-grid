@@ -3,7 +3,7 @@
 // Setup-Link aus dem Server-Log (#setup=<token>). Auslastung als kleine Liniendiagramme, eins je Wert
 // (keine zweite Achse), mit Fadenkreuz beim Zeigen, Warnungen mit Symbol + Text und einer Tabellenansicht.
 const ADMIN_REFRESH_MS = 10000;
-const adminState = { tab: 'load', range: '1h', series: null, timer: null, setupToken: null };
+const adminState = { tab: 'load', range: '1h', series: null, timer: null, setupToken: null, reportStatus: 'open' };
 
 // ----- Hilfen -----
 async function adminApi(path, { method = 'GET', body } = {}) {
@@ -161,6 +161,7 @@ async function refreshTab() {
     if (adminState.tab === 'passkeys') return refreshPasskeys();
     if (adminState.tab === 'settings') return refreshSettings();
     if (adminState.tab === 'bans') return refreshBans();
+    if (adminState.tab === 'reports') return refreshReports();
 }
 
 // ----- Auslastung -----
@@ -360,6 +361,7 @@ function chartSvg(metric, points, width) {
 // ----- Status -----
 async function refreshStatus() {
     const status = await adminApi('status');
+    renderReportBadge(status.openReports || 0);
     const list = document.getElementById('admin-status');
     if (!list) return;
     const uptime = status.system?.uptimeSeconds || 0;
@@ -504,6 +506,75 @@ async function changeSetting(key, method, value, errorElement) {
     }
 }
 
+// ----- Meldungen -----
+function renderReportBadge(open) {
+    const badge = document.getElementById('admin-report-badge');
+    if (!badge) return;
+    badge.textContent = open > 99 ? '99+' : String(open);
+    badge.classList.toggle('hidden', !open);
+}
+
+async function refreshReports() {
+    const { reports, open } = await adminApi(`reports?status=${adminState.reportStatus}`);
+    renderReportBadge(open);
+    const list = document.getElementById('admin-report-list');
+    if (!list) return;
+    if (!reports.length) {
+        const empty = document.createElement('li');
+        empty.className = 'admin-list-item text-slate-500';
+        empty.textContent = t('admin.noReports');
+        list.replaceChildren(empty);
+        return;
+    }
+    const statusText = { open: t('admin.reportStatusOpen'), banned: t('admin.reportStatusBanned'), dismissed: t('admin.reportStatusDismissed') };
+    list.replaceChildren(...reports.map(report => {
+        const item = document.createElement('li');
+        item.className = 'admin-list-item admin-report';
+        const text = document.createElement('div');
+        text.className = 'min-w-0';
+        const head = document.createElement('p');
+        head.className = 'font-semibold break-all';
+        head.textContent = t('admin.reportHead', { peer: report.reportedId, matches: report.matches ?? '?' });
+        const meta = document.createElement('p');
+        meta.className = 'setting-desc break-all';
+        meta.textContent = [
+            new Date(report.createdAt).toLocaleString(i18nLocale()),
+            t('admin.reportBy', { reporter: report.reporterId }),
+            t('admin.reportCounts', { reports: report.reportsAboutPeer, reporters: report.reportersAboutPeer }),
+            statusText[report.status] || report.status
+        ].join(' · ');
+        text.append(head, meta);
+        if (report.note) {
+            const note = document.createElement('p');
+            note.className = 'setting-desc text-slate-300 break-words';
+            note.textContent = `„${report.note}“`;
+            text.append(note);
+        }
+        item.append(text);
+        if (report.status === 'open') {
+            const actions = document.createElement('div');
+            actions.className = 'flex gap-2 shrink-0';
+            for (const [action, label, style] of [['ban', t('admin.reportBan'), 'btn-primary'], ['dismiss', t('admin.reportDismiss'), 'btn-secondary']]) {
+                const button = document.createElement('button');
+                button.className = style;
+                button.textContent = label;
+                button.dataset.adminAction = 'resolve-report';
+                button.dataset.reportId = report.id;
+                button.dataset.reportAction = action;
+                actions.append(button);
+            }
+            item.append(actions);
+        }
+        return item;
+    }));
+}
+
+async function resolveReport(id, action) {
+    if (action === 'ban' && !window.confirm(t('admin.confirmReportBan'))) return;
+    await adminApi(`reports/${encodeURIComponent(id)}`, { method: 'POST', body: { action } }).catch(error => window.alert(error.message));
+    await refreshReports();
+}
+
 // ----- Sperren -----
 async function refreshBans() {
     const { bans } = await adminApi('bans');
@@ -600,8 +671,13 @@ async function removePasskey(id) {
 
 // ----- Ereignisse (keine Inline-Handler, CSP) -----
 document.addEventListener('click', event => {
-    const target = event.target.closest('[data-admin-action], [data-admin-tab], [data-admin-range]');
+    const target = event.target.closest('[data-admin-action], [data-admin-tab], [data-admin-range], [data-admin-report-status]');
     if (!target) return;
+    if (target.dataset.adminReportStatus) {
+        adminState.reportStatus = target.dataset.adminReportStatus;
+        document.querySelectorAll('[data-admin-report-status]').forEach(button => button.classList.toggle('is-active', button === target));
+        return refreshReports().catch(handlePanelError);
+    }
     if (target.dataset.adminTab) return selectTab(target.dataset.adminTab);
     if (target.dataset.adminRange) {
         adminState.range = target.dataset.adminRange;
@@ -614,6 +690,7 @@ document.addEventListener('click', event => {
     else if (action === 'add-passkey') addPasskey();
     else if (action === 'remove-passkey') removePasskey(target.dataset.passkeyId);
     else if (action === 'add-ban') addBan();
+    else if (action === 'resolve-report') resolveReport(target.dataset.reportId, target.dataset.reportAction);
     else if (action === 'lift-ban') liftBan(target.dataset.banKind, target.dataset.banValue);
 });
 window.addEventListener('resize', () => adminState.tab === 'load' && renderLoad());

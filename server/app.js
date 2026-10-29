@@ -12,6 +12,7 @@ import { createSafety, parseSafetyConfig, registerSafetyRoutes } from './safety.
 import { registerAdminRoutes } from './admin.js';
 import { createMetrics } from './metrics.js';
 import { createLiveConfig } from './live-config.js';
+import { registerReportRoutes } from './reports.js';
 import { createEudiAgeProvider, parseEudiDoctypes, registerEudiTestRoutes } from './age-eudi.js';
 import { createAgeTrustStore, EU_AGE_TEST_TRUSTED_LIST_SIGNERS, EU_AGE_TEST_TRUSTED_LIST_URL, EU_AGE_TRUSTED_LIST_SIGNERS, EU_AGE_TRUSTED_LIST_URL, parseAgeTrustConfig } from './age-trust.js';
 import {
@@ -793,7 +794,10 @@ export async function buildApp(options = {}) {
         ...RESTART_ONLY_SECRETS.map(key => ({ key, secret: true, set: Boolean(process.env[key]) }))
     ];
 
-    // Admin-Panel (server/admin.js): Passkey-Login, Status, Auslastung, Sperren, Live-Konfiguration.
+    // Meldungen aus der App (server/reports.js), bearbeitet im Admin-Panel.
+    registerReportRoutes(app, { store, allowRequest, requirePeerAuth, isString, log: app.log });
+
+    // Admin-Panel (server/admin.js): Passkey-Login, Status, Auslastung, Sperren, Live-Konfiguration, Meldungen.
     registerAdminRoutes(app, {
         liveConfig, restartOnly, safety, disconnectPeer: peerId => signaling.disconnectPeer(peerId),
         store, metrics, allowRequest, log: app.log, now,
@@ -812,7 +816,8 @@ export async function buildApp(options = {}) {
                 : { model: nudityPublicConfig.model, threshold: nudityPublicConfig.threshold, classes: nudityPublicConfig.classes, available: Object.keys(nudityPublicConfig.models || {}) },
             safety: { ...safety.publicConfig(), abuseLogDays: safetyConfig.abuseLogDays },
             ageTrust: app.ageTrust?.status() ?? null,
-            latest: metrics.latest()
+            latest: metrics.latest(),
+            openReports: store.admin.openReportCount()
         })
     });
     // Testseite fuer den Wallet-Nachweis (Debug-Modus): prueft echt, speichert nichts (age-eudi.js).

@@ -41,6 +41,7 @@
             <button data-admin-tab="load" role="tab" class="admin-tab" data-i18n="admin.tabLoad">Auslastung</button>
             <button data-admin-tab="status" role="tab" class="admin-tab" data-i18n="admin.tabStatus">Status</button>
             <button data-admin-tab="settings" role="tab" class="admin-tab" data-i18n="admin.tabSettings">Einstellungen</button>
+            <button data-admin-tab="reports" role="tab" class="admin-tab"><span data-i18n="admin.tabReports">Meldungen</span> <span id="admin-report-badge" class="admin-badge hidden"></span></button>
             <button data-admin-tab="bans" role="tab" class="admin-tab" data-i18n="admin.tabBans">Sperren</button>
             <button data-admin-tab="passkeys" role="tab" class="admin-tab" data-i18n="admin.tabPasskeys">Passkeys</button>
         </nav>
@@ -77,6 +78,18 @@
             <section class="settings-card mt-4">
                 <h2 data-i18n="admin.restartTitle" class="settings-card-title">Nur mit Neustart</h2>
                 <dl id="admin-restart-settings" class="admin-status px-4 pb-4"></dl>
+            </section>
+        </section>
+
+        <section data-admin-view="reports" class="admin-view hidden">
+            <section class="settings-card">
+                <h2 data-i18n="admin.reportsTitle" class="settings-card-title">Meldungen</h2>
+                <p data-i18n="admin.reportsText" class="setting-desc px-4 pb-2">Gemeldet wird ein Peer, dessen Spur-Wasserzeichen in einem weitergegebenen Bild gefunden wurde. Das Bild selbst kommt nie beim Server an: prüfbar sind nur Trefferquote und wie viele verschiedene Personen denselben Peer gemeldet haben.</p>
+                <div class="admin-range mx-4 mb-2" role="group" data-i18n-attr="aria-label:admin.reportFilter" aria-label="Filter">
+                    <button data-admin-report-status="open" class="admin-range-btn is-active" data-i18n="admin.reportsOpen">Offen</button>
+                    <button data-admin-report-status="all" class="admin-range-btn" data-i18n="admin.reportsAll">Alle</button>
+                </div>
+                <ul id="admin-report-list" class="admin-list"></ul>
             </section>
         </section>
 

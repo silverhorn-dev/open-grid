@@ -314,7 +314,12 @@ Sicherheitsschluessel), kein Passwort.
   mit gesetztem `AGE_PROVIDER`.
 - Sperren: Peer-ID oder E-Mail-Adresse sperren (gespeichert nur als HMAC),
   aufheben; eine offene Verbindung des Peers wird getrennt.
-- Meldungen folgen (`tasks/board.md`, T25).
+- Meldungen: Findet jemand ein weitergegebenes Bild, prueft er es in der App
+  ("Wasserzeichen pruefen") und meldet den Treffer. Beim Server kommen nur die
+  Peer-ID, die Trefferquote und eine Notiz an, nie das Bild. Das Panel zeigt,
+  wie viele verschiedene Personen denselben Peer gemeldet haben; "Peer sperren"
+  sperrt mit einem Klick (alle offenen Meldungen zu ihm gelten als erledigt).
+  Je Peer hoechstens 10 Meldungen pro Stunde.
 
 ## Club-/LAN-Betrieb
 

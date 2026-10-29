@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 225 · 2026-10-29
+## Build 226 · 2026-10-29
+- Neu: Weitergabe melden. Findet "Wasserzeichen pruefen" den Empfaenger eines weitergegebenen Bilds, laesst er sich direkt melden (das Bild bleibt auf deinem Geraet)
+- Admin-Panel: Meldungen ansehen und den gemeldeten Peer mit einem Klick sperren
+
+## Build 225 · 2026-10-29 · `857b570`
 - Admin-Panel: Einstellungen live aendern (Nachweise, Nacktbild-Filter, App-Standards) ohne Neustart, und Sperren setzen oder aufheben
 
 ## Build 224 · 2026-10-29 · `4068145`

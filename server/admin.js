@@ -246,6 +246,28 @@ export function registerAdminRoutes(app, {
         return { ok: true, setting: liveConfig.list()[request.params.key] };
     });
 
+    // ----- Meldungen (server/reports.js) -----
+    app.get('/api/admin/reports', async (request, reply) => {
+        if (!requireAdmin(request, reply)) return reply;
+        const status = ['open', 'banned', 'dismissed', 'all'].includes(request.query?.status) ? request.query.status : 'open';
+        return { reports: store.admin.listReports(status), open: store.admin.openReportCount() };
+    });
+
+    app.post('/api/admin/reports/:id', async (request, reply) => {
+        if (!requireAdmin(request, reply, { change: true })) return reply;
+        const action = request.body?.action;
+        const report = store.admin.findReport(request.params.id);
+        if (!report) return reply.code(404).send({ error: 'Unknown report' });
+        if (!['ban', 'dismiss'].includes(action)) return reply.code(400).send({ error: 'Invalid action' });
+        if (action === 'ban') {
+            safety.ban('peer', report.reportedId, `report ${report.id}`);
+            disconnectPeer(report.reportedId);
+        }
+        store.admin.resolveReport(report.id, action === 'ban' ? 'banned' : 'dismissed', now());
+        log.info(`Admin panel: report ${action === 'ban' ? 'led to a ban' : 'dismissed'}.`);
+        return { ok: true };
+    });
+
     // ----- Sperren (wie scripts/safety-admin.mjs) -----
     // Peer-IDs im Klartext; E-Mail und Wallet nur als HMAC (gekuerzt angezeigt).
     app.get('/api/admin/bans', async (request, reply) => {

@@ -1367,6 +1367,8 @@ Anfrage. Tabelle `admin_passkeys` (`id`, `public_key`, `counter`,
 | GET | `/api/admin/config` | `{ live: { KEY: { value, env, source: env\|panel, updatedAt, options? } }, restartOnly: [{ key, value }\|{ key, secret, set }] }` |
 | PUT/DELETE | `/api/admin/config/:key` | Wert setzen (`{ value }`, ungueltig -> 400 mit `reason`) bzw. auf die Umgebung zuruecksetzen |
 | GET | `/api/admin/bans` | Sperren (`kind`, `value`, `reason`, `createdAt`; E-Mail/Wallet als HMAC) |
+| GET | `/api/admin/reports?status=open\|banned\|dismissed\|all` | Meldungen (`reporterId`, `reportedId`, `matches`, `note`, `status`, `reportsAboutPeer`, `reportersAboutPeer`) + `open` |
+| POST | `/api/admin/reports/:id` | `{ action: 'ban' }` (Peer sperren + trennen, alle offenen Meldungen zu ihm `banned`) oder `{ action: 'dismiss' }` |
 | POST/DELETE | `/api/admin/bans`, `/api/admin/bans/:kind/:value` | Sperre setzen (`peer` oder `email`; Peer wird getrennt) bzw. aufheben |
 
 Setup-Token: zufaellig (oder `ADMIN_SETUP_TOKEN`), 24 h, nur solange kein
@@ -1374,6 +1376,14 @@ Passkey existiert, steht beim Start im Log. Sitzung: Cookie `og_admin`
 (HttpOnly, SameSite=Strict, Pfad `/api/admin`, 12 h, `Secure` bei https), nur
 im Speicher; aendernde Anfragen mit Sitzung brauchen `x-opengrid-admin: 1`.
 Rate-Limit `admin` 120/min.
+
+Meldungen (`server/reports.js`): `POST /api/reports` (Peer + Bearer, Rate-Limit
+`reports` 10/h je Peer) mit `{ peerId, reportedPeerId, kind: 'leak', matches
+(0-32), note? (500) }`; nie ein Bild. Eine offene Meldung je Melder und Peer
+(Doppelte -> `{ ok, duplicate }`). Tabelle `reports` (`id`, `reporter_id`,
+`reported_id`, `kind`, `matches`, `note`, `created_at`, `status`
+open/banned/dismissed, `resolved_at`). App: nach einem Treffer in
+"Wasserzeichen pruefen" (`watermark.js`) Notizfeld + "Weitergabe melden".
 
 Live-Konfiguration (`server/live-config.js`): Tabelle `admin_settings` (`key`,
 `value` JSON, `updated_at`). Beim Start gilt ein gespeicherter Wert vor der

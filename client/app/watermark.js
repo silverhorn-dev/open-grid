@@ -152,6 +152,50 @@ async function identifyWatermark(dataUrl, candidatePeerIds) {
     return best && best.matches >= 28 ? { ...best, confidence: result.confidence } : null;
 }
 
+// Treffer melden (Admin-Panel, server/reports.js): nur Peer-ID, Trefferguete und Notiz, nie das Bild.
+function leakReportForm(match) {
+    const form = document.createElement('div');
+    form.className = 'flex flex-col gap-2 mt-2 font-sans';
+    const note = document.createElement('input');
+    note.type = 'text';
+    note.maxLength = 500;
+    note.id = 'watermark-report-note';
+    note.className = 'setting-input';
+    note.placeholder = t('watermark.reportNotePlaceholder');
+    const button = document.createElement('button');
+    button.className = 'btn-secondary self-start';
+    button.textContent = t('watermark.reportLeak');
+    button.dataset.click = 'reportLeak';
+    button.dataset.args = JSON.stringify([match.peerId, match.matches]);
+    const hint = document.createElement('p');
+    hint.className = 'setting-desc';
+    hint.textContent = t('watermark.reportHint');
+    form.append(note, button, hint);
+    return form;
+}
+
+async function reportLeak(reportedPeerId, matches) {
+    try {
+        const response = await fetch(`${API_BASE}/api/reports`, {
+            method: 'POST',
+            headers: peerAuthHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({
+                peerId: state.myProfile.id,
+                reportedPeerId,
+                kind: 'leak',
+                matches,
+                note: document.getElementById('watermark-report-note')?.value || ''
+            })
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        showToast(t('watermark.reportSent'), 'success');
+        document.getElementById('watermark-report-note')?.closest('div')?.remove();
+    } catch (error) {
+        logDebug(`Leak report failed: ${error.message}`);
+        showToast(t('watermark.reportFailed'), 'error');
+    }
+}
+
 async function checkWatermarkFile(input) {
     const file = input.files?.[0];
     input.value = '';
@@ -169,8 +213,9 @@ async function checkWatermarkFile(input) {
         Object.values(state.albums).forEach(album => (album.acl || []).forEach(peerId => candidates.add(peerId)));
         const match = await identifyWatermark(dataUrl, [...candidates]);
         output.textContent = match
-            ? `Treffer: ${getPeerPresentation(match.peerId).name || 'Peer'} (${match.peerId}), ${match.matches}/32 Bits`
+            ? t('watermark.match', { name: getPeerPresentation(match.peerId).name || 'Peer', peerId: match.peerId, matches: match.matches })
             : t('watermark.noWatermarkOfKnownPeer');
+        if (match) output.append(leakReportForm(match));
     } catch (error) {
         output.textContent = t('watermark.checkFailed', { message: error.message });
     }

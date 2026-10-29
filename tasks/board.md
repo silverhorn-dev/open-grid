@@ -500,7 +500,7 @@
   - done 2026-10-29: medien-knopf (wie im flirt-modus) in allen chats ausser dem reinen freundes-chat (`media-combined`, `updateChatAlbumButton`); e2e `friends`
 
 ## T25 Admin-Panel (nutzer 2026-10-29: "do the admin panel"; aus dem backlog)
-- [ ] entschieden (nutzer 2026-10-29): login per **admin-passkey**; umfang: status, live-config, sperren, meldungen, "most of all, auslastung"
+- [x] entschieden (nutzer 2026-10-29): login per **admin-passkey**; umfang: status, live-config, sperren, meldungen, "most of all, auslastung"
 - [x] phase 1 done 2026-10-29: `server/admin.js` (passkey per `@simplewebauthn/server`, setup-link im log, `ADMIN_SETUP_TOKEN`), `server/admin-store.js`, `server/metrics.js`, `admin.html` + `client/admin.js` (auslastung: 12 diagramme, 1 h/24 h, warnungen, tabelle; status; passkeys); tests `test/admin.test.js` (software-authenticator), e2e `admin` (virtueller authenticator von Chrome); UC-60
 - plan:
   - phase 1: passkey-login + panel + status + auslastung
@@ -510,5 +510,7 @@
     - status: version, laufzeit, peers, push-abos, nacktbild-modell, alters-anker (EU-listen)
   - [x] phase 2 done 2026-10-29: `server/live-config.js` (`admin_settings`), `safety.updateConfig`/`options`, sperren-routen (`listBans`, `removeBan`), tabs "Einstellungen" + "Sperren"; tests `test/admin.test.js`, e2e `admin` erweitert
   - phase 2: sperren (liste, setzen, aufheben) + live-config (tabelle `admin_settings`, gewinnt ueber env; nur was ohne neustart geht: CLIENT_DEFAULTS, AUDIENCE_MINIMUM, nacktbild, nachweise, IP-protokoll; rest nur anzeigen)
+  - [x] phase 3 done 2026-10-29: `server/reports.js` (`POST /api/reports`, tabelle `reports`, rate-limit 10/h), panel-tab "Meldungen" (zaehler, "Peer sperren" erledigt alle offenen meldungen zu ihm, "Erledigt"), app: "Weitergabe melden" nach einem wasserzeichen-treffer (nur peer-id + bits + notiz); tests `test/admin.test.js`, e2e `admin`
+  - offen (spaeter): sitzungen ueberleben keinen neustart; auslastungs-verlauf nur im speicher; meldungen ohne beweis pruefbar (bild bleibt beim melder)
   - phase 3: meldungen: in der app "Weitergabe melden" (bild mit spur-wasserzeichen -> peer-id des weitergebers, nie das bild selbst), panel zeigt meldung + sperren mit einem klick
 

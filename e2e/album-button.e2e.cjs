@@ -53,9 +53,11 @@ async function main() {
         await waitFor(page, () => !document.getElementById('snap-capture-modal').classList.contains('hidden'), null, 5000);
         await page.evaluate(() => closeSnapModal());
 
-        // Anderer Chat: wieder versteckt; Grid-Chat: sichtbar.
+        // Anderer Chat: wieder versteckt; Grid-Chat: Album im Medien-Knopf (zusammen mit Video).
         await page.evaluate(() => openChatWithPeer('node_grid'));
-        assert.equal(await page.isVisible('#chat-album-btn'), true, 'visible in discovery chats');
+        assert.equal(await page.isVisible('#chat-media-btn'), true, 'media button in discovery chats');
+        assert.equal(await page.isVisible('#chat-album-btn'), false, 'no separate album button there');
+        assert.equal(await page.locator('#chat-media-menu [data-click="composeMediaAlbum"]').count(), 1, 'album in the media menu');
         await page.evaluate(() => openChatWithPeer('node_social'));
         assert.equal(await page.isVisible('#chat-album-btn'), false, 'easter egg only for the chat where it was triggered');
 

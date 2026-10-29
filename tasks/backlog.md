@@ -58,7 +58,7 @@ Ideen ohne festen Termin. Neue Phasen werden von hier auf `tasks/board.md` gehol
     - offen: im entdecken-blick (vor dem adden) aendert sich nichts; nach dem adden noch flammen-chat in "Grid & Event" zeigen? (vorschlag: nein, ein ort pro person)
 
 ## Ideen 2026-10-28 (nutzer, noch nicht besprechen)
-- [ ] grid improvement: filter, matches, interests, views
+- [x] grid improvement: filter, matches, interests, views (umgesetzt 2026-10-28/29, siehe board T20/T21)
   - per einstellung konfigurierbar: grid zeigt nur profile mit bestimmtem profil-tag (z. B. alter, tribes)
   - anlass: neue invite/match-funktion
 - [ ] mit der altersverifikation (T2): im entdecken-bereich sehen/kontaktieren sich nur minderjaehrige untereinander und 18+ untereinander

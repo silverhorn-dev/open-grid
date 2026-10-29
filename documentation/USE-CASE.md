@@ -997,6 +997,8 @@ Akzeptanzkriterien:
 - Bei meinen Kontakten verschwinden Verlauf, Bilder, Alben und Status; der
   Chat bleibt in der Liste mit "Profil wurde geloescht", schreiben geht nicht
   mehr. Kontakte, die gerade offline sind, bekommen das beim naechsten Oeffnen.
+- Tippt ein Kontakt den Chat an, oeffnet er sich nicht mehr, sondern
+  verschwindet endgueltig ("Profil wurde geloescht - Chat entfernt").
 - Ohne Verbindung zum Router wird nichts geloescht (Hinweis).
 
 ## UC-59: Alter mit der Wallet nachweisen

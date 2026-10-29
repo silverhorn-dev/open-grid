@@ -56,11 +56,17 @@ async function main() {
 
         // Bob (online): nur noch die Zeile, schreiben gesperrt, Liste zeigt den Hinweis.
         await waitFor(bob.page, id => { const messages = state.chats[id] || []; return messages.length === 1 && messages[0].system === 'profileDeleted'; }, aliceId);
-        await bob.page.evaluate(id => openChatWithPeer(id), aliceId);
-        await waitFor(bob.page, () => document.querySelector('#chat-messages .chat-system-note')?.textContent === 'Profil wurde gelöscht');
-        assert.equal(await bob.page.isDisabled('#chat-input'), true, 'cannot write any more');
+        assert.equal(await bob.page.evaluate(id => getPeerChatAllowance(id).allowed, aliceId), false, 'cannot write any more');
         assert.equal(await bob.page.evaluate(async id => (await getDatabaseRecordsByIndex('messages', 'peerId', id)).length, aliceId), 1, 'history deleted in the database');
         assert.match(await bob.page.textContent('#active-peers-list'), /Profil wurde gelöscht/);
+        // Antippen entfernt den Chat endgueltig (statt ihn zu oeffnen), auch nach dem Neuladen.
+        await bob.page.evaluate(id => openChatWithPeer(id), aliceId);
+        await waitFor(bob.page, id => !state.chatPeerIds.includes(id), aliceId);
+        assert.equal(await bob.page.evaluate(() => state.activeChatPeerId), null, 'not opened');
+        assert.equal(await bob.page.evaluate(async id => (await getDatabaseRecordsByIndex('messages', 'peerId', id)).length, aliceId), 0, 'line removed from the database');
+        assert.doesNotMatch(await bob.page.textContent('#active-peers-list'), /Profil wurde gelöscht/);
+        await bob.page.evaluate(() => loadChatPeerIds());
+        assert.equal(await bob.page.evaluate(id => state.chatPeerIds.includes(id), aliceId), false, 'stays gone after reloading the list');
         // Router: Alice ist weg.
         assert.equal(await bob.page.evaluate(async id => {
             const response = await fetch(`/api/grid?geohash=${state.myProfile.geohash}`);

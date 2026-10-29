@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 227 · 2026-10-29
+## Build 228 · 2026-10-29
+- Chats zu geloeschten Profilen verschwinden beim Antippen aus der Liste
+
+## Build 227 · 2026-10-29 · `1604b92`
 - Behoben: der Server startete nach dem Update nicht (die Seite des Admin-Panels fehlte im Docker-Image)
 
 ## Build 226 · 2026-10-29 · `4ad72af`

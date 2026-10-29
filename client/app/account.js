@@ -5,7 +5,8 @@
 // bis zur Abholung), danach das Geraet (IndexedDB, localStorage, Caches) und die App startet neu.
 //
 // Beim Kontakt: Verlauf, Bilder, Alben, Status und das gespeicherte Profil verschwinden; der Chat bleibt
-// in der Liste mit der Zeile "Profil wurde geloescht", schreiben geht nicht mehr.
+// in der Liste mit der Zeile "Profil wurde geloescht", schreiben geht nicht mehr. Antippen entfernt ihn
+// endgueltig (removeDeletedProfileChat).
 const PROFILE_DELETED_SYSTEM = 'profileDeleted';
 const APP_DATABASE_NAME = 'OpenGridDB_Live';
 
@@ -125,4 +126,21 @@ async function handleProfileDeleted(peerId) {
 
 function isProfileDeleted(peerId) {
     return (state.chats[peerId] || []).some(message => message.system === PROFILE_DELETED_SYSTEM);
+}
+
+// Antippen in der Liste: statt den leeren Chat zu oeffnen, verschwindet er (Zeile, Liste, Bereich, Zaehler).
+async function removeDeletedProfileChat(peerId) {
+    await deleteDatabaseRecord('messages', `profile-deleted:${peerId}`).catch(() => {});
+    delete state.chats[peerId];
+    delete state.chatPreviews[peerId];
+    state.chatPeerIds = state.chatPeerIds.filter(id => id !== peerId);
+    if (state.chatScopes[peerId]) {
+        const { [peerId]: _removed, ...scopes } = state.chatScopes;
+        state.chatScopes = scopes;
+        await putDatabaseRecord('keys', { id: CHAT_SCOPE_RECORD_ID, scopes }).catch(logBackgroundError('removeDeletedProfileChat'));
+    }
+    if (typeof setUnreadCount === 'function' && state.unreadCounts[peerId]) setUnreadCount(peerId, 0);
+    if (state.activeChatPeerId === peerId) state.activeChatPeerId = null;
+    renderActivePeerList();
+    showToast(t('chat.deletedProfileChatRemoved'), 'info');
 }

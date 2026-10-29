@@ -470,6 +470,8 @@
   - geraet: IndexedDB, localStorage, caches loeschen, danach startet die app mit dem onboarding
   - entschieden (nutzer 2026-10-28): bei den kontakten alles loeschen (chats, bilder), der chat bleibt aber in der liste mit "Profil wurde geloescht", im chat dieselbe zeile
   - done 2026-10-28: `client/app/account.js`, `PROFILE_DELETED` (direkt + pfad C), `DELETE /api/account/:peerId` (`deleteIdentity`, tombstone, WS getrennt), geraet komplett geleert; tests server-test, e2e `profile-delete` (mit offline-kontakt); UC-58
+- [x] chats zu geloeschten profilen verschwinden nie (nutzer 2026-10-29: "das sollte beim anklicken passieren")
+  - done 2026-10-29: antippen oeffnet nicht mehr, sondern entfernt den chat endgueltig (`removeDeletedProfileChat`), hinweis "Profil wurde gelöscht – Chat entfernt"; e2e `profile-delete`
 
 ## T23 Interaktionen: eine Zeile pro Person? (nutzer 2026-10-28, besprechen)
 - [x] heute: jedes ereignis eine zeile (gleiche person + art innerhalb 10 min zusammengefasst); jemand kann mehrfach als "hat dir eine flamme geschickt" erscheinen

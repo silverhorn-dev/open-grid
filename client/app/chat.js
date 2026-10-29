@@ -230,6 +230,11 @@ function launchChatFromModal() {
 }
 
 async function openChatWithPeer(peerId) {
+    // Profil des anderen geloescht (account.js): Antippen entfernt den Chat, statt ihn zu oeffnen.
+    if (typeof isProfileDeleted === 'function' && isProfileDeleted(peerId)) {
+        await removeDeletedProfileChat(peerId);
+        return;
+    }
     if (state.activeChatPeerId !== peerId) {
         resetChatTools();
         // Menue des vorherigen Chats ohne eigenen Zurueck-Schritt schliessen.

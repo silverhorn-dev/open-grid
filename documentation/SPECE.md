@@ -1487,7 +1487,8 @@ wenn verbunden, und immer ueber Pfad C), dann die Router-Loeschung (schlaegt sie
 geloescht), dann IndexedDB, `localStorage`/`sessionStorage` und alle Caches, Neustart mit dem Onboarding.
 Beim Kontakt: Nachrichten, Chat-Operationen, Originale, empfangene Alben, Status und das gespeicherte Profil
 weg; der Chat bleibt mit einer Systemzeile (`message.system = 'profileDeleted'`, "Profil wurde geloescht",
-nicht synchronisiert), schreiben ist gesperrt.
+nicht synchronisiert), schreiben ist gesperrt. `openChatWithPeer` oeffnet so einen Chat nicht, sondern
+entfernt ihn (`removeDeletedProfileChat`: Systemzeile, Listeneintrag, Bereich, Ungelesen-Zaehler).
 
 ## 9. Web Push und Service Worker
 

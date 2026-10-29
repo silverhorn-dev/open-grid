@@ -17,6 +17,32 @@ const REPLY_SWIPE_MAX = 72;
 const REPLY_SWIPE_TRIGGER = 56;
 // Unsichtbares Band in der Mitte des Verlaufs (etwa 1 cm): dort nach rechts wischen schliesst den Chat.
 const CHAT_CLOSE_BAND = 40;
+// Beim Wegwischen folgt der Chat dem Finger und wird dabei leicht kleiner (hoechstens auf 97 %), wie eine Karte.
+const CHAT_SWIPE_MIN_SCALE = 0.97;
+const CHAT_SWIPE_MAX_RADIUS = 18;
+
+function chatSwipePanel() {
+    return document.getElementById('chat-window-panel') || document.getElementById('view-chat');
+}
+
+function renderChatSwipe(deltaX) {
+    const panel = chatSwipePanel();
+    if (!panel) return;
+    if (prefersReducedMotion()) return;
+    const progress = Math.min(1, deltaX / (TAB_SWIPE_TRIGGER * 2));
+    panel.style.transition = 'none';
+    panel.style.transformOrigin = 'center center';
+    panel.style.transform = `translate3d(${deltaX}px, 0, 0) scale(${1 - (1 - CHAT_SWIPE_MIN_SCALE) * progress})`;
+    panel.style.borderRadius = `${Math.round(CHAT_SWIPE_MAX_RADIUS * progress)}px`;
+}
+
+function resetChatSwipe() {
+    const panel = chatSwipePanel();
+    if (!panel) return;
+    panel.style.transition = prefersReducedMotion() ? 'none' : 'transform 180ms ease-out, border-radius 180ms ease-out';
+    panel.style.transform = '';
+    panel.style.borderRadius = '';
+}
 const LONG_PRESS_MS = 450;
 const DOUBLE_TAP_MS = 300;
 const TAB_SWIPE_TRIGGER = 80;
@@ -180,11 +206,7 @@ function moveChatCloseGesture(event) {
     }
     if (gesture.axis !== 'right') return true;
     gesture.deltaX = Math.max(0, deltaX);
-    const view = document.getElementById('view-chat');
-    if (view && !prefersReducedMotion()) {
-        view.style.transition = 'none';
-        view.style.transform = `translate3d(${gesture.deltaX}px, 0, 0)`;
-    }
+    renderChatSwipe(gesture.deltaX);
     return true;
 }
 
@@ -194,11 +216,7 @@ function finishChatCloseGesture(event, cancelled) {
     chatCloseGesture.active = null;
     if (gesture.axis !== 'right') return true;
     messageGesture.suppressClickUntil = Date.now() + 400;
-    const view = document.getElementById('view-chat');
-    if (view) {
-        view.style.transition = prefersReducedMotion() ? 'none' : 'transform 180ms ease-out';
-        view.style.transform = '';
-    }
+    resetChatSwipe();
     const fast = gesture.deltaX / Math.max(1, performance.now() - gesture.startedAt) > 0.5;
     if (!cancelled && (gesture.deltaX >= TAB_SWIPE_TRIGGER || fast)) {
         hapticTick();
@@ -390,10 +408,12 @@ function stepSettingsTab(direction) {
 
 // ----- Seitlich wischen = schliessen (Seitenmenue, Chat ueber die Eingabeleiste) -----
 // `move` bewegt das Element mit dem Finger (nur nach rechts), ab TAB_SWIPE_TRIGGER oder schnell = `close`.
-function attachSwipeRight(area, { moving = () => area, close, enabled = () => true }) {
+// `render`/`reset` (optional) zeichnen die Bewegung selbst (Chat: mit leichter Verkleinerung).
+function attachSwipeRight(area, { moving = () => area, close, enabled = () => true, render = null, resetView = null }) {
     if (!area) return;
     let gesture = null;
     const reset = () => {
+        if (resetView) return resetView();
         const element = moving();
         if (!element) return;
         element.style.transition = prefersReducedMotion() ? 'none' : 'transform 180ms ease-out';
@@ -416,6 +436,10 @@ function attachSwipeRight(area, { moving = () => area, close, enabled = () => tr
         }
         if (gesture.axis !== 'right') return;
         gesture.deltaX = Math.max(0, deltaX);
+        if (render) {
+            render(gesture.deltaX);
+            return;
+        }
         const element = moving();
         if (element && !prefersReducedMotion()) {
             element.style.transition = 'none';
@@ -708,8 +732,9 @@ function initGestures() {
     attachSwipeRight(document.getElementById('app-menu'), { close: closeMenu });
     attachChatListPullRefresh();
     attachSwipeRight(document.getElementById('chat-input-bar'), {
-        moving: () => document.getElementById('view-chat'),
         enabled: () => state.chatSwipeClose && Boolean(state.activeChatPeerId),
+        render: renderChatSwipe,
+        resetView: resetChatSwipe,
         close: leaveActiveChat
     });
     // Album-Ansicht: deutlich weiter ziehen, sonst ist eine 1x-Ansicht schnell aus Versehen vorbei.

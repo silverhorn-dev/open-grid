@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 241 · 2026-10-29
+## Build 242 · 2026-10-29
+- Chat wegwischen: kein Verkleinern der ganzen Seite mehr; das Chatfenster folgt dem Finger und wird dabei nur leicht kleiner
+
+## Build 241 · 2026-10-29 · `1fd945c`
 - Neu: Chat schliessen per Wisch nach rechts in der Mitte des Verlaufs oder dort, wo keine Nachricht ist (links und rechts davon antwortet man weiter per Wischen auf die Nachricht)
 - Behoben: geloeschte Nachrichten liessen sich per Wischen beantworten bzw. per Geste bedienen
 

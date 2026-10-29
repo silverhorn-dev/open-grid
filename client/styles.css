@@ -63,6 +63,9 @@ html.debug-on .debug-off-only {
    laden"); die Browser-Geste konkurrierte damit (Chatliste, Profil) und brach z. B. das Profil-Wischen ab. */
 html {
     overscroll-behavior-y: contain;
+    /* Kein "Zurueck"-Wischen des Browsers (Chrome verkleinert dabei die Seite um ~10 %): seitlich wischen
+       gehoert unseren Gesten (Chat schliessen, Antworten, Tabs). */
+    overscroll-behavior-x: none;
 }
 @media (hover: none) {
     /* Unter #chat-messages, damit die zur Laufzeit geladenen Tailwind-Klassen nicht gewinnen.

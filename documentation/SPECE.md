@@ -232,7 +232,10 @@
   Nachricht auf der Hoehe (Antworten); ohne Nachricht, auf geloeschten und auf
   eigenen Nachrichten (die man nach links beantwortet) schliesst er als
   Hintergrund-Geste; geloeschte Nachrichten haben keine Gesten, `startReply`
-  lehnt sie ab; in Einstellungen, offenen
+  lehnt sie ab; beim Wegwischen folgt das Chatfenster dem Finger und wird mit der
+  Strecke leicht kleiner (hoechstens auf 97 %, runde Ecken), `html` hat
+  `overscroll-behavior-x: none` (kein Zurueck-Wischen des Browsers, das die Seite
+  um ~10 % verkleinerte); in Einstellungen, offenen
   Fenstern, Menue und offenem Chat verhindert `overscroll-behavior` das
   Neuladen der Seite durch den Browser (das brach sonst z. B. das Wischen im
   Profil ab); Profil- und

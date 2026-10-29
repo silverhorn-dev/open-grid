@@ -202,3 +202,18 @@ test('with the setting off the background swipe does nothing', () => {
     context.finishMessageGesture(pointer(330, 100), false);
     assert.equal(calls.closed, 0);
 });
+
+test('the chat follows the finger and shrinks only slightly (never below 97 %)', () => {
+    const { context, pointer } = setup({ noRow: true });
+    const view = context.document.getElementById('view-chat');
+    context.handleMessagePointerDown(pointer(60, 100));
+    context.handleMessagePointerMove(pointer(100, 100));
+    const early = Number(/scale\(([\d.]+)\)/.exec(view.style.transform)[1]);
+    context.handleMessagePointerMove(pointer(390, 100));
+    const late = Number(/scale\(([\d.]+)\)/.exec(view.style.transform)[1]);
+    assert.match(view.style.transform, /^translate3d\(330px, 0, 0\)/);
+    assert.ok(early < 1 && early > late, `shrinks with the distance (${early} -> ${late})`);
+    assert.ok(late >= 0.97, `at most to 97 % (${late})`);
+    context.finishMessageGesture(pointer(390, 100), true);
+    assert.equal(view.style.transform, '', 'springs back');
+});

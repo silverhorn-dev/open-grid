@@ -474,4 +474,6 @@
   - entschieden (nutzer 2026-10-29): nur die oberflaeche uebersetzen; deutsch/englisch sollen keinen uebersetzer brauchen
   - done 2026-10-29: `lang` schon im kopf richtig gesetzt (kein angebot mehr fuer DE/EN), sperre an `<html>`/meta entfernt, nutzerinhalte + eingabeleiste `translate="no"` (eingabeleiste: frueherer nachrichtenfeld-bug durch uebersetzen); tests `test/i18n.test.js`, `test/markup-actions.test.js`, e2e `i18n`
   - e2e-hinweis: `p2p-recovery` schlug im gesamtlauf einmal knapp fehl (wachhund-zeit unter last), einzeln 3/3 gruen
-
+- [x] grid laedt die naechsten ringe nicht automatisch + "mehr laden"-knopf fehlt (nutzer 2026-10-29)
+  - ursache: router meldete `hasMore` nur, wenn ring + 1 neue peers hatte; war der leer, endete das nachladen und der knopf blieb versteckt, obwohl weiter weg jemand war
+  - done 2026-10-29: router sucht alle folgenden ringe und liefert `nextRing`, app springt direkt dorthin (auto bis ring 3, knopf bis 5), unter dem grid "Mehr laden" bzw. "Alle in Reichweite geladen"; tests server-test, chat-ui

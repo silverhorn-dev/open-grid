@@ -219,6 +219,8 @@ const state = {
     chatSearch: '',
     chatStarredOnly: false,
     gridHasMore: false,
+    // Naechster Ring mit neuen Peers laut Router (/api/grid nextRing), leere Ringe uebersprungen.
+    gridNextRing: null,
     chatFocusPeerId: null,
     chatSyncInProgress: {},
     peerIdentityKeys: {},

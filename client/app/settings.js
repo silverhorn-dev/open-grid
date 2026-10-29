@@ -493,6 +493,7 @@ async function applyLocationCell(geohash) {
     if (geohash === state.myProfile.geohash) return;
     state.myProfile.geohash = geohash;
     state.gridRing = 0;
+    state.gridNextRing = null;
     await cacheOwnProfile().catch(error => logDebug(`Could not store location cell: ${error.message}`));
     renderGridSettings();
 }

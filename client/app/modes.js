@@ -192,6 +192,7 @@ async function setAppMode(mode) {
     // Zuletzt genutzter Modus pro Liste (fuer den Listen-Wechsel).
     await saveAppModeSettings({ mode, ...(SOCIAL_MODES.includes(mode) ? { lastSocialMode: mode } : { lastDiscoveryMode: mode }) });
     state.gridRing = 0;
+    state.gridNextRing = null;
     applyProfileSchemaForMode();
     applyAppModeUi();
     renderActivePeerList();
@@ -257,7 +258,7 @@ function applyAppModeUi() {
                 ? `Event: ${state.appModeSettings.eventCode || ''}`
                 : t('common.nearYou');
     }
-    document.getElementById('grid-load-more-btn')?.classList.toggle('hidden', state.appMode !== 'discovery' || !state.gridHasMore);
+    if (typeof renderGridMore === 'function') renderGridMore();
     document.getElementById('leave-event-btn')?.classList.toggle('hidden', state.appMode !== 'event');
     renderAppModeSettings();
 }

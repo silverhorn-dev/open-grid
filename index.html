@@ -173,10 +173,11 @@
             <div id="grid-container" translate="no" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4" aria-live="polite">
                 <!-- Dynamic cards injected via JS -->
             </div>
-            <div id="grid-more-row" class="flex justify-center">
-                <button id="grid-load-more-btn" data-click="loadMoreGrid" class="hidden bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 px-4 py-2 rounded-lg flex items-center gap-1.5 transition">
+            <div id="grid-more-row" class="flex flex-col items-center gap-2 mt-4">
+                <button id="grid-load-more-btn" data-click="loadMoreGrid" class="hidden bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm font-semibold text-slate-200 px-5 py-2.5 rounded-xl flex items-center gap-2 transition">
                     <i class="fa-solid fa-expand"></i> <span data-i18n="grid.loadMore">Mehr laden</span>
                 </button>
+                <p id="grid-all-loaded" data-i18n="grid.allLoaded" class="hidden text-xs text-slate-500">Alle in Reichweite geladen</p>
             </div>
         </section>
 

@@ -413,8 +413,9 @@ Der Router berechnet die Nachbarzellen selbst und fragt jede Zelle als
 Praefix-Bereich ab (`geohash >= p AND geohash < p || '~'`). Die Antwort ist
 nach Entfernung der Zellmittelpunkte sortiert, auf 100 Peers begrenzt und
 enthaelt pro Peer nur `id`, `name`, `avatar` und `distanceBucket` - weder
-Koordinaten noch Geohash. `hasMore` zeigt an, ob der naechste Ring weitere
-Peers enthaelt. `live=1` liefert nur Peers mit aktiver WebSocket-Verbindung.
+Koordinaten noch Geohash. `nextRing` ist der naechste Ring, der weitere Peers
+enthaelt (leere Ringe dazwischen uebersprungen, bis Ring 5), sonst `null`;
+`hasMore = nextRing !== null`. `live=1` liefert nur Peers mit aktiver WebSocket-Verbindung.
 
 | `distanceBucket` | Anzeige |
 |---|---|
@@ -427,8 +428,9 @@ Peers enthaelt. `live=1` liefert nur Peers mit aktiver WebSocket-Verbindung.
 | `gt500` | > 500 km |
 
 Sind nach einer Antwort weniger als 6 Peers sichtbar und meldet der Router
-`hasMore`, laedt der Client automatisch den naechsten Ring, hoechstens bis Ring
-3 (manuell per "Mehr laden" bis Ring 5). Ohne weitere Peers ist `hasMore`
+`hasMore`, laedt der Client automatisch `nextRing`, solange dieser hoechstens
+Ring 3 ist. Darueber (bis Ring 5) per "Mehr laden" unter dem Grid; ohne weitere
+Peers steht dort "Alle in Reichweite geladen". Ohne weitere Peers ist `hasMore`
 falsch, es entsteht keine Schleife.
 
 Alle Peers einer Zelle haben denselben Mittelpunkt. Mehrfache Abfragen von

@@ -389,14 +389,21 @@ test('loads the grid ring by ring with distance buckets and no locations', async
     await app.inject({ method: 'POST', url: '/api/register', headers: authHeaders('peer-a'), payload: registrationPayload('peer-a', 'registration-peer-a', { audience: '<script>' }) });
     assert.equal('audience' in (await gridPeerIds('geohash=u10j2k')).peers[0], false, 'invalid codes are dropped');
 
+    assert.equal(ring0.nextRing, 1);
     const ring1 = await gridPeerIds('geohash=u10j2k&ring=1');
     assert.deepEqual(ring1.peers.map(peer => peer.id), ['peer-a', 'peer-b']);
+    // Ring 2 bringt niemanden Neues: trotzdem "mehr", der naechste Ring mit peer-c wird genannt.
+    assert.equal((await gridPeerIds('geohash=u10j2k&ring=2')).count, 2);
+    assert.equal(ring1.hasMore, true);
+    assert.ok(ring1.nextRing > 2, `skips empty rings: ${ring1.nextRing}`);
+    assert.ok((await gridPeerIds(`geohash=u10j2k&ring=${ring1.nextRing}`)).peers.some(peer => peer.id === 'peer-c'));
     assert.equal(ring1.peers[1].distanceBucket, 'lt1');
 
     const ring4 = await gridPeerIds('geohash=u10j2k&ring=4');
     assert.deepEqual(ring4.peers.map(peer => peer.id), ['peer-a', 'peer-b', 'peer-c']);
     assert.equal(ring4.peers[2].distanceBucket, '20-100');
     assert.equal(ring4.hasMore, false);
+    assert.equal(ring4.nextRing, null);
 
     assert.equal((await app.inject({ method: 'GET', url: '/api/grid?geohash=u10j2k&ring=6' })).statusCode, 400);
     assert.equal((await app.inject({ method: 'GET', url: '/api/grid?geohash=u10' })).statusCode, 400);

@@ -852,13 +852,18 @@ export async function buildApp(options = {}) {
         const grid = store.getGridArea(gridRingCells(normalizedGeohash, ring));
         // Entfernung nur zwischen Zellmittelpunkten; die Antwort enthaelt weder Koordinaten noch Geohash.
         const peers = withDistance(origin, grid.peers.filter(visible));
-        const hasMore = ring < MAX_GRID_RING
-            && store.getGridArea(gridRingCells(normalizedGeohash, ring + 1)).peers.filter(visible).length > grid.peers.filter(visible).length;
+        // Naechster Ring, der wirklich neue Peers bringt; leere Ringe dazwischen ueberspringt die App.
+        // (Frueher nur ring + 1: war der leer, endete das Nachladen, obwohl weiter weg jemand war.)
+        let nextRing = null;
+        for (let candidate = ring + 1; candidate <= MAX_GRID_RING && nextRing === null; candidate += 1) {
+            if (store.getGridArea(gridRingCells(normalizedGeohash, candidate)).peers.filter(visible).length > peers.length) nextRing = candidate;
+        }
         return {
             geohash: normalizedGeohash,
             ring,
             count: peers.length,
-            hasMore,
+            hasMore: nextRing !== null,
+            nextRing,
             peers: peers.map(toGridPeer(origin)),
             removedPeerIds: grid.removedPeerIds
         };

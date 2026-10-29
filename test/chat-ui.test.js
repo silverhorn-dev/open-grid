@@ -101,7 +101,8 @@ test('grid auto-expand stops at ring 3 and when nobody else is around', () => {
     vm.runInNewContext(read('client/grid.client.js'), Object.assign(context, I18N_STUBS));
     const expand = options => context.shouldAutoExpandGrid({ appMode: 'discovery', hasMore: true, peerCount: 0, ring: 0, ...options });
     assert.equal(expand({}), true);
-    assert.equal(expand({ ring: 3 }), false);
+    assert.equal(expand({ ring: 3 }), true, 'ring = the ring that would be loaded next');
+    assert.equal(expand({ ring: 4 }), false);
     assert.equal(expand({ hasMore: false }), false);
     assert.equal(expand({ peerCount: 6 }), false);
     assert.equal(expand({ appMode: 'event' }), false);

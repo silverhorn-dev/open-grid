@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 213 · 2026-10-29
+## Build 214 · 2026-10-29
+- Behoben: das Grid lud weiter entfernte Profile nicht nach, wenn der naechste Umkreis leer war; leere Umkreise werden jetzt uebersprungen
+- Unter dem Grid: "Mehr laden" fuer den naechsten Umkreis mit neuen Leuten, sonst "Alle in Reichweite geladen"
+
+## Build 213 · 2026-10-29 · `d568bb5`
 - Nacktbild-Filter: der Betreiber kann ein genaueres Erkennungsmodell waehlen (`NUDITY_MODEL`); im Debug-Modus vergleicht "Erkennung testen" alle drei Modelle mit denselben Bildern
 
 ## Build 212 · 2026-10-29 · `f1868ff`

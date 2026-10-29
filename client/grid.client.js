@@ -13,11 +13,18 @@ async function fetchServerTime() {
     return time;
 }
 
+// Naechster Ring mit neuen Peers laut Router (leere Ringe uebersprungen), sonst der folgende.
+function nextGridRing() {
+    const next = Number(state.gridNextRing);
+    return Number.isInteger(next) && next > state.gridRing ? next : state.gridRing + 1;
+}
+
 async function loadMoreGrid() {
     if (state.appMode !== 'discovery' || state.gridRing >= MAX_GRID_RING) return;
-    state.gridRing += 1;
+    const previous = state.gridRing;
+    state.gridRing = Math.min(MAX_GRID_RING, nextGridRing());
     const loaded = await fetchGridRing();
-    if (!loaded) state.gridRing -= 1;
+    if (!loaded) state.gridRing = previous;
 }
 
 // Knopf am PC: nur die Daten (ohne Hinweis, der stapelte sich beim wiederholten Ziehen).
@@ -45,7 +52,7 @@ function renderDiscoveryGrid() {
     state.gridVisibleCount = visiblePeers.length;
     const geohashLabel = document.getElementById('current-geohash');
     if (geohashLabel) geohashLabel.textContent = t('grid.ring', { geohash: state.myProfile.geohash, gridRing: state.gridRing });
-    document.getElementById('grid-load-more-btn')?.classList.toggle('hidden', state.appMode !== 'discovery' || !state.gridHasMore);
+    renderGridMore();
     renderActivePeerList();
     renderGridTabs();
 
@@ -253,8 +260,17 @@ function renderActivePeerList() {
 const GRID_AUTO_EXPAND_MIN_PEERS = 6;
 const MAX_AUTO_GRID_RING = 3;
 
+// `ring` = der Ring, der als naechstes geladen wuerde (nextRing vom Router).
 function shouldAutoExpandGrid({ appMode, hasMore, peerCount, ring }) {
-    return appMode === 'discovery' && hasMore && peerCount < GRID_AUTO_EXPAND_MIN_PEERS && ring < MAX_AUTO_GRID_RING;
+    return appMode === 'discovery' && hasMore && peerCount < GRID_AUTO_EXPAND_MIN_PEERS && ring <= MAX_AUTO_GRID_RING;
+}
+
+// Unter dem Grid: "Mehr laden" (naechster Ring mit neuen Leuten) oder der Hinweis, dass alles in
+// Reichweite geladen ist. Nur in "Entdecken".
+function renderGridMore() {
+    const discovery = state.appMode === 'discovery';
+    document.getElementById('grid-load-more-btn')?.classList.toggle('hidden', !discovery || !state.gridHasMore);
+    document.getElementById('grid-all-loaded')?.classList.toggle('hidden', !discovery || state.gridHasMore || state.peers.length === 0);
 }
 
 async function fetchPeersFromWorkerGrid() {
@@ -263,11 +279,12 @@ async function fetchPeersFromWorkerGrid() {
         appMode: state.appMode,
         hasMore: state.gridHasMore,
         peerCount: state.peers.length,
-        ring: state.gridRing
+        ring: nextGridRing()
     })) {
-        state.gridRing += 1;
+        const previous = state.gridRing;
+        state.gridRing = nextGridRing();
         loaded = await fetchGridRing();
-        if (!loaded) state.gridRing -= 1;
+        if (!loaded) state.gridRing = previous;
     }
     return loaded;
 }
@@ -298,6 +315,7 @@ async function fetchGridRing() {
             );
             await Promise.all(Array.from(removedPeerIds, peerId => removeCachedPeer(peerId, state.myProfile.geohash)));
             state.gridHasMore = data.hasMore === true;
+            state.gridNextRing = Number.isInteger(data.nextRing) ? data.nextRing : null;
             state.peers = data.peers
                 .filter(peer => peer.id !== state.myProfile.id && !removedPeerIds.has(peer.id))
                 // Freunde-Modus: das Grid ist ein Adressbuch nur mit Freunden.

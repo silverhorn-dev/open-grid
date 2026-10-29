@@ -28,6 +28,11 @@ services:
       EMAIL_TRANSPORT: ${EMAIL_TRANSPORT:-log}
       SMTP_URL: ${SMTP_URL:-}
       SMTP_FROM: ${SMTP_FROM:-}
+      # Nacktbild-Filter: nsfwjs (Standard), nsfwjs-mid, nsfwjs-inception, bumble, nudenet oder off;
+      # bumble/nudenet vorher mit scripts/nudity-models/fetch.sh ins Volume legen.
+      NUDITY_MODEL: ${NUDITY_MODEL:-nsfwjs}
+      NUDITY_THRESHOLD: ${NUDITY_THRESHOLD:-}
+      NUDITY_CLASSES: ${NUDITY_CLASSES:-}
       SAFETY_KEY: ${SAFETY_KEY:-}
       ABUSE_LOG_DAYS: ${ABUSE_LOG_DAYS:-0}
       PORT: 3000

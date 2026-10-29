@@ -1,66 +1,102 @@
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 
-// ================= NACKTBILD-MODELL (Board T3) =================
-// Der Router liefert das Erkennungsmodell selbst aus (keine fremden Server, Regel 1). Modell: NSFWJS
-// MobileNetV2 (Code und Modell MIT; Klassen Drawing, Hentai, Neutral, Porn, Sexy; Eingabe 224x224). Das
-// npm-Paket packt Modell und Gewichte als JS-Module; hier werden daraus beim ersten Abruf normale
-// TF.js-Dateien (model.json + Gewichte). Die App laedt sie nur, wenn der Nutzer den Filter einschaltet.
-// Gemessen 2026-10-29 (Nutzer): MobileNetV2 erkannte ein maennliches Nacktbild (Badezimmer-Selfie)
-// nicht (Neutral 85 %); deshalb waehlbar und auf der Testseite vergleichbar.
+// ================= NACKTBILD-MODELLE (Board T3) =================
+// Der Router liefert die Erkennungsmodelle selbst aus (keine fremden Server, Regel 1); die App laedt
+// eins erst, wenn der Nutzer den Filter einschaltet, und rechnet im Web Worker.
+//
+// Modelle:
+//   nsfwjs, nsfwjs-mid, nsfwjs-inception  NSFWJS (MIT), im npm-Paket enthalten; Klassen Drawing,
+//       Hentai, Neutral, Porn, Sexy. Gemessen 2026-10-29 (Nutzer): erkennt ein maennliches Nacktbild
+//       (Badezimmer-Selfie) nicht (Neutral 85 %), die Trainingsdaten sind ueberwiegend weiblich.
+//   bumble   Bumble Private Detector (Apache-2.0), gebaut fuer ungefragte Nacktbilder in Dating-Apps;
+//       optional, vom Betreiber mit scripts/nudity-models/fetch.sh umgewandelt (~51 MB).
+//   nudenet  NudeNet 320n (AGPL-3.0, YOLOv8), erkennt Koerperteile einzeln (u. a. MALE_GENITALIA_EXPOSED);
+//       optional (fetch.sh, ~12 MB) und braucht onnxruntime-web (optionalDependencies, WASM ~15 MB).
 //
 // Konfiguration (Betreiber):
-//   NUDITY_MODEL      welches Modell gilt: 'nsfwjs' (MobileNetV2, ~2,6 MB, Standard), 'nsfwjs-mid'
-//                     (MobileNetV2 Mid, ~4 MB), 'nsfwjs-inception' (InceptionV3, ~21 MB, 299x299) oder 'off'
+//   NUDITY_MODEL      aktives Modell (Standard nsfwjs) oder 'off'; fehlt ein optionales Modell, gilt nsfwjs
 //   NUDITY_THRESHOLD  ab welchem Wert unscharf (0.5-0.95, Standard 0.7)
-//   NUDITY_CLASSES    welche Klassen zaehlen (Komma-Liste, Standard "Porn,Hentai")
-// Der Nutzer-Standard fuer den Schalter kommt weiter aus CLIENT_DEFAULTS.nudityFilter.
-export const NUDITY_MODEL_CLASSES = ['Drawing', 'Hentai', 'Neutral', 'Porn', 'Sexy'];
-// Alle drei liefert der Router aus (die Testseite im Debug-Modus vergleicht sie); `NUDITY_MODEL` waehlt das aktive.
+//   NUDITY_CLASSES    welche Klassen des aktiven Modells zaehlen (Komma-Liste, Standard je Modell)
+//   NUDITY_MODEL_DIR  Ordner der optionalen Modelle (Standard: data/nudity-models neben der Datenbank)
+export const NSFWJS_CLASSES = ['Drawing', 'Hentai', 'Neutral', 'Porn', 'Sexy'];
+export const NUDENET_CLASSES = [
+    'FEMALE_GENITALIA_COVERED', 'FACE_FEMALE', 'BUTTOCKS_EXPOSED', 'FEMALE_BREAST_EXPOSED',
+    'FEMALE_GENITALIA_EXPOSED', 'MALE_BREAST_EXPOSED', 'ANUS_EXPOSED', 'FEET_EXPOSED',
+    'BELLY_COVERED', 'FEET_COVERED', 'ARMPITS_COVERED', 'ARMPITS_EXPOSED', 'FACE_MALE',
+    'BELLY_EXPOSED', 'MALE_GENITALIA_EXPOSED', 'ANUS_COVERED', 'FEMALE_BREAST_COVERED',
+    'BUTTOCKS_COVERED'
+];
+
+// combine: wie aus den Klassen ein Wert wird. 'sum' fuer sich ausschliessende Klassen (Wahrscheinlichkeiten),
+// 'max' fuer den Detektor (jede Klasse ist eine eigene Fundstelle).
 export const NUDITY_MODELS = {
-    nsfwjs: { directory: 'mobilenet_v2', size: 224, type: 'layers' },
-    'nsfwjs-mid': { directory: 'mobilenet_v2_mid', size: 224, type: 'graph' },
-    'nsfwjs-inception': { directory: 'inception_v3', size: 299, type: 'layers' }
+    nsfwjs: { kind: 'nsfwjs', directory: 'mobilenet_v2', size: 224, type: 'layers', classes: NSFWJS_CLASSES, defaultClasses: ['Porn', 'Hentai'], combine: 'sum' },
+    'nsfwjs-mid': { kind: 'nsfwjs', directory: 'mobilenet_v2_mid', size: 224, type: 'graph', classes: NSFWJS_CLASSES, defaultClasses: ['Porn', 'Hentai'], combine: 'sum' },
+    'nsfwjs-inception': { kind: 'nsfwjs', directory: 'inception_v3', size: 299, type: 'layers', classes: NSFWJS_CLASSES, defaultClasses: ['Porn', 'Hentai'], combine: 'sum' },
+    bumble: { kind: 'bumble', directory: 'bumble', size: 480, classes: ['Lewd'], defaultClasses: ['Lewd'], combine: 'sum' },
+    nudenet: {
+        kind: 'nudenet', directory: 'nudenet', size: 320, classes: NUDENET_CLASSES, combine: 'max',
+        defaultClasses: ['MALE_GENITALIA_EXPOSED', 'FEMALE_GENITALIA_EXPOSED', 'FEMALE_BREAST_EXPOSED', 'ANUS_EXPOSED', 'BUTTOCKS_EXPOSED']
+    }
 };
+const DEFAULT_MODEL = 'nsfwjs';
 const DEFAULT_THRESHOLD = 0.7;
-const DEFAULT_CLASSES = ['Porn', 'Hentai'];
 
 export function parseNudityConfig({ model, threshold, classes } = {}) {
-    const name = String(model ?? 'nsfwjs').trim().toLowerCase();
+    const name = String(model ?? DEFAULT_MODEL).trim().toLowerCase();
     const parsedThreshold = Number(threshold);
-    const wanted = String(classes ?? '').split(',').map(value => value.trim())
-        .map(value => NUDITY_MODEL_CLASSES.find(known => known.toLowerCase() === value.toLowerCase()))
-        .filter(Boolean);
     return {
-        model: name === 'off' ? 'off' : (NUDITY_MODELS[name] ? name : 'nsfwjs'),
+        model: name === 'off' ? 'off' : (NUDITY_MODELS[name] ? name : DEFAULT_MODEL),
         threshold: Number.isFinite(parsedThreshold) && parsedThreshold >= 0.5 && parsedThreshold <= 0.95 ? parsedThreshold : DEFAULT_THRESHOLD,
-        classes: wanted.length ? [...new Set(wanted)] : DEFAULT_CLASSES
+        // Rohliste; gegen die Klassen des aktiven Modells geprueft in nudityModelClasses().
+        classes: String(classes ?? '').split(',').map(value => value.trim()).filter(Boolean)
     };
 }
 
-// Routen fuer Bibliothek und Modell; Pfade tragen die Paketversion (lange cachebar).
-export async function registerNudityModelRoutes(app, config) {
-    if (!NUDITY_MODELS[config.model]) return null;
-    const require = createRequire(import.meta.url);
-    let root;
+// Nur Klassen, die das Modell kennt (Gross-/Kleinschreibung egal); keine gueltige -> Standard des Modells.
+export function nudityModelClasses(modelId, wanted = []) {
+    const model = NUDITY_MODELS[modelId];
+    if (!model) return [];
+    const known = wanted.map(value => model.classes.find(entry => entry.toLowerCase() === String(value).toLowerCase())).filter(Boolean);
+    return known.length ? [...new Set(known)] : model.defaultClasses;
+}
+
+const longCache = reply => reply.header('Cache-Control', 'public, max-age=31536000, immutable');
+
+function packageRoot(require, name) {
     try {
-        // Das Paket gibt package.json nicht frei ("exports"); Wurzel ueber den Einstieg dist/cjs/index.js.
-        root = join(dirname(require.resolve('nsfwjs')), '..', '..');
+        // Manche Pakete geben package.json nicht frei ("exports"); Wurzel ueber den Einstieg suchen.
+        // dist/cjs traegt oft ein eigenes package.json ohne Namen: bis zum package.json mit passendem Namen.
+        let directory = dirname(require.resolve(name));
+        while (dirname(directory) !== directory) {
+            const file = join(directory, 'package.json');
+            if (existsSync(file) && JSON.parse(readFileSync(file, 'utf8')).name === name) return directory;
+            directory = dirname(directory);
+        }
+        return null;
     } catch {
-        app.log.warn(`NUDITY_MODEL=${config.model}, but the nsfwjs package is missing: nudity filter without model.`);
         return null;
     }
-    const version = JSON.parse(await readFile(join(root, 'package.json'), 'utf8')).version;
-    const base = `/vendor/nsfwjs/${version}`;
-    const longCache = reply => reply.header('Cache-Control', 'public, max-age=31536000, immutable');
+}
+
+async function packageVersion(root) {
+    return JSON.parse(await readFile(join(root, 'package.json'), 'utf8')).version;
+}
+
+// NSFWJS: Bibliothek + drei Modelle aus dem npm-Paket. Das Paket packt Topologie und Gewichte-Teile
+// als JS-Module (Base64); beim ersten Abruf werden daraus model.json und binaere Teile.
+async function registerNsfwjs(app, require) {
+    const root = packageRoot(require, 'nsfwjs');
+    if (!root) return {};
+    const base = `/vendor/nsfwjs/${await packageVersion(root)}`;
     app.get(`${base}/nsfwjs.min.js`, async (_request, reply) => {
         longCache(reply).type('text/javascript; charset=utf-8');
         return readFile(join(root, 'dist', 'browser', 'nsfwjs.min.js'));
     });
-
-    // Das npm-Paket packt Topologie und Gewichte-Teile als JS-Module (Base64); beim ersten Abruf
-    // werden daraus model.json und binaere Teile, danach im Speicher gehalten.
     const unpacked = new Map();
     const unpack = directory => {
         if (!unpacked.has(directory)) {
@@ -74,7 +110,7 @@ export async function registerNudityModelRoutes(app, config) {
         return unpacked.get(directory);
     };
     const models = {};
-    for (const [id, model] of Object.entries(NUDITY_MODELS)) {
+    for (const [id, model] of Object.entries(NUDITY_MODELS).filter(([, entry]) => entry.kind === 'nsfwjs')) {
         app.get(`${base}/${model.directory}/model.json`, async (_request, reply) => {
             longCache(reply).type('application/json; charset=utf-8');
             return unpack(model.directory).json;
@@ -85,7 +121,107 @@ export async function registerNudityModelRoutes(app, config) {
             longCache(reply).type('application/octet-stream');
             return shard;
         });
-        models[id] = { modelUrl: `${base}/${model.directory}/`, size: model.size, type: model.type };
+        models[id] = { library: `${base}/nsfwjs.min.js`, modelUrl: `${base}/${model.directory}/` };
     }
-    return { library: `${base}/nsfwjs.min.js`, models };
+    return models;
+}
+
+// Feste Dateiliste aus einem Ordner ausliefern; der Pfad traegt einen Hash der Hauptdatei (lange cachebar).
+async function serveModelFiles(app, { directory, route, files, main }) {
+    const hash = createHash('sha256').update(await readFile(join(directory, main))).digest('hex').slice(0, 12);
+    const base = `/vendor/nudity-models/${route}/${hash}`;
+    for (const file of files) {
+        app.get(`${base}/${file}`, async (_request, reply) => {
+            longCache(reply).type(file.endsWith('.json') ? 'application/json; charset=utf-8' : 'application/octet-stream');
+            return readFile(join(directory, file));
+        });
+    }
+    return `${base}/`;
+}
+
+// Bumble: TF.js-Graph-Modell (model.json + Teile) aus NUDITY_MODEL_DIR/bumble, Bibliothek = TF.js.
+async function registerBumble(app, require, modelDirectory, log) {
+    const directory = join(modelDirectory, 'bumble');
+    if (!existsSync(join(directory, 'model.json'))) return {};
+    const tfRoot = packageRoot(require, '@tensorflow/tfjs');
+    if (!tfRoot) {
+        log.warn('Bumble model found, but @tensorflow/tfjs is missing.');
+        return {};
+    }
+    const manifest = JSON.parse(await readFile(join(directory, 'model.json'), 'utf8'));
+    const files = ['model.json', ...manifest.weightsManifest.flatMap(group => group.paths)];
+    if (files.some(file => !/^[\w.-]+$/.test(file) || !existsSync(join(directory, file)))) {
+        log.warn(`Bumble model in ${directory} is incomplete.`);
+        return {};
+    }
+    // ES2017-Build: ohne Babel-Polyfills, die per Function() an der CSP scheitern.
+    const library = `/vendor/tfjs/${await packageVersion(tfRoot)}/tf.es2017.min.js`;
+    app.get(library, async (_request, reply) => {
+        longCache(reply).type('text/javascript; charset=utf-8');
+        return readFile(join(tfRoot, 'dist', 'tf.es2017.min.js'));
+    });
+    const modelUrl = await serveModelFiles(app, { directory, route: 'bumble', files, main: 'model.json' });
+    return { bumble: { library, modelUrl } };
+}
+
+// NudeNet: ONNX-Datei aus NUDITY_MODEL_DIR/nudenet, Laufzeit onnxruntime-web (WASM, ein Thread).
+async function registerNudenet(app, require, modelDirectory, log) {
+    const directory = join(modelDirectory, 'nudenet');
+    if (!existsSync(join(directory, '320n.onnx'))) return {};
+    const ortRoot = packageRoot(require, 'onnxruntime-web');
+    if (!ortRoot) {
+        log.warn('NudeNet model found, but onnxruntime-web is missing (optional dependency).');
+        return {};
+    }
+    const ortBase = `/vendor/onnxruntime-web/${await packageVersion(ortRoot)}/`;
+    const ortFiles = {
+        'ort.wasm.min.js': 'text/javascript; charset=utf-8',
+        'ort-wasm-simd-threaded.mjs': 'text/javascript; charset=utf-8',
+        'ort-wasm-simd-threaded.wasm': 'application/wasm'
+    };
+    for (const [file, type] of Object.entries(ortFiles)) {
+        app.get(`${ortBase}${file}`, async (_request, reply) => {
+            longCache(reply).type(type);
+            return readFile(join(ortRoot, 'dist', file));
+        });
+    }
+    const modelUrl = await serveModelFiles(app, { directory, route: 'nudenet', files: ['320n.onnx'], main: '320n.onnx' });
+    return { nudenet: { library: `${ortBase}ort.wasm.min.js`, runtimeUrl: ortBase, modelUrl: `${modelUrl}320n.onnx` } };
+}
+
+// Routen fuer alle verfuegbaren Modelle; Rueckgabe = oeffentliche Beschreibung je Modell (fuer /api/config).
+export async function registerNudityModelRoutes(app, config, { modelDirectory } = {}) {
+    if (config.model === 'off') return null;
+    const require = createRequire(import.meta.url);
+    const found = {
+        ...await registerNsfwjs(app, require),
+        ...(modelDirectory ? await registerBumble(app, require, modelDirectory, app.log) : {}),
+        ...(modelDirectory ? await registerNudenet(app, require, modelDirectory, app.log) : {})
+    };
+    const models = Object.fromEntries(Object.entries(found).map(([id, urls]) => {
+        const { kind, size, type, classes, defaultClasses, combine } = NUDITY_MODELS[id];
+        return [id, { kind, size, ...(type ? { type } : {}), classes, defaultClasses, combine, ...urls }];
+    }));
+    if (!Object.keys(models).length) {
+        app.log.warn('No nudity model available: nudity filter without model.');
+        return null;
+    }
+    let active = config.model;
+    if (!models[active]) {
+        app.log.warn(`NUDITY_MODEL=${active} is not installed (scripts/nudity-models/fetch.sh); using nsfwjs.`);
+        active = models[DEFAULT_MODEL] ? DEFAULT_MODEL : Object.keys(models)[0];
+    }
+    return { active, models };
+}
+
+// Fuer /api/config: aktives Modell (flach) + alle verfuegbaren (Testseite im Debug-Modus).
+export function nudityPublicConfig(config, assets) {
+    if (!assets) return { model: 'off' };
+    return {
+        ...assets.models[assets.active],
+        model: assets.active,
+        threshold: config.threshold,
+        classes: nudityModelClasses(assets.active, config.classes),
+        models: assets.models
+    };
 }

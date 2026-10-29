@@ -1,9 +1,11 @@
 // ================= NACKTBILD-MODELL ANBINDEN (Board T3) =================
-// Der Router legt fest, ob und welches Modell es gibt (/api/config `nudity`: model, threshold, classes,
-// library, modelUrl, size). Gibt es eins, meldet sich hier ein Klassifikator beim Filter an (nudity.js);
+// Der Router legt fest, ob und welches Modell es gibt (/api/config `nudity`: model, kind, threshold,
+// classes, combine, library, modelUrl, size; `models` = alle verfuegbaren fuer die Testseite). Gibt es eins, meldet sich hier ein Klassifikator beim Filter an (nudity.js);
 // der Worker samt Modell (~3 MB) startet erst beim ersten Bild, das geprueft werden soll, also nur bei
-// eingeschaltetem Filter. Wert eines Bilds = Summe der Wahrscheinlichkeiten der konfigurierten Klassen.
-const NUDITY_CLASSIFY_TIMEOUT_MS = 20000;
+// eingeschaltetem Filter. Wert eines Bilds aus den konfigurierten Klassen: Summe (NSFWJS, Bumble) bzw.
+// hoechste Fundstelle (NudeNet).
+// Grosszuegig: beim ersten Bild laedt der Worker Bibliothek und Modell (Bumble ~51 MB).
+const NUDITY_CLASSIFY_TIMEOUT_MS = 90000;
 // Version der App-Dateien (vom eigenen Script-Tag), damit der Worker nach Updates neu geladen wird.
 const NUDITY_ASSET_VERSION = (document.currentScript?.src.match(/[?&]v=([^&]+)/) || [])[1] || '';
 let nudityWorker = null;
@@ -36,7 +38,7 @@ function nudityWorkerInstance() {
 async function classifyNudity(bitmap, modelId = null) {
     const active = nudityModelConfig();
     if (!active) throw new Error('No nudity model configured.');
-    const config = modelId && active.models?.[modelId] ? { library: active.library, ...active.models[modelId] } : active;
+    const config = modelId && active.models?.[modelId] ? active.models[modelId] : active;
     // Eine Kopie geht in den Worker; das Original zeichnet die Seite weiter.
     const copy = await createImageBitmap(bitmap);
     const id = ++nudityRequestId;
@@ -46,13 +48,15 @@ async function classifyNudity(bitmap, modelId = null) {
             reject(new Error('Nudity model timed out.'));
         }, NUDITY_CLASSIFY_TIMEOUT_MS);
         nudityPending.set(id, { resolve, reject, timer });
-        nudityWorkerInstance().postMessage({ type: 'classify', id, bitmap: copy, config: { library: config.library, modelUrl: config.modelUrl, size: config.size || 224, type: config.type || 'layers' } }, [copy]);
+        const { kind, library, runtimeUrl, modelUrl, size, type, classes } = config;
+        nudityWorkerInstance().postMessage({ type: 'classify', id, bitmap: copy, config: { kind: kind || 'nsfwjs', library, runtimeUrl, modelUrl, size: size || 224, type: type || 'layers', classes } }, [copy]);
     });
 }
 
-function nudityScoreFromPredictions(predictions, classes = nudityModelConfig()?.classes || ['Porn', 'Hentai']) {
-    return predictions.filter(prediction => classes.includes(prediction.className))
-        .reduce((sum, prediction) => sum + prediction.probability, 0);
+function nudityScoreFromPredictions(predictions, classes = nudityModelConfig()?.classes || ['Porn', 'Hentai'], combine = nudityModelConfig()?.combine || 'sum') {
+    const values = predictions.filter(prediction => classes.includes(prediction.className)).map(prediction => prediction.probability);
+    const score = combine === 'max' ? Math.max(0, ...values) : values.reduce((sum, value) => sum + value, 0);
+    return Math.min(1, score);
 }
 
 function initNudityModel() {
@@ -109,9 +113,13 @@ async function testNudityImages(input) {
             const started = performance.now();
             const predictions = await classifyNudity(bitmap, modelId);
             bitmap.close?.();
-            const score = nudityScoreFromPredictions(predictions);
+            // Fremdes Modell auf der Testseite: dessen Standard-Klassen, sonst die vom Betreiber gewaehlten.
+            const active = state.appConfig.nudity;
+            const model = active.models?.[modelId] || active;
+            const score = nudityScoreFromPredictions(predictions, modelId === active.model ? active.classes : model.defaultClasses, model.combine);
             detail.textContent = `${modelId} · ${score >= threshold ? t('nudity.wouldBlur') : t('nudity.wouldShow')} · ${Math.round(score * 100)} % · ${Math.round(performance.now() - started)} ms · `
-                + predictions.map(prediction => `${prediction.className} ${Math.round(prediction.probability * 100)} %`).join(', ');
+                + [...predictions].sort((left, right) => right.probability - left.probability).slice(0, 5)
+                    .map(prediction => `${prediction.className} ${Math.round(prediction.probability * 100)} %`).join(', ');
             row.classList.toggle('is-blurred', score >= threshold);
         } catch (error) {
             detail.textContent = t('nudity.testFailed', { message: error.message });

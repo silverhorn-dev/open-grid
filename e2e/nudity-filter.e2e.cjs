@@ -75,6 +75,22 @@ async function main() {
         }
         assert.match(report, /probe-mid\.png.*nsfwjs-mid · \S+ · \d+ % · \d+ ms · .*Neutral \d+ %/, report);
 
+        // Optionale Modelle (nur wenn der Router sie hat, z. B. NUDITY_MODEL_DIR mit fetch.sh befuellt).
+        const optional = await page.evaluate(() => Object.keys(state.appConfig.nudity.models || {}).filter(id => ['bumble', 'nudenet'].includes(id)));
+        const expectedClass = { bumble: /Lewd \d+ %/, nudenet: /(EXPOSED|COVERED|FACE)_?\w* \d+ %/ };
+        for (const modelId of optional) {
+            await page.selectOption('#nudity-test-model', modelId);
+            await page.setInputFiles('#nudity-test-input', { name: `probe-${modelId}.png`, mimeType: 'image/png', buffer: png });
+            report = '';
+            for (let attempt = 0; attempt < 240 && !new RegExp(`${modelId} · `).test(report) && !/fehlgeschlagen|failed/i.test(report); attempt += 1) {
+                await page.waitForTimeout(500);
+                report = await page.textContent('#nudity-test-results');
+            }
+            assert.match(report, new RegExp(`probe-${modelId}\\.png.*${modelId} · Sichtbar · \\d+ % · \\d+ ms · `), report);
+            assert.match(report, expectedClass[modelId], report);
+            console.log(`optional model ${modelId}: ${report.slice(report.indexOf(`${modelId} · `)).slice(0, 160)}`);
+        }
+
         // Ab hier deterministisch: nur das Test-Modell (rote Bilder).
         await page.evaluate(() => { nudityClassifiers.length = 0; });
 

@@ -1303,32 +1303,42 @@ die Quelle bleibt danach ueberall sichtbar (auch im Betrachter). Fehler eines
 Modells zaehlen als 0. Ohne Modell wirkt der Filter nicht, die Einstellung sagt
 das. Alles lokal, der Server erfaehrt nichts.
 
-Modell (`server/nudity-model.js`, `client/app/nudity-model.js`,
-`client/app/nudity-worker.js`): Der Router liefert NSFWJS MobileNetV2 (MIT,
-Klassen Drawing, Hentai, Neutral, Porn, Sexy; Eingabe 224x224, Gewichte ca.
-2,6 MB) selbst aus, aus dem npm-Paket `nsfwjs` umgepackt in TF.js-Dateien:
+Modelle (`server/nudity-model.js`, `client/app/nudity-model.js`,
+`client/app/nudity-worker.js`), alle vom Router selbst ausgeliefert:
+
+| `NUDITY_MODEL` | Art | Eingabe | Klassen | Wert |
+|---|---|---|---|---|
+| `nsfwjs` | NSFWJS MobileNetV2 (TF.js, MIT) | 224, gestaucht | Drawing, Hentai, Neutral, Porn, Sexy | Summe |
+| `nsfwjs-mid` | NSFWJS MobileNetV2 Mid (Graph) | 224 | wie oben | Summe |
+| `nsfwjs-inception` | NSFWJS InceptionV3 | 299 | wie oben | Summe |
+| `bumble` (optional) | Bumble Private Detector (TF.js-Graph, Apache-2.0) | 480, Seitenverhaeltnis erhalten, grau (128) mittig aufgefuellt, `(x - 128) / 128`, flach `[1, 691200]` | Lewd (Ausgabe-Index 0) | Summe |
+| `nudenet` (optional) | NudeNet 320n (ONNX, YOLOv8, AGPL-3.0) | 320, schwarz rechts/unten aufgefuellt, RGB / 255, `[1, 3, 320, 320]` | 18 Koerperteile | hoechste Fundstelle je Klasse, davon das Maximum |
 
 | Route | Inhalt |
 |---|---|
-| `GET /vendor/nsfwjs/<version>/nsfwjs.min.js` | Bibliothek inkl. TF.js |
-| `GET /vendor/nsfwjs/<version>/<modell>/model.json` | Modell-Topologie + Gewichte-Manifest |
-| `GET /vendor/nsfwjs/<version>/<modell>/<teil>` | Gewichte-Teile (binaer, laut Manifest) |
+| `GET /vendor/nsfwjs/<version>/nsfwjs.min.js` | NSFWJS inkl. TF.js |
+| `GET /vendor/nsfwjs/<version>/<ordner>/model.json`, `.../<teil>` | NSFWJS-Modelle (`mobilenet_v2`, `mobilenet_v2_mid`, `inception_v3`), aus dem npm-Paket umgepackt |
+| `GET /vendor/tfjs/<version>/tf.es2017.min.js` | TF.js fuer Bumble (ES2017-Build ohne `Function()`-Polyfills) |
+| `GET /vendor/nudity-models/bumble/<hash>/model.json`, `.../<teil>` | Bumble aus `NUDITY_MODEL_DIR/bumble` (nur Dateien laut Manifest) |
+| `GET /vendor/nudity-models/nudenet/<hash>/320n.onnx` | NudeNet aus `NUDITY_MODEL_DIR/nudenet` |
+| `GET /vendor/onnxruntime-web/<version>/ort.wasm.min.js`, `ort-wasm-simd-threaded.mjs`, `.wasm` | Laufzeit fuer NudeNet (optionale Abhaengigkeit) |
 
-`<modell>` = `mobilenet_v2` (`NUDITY_MODEL=nsfwjs`, 224 px), `mobilenet_v2_mid`
-(`nsfwjs-mid`, Graph-Modell, 224 px) oder `inception_v3` (`nsfwjs-inception`,
-299 px). Alle drei werden ausgeliefert; `/api/config.nudity` nennt das aktive
-(`model`, `modelUrl`, `size`, `type`) und alle (`models`).
+Alle mit `Cache-Control: immutable` (Version bzw. Hash im Pfad), im SW wie
+andere `/vendor/`-Dateien gecacht. Die optionalen Modelle erscheinen nur, wenn
+ihre Dateien in `NUDITY_MODEL_DIR` liegen (`scripts/nudity-models/fetch.sh`);
+ist das gewaehlte nicht installiert, gilt `nsfwjs`. `/api/config.nudity` =
+aktives Modell flach (`model`, `kind`, `library`, `modelUrl`, `runtimeUrl`,
+`size`, `type`, `combine`, `classes` = `NUDITY_CLASSES` gegen die Klassen des
+Modells geprueft, sonst dessen Standard) + `threshold` + `models` (alle
+installierten mit `defaultClasses`), bzw. `{ model: 'off' }`.
 
-Alle drei mit `Cache-Control: immutable` (Version im Pfad), im SW wie andere
-`/vendor/`-Dateien gecacht. `/api/config` meldet `nudity = { model: 'nsfwjs',
-threshold, classes, library, modelUrl, size }` bzw. `{ model: 'off' }`.
-Konfiguration ueber `NUDITY_MODEL`, `NUDITY_THRESHOLD`, `NUDITY_CLASSES`
-(README). Gibt es ein Modell, meldet `initNudityModel()` einen Klassifikator an;
-der Web Worker samt Bibliothek und Modell startet erst beim ersten zu
-pruefenden Bild (also nur bei eingeschaltetem Filter). Das Bild geht als
-`ImageBitmap`-Kopie in den Worker, wird dort auf 224x224 verkleinert und
-geschlossen; Wert = Summe der Wahrscheinlichkeiten der konfigurierten Klassen,
-unscharf ab `threshold`. Zeitlimit 20 s je Bild (zaehlt dann als 0).
+Gibt es ein Modell, meldet `initNudityModel()` einen Klassifikator an; der Web
+Worker samt Bibliothek und Modell startet erst beim ersten zu pruefenden Bild
+(also nur bei eingeschaltetem Filter). Das Bild geht als `ImageBitmap`-Kopie in
+den Worker und wird dort geschlossen; unscharf ab `threshold`. Zeitlimit 90 s je
+Bild (erstes Laden eingeschlossen; danach zaehlt es als 0). Nur das
+Worker-Skript bekommt `script-src 'self' 'wasm-unsafe-eval'` (WASM fuer
+onnxruntime-web), die Seite bleibt bei `script-src 'self'`.
 
 Testseite (Debug-Modus, Medien > Schutz, "Erkennung testen"): Modell waehlen
 (vorgewaehlt das aktive), eigene Bilder waehlen, je Bild Wert, Rechenzeit, Werte aller Klassen und ob der Filter es

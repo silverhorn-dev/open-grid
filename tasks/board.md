@@ -77,7 +77,12 @@
     - [x] tests `test/nudity.test.js`, e2e `nudity-filter` (test-modell)
     - [x] modell ausliefern (2026-10-29): NSFWJS MobileNetV2 vom router (`server/nudity-model.js`, routen `/vendor/nsfwjs/<version>/...`), router-konfig `NUDITY_MODEL` (nsfwjs|off), `NUDITY_THRESHOLD` (0.5-0.95, std 0.7), `NUDITY_CLASSES` (std Porn,Hentai) -> `/api/config.nudity`; web worker (`client/app/nudity-worker.js`) startet erst beim ersten bild bei eingeschaltetem filter; testseite im debug-modus (medien > schutz > "Erkennung testen"); tests `test/nudity-model.test.js`, e2e `nudity-filter` mit echtem modell
     - [x] nutzer-test 2026-10-29: MobileNetV2 erkennt ein maennliches nacktbild (badezimmer-selfie) nicht (Neutral 85 %, Porn+Hentai 1 %) -> alle drei nsfwjs-modelle ausgeliefert, `NUDITY_MODEL=nsfwjs|nsfwjs-mid|nsfwjs-inception`, auswahl auf der testseite zum vergleichen
-    - [ ] nutzer vergleicht mid/inception mit denselben bildern; reicht keins: Bumble Private Detector umwandeln oder koerperteil-erkennung (NudeNet-art, lizenz beachten)
+    - [x] nutzer 2026-10-29: "male nudes are not very trained" -> beide staerkeren modelle optional ausliefern
+      - `bumble` (Apache-2.0): SavedModel rechnet in float16, TF.js kann das nicht -> graph eingefroren, auf float32 umgeschrieben (abweichung 0.0), uint8-quantisiert (~51 MB, TF.js weicht < 0.002 ab); `scripts/nudity-models/convert-bumble.py`
+      - `nudenet` 320n: GitHub-release braucht login -> aus dem PyPI-wheel nudenet 3.4.2 (sha256 fest); metadaten sagen MIT, die LICENSE-datei im wheel ist AGPL-3.0 -> als AGPL behandelt (passt zu GPL-3.0 von OpenGrid)
+      - installation: `scripts/nudity-models/fetch.sh --volume <volume> nudenet bumble` -> `NUDITY_MODEL_DIR` (std data/nudity-models); `onnxruntime-web` optionale abhaengigkeit; nur der worker bekommt `'wasm-unsafe-eval'`; TF.js als ES2017-build (der ES5-build braucht `Function()`)
+      - e2e (headless, ohne GPU): nudenet 1,2 s/bild, bumble 68 s/bild (CPU) -> auf dem handy mit WebGL messen
+    - [ ] nutzer vergleicht nsfwjs-mid/-inception, bumble, nudenet mit echten bildern auf dem handy (treffer + zeit), danach `NUDITY_MODEL` + schwelle festlegen
     - [ ] nutzer testet auf dem handy mit echten bildern (maennliche nacktheit, fehlalarme bei badehose/oberkoerper), danach schwelle/klassen festlegen; falls zu schwach: Bumble Private Detector umwandeln
     - [ ] docker-image wird groesser (nsfwjs bringt alle drei modelle + tfjs mit); bei bedarf nur mobilenet_v2 + bibliothek ins image kopieren
     - [ ] absender-warnung vor dem senden -> entscheidung

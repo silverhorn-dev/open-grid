@@ -30,7 +30,7 @@ import {
     securityHeaders
 } from './security.js';
 import { applyAudienceMinimum, parseAudienceMinimum } from './audience.js';
-import { parseNudityConfig, registerNudityModelRoutes } from './nudity-model.js';
+import { nudityPublicConfig as describeNudityModels, parseNudityConfig, registerNudityModelRoutes } from './nudity-model.js';
 
 const MAX_GRID_RESULTS = 100;
 // Quoten fuer den Pfad-C-Zwischenspeicher, damit niemand die Queue eines Empfaengers flutet.
@@ -350,8 +350,9 @@ export async function buildApp(options = {}) {
         trustProxy: parseTrustProxy(options.trustProxy ?? process.env.TRUST_PROXY),
         bodyLimit: 128 * 1024
     });
+    const databasePath = options.databasePath || process.env.DATABASE_PATH || join(projectDirectory, 'data', 'open-grid.sqlite');
     const store = options.store || createStore(
-        options.databasePath || process.env.DATABASE_PATH || join(projectDirectory, 'data', 'open-grid.sqlite'),
+        databasePath,
         { credentialRetentionDays: process.env.CREDENTIAL_RETENTION_DAYS }
     );
 
@@ -428,7 +429,8 @@ export async function buildApp(options = {}) {
 
     // Die App laeuft komplett same-origin: keine CORS-Header, dafuer Sicherheits-Header.
     app.addHook('onRequest', async (request, reply) => {
-        reply.headers(securityHeaders(request.headers.host));
+        // Der Nacktbild-Worker darf WebAssembly kompilieren (NudeNet/onnxruntime-web, TF.js); die Seite nicht.
+        reply.headers(securityHeaders(request.headers.host, { wasm: request.url.startsWith('/client/app/nudity-worker.js') }));
     });
 
     // Info-Seite fuer alle (info-site/, server/info-site.js), auf eigener Domain oder unter /info.
@@ -469,10 +471,10 @@ export async function buildApp(options = {}) {
         threshold: options.nudityThreshold ?? process.env.NUDITY_THRESHOLD,
         classes: options.nudityClasses ?? process.env.NUDITY_CLASSES
     });
-    const nudityAssets = await registerNudityModelRoutes(app, nudityConfig);
-    const nudityPublicConfig = nudityAssets
-        ? { model: nudityConfig.model, threshold: nudityConfig.threshold, classes: nudityConfig.classes, library: nudityAssets.library, ...nudityAssets.models[nudityConfig.model], models: nudityAssets.models }
-        : { model: 'off' };
+    // Optionale Modelle (Bumble, NudeNet) liegen im Datenordner, siehe scripts/nudity-models/fetch.sh.
+    const nudityModelDirectory = options.nudityModelDir ?? process.env.NUDITY_MODEL_DIR ?? join(dirname(databasePath === ':memory:' ? join(projectDirectory, 'data', 'x') : databasePath), 'nudity-models');
+    const nudityAssets = await registerNudityModelRoutes(app, nudityConfig, { modelDirectory: nudityModelDirectory });
+    const nudityPublicConfig = describeNudityModels(nudityConfig, nudityAssets);
     const audienceMinimums = {
         public: parseAudienceMinimum(audienceMinimumRule, audienceSchemaFor('public')),
         event: parseAudienceMinimum(audienceMinimumRule, audienceSchemaFor('event'))

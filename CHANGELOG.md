@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 216 · 2026-10-29
+## Build 217 · 2026-10-29
+- Nacktbild-Filter: zwei staerkere Erkennungsmodelle optional fuer Betreiber (Bumble Private Detector, NudeNet), die auch maennliche Nacktheit erkennen sollen; Installation mit `scripts/nudity-models/fetch.sh`, Vergleich auf der Testseite im Debug-Modus
+
+## Build 216 · 2026-10-29 · `3f4ecfd`
 - Behoben (Debug-Modus): der Hinweis "Peer is currently unavailable" kam bei jedem Verbindungsversuch im Hintergrund; jetzt nur noch fuer den offenen Chat und hoechstens alle 5 Minuten
 
 ## Build 215 · 2026-10-29 · `f200a99`

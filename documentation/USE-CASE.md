@@ -820,6 +820,8 @@ Akzeptanzkriterien:
 - Der erste Tipp zeigt das Bild, oeffnet aber nichts anderes; danach bleibt es
   sichtbar, auch im Bildbetrachter.
 - Eigene Bilder werden nie geprueft.
+- Kann ein Bild nicht geprueft werden (Modell laedt nicht, Zeitlimit), bleibt
+  es unscharf mit "Konnte nicht geprueft werden" statt ungeprueft zu erscheinen.
 - Das Erkennungsmodell kommt vom eigenen Router und wird erst geladen, wenn der
   Filter an ist; der Betreiber legt Modell, Schwelle und Klassen fest.
 - Ohne Modell (`NUDITY_MODEL=off`) sagt die Einstellung, dass der Filter nicht

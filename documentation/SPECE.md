@@ -1338,8 +1338,12 @@ installierten mit `defaultClasses`), bzw. `{ model: 'off' }`.
 Gibt es ein Modell, meldet `initNudityModel()` einen Klassifikator an; der Web
 Worker samt Bibliothek und Modell startet erst beim ersten zu pruefenden Bild
 (also nur bei eingeschaltetem Filter). Das Bild geht als `ImageBitmap`-Kopie in
-den Worker und wird dort geschlossen; unscharf ab `threshold`. Zeitlimit 90 s je
-Bild (erstes Laden eingeschlossen; danach zaehlt es als 0). Nur das
+den Worker und wird dort geschlossen; unscharf ab `threshold`. Bilder laufen
+nacheinander durch den Worker (Warteschlange); das Zeitlimit von 90 s je Bild
+beginnt erst, wenn der Worker das Bild bekommt (erstes Laden eingeschlossen).
+Liefert kein Modell ein Ergebnis (Fehler, Zeitlimit), bleibt das Bild unscharf
+mit "Konnte nicht geprueft werden" (nicht gemerkt, beim naechsten Anzeigen neue
+Pruefung). Der Wert je Bild steht im Debug-Log (zum Einstellen der Schwelle). Nur das
 Worker-Skript bekommt `script-src 'self' 'wasm-unsafe-eval'` (WASM fuer
 onnxruntime-web), die Seite bleibt bei `script-src 'self'`.
 

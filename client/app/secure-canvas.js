@@ -31,7 +31,7 @@ async function drawSecureImage(canvas, source) {
         if (secureImageDrawTokens.get(canvas) !== token) return false;
         canvas.width = bitmap.width;
         canvas.height = bitmap.height;
-        if (blur) drawBlurredImage(canvas, bitmap, source, () => drawSecureImage(canvas, source).catch(logBackgroundError('drawSecureImage')));
+        if (blur) drawBlurredImage(canvas, bitmap, source, () => drawSecureImage(canvas, source).catch(logBackgroundError('drawSecureImage')), blur);
         else canvas.getContext('2d').drawImage(bitmap, 0, 0);
         return true;
     } finally {

@@ -37,10 +37,14 @@ async function main() {
             context.fillStyle = gradient;
             context.fillRect(0, 0, 320, 240);
             const bitmap = await createImageBitmap(canvas);
-            const predictions = await classifyNudity(bitmap);
-            return { config: state.appConfig.nudity, predictions, workerStarted: Boolean(nudityWorker) };
+            const predictions = await classifyNudity(bitmap, 'nsfwjs');
+            // Warteschlange: mehrere Bilder gleichzeitig angefragt, alle kommen nacheinander durch.
+            const batch = await Promise.all(Array.from({ length: 5 }, () => classifyNudity(bitmap, 'nsfwjs').then(result => result.length)));
+            return { config: state.appConfig.nudity, predictions, batch, workerStarted: Boolean(nudityWorker) };
         });
-        assert.equal(real.config.model, 'nsfwjs');
+        // Standard ist NudeNet; ohne installiertes NudeNet (Repo ohne Docker) gilt nsfwjs.
+        assert.equal(real.config.model, real.config.models.nudenet ? 'nudenet' : 'nsfwjs');
+        assert.deepEqual(real.batch, [5, 5, 5, 5, 5], 'queued images all get checked');
         assert.equal(real.config.threshold, 0.7);
         assert.equal(real.workerStarted, true);
         assert.deepEqual(real.predictions.map(entry => entry.className).sort(), ['Drawing', 'Hentai', 'Neutral', 'Porn', 'Sexy']);
@@ -56,6 +60,7 @@ async function main() {
             canvas.getContext('2d').fillRect(0, 0, 64, 64);
             return canvas.toDataURL('image/png').split(',')[1];
         }), 'base64');
+        await page.selectOption('#nudity-test-model', 'nsfwjs');
         await page.setInputFiles('#nudity-test-input', { name: 'probe.png', mimeType: 'image/png', buffer: png });
         let report = '';
         for (let attempt = 0; attempt < 60 && !/Neutral \d+ %/.test(report); attempt += 1) {

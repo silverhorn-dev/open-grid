@@ -53,32 +53,39 @@ function renderNuditySettings() {
     document.getElementById('nudity-filter-no-model')?.classList.toggle('hidden', hasNudityClassifier());
 }
 
-// Hoechster Wert aller Modelle, je Quelle gemerkt (Data-URL oder Blob).
+// Hoechster Wert aller Modelle, je Quelle gemerkt (Data-URL oder Blob). null = kein Modell hat ein
+// Ergebnis geliefert (Fehler, Frist): nicht merken, beim naechsten Anzeigen neu pruefen.
 async function nudityScore(bitmap, source) {
     if (nudityScores.has(source)) return nudityScores.get(source);
-    let score = 0;
+    let score = null;
     for (const classifier of nudityClassifiers) {
         try {
             const value = Number(await classifier.classify(bitmap));
-            if (Number.isFinite(value)) score = Math.max(score, Math.min(1, Math.max(0, value)));
+            if (Number.isFinite(value)) score = Math.max(score ?? 0, Math.min(1, Math.max(0, value)));
         } catch (error) {
             logDebug(`Nudity classifier ${classifier.id || '?'} failed: ${error.message}`);
         }
     }
+    if (score === null) return null;
     if (nudityScores.size >= NUDITY_CACHE_LIMIT) nudityScores.delete(nudityScores.keys().next().value);
     nudityScores.set(source, score);
     return score;
 }
 
+// false = scharf zeigen; 'nude' = moegliches Nacktbild; 'unchecked' = Pruefung fehlgeschlagen. Bei
+// eingeschaltetem Filter lieber unscharf als ungeprueft durchlassen (vorher galt ein Fehler als 0).
 async function shouldBlurImage(bitmap, source) {
     if (!isNudityFilterActive() || revealedNudityImages.has(source)) return false;
+    const score = await nudityScore(bitmap, source);
+    if (score === null) return 'unchecked';
     // Schwelle vom Router (NUDITY_THRESHOLD), sonst 0,7.
-    return await nudityScore(bitmap, source) >= (state.appConfig?.nudity?.threshold ?? NUDITY_THRESHOLD);
+    return score >= (state.appConfig?.nudity?.threshold ?? NUDITY_THRESHOLD) ? 'nude' : false;
 }
 
 // Unscharf zeichnen, abdunkeln, Hinweis darauf. Ein Tippen zeigt das Bild (und dieselbe Quelle
 // ueberall, z. B. danach im Viewer) und faengt den Klick ab, bevor er etwa den Viewer oeffnet.
-function drawBlurredImage(canvas, bitmap, source, redraw) {
+function drawBlurredImage(canvas, bitmap, source, redraw, reason = 'nude') {
+    const label = reason === 'unchecked' ? t('nudity.notChecked') : t('nudity.mightBeNude');
     const context = canvas.getContext('2d');
     const blur = Math.max(16, Math.round(Math.max(bitmap.width, bitmap.height) / 25));
     context.filter = `blur(${blur}px)`;
@@ -90,11 +97,11 @@ function drawBlurredImage(canvas, bitmap, source, redraw) {
     context.textAlign = 'center';
     context.textBaseline = 'middle';
     context.font = `600 ${Math.max(14, Math.round(canvas.width / 18))}px sans-serif`;
-    context.fillText(t('nudity.mightBeNude'), canvas.width / 2, canvas.height / 2 - canvas.width / 30);
+    context.fillText(label, canvas.width / 2, canvas.height / 2 - canvas.width / 30);
     context.font = `${Math.max(12, Math.round(canvas.width / 24))}px sans-serif`;
     context.fillText(t('nudity.tapToView'), canvas.width / 2, canvas.height / 2 + canvas.width / 22);
     canvas.dataset.nudityBlurred = 'true';
-    canvas.setAttribute('aria-label', t('nudity.mightBeNude'));
+    canvas.setAttribute('aria-label', label);
     if (nudityRevealHandlers.has(canvas)) return;
     nudityRevealHandlers.add(canvas);
     canvas.addEventListener('click', event => {

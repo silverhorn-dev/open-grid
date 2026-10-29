@@ -59,22 +59,27 @@ test('without a model nothing is blurred, with a model above the threshold only'
     let calls = 0;
     assert.equal(context.registerNudityClassifier({ id: 'fake', classify: async bitmap => { calls += 1; return bitmap.score; } }), true);
     assert.equal(context.registerNudityClassifier({ id: 'broken' }), false);
-    assert.equal(await context.shouldBlurImage({ score: 0.95 }, 'nude'), true);
+    assert.equal(await context.shouldBlurImage({ score: 0.95 }, 'nude'), 'nude');
     assert.equal(await context.shouldBlurImage({ score: 0.2 }, 'beach'), false);
-    assert.equal(await context.shouldBlurImage({ score: 0.95 }, 'nude'), true);
+    assert.equal(await context.shouldBlurImage({ score: 0.95 }, 'nude'), 'nude');
     assert.equal(calls, 2, 'scores are cached per image');
 
     context.state.nudityFilter = false;
     assert.equal(await context.shouldBlurImage({ score: 0.95 }, 'other'), false, 'switched off');
 });
 
-test('a failing model counts as harmless, the highest score of several models wins', async () => {
+test('a failing model blurs as "not checked" and retries next time; the highest score of several models wins', async () => {
     const { context } = loadNudity();
     context.state.nudityFilter = true;
-    context.registerNudityClassifier({ id: 'broken', classify: async () => { throw new Error('no wasm'); } });
-    assert.equal(await context.shouldBlurImage({}, 'a'), false);
+    let attempts = 0;
+    context.registerNudityClassifier({ id: 'broken', classify: async () => { attempts += 1; throw new Error('no wasm'); } });
+    assert.equal(await context.shouldBlurImage({}, 'a'), 'unchecked', 'fail closed instead of showing unchecked images');
+    assert.equal(await context.shouldBlurImage({}, 'a'), 'unchecked');
+    assert.equal(attempts, 2, 'a failure is not cached');
     context.registerNudityClassifier({ id: 'good', classify: async () => 0.8 });
-    assert.equal(await context.shouldBlurImage({}, 'a'), true);
+    assert.equal(await context.shouldBlurImage({}, 'a'), 'nude');
+    context.registerNudityClassifier({ id: 'low', classify: async () => 0.1 });
+    assert.equal(await context.shouldBlurImage({}, 'b'), 'nude', 'one working model with a hit is enough');
 });
 
 test('blurred images are revealed by a tap that does not reach other click handlers', async () => {
@@ -85,6 +90,10 @@ test('blurred images are revealed by a tap that does not reach other click handl
     let redraws = 0;
     context.drawBlurredImage(canvas, { width: 800, height: 600 }, 'nude', () => { redraws += 1; });
     assert.equal(canvas.dataset.nudityBlurred, 'true');
+    assert.ok(canvas.calls.some(([name, text]) => name === 'fillText' && text === context.t('nudity.mightBeNude')));
+    const unchecked = fakeCanvas();
+    context.drawBlurredImage(unchecked, { width: 800, height: 600 }, 'x', () => {}, 'unchecked');
+    assert.ok(unchecked.calls.some(([name, text]) => name === 'fillText' && text === context.t('nudity.notChecked')), 'says it could not be checked');
     assert.ok(canvas.calls.some(([name, value]) => name === 'set:filter' && String(value).startsWith('blur(')));
     assert.equal(canvas.listeners.length, 1);
     assert.equal(canvas.listeners[0].capture, true, 'runs before the viewer click handler');

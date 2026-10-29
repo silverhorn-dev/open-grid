@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 231 · 2026-10-29
+## Build 232 · 2026-10-29
+- Behoben: Nacktbild-Filter liess Bilder scharf durch, wenn die Pruefung zu lange dauerte oder fehlschlug (z. B. viele Bilder auf einmal, Modell laedt noch). Bilder werden jetzt nacheinander geprueft; was nicht geprueft werden kann, bleibt unscharf
+
+## Build 231 · 2026-10-29 · `434afba`
 - Admin-Panel: neuer Bereich "Zwischenspeicher" zeigt, welche Nachrichten auf Empfaenger warten (Alter, Groesse, wer abholt und wer nie), und raeumt auf (abgelaufene, je Empfaenger, alles). Inhalte und Arten bleiben verschluesselt
 
 ## Build 230 · 2026-10-29 · `ec86dc9`

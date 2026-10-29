@@ -4,8 +4,12 @@
 // der Worker samt Modell (~3 MB) startet erst beim ersten Bild, das geprueft werden soll, also nur bei
 // eingeschaltetem Filter. Wert eines Bilds aus den konfigurierten Klassen: Summe (NSFWJS, Bumble) bzw.
 // hoechste Fundstelle (NudeNet).
-// Grosszuegig: beim ersten Bild laedt der Worker Bibliothek und Modell (Bumble ~51 MB).
+// Grosszuegig: beim ersten Bild laedt der Worker Bibliothek und Modell (Bumble ~51 MB). Die Frist gilt je
+// Bild ab dem Moment, in dem der Worker es bekommt (Bilder laufen nacheinander, siehe nudityQueue).
 const NUDITY_CLASSIFY_TIMEOUT_MS = 90000;
+// Warteschlange: immer nur ein Bild im Worker. Vorher liefen alle Bilder eines Chats gleichzeitig los,
+// ihre Fristen liefen schon beim Warten ab, und sie erschienen ungeprueft.
+let nudityQueue = Promise.resolve();
 // Version der App-Dateien (vom eigenen Script-Tag), damit der Worker nach Updates neu geladen wird.
 const NUDITY_ASSET_VERSION = (document.currentScript?.src.match(/[?&]v=([^&]+)/) || [])[1] || '';
 let nudityWorker = null;
@@ -41,8 +45,8 @@ async function classifyNudity(bitmap, modelId = null) {
     const config = modelId && active.models?.[modelId] ? active.models[modelId] : active;
     // Eine Kopie geht in den Worker; das Original zeichnet die Seite weiter.
     const copy = await createImageBitmap(bitmap);
-    const id = ++nudityRequestId;
-    return new Promise((resolve, reject) => {
+    const job = nudityQueue.then(() => new Promise((resolve, reject) => {
+        const id = ++nudityRequestId;
         const timer = setTimeout(() => {
             nudityPending.delete(id);
             reject(new Error('Nudity model timed out.'));
@@ -50,7 +54,10 @@ async function classifyNudity(bitmap, modelId = null) {
         nudityPending.set(id, { resolve, reject, timer });
         const { kind, library, runtimeUrl, modelUrl, size, type, classes } = config;
         nudityWorkerInstance().postMessage({ type: 'classify', id, bitmap: copy, config: { kind: kind || 'nsfwjs', library, runtimeUrl, modelUrl, size: size || 224, type: type || 'layers', classes } }, [copy]);
-    });
+    }));
+    // Die Kette laeuft auch nach einem Fehler weiter.
+    nudityQueue = job.catch(() => {});
+    return job;
 }
 
 function nudityScoreFromPredictions(predictions, classes = nudityModelConfig()?.classes || ['Porn', 'Hentai'], combine = nudityModelConfig()?.combine || 'sum') {
@@ -65,7 +72,11 @@ function initNudityModel() {
     registerNudityClassifier({
         id: nudityModelConfig().model,
         async classify(bitmap) {
-            return nudityScoreFromPredictions(await classifyNudity(bitmap));
+            const predictions = await classifyNudity(bitmap);
+            const score = nudityScoreFromPredictions(predictions);
+            // Fuer das Einstellen der Schwelle (Debug-Log): Wert und die staerksten Klassen.
+            logDebug(`Nudity ${nudityModelConfig().model}: ${Math.round(score * 100)} % (${[...predictions].sort((left, right) => right.probability - left.probability).slice(0, 3).map(entry => `${entry.className} ${Math.round(entry.probability * 100)} %`).join(', ')})`);
+            return score;
         }
     });
 }

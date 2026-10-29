@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 226 · 2026-10-29
+## Build 227 · 2026-10-29
+- Behoben: der Server startete nach dem Update nicht (die Seite des Admin-Panels fehlte im Docker-Image)
+
+## Build 226 · 2026-10-29 · `4ad72af`
 - Neu: Weitergabe melden. Findet "Wasserzeichen pruefen" den Empfaenger eines weitergegebenen Bilds, laesst er sich direkt melden (das Bild bleibt auf deinem Geraet)
 - Admin-Panel: Meldungen ansehen und den gemeldeten Peer mit einem Klick sperren
 

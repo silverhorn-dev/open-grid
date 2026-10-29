@@ -3,7 +3,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 # Tailwind vorab kompilieren (kein CDN zur Laufzeit), danach Dev-Abhaengigkeiten entfernen.
-COPY index.html ./
+COPY index.html admin.html ./
 COPY client ./client
 RUN npm run build:css && npm prune --omit=dev
 
@@ -29,7 +29,7 @@ RUN groupadd --system --gid 10001 opengrid \
     && mkdir -p /app/data \
     && chown -R opengrid:opengrid /app
 COPY --from=dependencies --chown=opengrid:opengrid /app/node_modules ./node_modules
-COPY --chown=opengrid:opengrid package.json index.html CHANGELOG.md ./
+COPY --chown=opengrid:opengrid package.json index.html admin.html CHANGELOG.md ./
 COPY --chown=opengrid:opengrid client ./client
 COPY --from=dependencies --chown=opengrid:opengrid /app/client/tailwind.css ./client/tailwind.css
 COPY --chown=opengrid:opengrid server ./server

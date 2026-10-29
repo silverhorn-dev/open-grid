@@ -1035,6 +1035,15 @@ Gewicht (kg), Koerperbau, Tribes (Mehrfachauswahl), Sucht nach
 Mehrfachauswahlen als Chips, Einfachauswahlen ohne Pflicht haben einen leeren
 Eintrag.
 
+**Sprache der Seite und Browser-Uebersetzung**: `client/i18n.js` setzt
+`<html lang>` schon beim Laden des Kopfs auf die aktive Sprache (vorher stand fest
+`de` im Markup, Chrome bot dann auch fuer die englische Oberflaeche eine
+Uebersetzung an und umgekehrt). Uebersetzen per Browser ist nur fuer die
+Oberflaeche erlaubt: Nutzerinhalte (Chatverlauf, Chatliste, Grid, Interaktionen,
+Matches, Status, Profilfelder im Profil-Fenster) und die Eingabeleiste tragen
+`translate="no"`, damit Chats und Profile nicht an den Uebersetzungsdienst
+gehen und das Nachrichtenfeld nicht bricht (Uebersetzen veraendert Textknoten).
+
 **Grid: drei Bereiche** (`client/app/grid-tabs.js`, nur in "Entdecken"):
 Grid · Interaktionen · Matches. Interaktionen = eingegangene Flammen und
 Profilbesuche (`keys`/`interactions = { items: [{ peerId, kind, at }], seenAt }`,
@@ -1053,10 +1062,12 @@ kleiner Knopf (nur Daten, ohne Hinweis).
 
 Neu laden (`keys`/`reload-mode`, Einstellungen > Allgemein > Erweitert,
 Router-Standard `CLIENT_DEFAULTS.reloadMode`, sonst `full`): gilt fuer
-Runterziehen im Grid und in der Chatliste sowie fuer "Am Ende hochziehen: Seite
+Runterziehen im Grid, in der Chatliste und im eigenen Profil sowie fuer "Am Ende hochziehen: Seite
 neu laden" im Chat. `full` = Tab im Browser neu laden; `app` = nur die Daten
 der Ansicht (Grid neu abrufen; Chatliste bzw. Verlauf neu laden und den
-Router-Cache abholen), ohne Hinweis; dann steht im Menue "Seite neu laden".
+Router-Cache abholen; Profil neu laden), ohne Hinweis; dann steht im Menue
+"Seite neu laden". Das Pull-to-Refresh des Browsers ist ueberall aus
+(`overscroll-behavior-y: contain` am `html`), es konkurrierte mit diesen Gesten.
 
 Filter (`client/app/grid-filter.js`, nur auf dem Geraet, `keys`/`grid-filter`):
 Panel ueber den Pfeil-Knopf in der Tab-Leiste, gilt fuer alle drei Bereiche.
@@ -1085,7 +1096,9 @@ Privatsphaere > Sichtbarkeit im Grid, nur "Entdecken"; immer mit dem Schema von
 Modus, `audienceSchema`): Regel ueber das Alter
 und alle Auswahlfelder (Einfach- und Mehrfachauswahl) des Profil-Schemas; der
 Router laesst alle diese Felder zu (keine Einschraenkung). Freitext-Tags (Typ
-`tag`) gehen nicht, sie haben keine feste Werteliste (`keys`/`audience-rule = { ranges, options }`). Sie geht als
+`tag`) gehen nicht, sie haben keine feste Werteliste (`keys`/`audience-rule = { enabled, ranges, options }`;
+ein Schalter schaltet die Regel ab, ohne sie zu loeschen; das Badge zeigt "Regel aktiv" nur, wenn sie an
+ist und etwas gewaehlt ist). Sie geht als
 kurzer Binaer-Code mit der Registrierung an den Router (`audience`, Spalte
 `peers.audience`, nur die Form wird geprueft: base64url, 2-64 Zeichen) und
 kommt mit der Grid-Karte zurueck. Code: Byte 0 Version, Byte 1

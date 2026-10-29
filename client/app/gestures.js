@@ -6,7 +6,7 @@
 //   - Zwischen Grid, Chat und Profil seitlich wischen; im Profil nach links = Menue
 //   - Einstellungen: seitlich = Bereiche blaettern (nicht auf Reglern), oben nach unten = verlassen,
 //     am ersten Bereich nach rechts = verlassen
-//   - Grid und Chatliste: oben nach unten ziehen = neu laden (ganze Seite oder nur Daten, Einstellung)
+//   - Grid, Chatliste und Profil: oben nach unten ziehen = neu laden (ganze Seite oder nur Daten, Einstellung)
 //   - Seitenmenue nach rechts wischen = schliessen
 //   - Im Chat auf der Eingabeleiste nach rechts wischen = zur Chatliste (einstellbar)
 //   - Profil- und Medienfenster nach unten wischen = schliessen
@@ -208,10 +208,11 @@ function handleTabTouchMove(event) {
         gesture.axis = Math.abs(deltaX) > Math.abs(deltaY) * 1.5 ? 'x' : 'y';
     }
     const view = document.getElementById(`view-${currentTab()}`);
-    // Grid: ganz oben nach unten ziehen = aktualisieren (eigene Geste, die installierte PWA auf iOS hat keine).
-    if (gesture.axis === 'y' && currentTab() === 'grid' && gesture.atTop && window.scrollY <= 0) {
+    // Grid und Profil: ganz oben nach unten ziehen = neu laden (eigene Geste, die installierte PWA auf iOS
+    // hat keine).
+    if (gesture.axis === 'y' && PULL_REFRESH_TABS[currentTab()] && gesture.atTop && window.scrollY <= 0) {
         gesture.deltaY = Math.max(0, deltaY);
-        renderGridPullRefresh(Math.min(GRID_REFRESH_MAX, gesture.deltaY * 0.5));
+        renderGridPullRefresh(Math.min(GRID_REFRESH_MAX, gesture.deltaY * 0.5), currentTab());
         return;
     }
     // Einstellungen: ganz oben nach unten ziehen = verlassen (Ansicht folgt dem Finger).
@@ -244,11 +245,11 @@ function handleTabTouchEnd() {
         view.style.opacity = '';
     }
     if (!gesture) return;
-    if (tab === 'grid' && gesture.axis === 'y') {
-        renderGridPullRefresh(0);
+    if (PULL_REFRESH_TABS[tab] && gesture.axis === 'y') {
+        renderGridPullRefresh(0, tab);
         if (gesture.deltaY >= GRID_REFRESH_TRIGGER) {
             hapticTick();
-            reloadView('grid');
+            reloadView(tab === 'grid' ? 'grid' : 'profile');
         }
         return;
     }
@@ -279,8 +280,11 @@ function handleTabTouchEnd() {
     switchTab(order[index]);
 }
 
-function renderGridPullRefresh(distance) {
-    const indicator = document.getElementById('grid-pull-refresh');
+// Ansichten mit eigenem Runterziehen ueber den Tab-Wischer und ihre Anzeige.
+const PULL_REFRESH_TABS = { grid: 'grid-pull-refresh', editprofile: 'profile-pull-refresh' };
+
+function renderGridPullRefresh(distance, tab = 'grid') {
+    const indicator = document.getElementById(PULL_REFRESH_TABS[tab] || 'grid-pull-refresh');
     if (!indicator) return;
     indicator.style.height = `${distance}px`;
     // Anzeige waechst mit dem halben Zug; bereit, sobald der Zug GRID_REFRESH_TRIGGER erreicht.
@@ -494,6 +498,9 @@ async function reloadView(view) {
     }
     if (view === 'grid') {
         await fetchPeersFromWorkerGrid();
+    } else if (view === 'profile') {
+        await loadMyLocalProfile();
+        renderProfileForm();
     } else if (view === 'chat' && state.activeChatPeerId) {
         await loadChatHistory(state.activeChatPeerId);
         renderChatHistory();

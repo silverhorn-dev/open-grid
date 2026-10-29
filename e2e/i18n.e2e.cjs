@@ -22,9 +22,18 @@ async function main() {
     try {
         const page = await (await browser.newContext({ locale: 'en-US' })).newPage();
         page.on('pageerror', error => pageErrors.push(String(error.stack || error.message).slice(0, 400)));
+        // Sprache schon, wenn der Body beginnt (der Browser erkennt die Seitensprache frueh).
+        await page.addInitScript(() => {
+            new MutationObserver((records, observer) => {
+                if (!document.body) return;
+                window.__langAtBody = document.documentElement.lang;
+                observer.disconnect();
+            }).observe(document, { childList: true, subtree: true });
+        });
         await page.goto(`${BASE_URL}/`);
         await page.waitForSelector('#complete-onboarding-btn', { state: 'visible', timeout: 20000 });
         assert.equal(await page.evaluate(() => document.documentElement.lang), 'en');
+        assert.equal(await page.evaluate(() => window.__langAtBody), 'en', 'language set before the content');
         assert.match(await page.textContent('#profile-onboarding-modal'), /How do you want to use OpenGrid\?/);
         assert.match(await page.textContent('#profile-onboarding-modal'), /Display name/, 'schema label in English');
         const input = page.locator('#onboarding-profile-form input').first();

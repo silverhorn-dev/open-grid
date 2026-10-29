@@ -2,7 +2,12 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 198 · 2026-10-28
+## Build 200 · 2026-10-29
+- Behoben: Chrome bot fuer die deutsche bzw. englische Oberflaeche faelschlich eine Uebersetzung an; andere Sprachen koennen die Oberflaeche jetzt uebersetzen lassen, Chats und Profile bleiben davon ausgenommen
+- Behoben: Runterziehen zum Neuladen in der Chatliste klappte schlecht (die Browser-Geste kam dazwischen); im eigenen Profil geht es jetzt auch
+- "Nur zeigen fuer" laesst sich per Schalter aus- und einschalten, ohne die Auswahl zu verlieren
+
+## Build 198 · 2026-10-28 · `50be4d7`
 - Neu: Profil loeschen (Einstellungen > Allgemein). Loescht dein Profil auf dem Server und alles auf dem Geraet; bei deinen Kontakten verschwinden Verlauf und Bilder, dort steht dann "Profil wurde geloescht" (auch wenn sie gerade offline sind)
 
 ## Build 197 · 2026-10-28 · `c61fb9b`

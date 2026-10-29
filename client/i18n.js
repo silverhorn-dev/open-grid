@@ -39,6 +39,9 @@ function initialLanguage() {
 }
 
 let currentLanguage = initialLanguage();
+// Sofort beim Laden des Kopfs: der Browser erkennt die Seitensprache frueh. Stand hier fest "de", bot Chrome
+// auch fuer die englische Oberflaeche eine Uebersetzung an (und umgekehrt).
+document.documentElement.lang = currentLanguage;
 
 // Woerterbuch der aktiven Sprache: synchron per document.write, damit es vor den App-Skripten da ist
 // (die nutzen t() teils schon beim Laden). Gleiche Herkunft, also mit der CSP `script-src 'self'` erlaubt.

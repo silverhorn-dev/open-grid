@@ -51,6 +51,19 @@ test('no key is defined twice in a language file', () => {
     }
 });
 
+// Uebersetzen per Browser (z. B. Google Translate): nur die Oberflaeche. Die Seite meldet die echte
+// Sprache (sonst bot Chrome fuer Deutsch/Englisch faelschlich eine Uebersetzung an), Nutzerinhalte sind
+// ausgenommen, damit Chats und Profile nicht an den Uebersetzungsdienst gehen.
+test('the page announces its real language and keeps user content out of browser translation', () => {
+    const html = read('index.html');
+    assert.doesNotMatch(html, /name="google" content="notranslate"/);
+    assert.doesNotMatch(html.match(/<html[^>]*>/)[0], /translate="no"|notranslate/);
+    for (const id of ['chat-messages', 'active-peers-list', 'grid-container', 'modal-rendered-fields', 'modal-profile-name', 'status-bar', 'chat-input-bar']) {
+        assert.match(html, new RegExp(`id="${id}" translate="no"`), id);
+    }
+    assert.match(read('client/i18n.js'), /^document\.documentElement\.lang = currentLanguage;$/m, 'set while the head loads');
+});
+
 test('properties parser: separators, escapes, leading spaces, continuation', () => {
     const parsed = parseProperties('# comment\na.b=Hallo {name}\nc.d : Wert\ne.f=\\ · mit Leerzeichen\ng.h=Zeile\\\n    weiter\ni.j=Gr\\u00fc\\u00dfe\nk.l=echtes ü\n');
     assert.deepEqual(parsed, { 'a.b': 'Hallo {name}', 'c.d': 'Wert', 'e.f': ' · mit Leerzeichen', 'g.h': 'Zeileweiter', 'i.j': 'Grüße', 'k.l': 'echtes ü' });

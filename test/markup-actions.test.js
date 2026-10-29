@@ -54,8 +54,9 @@ test('viewers draw images into canvases and only chat images and videos can be s
     assert.doesNotMatch(albums, /allowSave/);
 });
 
-test('the page is declared German and opts out of browser translation', () => {
-    assert.match(markup, /<html lang="de" translate="no"/);
-    assert.match(markup, /<meta name="google" content="notranslate">/);
+// Browser-Uebersetzung nur fuer die Oberflaeche (Nutzer 2026-10-29); die Eingabeleiste bleibt ausgenommen:
+// Uebersetzen veraendert Textknoten, das brach frueher das Nachrichtenfeld auf dem Smartphone.
+test('browser translation is limited to the interface, never the input bar', () => {
+    assert.match(markup, /id="chat-input-bar" translate="no"/);
 });
 

@@ -435,9 +435,14 @@
   - done: regel nutzt immer das schema von "entdecken" (event: event-schema), neu zeichnen beim oeffnen von privatsphaere; e2e `audience` (start im chat-modus, mit altem code rot)
 
 ## T24 Rueckmeldungen (nutzer 2026-10-28)
-- [ ] neu laden in der chatliste und im profil klappt nicht gut (pruefen: geste in der chatliste, im profil gibt es noch keins)
-- [ ] "nur zeigen fuer": als schalter ein-/ausschaltbar (regel bleibt gespeichert, wirkt nur wenn an); das badge "Regel aktiv" bleibt (gefaellt); zuruecksetzbar bleibt
-- [ ] sprache: seitenerkennung fuer google translate kaputt?
+- [x] neu laden in der chatliste und im profil klappt nicht gut
+  - ursache: das pull-to-refresh des browsers war in chatliste und profil noch an und konkurrierte mit unserer geste; im profil gab es keine eigene
+  - done 2026-10-29: browser-geste ueberall aus, runterziehen im profil (ganze seite bzw. profil neu laden); e2e `mobile-layout`
+- [x] "nur zeigen fuer": als schalter ein-/ausschaltbar (regel bleibt gespeichert, wirkt nur wenn an); das badge "Regel aktiv" bleibt (gefaellt); zuruecksetzbar bleibt
+  - done 2026-10-29: `audience-rule.enabled`, schalter neben dem badge, felder bei aus abgedunkelt; e2e `audience`
+- [x] sprache: seitenerkennung fuer google translate kaputt?
   - befund: `index.html` hat fest `lang="de"`, auch wenn die app englisch anzeigt -> falsche erkennung; dazu `translate="no"` + `notranslate`, das schaltet uebersetzen bewusst ab
-  - plan: `lang` an der html-seite immer auf die aktive sprache setzen; besprechen, ob uebersetzen erlaubt sein soll (chats wuerden dann evtl. an google gehen -> datenschutz, eher nur die oberflaeche)
+  - entschieden (nutzer 2026-10-29): nur die oberflaeche uebersetzen; deutsch/englisch sollen keinen uebersetzer brauchen
+  - done 2026-10-29: `lang` schon im kopf richtig gesetzt (kein angebot mehr fuer DE/EN), sperre an `<html>`/meta entfernt, nutzerinhalte + eingabeleiste `translate="no"` (eingabeleiste: frueherer nachrichtenfeld-bug durch uebersetzen); tests `test/i18n.test.js`, `test/markup-actions.test.js`, e2e `i18n`
+  - e2e-hinweis: `p2p-recovery` schlug im gesamtlauf einmal knapp fehl (wachhund-zeit unter last), einzeln 3/3 gruen
 

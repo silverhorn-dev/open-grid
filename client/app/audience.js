@@ -168,16 +168,26 @@ async function loadAudienceRule() {
     const stored = await databaseRequest('keys', 'readonly', store => store.get(AUDIENCE_RECORD_ID)).catch(() => null);
     const source = stored || clientDefault('audience', null) || {};
     state.audienceRule = {
+        // Ein-/ausschaltbar: aus = Regel bleibt gespeichert, gilt aber nicht (nur Mindestwerte des Betreibers).
+        enabled: source.enabled !== false,
         ranges: source.ranges && typeof source.ranges === 'object' ? source.ranges : {},
         options: source.options && typeof source.options === 'object' ? source.options : {}
     };
     renderAudienceSettings();
 }
 
+function audienceRuleActive() {
+    return Boolean(state.audienceRule?.enabled && encodeAudience(resolveAudienceRule(state.audienceRule)));
+}
+
+async function setAudienceEnabled(enabled) {
+    await updateAudienceRule({ enabled: Boolean(enabled) });
+}
+
 // Code fuer die Registrierung (nur in "Entdecken"; sonst keine Regel). Mindestwerte des Betreibers
 // mischt der Router selbst hinein.
 function myAudienceCode() {
-    if (!state.audienceRule || isSocialMode()) return undefined;
+    if (!state.audienceRule || !state.audienceRule.enabled || isSocialMode()) return undefined;
     return encodeAudience(resolveAudienceRule(state.audienceRule)) || undefined;
 }
 
@@ -302,10 +312,14 @@ function renderAudienceSettings() {
     }
     const summary = document.getElementById('audience-summary');
     if (summary) {
-        const active = Boolean(encodeAudience(resolveAudienceRule(state.audienceRule)));
+        const active = audienceRuleActive();
         summary.textContent = active ? t('audience.active') : t('audience.everyone');
         summary.classList.toggle('is-active', active);
     }
+    const toggle = document.getElementById('audience-enabled-toggle');
+    if (toggle) toggle.checked = state.audienceRule.enabled;
+    // Aus: Felder bleiben einstellbar, aber sichtbar inaktiv.
+    container.classList.toggle('is-disabled', !state.audienceRule.enabled);
     renderAudienceMinimum();
 }
 
@@ -330,5 +344,5 @@ function renderAudienceMinimum() {
 }
 
 async function resetAudienceRule() {
-    await updateAudienceRule({ ranges: {}, options: {} });
+    await updateAudienceRule({ enabled: true, ranges: {}, options: {} });
 }

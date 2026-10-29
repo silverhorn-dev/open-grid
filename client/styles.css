@@ -58,14 +58,10 @@ html.debug-on .debug-off-only {
     transition: none;
 }
 .message-actions-toggle { display: none; }
-/* Wischgesten (gestures.js) statt Browser-Geste: in den Einstellungen, offenen Fenstern, Menue und
-   offenem Chat laedt ein Zug nach unten nicht die Seite neu (das brach z. B. das Profil-Wischen ab). */
-html:has(#view-keys:not(.hidden)),
-html:has(#view-grid:not(.hidden)),
-html:has(#profile-detail-modal:not(.hidden)),
-html:has(#media-modal:not(.hidden)),
-html:has(#app-menu.is-open),
-html:has(#view-chat.chat-open:not(.hidden)) {
+/* Wischgesten (gestures.js) statt Browser-Geste: ueberall laedt ein Zug nach unten nicht die Seite neu.
+   Grid, Chatliste und Profil haben eigenes Runterziehen (ganze Seite oder nur Daten, Einstellung "Neu
+   laden"); die Browser-Geste konkurrierte damit (Chatliste, Profil) und brach z. B. das Profil-Wischen ab. */
+html {
     overscroll-behavior-y: contain;
 }
 @media (hover: none) {
@@ -1353,4 +1349,5 @@ html:has(#view-chat.chat-open:not(.hidden)) {
 
 /* Systemzeile im Chat (z. B. "Profil wurde geloescht", account.js) */
 .chat-system-note { align-self: center; margin: 0.5rem auto; padding: 0.3rem 0.8rem; border-radius: 9999px; background: rgb(var(--slate-800)); color: rgb(var(--slate-400)); font-size: 0.75rem; text-align: center; }
+.audience-fields.is-disabled { opacity: 0.45; }
 

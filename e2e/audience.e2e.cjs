@@ -75,6 +75,15 @@ async function main() {
         await waitFor(alice, async name => { await fetchPeersFromWorkerGrid(); renderDiscoveryGrid(); return !document.getElementById('grid-container').textContent.includes(name); }, bobName);
         assert.ok((await gridNames(carol)).includes(bobName), 'Top sees him');
 
+        // Schalter aus: Regel bleibt gespeichert, gilt aber nicht -> Alice sieht ihn wieder; wieder an -> weg.
+        await bob.click('#audience-enabled-toggle');
+        await waitFor(bob, () => /Alle sehen dich/.test(document.getElementById('audience-summary').textContent));
+        assert.equal(await bob.evaluate(() => state.audienceRule.options.role.includes('Top')), true, 'rule kept');
+        await waitFor(alice, async name => { await fetchPeersFromWorkerGrid(); renderDiscoveryGrid(); return document.getElementById('grid-container').textContent.includes(name); }, bobName);
+        await bob.click('#audience-enabled-toggle');
+        await waitFor(bob, () => /Regel aktiv/.test(document.getElementById('audience-summary').textContent));
+        await waitFor(alice, async name => { await fetchPeersFromWorkerGrid(); renderDiscoveryGrid(); return !document.getElementById('grid-container').textContent.includes(name); }, bobName);
+
         // Regel weg: wieder fuer alle.
         await bob.click('[data-click="resetAudienceRule"]');
         await waitFor(alice, async name => { await fetchPeersFromWorkerGrid(); renderDiscoveryGrid(); return document.getElementById('grid-container').textContent.includes(name); }, bobName);

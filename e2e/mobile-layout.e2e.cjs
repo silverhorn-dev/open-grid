@@ -151,6 +151,13 @@ async function main() {
         const list = await page.locator('#active-peers-list').boundingBox();
         await drag({ x: 200, y: list.y + 10 }, { x: 200, y: list.y + 220 });
         await waitFor(page, () => window.__chatReloads === 1);
+        // Profil: ebenso (vorher keine eigene Geste, die des Browsers konkurrierte).
+        await page.evaluate(() => { switchTab('editprofile'); window.scrollTo(0, 0); window.__profileReloads = 0; loadMyLocalProfile = async () => { window.__profileReloads += 1; }; });
+        await page.waitForTimeout(300);
+        const profileHeading = await page.locator('#view-editprofile h2').first().boundingBox();
+        await drag({ x: 200, y: profileHeading.y + 5 }, { x: 200, y: profileHeading.y + 220 });
+        await waitFor(page, () => window.__profileReloads === 1);
+        assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).overscrollBehaviorY), 'contain', 'no competing browser pull-to-refresh');
         // "Ganze Seite" (Standard): Runterziehen laedt den Tab neu, kein Menue-Eintrag.
         await page.evaluate(async () => { await updateReloadMode('full'); window.__beforeReload = true; switchTab('grid'); window.scrollTo(0, 0); });
         assert.equal(await page.evaluate(() => document.getElementById('menu-reload-page').classList.contains('hidden')), true);

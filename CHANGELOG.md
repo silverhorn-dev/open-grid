@@ -4,7 +4,8 @@ Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unte
 
 ## Branch `feature/safety-checks` (noch nicht in main)
 - Fuer Betreiber (standardmaessig aus): Alters- oder E-Mail-Nachweis, bevor jemand im Grid sichtbar wird; Sperren und ein kurzes IP-Protokoll fuer Anfragen der Strafverfolgung
-- Neue Einstellung "Nacktbilder unscharf" (Medien > Schutz, standardmaessig aus): moegliche Nacktbilder erscheinen unscharf, bis du tippst; geprueft wird nur auf deinem Geraet. Das Erkennungsmodell folgt noch
+- Neue Einstellung "Nacktbilder unscharf" (Medien > Schutz, standardmaessig aus): moegliche Nacktbilder erscheinen unscharf, bis du tippst; geprueft wird nur auf deinem Geraet. Das Erkennungsmodell (ca. 3 MB) kommt vom eigenen Server und wird erst geladen, wenn du den Filter einschaltest; der Betreiber legt Schwelle und Klassen fest
+- Im Debug-Modus: "Erkennung testen" unter Medien > Schutz zeigt fuer eigene Bilder, wie das Modell sie bewertet (alles lokal)
 
 ## Build 200 · 2026-10-29
 - Behoben: Chrome bot fuer die deutsche bzw. englische Oberflaeche faelschlich eine Uebersetzung an; andere Sprachen koennen die Oberflaeche jetzt uebersetzen lassen, Chats und Profile bleiben davon ausgenommen

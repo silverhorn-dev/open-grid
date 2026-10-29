@@ -23,7 +23,50 @@ async function main() {
 
         assert.equal(await page.evaluate(() => state.nudityFilter), false, 'off by default');
         await page.evaluate(() => { switchTab('keys'); switchSettingsTab('media'); });
-        assert.equal(await page.isVisible('#nudity-filter-no-model'), true, 'says that no model is installed');
+        assert.equal(await page.isVisible('#nudity-filter-no-model'), false, 'the router ships a model');
+
+        // Echtes Modell vom Router (NSFWJS im Worker): fuenf Klassen, Summe ~1, Schwelle aus der Konfiguration.
+        const real = await page.evaluate(async () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 320;
+            canvas.height = 240;
+            const context = canvas.getContext('2d');
+            const gradient = context.createLinearGradient(0, 0, 320, 240);
+            gradient.addColorStop(0, '#1e3a8a');
+            gradient.addColorStop(1, '#a7f3d0');
+            context.fillStyle = gradient;
+            context.fillRect(0, 0, 320, 240);
+            const bitmap = await createImageBitmap(canvas);
+            const predictions = await classifyNudity(bitmap);
+            return { config: state.appConfig.nudity, predictions, workerStarted: Boolean(nudityWorker) };
+        });
+        assert.equal(real.config.model, 'nsfwjs');
+        assert.equal(real.config.threshold, 0.7);
+        assert.equal(real.workerStarted, true);
+        assert.deepEqual(real.predictions.map(entry => entry.className).sort(), ['Drawing', 'Hentai', 'Neutral', 'Porn', 'Sexy']);
+        const total = real.predictions.reduce((sum, entry) => sum + entry.probability, 0);
+        assert.ok(Math.abs(total - 1) < 0.01, `probabilities sum to 1: ${total}`);
+
+        // Testseite im Debug-Modus: Datei waehlen -> Werte je Klasse.
+        await page.evaluate(() => document.querySelectorAll('.debug-only').forEach(element => element.classList.remove('debug-only')));
+        const png = Buffer.from(await page.evaluate(() => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64;
+            canvas.height = 64;
+            canvas.getContext('2d').fillRect(0, 0, 64, 64);
+            return canvas.toDataURL('image/png').split(',')[1];
+        }), 'base64');
+        await page.setInputFiles('#nudity-test-input', { name: 'probe.png', mimeType: 'image/png', buffer: png });
+        let report = '';
+        for (let attempt = 0; attempt < 60 && !/Neutral \d+ %/.test(report); attempt += 1) {
+            await page.waitForTimeout(500);
+            report = await page.textContent('#nudity-test-results');
+        }
+        assert.match(report, /probe\.png/);
+        assert.match(report, /Sichtbar · \d+ % · \d+ ms · .*Neutral \d+ %/, report);
+
+        // Ab hier deterministisch: nur das Test-Modell (rote Bilder).
+        await page.evaluate(() => { nudityClassifiers.length = 0; });
 
         const result = await page.evaluate(async () => {
             const image = color => {

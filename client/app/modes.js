@@ -48,6 +48,8 @@ async function loadAppMode() {
             ageProvider: typeof config?.safety?.ageProvider === 'string' ? config.safety.ageProvider : null,
             emailCheck: config?.safety?.emailCheck === 'required' ? 'required' : 'off'
         },
+        // Nacktbild-Modell vom Router (Board T3): Modell, Schwelle, Klassen, Pfade (nudity-model.js).
+        nudity: config?.nudity && typeof config.nudity === 'object' ? config.nudity : { model: 'off' },
         // Mindestwerte des Betreibers fuer "Nur zeigen fuer ..." (der Router mischt sie selbst in die Karte).
         audienceMinimum: config?.audienceMinimum && typeof config.audienceMinimum === 'object' ? config.audienceMinimum : null
     };

@@ -1351,3 +1351,7 @@ html {
 .chat-system-note { align-self: center; margin: 0.5rem auto; padding: 0.3rem 0.8rem; border-radius: 9999px; background: rgb(var(--slate-800)); color: rgb(var(--slate-400)); font-size: 0.75rem; text-align: center; }
 .audience-fields.is-disabled { opacity: 0.45; }
 
+/* Testseite fuer das Nacktbild-Modell (Debug-Modus, nudity-model.js) */
+.nudity-test-row { padding: 0.5rem 0.625rem; border-radius: 0.625rem; border: 1px solid rgb(var(--slate-800)); background: rgb(var(--slate-950) / 0.5); }
+.nudity-test-row.is-blurred { border-color: rgb(var(--brand-500) / 0.6); }
+

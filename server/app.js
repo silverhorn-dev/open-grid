@@ -30,6 +30,7 @@ import {
     securityHeaders
 } from './security.js';
 import { applyAudienceMinimum, parseAudienceMinimum } from './audience.js';
+import { parseNudityConfig, registerNudityModelRoutes } from './nudity-model.js';
 
 const MAX_GRID_RESULTS = 100;
 // Quoten fuer den Pfad-C-Zwischenspeicher, damit niemand die Queue eines Empfaengers flutet.
@@ -175,6 +176,8 @@ const clientAssetFiles = [
     'app/watermark.js',
     'app/secure-canvas.js',
     'app/nudity.js',
+    'app/nudity-model.js',
+    'app/nudity-worker.js',
     'app/media-rights.js',
     'app/albums.js',
     'app/swarm.js',
@@ -460,6 +463,16 @@ export async function buildApp(options = {}) {
     // dessen Profil-Schema; der Router mischt sie in jeden Karten-Code.
     const audienceMinimumRule = options.audienceMinimum ?? process.env.AUDIENCE_MINIMUM ?? null;
     const audienceSchemaFor = scope => (scope === 'event' ? profileSchemas.event : null) || profileSchemas.discovery || profileSchema;
+    // Nacktbild-Modell (Board T3): vom Router konfiguriert und ausgeliefert, nur bei eingeschaltetem Filter geladen.
+    const nudityConfig = parseNudityConfig({
+        model: options.nudityModel ?? process.env.NUDITY_MODEL,
+        threshold: options.nudityThreshold ?? process.env.NUDITY_THRESHOLD,
+        classes: options.nudityClasses ?? process.env.NUDITY_CLASSES
+    });
+    const nudityAssets = await registerNudityModelRoutes(app, nudityConfig);
+    const nudityPublicConfig = nudityAssets
+        ? { model: 'nsfwjs', threshold: nudityConfig.threshold, classes: nudityConfig.classes, ...nudityAssets }
+        : { model: 'off' };
     const audienceMinimums = {
         public: parseAudienceMinimum(audienceMinimumRule, audienceSchemaFor('public')),
         event: parseAudienceMinimum(audienceMinimumRule, audienceSchemaFor('event'))
@@ -773,7 +786,7 @@ export async function buildApp(options = {}) {
     });
     app.post('/api/unregister', unregister);
 
-    app.get('/api/config', async () => ({ modes: appModes, defaultMode: defaultAppMode, profileSchemas, lanMode: isLanMode, clientDefaults, infoUrl: infoSiteUrl(infoHost), safety: safety.publicConfig(),
+    app.get('/api/config', async () => ({ modes: appModes, defaultMode: defaultAppMode, profileSchemas, lanMode: isLanMode, clientDefaults, infoUrl: infoSiteUrl(infoHost), safety: safety.publicConfig(), nudity: nudityPublicConfig,
         // Fuer die Anzeige in den Einstellungen ("vom Server vorgegeben").
         audienceMinimum: audienceMinimumRule ? (typeof audienceMinimumRule === 'string' ? JSON.parse(audienceMinimumRule) : audienceMinimumRule) : null }));
 

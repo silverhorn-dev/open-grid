@@ -72,7 +72,8 @@ async function nudityScore(bitmap, source) {
 
 async function shouldBlurImage(bitmap, source) {
     if (!isNudityFilterActive() || revealedNudityImages.has(source)) return false;
-    return await nudityScore(bitmap, source) >= NUDITY_THRESHOLD;
+    // Schwelle vom Router (NUDITY_THRESHOLD), sonst 0,7.
+    return await nudityScore(bitmap, source) >= (state.appConfig?.nudity?.threshold ?? NUDITY_THRESHOLD);
 }
 
 // Unscharf zeichnen, abdunkeln, Hinweis darauf. Ein Tippen zeigt das Bild (und dieselbe Quelle

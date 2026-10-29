@@ -1298,8 +1298,34 @@ Modelle, der hoechste Wert zaehlt, ab 0,7 wird unscharf gezeichnet (Canvas-
 `filter: blur`, abgedunkelt, Hinweistext). Werte werden je Quelle gemerkt (max.
 200). Ein Tippen (Capture-Listener, stoppt weitere Klick-Handler) zeigt das Bild;
 die Quelle bleibt danach ueberall sichtbar (auch im Betrachter). Fehler eines
-Modells zaehlen als 0. Kein Modell enthalten: ohne Modell wirkt der Filter
-nicht, die Einstellung sagt das. Alles lokal, der Server erfaehrt nichts.
+Modells zaehlen als 0. Ohne Modell wirkt der Filter nicht, die Einstellung sagt
+das. Alles lokal, der Server erfaehrt nichts.
+
+Modell (`server/nudity-model.js`, `client/app/nudity-model.js`,
+`client/app/nudity-worker.js`): Der Router liefert NSFWJS MobileNetV2 (MIT,
+Klassen Drawing, Hentai, Neutral, Porn, Sexy; Eingabe 224x224, Gewichte ca.
+2,6 MB) selbst aus, aus dem npm-Paket `nsfwjs` umgepackt in TF.js-Dateien:
+
+| Route | Inhalt |
+|---|---|
+| `GET /vendor/nsfwjs/<version>/nsfwjs.min.js` | Bibliothek inkl. TF.js |
+| `GET /vendor/nsfwjs/<version>/mobilenet_v2/model.json` | Modell-Topologie + Gewichte-Manifest |
+| `GET /vendor/nsfwjs/<version>/mobilenet_v2/group1-shard1of1` | Gewichte (binaer) |
+
+Alle drei mit `Cache-Control: immutable` (Version im Pfad), im SW wie andere
+`/vendor/`-Dateien gecacht. `/api/config` meldet `nudity = { model: 'nsfwjs',
+threshold, classes, library, modelUrl, size }` bzw. `{ model: 'off' }`.
+Konfiguration ueber `NUDITY_MODEL`, `NUDITY_THRESHOLD`, `NUDITY_CLASSES`
+(README). Gibt es ein Modell, meldet `initNudityModel()` einen Klassifikator an;
+der Web Worker samt Bibliothek und Modell startet erst beim ersten zu
+pruefenden Bild (also nur bei eingeschaltetem Filter). Das Bild geht als
+`ImageBitmap`-Kopie in den Worker, wird dort auf 224x224 verkleinert und
+geschlossen; Wert = Summe der Wahrscheinlichkeiten der konfigurierten Klassen,
+unscharf ab `threshold`. Zeitlimit 20 s je Bild (zaehlt dann als 0).
+
+Testseite (Debug-Modus, Medien > Schutz, "Erkennung testen"): eigene Bilder
+waehlen, je Bild Wert, Rechenzeit, Werte aller Klassen und ob der Filter es
+unscharf zeigen wuerde. Alles lokal.
 
 ## 7. Message Queue Cache API
 

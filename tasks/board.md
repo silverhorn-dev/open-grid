@@ -75,7 +75,9 @@
   - gebaut 2026-10-26 auf branch `feature/safety-checks` (nicht gemerged), standardmaessig aus:
     - [x] `client/app/nudity.js`: einstellung Medien > Schutz (`keys`/`nudity-settings`, `CLIENT_DEFAULTS.nudityFilter`), modell-schnittstelle `registerNudityClassifier`, unscharf + "Tippen zum Ansehen" in `drawSecureImage` (chat, snaps, alben, status, viewer), eigene bilder nie
     - [x] tests `test/nudity.test.js`, e2e `nudity-filter` (test-modell)
-    - [ ] modell auswaehlen und ausliefern (Bumble Private Detector o. ae., lizenz/groesse/browser) -> entscheidung
+    - [x] modell ausliefern (2026-10-29): NSFWJS MobileNetV2 vom router (`server/nudity-model.js`, routen `/vendor/nsfwjs/<version>/...`), router-konfig `NUDITY_MODEL` (nsfwjs|off), `NUDITY_THRESHOLD` (0.5-0.95, std 0.7), `NUDITY_CLASSES` (std Porn,Hentai) -> `/api/config.nudity`; web worker (`client/app/nudity-worker.js`) startet erst beim ersten bild bei eingeschaltetem filter; testseite im debug-modus (medien > schutz > "Erkennung testen"); tests `test/nudity-model.test.js`, e2e `nudity-filter` mit echtem modell
+    - [ ] nutzer testet auf dem handy mit echten bildern (maennliche nacktheit, fehlalarme bei badehose/oberkoerper), danach schwelle/klassen festlegen; falls zu schwach: Bumble Private Detector umwandeln
+    - [ ] docker-image wird groesser (nsfwjs bringt alle drei modelle + tfjs mit); bei bedarf nur mobilenet_v2 + bibliothek ins image kopieren
     - [ ] absender-warnung vor dem senden -> entscheidung
   - recherche 2026-10-29 (primaerquellen: repos/model cards; leistung auf handys nicht gemessen):
     - **NSFWJS** (infinitered/nsfwjs): code MIT, modell aus GantMan/nsfw_model ebenfalls MIT; TF.js, laeuft im browser, modell selbst hostbar; MobileNetV2 224x224 ca. 2,6-3,5 MB, ~90 % genauigkeit (mid-modell ~93 %); klassen Drawing/Hentai/Neutral/Porn/Sexy; trainingsdaten aus nsfw_data_scraper (vermutlich ueberwiegend weibliche motive -> fuer eine app mit vielen schwulen nutzern muss maennliche nacktheit eigens getestet werden)

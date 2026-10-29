@@ -846,6 +846,13 @@
                         <span class="setting-text"><span data-i18n="nudity.filter" class="setting-title">Nacktbilder unscharf</span><span data-i18n="nudity.filterDescription" class="setting-desc">Eingehende Bilder werden auf deinem Gerät geprüft; mögliche Nacktbilder erscheinen unscharf, bis du tippst. Kein Bild verlässt dabei dein Gerät.</span><span data-i18n="nudity.noModel" id="nudity-filter-no-model" class="setting-desc text-amber-300">Auf diesem Server ist noch kein Erkennungsmodell installiert, der Filter wirkt noch nicht.</span></span>
                         <input type="checkbox" role="switch" id="nudity-filter-toggle" data-change="updateNudityFilter" data-args='["$checked"]' class="switch">
                     </label>
+                    <!-- Testseite fuer das Modell (Debug-Modus, nudity-model.js): eigene Bilder pruefen, alles lokal -->
+                    <div class="setting-block debug-only">
+                        <span data-i18n="nudity.testTitle" class="setting-title">Erkennung testen</span>
+                        <p data-i18n="nudity.testDescription" class="setting-desc">Bilder auswählen: zeigt die Werte des Modells und ob der Filter sie unscharf zeigen würde. Die Bilder bleiben auf diesem Gerät.</p>
+                        <input id="nudity-test-input" type="file" accept="image/*" multiple data-change="testNudityImages" data-args='["$el"]' class="text-xs mt-2">
+                        <div id="nudity-test-results" class="flex flex-col gap-2 mt-2 text-xs"></div>
+                    </div>
                     <label class="setting-row">
                         <span class="setting-text"><span data-i18n="settings.whoMaySaveMyMedia" class="setting-title">Wer darf meine Bilder und Videos speichern</span><span data-i18n="settings.whoMaySaveMyMediaDescription" class="setting-desc">Gilt für neue Chat-Bilder und Videos, auch fürs Teilen. Alben und Snaps nie.</span></span>
                         <select id="media-download-select" data-change="updateMediaDownloadSetting" data-args='["$value"]' class="setting-select">
@@ -1296,6 +1303,7 @@
     <script src="/client/app/snap-camera.js?v={{assetVersion}}"></script>
     <script src="/client/app/secure-canvas.js?v={{assetVersion}}"></script>
     <script src="/client/app/nudity.js?v={{assetVersion}}"></script>
+    <script src="/client/app/nudity-model.js?v={{assetVersion}}"></script>
     <script src="/client/app/media-rights.js?v={{assetVersion}}"></script>
     <script src="/client/app/viewer.js?v={{assetVersion}}"></script>
     <script src="/client/app/watermark.js?v={{assetVersion}}"></script>

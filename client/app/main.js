@@ -130,6 +130,7 @@ window.onload = async () => {
         await runStartupStep('Snap-Einstellungen', async () => {
             await loadSnapSettings();
             await loadTraceWatermarkSetting();
+            initNudityModel();
             await loadNuditySettings();
             await loadMediaDownloadSetting();
             await loadDiscoveryHistorySetting();

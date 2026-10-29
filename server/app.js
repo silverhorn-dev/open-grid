@@ -90,6 +90,7 @@ const CLIENT_DEFAULT_RULES = {
     hideDiscoveryHistory: 'boolean',
     traceWatermark: 'boolean',
     nudityFilter: 'boolean',
+    nudityWarnBeforeSend: 'boolean',
     mediaDownload: ['friends', 'all'],
     snapSaveable: 'boolean',
     secureSnaps: 'boolean',

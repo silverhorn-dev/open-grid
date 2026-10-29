@@ -137,3 +137,15 @@ async function testNudityImages(input) {
         }
     }
 }
+
+// Vorladen, sobald Kamera/Bildauswahl aufgeht (Warnung vor dem Senden an): Bibliothek und Modell sind dann
+// meist schon da, wenn "Senden" kommt. Einmal je Sitzung; Fehler sind hier egal.
+let nudityWarmedUp = false;
+function warmUpNudityModel() {
+    if (nudityWarmedUp || !nudityModelConfig() || state.nudityWarnBeforeSend === false) return;
+    nudityWarmedUp = true;
+    const canvas = new OffscreenCanvas(8, 8);
+    createImageBitmap(canvas).then(bitmap => classifyNudity(bitmap).finally(() => bitmap.close?.()))
+        .catch(error => logDebug(`Nudity warm-up failed: ${error.message}`));
+}
+

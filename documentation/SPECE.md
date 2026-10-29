@@ -1351,6 +1351,14 @@ Pruefung). Der Wert je Bild steht im Debug-Log (zum Einstellen der Schwelle). Nu
 Worker-Skript bekommt `script-src 'self' 'wasm-unsafe-eval'` (WASM fuer
 onnxruntime-web), die Seite bleibt bei `script-src 'self'`.
 
+Warnung vor dem Senden (`confirmNudeSend`, `keys`/`nudity-settings.warnBeforeSend`,
+Standard an bzw. `CLIENT_DEFAULTS.nudityWarnBeforeSend`): vor dem Senden aus der
+Bild-Durchsicht (`sendPickedReview`) und aus Kamera/Editor (`sendSnapDraft`, auch
+Status) prueft das Geraet die eigenen Bilder mit demselben Modell; bei einem
+Treffer `confirm` ("Trotzdem senden?"), Abbrechen laesst Entwurf bzw. Durchsicht
+offen. Schlaegt die Pruefung fehl, wird normal gesendet (nur Warnung). Beim
+Oeffnen der Kamera laedt `warmUpNudityModel()` das Modell vor.
+
 Testseite (Debug-Modus, Medien > Schutz, "Erkennung testen"): Modell waehlen
 (vorgewaehlt das aktive), eigene Bilder waehlen, je Bild Wert, Rechenzeit, Werte aller Klassen und ob der Filter es
 unscharf zeigen wuerde. Alles lokal.

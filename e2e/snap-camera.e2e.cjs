@@ -137,11 +137,11 @@ async function main() {
         assert.equal(await alice.getAttribute('#snap-saveable-btn', 'aria-pressed'), 'true', 'every new picture starts with the default');
         assert.equal(await alice.isVisible('#snap-original-option'), true, 'original toggle in image mode');
         await alice.check('#snap-original-toggle');
+        const countBefore = await alice.evaluate(() => state.chats[state.activeChatPeerId].length);
         await alice.click('#snap-send-btn');
-        const originalId = await alice.evaluate(async () => {
-            await new Promise(resolve => setTimeout(resolve, 500));
-            return state.chats[state.activeChatPeerId].at(-1).id;
-        });
+        // Vor dem Senden prueft die Nacktbild-Warnung das Bild (beim ersten Mal mit Laden des Modells).
+        await waitFor(alice, count => state.chats[state.activeChatPeerId].length > count && Boolean(state.chats[state.activeChatPeerId].at(-1).original), countBefore, 30000);
+        const originalId = await alice.evaluate(() => state.chats[state.activeChatPeerId].at(-1).id);
         const sentOriginal = await alice.evaluate(id => state.chats[state.activeChatPeerId].find(message => message.id === id).original, originalId);
         assert.ok(sentOriginal && sentOriginal.size > 0, 'message carries the original meta');
         await waitFor(bob, id => Object.values(state.chats).flat().find(message => message.id === id)?.originalReady === true, originalId, 30000);

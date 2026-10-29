@@ -127,6 +127,8 @@ const state = {
     verificationRequired: [],
     // Nacktbild-Filter fuer eingehende Bilder (nudity.js), standardmaessig aus.
     nudityFilter: false,
+    // Vor dem Senden eigener Bilder nachfragen, wenn das Modell ein Nacktbild sieht (nudity.js).
+    nudityWarnBeforeSend: true,
     safetyGateDismissed: false,
     // Offenes Kontextmenue einer Nachricht ({ peerId, messageId }, chat-tools.js).
     messageMenu: null,

@@ -14,7 +14,9 @@ function loadNudity({ stored = null, defaults = {} } = {}) {
         clientDefault: (key, fallback) => (key in defaults ? defaults[key] : fallback),
         showToast: () => {},
         logDebug: () => {},
-        Number, Math, Map, Set, WeakSet
+        Number, Math, Map, Set, WeakSet, WeakMap,
+        createImageBitmap: async canvas => ({ score: canvas.score, close() {} }),
+        window: { confirm: () => true }
     };
     vm.runInNewContext(readFileSync(new URL('../client/app/nudity.js', import.meta.url), 'utf8'), Object.assign(context, I18N_STUBS));
     return { context, records };
@@ -122,4 +124,31 @@ test('blurred images are revealed by a tap that does not reach other click handl
 
     context.drawBlurredImage(canvas, { width: 800, height: 600 }, 'nude2', () => {});
     assert.equal(canvas.listeners.length, 1, 'one listener per canvas');
+});
+
+test('warning before sending: on by default, asks only on a hit, never blocks when the check fails', async () => {
+    const { context, records } = loadNudity();
+    await context.loadNuditySettings();
+    assert.equal(context.state.nudityWarnBeforeSend, true, 'on by default');
+    let asked = [];
+    context.window.confirm = message => { asked.push(message); return false; };
+    assert.equal(await context.confirmNudeSend([{ score: 0.9 }]), true, 'no model, no question');
+    context.registerNudityClassifier({ id: 'fake', classify: async bitmap => { if (bitmap.score === 'fail') throw new Error('no wasm'); return bitmap.score; } });
+    assert.equal(await context.confirmNudeSend([{ score: 0.1 }]), true, 'harmless: sent without a question');
+    assert.equal(asked.length, 0);
+    assert.equal(await context.confirmNudeSend([{ score: 0.9 }]), false, 'hit: asks, "cancel" stops sending');
+    assert.equal(asked[0], context.t('nudity.sendWarningOne'));
+    context.window.confirm = message => { asked.push(message); return true; };
+    assert.equal(await context.confirmNudeSend([{ score: 0.9 }, { score: 0.1 }, { score: 0.95 }]), true);
+    assert.equal(asked.at(-1), context.t('nudity.sendWarningMany', { count: 2, total: 3 }));
+    asked = [];
+    assert.equal(await context.confirmNudeSend([{ score: 'fail' }]), true, 'a failed check never blocks sending');
+    assert.equal(asked.length, 0);
+
+    await context.updateNudityWarnBeforeSend(false);
+    assert.equal(records.get('nudity-settings').warnBeforeSend, false);
+    assert.equal(await context.confirmNudeSend([{ score: 0.99 }]), true, 'switched off');
+    const operator = loadNudity({ defaults: { nudityWarnBeforeSend: false } });
+    await operator.context.loadNuditySettings();
+    assert.equal(operator.context.state.nudityWarnBeforeSend, false, 'operator default applies');
 });

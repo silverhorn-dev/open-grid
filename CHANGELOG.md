@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 235 · 2026-10-29
+## Build 238 · 2026-10-29
+- Neu: Vor dem Senden eines Bilds oder Snaps fragt die App nach, wenn es nach einem Nacktbild aussieht (Medien > Schutz, abschaltbar). Geprueft wird nur auf deinem Geraet
+
+## Build 235 · 2026-10-29 · `ecfa9b7`
 - Behoben: ein unscharfes Bild liess sich im Bildbetrachter nicht aufdecken; Tippen deckt es jetzt auf
 
 ## Build 234 · 2026-10-29 · `2514e55`

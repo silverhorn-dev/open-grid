@@ -857,6 +857,10 @@
                         <span class="setting-text"><span data-i18n="nudity.filter" class="setting-title">Nacktbilder unscharf</span><span data-i18n="nudity.filterDescription" class="setting-desc">Eingehende Bilder werden auf deinem Gerät geprüft; mögliche Nacktbilder erscheinen unscharf, bis du tippst. Kein Bild verlässt dabei dein Gerät.</span><span data-i18n="nudity.noModel" id="nudity-filter-no-model" class="setting-desc text-amber-300">Auf diesem Server ist noch kein Erkennungsmodell installiert, der Filter wirkt noch nicht.</span></span>
                         <input type="checkbox" role="switch" id="nudity-filter-toggle" data-change="updateNudityFilter" data-args='["$checked"]' class="switch">
                     </label>
+                    <label class="setting-row">
+                        <span class="setting-text"><span data-i18n="nudity.warnBeforeSend" class="setting-title">Vor dem Senden warnen</span><span data-i18n="nudity.warnBeforeSendDescription" class="setting-desc">Sieht das Modell in einem Bild, das du senden willst, ein Nacktbild, fragt die App nach. Geprüft wird nur auf deinem Gerät.</span></span>
+                        <input type="checkbox" role="switch" id="nudity-warn-toggle" data-change="updateNudityWarnBeforeSend" data-args='["$checked"]' class="switch">
+                    </label>
                     <!-- Testseite fuer das Modell (Debug-Modus, nudity-model.js): eigene Bilder pruefen, alles lokal -->
                     <div class="setting-block debug-only">
                         <span data-i18n="nudity.testTitle" class="setting-title">Erkennung testen</span>

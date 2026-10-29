@@ -155,6 +155,31 @@ async function main() {
         assert.equal(result.secondClickOpened, 1);
         assert.equal(result.viewerBlurred, null, 'revealed images stay visible in the viewer');
 
+        // Warnung vor dem Senden: Treffer -> Nachfrage (Abbrechen stoppt), harmlos -> keine Nachfrage.
+        const dialogs = [];
+        const answer = { accept: false };
+        const onDialog = dialog => {
+            dialogs.push(dialog.message());
+            return answer.accept ? dialog.accept() : dialog.dismiss();
+        };
+        page.on('dialog', onDialog);
+        const sendCheck = color => page.evaluate(async fill => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 200;
+            canvas.height = 200;
+            const context = canvas.getContext('2d');
+            context.fillStyle = fill;
+            context.fillRect(0, 0, 200, 200);
+            return confirmNudeSend([canvas]);
+        }, color);
+        assert.equal(await sendCheck('#00ff00'), true, 'harmless image: no question');
+        assert.equal(dialogs.length, 0);
+        assert.equal(await sendCheck('#ff0000'), false, 'hit: cancel stops sending');
+        assert.equal(dialogs[0], 'Das sieht nach einem Nacktbild aus. Trotzdem senden?');
+        answer.accept = true;
+        assert.equal(await sendCheck('#ff0000'), true, 'hit: confirmed');
+        page.off('dialog', onDialog);
+
         // Bildbetrachter: ein unscharfes Bild im Viewer laesst sich per Tippen aufdecken (der Viewer faengt
         // den Zeiger auf der Buehne ab, der Klick erreicht die Canvas nicht).
         const viewerResult = await page.evaluate(async () => {

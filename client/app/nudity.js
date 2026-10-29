@@ -35,13 +35,14 @@ function isNudityFilterActive() {
 async function loadNuditySettings() {
     const stored = await databaseRequest('keys', 'readonly', store => store.get(NUDITY_SETTINGS_RECORD_ID)).catch(() => null);
     state.nudityFilter = stored ? stored.enabled === true : clientDefault('nudityFilter', false) === true;
+    // Warnung vor dem Senden: Standard an (Router: CLIENT_DEFAULTS.nudityWarnBeforeSend).
+    state.nudityWarnBeforeSend = stored && 'warnBeforeSend' in stored ? stored.warnBeforeSend !== false : clientDefault('nudityWarnBeforeSend', true) !== false;
     renderNuditySettings();
 }
 
-async function updateNudityFilter(enabled) {
-    state.nudityFilter = enabled === true;
+async function saveNuditySettings() {
     try {
-        await putDatabaseRecord('keys', { id: NUDITY_SETTINGS_RECORD_ID, enabled: state.nudityFilter });
+        await putDatabaseRecord('keys', { id: NUDITY_SETTINGS_RECORD_ID, enabled: state.nudityFilter, warnBeforeSend: state.nudityWarnBeforeSend });
     } catch (error) {
         logDebug(`Could not store nudity settings: ${error.message}`);
         showToast(t('common.settingCouldNotBeSaved'), 'error');
@@ -49,9 +50,21 @@ async function updateNudityFilter(enabled) {
     renderNuditySettings();
 }
 
+async function updateNudityFilter(enabled) {
+    state.nudityFilter = enabled === true;
+    await saveNuditySettings();
+}
+
+async function updateNudityWarnBeforeSend(enabled) {
+    state.nudityWarnBeforeSend = enabled === true;
+    await saveNuditySettings();
+}
+
 function renderNuditySettings() {
     const toggle = document.getElementById('nudity-filter-toggle');
     if (toggle) toggle.checked = state.nudityFilter === true;
+    const warn = document.getElementById('nudity-warn-toggle');
+    if (warn) warn.checked = state.nudityWarnBeforeSend !== false;
     document.getElementById('nudity-filter-no-model')?.classList.toggle('hidden', hasNudityClassifier());
 }
 
@@ -126,3 +139,38 @@ function revealBlurredImage(canvas) {
     entry.redraw();
     return true;
 }
+
+// ----- Warnung vor dem Senden -----
+// Eigene Bilder werden vor dem Senden (Chat, Snaps, Status) lokal mit demselben Modell geprueft; bei
+// einem Treffer fragt die App nach. Nur eine Warnung: schlaegt die Pruefung fehl, wird normal gesendet.
+// Nichts davon verlaesst das Geraet. true = senden.
+async function confirmNudeSend(canvases) {
+    if (state.nudityWarnBeforeSend === false || !hasNudityClassifier() || !canvases?.length) return true;
+    const threshold = state.appConfig?.nudity?.threshold ?? NUDITY_THRESHOLD;
+    let hits = 0;
+    for (const canvas of canvases) {
+        let bitmap = null;
+        try {
+            bitmap = await createImageBitmap(canvas);
+        } catch {
+            continue;
+        }
+        try {
+            let score = null;
+            for (const classifier of nudityClassifiers) {
+                try {
+                    const value = Number(await classifier.classify(bitmap));
+                    if (Number.isFinite(value)) score = Math.max(score ?? 0, value);
+                } catch (error) {
+                    logDebug(`Nudity check before sending failed: ${error.message}`);
+                }
+            }
+            if (score !== null && score >= threshold) hits += 1;
+        } finally {
+            bitmap.close?.();
+        }
+    }
+    if (!hits) return true;
+    return window.confirm(canvases.length === 1 ? t('nudity.sendWarningOne') : t('nudity.sendWarningMany', { count: hits, total: canvases.length }));
+}
+

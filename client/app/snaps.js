@@ -262,6 +262,8 @@ async function openSnapUploadModal() {
 // Ziel: 'chat' (Snap an den aktiven Chat) oder 'status' (Foto-Status fuer Freunde, status.js).
 async function openSnapCamera(target) {
     state.snapTarget = target;
+    // Nacktbild-Warnung vor dem Senden: Modell schon jetzt im Hintergrund laden (nudity-model.js).
+    if (typeof warmUpNudityModel === 'function') warmUpNudityModel();
     setSnapSendMode('snap');
     state.snapFacingMode = state.snapFacingMode || 'user';
     resetSnapPreview();
@@ -703,6 +705,8 @@ async function sendPickedReview() {
     const { items, context } = pickedReview;
     if (!items.length || !context) return;
     const picked = items.map(item => ({ base: item.base, mode: item.mode }));
+    // Nacktbild-Warnung (nudity.js): vor dem Schliessen, damit "Abbrechen" in der Durchsicht bleibt.
+    if (!(await confirmNudeSend(picked.map(item => item.base)))) return;
     closeMediaModal();
     let sent = 0;
     for (const { base, mode } of picked) {
@@ -747,6 +751,7 @@ async function sendSnapDraft() {
         return;
     }
     if (state.snapTarget === 'status') {
+        if (hasSnapDraft() && !(await confirmNudeSend([flattenSnapDraft()]))) return;
         const image = hasSnapDraft() ? await encodeSnapDraft(null) : null;
         const caption = document.getElementById('snap-caption-input').value;
         closeSnapModal();
@@ -756,6 +761,8 @@ async function sendSnapDraft() {
     }
     const peerId = state.activeChatPeerId;
     if (!hasSnapDraft() || !peerId) return;
+    // Nacktbild-Warnung (nudity.js); "Abbrechen" laesst den Entwurf offen.
+    if (!(await confirmNudeSend([flattenSnapDraft()]))) return;
     const snapData = await encodeSnapDraft(peerId);
     if (!snapData) {
         showToast(t('snaps.couldNotBeCreated'), 'error');

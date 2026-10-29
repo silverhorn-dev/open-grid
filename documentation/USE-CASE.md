@@ -820,6 +820,8 @@ Akzeptanzkriterien:
 - Der erste Tipp zeigt das Bild, oeffnet aber nichts anderes; danach bleibt es
   sichtbar, auch im Bildbetrachter.
 - Eigene Bilder werden nie geprueft.
+- Vor dem Senden eigener Bilder fragt die App nach, wenn das Modell ein
+  Nacktbild sieht (abschaltbar, Standard an); geprueft wird nur auf dem Geraet.
 - Kann ein Bild nicht geprueft werden (Modell laedt nicht, Zeitlimit), bleibt
   es unscharf mit "Konnte nicht geprueft werden" statt ungeprueft zu erscheinen.
 - Das Erkennungsmodell kommt vom eigenen Router und wird erst geladen, wenn der

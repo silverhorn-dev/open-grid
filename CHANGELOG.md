@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 217 · 2026-10-29
+## Build 218 · 2026-10-29
+- Entdecken- und Event-Chats: Album und Video liegen hinter einem Medien-Knopf (wie im Flirt-Modus), die Eingabeleiste bleibt schmal
+
+## Build 217 · 2026-10-29 · `d1c9b34`
 - Nacktbild-Filter: zwei staerkere Erkennungsmodelle optional fuer Betreiber (Bumble Private Detector, NudeNet), die auch maennliche Nacktheit erkennen sollen; Installation mit `scripts/nudity-models/fetch.sh`, Vergleich auf der Testseite im Debug-Modus
 
 ## Build 216 · 2026-10-29 · `3f4ecfd`

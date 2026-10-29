@@ -485,3 +485,5 @@
 - [x] hinweis "Peer is currently unavailable" spammt (nutzer 2026-10-29)
   - ursache: debug-toast bei jedem `PEER_OFFLINE_FALLBACK`, auch fuer hintergrund-versuche (grid-prefetch, wiederverbinden)
   - done 2026-10-29: toast nur fuer den offenen chat, hoechstens alle 5 min je peer, sonst nur debug-log; test `test/p2p-transport.test.js`
+- [x] entdecken-chat: album- und video-knopf getrennt, sollen einer sein (nutzer 2026-10-29)
+  - done 2026-10-29: medien-knopf (wie im flirt-modus) in allen chats ausser dem reinen freundes-chat (`media-combined`, `updateChatAlbumButton`); e2e `friends`

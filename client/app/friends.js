@@ -342,7 +342,6 @@ function updateFlirtButton() {
     document.getElementById('chat-send-group')?.classList.toggle('is-flirt', flirting);
     document.getElementById('chat-input-bar')?.classList.toggle('is-flirt', flirting);
     document.getElementById('chat-compose-row')?.classList.toggle('is-flirt', flirting);
-    if (!flirting) closeComposeMediaMenu();
     // Platz unten im Verlauf, damit die Lasche nie die letzte Nachricht verdeckt.
     document.getElementById('chat-messages')?.classList.toggle('has-flirt-tab', tabShown);
     const input = document.getElementById('chat-input');
@@ -374,9 +373,9 @@ function hasUnseenFlirt(peerId) {
         && (message.createdAt || 0) > seenAt && isDiscoveryMessageHidden(peerId, message));
 }
 
-// ----- Flirt-Modus: Medien-Knopf -----
-// Im Flirt-Modus stehen Album und Video nicht einzeln in der Leiste, sondern hinter einem Knopf mit einem
-// Menue, das nach oben aufklappt. Die Leiste bleibt so schmal.
+// ----- Medien-Knopf (Entdecken/Event und Flirt-Modus) -----
+// Dort stehen Album und Video nicht einzeln in der Leiste, sondern hinter einem Knopf mit einem Menue,
+// das nach oben aufklappt (sichtbar per `media-combined`, chat-tools.js). Die Leiste bleibt so schmal.
 function toggleComposeMediaMenu(force = null) {
     const menu = document.getElementById('chat-media-menu');
     const button = document.getElementById('chat-media-btn');

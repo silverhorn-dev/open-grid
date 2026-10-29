@@ -78,6 +78,10 @@ async function main() {
         await Promise.all([carol, dave].map(page => page.evaluate(() => setAppMode('discovery'))));
         const [carolId, daveId] = await Promise.all([carol, dave].map(page => page.evaluate(() => state.myProfile.id)));
         await carol.evaluate(id => openChatWithPeer(id), daveId);
+        // Entdecken-Chat: Album und Video hinter einem Medien-Knopf.
+        assert.equal(await carol.isVisible('#chat-media-btn'), true, 'media button in discovery chats');
+        assert.equal(await carol.isVisible('#chat-video-btn'), false, 'video folded away in discovery chats');
+        assert.equal(await carol.isVisible('#chat-album-btn'), false, 'album folded away in discovery chats');
         await carol.fill('#chat-input', 'hi dave');
         await carol.click('#send-chat-btn');
         await waitFor(dave, id => state.chatScopes[id] === 'discovery', carolId);
@@ -157,6 +161,9 @@ async function main() {
         await dave.click('#chat-flirt-tab');
         assert.notEqual(await dave.evaluate(() => document.activeElement?.id), 'chat-input', 'no focus without focus before');
         await waitFor(dave, () => !document.querySelector('#chat-messages')?.textContent.includes('hi dave'));
+        // Normaler Freundes-Chat: Video wieder einzeln, kein Medien-Knopf.
+        assert.equal(await dave.isVisible('#chat-video-btn'), true, 'video button in plain social chats');
+        assert.equal(await dave.isVisible('#chat-media-btn'), false, 'no media button in plain social chats');
         // Weit hochgescrollt: Lasche faehrt zum Streifen ein; Tippen klappt nur aus, schaltet nicht um.
         await dave.evaluate(id => {
             const now = Date.now();

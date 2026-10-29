@@ -631,8 +631,14 @@ function updateChatAlbumButton() {
     const button = document.getElementById('chat-album-btn');
     const peerId = state.activeChatPeerId;
     if (!button) return;
-    const hidden = Boolean(peerId) && isSocialChat(peerId) && state.albumButtonRevealedFor !== peerId;
+    const social = Boolean(peerId) && isSocialChat(peerId);
+    const hidden = social && state.albumButtonRevealedFor !== peerId;
     button.classList.toggle('hidden', hidden);
+    // Entdecken/Event (und Flirt): Album und Video hinter einem Medien-Knopf (friends.js); im reinen
+    // Freundes-Chat bleibt das Video einzeln (Album meist versteckt, s. o.).
+    const row = document.getElementById('chat-compose-row');
+    row?.classList.toggle('media-combined', !social);
+    if (social) closeComposeMediaMenu();
 }
 
 function initSnapLongPress() {

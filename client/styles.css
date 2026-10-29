@@ -1112,11 +1112,12 @@ html {
 @media (prefers-reduced-motion: reduce) {
     .flirt-tab, .flirt-tab i { transition: none; }
 }
-/* Flirt-Modus: Album + Video hinter einem Knopf; Menue im Stil des Chat-Menues, klappt nach oben auf. */
+/* Entdecken/Event und Flirt-Modus: Album + Video hinter einem Knopf (chat-tools.js `media-combined`);
+   Menue im Stil des Chat-Menues, klappt nach oben auf. */
 .compose-media { position: relative; display: none; flex-shrink: 0; }
-#chat-compose-row.is-flirt .compose-media { display: flex; }
-#chat-compose-row.is-flirt #chat-album-btn,
-#chat-compose-row.is-flirt #chat-video-btn { display: none; }
+#chat-compose-row.media-combined .compose-media { display: flex; }
+#chat-compose-row.media-combined #chat-album-btn,
+#chat-compose-row.media-combined #chat-video-btn { display: none; }
 .compose-media-menu {
     position: absolute;
     left: 0;

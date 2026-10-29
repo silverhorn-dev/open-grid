@@ -299,3 +299,48 @@ test('admin sessions are stored only as a hash; old load samples are pruned', as
     store.admin.pruneMetrics('live', Date.now() - 60 * 60 * 1000);
     assert.equal(store.admin.loadMetrics('live', 0).length, 1, 'older than one hour removed');
 });
+
+// ----- Zwischenspeicher -----
+test('queue analysis: only metadata (age, size, recipients, pairs), never content or type', async () => {
+    const { analyzeQueue, createdAtOf } = await import('../server/queue-analysis.js');
+    const now = Date.UTC(2026, 9, 29, 12);
+    const row = (minutesAgo, recipientId, senderId, bytes = 100, expiresIn = 60) => ({
+        msgId: `msg_${now - minutesAgo * 60000}_x`, recipientId, senderId, bytes, expiresAt: now + expiresIn * 60000
+    });
+    const result = analyzeQueue([
+        row(10, 'gone', 'alice'), row(20, 'gone', 'alice'), row(30, 'gone', 'bob'),
+        row(120, 'carol', 'alice', 300), row(26 * 60, 'carol', 'bob', 50, -5)
+    ], { now, registered: new Set(['carol']), isOnline: id => id === 'carol' });
+    assert.equal(result.total, 5);
+    assert.equal(result.bytes, 650);
+    assert.equal(result.expired, 1);
+    assert.deepEqual(result.byAge, { lt1h: 3, '1to6h': 1, '6to24h': 0, gt24h: 1 });
+    assert.equal(result.oldestAt, now - 26 * 60 * 60000);
+    assert.deepEqual(result.recipients.map(entry => [entry.recipientId, entry.count, entry.registered, entry.online]), [['gone', 3, false, false], ['carol', 2, true, true]]);
+    assert.equal(result.recipientsUnknown, 1);
+    assert.deepEqual(result.pairs[0], { senderId: 'alice', recipientId: 'gone', count: 2 });
+    assert.equal('byKind' in result, false);
+    assert.equal(createdAtOf('weird'), null);
+});
+
+test('queue: admin sees the analysis and clears expired, per recipient or everything', async () => {
+    const store = createStore(':memory:');
+    const app = await buildApp({ store, buildVersion: 'test', buildTimestamp: 'x', appUrl: ORIGIN, adminSetupToken: SETUP, metrics: false });
+    cleanup.push(async () => { await app.close(); store.close(); });
+    const cookie = await setupPasskey(app, authenticator());
+    const old = Date.now() - 48 * 60 * 60 * 1000;
+    store.enqueueMessage({ recipientId: 'gone', senderId: 'alice', ciphertextPayload: 'x'.repeat(10), ttlHours: 1 }, old);
+    store.enqueueMessage({ recipientId: 'gone', senderId: 'alice', ciphertextPayload: 'y'.repeat(10) });
+    store.enqueueMessage({ recipientId: 'carol', senderId: 'bob', ciphertextPayload: 'z'.repeat(10) });
+    const queue = (await app.inject({ method: 'GET', url: '/api/admin/queue', headers: { cookie } })).json();
+    assert.equal(queue.total, 3);
+    assert.equal(queue.expired, 1);
+    assert.equal(JSON.stringify(queue).includes('xxxxxxxxxx'), false, 'no ciphertext in the analysis');
+    const clear = body => post(app, '/api/admin/queue/clear', body, H(cookie));
+    assert.equal((await post(app, '/api/admin/queue/clear', { scope: 'expired' }, { cookie })).statusCode, 403, 'admin header required');
+    assert.equal((await clear({ scope: 'expired' })).json().removed, 1);
+    assert.equal((await clear({ scope: 'recipient' })).statusCode, 400);
+    assert.equal((await clear({ scope: 'recipient', recipientId: 'gone' })).json().removed, 1);
+    assert.equal((await clear({ scope: 'all' })).json().removed, 1);
+    assert.equal((await app.inject({ method: 'GET', url: '/api/admin/queue', headers: { cookie } })).json().total, 0);
+});

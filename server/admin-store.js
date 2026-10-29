@@ -61,6 +61,11 @@ export function createAdminStore(database) {
         insertMetric: database.prepare('INSERT OR REPLACE INTO admin_metrics (series, at, data) VALUES (?, ?, ?)'),
         loadMetrics: database.prepare('SELECT data FROM admin_metrics WHERE series = ? AND at > ? ORDER BY at'),
         pruneMetrics: database.prepare('DELETE FROM admin_metrics WHERE series = ? AND at <= ?'),
+        queueRows: database.prepare('SELECT msg_id AS msgId, recipient_id AS recipientId, sender_id AS senderId, LENGTH(ciphertext_payload) AS bytes, expires_at AS expiresAt FROM queued_messages LIMIT 50000'),
+        knownPeers: database.prepare('SELECT peer_id AS peerId FROM peer_credentials'),
+        deleteExpiredQueue: database.prepare('DELETE FROM queued_messages WHERE expires_at <= ?'),
+        deleteQueueFor: database.prepare('DELETE FROM queued_messages WHERE recipient_id = ?'),
+        deleteQueueAll: database.prepare('DELETE FROM queued_messages'),
         listSettings: database.prepare('SELECT key, value, updated_at AS updatedAt FROM admin_settings'),
         upsertSetting: database.prepare('INSERT INTO admin_settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at'),
         deleteSetting: database.prepare('DELETE FROM admin_settings WHERE key = ?'),
@@ -100,6 +105,15 @@ export function createAdminStore(database) {
         saveMetric: (series, point) => statements.insertMetric.run(series, point.at, JSON.stringify(point)),
         loadMetrics: (series, since) => statements.loadMetrics.all(series, since).map(row => JSON.parse(row.data)),
         pruneMetrics: (series, before) => statements.pruneMetrics.run(series, before),
+        // Zwischenspeicher fuer das Panel: nur Metadaten (Inhalt ist verschluesselt).
+        queueRows: () => statements.queueRows.all(),
+        registeredPeerIds: () => new Set(statements.knownPeers.all().map(row => row.peerId)),
+        clearQueue(scope, recipientId, now = Date.now()) {
+            if (scope === 'expired') return statements.deleteExpiredQueue.run(now).changes;
+            if (scope === 'recipient') return statements.deleteQueueFor.run(recipientId).changes;
+            if (scope === 'all') return statements.deleteQueueAll.run().changes;
+            throw new Error('Unknown scope');
+        },
         settings: () => Object.fromEntries(statements.listSettings.all().map(row => [row.key, { value: JSON.parse(row.value), updatedAt: row.updatedAt }])),
         saveSetting: (key, value, now = Date.now()) => statements.upsertSetting.run(key, JSON.stringify(value), now),
         deleteSetting: key => statements.deleteSetting.run(key).changes > 0,

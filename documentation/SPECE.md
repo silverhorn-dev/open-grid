@@ -1369,6 +1369,8 @@ Anfrage. Tabelle `admin_passkeys` (`id`, `public_key`, `counter`,
 | GET | `/api/admin/config` | `{ live: { KEY: { value, env, source: env\|panel, updatedAt, options? } }, restartOnly: [{ key, value }\|{ key, secret, set }] }` |
 | PUT/DELETE | `/api/admin/config/:key` | Wert setzen (`{ value }`, ungueltig -> 400 mit `reason`) bzw. auf die Umgebung zuruecksetzen |
 | GET | `/api/admin/bans` | Sperren (`kind`, `value`, `reason`, `createdAt`; E-Mail/Wallet als HMAC) |
+| GET | `/api/admin/queue` | Analyse des Zwischenspeichers (`server/queue-analysis.js`): `total`, `bytes`, `expired`, `oldestAt`, `byAge` (aus der msgId `msg_<zeit>_...`), `recipients` (Top 15 mit `online`/`registered`), `pairs` (Top 15 Absender -> Empfaenger); nie Inhalt oder Art |
+| POST | `/api/admin/queue/clear` | `{ scope: 'expired' \| 'recipient' \| 'all', recipientId? }` -> `{ removed }` |
 | GET | `/api/admin/reports?status=open\|banned\|dismissed\|all` | Meldungen (`reporterId`, `reportedId`, `matches`, `note`, `status`, `reportsAboutPeer`, `reportersAboutPeer`) + `open` |
 | POST | `/api/admin/reports/:id` | `{ action: 'ban' }` (Peer sperren + trennen, alle offenen Meldungen zu ihm `banned`) oder `{ action: 'dismiss' }` |
 | POST/DELETE | `/api/admin/bans`, `/api/admin/bans/:kind/:value` | Sperre setzen (`peer` oder `email`; Peer wird getrennt) bzw. aufheben |

@@ -40,6 +40,7 @@
         <nav class="admin-tabs" role="tablist">
             <button data-admin-tab="load" role="tab" class="admin-tab" data-i18n="admin.tabLoad">Auslastung</button>
             <button data-admin-tab="status" role="tab" class="admin-tab" data-i18n="admin.tabStatus">Status</button>
+            <button data-admin-tab="queue" role="tab" class="admin-tab" data-i18n="admin.tabQueue">Zwischenspeicher</button>
             <button data-admin-tab="settings" role="tab" class="admin-tab" data-i18n="admin.tabSettings">Einstellungen</button>
             <button data-admin-tab="reports" role="tab" class="admin-tab"><span data-i18n="admin.tabReports">Meldungen</span> <span id="admin-report-badge" class="admin-badge hidden"></span></button>
             <button data-admin-tab="bans" role="tab" class="admin-tab" data-i18n="admin.tabBans">Sperren</button>
@@ -67,6 +68,27 @@
 
         <section data-admin-view="status" class="admin-view hidden">
             <dl id="admin-status" class="admin-status"></dl>
+        </section>
+
+        <section data-admin-view="queue" class="admin-view hidden">
+            <p data-i18n="admin.queueText" class="setting-desc mb-3">Nachrichten für Empfänger, die gerade nicht erreichbar sind (Pfad C). Inhalt und Art sind Ende-zu-Ende verschlüsselt; sichtbar sind nur Zeitpunkt, Größe, Empfänger und Absender.</p>
+            <div id="admin-queue-tiles" class="admin-tiles"></div>
+            <div class="admin-queue-grid">
+                <section class="admin-chart"><h3 data-i18n="admin.queueByAge" class="admin-chart-title">Nach Alter</h3><div id="admin-queue-age" class="admin-bars"></div></section>
+            </div>
+            <section class="settings-card mt-4">
+                <h2 data-i18n="admin.queueRecipients" class="settings-card-title">Empfänger mit den meisten Nachrichten</h2>
+                <div class="overflow-x-auto"><table class="admin-table admin-queue-table"><thead><tr><th data-i18n="admin.queueRecipient">Empfänger</th><th data-i18n="admin.queueCount">Nachrichten</th><th data-i18n="admin.queueSize">Größe</th><th data-i18n="admin.queueState">Zustand</th><th data-i18n="admin.queueOldest">Älteste</th><th></th></tr></thead><tbody id="admin-queue-recipients"></tbody></table></div>
+            </section>
+            <section class="settings-card mt-4">
+                <h2 data-i18n="admin.queuePairs" class="settings-card-title">Absender → Empfänger</h2>
+                <div class="overflow-x-auto"><table class="admin-table admin-queue-table"><thead><tr><th data-i18n="admin.queueSender">Absender</th><th data-i18n="admin.queueRecipient">Empfänger</th><th data-i18n="admin.queueCount">Nachrichten</th></tr></thead><tbody id="admin-queue-pairs"></tbody></table></div>
+            </section>
+            <div class="flex flex-wrap gap-2 mt-4">
+                <button data-admin-action="queue-clear-expired" class="btn-secondary" data-i18n="admin.queueClearExpired">Abgelaufene löschen</button>
+                <button data-admin-action="queue-clear-all" class="btn-secondary admin-danger" data-i18n="admin.queueClearAll">Alles löschen</button>
+            </div>
+            <p id="admin-queue-message" class="setting-desc mt-2" role="status"></p>
         </section>
 
         <section data-admin-view="settings" class="admin-view hidden">

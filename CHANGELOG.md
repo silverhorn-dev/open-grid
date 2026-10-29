@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 230 · 2026-10-29
+## Build 231 · 2026-10-29
+- Admin-Panel: neuer Bereich "Zwischenspeicher" zeigt, welche Nachrichten auf Empfaenger warten (Alter, Groesse, wer abholt und wer nie), und raeumt auf (abgelaufene, je Empfaenger, alles). Inhalte und Arten bleiben verschluesselt
+
+## Build 230 · 2026-10-29 · `ec86dc9`
 - Admin-Panel: Anmeldung und Auslastungs-Verlauf bleiben nach einem Update bzw. Neustart erhalten
 
 ## Build 229 · 2026-10-29 · `ace8307`

@@ -53,6 +53,16 @@ async function main() {
         await page.mouse.move(0, 0);
         await page.screenshot({ path: process.env.SCREENSHOT_DIR ? `${process.env.SCREENSHOT_DIR}/admin-load.png` : '/tmp/admin-load.png', fullPage: true });
 
+        // Zwischenspeicher: Analyse sichtbar (nur Metadaten), Abgelaufene loeschen.
+        await page.click('[data-admin-tab="queue"]');
+        await page.waitForSelector('#admin-queue-tiles .admin-chart');
+        assert.equal(await page.locator('#admin-queue-age .admin-bar-row').count(), 4);
+        assert.equal(await page.locator('#admin-queue-kind').count(), 0, 'no message types');
+        await page.click('[data-admin-action="queue-clear-expired"]');
+        for (let attempt = 0; attempt < 20 && !(await page.textContent('#admin-queue-message')); attempt += 1) await page.waitForTimeout(250);
+        assert.match(await page.textContent('#admin-queue-message'), /Nachrichten gelöscht/);
+        await page.screenshot({ path: process.env.SCREENSHOT_DIR ? `${process.env.SCREENSHOT_DIR}/admin-queue.png` : '/tmp/admin-queue.png', fullPage: true });
+
         // Status und Passkeys.
         await page.click('[data-admin-tab="status"]');
         await page.waitForSelector('#admin-status dt');

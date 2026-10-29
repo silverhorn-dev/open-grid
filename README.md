@@ -306,6 +306,11 @@ Sicherheitsschluessel), kein Passwort.
   Stunden, auch ueber einen Neustart hinweg.
 - Status: Version, Laufzeit, Peers, Push-Abos, Nacktbild-Modell, Nachweise,
   Alters-Aussteller.
+- Zwischenspeicher: Analyse der wartenden Nachrichten (Pfad C) nur aus
+  Metadaten, die der Router ohnehin hat: Anzahl, Groesse, Alter, abgelaufene,
+  Empfaenger (online, offline oder unbekannt = holt nie ab) und Absender ->
+  Empfaenger. Inhalt und Art bleiben verschluesselt und werden nicht erfasst.
+  Aufraeumen: abgelaufene, alles fuer einen Empfaenger oder alles.
 - Einstellungen: sofort wirksam (ohne Neustart, gespeichert, gewinnt ueber die
   Umgebungsvariable, "Zuruecksetzen" nimmt wieder deren Wert): `AGE_CHECK`,
   `EMAIL_CHECK`, `ABUSE_LOG_DAYS`, `NUDITY_MODEL`, `NUDITY_THRESHOLD`,

@@ -517,6 +517,8 @@
   - [x] phase 3 done 2026-10-29: `server/reports.js` (`POST /api/reports`, tabelle `reports`, rate-limit 10/h), panel-tab "Meldungen" (zaehler, "Peer sperren" erledigt alle offenen meldungen zu ihm, "Erledigt"), app: "Weitergabe melden" nach einem wasserzeichen-treffer (nur peer-id + bits + notiz); tests `test/admin.test.js`, e2e `admin`
   - fix 2026-10-29: deploy scheiterte (container unhealthy, `admin.html` fehlte im image) -> Dockerfile kopiert sie (auch in die CSS-stufe); neuer test `test/dockerfile.test.js` prueft, dass jede datei, die der server beim start liest, im image landet
   - [x] 2026-10-29: sitzungen (nur SHA-256) und auslastungs-verlauf (1 h / 24 h) in der datenbank, ueberstehen neustart/deployment; tests `test/admin.test.js`
+  - [x] zwischenspeicher-tab (nutzer 2026-10-29: "258 nachrichten im zwischenspeicher?!", analysieren + leeren): nur metadaten (alter, groesse, empfaenger online/offline/unbekannt, absender->empfaenger), aufraeumen (abgelaufene, je empfaenger, alles); `server/queue-analysis.js`
+    - verworfen (nutzer 2026-10-29): router-debug-modus, der die art (notifyKind) je nachricht speichert -> "don't do that", keine zusaetzlichen metadaten
   - offen (prinzip): meldungen ohne beweis pruefbar (bild bleibt beim melder)
   - phase 3: meldungen: in der app "Weitergabe melden" (bild mit spur-wasserzeichen -> peer-id des weitergebers, nie das bild selbst), panel zeigt meldung + sperren mit einem klick
 

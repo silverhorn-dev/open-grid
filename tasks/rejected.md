@@ -13,3 +13,7 @@ Aufgaben, die nicht (mehr) umgesetzt werden, mit Grund.
 - grund: verstoesst gegen harte regel 3 (krypto nur ueber `crypto.subtle`); der code laeuft im browser und ist lesbar, sicherheit kann nur im schluessel liegen (Kerckhoffs); eigene chiffren sind schwaecher und langsamer als AES-GCM; wer waehrend einer gueltigen ansicht schluessel und bild hat, kann es ohnehin speichern
 - alternativen (key-splitting, server-epochengeheimnis, stream) besprochen und geparkt, siehe board "Eigene rotierende Verschluesselung"
 
+## Router-Debug-Modus mit Nachrichtenarten im Zwischenspeicher (verworfen 2026-10-29)
+- idee: im admin-panel einen debug-schalter, der bei neuen pfad-C-nachrichten die art (`notifyKind`: chat, flamme, profilbesuch, ohne push) speichert, um zu sehen, was liegen bleibt
+- grund (nutzer): die art ist normalerweise nicht sichtbar (verschluesselt); der router soll sie auch zum debuggen nicht speichern. die analyse nutzt nur metadaten, die der router ohnehin hat
+

@@ -805,6 +805,7 @@ export async function buildApp(options = {}) {
     // Admin-Panel (server/admin.js): Passkey-Login, Status, Auslastung, Sperren, Live-Konfiguration, Meldungen.
     registerAdminRoutes(app, {
         liveConfig, restartOnly, safety, disconnectPeer: peerId => signaling.disconnectPeer(peerId),
+        isPeerOnline: peerId => signaling.isPeerOnline(peerId),
         store, metrics, allowRequest, log: app.log, now,
         appUrl: options.appUrl ?? process.env.APP_URL ?? '',
         // Fester Setup-Token (z. B. automatisiertes Aufsetzen, E2E); gilt nur, solange kein Passkey existiert.

@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
+import { analyzeQueue } from './queue-analysis.js';
 import {
     generateAuthenticationOptions,
     generateRegistrationOptions,
@@ -27,7 +28,8 @@ function parseCookies(header) {
 export function registerAdminRoutes(app, {
     store, metrics, status, appUrl = '', log, now = Date.now,
     allowRequest, setupToken: fixedSetupToken = null,
-    liveConfig = null, restartOnly = () => [], safety = null, disconnectPeer = () => {}
+    liveConfig = null, restartOnly = () => [], safety = null, disconnectPeer = () => {},
+    isPeerOnline = () => false
 }) {
     const challenges = new Map();
     const sessionHash = id => createHash('sha256').update(id).digest('hex');
@@ -264,6 +266,25 @@ export function registerAdminRoutes(app, {
         store.admin.resolveReport(report.id, action === 'ban' ? 'banned' : 'dismissed', now());
         log.info(`Admin panel: report ${action === 'ban' ? 'led to a ban' : 'dismissed'}.`);
         return { ok: true };
+    });
+
+    // ----- Zwischenspeicher (Pfad C): analysieren und aufraeumen -----
+    app.get('/api/admin/queue', async (request, reply) => {
+        if (!requireAdmin(request, reply)) return reply;
+        return {
+            ...analyzeQueue(store.admin.queueRows(), { now: now(), registered: store.admin.registeredPeerIds(), isOnline: isPeerOnline })
+        };
+    });
+
+    app.post('/api/admin/queue/clear', async (request, reply) => {
+        if (!requireAdmin(request, reply, { change: true })) return reply;
+        const { scope, recipientId } = request.body || {};
+        if (!['expired', 'recipient', 'all'].includes(scope) || (scope === 'recipient' && (typeof recipientId !== 'string' || !recipientId))) {
+            return reply.code(400).send({ error: 'Invalid scope' });
+        }
+        const removed = store.admin.clearQueue(scope, recipientId, now());
+        log.info(`Admin panel: ${removed} queued message(s) removed (${scope}).`);
+        return { ok: true, removed };
     });
 
     // ----- Sperren (wie scripts/safety-admin.mjs) -----

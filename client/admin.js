@@ -162,6 +162,7 @@ async function refreshTab() {
     if (adminState.tab === 'settings') return refreshSettings();
     if (adminState.tab === 'bans') return refreshBans();
     if (adminState.tab === 'reports') return refreshReports();
+    if (adminState.tab === 'queue') return refreshQueue();
 }
 
 // ----- Auslastung -----
@@ -506,6 +507,115 @@ async function changeSetting(key, method, value, errorElement) {
     }
 }
 
+// ----- Zwischenspeicher (Pfad C) -----
+const shortId = id => (id && id.length > 18 ? `${id.slice(0, 8)}…${id.slice(-6)}` : id || '–');
+const relativeAge = timestamp => {
+    if (!timestamp) return '–';
+    const minutes = Math.max(0, Math.round((Date.now() - timestamp) / 60000));
+    return minutes < 60 ? t('admin.minutesAgo', { minutes }) : t('admin.hoursAgo', { hours: Math.round(minutes / 6) / 10 });
+};
+
+// Waagrechte Balken, ein Farbton (Menge), Wert immer als Text daneben.
+function renderBars(container, entries) {
+    const max = Math.max(1, ...entries.map(([, value]) => value));
+    container.replaceChildren(...entries.map(([label, value]) => {
+        const row = document.createElement('div');
+        row.className = 'admin-bar-row';
+        const name = document.createElement('span');
+        name.className = 'admin-bar-label';
+        name.textContent = label;
+        const track = document.createElement('span');
+        track.className = 'admin-bar-track';
+        const bar = document.createElement('span');
+        bar.className = 'admin-bar';
+        bar.style.width = `${(value / max) * 100}%`;
+        track.append(bar);
+        const number = document.createElement('span');
+        number.className = 'admin-bar-value';
+        number.textContent = formatNumber(value);
+        row.append(name, track, number);
+        return row;
+    }));
+}
+
+function cell(text, className = '') {
+    const element = document.createElement('td');
+    element.textContent = text;
+    if (className) element.className = className;
+    return element;
+}
+
+async function refreshQueue() {
+    const queue = await adminApi('queue');
+    const tiles = document.getElementById('admin-queue-tiles');
+    tiles?.replaceChildren(...[
+        [t('admin.queueTotal'), formatNumber(queue.total)],
+        [t('admin.queueSize'), formatBytes(queue.bytes)],
+        [t('admin.queueExpired'), formatNumber(queue.expired)],
+        [t('admin.queueRecipientsTile'), t('admin.queueRecipientsValue', { total: queue.recipientCount, online: queue.recipientsOnline, unknown: queue.recipientsUnknown })],
+        [t('admin.queueOldest'), relativeAge(queue.oldestAt)]
+    ].map(([label, value]) => {
+        const tile = document.createElement('div');
+        tile.className = 'admin-chart';
+        const title = document.createElement('p');
+        title.className = 'admin-chart-title';
+        title.textContent = label;
+        const number = document.createElement('p');
+        number.className = `admin-chart-value${String(value).length > 12 ? ' is-long' : ''}`;
+        number.textContent = value;
+        tile.append(title, number);
+        return tile;
+    }));
+    renderBars(document.getElementById('admin-queue-age'), [
+        [t('admin.ageLt1h'), queue.byAge.lt1h], [t('admin.age1to6h'), queue.byAge['1to6h']],
+        [t('admin.age6to24h'), queue.byAge['6to24h']], [t('admin.ageGt24h'), queue.byAge.gt24h]
+    ]);
+
+    const emptyRow = columns => {
+        const row = document.createElement('tr');
+        const only = cell(t('admin.none'), 'text-slate-500');
+        only.colSpan = columns;
+        row.append(only);
+        return row;
+    };
+    const states = entry => entry.online ? t('admin.queueOnline') : entry.registered ? t('admin.queueOffline') : t('admin.queueUnknownPeer');
+    document.getElementById('admin-queue-recipients')?.replaceChildren(...(queue.recipients.length ? [] : [emptyRow(6)]), ...queue.recipients.map(entry => {
+        const row = document.createElement('tr');
+        const id = cell(shortId(entry.recipientId), 'font-mono');
+        id.title = entry.recipientId;
+        const action = document.createElement('td');
+        const button = document.createElement('button');
+        button.className = 'btn-secondary';
+        button.textContent = t('admin.queueDeleteFor');
+        button.dataset.adminAction = 'queue-clear-recipient';
+        button.dataset.recipientId = entry.recipientId;
+        action.append(button);
+        row.append(id, cell(formatNumber(entry.count)), cell(formatBytes(entry.bytes)), cell(states(entry)), cell(relativeAge(entry.oldestAt)), action);
+        return row;
+    }));
+    document.getElementById('admin-queue-pairs')?.replaceChildren(...(queue.pairs.length ? [] : [emptyRow(3)]), ...queue.pairs.map(entry => {
+        const row = document.createElement('tr');
+        const sender = cell(shortId(entry.senderId), 'font-mono');
+        sender.title = entry.senderId || '';
+        const recipient = cell(shortId(entry.recipientId), 'font-mono');
+        recipient.title = entry.recipientId;
+        row.append(sender, recipient, cell(formatNumber(entry.count)));
+        return row;
+    }));
+}
+
+async function clearQueue(scope, recipientId) {
+    const question = scope === 'all' ? t('admin.confirmQueueAll') : scope === 'recipient' ? t('admin.confirmQueueRecipient') : null;
+    if (question && !window.confirm(question)) return;
+    try {
+        const result = await adminApi('queue/clear', { method: 'POST', body: { scope, recipientId } });
+        document.getElementById('admin-queue-message').textContent = t('admin.queueRemoved', { count: result.removed });
+    } catch (error) {
+        document.getElementById('admin-queue-message').textContent = error.message;
+    }
+    await refreshQueue();
+}
+
 // ----- Meldungen -----
 function renderReportBadge(open) {
     const badge = document.getElementById('admin-report-badge');
@@ -690,6 +800,9 @@ document.addEventListener('click', event => {
     else if (action === 'add-passkey') addPasskey();
     else if (action === 'remove-passkey') removePasskey(target.dataset.passkeyId);
     else if (action === 'add-ban') addBan();
+    else if (action === 'queue-clear-expired') clearQueue('expired');
+    else if (action === 'queue-clear-all') clearQueue('all');
+    else if (action === 'queue-clear-recipient') clearQueue('recipient', target.dataset.recipientId);
     else if (action === 'resolve-report') resolveReport(target.dataset.reportId, target.dataset.reportAction);
     else if (action === 'lift-ban') liftBan(target.dataset.banKind, target.dataset.banValue);
 });

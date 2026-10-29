@@ -12,7 +12,7 @@ const nudityPending = new Map();
 
 function nudityModelConfig() {
     const config = state.appConfig?.nudity;
-    return config?.model === 'nsfwjs' && typeof config.library === 'string' && typeof config.modelUrl === 'string' ? config : null;
+    return config && config.model !== 'off' && typeof config.library === 'string' && typeof config.modelUrl === 'string' ? config : null;
 }
 
 function nudityWorkerInstance() {
@@ -32,9 +32,11 @@ function nudityWorkerInstance() {
 }
 
 // Alle Klassen mit Wahrscheinlichkeit (fuer den Filter und die Testseite im Debug-Modus).
-async function classifyNudity(bitmap) {
-    const config = nudityModelConfig();
-    if (!config) throw new Error('No nudity model configured.');
+// `modelId` (nur Testseite): ein anderes vom Router ausgeliefertes Modell statt des aktiven.
+async function classifyNudity(bitmap, modelId = null) {
+    const active = nudityModelConfig();
+    if (!active) throw new Error('No nudity model configured.');
+    const config = modelId && active.models?.[modelId] ? { library: active.library, ...active.models[modelId] } : active;
     // Eine Kopie geht in den Worker; das Original zeichnet die Seite weiter.
     const copy = await createImageBitmap(bitmap);
     const id = ++nudityRequestId;
@@ -44,7 +46,7 @@ async function classifyNudity(bitmap) {
             reject(new Error('Nudity model timed out.'));
         }, NUDITY_CLASSIFY_TIMEOUT_MS);
         nudityPending.set(id, { resolve, reject, timer });
-        nudityWorkerInstance().postMessage({ type: 'classify', id, bitmap: copy, config: { library: config.library, modelUrl: config.modelUrl, size: config.size || 224 } }, [copy]);
+        nudityWorkerInstance().postMessage({ type: 'classify', id, bitmap: copy, config: { library: config.library, modelUrl: config.modelUrl, size: config.size || 224, type: config.type || 'layers' } }, [copy]);
     });
 }
 
@@ -55,8 +57,9 @@ function nudityScoreFromPredictions(predictions, classes = nudityModelConfig()?.
 
 function initNudityModel() {
     if (!nudityModelConfig()) return;
+    renderNudityTestModels();
     registerNudityClassifier({
-        id: 'nsfwjs-mobilenet-v2',
+        id: nudityModelConfig().model,
         async classify(bitmap) {
             return nudityScoreFromPredictions(await classifyNudity(bitmap));
         }
@@ -64,6 +67,19 @@ function initNudityModel() {
 }
 
 // ----- Testseite (Debug-Modus, Medien > Schutz) -----
+// Auswahl: alle Modelle, die der Router ausliefert; vorgewaehlt das aktive.
+function renderNudityTestModels() {
+    const select = document.getElementById('nudity-test-model');
+    const config = nudityModelConfig();
+    if (!select || !config) return;
+    select.replaceChildren(...Object.keys(config.models || { [config.model]: true }).map(id => {
+        const option = document.createElement('option');
+        option.value = id;
+        option.textContent = id === config.model ? `${id} (${t('nudity.activeModel')})` : id;
+        option.selected = id === config.model;
+        return option;
+    }));
+}
 // Eigene Bilder pruefen: Werte je Klasse und ob der Filter sie unscharf zeigen wuerde. Alles lokal.
 async function testNudityImages(input) {
     const results = document.getElementById('nudity-test-results');
@@ -76,6 +92,7 @@ async function testNudityImages(input) {
         return;
     }
     const threshold = state.appConfig.nudity.threshold;
+    const modelId = document.getElementById('nudity-test-model')?.value || state.appConfig.nudity.model;
     for (const file of files) {
         const row = document.createElement('div');
         row.className = 'nudity-test-row';
@@ -90,10 +107,10 @@ async function testNudityImages(input) {
         try {
             const bitmap = await createImageBitmap(file);
             const started = performance.now();
-            const predictions = await classifyNudity(bitmap);
+            const predictions = await classifyNudity(bitmap, modelId);
             bitmap.close?.();
             const score = nudityScoreFromPredictions(predictions);
-            detail.textContent = `${score >= threshold ? t('nudity.wouldBlur') : t('nudity.wouldShow')} · ${Math.round(score * 100)} % · ${Math.round(performance.now() - started)} ms · `
+            detail.textContent = `${modelId} · ${score >= threshold ? t('nudity.wouldBlur') : t('nudity.wouldShow')} · ${Math.round(score * 100)} % · ${Math.round(performance.now() - started)} ms · `
                 + predictions.map(prediction => `${prediction.className} ${Math.round(prediction.probability * 100)} %`).join(', ');
             row.classList.toggle('is-blurred', score >= threshold);
         } catch (error) {

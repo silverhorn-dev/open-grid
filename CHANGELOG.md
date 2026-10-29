@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 212 · 2026-10-29
+## Build 213 · 2026-10-29
+- Nacktbild-Filter: der Betreiber kann ein genaueres Erkennungsmodell waehlen (`NUDITY_MODEL`); im Debug-Modus vergleicht "Erkennung testen" alle drei Modelle mit denselben Bildern
+
+## Build 212 · 2026-10-29 · `f1868ff`
 - Fuer Betreiber (standardmaessig aus): Alters- oder E-Mail-Nachweis, bevor jemand im Grid sichtbar wird; Sperren und ein kurzes IP-Protokoll fuer Anfragen der Strafverfolgung
 - Neue Einstellung "Nacktbilder unscharf" (Medien > Schutz, standardmaessig aus): moegliche Nacktbilder erscheinen unscharf, bis du tippst; geprueft wird nur auf deinem Geraet. Das Erkennungsmodell (ca. 3 MB) kommt vom eigenen Server und wird erst geladen, wenn du den Filter einschaltest; der Betreiber legt Schwelle und Klassen fest
 - Im Debug-Modus: "Erkennung testen" unter Medien > Schutz zeigt fuer eigene Bilder, wie das Modell sie bewertet (alles lokal)

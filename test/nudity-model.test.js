@@ -13,6 +13,9 @@ async function appWith(options) {
 test('nudity config: defaults, off, threshold range and known classes only', () => {
     assert.deepEqual(parseNudityConfig({}), { model: 'nsfwjs', threshold: 0.7, classes: ['Porn', 'Hentai'] });
     assert.equal(parseNudityConfig({ model: 'OFF' }).model, 'off');
+    assert.equal(parseNudityConfig({ model: 'nsfwjs-inception' }).model, 'nsfwjs-inception');
+    assert.equal(parseNudityConfig({ model: 'nsfwjs-mid' }).model, 'nsfwjs-mid');
+    assert.equal(parseNudityConfig({ model: 'unknown' }).model, 'nsfwjs');
     assert.equal(parseNudityConfig({ threshold: '0.85' }).threshold, 0.85);
     assert.equal(parseNudityConfig({ threshold: '0.2' }).threshold, 0.7);
     assert.equal(parseNudityConfig({ threshold: 'abc' }).threshold, 0.7);
@@ -34,19 +37,41 @@ test('router serves the nudity model itself and announces it in /api/config', as
     assert.equal(library.statusCode, 200);
     assert.match(library.headers['content-type'], /javascript/);
 
-    const model = await app.inject({ method: 'GET', url: `${config.nudity.modelUrl}model.json` });
-    assert.equal(model.statusCode, 200);
-    const manifest = model.json();
-    assert.ok(manifest.modelTopology);
-    assert.deepEqual(manifest.weightsManifest[0].paths, ['group1-shard1of1']);
-    const weights = await app.inject({ method: 'GET', url: `${config.nudity.modelUrl}group1-shard1of1` });
-    assert.equal(weights.statusCode, 200);
-    const expectedBytes = manifest.weightsManifest[0].weights.reduce((sum, entry) => {
-        const count = entry.shape.reduce((product, value) => product * value, 1);
-        const bytes = entry.quantization ? { uint8: 1, uint16: 2, float16: 2 }[entry.quantization.dtype] : 4;
-        return sum + count * bytes;
-    }, 0);
-    assert.equal(weights.rawPayload.length, expectedBytes);
+    // Alle drei Modelle: Manifest + jedes Gewichte-Teil, Groesse passt zum Manifest.
+    assert.deepEqual(Object.keys(config.nudity.models).sort(), ['nsfwjs', 'nsfwjs-inception', 'nsfwjs-mid']);
+    assert.equal(config.nudity.models['nsfwjs-inception'].size, 299);
+    assert.equal(config.nudity.models['nsfwjs-mid'].type, 'graph');
+    for (const model of Object.values(config.nudity.models)) {
+        const response = await app.inject({ method: 'GET', url: `${model.modelUrl}model.json` });
+        assert.equal(response.statusCode, 200);
+        const manifest = response.json();
+        assert.ok(manifest.modelTopology);
+        let expected = 0;
+        let actual = 0;
+        for (const group of manifest.weightsManifest) {
+            expected += group.weights.reduce((sum, entry) => {
+                const count = entry.shape.reduce((product, value) => product * value, 1);
+                const bytes = entry.quantization ? { uint8: 1, uint16: 2, float16: 2 }[entry.quantization.dtype] : 4;
+                return sum + count * bytes;
+            }, 0);
+            for (const path of group.paths) {
+                const shard = await app.inject({ method: 'GET', url: `${model.modelUrl}${path}` });
+                assert.equal(shard.statusCode, 200, path);
+                actual += shard.rawPayload.length;
+            }
+        }
+        assert.equal(actual, expected, model.modelUrl);
+    }
+    assert.equal((await app.inject({ method: 'GET', url: `${config.nudity.modelUrl}nope` })).statusCode, 404);
+});
+
+test('NUDITY_MODEL picks the active model', async t => {
+    const { app, close } = await appWith({ nudityModel: 'nsfwjs-inception' });
+    t.after(close);
+    const config = (await app.inject({ method: 'GET', url: '/api/config' })).json();
+    assert.equal(config.nudity.model, 'nsfwjs-inception');
+    assert.equal(config.nudity.size, 299);
+    assert.match(config.nudity.modelUrl, /\/inception_v3\/$/);
 });
 
 test('NUDITY_MODEL=off: no model routes, config says off', async t => {

@@ -471,7 +471,7 @@ export async function buildApp(options = {}) {
     });
     const nudityAssets = await registerNudityModelRoutes(app, nudityConfig);
     const nudityPublicConfig = nudityAssets
-        ? { model: 'nsfwjs', threshold: nudityConfig.threshold, classes: nudityConfig.classes, ...nudityAssets }
+        ? { model: nudityConfig.model, threshold: nudityConfig.threshold, classes: nudityConfig.classes, library: nudityAssets.library, ...nudityAssets.models[nudityConfig.model], models: nudityAssets.models }
         : { model: 'off' };
     const audienceMinimums = {
         public: parseAudienceMinimum(audienceMinimumRule, audienceSchemaFor('public')),

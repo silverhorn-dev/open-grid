@@ -63,7 +63,17 @@ async function main() {
             report = await page.textContent('#nudity-test-results');
         }
         assert.match(report, /probe\.png/);
-        assert.match(report, /Sichtbar · \d+ % · \d+ ms · .*Neutral \d+ %/, report);
+        assert.match(report, /nsfwjs · Sichtbar · \d+ % · \d+ ms · .*Neutral \d+ %/, report);
+
+        // Vergleich: dasselbe Bild mit dem groesseren Modell (Graph-Modell).
+        await page.selectOption('#nudity-test-model', 'nsfwjs-mid');
+        await page.setInputFiles('#nudity-test-input', { name: 'probe-mid.png', mimeType: 'image/png', buffer: png });
+        report = '';
+        for (let attempt = 0; attempt < 90 && !/nsfwjs-mid · .*Neutral \d+ %/.test(report); attempt += 1) {
+            await page.waitForTimeout(500);
+            report = await page.textContent('#nudity-test-results');
+        }
+        assert.match(report, /probe-mid\.png.*nsfwjs-mid · \S+ · \d+ % · \d+ ms · .*Neutral \d+ %/, report);
 
         // Ab hier deterministisch: nur das Test-Modell (rote Bilder).
         await page.evaluate(() => { nudityClassifiers.length = 0; });

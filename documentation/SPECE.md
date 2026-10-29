@@ -1309,8 +1309,13 @@ Klassen Drawing, Hentai, Neutral, Porn, Sexy; Eingabe 224x224, Gewichte ca.
 | Route | Inhalt |
 |---|---|
 | `GET /vendor/nsfwjs/<version>/nsfwjs.min.js` | Bibliothek inkl. TF.js |
-| `GET /vendor/nsfwjs/<version>/mobilenet_v2/model.json` | Modell-Topologie + Gewichte-Manifest |
-| `GET /vendor/nsfwjs/<version>/mobilenet_v2/group1-shard1of1` | Gewichte (binaer) |
+| `GET /vendor/nsfwjs/<version>/<modell>/model.json` | Modell-Topologie + Gewichte-Manifest |
+| `GET /vendor/nsfwjs/<version>/<modell>/<teil>` | Gewichte-Teile (binaer, laut Manifest) |
+
+`<modell>` = `mobilenet_v2` (`NUDITY_MODEL=nsfwjs`, 224 px), `mobilenet_v2_mid`
+(`nsfwjs-mid`, Graph-Modell, 224 px) oder `inception_v3` (`nsfwjs-inception`,
+299 px). Alle drei werden ausgeliefert; `/api/config.nudity` nennt das aktive
+(`model`, `modelUrl`, `size`, `type`) und alle (`models`).
 
 Alle drei mit `Cache-Control: immutable` (Version im Pfad), im SW wie andere
 `/vendor/`-Dateien gecacht. `/api/config` meldet `nudity = { model: 'nsfwjs',
@@ -1323,8 +1328,8 @@ pruefenden Bild (also nur bei eingeschaltetem Filter). Das Bild geht als
 geschlossen; Wert = Summe der Wahrscheinlichkeiten der konfigurierten Klassen,
 unscharf ab `threshold`. Zeitlimit 20 s je Bild (zaehlt dann als 0).
 
-Testseite (Debug-Modus, Medien > Schutz, "Erkennung testen"): eigene Bilder
-waehlen, je Bild Wert, Rechenzeit, Werte aller Klassen und ob der Filter es
+Testseite (Debug-Modus, Medien > Schutz, "Erkennung testen"): Modell waehlen
+(vorgewaehlt das aktive), eigene Bilder waehlen, je Bild Wert, Rechenzeit, Werte aller Klassen und ob der Filter es
 unscharf zeigen wuerde. Alles lokal.
 
 ## 7. Message Queue Cache API

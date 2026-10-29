@@ -2,16 +2,20 @@
 // Laeuft getrennt von der Oberflaeche, damit das Rechnen nichts ruckeln laesst. Bibliothek und Modell
 // kommen vom eigenen Router (Pfade aus /api/config). Eingabe: ImageBitmap (wird hier geschlossen),
 // Ausgabe: Wahrscheinlichkeit je Klasse. Bilder verlassen das Geraet nicht.
-let modelPromise = null;
+const models = new Map();
 
-function loadModel({ library, modelUrl, size }) {
-    if (!modelPromise) {
-        modelPromise = (async () => {
-            self.importScripts(library);
-            return self.nsfwjs.load(modelUrl, { size });
-        })();
+// Je Modell-URL einmal laden (die Testseite kann mehrere vergleichen).
+function loadModel({ library, modelUrl, size, type }) {
+    if (!models.has(modelUrl)) {
+        models.set(modelUrl, (async () => {
+            if (!self.nsfwjs) self.importScripts(library);
+            return self.nsfwjs.load(modelUrl, type === 'graph' ? { size, type } : { size });
+        })());
     }
-    return modelPromise;
+    return models.get(modelUrl).catch(error => {
+        models.delete(modelUrl);
+        throw error;
+    });
 }
 
 self.onmessage = async event => {

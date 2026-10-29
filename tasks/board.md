@@ -76,6 +76,8 @@
     - [x] `client/app/nudity.js`: einstellung Medien > Schutz (`keys`/`nudity-settings`, `CLIENT_DEFAULTS.nudityFilter`), modell-schnittstelle `registerNudityClassifier`, unscharf + "Tippen zum Ansehen" in `drawSecureImage` (chat, snaps, alben, status, viewer), eigene bilder nie
     - [x] tests `test/nudity.test.js`, e2e `nudity-filter` (test-modell)
     - [x] modell ausliefern (2026-10-29): NSFWJS MobileNetV2 vom router (`server/nudity-model.js`, routen `/vendor/nsfwjs/<version>/...`), router-konfig `NUDITY_MODEL` (nsfwjs|off), `NUDITY_THRESHOLD` (0.5-0.95, std 0.7), `NUDITY_CLASSES` (std Porn,Hentai) -> `/api/config.nudity`; web worker (`client/app/nudity-worker.js`) startet erst beim ersten bild bei eingeschaltetem filter; testseite im debug-modus (medien > schutz > "Erkennung testen"); tests `test/nudity-model.test.js`, e2e `nudity-filter` mit echtem modell
+    - [x] nutzer-test 2026-10-29: MobileNetV2 erkennt ein maennliches nacktbild (badezimmer-selfie) nicht (Neutral 85 %, Porn+Hentai 1 %) -> alle drei nsfwjs-modelle ausgeliefert, `NUDITY_MODEL=nsfwjs|nsfwjs-mid|nsfwjs-inception`, auswahl auf der testseite zum vergleichen
+    - [ ] nutzer vergleicht mid/inception mit denselben bildern; reicht keins: Bumble Private Detector umwandeln oder koerperteil-erkennung (NudeNet-art, lizenz beachten)
     - [ ] nutzer testet auf dem handy mit echten bildern (maennliche nacktheit, fehlalarme bei badehose/oberkoerper), danach schwelle/klassen festlegen; falls zu schwach: Bumble Private Detector umwandeln
     - [ ] docker-image wird groesser (nsfwjs bringt alle drei modelle + tfjs mit); bei bedarf nur mobilenet_v2 + bibliothek ins image kopieren
     - [ ] absender-warnung vor dem senden -> entscheidung

@@ -29,10 +29,10 @@ function optionalModels({ bumble = true, nudenet = true } = {}) {
 }
 
 test('nudity config: defaults, off, unknown model, threshold range', () => {
-    assert.deepEqual(parseNudityConfig({}), { model: 'nsfwjs', threshold: 0.7, classes: [] });
+    assert.deepEqual(parseNudityConfig({}), { model: 'nudenet', threshold: 0.7, classes: [] });
     assert.equal(parseNudityConfig({ model: 'OFF' }).model, 'off');
     for (const model of ['nsfwjs-mid', 'nsfwjs-inception', 'bumble', 'nudenet']) assert.equal(parseNudityConfig({ model }).model, model);
-    assert.equal(parseNudityConfig({ model: 'unknown' }).model, 'nsfwjs');
+    assert.equal(parseNudityConfig({ model: 'unknown' }).model, 'nudenet');
     assert.equal(parseNudityConfig({ threshold: '0.85' }).threshold, 0.85);
     assert.equal(parseNudityConfig({ threshold: '0.2' }).threshold, 0.7);
     assert.equal(parseNudityConfig({ threshold: 'abc' }).threshold, 0.7);
@@ -140,6 +140,15 @@ test('the converted Bumble model in models/ is served completely', async t => {
         for (const path of group.paths) actual += (await app.inject({ method: 'GET', url: `${config.nudity.modelUrl}${path}` })).rawPayload.length;
     }
     assert.equal(actual, expected);
+});
+
+test('NudeNet is the default when installed, nsfwjs otherwise', async t => {
+    const directory = optionalModels({ bumble: false });
+    const withNudenet = await appWith({ nudityModelDir: directory, nudityBuiltInModels: false });
+    const without = await appWith({ nudityModelDir: join(tmpdir(), 'og-no-models'), nudityBuiltInModels: false });
+    t.after(async () => { await withNudenet.close(); await without.close(); rmSync(directory, { recursive: true, force: true }); });
+    assert.equal((await withNudenet.app.inject({ method: 'GET', url: '/api/config' })).json().nudity.model, 'nudenet');
+    assert.equal((await without.app.inject({ method: 'GET', url: '/api/config' })).json().nudity.model, 'nsfwjs');
 });
 
 test('a selected but missing optional model falls back to nsfwjs', async t => {

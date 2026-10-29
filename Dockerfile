@@ -5,7 +5,9 @@ RUN npm ci
 # Tailwind vorab kompilieren (kein CDN zur Laufzeit), danach Dev-Abhaengigkeiten entfernen.
 COPY index.html admin.html ./
 COPY client ./client
-RUN npm run build:css && npm prune --omit=dev
+COPY scripts/slim-modules.sh ./scripts/
+# Danach nur behalten, was der Router wirklich ausliefert (scripts/slim-modules.sh).
+RUN npm run build:css && npm prune --omit=dev && sh scripts/slim-modules.sh node_modules
 
 # NudeNet 320n (AGPL-3.0) fuer den Nacktbild-Filter, aus dem PyPI-Paket mit fester Pruefsumme (Board T3).
 # Eigene Stufe: bleibt im Cache, solange sich hier nichts aendert.

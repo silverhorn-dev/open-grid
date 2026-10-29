@@ -36,9 +36,9 @@ services:
       EMAIL_TRANSPORT: ${EMAIL_TRANSPORT:-log}
       SMTP_URL: ${SMTP_URL:-}
       SMTP_FROM: ${SMTP_FROM:-}
-      # Nacktbild-Filter: nsfwjs (Standard), nsfwjs-mid, nsfwjs-inception, bumble, nudenet oder off;
+      # Nacktbild-Filter: nudenet (Standard), nsfwjs, nsfwjs-mid, nsfwjs-inception, bumble oder off;
       # Alle im Image enthalten (models/README.md).
-      NUDITY_MODEL: ${NUDITY_MODEL:-nsfwjs}
+      NUDITY_MODEL: ${NUDITY_MODEL:-nudenet}
       NUDITY_THRESHOLD: ${NUDITY_THRESHOLD:-}
       NUDITY_CLASSES: ${NUDITY_CLASSES:-}
       SAFETY_KEY: ${SAFETY_KEY:-}

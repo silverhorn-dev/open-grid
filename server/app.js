@@ -724,8 +724,8 @@ export async function buildApp(options = {}) {
             throw new Error(`${name} must be JSON`);
         }
     };
+    const startNudityModel = nudityConfig.model;
     const refreshNudity = next => {
-        if (next.model !== 'off' && !nudityAssets?.models?.[next.model]) throw new Error(`Model ${next.model} is not installed`);
         nudityConfig = next;
         nudityPublicConfig = describeNudityModels(nudityConfig, nudityAssets);
     };
@@ -751,7 +751,12 @@ export async function buildApp(options = {}) {
             },
             NUDITY_MODEL: {
                 env: nudityConfig.model,
-                apply: value => refreshNudity({ ...nudityConfig, model: String(value ?? 'nsfwjs').trim().toLowerCase() }),
+                apply: value => {
+                    const model = String(value ?? 'nudenet').trim().toLowerCase();
+                    // Neu gewaehlt nur installierte Modelle; fehlt der Startwert, greift die Ausweichregel (nsfwjs).
+                    if (model !== 'off' && model !== startNudityModel && !nudityAssets?.models?.[model]) throw new Error(`Model ${model} is not installed`);
+                    refreshNudity({ ...nudityConfig, model });
+                },
                 options: () => ['off', ...Object.keys(nudityAssets?.models || {})]
             },
             NUDITY_THRESHOLD: {

@@ -20,7 +20,8 @@ import { dirname, join } from 'node:path';
 // Gesucht wird in NUDITY_MODEL_DIR (Vorrang) und danach in models/ des Projekts (models/README.md).
 //
 // Konfiguration (Betreiber):
-//   NUDITY_MODEL      aktives Modell (Standard nsfwjs) oder 'off'; fehlt ein optionales Modell, gilt nsfwjs
+//   NUDITY_MODEL      aktives Modell (Standard nudenet, im Nutzertest 2026-10-29 das beste) oder 'off';
+//                     fehlt das gewaehlte (z. B. ohne Docker kein NudeNet), gilt nsfwjs
 //   NUDITY_THRESHOLD  ab welchem Wert unscharf (0.5-0.95, Standard 0.7)
 //   NUDITY_CLASSES    welche Klassen des aktiven Modells zaehlen (Komma-Liste, Standard je Modell)
 //   NUDITY_MODEL_DIR  eigener Ordner fuer Modelle (Standard: data/nudity-models neben der Datenbank)
@@ -45,7 +46,8 @@ export const NUDITY_MODELS = {
         defaultClasses: ['MALE_GENITALIA_EXPOSED', 'FEMALE_GENITALIA_EXPOSED', 'FEMALE_BREAST_EXPOSED', 'ANUS_EXPOSED', 'BUTTOCKS_EXPOSED']
     }
 };
-const DEFAULT_MODEL = 'nsfwjs';
+const DEFAULT_MODEL = 'nudenet';
+const FALLBACK_MODEL = 'nsfwjs';
 const DEFAULT_THRESHOLD = 0.7;
 
 export function parseNudityConfig({ model, threshold, classes } = {}) {
@@ -213,14 +215,14 @@ export async function registerNudityModelRoutes(app, config, { modelDirectories 
         app.log.warn('No nudity model available: nudity filter without model.');
         return null;
     }
-    if (config.model !== 'off' && !models[config.model]) app.log.warn(`NUDITY_MODEL=${config.model} is not installed (models/README.md); using nsfwjs.`);
+    if (config.model !== 'off' && !models[config.model]) app.log.warn(`NUDITY_MODEL=${config.model} is not installed (models/README.md); using ${FALLBACK_MODEL}.`);
     return { models };
 }
 
 // Gewaehltes Modell, sonst nsfwjs bzw. das erste verfuegbare.
 function activeModel(config, assets) {
     if (assets.models[config.model]) return config.model;
-    return assets.models[DEFAULT_MODEL] ? DEFAULT_MODEL : Object.keys(assets.models)[0];
+    return assets.models[FALLBACK_MODEL] ? FALLBACK_MODEL : Object.keys(assets.models)[0];
 }
 
 // Fuer /api/config: aktives Modell (flach) + alle verfuegbaren (Testseite im Debug-Modus).

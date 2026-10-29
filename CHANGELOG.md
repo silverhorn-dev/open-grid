@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 228 · 2026-10-29
+## Build 229 · 2026-10-29
+- Nacktbild-Filter: NudeNet ist jetzt das Standard-Modell (erkennt im Test auch maennliche Nacktbilder)
+- Das Server-Image ist weniger als halb so gross (schnellere Updates)
+
+## Build 228 · 2026-10-29 · `dac222b`
 - Chats zu geloeschten Profilen verschwinden beim Antippen aus der Liste
 
 ## Build 227 · 2026-10-29 · `1604b92`

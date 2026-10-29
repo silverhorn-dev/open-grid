@@ -1312,7 +1312,7 @@ Modelle (`server/nudity-model.js`, `client/app/nudity-model.js`,
 | `nsfwjs-mid` | NSFWJS MobileNetV2 Mid (Graph) | 224 | wie oben | Summe |
 | `nsfwjs-inception` | NSFWJS InceptionV3 | 299 | wie oben | Summe |
 | `bumble` (optional) | Bumble Private Detector (TF.js-Graph, Apache-2.0) | 480, Seitenverhaeltnis erhalten, grau (128) mittig aufgefuellt, `(x - 128) / 128`, flach `[1, 691200]` | Lewd (Ausgabe-Index 0) | Summe |
-| `nudenet` (optional) | NudeNet 320n (ONNX, YOLOv8, AGPL-3.0) | 320, schwarz rechts/unten aufgefuellt, RGB / 255, `[1, 3, 320, 320]` | 18 Koerperteile | hoechste Fundstelle je Klasse, davon das Maximum |
+| `nudenet` (Standard) | NudeNet 320n (ONNX, YOLOv8, AGPL-3.0) | 320, schwarz rechts/unten aufgefuellt, RGB / 255, `[1, 3, 320, 320]` | 18 Koerperteile | hoechste Fundstelle je Klasse, davon das Maximum |
 
 | Route | Inhalt |
 |---|---|
@@ -1327,7 +1327,9 @@ Alle mit `Cache-Control: immutable` (Version bzw. Hash im Pfad), im SW wie
 andere `/vendor/`-Dateien gecacht. Bumble und NudeNet werden in
 `NUDITY_MODEL_DIR` (Vorrang) und danach in `models/` gesucht (Bumble im
 Repository, NudeNet laedt das Docker-Image beim Bauen, `models/README.md`); ist
-das gewaehlte nicht vorhanden, gilt `nsfwjs`. `/api/config.nudity` =
+das gewaehlte nicht vorhanden, gilt `nsfwjs`. Standard ist `nudenet` (Nutzertest 2026-10-29: erkennt
+maennliche Nacktheit als einziges zuverlaessig). Im Docker-Image kuerzt `scripts/slim-modules.sh` TF.js,
+onnxruntime-web, NSFWJS und Font Awesome auf die ausgelieferten Dateien (Image 802 -> 374 MB). `/api/config.nudity` =
 aktives Modell flach (`model`, `kind`, `library`, `modelUrl`, `runtimeUrl`,
 `size`, `type`, `combine`, `classes` = `NUDITY_CLASSES` gegen die Klassen des
 Modells geprueft, sonst dessen Standard) + `threshold` + `models` (alle

@@ -93,7 +93,9 @@
       - installation: `scripts/nudity-models/fetch.sh --volume <volume> nudenet bumble` -> `NUDITY_MODEL_DIR` (std data/nudity-models); `onnxruntime-web` optionale abhaengigkeit; nur der worker bekommt `'wasm-unsafe-eval'`; TF.js als ES2017-build (der ES5-build braucht `Function()`)
       - e2e (headless, ohne GPU): nudenet 1,2 s/bild, bumble 68 s/bild (CPU) -> auf dem handy mit WebGL messen
     - [x] nutzer 2026-10-29: neue modelle fehlten in der auswahl (nur per fetch.sh installierbar) -> bumble umgewandelt ins repo (`models/bumble`, 51 MB), nudenet laedt das docker-image beim bauen (eigene stufe, pruefsumme); router sucht `NUDITY_MODEL_DIR`, dann `models/`; image geprueft: alle 5 in `/api/config` (image 802 MB -> verkleinern ist offen)
-    - [ ] nutzer vergleicht nsfwjs-mid/-inception, bumble, nudenet mit echten bildern auf dem handy (treffer + zeit), danach `NUDITY_MODEL` + schwelle festlegen
+    - [x] nutzer 2026-10-29: "das net model ist das beste" -> `NUDITY_MODEL` standard `nudenet` (fehlt es, nsfwjs)
+    - [x] docker-image verkleinert (802 -> 374 MB): `scripts/slim-modules.sh` behaelt von TF.js/onnxruntime-web/NSFWJS/Font Awesome nur ausgelieferte dateien; geprueft per image-build (healthy, 35 dateien ausgeliefert)
+    - [x] erledigt durch obiges: nutzer vergleicht nsfwjs-mid/-inception, bumble, nudenet mit echten bildern auf dem handy (treffer + zeit), danach `NUDITY_MODEL` + schwelle festlegen
     - [ ] nutzer testet auf dem handy mit echten bildern (maennliche nacktheit, fehlalarme bei badehose/oberkoerper), danach schwelle/klassen festlegen; falls zu schwach: Bumble Private Detector umwandeln
     - [ ] docker-image wird groesser (nsfwjs bringt alle drei modelle + tfjs mit); bei bedarf nur mobilenet_v2 + bibliothek ins image kopieren
     - [ ] absender-warnung vor dem senden -> entscheidung

@@ -25,10 +25,14 @@ async function drawSecureImage(canvas, source) {
     if (!blob) return false;
     const bitmap = await createImageBitmap(blob);
     try {
+        // Nacktbild-Filter (nudity.js): nur fremde Bilder, eigene tragen data-own-image.
+        const blur = canvas.dataset.ownImage !== 'true' && typeof shouldBlurImage === 'function'
+            && await shouldBlurImage(bitmap, source);
         if (secureImageDrawTokens.get(canvas) !== token) return false;
         canvas.width = bitmap.width;
         canvas.height = bitmap.height;
-        canvas.getContext('2d').drawImage(bitmap, 0, 0);
+        if (blur) drawBlurredImage(canvas, bitmap, source, () => drawSecureImage(canvas, source).catch(logBackgroundError('drawSecureImage')));
+        else canvas.getContext('2d').drawImage(bitmap, 0, 0);
         return true;
     } finally {
         bitmap.close?.();
@@ -74,7 +78,7 @@ function reusableSecureImage(key, dataUrl) {
     return canvas;
 }
 
-function createSecureImage(dataUrl, className, size = null, { reuseKey = null } = {}) {
+function createSecureImage(dataUrl, className, size = null, { own = false, reuseKey = null } = {}) {
     const reusable = reusableSecureImage(reuseKey, dataUrl);
     if (reusable) {
         reusable.className = `secure-image ${className || ''}`.trim();
@@ -82,6 +86,7 @@ function createSecureImage(dataUrl, className, size = null, { reuseKey = null } 
         return reusable;
     }
     const canvas = document.createElement('canvas');
+    if (own) canvas.dataset.ownImage = 'true';
     if (reuseKey) {
         canvas.dataset.reuseKey = reuseKey;
         rememberSecureImage(reuseKey, canvas);

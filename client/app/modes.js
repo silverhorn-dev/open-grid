@@ -42,6 +42,14 @@ async function loadAppMode() {
         clientDefaults: config?.clientDefaults && typeof config.clientDefaults === 'object' ? config.clientDefaults : {},
         // Info-Seite fuer alle (eigene Subdomain oder /info), vom Router vorgegeben.
         infoUrl: typeof config?.infoUrl === 'string' && /^(https:\/\/|\/)/.test(config.infoUrl) ? config.infoUrl : '/info',
+        // Nachweis-Pflichten des Routers (T2), standardmaessig aus.
+        safety: {
+            ageCheck: ['confirm', 'provider'].includes(config?.safety?.ageCheck) ? config.safety.ageCheck : 'off',
+            ageProvider: typeof config?.safety?.ageProvider === 'string' ? config.safety.ageProvider : null,
+            emailCheck: config?.safety?.emailCheck === 'required' ? 'required' : 'off'
+        },
+        // Nacktbild-Modell vom Router (Board T3): Modell, Schwelle, Klassen, Pfade (nudity-model.js).
+        nudity: config?.nudity && typeof config.nudity === 'object' ? config.nudity : { model: 'off' },
         // Mindestwerte des Betreibers fuer "Nur zeigen fuer ..." (der Router mischt sie selbst in die Karte).
         audienceMinimum: config?.audienceMinimum && typeof config.audienceMinimum === 'object' ? config.audienceMinimum : null
     };
@@ -224,6 +232,8 @@ function buildGridQuery() {
         query.set('ring', String(state.gridRing));
         if (state.gridSettings.liveGrid) query.set('live', '1');
     }
+    // Mit Nachweis-Pflicht will der Router wissen, wer fragt (Bearer-Token dazu in fetchGridRing).
+    if (typeof isSafetyGateActive === 'function' && isSafetyGateActive() && !query.has('peerId')) query.set('peerId', state.myProfile.id);
     return query;
 }
 
@@ -275,6 +285,7 @@ function renderAppModeSettings() {
     document.getElementById('invite-card')?.classList.toggle('hidden', !['chat', 'friends'].some(mode => state.appConfig.modes.includes(mode)));
     renderModeScopeSettings();
     applyModeScopeVisibility();
+    if (typeof renderSafetyCard === 'function') renderSafetyCard();
 }
 
 // Erster Start: erst den Bereich waehlen (wenn der Betreiber beide erlaubt), dann ggf. den Modus darin.

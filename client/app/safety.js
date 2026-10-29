@@ -1,0 +1,156 @@
+// ================= NACHWEISE (Board T2) =================
+// Verlangt der Router einen Alters- oder E-Mail-Nachweis (AGE_CHECK, EMAIL_CHECK; standardmaessig aus),
+// bleibt man bis dahin unsichtbar und bekommt kein Grid. Dieses Fenster fuehrt durch die Nachweise.
+// Der Router speichert nur den Status; Ausweis- oder Gesichtsdaten gibt es hier nie.
+
+function safetyConfig() {
+    return state.appConfig?.safety || { ageCheck: 'off', ageProvider: null, emailCheck: 'off' };
+}
+
+function isSafetyGateActive() {
+    const config = safetyConfig();
+    return config.ageCheck !== 'off' || config.emailCheck === 'required';
+}
+
+async function safetyRequest(path, body) {
+    const response = await fetch(`${API_BASE}/api/safety/${path}`, body
+        ? { method: 'POST', headers: peerAuthHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ peerId: state.myProfile.id, ...body }) }
+        : { cache: 'no-store', headers: peerAuthHeaders() });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        const error = new Error(data.error || `HTTP ${response.status}`);
+        error.status = response.status;
+        throw error;
+    }
+    return data;
+}
+
+async function refreshSafetyStatus() {
+    if (!isSafetyGateActive() || !state.routerAuthToken) {
+        state.verificationRequired = [];
+        renderSafetyCard();
+        return state.verificationRequired;
+    }
+    try {
+        const status = await safetyRequest(`status?peerId=${encodeURIComponent(state.myProfile.id)}`);
+        state.verificationRequired = ['age', 'email'].filter(kind => status[kind]?.required && !status[kind]?.verified);
+    } catch (error) {
+        logDebug(`Could not load verification status: ${error.message}`);
+    }
+    renderSafetyCard();
+    return state.verificationRequired;
+}
+
+// Nach der Registrierung oder einer 403-Antwort des Grids.
+function handleVerificationRequired(kinds) {
+    state.verificationRequired = Array.isArray(kinds) ? kinds.filter(kind => kind === 'age' || kind === 'email') : [];
+    renderSafetyCard();
+    if (state.verificationRequired.length && !state.safetyGateDismissed) openSafetyGate();
+}
+
+function renderSafetyCard() {
+    const card = document.getElementById('safety-card');
+    if (!card) return;
+    card.classList.toggle('hidden', !isSafetyGateActive());
+    const missing = state.verificationRequired || [];
+    const status = document.getElementById('safety-card-status');
+    if (status) status.textContent = missing.length ? t('safety.verificationMissing') : t('safety.allVerified');
+    document.getElementById('safety-card-btn')?.classList.toggle('hidden', !missing.length);
+}
+
+function openSafetyGate() {
+    const modal = document.getElementById('safety-modal');
+    if (!modal) return;
+    const config = safetyConfig();
+    const missing = state.verificationRequired || [];
+    document.getElementById('safety-age-confirm')?.classList.toggle('hidden', !(missing.includes('age') && config.ageCheck === 'confirm'));
+    document.getElementById('safety-age-provider')?.classList.toggle('hidden', !(missing.includes('age') && config.ageCheck === 'provider'));
+    document.getElementById('safety-email')?.classList.toggle('hidden', !missing.includes('email'));
+    document.getElementById('safety-email-code-row')?.classList.add('hidden');
+    modal.classList.remove('hidden');
+}
+
+function closeSafetyGate() {
+    state.safetyGateDismissed = true;
+    document.getElementById('safety-modal')?.classList.add('hidden');
+}
+
+function reopenSafetyGate() {
+    state.safetyGateDismissed = false;
+    openSafetyGate();
+}
+
+async function afterVerificationStep(message) {
+    showToast(message, 'success');
+    const missing = await refreshSafetyStatus();
+    if (missing.length) {
+        openSafetyGate();
+        return;
+    }
+    document.getElementById('safety-modal')?.classList.add('hidden');
+    // Neu registrieren: jetzt sichtbar und mit Grid.
+    if (typeof refreshPresenceAndGrid === 'function') await refreshPresenceAndGrid();
+}
+
+function showSafetyError(error) {
+    const messages = { 403: t('safety.notAccepted'), 410: t('safety.codeExpired'), 503: t('safety.unavailable') };
+    showToast(messages[error.status] || t('safety.failed'), 'error');
+}
+
+async function confirmAgeSelf() {
+    if (!document.getElementById('safety-age-checkbox')?.checked) {
+        showToast(t('safety.tickTheBoxFirst'), 'warning');
+        return;
+    }
+    try {
+        await safetyRequest('age/confirm', { over18: true });
+        await afterVerificationStep(t('safety.ageConfirmed'));
+    } catch (error) {
+        showSafetyError(error);
+    }
+}
+
+// Anbieter-Nachweis. `dev` (nur Test) bestaetigt sofort; echte Anbieter liefern spaeter eine
+// Weiterleitung (kind: 'redirect') oder eine Wallet-Anfrage.
+async function startAgeProviderCheck() {
+    try {
+        const start = await safetyRequest('age/start', {});
+        if (start.kind === 'dev') {
+            await safetyRequest('age/finish', { payload: { over18: true } });
+            await afterVerificationStep(t('safety.ageConfirmed'));
+        } else if (start.kind === 'redirect' && /^https:\/\//.test(start.url || '')) {
+            window.location.assign(start.url);
+        } else {
+            showToast(t('safety.unavailable'), 'error');
+        }
+    } catch (error) {
+        showSafetyError(error);
+    }
+}
+
+async function sendEmailCode() {
+    const email = document.getElementById('safety-email-input')?.value.trim();
+    if (!email) return;
+    try {
+        await safetyRequest('email/start', { email });
+        document.getElementById('safety-email-code-row')?.classList.remove('hidden');
+        document.getElementById('safety-email-code')?.focus();
+        showToast(t('safety.codeSent'), 'info');
+    } catch (error) {
+        showSafetyError(error);
+    }
+}
+
+async function confirmEmailCode() {
+    const code = document.getElementById('safety-email-code')?.value.trim();
+    if (!/^\d{6}$/.test(code || '')) {
+        showToast(t('safety.enterSixDigitCode'), 'warning');
+        return;
+    }
+    try {
+        await safetyRequest('email/confirm', { code });
+        await afterVerificationStep(t('safety.emailConfirmed'));
+    } catch (error) {
+        showSafetyError(error);
+    }
+}

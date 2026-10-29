@@ -141,7 +141,10 @@ laufen durch dieselben Tests und bauen das echte Image zur Probe
 | `TURN_TLS_PORT` | – | Optional, aktiviert zusaetzlich eine `turns:`-URL |
 | `STUN_SERVER` | eigener TURN-Server | STUN-Server (`host:port`) oder `none`. Ohne Angabe dient der eigene coturn auch als STUN; erst ohne TURN wird der oeffentliche Google-STUN genutzt |
 | `PUSH_HOST_ALLOWLIST` | – | Zusaetzliche erlaubte Push-Hosts, kommagetrennt (z. B. ein eigener UnifiedPush-/ntfy-Server). Standard: Google, Mozilla, Apple, Microsoft |
-| `CLIENT_DEFAULTS` | - | JSON mit Standardwerten fuer Client-Einstellungen, solange ein Nutzer nichts Eigenes gespeichert hat. Erlaubt: `language` (`auto`/`de`/`en`, Sprache fuer alle ohne eigene Wahl), `chatSwitchEnabled`, `chatSwitchStyle` (`bar`/`arrows`/`swipe`), `notifyMatch`, `notifyFlame`, `notifyAdd`, `notifyDiscovery`, `notifyChat`, `notifyProfileView`, `notifyChatEvents` (Benachrichtigungen je Art, Standard an, Profilbesuch aus), `shareProfileViews` (eigene Profilbesuche melden, Standard `false`), `audience` (Startregel fuer "Wer mich im Grid sieht", z. B. `{"ranges":{"age":{"relative":"same"}}}`), `reloadMode` (`full`/`app`: Runterziehen laedt die ganze Seite oder nur die Daten, Standard `full`), `chatPagesByDay` (Chat nach Tagen statt durchgehend, Standard `false`), `inputSwipeClosesChat` (Eingabeleiste nach rechts wischen schliesst den Chat, Standard `true`), `pullUpAction` (`reload`/`next`/`switcher`/`snap`/`album`), `listSwitchEnabled`, `listSwitchBehavior` (`mode`/`view`), `statusDirectOnly`, `hideDiscoveryHistory` (Flirt-Verlauf im normalen Freundes-Chat ausblenden, Standard `true`), `traceWatermark`, `mediaDownload` (`friends`/`all`: wer Chat-Bilder und Videos speichern darf, Standard `friends`), `snapSaveable` (Startwert des "speicherbar"-Schalters im Snap-Editor, Standard `true`), `secureSnaps`, `snapNextGesture` (`doubletap`/`swipe`/`swipeup`), `snapExpiry` (Ablauf von Einmal-Snaps nach der ersten Ansicht: `15m`/`30m`/`60m`/`off`, ohne Angabe `30m`), `ownSnapKeep` (wie lange der Absender seine Snaps behaelt, nachdem der Empfaenger alle Ansichten verbraucht hat: `now`/`15m`/`1h`/`24h`, Standard `1h`), `albumKeyEpochMinutes` (0/15/60/180/1440/10080), `albumKeyEpochsAhead` (1-3). Unbekanntes wird ignoriert. Beispiel: `{"pullUpAction":"switcher","statusDirectOnly":true}` |
+| `CLIENT_DEFAULTS` | - | JSON mit Standardwerten fuer Client-Einstellungen, solange ein Nutzer nichts Eigenes gespeichert hat. Erlaubt: `language` (`auto`/`de`/`en`, Sprache fuer alle ohne eigene Wahl), `chatSwitchEnabled`, `chatSwitchStyle` (`bar`/`arrows`/`swipe`), `notifyMatch`, `notifyFlame`, `notifyAdd`, `notifyDiscovery`, `notifyChat`, `notifyProfileView`, `notifyChatEvents` (Benachrichtigungen je Art, Standard an, Profilbesuch aus), `shareProfileViews` (eigene Profilbesuche melden, Standard `false`), `audience` (Startregel fuer "Wer mich im Grid sieht", z. B. `{"ranges":{"age":{"relative":"same"}}}`), `reloadMode` (`full`/`app`: Runterziehen laedt die ganze Seite oder nur die Daten, Standard `full`), `chatPagesByDay` (Chat nach Tagen statt durchgehend, Standard `false`), `inputSwipeClosesChat` (Eingabeleiste nach rechts wischen schliesst den Chat, Standard `true`), `pullUpAction` (`reload`/`next`/`switcher`/`snap`/`album`), `listSwitchEnabled`, `listSwitchBehavior` (`mode`/`view`), `statusDirectOnly`, `hideDiscoveryHistory` (Flirt-Verlauf im normalen Freundes-Chat ausblenden, Standard `true`), `traceWatermark`, `nudityFilter` (Nacktbild-Filter, Standard aus), `mediaDownload` (`friends`/`all`: wer Chat-Bilder und Videos speichern darf, Standard `friends`), `snapSaveable` (Startwert des "speicherbar"-Schalters im Snap-Editor, Standard `true`), `secureSnaps`, `snapNextGesture` (`doubletap`/`swipe`/`swipeup`), `snapExpiry` (Ablauf von Einmal-Snaps nach der ersten Ansicht: `15m`/`30m`/`60m`/`off`, ohne Angabe `30m`), `ownSnapKeep` (wie lange der Absender seine Snaps behaelt, nachdem der Empfaenger alle Ansichten verbraucht hat: `now`/`15m`/`1h`/`24h`, Standard `1h`), `albumKeyEpochMinutes` (0/15/60/180/1440/10080), `albumKeyEpochsAhead` (1-3). Unbekanntes wird ignoriert. Beispiel: `{"pullUpAction":"switcher","statusDirectOnly":true}` |
+| `NUDITY_MODEL` | `nsfwjs` | Erkennungsmodell fuer den Nacktbild-Filter: `nsfwjs` (vom Router ausgeliefert) oder `off` (kein Modell, der Filter wirkt nicht) |
+| `NUDITY_THRESHOLD` | `0.7` | Ab welchem Wert (0.5 bis 0.95) ein Bild unscharf erscheint; hoeher = weniger Fehlalarme, mehr Durchrutscher |
+| `NUDITY_CLASSES` | `Porn,Hentai` | Welche Modell-Klassen zaehlen (Komma-Liste aus `Drawing`, `Hentai`, `Neutral`, `Porn`, `Sexy`); mit `Sexy` strenger |
 | `AUDIENCE_MINIMUM` | - | Mindestwerte fuer "Wer mich im Grid sieht", die der Router in jede Karte in "Entdecken"/"Event" mischt (JSON wie eine Regel, z. B. `{"ranges":{"age":{"min":18}}}`). Wer den Wert nicht angibt, sieht dann niemanden. |
 | `RATE_LIMIT_SCALE` | `1` | Faktor fuer alle Rate-Limits (1 bis 100), nur fuer Tests mit vielen Clients hinter einer IP (die E2E-Tests nutzen 20) |
 | `CREDENTIAL_RETENTION_DAYS` | `180` | Nach so vielen Tagen ohne Registrierung werden Zugangsdaten, Push-Abo, eigene Chat-Kontrollen und wartende Nachrichten eines Peers geloescht (mindestens 7) |
@@ -151,6 +154,12 @@ laufen durch dieselben Tests und bauen das echte Image zur Probe
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | generiert | Optional feste VAPID-Schluessel (base64url); sonst einmalig erzeugt und in SQLite gespeichert |
 | `APP_MODES` | alle | Erlaubte App-Modi, kommagetrennt: `discovery`, `chat`, `friends`, `event`. Z. B. `chat` fuer einen reinen Chat-Server. Sind nur Modi eines Bereichs erlaubt (Entdecken: `discovery`/`event`, Social: `chat`/`friends`), entfaellt die Bereichswahl beim Onboarding |
 | `DEFAULT_APP_MODE` | erster erlaubter | Vorauswahl fuer neue Nutzer |
+| `AGE_CHECK` | `off` | Altersnachweis: `off`, `confirm` (Nutzer bestaetigt "mindestens 18"), `provider` (Nachweis ueber einen Anbieter, siehe `AGE_PROVIDER`). Bis zum Nachweis ist ein Nutzer unsichtbar und bekommt kein Grid |
+| `AGE_PROVIDER` | - | Anbieter fuer `AGE_CHECK=provider`. Enthalten ist nur `dev` (bestaetigt auf Knopfdruck, nur zum Testen); unbekannt = es gilt `confirm` |
+| `EMAIL_CHECK` | `off` | `required`: Nutzer bestaetigen eine E-Mail-Adresse per 6-stelligem Code. Gespeichert wird sie verschluesselt (`SAFETY_KEY`) plus ein HMAC fuer Sperren |
+| `EMAIL_TRANSPORT` | `log` | Versand der E-Mail-Codes. Bisher nur `log` (Code im Server-Log, zum Testen); SMTP folgt |
+| `SAFETY_KEY` | in SQLite erzeugt | 32 Byte (base64 oder hex) fuer E-Mail-Verschluesselung und HMACs. Im Betrieb setzen, damit Schluessel und Daten getrennt liegen |
+| `ABUSE_LOG_DAYS` | `0` | IP-Protokoll fuer Anfragen der Strafverfolgung: Peer-ID, IP und Zeit, so viele Tage (0 = aus, hoechstens 14) |
 | `MEDIA_KEY_EPOCH_MINUTES` | `5` | Laenge einer Schluessel-Epoche fuer Alben und View-once-Snaps (1 bis 10080). 5 ist ein Testwert, im echten Betrieb `180` (3 Stunden). Album-Besitzer koennen pro Album eine eigene Laenge waehlen |
 
 Ohne gesetztes `TURN_SECRET` liefert `/api/ice-config` nur einen STUN-Server,
@@ -190,6 +199,34 @@ terminiert selbst kein TLS.
 Bei Updates mit persistenten Daten-, Token-, Protokoll- oder
 Konfigurationsaenderungen sind die versionsgebundenen Migrationsanweisungen in
 `documentation/SPECE.md` verbindlich zu beachten.
+
+### Nachweise und Sperren
+
+Alters- und E-Mail-Nachweis sowie das IP-Protokoll sind standardmaessig aus
+(`AGE_CHECK`, `EMAIL_CHECK`, `ABUSE_LOG_DAYS`). Ist ein Nachweis verlangt,
+registriert sich ein neuer Nutzer, bleibt aber unsichtbar und bekommt kein
+Grid, bis er ihn erbracht hat. Chats ueber Einladungslinks funktionieren
+weiter. Der Router speichert nur den Status, die E-Mail verschluesselt und bei
+Anbieter-Nachweisen einen HMAC des Pseudonyms, nie Ausweis- oder
+Gesichtsdaten. Echte Anbieter (EU-Altersnachweis, KJM-anerkannte Dienste) und
+SMTP-Versand folgen, siehe `tasks/board.md` (T2).
+
+Sperren und Auskunft (nur auf richterlichen Beschluss) im Container:
+
+```sh
+docker compose exec open-grid node scripts/safety-admin.mjs ban-peer <peerId> [grund]
+docker compose exec open-grid node scripts/safety-admin.mjs ban-email <adresse> [grund]
+docker compose exec open-grid node scripts/safety-admin.mjs access-log <peerId>
+docker compose exec open-grid node scripts/safety-admin.mjs email <peerId>
+```
+
+Der Nacktbild-Filter (`CLIENT_DEFAULTS.nudityFilter`) laeuft nur auf dem
+Geraet des Empfaengers. Das Erkennungsmodell (NSFWJS MobileNetV2, MIT, ca. 3 MB)
+liefert der Router selbst aus; die App laedt es erst, wenn der Nutzer den Filter
+einschaltet. Einstellbar ueber `NUDITY_MODEL`, `NUDITY_THRESHOLD` und
+`NUDITY_CLASSES` (siehe Konfiguration). Im Debug-Modus zeigt Medien > Schutz >
+"Erkennung testen" die Werte fuer eigene Bilder (alles lokal), um die Schwelle
+einzustellen.
 
 ## Club-/LAN-Betrieb
 

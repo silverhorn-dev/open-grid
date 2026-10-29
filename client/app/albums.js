@@ -694,7 +694,7 @@ function renderAlbumMessage(bubble, album, messageId = null) {
     card.className = 'block w-48 sm:w-56 text-left';
     if (album.cover && isSafeInlineImage(album.cover)) {
         card.appendChild(createSecureImage(album.cover, 'w-full aspect-square object-cover rounded-xl mb-1.5 border border-slate-900/50',
-            null, { reuseKey: messageId ? `album-card:${messageId}` : null }));
+            null, { own: album.ownerId === state.myProfile?.id, reuseKey: messageId ? `album-card:${messageId}` : null }));
     }
     const title = document.createElement('div');
     title.className = 'font-semibold';
@@ -787,14 +787,14 @@ function createAlbumManagerItem(album) {
     const first = album.items[0];
     const known = first ? albumManagerCovers.get(first.id) : null;
     if (known) {
-        cover.appendChild(createSecureImage(known, '', null, { reuseKey: `album-cover:${album.id}` }));
+        cover.appendChild(createSecureImage(known, '', null, { own: true, reuseKey: `album-cover:${album.id}` }));
     } else {
         cover.innerHTML = '<i class="fa-solid fa-images"></i>';
         if (first) {
             loadMedia(first.id).then(media => {
                 if (!media?.data || !isSafeInlineImage(media.data)) return;
                 albumManagerCovers.set(first.id, media.data);
-                cover.replaceChildren(createSecureImage(media.data, '', null, { reuseKey: `album-cover:${album.id}` }));
+                cover.replaceChildren(createSecureImage(media.data, '', null, { own: true, reuseKey: `album-cover:${album.id}` }));
             }).catch(() => {});
         }
     }

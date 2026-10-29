@@ -1288,6 +1288,45 @@ nicht mehr im DOM, kommt bei gleicher Quelle genau dieser Canvas zurueck
 (sonst waere ein neuer bis zum asynchronen Zeichnen leer). Das Register
 vergisst ab 150 Eintraegen die aeltesten nicht angezeigten (bis 100).
 
+### 6.4 Nacktbild-Filter (T3, `client/app/nudity.js`)
+
+Standardmaessig aus (`keys`/`nudity-settings = { enabled }`, Router-Standard
+`CLIENT_DEFAULTS.nudityFilter`). `drawSecureImage` fragt fuer jeden Canvas ohne
+`data-own-image` `shouldBlurImage(bitmap, source)`: alle per
+`registerNudityClassifier({ id, classify(bitmap) -> 0..1 })` angemeldeten
+Modelle, der hoechste Wert zaehlt, ab 0,7 wird unscharf gezeichnet (Canvas-
+`filter: blur`, abgedunkelt, Hinweistext). Werte werden je Quelle gemerkt (max.
+200). Ein Tippen (Capture-Listener, stoppt weitere Klick-Handler) zeigt das Bild;
+die Quelle bleibt danach ueberall sichtbar (auch im Betrachter). Fehler eines
+Modells zaehlen als 0. Ohne Modell wirkt der Filter nicht, die Einstellung sagt
+das. Alles lokal, der Server erfaehrt nichts.
+
+Modell (`server/nudity-model.js`, `client/app/nudity-model.js`,
+`client/app/nudity-worker.js`): Der Router liefert NSFWJS MobileNetV2 (MIT,
+Klassen Drawing, Hentai, Neutral, Porn, Sexy; Eingabe 224x224, Gewichte ca.
+2,6 MB) selbst aus, aus dem npm-Paket `nsfwjs` umgepackt in TF.js-Dateien:
+
+| Route | Inhalt |
+|---|---|
+| `GET /vendor/nsfwjs/<version>/nsfwjs.min.js` | Bibliothek inkl. TF.js |
+| `GET /vendor/nsfwjs/<version>/mobilenet_v2/model.json` | Modell-Topologie + Gewichte-Manifest |
+| `GET /vendor/nsfwjs/<version>/mobilenet_v2/group1-shard1of1` | Gewichte (binaer) |
+
+Alle drei mit `Cache-Control: immutable` (Version im Pfad), im SW wie andere
+`/vendor/`-Dateien gecacht. `/api/config` meldet `nudity = { model: 'nsfwjs',
+threshold, classes, library, modelUrl, size }` bzw. `{ model: 'off' }`.
+Konfiguration ueber `NUDITY_MODEL`, `NUDITY_THRESHOLD`, `NUDITY_CLASSES`
+(README). Gibt es ein Modell, meldet `initNudityModel()` einen Klassifikator an;
+der Web Worker samt Bibliothek und Modell startet erst beim ersten zu
+pruefenden Bild (also nur bei eingeschaltetem Filter). Das Bild geht als
+`ImageBitmap`-Kopie in den Worker, wird dort auf 224x224 verkleinert und
+geschlossen; Wert = Summe der Wahrscheinlichkeiten der konfigurierten Klassen,
+unscharf ab `threshold`. Zeitlimit 20 s je Bild (zaehlt dann als 0).
+
+Testseite (Debug-Modus, Medien > Schutz, "Erkennung testen"): eigene Bilder
+waehlen, je Bild Wert, Rechenzeit, Werte aller Klassen und ob der Filter es
+unscharf zeigen wuerde. Alles lokal.
+
 ## 7. Message Queue Cache API
 
 Die Queue dient ausschliesslich als Store-and-Forward-Speicher fuer bereits
@@ -1507,6 +1546,30 @@ Ein Klick auf die Benachrichtigung fokussiert die App und oeffnet den Chat
 (`OPEN_CHAT`) oder startet sie mit `/?chat=<peerId>`.
 
 ## 9.2 Server-Haertung
+
+- Nachweise (T2, `server/safety.js`, `server/safety-store.js`), alles
+  standardmaessig aus:
+  - `AGE_CHECK` (`off`/`confirm`/`provider`), `AGE_PROVIDER` (nur `dev`,
+    unbekannt = `confirm`), `EMAIL_CHECK` (`off`/`required`),
+    `EMAIL_TRANSPORT` (nur `log`), `SAFETY_KEY`, `ABUSE_LOG_DAYS` (0-14).
+  - `GET /api/config` liefert `safety: { ageCheck, ageProvider, emailCheck }`.
+  - `POST /api/register`: gesperrte Peers (`safety_bans`, kind `peer`) -> 403.
+    Fehlt ein Nachweis, wird der Peer `silent` registriert und die Antwort
+    enthaelt `verificationRequired: ['age'|'email']`.
+  - `GET /api/grid`: mit Nachweis-Pflicht nur mit `peerId` + Bearer, fehlende
+    Nachweise -> 403 `{ verificationRequired }`.
+  - `/api/safety/status` (GET), `/api/safety/age/confirm` (`over18: true`),
+    `/api/safety/age/start`, `/api/safety/age/finish` (`payload` an den
+    Anbieter), `/api/safety/email/start` (`email`), `/api/safety/email/confirm`
+    (`code`); alle mit `peerId` + Bearer, Rate-Limit `safety` 20/min.
+  - Tabellen: `safety_verifications` (Peer, Art, Methode, Ablauf, HMAC des
+    Anbieter-Pseudonyms bzw. der E-Mail, E-Mail AES-256-GCM), `safety_email_codes`
+    (HMAC des Codes, 15 min, 5 Versuche), `safety_bans` (`peer`, `email`,
+    `subject`), `abuse_log` (Peer, IP, Zeit; je Peer+IP hoechstens 1/h, aelteres
+    als `ABUSE_LOG_DAYS` geloescht). Verwaiste Identitaeten verlieren ihre
+    Nachweise mit.
+  - Anbieter-Nachweise gelten 365 Tage. Betreiber-Werkzeug:
+    `scripts/safety-admin.mjs`.
 
 - Aufbewahrung: `peer_credentials.last_active_at` wird bei jeder Registrierung
   gesetzt. Stuendlich loescht der Server Peers, die laenger als

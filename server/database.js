@@ -2,6 +2,7 @@ import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { dirname } from 'node:path';
 import { mkdirSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
+import { createSafetyStore } from './safety-store.js';
 
 const GRID_TTL_MS = 10 * 60 * 1000;
 const MIN_GRID_TTL_MS = 1 * 60 * 1000;
@@ -406,6 +407,8 @@ export function createStore(databasePath, { credentialRetentionDays = DEFAULT_CR
     // Seit der Aufbewahrungsfrist nicht mehr registriert: Zugangsdaten, Push-Abo, eigene
     // Chat-Kontrollen und wartende Nachrichten loeschen. Bei Rueckkehr registriert sich der
     // Client mit seinem Signaturschluessel neu.
+    const safety = createSafetyStore(database);
+
     function removeStaleIdentities(now) {
         const stale = statements.listStaleCredentials.all(now - retentionMs);
         if (!stale.length) return 0;
@@ -416,12 +419,15 @@ export function createStore(databasePath, { credentialRetentionDays = DEFAULT_CR
                 statements.deleteOwnerControls.run(peerId);
                 statements.deleteRecipientMessages.run(peerId);
                 statements.deletePeer.run(peerId);
+                safety.removePeer(peerId);
             }
         });
         return stale.length;
     }
 
     return {
+        // Alters-/E-Mail-Nachweise, Sperren, IP-Protokoll (safety-store.js).
+        safety,
         // Profil loeschen (auf Wunsch des Nutzers): Grid-Eintrag (mit Tombstone, damit Karten verschwinden),
         // Zugangsdaten, Push-Abo, eigene Chat-Kontrollen und Nachrichten an ihn. Nachrichten von ihm bleiben
         // bis zur Abholung bzw. zum Ablauf: darunter die Loesch-Hinweise an seine Kontakte.

@@ -791,6 +791,42 @@ Akzeptanzkriterien:
   "Alle Modi anzeigen" schaltet alles wieder ein.
 - Bestehende Nutzer behalten alle Modi.
 
+## UC-46: Nachweis vor der Sichtbarkeit (Betreiber-Option)
+
+**Als Betreiber** moechte ich verlangen koennen, dass Nutzer ihr Alter oder
+eine E-Mail-Adresse nachweisen, bevor sie im Grid sichtbar sind.
+
+Akzeptanzkriterien:
+
+- Standardmaessig aus; einschaltbar per `AGE_CHECK` / `EMAIL_CHECK`.
+- Ohne Nachweis: registriert, aber unsichtbar und ohne Grid; ein Fenster fuehrt
+  durch den Nachweis, wegklicken geht, in den Einstellungen bleibt der Hinweis.
+- Alter: "mindestens 18" bestaetigen oder Nachweis ueber einen Anbieter, der
+  nur "ab 18: ja" liefert.
+- E-Mail: 6-stelliger Code, 15 Minuten gueltig, 5 Versuche; die Adresse liegt
+  nur verschluesselt beim Betreiber.
+- Gesperrte Peers, Adressen und Anbieter-Pseudonyme kommen nicht wieder rein.
+- Optionales IP-Protokoll fuer Anfragen der Strafverfolgung (0-14 Tage).
+
+## UC-47: Nacktbilder unscharf (Empfaenger)
+
+**Als Empfaenger** moechte ich ungefragte Nacktbilder nicht sofort sehen.
+
+Akzeptanzkriterien:
+
+- Einstellung unter Medien > Schutz, standardmaessig aus.
+- Eingehende Bilder werden nur auf dem eigenen Geraet geprueft; moegliche
+  Nacktbilder erscheinen unscharf mit "Tippen zum Ansehen".
+- Der erste Tipp zeigt das Bild, oeffnet aber nichts anderes; danach bleibt es
+  sichtbar, auch im Bildbetrachter.
+- Eigene Bilder werden nie geprueft.
+- Das Erkennungsmodell kommt vom eigenen Router und wird erst geladen, wenn der
+  Filter an ist; der Betreiber legt Modell, Schwelle und Klassen fest.
+- Ohne Modell (`NUDITY_MODEL=off`) sagt die Einstellung, dass der Filter nicht
+  wirkt.
+- Im Debug-Modus lassen sich eigene Bilder testen (Werte je Klasse), ohne dass
+  sie das Geraet verlassen.
+
 ## UC-48: Chat-Bild oder Video speichern oder teilen
 
 **Als Nutzer** moechte ich ein Chat-Bild oder Video herunterladen oder direkt

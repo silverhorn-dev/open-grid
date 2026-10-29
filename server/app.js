@@ -8,6 +8,7 @@ import { createStore } from './database.js';
 import { registerSignalingRoute } from './signaling.js';
 import { loadTranslations, translationScript } from './i18n.js';
 import { infoSiteUrl, registerInfoSite } from './info-site.js';
+import { createSafety, parseSafetyConfig, registerSafetyRoutes } from './safety.js';
 import {
     GRID_PRECISION,
     MAX_GRID_RING,
@@ -29,6 +30,7 @@ import {
     securityHeaders
 } from './security.js';
 import { applyAudienceMinimum, parseAudienceMinimum } from './audience.js';
+import { parseNudityConfig, registerNudityModelRoutes } from './nudity-model.js';
 
 const MAX_GRID_RESULTS = 100;
 // Quoten fuer den Pfad-C-Zwischenspeicher, damit niemand die Queue eines Empfaengers flutet.
@@ -81,6 +83,7 @@ const CLIENT_DEFAULT_RULES = {
     statusDirectOnly: 'boolean',
     hideDiscoveryHistory: 'boolean',
     traceWatermark: 'boolean',
+    nudityFilter: 'boolean',
     mediaDownload: ['friends', 'all'],
     snapSaveable: 'boolean',
     secureSnaps: 'boolean',
@@ -172,6 +175,9 @@ const clientAssetFiles = [
     'app/viewer.js',
     'app/watermark.js',
     'app/secure-canvas.js',
+    'app/nudity.js',
+    'app/nudity-model.js',
+    'app/nudity-worker.js',
     'app/media-rights.js',
     'app/albums.js',
     'app/swarm.js',
@@ -189,6 +195,7 @@ const clientAssetFiles = [
     'app/router.js',
     'app/actions.js',
     'app/push.js',
+    'app/safety.js',
     'app/share-target.js',
     'app/main.js'
 ];
@@ -456,6 +463,16 @@ export async function buildApp(options = {}) {
     // dessen Profil-Schema; der Router mischt sie in jeden Karten-Code.
     const audienceMinimumRule = options.audienceMinimum ?? process.env.AUDIENCE_MINIMUM ?? null;
     const audienceSchemaFor = scope => (scope === 'event' ? profileSchemas.event : null) || profileSchemas.discovery || profileSchema;
+    // Nacktbild-Modell (Board T3): vom Router konfiguriert und ausgeliefert, nur bei eingeschaltetem Filter geladen.
+    const nudityConfig = parseNudityConfig({
+        model: options.nudityModel ?? process.env.NUDITY_MODEL,
+        threshold: options.nudityThreshold ?? process.env.NUDITY_THRESHOLD,
+        classes: options.nudityClasses ?? process.env.NUDITY_CLASSES
+    });
+    const nudityAssets = await registerNudityModelRoutes(app, nudityConfig);
+    const nudityPublicConfig = nudityAssets
+        ? { model: 'nsfwjs', threshold: nudityConfig.threshold, classes: nudityConfig.classes, ...nudityAssets }
+        : { model: 'off' };
     const audienceMinimums = {
         public: parseAudienceMinimum(audienceMinimumRule, audienceSchemaFor('public')),
         event: parseAudienceMinimum(audienceMinimumRule, audienceSchemaFor('event'))
@@ -622,6 +639,22 @@ export async function buildApp(options = {}) {
         return true;
     }
 
+    // Alters-/E-Mail-Nachweis, Sperren, IP-Protokoll (server/safety.js); standardmaessig alles aus.
+    const safety = createSafety({
+        config: parseSafetyConfig(options.safety ?? {
+            ageCheck: process.env.AGE_CHECK,
+            ageProvider: process.env.AGE_PROVIDER,
+            emailCheck: process.env.EMAIL_CHECK,
+            emailTransport: process.env.EMAIL_TRANSPORT,
+            abuseLogDays: process.env.ABUSE_LOG_DAYS,
+            safetyKey: process.env.SAFETY_KEY
+        }),
+        store,
+        log: app.log,
+        now
+    });
+    registerSafetyRoutes(app, { safety, allowRequest, requirePeerAuth, isString });
+
     function verifyRegistrationProof(peerId, registrationId, authToken, proof) {
         if (!proof?.publicKey || !isString(proof.signature, 512)) return false;
         try {
@@ -689,6 +722,9 @@ export async function buildApp(options = {}) {
         if (!existingTokenMatches && !verifyRegistrationProof(peerId, registrationId, authToken, registrationProof)) {
             return reply.code(400).send({ error: 'Invalid registration proof' });
         }
+        if (safety.isPeerBanned(peerId)) return reply.code(403).send({ error: 'Banned' });
+        // Fehlt ein verlangter Nachweis, ist der Peer registriert (Token fuer /api/safety), aber unsichtbar.
+        const missingVerification = safety.missing(peerId);
         const session = {
             peerId,
             registrationId,
@@ -700,7 +736,7 @@ export async function buildApp(options = {}) {
             geohash: geohash.substring(0, GRID_PRECISION),
             thumbnail: thumbnail ? thumbnail.substring(0, 150000) : null,
             name: typeof name === 'string' ? name.substring(0, 100) : 'Peer',
-            silent: silent === true,
+            silent: silent === true || missingVerification.length > 0,
             ttlMs: ttlMinutes != null ? ttlMinutes * 60 * 1000 : undefined,
             scope: peerScope,
             eventHash: peerScope === 'event' ? eventHash : null,
@@ -716,11 +752,13 @@ export async function buildApp(options = {}) {
             return reply.code(403).send({ error: 'Peer identity is already registered' });
         }
         signaling.updatePeerCell(peerId, session.geohash, session.silent || peerScope !== 'public');
+        safety.logAccess(peerId, request.ip);
         return {
             status: 'registered',
             geohash: session.geohash,
             peerId,
-            authToken
+            authToken,
+            ...(missingVerification.length ? { verificationRequired: missingVerification } : {})
         };
     });
 
@@ -748,7 +786,7 @@ export async function buildApp(options = {}) {
     });
     app.post('/api/unregister', unregister);
 
-    app.get('/api/config', async () => ({ modes: appModes, defaultMode: defaultAppMode, profileSchemas, lanMode: isLanMode, clientDefaults, infoUrl: infoSiteUrl(infoHost),
+    app.get('/api/config', async () => ({ modes: appModes, defaultMode: defaultAppMode, profileSchemas, lanMode: isLanMode, clientDefaults, infoUrl: infoSiteUrl(infoHost), safety: safety.publicConfig(), nudity: nudityPublicConfig,
         // Fuer die Anzeige in den Einstellungen ("vom Server vorgegeben").
         audienceMinimum: audienceMinimumRule ? (typeof audienceMinimumRule === 'string' ? JSON.parse(audienceMinimumRule) : audienceMinimumRule) : null }));
 
@@ -773,6 +811,15 @@ export async function buildApp(options = {}) {
         }
         const normalizedGeohash = geohash.substring(0, GRID_PRECISION);
         const origin = decodeGeohash(normalizedGeohash);
+
+        // Mit Nachweis-Pflicht sieht das Grid nur, wer angemeldet und nachgewiesen ist.
+        if (safety.active) {
+            const { peerId } = request.query;
+            if (!isString(peerId, 200)) return reply.code(401).send({ error: 'Peer authentication required' });
+            if (!requirePeerAuth(request, reply, peerId)) return;
+            const missing = safety.missing(peerId);
+            if (missing.length) return reply.code(403).send({ error: 'Verification required', verificationRequired: missing });
+        }
 
         // Freunde in der Naehe: nur gegenseitige Kontakte des anfragenden Peers.
         if (scope === 'friends') {

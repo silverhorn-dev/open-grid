@@ -25,7 +25,7 @@ COPY --chown=opengrid:opengrid server ./server
 COPY --chown=opengrid:opengrid i18n ./i18n
 COPY --chown=opengrid:opengrid info-site ./info-site
 # TURN-Pruefung im laufenden Container: `docker compose exec open-grid node scripts/turn-check.mjs`
-COPY --chown=opengrid:opengrid scripts/turn-check.mjs ./scripts/turn-check.mjs
+COPY --chown=opengrid:opengrid scripts/turn-check.mjs scripts/safety-admin.mjs ./scripts/
 USER opengrid
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \

@@ -30,6 +30,7 @@ export const DEFAULT_RATE_LIMITS = {
     cache: { windowMs: 60_000, max: 120 },
     chatControls: { windowMs: 60_000, max: 30 },
     push: { windowMs: 60_000, max: 10 },
+    safety: { windowMs: 60_000, max: 20 },
     nudge: { windowMs: 60_000, max: 30 },
     websocket: { windowMs: 10_000, max: 300 }
 };

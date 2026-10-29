@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 239 · 2026-10-29
+## Build 241 · 2026-10-29
+- Neu: Chat schliessen per Wisch nach rechts in der Mitte des Verlaufs oder dort, wo keine Nachricht ist (links und rechts davon antwortet man weiter per Wischen auf die Nachricht)
+- Behoben: geloeschte Nachrichten liessen sich per Wischen beantworten bzw. per Geste bedienen
+
+## Build 239 · 2026-10-29 · `7dec233`
 - Neu fuer Betreiber mit Altersnachweis: Entdecken und Event sind nach Alter getrennt (unter 18 und 18+ begegnen sich dort nicht; ohne Nachweis kein Entdecken). Ein Wallet-Nachweis "unter 18" wird jetzt angenommen
 - Neu: Pflicht-Scan fuer Nacktbilder, vom Betreiber waehlbar (fuer unter 18, fuer Chats mit unter 18 oder fuer alle)
 

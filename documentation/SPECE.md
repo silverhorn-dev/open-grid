@@ -226,7 +226,13 @@
   starten (die reagieren auf Tippen), nicht auf fokussierten Textfeldern und
   Reglern; im offenen Chat die Eingabeleiste nach
   rechts wischen = zur Chatliste (`keys`/`chat-swipe-close`, Router-Standard
-  `CLIENT_DEFAULTS.inputSwipeClosesChat`, sonst an); in Einstellungen, offenen
+  `CLIENT_DEFAULTS.inputSwipeClosesChat`, sonst an); dieselbe Einstellung gilt
+  fuer den Verlauf: in einem unsichtbaren Band von 40 px (`CHAT_CLOSE_BAND`) in
+  der Mitte schliesst ein Wisch nach rechts immer, daneben gehoert er der
+  Nachricht auf der Hoehe (Antworten); ohne Nachricht, auf geloeschten und auf
+  eigenen Nachrichten (die man nach links beantwortet) schliesst er als
+  Hintergrund-Geste; geloeschte Nachrichten haben keine Gesten, `startReply`
+  lehnt sie ab; in Einstellungen, offenen
   Fenstern, Menue und offenem Chat verhindert `overscroll-behavior` das
   Neuladen der Seite durch den Browser (das brach sonst z. B. das Wischen im
   Profil ab); Profil- und

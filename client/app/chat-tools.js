@@ -20,6 +20,9 @@ function buildReplyReference(peerId, messageId) {
 }
 
 function startReply(messageId) {
+    // Geloeschte Nachrichten kann man nicht beantworten (vorher per Wischen moeglich).
+    const message = (state.chats[state.activeChatPeerId] || []).find(item => item.id === messageId);
+    if (!message || message.deleted) return;
     state.replyToMessageId = messageId;
     renderReplyBar();
     document.getElementById('chat-input')?.focus();

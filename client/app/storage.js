@@ -677,6 +677,8 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
         const index = state.chats[peerId].findIndex(item => item.id === localOperation.messageId);
         if (index >= 0) state.chats[peerId][index] = deletedMessage;
         else state.chats[peerId].push(deletedMessage);
+        // Offene Antwort auf diese Nachricht: abbrechen (geloeschte Nachrichten beantwortet man nicht).
+        if (state.replyToMessageId === localOperation.messageId && typeof cancelReply === 'function') cancelReply();
     } else if (localOperation.type === 'STATUS_POST' || localOperation.type === 'STATUS_DELETE') {
         // Status gehoeren nicht ins Chat-Log (wie Album-Schluessel).
         return handleStatusOperation(peerId, localOperation);

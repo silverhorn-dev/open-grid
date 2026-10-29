@@ -116,6 +116,54 @@ async function main() {
         await waitFor(page, () => !state.activeChatPeerId, null, 3000);
         await page.evaluate(() => openChatWithPeer('node_fake_gestures'));
         await page.waitForTimeout(400);
+
+        // Verlauf: im unsichtbaren Band in der Mitte nach rechts wischen schliesst den Chat, auch ueber einer
+        // Nachricht; daneben wird die Nachricht auf der Hoehe gewischt (Antworten).
+        // Nach dem Oeffnen laedt der Chat aus der Datenbank; die Testnachrichten liegen nur im Speicher.
+        const restore = async () => {
+            await page.evaluate(async () => {
+                const id = 'node_fake_gestures';
+                await openChatWithPeer(id);
+                state.chats[id] = [1, 2, 3].map(n => ({
+                    id: `m${n}`, senderId: n === 2 ? state.myProfile.id : id, text: `Nachricht ${n}`,
+                    createdAt: Date.now() - (5 - n) * 1000, timestamp: '12:00'
+                }));
+                renderChatHistory();
+            });
+            await page.waitForTimeout(400);
+        };
+        await restore();
+        const history = await page.locator('#chat-messages').boundingBox();
+        const rowOf = async id => page.locator(`#chat-message-${id}`).boundingBox();
+        const m1 = await rowOf('m1');
+        await drag({ x: history.x + history.width / 2, y: m1.y + m1.height / 2 }, 160, 0);
+        await waitFor(page, () => !state.activeChatPeerId, null, 3000);
+        assert.equal(await page.evaluate(() => state.replyToMessageId), null, 'band: no reply');
+        await restore();
+        const m1Again = await rowOf('m1');
+        const sideReply = await replyAfter({ x: history.x + history.width / 2 + 60, y: m1Again.y + m1Again.height / 2 }, 90);
+        assert.equal(sideReply.reply, 'm1', 'right of the band, the message at that height is swiped');
+        assert.equal(await page.evaluate(() => Boolean(state.activeChatPeerId)), true, 'chat stays open');
+        // Eigene Nachricht nach rechts: Hintergrund-Geste schliesst.
+        const m2 = await rowOf('m2');
+        await drag({ x: m2.x + m2.width - 60, y: m2.y + m2.height / 2 }, 160, 0);
+        await waitFor(page, () => !state.activeChatPeerId, null, 3000);
+        await restore();
+        // Geloeschte Nachricht: kein Antworten, das Wischen schliesst den Chat.
+        await page.evaluate(() => {
+            const message = state.chats.node_fake_gestures.find(item => item.id === 'm3');
+            Object.assign(message, { deleted: true, text: '' });
+            renderChatHistory();
+        });
+        await page.waitForTimeout(200);
+        const m3 = await rowOf('m3');
+        await drag({ x: m3.x + 30, y: m3.y + m3.height / 2 }, 160, 0);
+        assert.equal(await page.evaluate(() => state.replyToMessageId), null, 'deleted messages cannot be answered');
+        await waitFor(page, () => !state.activeChatPeerId, null, 3000);
+        await page.evaluate(() => { startReply('m3'); });
+        assert.equal(await page.evaluate(() => state.replyToMessageId), null, 'startReply refuses deleted messages');
+        await restore();
+
         await page.evaluate(() => openProfileModal('node_fake_gestures'));
         await page.waitForTimeout(400);
         const profileTop = await page.locator('#profile-detail-modal > div').boundingBox();

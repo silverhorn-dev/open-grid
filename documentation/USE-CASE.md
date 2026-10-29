@@ -1068,3 +1068,19 @@ Akzeptanzkriterien:
 - Bei "Chats mit unter 18" prueft der Empfaenger Bilder von unter 18 immer; der
   Router erfaehrt dabei nicht, wer unter 18 ist.
 
+## UC-62: Chat per Wischen schliessen (Hintergrund-Geste)
+
+**Als Nutzer** moechte ich einen Chat mit einem Wisch nach rechts schliessen, ohne
+die Eingabeleiste treffen zu muessen.
+
+Akzeptanzkriterien:
+
+- In einem unsichtbaren Band (etwa 1 cm) in der Mitte des Verlaufs schliesst ein
+  Wisch nach rechts den Chat, auch ueber einer Nachricht.
+- Links und rechts davon wird die Nachricht auf dieser Hoehe gewischt (Antworten),
+  wie bisher.
+- Liegt dort keine Nachricht, ist sie geloescht oder ist es eine eigene Nachricht
+  (die man nach links beantwortet), schliesst der Wisch nach rechts den Chat.
+- Geloeschte Nachrichten lassen sich weder beantworten noch per Geste bedienen.
+- Abschaltbar zusammen mit dem Wischen auf der Eingabeleiste.
+

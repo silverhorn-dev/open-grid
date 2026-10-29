@@ -517,6 +517,8 @@
 - [x] album flackert am PC beim oeffnen (nutzer 2026-10-29: "halben epileptischen anfall")
   - ursache: `renderAlbumViewer` leerte bei jedem ankommenden bild/schluessel das raster und baute es bild fuer bild (mit entschluesseln) neu auf; das am PC zentrierte fenster sprang dabei in der hoehe, neue canvas blitzten leer auf (handy: fenster unten verankert, kaum sichtbar)
   - done 2026-10-29: erst vorbereiten, dann in einem schritt tauschen, canvas wiederverwenden (`reuseKey`), nur das neueste zeichnen zaehlt; e2e `album-flicker` (schlaegt auf dem alten code fehl)
+- [x] bug (nutzer 2026-10-29): "man kann auf geloeschte nachrichten reagieren" -> wischen (antworten), langes druecken und doppelt tippen starteten auch auf geloeschten nachrichten; `startReply` prueft jetzt, keine gesten auf geloeschten, offene antwort wird beim loeschen abgebrochen
+- [x] chat per wischen nach rechts schliessen (nutzer 2026-10-29): unsichtbares band (~1 cm, 40 px) in der mitte des verlaufs schliesst immer; daneben wird die nachricht auf der hoehe gewischt; ohne nachricht, auf geloeschten und auf eigenen nachrichten (nach rechts) schliesst die hintergrund-geste; gleiche einstellung wie die eingabeleiste; tests `test/gestures.test.js`, e2e `chat-gestures`; UC-62
 
 ## T25 Admin-Panel (nutzer 2026-10-29: "do the admin panel"; aus dem backlog)
 - [x] entschieden (nutzer 2026-10-29): login per **admin-passkey**; umfang: status, live-config, sperren, meldungen, "most of all, auslastung"

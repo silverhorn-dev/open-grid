@@ -15,6 +15,8 @@
 const GESTURE_LOCK_DISTANCE = 8;
 const REPLY_SWIPE_MAX = 72;
 const REPLY_SWIPE_TRIGGER = 56;
+// Unsichtbares Band in der Mitte des Verlaufs (etwa 1 cm): dort nach rechts wischen schliesst den Chat.
+const CHAT_CLOSE_BAND = 40;
 const LONG_PRESS_MS = 450;
 const DOUBLE_TAP_MS = 300;
 const TAB_SWIPE_TRIGGER = 80;
@@ -56,15 +58,28 @@ const messageGesture = { active: null, lastTap: null, frame: 0 };
 // Wischen startet in der ganzen Zeile, auch im Leerraum neben der Nachricht und auf dem kleinen
 // Aktionen-Pfeil (er sitzt genau dort, wo der Daumen beim Wischen nach rechts ansetzt). Andere
 // Knoepfe, Links und Medien bleiben ausgenommen.
+// Schliessen per Wischen nach rechts (Hintergrund-Geste): im unsichtbaren Band in der Mitte immer, sonst
+// dort, wo keine Nachricht (Zeile) liegt, auf geloeschten Nachrichten und auf eigenen Nachrichten (die
+// werden nach links beantwortet).
 function handleMessagePointerDown(event) {
     if (event.pointerType !== 'touch') return;
+    if (event.target.closest('input, [data-voice-track], [role="slider"]')) return;
+    const container = event.currentTarget;
+    const bounds = container.getBoundingClientRect();
+    if (Math.abs(event.clientX - (bounds.left + bounds.width / 2)) <= CHAT_CLOSE_BAND / 2) {
+        startChatCloseGesture(event);
+        return;
+    }
     const row = event.target.closest('[id^="chat-message-"]');
     const wrap = row?.querySelector('.chat-bubble-wrap');
-    if (!wrap) return;
-    const control = event.target.closest('button, a, input, img, video, canvas, [data-voice-track]');
-    if (control && !control.classList.contains('message-actions-toggle')) return;
     const messageId = messageIdFromRow(row);
-    if (!messageId) return;
+    const message = messageId ? (state.chats[state.activeChatPeerId] || []).find(item => item.id === messageId) : null;
+    if (!wrap || !messageId || message?.deleted) {
+        startChatCloseGesture(event);
+        return;
+    }
+    const control = event.target.closest('button, a, img, video, canvas');
+    if (control && !control.classList.contains('message-actions-toggle')) return;
     const gesture = {
         pointerId: event.pointerId,
         row,
@@ -105,6 +120,7 @@ function renderReplySwipe() {
 }
 
 function handleMessagePointerMove(event) {
+    if (moveChatCloseGesture(event)) return;
     const gesture = messageGesture.active;
     if (!gesture || gesture.pointerId !== event.pointerId || gesture.longPressed) return;
     const deltaX = event.clientX - gesture.startX;
@@ -123,13 +139,76 @@ function handleMessagePointerMove(event) {
         }
     }
     if (gesture.axis !== 'x') return;
+    // Eigene Nachricht nach rechts: gehoert nicht der Nachricht (die geht nach links), also Chat schliessen.
+    if (gesture.isMine && deltaX > 0 && !gesture.offset) {
+        clearTimeout(gesture.longPressTimer);
+        messageGesture.active = null;
+        startChatCloseGesture(event, { startX: gesture.startX, startY: gesture.startY, axis: 'right' });
+        moveChatCloseGesture(event);
+        return;
+    }
     // Nur weg vom Bildschirmrand: fremde Nachrichten nach rechts, eigene nach links.
     const directed = gesture.isMine ? Math.min(0, deltaX) : Math.max(0, deltaX);
     gesture.offset = Math.sign(directed) * Math.min(REPLY_SWIPE_MAX, Math.abs(directed));
     if (!messageGesture.frame) messageGesture.frame = requestAnimationFrame(renderReplySwipe);
 }
 
+// ----- Chat nach rechts wischen = schliessen (Hintergrund-Geste im Verlauf) -----
+const chatCloseGesture = { active: null };
+
+function startChatCloseGesture(event, { startX = event.clientX, startY = event.clientY, axis = null } = {}) {
+    if (!state.chatSwipeClose || !state.activeChatPeerId) return false;
+    chatCloseGesture.active = { pointerId: event.pointerId, container: event.currentTarget, startX, startY, axis, deltaX: 0, startedAt: performance.now() };
+    return true;
+}
+
+function moveChatCloseGesture(event) {
+    const gesture = chatCloseGesture.active;
+    if (!gesture || gesture.pointerId !== event.pointerId) return false;
+    const deltaX = event.clientX - gesture.startX;
+    const deltaY = event.clientY - gesture.startY;
+    if (!gesture.axis) {
+        if (Math.hypot(deltaX, deltaY) < GESTURE_LOCK_DISTANCE * 1.5) return true;
+        gesture.axis = deltaX > 0 && Math.abs(deltaX) > Math.abs(deltaY) * 1.5 ? 'right' : 'other';
+        if (gesture.axis === 'right') {
+            try {
+                gesture.container?.setPointerCapture(event.pointerId);
+            } catch {
+                // Pointer schon weg.
+            }
+        }
+    }
+    if (gesture.axis !== 'right') return true;
+    gesture.deltaX = Math.max(0, deltaX);
+    const view = document.getElementById('view-chat');
+    if (view && !prefersReducedMotion()) {
+        view.style.transition = 'none';
+        view.style.transform = `translate3d(${gesture.deltaX}px, 0, 0)`;
+    }
+    return true;
+}
+
+function finishChatCloseGesture(event, cancelled) {
+    const gesture = chatCloseGesture.active;
+    if (!gesture || gesture.pointerId !== event.pointerId) return false;
+    chatCloseGesture.active = null;
+    if (gesture.axis !== 'right') return true;
+    messageGesture.suppressClickUntil = Date.now() + 400;
+    const view = document.getElementById('view-chat');
+    if (view) {
+        view.style.transition = prefersReducedMotion() ? 'none' : 'transform 180ms ease-out';
+        view.style.transform = '';
+    }
+    const fast = gesture.deltaX / Math.max(1, performance.now() - gesture.startedAt) > 0.5;
+    if (!cancelled && (gesture.deltaX >= TAB_SWIPE_TRIGGER || fast)) {
+        hapticTick();
+        leaveActiveChat();
+    }
+    return true;
+}
+
 function finishMessageGesture(event, cancelled) {
+    if (finishChatCloseGesture(event, cancelled)) return;
     const gesture = messageGesture.active;
     if (!gesture || gesture.pointerId !== event.pointerId) return;
     messageGesture.active = null;

@@ -48,6 +48,12 @@ services:
             { "key": "displayName", "label": { "de": "Anzeigename", "en": "Display name" }, "type": "string", "required": true, "default": "Alex" },
             { "key": "age", "label": { "de": "Alter", "en": "Age" }, "type": "number", "min": 18, "max": 99, "default": 26 },
             { "key": "role", "label": { "de": "Position / Rolle", "en": "Position / Role" }, "type": "select", "options": ["Top", "Bottom", "Versatile", "Side"] },
+            { "key": "height", "label": { "de": "Größe (cm)", "en": "Height (cm)" }, "type": "number", "min": 120, "max": 230 },
+            { "key": "weight", "label": { "de": "Gewicht (kg)", "en": "Weight (kg)" }, "type": "number", "min": 35, "max": 250 },
+            { "key": "bodyType", "label": { "de": "Körperbau", "en": "Body type" }, "type": "select", "options": ["Slim", "Average", "Athletic", "Muscular", "Stocky", "Large"] },
+            { "key": "tribes", "label": { "de": "Tribes", "en": "Tribes" }, "type": "multiselect", "options": ["Bear", "Clean-cut", "Daddy", "Geek", "Jock", "Leather", "Otter", "Rugged", "Trans", "Twink", "Femme"] },
+            { "key": "lookingFor", "label": { "de": "Sucht nach", "en": "Looking for" }, "type": "multiselect", "options": ["Chat", "Dates", "Friends", "Relationship", "Right now", "Networking"] },
+            { "key": "relationship", "label": { "de": "Beziehungsstatus", "en": "Relationship status" }, "type": "select", "options": ["Single", "Dating", "Committed", "Open relationship", "Married", "Partnered"] },
             { "key": "bio", "label": { "de": "Über mich", "en": "About me" }, "type": "description" }
           ],
           "chat": [

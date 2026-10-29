@@ -16,6 +16,8 @@ function loadAlbums({ identity = null, peerKeys = {}, signingKeys = {}, withSwar
     const records = new Map();
     const clock = { ...time };
     const context = {
+        // Hinweise je Art (push.js) laufen hier ueber showToast, das einzelne Tests setzen.
+        notifyInApp: (kind, message, type) => context.showToast?.(message, type),
         state: {
             myProfile: { id: 'me', gallery: [{ id: 'img_public', version: 1 }] },
             albums: {
@@ -282,6 +284,9 @@ test('limited sharing: views are counted per opening, time limits cap the keys, 
     const owner = loadAlbums({ identity: ownerIdentity, peerKeys: { 'peer-allowed': viewerIdentity.jwkPublic }, time: { now: 10 * hour + 5000, epochMs: hour } });
     // Kein Timer bis zum Ende der Begrenzung (der wuerde den Testlauf offen halten).
     owner.context.scheduleAlbumLimitCheck = () => {};
+    const toasts = [];
+    owner.context.showToast = message => toasts.push(message);
+    owner.context.getPeerPresentation = () => ({ name: 'Bob' });
     const album = owner.context.state.albums.alb_1;
     album.keyEpochMinutes = 1440;
     album.keyEpochsAhead = 2;
@@ -293,7 +298,7 @@ test('limited sharing: views are counted per opening, time limits cap the keys, 
     assert.equal(owner.sent.length, before, 'no keys in advance for view-limited people');
 
     // Oeffnen = Anfrage: eine Ansicht, Schluessel nur fuer 15 Minuten.
-    await owner.context.handleAlbumKeyRequest('peer-allowed', { albumId: 'alb_1' });
+    await owner.context.handleAlbumKeyRequest('peer-allowed', { albumId: 'alb_1', viewId: 'view-a' });
     let bundles = owner.sent.at(-1).payload.operation.bundles;
     assert.equal(bundles.length, 1, 'only the current window');
     assert.equal(bundles[0].session, true);
@@ -301,8 +306,13 @@ test('limited sharing: views are counted per opening, time limits cap the keys, 
     assert.equal(album.limits['peer-allowed'].used, 1);
 
     // Erneute Anfrage in derselben Ansicht zaehlt nicht.
-    await owner.context.handleAlbumKeyRequest('peer-allowed', { albumId: 'alb_1' });
+    await owner.context.handleAlbumKeyRequest('peer-allowed', { albumId: 'alb_1', viewId: 'view-a' });
     assert.equal(owner.context.state.albums.alb_1.limits['peer-allowed'].used, 1);
+    // Neu laden und wieder oeffnen (neue viewId) ist eine neue Ansicht, auch vor Ablauf der alten.
+    await owner.context.handleAlbumKeyRequest('peer-allowed', { albumId: 'alb_1', viewId: 'view-b' });
+    assert.equal(owner.context.state.albums.alb_1.limits['peer-allowed'].used, 2, 'reload counts');
+    assert.equal(owner.context.state.albums.alb_1.limits['peer-allowed'].viewId, 'view-b');
+    album.limits['peer-allowed'] = { kind: 'views', views: 2, used: 1, sessionEndsAt: owner.clock.now + 60000, viewId: 'view-a' };
 
     // Schliesst Bob das Album, ist die Ansicht vorbei: das naechste Oeffnen zaehlt sofort.
     await owner.context.handleAlbumViewClosed('peer-allowed', { albumId: 'alb_1' });
@@ -314,6 +324,7 @@ test('limited sharing: views are counted per opening, time limits cap the keys, 
     owner.clock.now += 16 * 60000;
     await owner.context.handleAlbumKeyRequest('peer-allowed', { albumId: 'alb_1' });
     assert.equal(owner.sent.at(-1).payload.type, 'ALBUM_REVOKED', 'all views used: access revoked');
+    assert.ok(toasts.some(text => text.includes('Bob') && text.includes('fertig angesehen')), 'owner is told');
     const revoke = owner.sent.at(-2).payload;
     assert.equal(revoke.type, 'CHAT_OPERATION', 'revoke also goes as a chat operation (Path C when offline)');
     assert.deepEqual([revoke.operation.type, revoke.operation.albumId, revoke.operation.actorId], ['ALBUM_REVOKE', 'alb_1', 'me']);

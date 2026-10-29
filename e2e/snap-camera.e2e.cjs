@@ -150,12 +150,35 @@ async function main() {
         const preview = await bob.evaluate(id => Object.values(state.chats).flat().find(message => message.id === id).snapData.length, originalId);
         assert.ok(preview <= 70000, 'preview stays small');
 
-        // Mehrfachauswahl aus der Galerie: drei Snaps auf einmal.
+        // Mehrfachauswahl aus der Galerie: erst durchsehen (blaettern, eins entfernen), dann alle senden.
         const tinyPng = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
         const beforePick = await bob.evaluate(() => Object.values(state.chats).flat().filter(message => message.snapMode === 'replay').length);
         await openCamera();
-        await alice.setInputFiles('#snap-file-input', [1, 2, 3].map(index => ({ name: `bild${index}.png`, mimeType: 'image/png', buffer: tinyPng })));
+        await alice.setInputFiles('#snap-file-input', [1, 2, 3, 4].map(index => ({ name: `bild${index}.png`, mimeType: 'image/png', buffer: tinyPng })));
+        await alice.waitForSelector('#picked-review-send', { state: 'visible', timeout: 10000 });
+        assert.equal(await alice.locator('.picked-review-thumb').count(), 4, 'all picked images in the strip');
+        assert.match(await alice.textContent('#media-modal-title'), /4 Snaps/);
+        await alice.click('.picked-review-arrow.is-next');
+        assert.equal(await alice.textContent('.picked-review-counter'), '2 / 4');
+        await alice.click('.picked-review-remove');
+        assert.equal(await alice.locator('.picked-review-thumb').count(), 3, 'one removed');
+        // Art pro Bild: das aktuelle als Bild statt Snap; Titel zeigt gemischt.
+        await alice.click('.picked-review-mode[data-mode="image"]');
+        assert.match(await alice.textContent('#media-modal-title'), /^3 senden$/);
+        await alice.click('.picked-review-mode[data-mode="snap"]');
+        assert.match(await alice.textContent('#media-modal-title'), /3 Snaps/);
+        // Bearbeiten im Snap-Editor und zurueck (Schliessen ohne Uebernehmen behaelt alles).
+        await alice.click('.picked-review-edit');
+        await alice.waitForSelector('#snap-review-controls', { state: 'visible', timeout: 5000 });
+        assert.equal((await alice.textContent('#snap-send-btn')).trim(), 'Übernehmen');
+        await alice.click('#snap-send-btn');
+        await alice.waitForSelector('#picked-review-send', { state: 'visible', timeout: 5000 });
+        assert.equal(await alice.locator('.picked-review-thumb').count(), 3, 'still three after editing');
+        assert.notEqual((await alice.textContent('#snap-send-btn')).trim(), 'Übernehmen', 'send button label restored');
+        assert.equal(await alice.evaluate(() => Object.values(state.chats).flat().filter(message => message.snapMode === 'replay' && message.senderId === state.myProfile.id).length > 0), true);
+        await alice.click('#picked-review-send');
         await waitFor(bob, count => Object.values(state.chats).flat().filter(message => message.snapMode === 'replay').length >= count + 3, beforePick, 30000);
+        assert.equal(await alice.isVisible('#media-modal'), false, 'review closed after sending');
 
         // Bob schaut sie hintereinander: Doppeltippen fuehrt zum naechsten, nach dem letzten zu.
         const aliceIdForQueue = await alice.evaluate(() => state.myProfile.id);

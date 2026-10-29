@@ -23,7 +23,7 @@ async function probePeerPresence(peerId) {
 
     // Chat-Partner: Status kommt ohne P2P-Probe vom Server.
     if (peerId in state.peerPresence) {
-        updateProfilePresence(peerId, isPeerOnline(peerId) ? 'online' : 'offline');
+        updateProfilePresence(peerId, { online: 'online', away: 'absent', offline: 'offline' }[presenceStatusOf(peerId)]);
         return;
     }
     updateProfilePresence(peerId, 'checking');
@@ -41,7 +41,10 @@ function openProfileModal(peerId) {
     const peer = state.peers.find(p => p.id === peerId) || getPeerPresentation(peerId);
     if (!peer) return;
 
-    document.getElementById('profile-detail-modal').classList.remove('hidden');
+    const profileModal = document.getElementById('profile-detail-modal');
+    profileModal.classList.remove('hidden');
+    // Immer oben starten: nach unten wischen schliesst nur von ganz oben.
+    profileModal.scrollTop = 0;
     pushModalEntry('profile', hideProfileModal);
     document.getElementById('modal-profile-name').textContent = peer.name || HIDDEN_PEER_NAME;
     document.getElementById('modal-profile-id').textContent = peer.id;
@@ -91,6 +94,8 @@ function openProfileModal(peerId) {
     }, 800);
 
     probePeerPresence(peerId).catch(error => logDebug(`Presence probe failed: ${error.message}`));
+    // Profilbesuch melden (nur wenn erlaubt, push.js).
+    sendProfileView(peerId);
 }
 
 function renderProfileModalData(profile) {
@@ -317,6 +322,7 @@ function updateChatActionButtons() {
     input.disabled = blocked;
     sendButton.disabled = blocked;
     updateChatAlbumButton();
+    updateFlirtButton();
     if (blocked) {
         updateChatConnectionStatus(peerId, t('chat.blocked'), 'bg-red-500/10 text-red-400 border-red-500/30');
         return;
@@ -324,24 +330,40 @@ function updateChatActionButtons() {
     renderChatAllowance();
 }
 
+// Chat loeschen/blockieren: der Partner bekommt CHAT_WIPE. Reihenfolge ist wichtig: die Chat-Steuerung
+// am Server (DELETE_CHAT/BLOCK) loescht alle Router-Nachrichten dieses Chats, also auch einen vorher
+// eingereihten Wipe. Deshalb: offener Kanal -> sofort direkt; dann die Steuerung; danach den Wipe
+// immer ueber Path C einreihen (fuer einen offline Partner bzw. falls der Kanal doch tot war). Doppelt
+// ankommende Wipes ignoriert der Empfaenger (operationId).
+async function wipeChatWithPeer(peerId, action, extra = {}) {
+    const operation = {
+        operationId: `wipe:${window.crypto.randomUUID()}`,
+        type: 'CHAT_WIPE',
+        actorId: state.myProfile.id,
+        createdAt: Date.now(),
+        ...extra
+    };
+    const payload = { type: 'CHAT_OPERATION', operation };
+    const channel = state.dataChannels[peerId];
+    if (channel?.readyState === 'open' && state.sessionKeys[peerId]) {
+        await sendSecurePayload(peerId, payload).catch(logBackgroundError('wipeChatWithPeer'));
+    }
+    // Ungesendetes fuer diesen Chat verwerfen (es wuerde nach dem Wipe noch ankommen).
+    (state.secureMessageQueues[peerId] || []).forEach(item => { item.discarded = true; });
+    state.secureMessageQueues[peerId] = [];
+    await storeChatControl(peerId, action);
+    const queued = await queuePayloadInCache(peerId, { payload, cacheQueued: false }).catch(error => {
+        logDebug(`Chat wipe for ${peerId} could not go through Path C: ${error.message}`);
+        return false;
+    });
+    if (!queued) logDebug(`Chat wipe for ${peerId} not queued in the router cache.`);
+}
+
 async function deleteActiveChat() {
     const peerId = state.activeChatPeerId;
     if (!peerId || !window.confirm(t('chat.deleteThisChatLocallyAnd'))) return;
     try {
-        // Sende den Wipe-Befehl an den Peer, bevor wir den Chat lokal schliessen
-        const operation = {
-            operationId: `wipe:${window.crypto.randomUUID()}`,
-            type: 'CHAT_WIPE',
-            actorId: state.myProfile.id,
-            createdAt: Date.now()
-        };
-        sendSecurePayload(peerId, { type: 'CHAT_OPERATION', operation });
-
-        // Garantiere, dass das Kommando gesendet wird, bevor der Channel gekillt wird
-        if (typeof flushPeerQueueToCache === 'function') await flushPeerQueueToCache(peerId);
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        await storeChatControl(peerId, 'DELETE_CHAT');
+        await wipeChatWithPeer(peerId, 'DELETE_CHAT');
         resetActiveChat('Chat geloescht.');
         showToast(t('chat.andCachedRouterMessages'), 'success');
     } catch (error) {
@@ -376,21 +398,8 @@ async function toggleActivePeerBlock() {
         } else {
             if (!window.confirm(t('chat.blockThisPeerAndDelete'))) return;
 
-            // Sende Wipe-Befehl an den Peer, bevor die lokale Blockierung weitere P2P-Payloads verhindert
-            const operation = {
-                operationId: `wipe:${window.crypto.randomUUID()}`,
-                type: 'CHAT_WIPE',
-                actorId: state.myProfile.id,
-                hidePeer: true,
-                createdAt: Date.now()
-            };
-            sendSecurePayload(peerId, { type: 'CHAT_OPERATION', operation });
-
-            // Garantiere Zustellung ueber Cloud Cache oder P2P, bevor Block aktiv wird
-            if (typeof flushPeerQueueToCache === 'function') await flushPeerQueueToCache(peerId);
-            await new Promise(resolve => setTimeout(resolve, 500));
-
-            await storeChatControl(peerId, 'BLOCK');
+            // Wipe an den Partner (direkt und ueber Path C), dann blockieren.
+            await wipeChatWithPeer(peerId, 'BLOCK', { hidePeer: true });
             showToast(t('chat.peerBlockedPermanently'), 'success');
         }
         updateChatActionButtons();
@@ -469,7 +478,7 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
         downloadable: options.downloadable === 'none' ? 'none'
             : (snapData && options.asImage) || options.video ? state.mediaDownload : undefined,
         // Liste dieses Chats (Grid & Event oder Chat & Freunde), der Empfaenger uebernimmt sie fuer neue Chats.
-        scope: chatScopeOf(peerId) || currentChatScope(),
+        scope: messageScopeFor(peerId),
         timestamp: formatClockTime(Date.now()),
         createdAt: Date.now(),
         deliveredVia: 'Establishing secure channel...'
@@ -478,6 +487,8 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
     if (options.original) await storeOwnOriginal(message.id, options.original.dataUrl);
     if (!state.chats[peerId]) state.chats[peerId] = [];
     state.chats[peerId].push(message);
+    // Chat nach Tagen: nach dem Senden zum heutigen Tag.
+    if (state.chatDayMode) state.chatDay = null;
     rememberChatPeer(peerId);
     await persistChatMessage(peerId, message);
     const operation = createPutOperation(peerId, message);
@@ -501,6 +512,8 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
         }
     }, (deliveryPath, details = {}) => {
         message.deliveredVia = DELIVERY_PATH_LABELS[deliveryPath] || 'E2EE P2P';
+        // Direkt zugestellt, Partner aber abwesend: Benachrichtigung per Push anstossen (push.js).
+        if (deliveryPath === 'p2p') nudgeAwayPeer(peerId, message.scope === 'discovery' ? 'discovery' : 'chat');
         // Path C haelt die Nachricht nur bis zum Ablauf der Queue-TTL.
         if (deliveryPath === 'cache' && details.expiresAt) message.cacheExpiresAt = details.expiresAt;
         persistChatMessage(peerId, message).catch(error => logDebug(`Could not update chat message: ${error.message}`));
@@ -605,6 +618,9 @@ function initChatScroll() {
     container.addEventListener('scroll', () => {
         state.chatPinned = chatDistanceFromBottom(container) <= CHAT_PINNED_PX;
         updateChatJumpButton();
+        // Oben angekommen: die naechste Seite aelterer Nachrichten dazu.
+        if (container.scrollTop < 80 && state.chatOlderCount) loadOlderChatMessages();
+        updateFlirtTabCollapse(container);
     }, { passive: true });
     // Canvas-Bilder bekommen ihre Groesse erst nach dem Zeichnen: unten bleiben, wenn man dort war.
     new MutationObserver(() => {
@@ -616,8 +632,17 @@ function renderChatHistory() {
     const container = document.getElementById('chat-messages');
     if (!container || !state.activeChatPeerId) return;
     // Zurueckgehaltene Nachrichten (Chat-Berechtigungen) erscheinen erst nach einem Match.
-    const allMessages = (state.chats[state.activeChatPeerId] || []).filter(message => !message.held);
-    const msgs = filterChatMessages(allMessages);
+    const peerMessages = state.chats[state.activeChatPeerId] || [];
+    // Flirt-Teil im Freundes-Chat: nur im Flirt-Modus bzw. bei abgeschalteter Einstellung (friends.js).
+    const allMessages = peerMessages.filter(message => !message.held
+        && !isDiscoveryMessageHidden(state.activeChatPeerId, message));
+    const filtering = Boolean(state.chatSearch) || state.chatStarredOnly;
+    // Seiten: nur die letzten Nachrichten bzw. ein Tag (chat-tools.js).
+    const page = chatHistoryWindow(filterChatMessages(allMessages), filtering);
+    const msgs = page.messages;
+    state.chatOlderCount = page.older;
+    const markFlirt = isFlirting(state.activeChatPeerId);
+    updateFlirtButton();
     // Wer nicht unten klebt, behaelt seine Position (der Inhalt darueber bleibt gleich).
     const previousScrollTop = container.scrollTop;
     container.innerHTML = '';
@@ -629,14 +654,31 @@ function renderChatHistory() {
         showEmptyState(container, { icon: 'fa-magnifying-glass', text: t('chat.noMatchingMessages'), compact: true });
         return;
     }
-    const filtering = Boolean(state.chatSearch) || state.chatStarredOnly;
+    if (page.older) {
+        const older = document.createElement('button');
+        older.type = 'button';
+        older.className = 'chat-load-older';
+        older.textContent = t('chat.loadOlderMessages', { count: page.older });
+        older.onclick = loadOlderChatMessages;
+        container.appendChild(older);
+    }
     msgs.forEach(message => {
+        // Systemzeile (z. B. "Profil wurde geloescht", account.js): mittig, ohne Blase und Aktionen.
+        if (message.system) {
+            const note = document.createElement('div');
+            note.id = `chat-message-${message.id}`;
+            note.className = 'chat-system-note';
+            note.textContent = message.text;
+            container.appendChild(note);
+            return;
+        }
         const isMine = message.senderId === state.myProfile.id;
         const row = document.createElement('div');
         row.id = `chat-message-${message.id}`;
         row.className = `flex flex-col ${isMine ? 'items-end' : 'items-start'}`;
         if (message.replyTo && !message.deleted) row.appendChild(renderReplyQuote(message.replyTo, isMine));
         const bubble = document.createElement('div');
+        if (markFlirt && message.scope === 'discovery' && !message.deleted) row.classList.add('flirt-message');
         bubble.className = `chat-bubble whitespace-pre-wrap wrap-break-word max-w-[80%] rounded-2xl px-4 py-2 overflow-hidden ${message.deleted ? 'bg-slate-900 text-slate-500 border border-slate-800 italic' : isMine ? 'bg-brand-600 text-white rounded-br-none' : 'bg-slate-800 text-slate-100 rounded-bl-none'}`;
 
         if (message.deleted) {
@@ -711,6 +753,8 @@ function renderChatHistory() {
         // Bubble + Aktionsleiste, die zur Haelfte ueber der Nachricht sitzt.
         const bubbleWrap = document.createElement('div');
         bubbleWrap.className = `chat-bubble-wrap ${isMine ? 'is-mine' : 'is-theirs'} relative max-w-[80%] flex ${isMine ? 'justify-end' : 'justify-start'}`;
+        // Neu gezeichnet unter der Maus: Leiste sofort wieder zeigen (sonst flackert sie, chat-tools.js).
+        if (message.id === state.hoveredMessageId) bubbleWrap.classList.add('is-hovered');
         bubble.classList.remove('max-w-[80%]');
         bubbleWrap.appendChild(bubble);
         if (!message.deleted) bubbleWrap.appendChild(renderMessageActions(message, isMine, row));

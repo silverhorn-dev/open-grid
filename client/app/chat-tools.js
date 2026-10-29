@@ -52,11 +52,135 @@ function renderReplyQuote(replyTo, isMine) {
 }
 
 function scrollToChatMessage(messageId) {
-    const target = document.getElementById(`chat-message-${messageId}`);
+    let target = document.getElementById(`chat-message-${messageId}`);
+    // Nicht gezeichnet (aelter als die geladene Seite bzw. anderer Tag): erst dorthin.
+    if (!target && revealChatMessage(messageId)) target = document.getElementById(`chat-message-${messageId}`);
     if (!target) return;
     target.scrollIntoView({ behavior: 'smooth', block: 'center' });
     target.classList.add('chat-message-highlight');
     setTimeout(() => target.classList.remove('chat-message-highlight'), 1500);
+}
+
+// ----- Verlauf in Seiten -----
+// Lange Chats zeichnen nicht alles: durchgehend nur die letzten CHAT_RENDER_PAGE Nachrichten, oben
+// angekommen kommen die naechsten dazu (ohne Springen). Oder als Option "Chat nach Tagen": eine Leiste
+// unter der Kontaktleiste zeigt den Tag, Pfeile bzw. seitlich wischen wechseln zu Tagen mit Nachrichten.
+// Suche und "nur markierte" durchsuchen immer den ganzen Verlauf.
+const CHAT_RENDER_PAGE = 150;
+const CHAT_VIEW_RECORD_ID = 'chat-view';
+
+async function loadChatViewSetting() {
+    const stored = await databaseRequest('keys', 'readonly', store => store.get(CHAT_VIEW_RECORD_ID)).catch(() => null);
+    state.chatDayMode = typeof stored?.byDay === 'boolean' ? stored.byDay : clientDefault('chatPagesByDay', false) === true;
+    const toggle = document.getElementById('chat-by-day-toggle');
+    if (toggle) toggle.checked = state.chatDayMode;
+}
+
+async function updateChatViewSetting(byDay) {
+    state.chatDayMode = Boolean(byDay);
+    state.chatDay = null;
+    await putDatabaseRecord('keys', { id: CHAT_VIEW_RECORD_ID, byDay: state.chatDayMode })
+        .catch(error => logDebug(`Could not store chat view setting: ${error.message}`));
+    if (state.activeChatPeerId) renderChatHistory();
+}
+
+function chatDayKey(timestamp) {
+    const date = new Date(Number(timestamp) || 0);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function chatDayLabel(dayKey) {
+    const [year, month, day] = dayKey.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    if (dayKey === chatDayKey(Date.now())) return t('chat.today');
+    if (dayKey === chatDayKey(Date.now() - 86400000)) return t('grid.yesterday');
+    const options = { weekday: 'short', day: 'numeric', month: 'short' };
+    if (year !== new Date().getFullYear()) options.year = 'numeric';
+    return date.toLocaleDateString(document.documentElement.lang || undefined, options);
+}
+
+// Welche Nachrichten gezeichnet werden: { messages, older } (older = nicht gezeichnete aeltere).
+function chatHistoryWindow(messages, filtering) {
+    const bar = document.getElementById('chat-day-bar');
+    if (state.chatDayMode && !filtering && messages.length) {
+        const days = [...new Set(messages.map(message => chatDayKey(message.createdAt)))];
+        if (!days.includes(state.chatDay)) state.chatDay = days[days.length - 1];
+        renderChatDayBar(days);
+        return { messages: messages.filter(message => chatDayKey(message.createdAt) === state.chatDay), older: 0 };
+    }
+    bar?.classList.add('hidden');
+    const older = Math.max(0, messages.length - state.chatRenderLimit);
+    return { messages: older ? messages.slice(older) : messages, older };
+}
+
+function renderChatDayBar(days) {
+    const bar = document.getElementById('chat-day-bar');
+    if (!bar) return;
+    bar.classList.remove('hidden');
+    const index = days.indexOf(state.chatDay);
+    document.getElementById('chat-day-label').textContent = chatDayLabel(state.chatDay);
+    const prev = document.getElementById('chat-day-prev');
+    const next = document.getElementById('chat-day-next');
+    if (prev) prev.disabled = index <= 0;
+    if (next) next.disabled = index >= days.length - 1;
+    state.chatDays = days;
+}
+
+function stepChatDay(direction) {
+    const days = state.chatDays || [];
+    const index = days.indexOf(state.chatDay) + direction;
+    if (index < 0 || index >= days.length) return;
+    state.chatDay = days[index];
+    // Neuer Tag: oben anfangen ausser beim neuesten (dort wie gewohnt unten).
+    state.chatPinned = index === days.length - 1;
+    renderChatHistory();
+    const container = document.getElementById('chat-messages');
+    if (container && !state.chatPinned) container.scrollTop = 0;
+}
+
+// Aeltere Nachrichten dazuladen, Position halten (oben angekommen bzw. Knopf).
+function loadOlderChatMessages() {
+    const container = document.getElementById('chat-messages');
+    if (!container || !state.chatOlderCount) return;
+    const fromBottom = container.scrollHeight - container.scrollTop;
+    state.chatRenderLimit += CHAT_RENDER_PAGE;
+    renderChatHistory();
+    container.scrollTop = container.scrollHeight - fromBottom;
+}
+
+// Nachricht ausserhalb der gezeichneten Seite/des Tages sichtbar machen; true, wenn neu gezeichnet.
+function revealChatMessage(messageId) {
+    const messages = state.chats[state.activeChatPeerId] || [];
+    const index = messages.findIndex(message => message.id === messageId);
+    if (index < 0) return false;
+    if (state.chatDayMode) {
+        state.chatDay = chatDayKey(messages[index].createdAt);
+    } else {
+        state.chatRenderLimit = Math.max(state.chatRenderLimit, messages.length - index + 20);
+    }
+    state.chatPinned = false;
+    renderChatHistory();
+    return true;
+}
+
+function initChatDayBar() {
+    const bar = document.getElementById('chat-day-bar');
+    if (!bar) return;
+    let start = null;
+    bar.addEventListener('touchstart', event => {
+        start = event.touches.length === 1 ? { x: event.touches[0].clientX, y: event.touches[0].clientY } : null;
+    }, { passive: true });
+    bar.addEventListener('touchend', event => {
+        if (!start) return;
+        const touch = event.changedTouches[0];
+        const deltaX = touch.clientX - start.x;
+        const deltaY = touch.clientY - start.y;
+        start = null;
+        if (Math.abs(deltaX) < 40 || Math.abs(deltaX) < Math.abs(deltaY) * 1.5) return;
+        hapticTick();
+        // Nach rechts wischen = frueherer Tag (wie Blaettern).
+        stepChatDay(deltaX > 0 ? -1 : 1);
+    }, { passive: true });
 }
 
 // ----- Kontextmenue einer Nachricht -----
@@ -239,6 +363,26 @@ async function openChatImageViewer(messageId) {
     openImageViewer(images, snaps.findIndex(message => message.id === messageId), { allowSave: snaps.map(canDownloadMedia) });
 }
 
+// Desktop: welche Nachricht liegt unter der Maus? Zeichnet sich der Verlauf neu (Status, Praesenz ...),
+// verliert das neue Element kurz sein :hover und die Leiste blendete von 0 ein (Flackern). Mit der
+// gemerkten ID bekommt die neu gezeichnete Nachricht die Leiste sofort ohne Ueberblenden.
+function initMessageHoverTracking() {
+    const container = document.getElementById('chat-messages');
+    if (!container || !window.matchMedia?.('(hover: hover)').matches) return;
+    container.addEventListener('mouseover', event => {
+        const wrap = event.target.closest?.('.chat-bubble-wrap');
+        const row = wrap?.closest('[id^="chat-message-"]');
+        const id = row ? row.id.slice('chat-message-'.length) : null;
+        if (id === state.hoveredMessageId) return;
+        container.querySelectorAll('.chat-bubble-wrap.is-hovered').forEach(element => element.classList.remove('is-hovered'));
+        state.hoveredMessageId = id;
+    });
+    container.addEventListener('mouseleave', () => {
+        state.hoveredMessageId = null;
+        container.querySelectorAll('.chat-bubble-wrap.is-hovered').forEach(element => element.classList.remove('is-hovered'));
+    });
+}
+
 // Desktop: beim Hovern eine kleine Leiste (Antworten, Reagieren, mehr). Touch: nur der Pfeil in der
 // Ecke; beide oeffnen das Kontextmenue.
 function renderMessageActions(message, isMine) {
@@ -367,6 +511,8 @@ function setChatStarredOnly(enabled) {
 
 function resetChatTools() {
     state.replyToMessageId = null;
+    state.chatRenderLimit = CHAT_RENDER_PAGE;
+    state.chatDay = null;
     state.chatSearch = '';
     state.chatStarredOnly = false;
     document.getElementById('chat-search-bar')?.classList.add('hidden');
@@ -409,15 +555,21 @@ function renderChatPeerIndicator() {
     if (!dot || !status) return;
     const peerId = state.activeChatPeerId;
     const online = Boolean(peerId) && isPeerOnline(peerId) && !isPeerBlocked(peerId);
-    const watching = online && isSecureChannelOpen(peerId) && Boolean(state.peerChatFocus[peerId]);
+    // Abwesend (App nicht sichtbar) geht vor "hat den Chat offen": wer weg ist, schaut nicht zu.
+    const away = online && isPeerAway(peerId);
+    const watching = online && !away && isSecureChannelOpen(peerId) && Boolean(state.peerChatFocus[peerId]);
     dot.classList.toggle('hidden', !online);
     const sameNetwork = online && state.peerTransport[peerId] === 'lan' ? t('chat.onSameWiFi') : '';
     const presence = peerId ? presenceTextOf(peerId) : '';
     const presenceSuffix = presence ? ` · ${presence}` : '';
-    const state_ = !peerId ? '' : watching ? `\u{1F440} ${t('chat.hasChatOpen')}` : online ? t('chat.online') : t('chat.offline2');
+    const state_ = !peerId ? '' : watching ? `\u{1F440} ${t('chat.hasChatOpen')}` : away ? t('chat.away') : online ? t('chat.online') : t('chat.offline2');
     status.textContent = peerId ? `${state_}${online ? sameNetwork : ''}${presenceSuffix}` : '';
-    status.classList.toggle('text-emerald-400', online);
+    status.classList.toggle('text-emerald-400', online && !away);
+    status.classList.toggle('text-amber-400', away);
     status.classList.toggle('text-slate-400', !online);
+    dot.classList.toggle('bg-emerald-400', !away);
+    dot.classList.toggle('bg-amber-400', away);
+    dot.title = away ? t('chat.away') : t('common.online');
 }
 
 function toggleChatHeaderMenu(event) {
@@ -470,8 +622,9 @@ function receiveChatFocus(peerId, open) {
 // Easteregg: lange auf "Snap" druecken zeigt ihn fuer diesen Chat (ohne die Kamera zu oeffnen).
 const SNAP_LONG_PRESS_MS = 600;
 
+// Im Flirt-Modus (friends.js) gilt der Freundes-Chat wie ein Entdecken-Chat.
 function isSocialChat(peerId) {
-    return (chatScopeOf(peerId) || currentChatScope()) === 'social';
+    return (chatScopeOf(peerId) || currentChatScope()) === 'social' && !isFlirting(peerId);
 }
 
 function updateChatAlbumButton() {

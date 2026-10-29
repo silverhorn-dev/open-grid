@@ -6,7 +6,113 @@ Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unte
 - Fuer Betreiber (standardmaessig aus): Alters- oder E-Mail-Nachweis, bevor jemand im Grid sichtbar wird; Sperren und ein kurzes IP-Protokoll fuer Anfragen der Strafverfolgung
 - Neue Einstellung "Nacktbilder unscharf" (Medien > Schutz, standardmaessig aus): moegliche Nacktbilder erscheinen unscharf, bis du tippst; geprueft wird nur auf deinem Geraet. Das Erkennungsmodell folgt noch
 
-## Build 164 · 2026-10-28
+## Build 200 · 2026-10-29
+- Behoben: Chrome bot fuer die deutsche bzw. englische Oberflaeche faelschlich eine Uebersetzung an; andere Sprachen koennen die Oberflaeche jetzt uebersetzen lassen, Chats und Profile bleiben davon ausgenommen
+- Behoben: Runterziehen zum Neuladen in der Chatliste klappte schlecht (die Browser-Geste kam dazwischen); im eigenen Profil geht es jetzt auch
+- "Nur zeigen fuer" laesst sich per Schalter aus- und einschalten, ohne die Auswahl zu verlieren
+
+## Build 198 · 2026-10-28 · `50be4d7`
+- Neu: Profil loeschen (Einstellungen > Allgemein). Loescht dein Profil auf dem Server und alles auf dem Geraet; bei deinen Kontakten verschwinden Verlauf und Bilder, dort steht dann "Profil wurde geloescht" (auch wenn sie gerade offline sind)
+
+## Build 197 · 2026-10-28 · `c61fb9b`
+- Interaktionen: eine Zeile pro Person, neueste Aktivitaet oben ("hat dir eine Flamme geschickt · 3× dein Profil angesehen")
+- Behoben: "Nur zeigen fuer" hatte keine waehlbaren Felder, wenn die App im Chat-Modus gestartet war
+
+## Build 195 · 2026-10-28 · `06dabdd`
+- Neu laden einstellbar (Einstellungen > Allgemein > Erweitert): ganze Seite (Standard) oder nur die Daten. Gilt fuer Runterziehen im Grid und in der Chatliste (neu) und Hochziehen im Chat; bei "Nur Daten" laedt "Seite neu laden" im Menue die ganze Seite
+- Behoben: beim Aktualisieren des Grids stapelten sich Hinweise
+
+## Build 194 · 2026-10-28 · `2d8bf30`
+- Profil in "Entdecken": neue Felder Groesse, Gewicht, Koerperbau, Tribes, Sucht nach und Beziehungsstatus; Mehrfachauswahlen waehlst du jetzt bequem als Chips
+- Behoben: Einrichtungs- und Profilfenster, die hoeher als der Bildschirm sind, liessen sich oben nicht erreichen (der Anfang lag ausserhalb)
+- "Nur zeigen fuer" steht jetzt unter Einstellungen > Privatsphaere > Sichtbarkeit im Grid, uebersichtlicher, und gilt fuer Alter und alle Auswahlfelder
+
+## Build 193 · 2026-10-28 · `6bf216a`
+- "Wer mich im Grid sieht": auch relativ zu dir moeglich (Alter wie ich, aelter oder juenger als ich; Auswahlfelder wie ich), passt sich an, wenn du dein Profil aenderst
+- Betrieb: Startregel fuer neue Nutzer (`CLIENT_DEFAULTS.audience`) und Mindestwerte, die der Router in jede Karte setzt (`AUDIENCE_MINIMUM`, z. B. ab 18)
+
+## Build 192 · 2026-10-28 · `166277f`
+- Grid aufgeraeumt: die Bereiche stehen oben, mit Anzahl (Grid, Matches); die Kachel "In deiner Naehe" ist jetzt eine schmale Zeile. Aktualisieren durch Herunterziehen, auch in der installierten App auf dem iPhone
+
+## Build 191 · 2026-10-28 · `b3bcfb0`
+- Neu: "Wer mich im Grid sieht" (Einstellungen > Privatsphaere): zeig dich nur Leuten, deren Profil passt, z. B. nur bestimmte Positionen oder ein Altersbereich. Der Router bekommt nur einen kurzen Code der Regel; geprueft wird in der App der anderen
+
+## Build 190 · 2026-10-28 · `38acaad`
+- Seitlich durch Profile wischen ist jetzt animiert: die Karte folgt dem Finger und das naechste Profil gleitet herein
+- Grid: geaenderte Profile werden beim Vorladen erkannt (der Router kennt nur die Versionsnummer) und neu geholt; unveraenderte, schon bekannte Profile kosten keine Anfrage mehr
+
+## Build 189 · 2026-10-28 · `6a2c55d`
+- Grid-Filter (Pfeil-Knopf neben den Grid-Bereichen): Entfernung, nur mit Foto, Alter und Auswahlfelder aus dem Profil. Gefiltert wird nur auf deinem Geraet; wessen Profil noch nicht geladen ist, steht als "unbekannt" hinten
+- Im geoeffneten Profil wischst du seitlich zum naechsten Profil (am PC Pfeiltasten)
+
+## Build 188 · 2026-10-28 · `b3bfbed`
+- Grid in drei Bereichen (in "Entdecken"): Grid, Interaktionen (wer dir eine Flamme geschickt oder dein Profil angesehen hat, mit "Flamme zurueck") und Matches (noch nicht angeschriebene oben). Die Interaktionen liegen nur auf deinem Geraet
+
+## Build 181 · 2026-10-28 · `5fb8dcd`
+- Mehrere Bilder senden: in der Durchsicht pro Bild Snap, Bild oder Secure Snap waehlen und einzelne Bilder im Editor bearbeiten
+- Betrieb: Standardwerte fuer die Benachrichtigungs-Schalter per `CLIENT_DEFAULTS` (`notifyMatch` ... `notifyChatEvents`, `shareProfileViews`)
+
+## Build 180 · 2026-10-28 · `a25c3b1`
+- Lange Chats oeffnen schneller: zuerst die letzten 150 Nachrichten, beim Hochscrollen kommen aeltere dazu
+- Neu: "Chat nach Tagen" (Einstellungen > Chat): unter der Kontaktleiste blaetterst du mit Pfeilen oder Wischen Tag fuer Tag
+
+## Build 179 · 2026-10-28 · `e830517`
+- Benachrichtigungen einzeln einstellbar (Einstellungen > Chat > Benachrichtigungen): Match, Flamme, Adden, Nachrichten aus "Entdecken" und aus "Chat & Freunde", Profilbesuche und Chat-Ereignisse. Jeder Schalter gilt fuer Push und Hinweise in der App
+- Flammen, Matches und Freundschaftsanfragen melden sich jetzt auch, wenn die App geschlossen ist
+- Neu: Profilbesuche in "Entdecken" (beidseitig freiwillig): nur wenn der Besucher "Meine Profilbesuche zeigen" einschaltet und du "Profilbesuch" an hast, hoechstens alle 6 Stunden pro Person
+
+## Build 178 · 2026-10-28 · `a407c50`
+- Flirt-Knopf: scrollst du im Chat weit nach oben, faehrt er zu einem schmalen Streifen ein und stoert beim Lesen nicht; tippen darauf oder ins Eingabefeld holt ihn zurueck, unten ist er von selbst wieder da. Er liegt jetzt auch nicht mehr hinter den Pfeilen der Nachrichten
+- Wischen im eigenen Profil klappt jetzt auch, wenn der Finger auf einem Eingabefeld startet
+- Behoben: im Chat am Ende hochziehen flackerte die Anzeige darunter
+- Mehrere Bilder aus der Galerie: vor dem Senden alle durchsehen (wischen oder Pfeile), einzelne entfernen, dann "Alle senden"
+- Behoben: Chatliste, Chat-Wechsler und Profil zeigten "Abwesend" noch nicht (nur gruen oder offline); jetzt mit gelbem Punkt
+
+## Build 177 · 2026-10-28 · `2317cb8`
+- Eingabeleiste aufgeraeumt: die Flamme sitzt genau ueber dem Senden-Knopf und gehoert sichtbar zur Leiste; das Medien-Menue im Flirt-Modus sieht aus wie das Chat-Menue (Album teilen, Video senden). Den Eintrag "Foto aus der Galerie" gibt es nicht mehr (er fuehrte ins Snap-Menue)
+
+## Build 176 · 2026-10-28 · `1f3a9b4`
+- Wischen: Seitenmenue nach rechts schliesst es; Einstellungen am ersten Bereich nach rechts schliessen; im Chat die Eingabeleiste nach rechts wischen fuehrt zur Chatliste (abschaltbar unter Einstellungen > Chat); Wischen klappt jetzt auch, wenn der Finger auf einem Schalter oder einer Auswahl startet
+- Behoben: Profil im Chat liess sich im Browser oft nicht nach unten wegwischen (der Browser wollte stattdessen die Seite neu laden)
+- Neuer Status "Abwesend": ist deine App im Hintergrund (Handy weggewischt, Tab am PC nicht sichtbar), sehen deine Kontakte "Abwesend" statt "online"
+- Behoben: lief die App im Hintergrund noch, kamen Nachrichten zwar an, aber ohne Benachrichtigung. Jetzt stoesst der Absender dann eine Benachrichtigung an (ohne Inhalt, nur wer geschrieben hat)
+
+## Build 175 · 2026-10-28 · `f15cfc1`
+- Flirt-Knopf: hoeher und auf der Oberkante der Eingabeleiste, die Antwort-Leiste liegt jetzt darunter statt verdeckt; der Punkt zeigt jede neue Flirt-Nachricht, nicht nur die letzte; das Eingabefeld behaelt beim Umschalten den Fokus
+- Flirt-Modus: Album und Video stecken hinter einem Medien-Knopf, der nach oben aufklappt (dazu Foto aus der Galerie)
+- Behoben: am PC flackerte die Leiste an Nachrichten beim Darueberfahren
+
+## Build 174 · 2026-10-28 · `aae8e7c`
+- Flirt-Knopf neu: kleine Flamme ueber dem Senden-Knopf statt oben im Chat. Tippen schaltet den Flirt-Modus (Flamme und Senden werden zu einem Block, das Eingabefeld zeigt "Flirt-Nachricht…"), Senden lange druecken schickt nur diese Nachricht als Flirt, die Flamme lange druecken blendet sie fuer diesen Chat aus (zurueck ueber ⋮). Abschaltbar unter Einstellungen > Chat > Nach dem Adden
+
+## Build 173 · 2026-10-28 · `e56bb82`
+- Wischen: im Profil nach links oeffnet das Menue; in den Einstellungen blaetterst du seitlich durch die Bereiche (nicht auf Schaltern und Reglern) und verlaesst sie, indem du oben nach unten ziehst
+- Behoben: nach Neu laden kam das Ende einer 1x/2x/3x-Album-Ansicht manchmal nicht beim Besitzer an (beim Start war die App noch nicht beim Router angemeldet)
+
+## Build 172 · 2026-10-28 · `f7d9dd8`
+- Album-Ansicht: nach unten wischen schliesst erst nach einem deutlich laengeren Zug (vorher waren 1x-Alben schnell aus Versehen vorbei); ab der Schwelle wird das Fenster leicht durchsichtig, loslassen schliesst
+- Profile im Chat lassen sich weiterhin per Wischen nach unten schliessen (oben im Fenster)
+
+## Build 171 · 2026-10-28 · `716c5cd`
+- Behoben: bei Alben mit 1x/2x/3x ansehen merkte der Besitzer oft nicht, dass alle Ansichten verbraucht waren, und die Person blieb in den Album-Einstellungen stehen. Jetzt kommt das Ende auch ohne direkte Verbindung an, und du bekommst den Hinweis "X hat ... fertig angesehen"
+
+## Build 170 · 2026-10-28 · `50c40dd`
+- Behoben: einen Chat loeschen oder blockieren kam beim Partner nicht an, wenn er gerade offline war; sein Chat blieb stehen. Jetzt erreicht ihn die Loeschung beim naechsten Oeffnen der App
+- Behoben: die Flamme (Flirt-Modus) erschien auch in Chats, in denen nie geflirtet wurde; jetzt nur noch bei Match und Nachrichten aus "Entdecken"
+
+## Build 169 · 2026-10-28 · `b16cd7d`
+- Behoben: Alben mit 1x/2x/3x ansehen liessen sich nach dem Oeffnen per Neu laden erneut ansehen, ohne dass es zaehlte; jetzt zaehlt jedes Oeffnen, und eine durch Neu laden unterbrochene Ansicht endet beim naechsten Start
+
+## Build 168 · 2026-10-28 · `02cc811`
+- Flirt-Modus: in Freundes-Chats, die aus einem Match kommen, schaltet die Flamme oben im Chat zwischen normal und Flirt. Im Flirt-Modus siehst du alles und schreibst Flirt-Nachrichten; im normalen Chat bleibt der Flirt verborgen, ein Punkt an der Flamme zeigt neue Flirt-Nachrichten. Ersetzt die Zeile "Entdecken-Verlauf ausgeblendet"
+
+## Build 166 · 2026-10-28 · `f6c1576`
+- Nach dem Adden bleibt es ein Chat, aber der Flirt aus "Entdecken" ist im Freundes-Chat erst einmal ausgeblendet; oben im Chat kannst du ihn jederzeit einblenden. Abschaltbar unter Einstellungen > Chat > Nach dem Adden
+
+## Build 165 · 2026-10-28 · `3f86068`
+- Behoben: wer einer Einladung aus "Entdecken" folgte, konnte schreiben, obwohl der andere nur Matches zulaesst; die Nachrichten kamen still nicht an. Jetzt wartet die Eingabe kurz auf das Profil und zeigt dann ehrlich, ob erst eine Flamme noetig ist
+
+## Build 164 · 2026-10-28 · `f8e851a`
 - Betrieb: Jenkins baut auf Neben-Branches jetzt auch das echte Image zur Probe, deployt dort aber nie (wie bisher nur main)
 
 ## Build 162–163 · 2026-10-28 · `366ef79`, `90cb2fd`

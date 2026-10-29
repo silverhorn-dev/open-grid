@@ -161,10 +161,41 @@ function renderProfileForm(containerId = 'dynamic-profile-form') {
         }
         let input;
 
-        if (field.type === 'select' || field.type === 'multiselect') {
+        if (field.type === 'multiselect') {
+            // Mehrfachauswahl als Chips (eine native Liste mit Mehrfachauswahl ist auf dem Handy muehsam).
+            const chips = document.createElement('div');
+            chips.className = 'grid-filter-chips profile-chips';
+            chips.dataset.profileField = field.key;
+            const selected = new Set(Array.isArray(currentValue) ? currentValue : []);
+            field.options.forEach(optionValue => {
+                const chip = document.createElement('button');
+                chip.type = 'button';
+                chip.className = `grid-filter-chip${selected.has(optionValue) ? ' is-active' : ''}`;
+                chip.textContent = localizedText(optionValue);
+                chip.setAttribute('aria-pressed', String(selected.has(optionValue)));
+                chip.onclick = () => {
+                    if (selected.has(optionValue)) selected.delete(optionValue);
+                    else selected.add(optionValue);
+                    chip.classList.toggle('is-active', selected.has(optionValue));
+                    chip.setAttribute('aria-pressed', String(selected.has(optionValue)));
+                    state.myProfile.fields[field.key] = field.options.filter(value => selected.has(value));
+                };
+                chips.appendChild(chip);
+            });
+            wrapper.appendChild(chips);
+            container.appendChild(wrapper);
+            return;
+        }
+        if (field.type === 'select') {
             input = document.createElement('select');
-            input.multiple = field.type === 'multiselect';
-            if (input.multiple) input.size = Math.min(field.options.length, 4);
+            // Ohne Pflicht und ohne Standard: leerer Eintrag, sonst stuende still die erste Option da.
+            if (!field.required) {
+                const empty = document.createElement('option');
+                empty.value = '';
+                empty.textContent = '–';
+                empty.selected = !currentValue;
+                input.appendChild(empty);
+            }
             field.options.forEach((optionValue) => {
                 const option = document.createElement('option');
                 option.value = optionValue;

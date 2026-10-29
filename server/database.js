@@ -116,6 +116,21 @@ export function createStore(databasePath, { credentialRetentionDays = DEFAULT_CR
         database.exec('UPDATE peer_credentials SET last_active_at = created_at WHERE last_active_at IS NULL');
     }
 
+    // Profil-Version (nur ein Zaehler, kein Inhalt): Clients holen ein Profil nur neu, wenn es sich geaendert hat.
+    if (!database.prepare('PRAGMA table_info(peers)').all().some(column => column.name === 'profile_version')) {
+        database.exec('ALTER TABLE peers ADD COLUMN profile_version INTEGER');
+    }
+    // "Nur zeigen fuer ...": kurzer Code der Sichtbarkeitsregel (die Apps der Betrachter werten ihn aus).
+    if (!database.prepare('PRAGMA table_info(peers)').all().some(column => column.name === 'audience')) {
+        database.exec('ALTER TABLE peers ADD COLUMN audience TEXT');
+    }
+
+    // Benachrichtigungsarten, die der Peer nicht per Push will (JSON-Liste, z. B. ["flame"]).
+    const pushColumns = database.prepare('PRAGMA table_info(push_subscriptions)').all();
+    if (!pushColumns.some(column => column.name === 'muted_kinds')) {
+        database.exec('ALTER TABLE push_subscriptions ADD COLUMN muted_kinds TEXT');
+    }
+
     const statements = {
         findPeer: database.prepare(`
             SELECT peer_id AS peerId, registration_id AS registrationId, auth_hash AS authHash, geohash, silent, scope
@@ -142,8 +157,8 @@ export function createStore(databasePath, { credentialRetentionDays = DEFAULT_CR
             WHERE peer_id = ?
         `),
         upsertPeer: database.prepare(`
-            INSERT INTO peers (peer_id, registration_id, auth_hash, geohash, thumbnail, name, silent, scope, event_hash, expires_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO peers (peer_id, registration_id, auth_hash, geohash, thumbnail, name, silent, scope, event_hash, expires_at, profile_version, audience)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(peer_id) DO UPDATE SET
                 registration_id = excluded.registration_id,
                 auth_hash = excluded.auth_hash,
@@ -153,24 +168,26 @@ export function createStore(databasePath, { credentialRetentionDays = DEFAULT_CR
                 silent = excluded.silent,
                 scope = excluded.scope,
                 event_hash = excluded.event_hash,
-                expires_at = excluded.expires_at
+                expires_at = excluded.expires_at,
+                profile_version = excluded.profile_version,
+                audience = excluded.audience
         `),
         deletePeer: database.prepare('DELETE FROM peers WHERE peer_id = ?'),
         deletePeerRegistration: database.prepare('DELETE FROM peers WHERE peer_id = ? AND registration_id = ?'),
         // Prefix-Abfrage ueber den (geohash, expires_at)-Index: geohash >= prefix AND geohash < prefix + '~'.
         listPeersInCell: database.prepare(`
-            SELECT peer_id AS peerId, geohash, thumbnail, name
+            SELECT peer_id AS peerId, geohash, thumbnail, name, profile_version AS profileVersion, audience
             FROM peers
             WHERE geohash >= ? AND geohash < ? AND expires_at > ? AND silent = 0 AND scope = 'public'
         `),
         listEventPeers: database.prepare(`
-            SELECT peer_id AS peerId, geohash, thumbnail, name
+            SELECT peer_id AS peerId, geohash, thumbnail, name, profile_version AS profileVersion, audience
             FROM peers
             WHERE event_hash = ? AND scope = 'event' AND expires_at > ? AND silent = 0
             LIMIT 500
         `),
         findVisiblePeer: database.prepare(`
-            SELECT peer_id AS peerId, geohash, thumbnail, name
+            SELECT peer_id AS peerId, geohash, thumbnail, name, profile_version AS profileVersion, audience
             FROM peers
             WHERE peer_id = ? AND expires_at > ? AND silent = 0 AND scope IN ('public', 'friends')
         `),
@@ -277,6 +294,8 @@ export function createStore(databasePath, { credentialRetentionDays = DEFAULT_CR
             WHERE peer_id = ?
         `),
         deletePushSubscription: database.prepare('DELETE FROM push_subscriptions WHERE peer_id = ?'),
+        setPushMutedKinds: database.prepare('UPDATE push_subscriptions SET muted_kinds = ? WHERE peer_id = ?'),
+        findPushMutedKinds: database.prepare('SELECT muted_kinds AS mutedKinds FROM push_subscriptions WHERE peer_id = ?'),
         deletePushSubscriptionEndpoint: database.prepare('DELETE FROM push_subscriptions WHERE peer_id = ? AND endpoint = ?'),
         findSetting: database.prepare('SELECT value FROM server_settings WHERE key = ?'),
         insertSetting: database.prepare('INSERT OR IGNORE INTO server_settings (key, value) VALUES (?, ?)'),
@@ -348,7 +367,9 @@ export function createStore(databasePath, { credentialRetentionDays = DEFAULT_CR
                 silent,
                 scope,
                 scope === 'event' ? session.eventHash : null,
-                now + ttlMs
+                now + ttlMs,
+                Number.isSafeInteger(session.profileVersion) ? session.profileVersion : null,
+                session.audience || null
             );
             if (isPublic) statements.deleteRemoved.run(session.geohash, session.peerId);
             return true;
@@ -407,6 +428,21 @@ export function createStore(databasePath, { credentialRetentionDays = DEFAULT_CR
     return {
         // Alters-/E-Mail-Nachweise, Sperren, IP-Protokoll (safety-store.js).
         safety,
+        // Profil loeschen (auf Wunsch des Nutzers): Grid-Eintrag (mit Tombstone, damit Karten verschwinden),
+        // Zugangsdaten, Push-Abo, eigene Chat-Kontrollen und Nachrichten an ihn. Nachrichten von ihm bleiben
+        // bis zur Abholung bzw. zum Ablauf: darunter die Loesch-Hinweise an seine Kontakte.
+        deleteIdentity(peerId, now = Date.now()) {
+            return transaction(() => {
+                const current = statements.findPeer.get(peerId);
+                if (current) statements.upsertRemoved.run(current.geohash, peerId, now, now + REMOVED_TTL_MS);
+                statements.deletePeer.run(peerId);
+                statements.deleteCredential.run(peerId);
+                statements.deletePushSubscription.run(peerId);
+                statements.deleteOwnerControls.run(peerId);
+                statements.deleteRecipientMessages.run(peerId);
+                return true;
+            });
+        },
 
         registerPeer(session, now = Date.now()) {
             return registerPeerTransaction(session, now);
@@ -543,6 +579,19 @@ export function createStore(databasePath, { credentialRetentionDays = DEFAULT_CR
                 subscription.keys.auth,
                 now
             );
+        },
+
+        setPushMutedKinds(peerId, kinds) {
+            return Number(statements.setPushMutedKinds.run(JSON.stringify(kinds), peerId).changes);
+        },
+
+        getPushMutedKinds(peerId) {
+            try {
+                const value = JSON.parse(statements.findPushMutedKinds.get(peerId)?.mutedKinds || '[]');
+                return Array.isArray(value) ? value : [];
+            } catch {
+                return [];
+            }
         },
 
         getPushSubscription(peerId) {

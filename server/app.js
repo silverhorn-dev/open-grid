@@ -29,6 +29,7 @@ import {
     parseTrustProxy,
     securityHeaders
 } from './security.js';
+import { applyAudienceMinimum, parseAudienceMinimum } from './audience.js';
 
 const MAX_GRID_RESULTS = 100;
 // Quoten fuer den Pfad-C-Zwischenspeicher, damit niemand die Queue eines Empfaengers flutet.
@@ -63,9 +64,23 @@ const CLIENT_DEFAULT_RULES = {
     chatSwitchEnabled: 'boolean',
     chatSwitchStyle: ['bar', 'arrows', 'swipe'],
     pullUpAction: ['reload', 'next', 'switcher', 'snap', 'album'],
+    inputSwipeClosesChat: 'boolean',
+    chatPagesByDay: 'boolean',
+    reloadMode: ['full', 'app'],
+    notifyMatch: 'boolean',
+    notifyFlame: 'boolean',
+    notifyAdd: 'boolean',
+    notifyDiscovery: 'boolean',
+    notifyChat: 'boolean',
+    notifyProfileView: 'boolean',
+    notifyChatEvents: 'boolean',
+    shareProfileViews: 'boolean',
+    // Startregel fuer "Nur zeigen fuer ..." (Objekt, eigene Pruefung in isAudienceRule).
+    audience: 'audience',
     listSwitchEnabled: 'boolean',
     listSwitchBehavior: ['mode', 'view'],
     statusDirectOnly: 'boolean',
+    hideDiscoveryHistory: 'boolean',
     traceWatermark: 'boolean',
     nudityFilter: 'boolean',
     mediaDownload: ['friends', 'all'],
@@ -90,8 +105,26 @@ export function parseClientDefaults(value) {
     return Object.fromEntries(Object.entries(parsed).filter(([key, entry]) => {
         const rule = CLIENT_DEFAULT_RULES[key];
         if (!rule) return false;
+        if (rule === 'audience') return isAudienceRule(entry);
         return rule === 'boolean' ? typeof entry === 'boolean' : rule.includes(entry);
     }));
+}
+
+// Regel { ranges: { feld: { min, max } | { relative: 'same'|'older'|'younger' } }, options: { feld: [werte] | 'same' } }.
+const AUDIENCE_RELATIVE = ['same', 'older', 'younger'];
+function isAudienceRule(rule) {
+    if (!rule || typeof rule !== 'object' || Array.isArray(rule)) return false;
+    const keyOk = key => /^[A-Za-z0-9_-]{1,64}$/.test(key);
+    const ranges = rule.ranges ?? {};
+    const options = rule.options ?? {};
+    if (typeof ranges !== 'object' || Array.isArray(ranges) || typeof options !== 'object' || Array.isArray(options)) return false;
+    const rangeOk = range => range && typeof range === 'object' && (AUDIENCE_RELATIVE.includes(range.relative)
+        || ((range.min == null || (Number.isFinite(range.min) && range.min >= 0 && range.min <= 255))
+            && (range.max == null || (Number.isFinite(range.max) && range.max >= 0 && range.max <= 255))));
+    const optionOk = value => value === 'same' || (Array.isArray(value) && value.length <= 32 && value.every(item => typeof item === 'string' && item.length <= 100));
+    return Object.keys(ranges).length + Object.keys(options).length <= 32
+        && Object.entries(ranges).every(([key, range]) => keyOk(key) && rangeOk(range))
+        && Object.entries(options).every(([key, value]) => keyOk(key) && optionOk(value));
 }
 
 function isEventHash(value) {
@@ -148,6 +181,10 @@ const clientAssetFiles = [
     'app/secure-snaps.js',
     'app/matching.js',
     'app/friends.js',
+    'app/grid-tabs.js',
+    'app/grid-filter.js',
+    'app/audience.js',
+    'app/account.js',
     'app/status.js',
     'app/gestures.js',
     'app/modes.js',
@@ -163,7 +200,13 @@ const defaultSchema = [
     { key: 'displayName', label: { de: 'Anzeigename', en: 'Display name' }, type: 'string', required: true, default: 'Alex' },
     { key: 'age', label: { de: 'Alter', en: 'Age' }, type: 'number', min: 18, max: 99, default: 26 },
     { key: 'role', label: { de: 'Position / Rolle', en: 'Position / Role' }, type: 'select', options: ['Top', 'Bottom', 'Versatile', 'Side'], default: 'Versatile' },
-    { key: 'bio', label: { de: 'Ueber mich', en: 'About me' }, type: 'description', default: { de: 'Hey, ich nutze OpenGrid.', en: 'Hey, I am using OpenGrid.' } }
+    { key: 'height', label: { de: 'Größe (cm)', en: 'Height (cm)' }, type: 'number', min: 120, max: 230 },
+    { key: 'weight', label: { de: 'Gewicht (kg)', en: 'Weight (kg)' }, type: 'number', min: 35, max: 250 },
+    { key: 'bodyType', label: { de: 'Körperbau', en: 'Body type' }, type: 'select', options: ['Slim', 'Average', 'Athletic', 'Muscular', 'Stocky', 'Large'] },
+    { key: 'tribes', label: { de: 'Tribes', en: 'Tribes' }, type: 'multiselect', options: ['Bear', 'Clean-cut', 'Daddy', 'Geek', 'Jock', 'Leather', 'Otter', 'Rugged', 'Trans', 'Twink', 'Femme'] },
+    { key: 'lookingFor', label: { de: 'Sucht nach', en: 'Looking for' }, type: 'multiselect', options: ['Chat', 'Dates', 'Friends', 'Relationship', 'Right now', 'Networking'] },
+    { key: 'relationship', label: { de: 'Beziehungsstatus', en: 'Relationship status' }, type: 'select', options: ['Single', 'Dating', 'Committed', 'Open relationship', 'Married', 'Partnered'] },
+    { key: 'bio', label: { de: 'Über mich', en: 'About me' }, type: 'description', default: { de: 'Hey, ich nutze OpenGrid.', en: 'Hey, I am using OpenGrid.' } }
 ];
 
 // Im Modus "Nur Chat" reicht ein schlankes Profil: Name und Status.
@@ -413,6 +456,14 @@ export async function buildApp(options = {}) {
     const clientDefaults = parseClientDefaults(options.clientDefaults ?? process.env.CLIENT_DEFAULTS);
     const profileSchemas = options.profileSchemas
         || parseProfileSchemas(process.env.PROFILE_SCHEMAS, profileSchema, appModes);
+    // Mindestwerte fuer "Nur zeigen fuer ..." (z. B. {"ranges":{"age":{"min":18}}}), je Grid-Bereich gegen
+    // dessen Profil-Schema; der Router mischt sie in jeden Karten-Code.
+    const audienceMinimumRule = options.audienceMinimum ?? process.env.AUDIENCE_MINIMUM ?? null;
+    const audienceSchemaFor = scope => (scope === 'event' ? profileSchemas.event : null) || profileSchemas.discovery || profileSchema;
+    const audienceMinimums = {
+        public: parseAudienceMinimum(audienceMinimumRule, audienceSchemaFor('public')),
+        event: parseAudienceMinimum(audienceMinimumRule, audienceSchemaFor('event'))
+    };
 
     // Verlaessliche Zeit fuer die Schluessel-Rotation; die Geraetezeit wird dafuer ignoriert.
     app.get('/api/time', async (_request, reply) => {
@@ -623,7 +674,9 @@ export async function buildApp(options = {}) {
             silent,
             ttlMinutes,
             scope,
-            eventHash
+            eventHash,
+            profileVersion,
+            audience
         } = request.body || {};
         if (!isString(peerId, 200) || !isGeohash(geohash, GRID_PRECISION) || !isString(registrationId, 200)) {
             return reply.code(400).send({ error: 'Invalid payload' });
@@ -673,7 +726,14 @@ export async function buildApp(options = {}) {
             silent: silent === true || missingVerification.length > 0,
             ttlMs: ttlMinutes != null ? ttlMinutes * 60 * 1000 : undefined,
             scope: peerScope,
-            eventHash: peerScope === 'event' ? eventHash : null
+            eventHash: peerScope === 'event' ? eventHash : null,
+            // Nur der Zaehler der Profil-Version (Clients holen das Profil P2P nur bei Aenderung neu).
+            profileVersion: Number.isSafeInteger(profileVersion) && profileVersion >= 0 && profileVersion <= 1e9 ? profileVersion : null,
+            // Sichtbarkeitsregel als kurzer Code; der Router prueft die Form und mischt die Mindestwerte
+            // des Betreibers hinein (auch ohne eigene Regel), wertet sie aber nie fuer Betrachter aus.
+            audience: peerScope === 'friends' ? null : applyAudienceMinimum(
+                typeof audience === 'string' && /^[A-Za-z0-9_-]{2,64}$/.test(audience) ? audience : null,
+                audienceMinimums[peerScope], audienceSchemaFor(peerScope))
         };
         if (!store.registerPeer(session)) {
             return reply.code(403).send({ error: 'Peer identity is already registered' });
@@ -701,14 +761,28 @@ export async function buildApp(options = {}) {
     }
 
     app.delete('/api/register', unregister);
+
+    // Profil loeschen: alles zu diesem Peer weg (siehe store.deleteIdentity); die Verbindung wird getrennt.
+    app.delete('/api/account/:peerId', async (request, reply) => {
+        const { peerId } = request.params;
+        if (!allowRequest('register', request.ip, reply)) return;
+        if (!requirePeerAuth(request, reply, peerId)) return;
+        store.deleteIdentity(peerId);
+        signaling.disconnectPeer(peerId);
+        return { status: 'deleted', peerId };
+    });
     app.post('/api/unregister', unregister);
 
-    app.get('/api/config', async () => ({ modes: appModes, defaultMode: defaultAppMode, profileSchemas, lanMode: isLanMode, clientDefaults, infoUrl: infoSiteUrl(infoHost), safety: safety.publicConfig() }));
+    app.get('/api/config', async () => ({ modes: appModes, defaultMode: defaultAppMode, profileSchemas, lanMode: isLanMode, clientDefaults, infoUrl: infoSiteUrl(infoHost), safety: safety.publicConfig(),
+        // Fuer die Anzeige in den Einstellungen ("vom Server vorgegeben").
+        audienceMinimum: audienceMinimumRule ? (typeof audienceMinimumRule === 'string' ? JSON.parse(audienceMinimumRule) : audienceMinimumRule) : null }));
 
     const toGridPeer = (origin) => ({ peer, km }) => ({
         id: peer.peerId,
         avatar: peer.thumbnail,
         name: peer.name,
+        version: peer.profileVersion ?? null,
+        ...(peer.audience ? { audience: peer.audience } : {}),
         distanceBucket: origin ? distanceBucket(km) : null
     });
     const withDistance = (origin, peers) => peers
@@ -777,12 +851,13 @@ export async function buildApp(options = {}) {
         };
     });
 
-    async function notifyRecipient(message) {
+    async function notifyRecipient(message, kind = 'chat') {
         const subscription = store.getPushSubscription(message.recipientId);
         // Auch alte, vor der Allowlist gespeicherte Subscriptions nie an fremde Hosts.
         if (!subscription || !isAllowedPushEndpoint(subscription.endpoint, pushHostAllowlist)) return;
         const fullPayload = {
             type: 'PATH_C',
+            kind,
             msgId: message.msgId,
             senderId: message.senderId,
             ciphertextPayload: message.ciphertextPayload,
@@ -792,7 +867,7 @@ export async function buildApp(options = {}) {
         // nur der Hinweis raus und der Service Worker holt den Rest aus der Queue.
         const payload = Buffer.byteLength(JSON.stringify(fullPayload)) <= MAX_PUSH_PLAINTEXT_BYTES
             ? fullPayload
-            : { type: 'PATH_C', msgId: message.msgId, senderId: message.senderId };
+            : { type: 'PATH_C', kind, msgId: message.msgId, senderId: message.senderId };
         try {
             const result = await sendPush(subscription, payload);
             if (result.expired) store.deletePushSubscription(message.recipientId, subscription.endpoint);
@@ -801,7 +876,26 @@ export async function buildApp(options = {}) {
         }
     }
 
+    // Benachrichtigungsarten (Einstellungen > Benachrichtigungen). Der Absender nennt die Art beim Push
+    // (Cache-Eintrag oder Anstupsen); der Empfaenger hinterlegt, welche er nicht per Push will. Ohne das
+    // muesste der Service Worker Pushes still verwerfen, und Browser zeigen dann eigene Meldungen bzw.
+    // entziehen das Push-Recht. Der Server erfaehrt so nur die Art, nie den Inhalt.
+    const PUSH_KINDS = ['chat', 'discovery', 'flame', 'match', 'add', 'profileView'];
+    const pushWanted = (recipientId, kind) => !store.getPushMutedKinds(recipientId).includes(kind);
+
     app.get('/api/push/vapid-public-key', async () => ({ publicKey: vapidKeys.publicKey }));
+
+    app.post('/api/push/settings', async (request, reply) => {
+        if (!allowRequest('push', request.ip, reply)) return;
+        const { peerId, mutedKinds } = request.body || {};
+        if (!isString(peerId, 200) || !Array.isArray(mutedKinds) || mutedKinds.length > PUSH_KINDS.length) {
+            return reply.code(400).send({ error: 'Invalid parameters' });
+        }
+        if (!requirePeerAuth(request, reply, peerId)) return;
+        const kinds = [...new Set(mutedKinds.filter(kind => PUSH_KINDS.includes(kind)))];
+        const updated = store.setPushMutedKinds(peerId, kinds);
+        return { status: updated ? 'saved' : 'no-subscription', mutedKinds: kinds };
+    });
 
     app.post('/api/push/subscribe', async (request, reply) => {
         if (!allowRequest('push', request.ip, reply)) return;
@@ -824,9 +918,41 @@ export async function buildApp(options = {}) {
         return { status: 'unsubscribed', peerId, removed };
     });
 
+    // Anstupsen: der Absender hat direkt (P2P) zugestellt, der Empfaenger ist aber abwesend (App im
+    // Hintergrund) oder offline. Dann kommt sonst keine Benachrichtigung, weil kein Push ueber den
+    // Zwischenspeicher lief. Der Push traegt nur die Absender-ID, keinen Inhalt. Nur wenn der Empfaenger
+    // wirklich abwesend/offline ist, den Absender nicht blockiert hat und Push eingerichtet hat.
+    const NUDGE_PAIR_INTERVAL_MS = 15_000;
+    const lastNudges = new Map();
+    app.post('/api/push/nudge', async (request, reply) => {
+        const { senderId, recipientId } = request.body || {};
+        const kind = PUSH_KINDS.includes(request.body?.kind) ? request.body.kind : 'chat';
+        if (!isString(senderId, 200) || !isString(recipientId, 200) || senderId === recipientId) {
+            return reply.code(400).send({ error: 'Invalid parameters' });
+        }
+        if (!requirePeerAuth(request, reply, senderId)) return;
+        if (!allowRequest('nudge', senderId, reply)) return;
+        const pair = `${senderId}:${recipientId}:${kind}`;
+        const current = now();
+        if (store.isBlocked(recipientId, senderId)) return reply.code(202).send({ status: 'skipped' });
+        if (signaling.isPeerOnline(recipientId) && !signaling.isPeerAway(recipientId)) return reply.code(202).send({ status: 'skipped' });
+        if (current - (lastNudges.get(pair) || 0) < NUDGE_PAIR_INTERVAL_MS) return reply.code(202).send({ status: 'skipped' });
+        if (!pushWanted(recipientId, kind)) return reply.code(202).send({ status: 'skipped' });
+        const subscription = store.getPushSubscription(recipientId);
+        if (!subscription || !isAllowedPushEndpoint(subscription.endpoint, pushHostAllowlist)) return reply.code(202).send({ status: 'skipped' });
+        lastNudges.set(pair, current);
+        if (lastNudges.size > 5000) lastNudges.delete(lastNudges.keys().next().value);
+        sendPush(subscription, { type: 'NUDGE', senderId, kind })
+            .then(result => { if (result.expired) store.deletePushSubscription(recipientId, subscription.endpoint); })
+            .catch(error => app.log.warn(`Web Push nudge failed: ${error.message}`));
+        return reply.code(202).send({ status: 'sent' });
+    });
+
     // Groesseres Limit nur hier: Sprachnachrichten (bis 60 s) gehen als Ganzes durch den Cache.
     app.post('/api/cache', { bodyLimit: CACHE_BODY_LIMIT }, async (request, reply) => {
         const { recipientId, senderId, ciphertextPayload, ivHex, ttlHours, notify } = request.body || {};
+        // Art fuer die Benachrichtigung (ohne Angabe: Chat-Nachricht, wie aeltere Clients).
+        const notifyKind = PUSH_KINDS.includes(request.body?.notifyKind) ? request.body.notifyKind : 'chat';
         if (!isString(recipientId, 200) || !isString(ciphertextPayload, MAX_CACHE_CIPHERTEXT_LENGTH)) {
             return reply.code(400).send({ error: 'Missing or invalid parameters' });
         }
@@ -856,8 +982,8 @@ export async function buildApp(options = {}) {
         });
         // Der Push laeuft im Hintergrund, damit der Sender nicht auf den
         // Push-Dienst des Empfaengers warten muss.
-        const pushRequested = notify === true && Boolean(store.getPushSubscription(recipientId));
-        if (pushRequested) notifyRecipient(message);
+        const pushRequested = notify === true && Boolean(store.getPushSubscription(recipientId)) && pushWanted(recipientId, notifyKind);
+        if (pushRequested) notifyRecipient(message, notifyKind);
         signaling.notifyCacheWaiting(recipientId);
         return reply.code(201).send({
             status: 'queued',

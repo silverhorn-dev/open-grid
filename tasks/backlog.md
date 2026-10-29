@@ -44,7 +44,26 @@ Ideen ohne festen Termin. Neue Phasen werden von hier auf `tasks/board.md` gehol
 - (2026-10-27 auf das board verschoben: video-flackern, secure-snap-bugs, speicherbar-schalter)
 - (2026-10-27 auf das board verschoben: kontaktleiste z-achse, wischen in snap-vorschau, editing improvement)
 - [ ] einladung im dating-modus (entdecken): unter 18 kann die einladung nicht oeffnen; im chat-modus normal (nutzer 2026-10-27, haengt an T2 alter)
-- [ ] chat-threads besprechen (nutzer 2026-10-27): technisch nur EIN chat pro person statt zwei listen; nachrichten aus dem entdecken-bereich werden im social-bereich ausgeblendet
+- [x] chat-threads besprechen (nutzer 2026-10-27; umgesetzt 2026-10-28, siehe board T11): technisch nur EIN chat pro person statt zwei listen; nachrichten aus dem entdecken-bereich werden im social-bereich ausgeblendet
   - ablauf: match -> chat (entdecken) -> adden -> chat (social); im social-chat ein knopf wie "ausgeblendeten hot-chat wieder anzeigen"
   - nur wenn der entdecken-bereich beim nutzer aktiv ist
   - offen: was passiert mit den zwei listen / dem listen-wechsel, ungelesen-zaehler je bereich, snaps/alben aus dem entdecken-teil, wer sieht was beim gegenueber
+  - ist-stand (geprueft 2026-10-28): technisch gibt es schon nur EINEN verlauf pro person (`messages` je `peerId`); jede nachricht traegt `scope` (`discovery`/`social`, chat.js); die liste haengt an `chatScopeOf` (freund -> immer social), d. h. nach dem adden wandert der ganze verlauf inkl. entdecken-teil in "Chat & Freunde"
+  - vorschlag 2026-10-28 (noch nicht bestaetigt):
+    - kein datenmodell-umbau: im social-blick werden nachrichten mit `scope: 'discovery'` ausgeblendet (nur anzeige, nichts geloescht)
+    - oben im verlauf eine zeile "Entdecken-Verlauf ausgeblendet (N)" -> tippen blendet ihn fuer diesen chat ein/aus (merken je chat in `keys`)
+    - nur wenn der entdecken-bereich beim nutzer aktiv ist; sonst bleibt der teil einfach versteckt
+    - jede seite entscheidet fuer sich (gegenueber merkt nichts), ungelesen-zaehler zaehlt nur sichtbare nachrichten
+    - snaps/alben aus dem entdecken-teil: mit ausgeblendet; laufende ansichten/limits laufen normal weiter
+    - offen: im entdecken-blick (vor dem adden) aendert sich nichts; nach dem adden noch flammen-chat in "Grid & Event" zeigen? (vorschlag: nein, ein ort pro person)
+
+## Ideen 2026-10-28 (nutzer, noch nicht besprechen)
+- [x] grid improvement: filter, matches, interests, views (umgesetzt 2026-10-28/29, siehe board T20/T21)
+  - per einstellung konfigurierbar: grid zeigt nur profile mit bestimmtem profil-tag (z. B. alter, tribes)
+  - anlass: neue invite/match-funktion
+- [ ] mit der altersverifikation (T2): im entdecken-bereich sehen/kontaktieren sich nur minderjaehrige untereinander und 18+ untereinander
+  - social ("Chat & Freunde") ist davon nicht betroffen
+  - dafuer im social-bereich ein nicht abschaltbarer nacktbild-scan (T3) fuer diese faelle
+  - abschaltbar nur per router; die router-option wird NICHT dokumentiert, das verhalten (scan aktiv) aber schon
+  - haengt an T2 (alter) und T3 (modell); passt zur backlog-notiz "einladung im dating-modus: unter 18 kann nicht oeffnen"
+

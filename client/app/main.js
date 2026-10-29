@@ -52,6 +52,10 @@ window.onload = async () => {
     initVideoViewer();
     initSecureSnaps();
     initGestures();
+    initFlirtControls();
+    initMessageHoverTracking();
+    initChatDayBar();
+    initProfileBrowsing();
     initSnapEditor();
     initSnapCamera();
     initChatSwitchSwipe();
@@ -98,6 +102,13 @@ window.onload = async () => {
         await runStartupStep('Chat-Wechsel', async () => {
             await loadChatSwitchSettings();
             await loadPullUpSetting();
+            await loadChatSwipeCloseSetting();
+            await loadReloadMode();
+            await loadNotificationSettings();
+            await loadChatViewSetting();
+            await loadGridFilter();
+            await loadAudienceRule();
+            await loadInteractions();
             await loadListSwitchSettings();
         });
         // Deep Link (/chat/<id>, auch aus einer Push-Benachrichtigung): so frueh wie moeglich oeffnen.
@@ -121,6 +132,7 @@ window.onload = async () => {
             await loadTraceWatermarkSetting();
             await loadNuditySettings();
             await loadMediaDownloadSetting();
+            await loadDiscoveryHistorySetting();
         });
         await generateUserIdentityKeys();
         await runStartupStep('Sichtbarkeit', loadGridSettings);
@@ -153,6 +165,7 @@ window.onload = async () => {
         });
         document.addEventListener('visibilitychange', () => {
             syncChatFocus();
+            reportAway();
             if (document.visibilityState === 'visible') {
                 // Zurueck aus dem Hintergrund: Signaling pruefen (oft halb offen), dann aktualisieren.
                 checkSignalingHealth('resume');
@@ -161,6 +174,7 @@ window.onload = async () => {
                 scheduleCacheFetch(0);
             }
         });
+        window.addEventListener('pagehide', () => reportAway(true));
         window.addEventListener('online', () => checkSignalingHealth('online'));
         setInterval(() => {
             if (document.visibilityState === 'visible') checkSignalingHealth('interval');

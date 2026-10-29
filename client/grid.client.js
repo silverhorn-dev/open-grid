@@ -20,9 +20,9 @@ async function loadMoreGrid() {
     if (!loaded) state.gridRing -= 1;
 }
 
+// Knopf am PC: nur die Daten (ohne Hinweis, der stapelte sich beim wiederholten Ziehen).
 async function refreshGrid() {
-    const refreshed = await fetchPeersFromWorkerGrid();
-    if (refreshed) showToast(t('grid.refreshed'), 'info');
+    await fetchPeersFromWorkerGrid();
 }
 
 function renderDiscoveryGrid() {
@@ -30,13 +30,24 @@ function renderDiscoveryGrid() {
     if (!container) return;
 
     const hiddenList = JSON.parse(localStorage.getItem('hiddenByPeers') || '[]');
-    const visiblePeers = state.peers.filter(peer => !isPeerBlocked(peer.id) && !hiddenList.includes(peer.id));
+    const listedPeers = state.peers.filter(peer => !isPeerBlocked(peer.id) && !hiddenList.includes(peer.id));
+    // Filter nur auf dem Geraet (grid-filter.js); die ersten Profile im Hintergrund holen.
+    const discovery = gridTabsAvailable();
+    // Sichtbarkeitsregeln der anderen (audience.js): Karten, die nicht fuer mich bestimmt sind, weglassen.
+    const allowedPeers = discovery ? listedPeers.filter(peer => audienceAllows(peer.audience)) : listedPeers;
+    const visiblePeers = discovery ? applyGridFilter(allowedPeers) : allowedPeers;
+    if (discovery) prefetchGridProfiles(listedPeers);
+    setProfileBrowseList(visiblePeers.map(peer => peer.id));
+    const groupByDistance = !(discovery && profileFilterActive());
     container.innerHTML = '';
     document.getElementById('grid-peer-count').textContent = visiblePeers.length === 1 ? t('grid.1Person') : t('grid.people', { count: visiblePeers.length });
+    // Mit Tabs steht die Zahl grau am Grid-Tab (grid-tabs.js), sonst in der Statuszeile.
+    state.gridVisibleCount = visiblePeers.length;
     const geohashLabel = document.getElementById('current-geohash');
     if (geohashLabel) geohashLabel.textContent = t('grid.ring', { geohash: state.myProfile.geohash, gridRing: state.gridRing });
     document.getElementById('grid-load-more-btn')?.classList.toggle('hidden', state.appMode !== 'discovery' || !state.gridHasMore);
     renderActivePeerList();
+    renderGridTabs();
 
     if (visiblePeers.length === 0) {
         const emptyState = document.createElement('div');
@@ -56,7 +67,7 @@ function renderDiscoveryGrid() {
     let currentBucket = null;
     visiblePeers.forEach(peer => {
         // Der Router liefert die Peers bereits nach Entfernung sortiert.
-        if (peer.distanceBucket && peer.distanceBucket !== currentBucket) {
+        if (groupByDistance && peer.distanceBucket && peer.distanceBucket !== currentBucket) {
             currentBucket = peer.distanceBucket;
             const heading = document.createElement('h3');
             heading.className = 'col-span-full text-xs font-bold uppercase tracking-wider text-slate-400 pt-2';
@@ -177,12 +188,8 @@ function renderActivePeerList() {
         image.alt = '';
         image.className = 'w-10 h-10 rounded-full object-cover border border-slate-700';
         avatar.appendChild(image);
-        if (!blocked && isPeerOnline(peer.id)) {
-            const dot = document.createElement('span');
-            dot.className = 'absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-slate-900';
-            dot.title = t('common.online');
-            avatar.appendChild(dot);
-        }
+        const dot = blocked ? null : createPresenceDot(peer.id, 'absolute bottom-0 right-0 w-3 h-3');
+        if (dot) avatar.appendChild(dot);
         const details = document.createElement('div');
         details.className = 'min-w-0 flex-1';
         const name = document.createElement('div');
@@ -450,6 +457,10 @@ async function registerWithWorkerGrid() {
                 // Sichtbarkeitsstufe 3: der Router bekommt weder Namen noch Vorschaubild.
                 ...getRegistrationIdentity(),
                 authToken: state.routerAuthToken,
+                // Nur die Versionsnummer: andere holen das Profil P2P nur, wenn es sich geaendert hat.
+                profileVersion: Number.isSafeInteger(state.myProfile.version) ? state.myProfile.version : undefined,
+                // "Nur zeigen fuer ...": Regel als kurzer Code (audience.js), sonst nichts.
+                audience: myAudienceCode(),
                 silent: isEffectivelySilent() || isModeSilent(),
                 ...getRegistrationScope(),
                 ttlMinutes: state.gridSettings.ttlMinutes,

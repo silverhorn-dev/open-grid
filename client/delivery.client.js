@@ -78,7 +78,8 @@ async function sendRequestedChatOperations(peerId, operationIds) {
     });
 }
 
-async function sendSecurePayload(peerId, payload, onSent = null) {
+// options.notifyKind: Art fuer den Push beim Empfaenger, falls es ueber Pfad C geht (push.js).
+async function sendSecurePayload(peerId, payload, onSent = null, options = {}) {
     if (isPeerBlocked(peerId)) return false;
     const channel = state.dataChannels[peerId];
 
@@ -101,7 +102,7 @@ async function sendSecurePayload(peerId, payload, onSent = null) {
         state.secureMessageQueues[peerId] = [];
     }
 
-    const item = {payload, onSent, cacheQueued: false};
+    const item = {payload, onSent, cacheQueued: false, notifyKind: options.notifyKind};
     state.secureMessageQueues[peerId].push(item);
     logDebug(`P2P/TURN-Kanal fuer ${peerId} noch nicht bereit. Nachricht in Queue eingereiht, starte Verbindung...`);
     if (onSent) scheduleQueueFallback(peerId, item);
@@ -223,6 +224,14 @@ async function deriveCacheEncryptionKey(publicJwk) {
     );
 }
 
+function cacheNotifyKind(item) {
+    const operation = item.payload?.operation;
+    if (item.notifyKind) return item.notifyKind;
+    if (operation?.type === 'MESSAGE_PUT') return operation.message?.scope === 'discovery' ? 'discovery' : 'chat';
+    if (operation?.type === 'PROFILE_VIEW') return 'profileView';
+    return null;
+}
+
 async function queuePayloadInCache(peerId, item) {
     if (item.cacheQueued || item.payload?.type !== 'CHAT_OPERATION') return false;
     if (!state.gridSettings.cacheEnabled) {
@@ -255,8 +264,10 @@ async function queuePayloadInCache(peerId, item) {
             }),
             ivHex: bytesToBase64(iv),
             ttlHours: 24,
-            // Nur neue Nachrichten wecken den Empfaenger per Web Push.
-            notify: item.payload.operation?.type === 'MESSAGE_PUT'
+            // Nur neue Nachrichten, Flammen/Matches, Anfragen und Profilbesuche wecken den Empfaenger per
+            // Web Push; die Art filtert der Router nach den Einstellungen des Empfaengers.
+            notify: Boolean(cacheNotifyKind(item)),
+            notifyKind: cacheNotifyKind(item) || undefined
         })
     });
     if (response.status === 403) {

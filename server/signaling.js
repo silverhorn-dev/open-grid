@@ -67,10 +67,18 @@ export function registerSignalingRoute(app, store, { messageLimiter = null, hear
         }
     };
 
-    const notifyPresence = (peerId, online) => {
+    // "Abwesend": App/Tab verbunden, aber nicht sichtbar (vom Client per PRESENCE_AWAY gemeldet).
+    // `away` steht nur in der Meldung, wenn es gilt oder sich gerade aendert.
+    const awayPeers = new Set();
+    const presenceMessage = (peerId, online, awayChanged = false) => {
+        const away = online && awayPeers.has(peerId);
+        return away || awayChanged ? { type: 'PRESENCE', peerId, online, away } : { type: 'PRESENCE', peerId, online };
+    };
+
+    const notifyPresence = (peerId, online, awayChanged = false) => {
         for (const watcherId of subscriptions.get(peerId) || []) {
             if (isOnline(watcherId) && canSeePresence(watcherId, peerId)) {
-                send(watcherId, { type: 'PRESENCE', peerId, online });
+                send(watcherId, presenceMessage(peerId, online, awayChanged));
             }
         }
     };
@@ -82,9 +90,9 @@ export function registerSignalingRoute(app, store, { messageLimiter = null, hear
             .map(id => id.substring(0, 200)));
         subscriptions.set(peerId, targets);
         const online = [...targets].filter(targetId => isOnline(targetId) && canSeePresence(peerId, targetId));
-        send(peerId, { type: 'PRESENCE_SNAPSHOT', online });
+        send(peerId, { type: 'PRESENCE_SNAPSHOT', online, away: online.filter(targetId => awayPeers.has(targetId)) });
         // Wer jetzt gegenseitig sichtbar ist, erfaehrt, dass dieser Peer online ist.
-        online.forEach(targetId => send(targetId, { type: 'PRESENCE', peerId, online: true }));
+        online.forEach(targetId => send(targetId, presenceMessage(peerId, true)));
     };
 
     const notifyPeerOffline = (peerId) => {
@@ -142,6 +150,16 @@ export function registerSignalingRoute(app, store, { messageLimiter = null, hear
                     return;
                 }
 
+                if (data.type === 'PRESENCE_AWAY') {
+                    if (!currentPeerId) return;
+                    const away = data.away === true;
+                    if (away === awayPeers.has(currentPeerId)) return;
+                    if (away) awayPeers.add(currentPeerId);
+                    else awayPeers.delete(currentPeerId);
+                    notifyPresence(currentPeerId, true, true);
+                    return;
+                }
+
                 if (data.type === 'PRESENCE_SUBSCRIBE') {
                     if (currentPeerId) handlePresenceSubscribe(currentPeerId, data.peerIds);
                     return;
@@ -173,6 +191,7 @@ export function registerSignalingRoute(app, store, { messageLimiter = null, hear
             if (!currentPeerId || activeSockets.get(currentPeerId) !== socket) return;
             // Erst austragen, dann benachrichtigen: der Peer gilt ab jetzt als offline.
             activeSockets.delete(currentPeerId);
+            awayPeers.delete(currentPeerId);
             notifyPresence(currentPeerId, false);
             subscriptions.delete(currentPeerId);
             notifyPeerOffline(currentPeerId);
@@ -186,6 +205,11 @@ export function registerSignalingRoute(app, store, { messageLimiter = null, hear
 
     return {
         isPeerOnline: isOnline,
+        // Nach dem Loeschen eines Profils: offene Verbindung schliessen (Abmeldung wie beim Trennen).
+        disconnectPeer(peerId) {
+            activeSockets.get(peerId)?.close();
+        },
+        isPeerAway: peerId => isOnline(peerId) && awayPeers.has(peerId),
         // Gegenseitige, nicht blockierte Kontakte, die gerade online sind (Freunde-Grid).
         getMutualContacts(peerId) {
             return [...(subscriptions.get(peerId) || [])].filter(targetId => isOnline(targetId) && canSeePresence(peerId, targetId));

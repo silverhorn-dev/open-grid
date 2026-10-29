@@ -36,7 +36,13 @@ const DEFAULT_PROFILE_SCHEMA = [
     { key: 'displayName', label: { de: 'Anzeigename', en: 'Display name' }, type: 'string', required: true, default: 'Alex' },
     { key: 'age', label: { de: 'Alter', en: 'Age' }, type: 'number', min: 18, max: 99, default: 26 },
     { key: 'role', label: { de: 'Position / Rolle', en: 'Position / Role' }, type: 'select', options: ['Top', 'Bottom', 'Versatile', 'Side'], default: 'Versatile' },
-    { key: 'bio', label: { de: 'Ueber mich', en: 'About me' }, type: 'description', default: { de: 'Hey, ich nutze OpenGrid.', en: 'Hey, I am using OpenGrid.' } }
+    { key: 'height', label: { de: 'Größe (cm)', en: 'Height (cm)' }, type: 'number', min: 120, max: 230 },
+    { key: 'weight', label: { de: 'Gewicht (kg)', en: 'Weight (kg)' }, type: 'number', min: 35, max: 250 },
+    { key: 'bodyType', label: { de: 'Körperbau', en: 'Body type' }, type: 'select', options: ['Slim', 'Average', 'Athletic', 'Muscular', 'Stocky', 'Large'] },
+    { key: 'tribes', label: { de: 'Tribes', en: 'Tribes' }, type: 'multiselect', options: ['Bear', 'Clean-cut', 'Daddy', 'Geek', 'Jock', 'Leather', 'Otter', 'Rugged', 'Trans', 'Twink', 'Femme'] },
+    { key: 'lookingFor', label: { de: 'Sucht nach', en: 'Looking for' }, type: 'multiselect', options: ['Chat', 'Dates', 'Friends', 'Relationship', 'Right now', 'Networking'] },
+    { key: 'relationship', label: { de: 'Beziehungsstatus', en: 'Relationship status' }, type: 'select', options: ['Single', 'Dating', 'Committed', 'Open relationship', 'Married', 'Partnered'] },
+    { key: 'bio', label: { de: 'Über mich', en: 'About me' }, type: 'description', default: { de: 'Hey, ich nutze OpenGrid.', en: 'Hey, I am using OpenGrid.' } }
 ];
 // Der Router liefert ein Schema pro App-Modus; aktiv ist das des gewaehlten Modus (modes.js).
 let PROFILE_SCHEMAS = loadInjectedProfileSchemas();
@@ -128,6 +134,44 @@ const state = {
     albumLimitTimer: null,
     // Betrachter: Selbstzerstoerung zeitlich begrenzter Alben (albums.js).
     albumSelfDestructTimer: null,
+    // Flirt-Modus in Freundes-Chats: Flirt-Teil im normalen Chat ausblenden, Chats im Flirt-Modus, Lasche
+    // ueber dem Senden-Knopf (an/aus, pro Chat ausgeblendet) (friends.js).
+    discoveryHistory: { hide: true, flirt: [], tab: true, tabHidden: [], seen: {} },
+    // Senden lange gedrueckt: naechste Nachricht an diesen Peer als Flirt (friends.js).
+    flirtSendOnce: null,
+    // Nachricht unter der Maus (Desktop), damit die Hover-Leiste beim Neuzeichnen nicht flackert (chat-tools.js).
+    hoveredMessageId: null,
+    // Eingabeleiste nach rechts wischen = Chat schliessen (gestures.js).
+    chatSwipeClose: true,
+    // Abwesende Chat-Partner (verbunden, App nicht sichtbar) und der eigene zuletzt gemeldete Zustand.
+    peerAway: {},
+    reportedAway: null,
+    // Eingefahrene Flirt-Lasche per Tipp wieder ausgeklappt (bis man wieder unten ist, friends.js).
+    flirtTabPinnedOpen: false,
+    // Benachrichtigungen je Art und ob eigene Profilbesuche gemeldet werden (push.js).
+    notificationSettings: null,
+    // Verlauf in Seiten (chat-tools.js): gezeichnete Nachrichten, nicht gezeichnete aeltere, Chat nach Tagen.
+    chatRenderLimit: 150,
+    chatOlderCount: 0,
+    chatDayMode: false,
+    chatDay: null,
+    chatDays: [],
+    // Grid-Bereich ('grid' | 'interactions' | 'matches') und lokale Interaktionen (grid-tabs.js).
+    gridView: 'grid',
+    interactions: { items: [], seenAt: 0 },
+    // Grid-Filter (nur lokal), gebuendeltes Neusortieren und die Liste zum Blaettern im Profil (grid-filter.js).
+    gridFilter: { maxDistance: null, photo: false, unknown: true, ranges: {}, options: {} },
+    gridRefilterTimer: null,
+    gridPrefetchTimer: null,
+    gridPrefetchPeerIds: [],
+    profileBrowseList: [],
+    // Sichtbare Karten im Grid (Zahl am Grid-Tab, grid-tabs.js).
+    gridVisibleCount: 0,
+    // Neu laden: 'full' (ganze Seite) oder 'app' (nur Daten) (gestures.js).
+    reloadMode: 'full',
+    // Eigene Sichtbarkeitsregel "Nur zeigen fuer ..." (audience.js).
+    audienceRule: null,
+    shareProfileViews: false,
     // Wer eigene Chat-Bilder/Videos speichern darf: 'friends' | 'all' (media-rights.js).
     mediaDownload: 'friends',
     // Snap-Editor: darf der Empfaenger diese Aufnahme speichern (snaps.js).

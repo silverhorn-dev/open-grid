@@ -75,6 +75,134 @@ function handleServiceWorkerMessage(event) {
     }
 }
 
+// Direkt (P2P) zugestellt, der Partner ist aber abwesend: Server um einen Push ohne Inhalt bitten, sonst
+// bekommt er keine Benachrichtigung (es lief kein Push ueber den Zwischenspeicher). Hoechstens alle 15 s
+// pro Partner; der Server prueft selbst, ob der Partner wirklich abwesend/offline ist.
+const PUSH_NUDGE_INTERVAL_MS = 15000;
+const lastPushNudges = {};
+
+function nudgeAwayPeer(peerId, kind = 'chat') {
+    if (!peerId || !isPeerAway(peerId)) return;
+    const now = Date.now();
+    const key = `${peerId}:${kind}`;
+    if (now - (lastPushNudges[key] || 0) < PUSH_NUDGE_INTERVAL_MS) return;
+    lastPushNudges[key] = now;
+    fetch(`${API_BASE}/api/push/nudge`, {
+        method: 'POST',
+        headers: peerAuthHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ senderId: state.myProfile.id, recipientId: peerId, kind })
+    }).catch(error => logDebug(`Push nudge failed: ${error.message}`));
+}
+
+// ----- Benachrichtigungen je Art (Einstellungen > Chat > Benachrichtigungen) -----
+// Ein Schalter pro Art steuert Push und Hinweis in der App. Arten mit Push melden wir dem Router als
+// "stumm" (`/api/push/settings`), damit er dafuer gar nicht erst pusht. Chat-Ereignisse gibt es nur in
+// der App. Profilbesuche sind standardmaessig aus (und werden nur gesendet, wenn der Besucher es erlaubt).
+const NOTIFICATION_KINDS = ['match', 'flame', 'add', 'discovery', 'chat', 'profileView', 'chatEvents'];
+const PUSH_NOTIFICATION_KINDS = ['match', 'flame', 'add', 'discovery', 'chat', 'profileView'];
+const NOTIFICATION_SETTINGS_RECORD_ID = 'notification-settings';
+const NOTIFICATION_DEFAULTS = { match: true, flame: true, add: true, discovery: true, chat: true, profileView: false, chatEvents: true };
+
+async function loadNotificationSettings() {
+    const stored = await databaseRequest('keys', 'readonly', store => store.get(NOTIFICATION_SETTINGS_RECORD_ID)).catch(() => null);
+    // Ohne eigene Wahl gilt der Router-Standard (`CLIENT_DEFAULTS.notifyMatch` usw.), sonst NOTIFICATION_DEFAULTS.
+    const routerDefault = kind => {
+        const value = clientDefault(`notify${kind[0].toUpperCase()}${kind.slice(1)}`, NOTIFICATION_DEFAULTS[kind]);
+        return typeof value === 'boolean' ? value : NOTIFICATION_DEFAULTS[kind];
+    };
+    state.notificationSettings = Object.fromEntries(NOTIFICATION_KINDS.map(kind => [kind,
+        typeof stored?.kinds?.[kind] === 'boolean' ? stored.kinds[kind] : routerDefault(kind)]));
+    state.shareProfileViews = typeof stored?.shareProfileViews === 'boolean' ? stored.shareProfileViews : clientDefault('shareProfileViews', false) === true;
+    renderNotificationSettings();
+}
+
+function notificationEnabled(kind) {
+    return state.notificationSettings?.[kind] ?? NOTIFICATION_DEFAULTS[kind] ?? true;
+}
+
+async function saveNotificationSettings() {
+    try {
+        await putDatabaseRecord('keys', { id: NOTIFICATION_SETTINGS_RECORD_ID, kinds: state.notificationSettings, shareProfileViews: state.shareProfileViews });
+    } catch (error) {
+        logDebug(`Could not store notification settings: ${error.message}`);
+        showToast(t('common.settingCouldNotBeSaved'), 'error');
+    }
+}
+
+async function updateNotificationSetting(kind, enabled) {
+    if (!NOTIFICATION_KINDS.includes(kind)) return;
+    state.notificationSettings = { ...state.notificationSettings, [kind]: Boolean(enabled) };
+    await saveNotificationSettings();
+    syncPushMutedKinds().catch(error => logDebug(`Push settings sync failed: ${error.message}`));
+}
+
+async function updateProfileViewSharing(enabled) {
+    state.shareProfileViews = Boolean(enabled);
+    await saveNotificationSettings();
+}
+
+function renderNotificationSettings() {
+    NOTIFICATION_KINDS.forEach(kind => {
+        const toggle = document.getElementById(`notify-${kind}-toggle`);
+        if (toggle) toggle.checked = notificationEnabled(kind);
+    });
+    const share = document.getElementById('share-profile-views-toggle');
+    if (share) share.checked = state.shareProfileViews;
+}
+
+// Dem Router sagen, welche Arten er nicht pushen soll (nur mit eingerichtetem Push).
+async function syncPushMutedKinds() {
+    if (!isPushSupported() || Notification.permission !== 'granted' || !state.myProfile?.id) return;
+    const mutedKinds = PUSH_NOTIFICATION_KINDS.filter(kind => !notificationEnabled(kind));
+    const response = await fetch(`${API_BASE}/api/push/settings`, {
+        method: 'POST',
+        headers: peerAuthHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ peerId: state.myProfile.id, mutedKinds })
+    });
+    if (!response.ok) throw new Error(`Push settings API returned ${response.status}.`);
+}
+
+// Profilbesuch melden: nur wenn man es selbst erlaubt (Standard aus), nur in "Entdecken" (nicht bei
+// Freunden oder Chats aus "Chat & Freunde") und hoechstens alle 6 Stunden pro Person. Geht als
+// verschluesselte Chat-Operation (direkt, sonst Pfad C mit Push "Profilbesuch"); der andere sieht den
+// Hinweis nur, wenn er Profilbesuche eingeschaltet hat.
+const PROFILE_VIEW_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const PROFILE_VIEWS_SENT_KEY = 'opengrid-profile-views-sent';
+
+function shouldSendProfileView(peerId, now = Date.now()) {
+    if (!state.shareProfileViews || !peerId || peerId === state.myProfile?.id || isPeerBlocked(peerId)) return false;
+    if (!scopeIncludes('discovery') || isSocialMode() || isFriend(peerId) || chatScopeOf(peerId) === 'social') return false;
+    let sent = {};
+    try {
+        sent = JSON.parse(localStorage.getItem(PROFILE_VIEWS_SENT_KEY) || '{}') || {};
+    } catch {
+        sent = {};
+    }
+    if (now - (Number(sent[peerId]) || 0) < PROFILE_VIEW_INTERVAL_MS) return false;
+    // Alte Eintraege aufraeumen, damit die Liste nicht waechst.
+    const fresh = Object.fromEntries(Object.entries(sent).filter(([, at]) => now - at < PROFILE_VIEW_INTERVAL_MS).slice(-200));
+    localStorage.setItem(PROFILE_VIEWS_SENT_KEY, JSON.stringify({ ...fresh, [peerId]: now }));
+    return true;
+}
+
+function sendProfileView(peerId) {
+    if (!shouldSendProfileView(peerId)) return;
+    const operation = {
+        operationId: `view:${window.crypto.randomUUID()}`,
+        type: 'PROFILE_VIEW',
+        actorId: state.myProfile.id,
+        createdAt: Date.now()
+    };
+    sendSecurePayload(peerId, { type: 'CHAT_OPERATION', operation }, path => {
+        if (path === 'p2p') nudgeAwayPeer(peerId, 'profileView');
+    }).catch(logBackgroundError('sendProfileView'));
+}
+
+// Hinweis in der App nur, wenn die Art eingeschaltet ist.
+function notifyInApp(kind, message, type = 'info') {
+    if (notificationEnabled(kind)) showToast(message, type);
+}
+
 async function getPushSubscription() {
     const registration = state.serviceWorkerRegistration;
     return registration ? registration.pushManager.getSubscription() : null;
@@ -93,7 +221,10 @@ async function uploadPushSubscription(subscription) {
 async function syncPushSubscription() {
     if (!isPushSupported() || Notification.permission !== 'granted') return;
     const subscription = await getPushSubscription();
-    if (subscription) await uploadPushSubscription(subscription);
+    if (subscription) {
+        await uploadPushSubscription(subscription);
+        await syncPushMutedKinds();
+    }
 }
 
 async function setCompactPushNotifications(enabled) {

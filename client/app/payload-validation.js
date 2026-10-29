@@ -11,8 +11,8 @@ const MAX_PROFILE_VALUE_LENGTH = 5000;
 const MAX_SYNC_IDS = 50;
 const CHAT_OPERATION_TYPES = [
     'MESSAGE_PUT', 'MESSAGE_DELETE', 'MESSAGE_REACT', 'CHAT_WIPE', 'PEER_UNHIDE',
-    'MATCH_PING', 'MATCH_RESET', 'FRIEND_PING', 'FRIEND_RESET', 'SNAP_CONSUMED', 'SNAP_SAVED', 'ALBUM_KEYS', 'ALBUM_REVOKE',
-    'STATUS_POST', 'STATUS_DELETE'
+    'MATCH_PING', 'MATCH_RESET', 'FRIEND_PING', 'FRIEND_RESET', 'SNAP_CONSUMED', 'SNAP_SAVED', 'ALBUM_KEYS', 'ALBUM_REVOKE', 'ALBUM_VIEW_CLOSED',
+    'STATUS_POST', 'STATUS_DELETE', 'PROFILE_VIEW', 'PROFILE_DELETED'
 ];
 
 const isId = value => typeof value === 'string' && value.length > 0 && value.length <= MAX_ID_LENGTH;
@@ -69,7 +69,7 @@ function isValidChatOperation(operation) {
     if (operation.type === 'STATUS_POST') return isId(operation.statusId) && ['text', 'photo'].includes(operation.kind)
         && isOptionalString(operation.text, 280) && isOptionalString(operation.color, 20)
         && isOptionalString(operation.image, 100000) && Number.isFinite(operation.expiresAt);
-    if (operation.type === 'ALBUM_REVOKE') return isId(operation.albumId);
+    if (operation.type === 'ALBUM_REVOKE' || operation.type === 'ALBUM_VIEW_CLOSED') return isId(operation.albumId);
     if (operation.type === 'ALBUM_KEYS') return Array.isArray(operation.bundles) && operation.bundles.length <= 4
         && operation.bundles.every(bundle => bundle && (bundle.epochMs === undefined || (Number.isInteger(bundle.epochMs) && bundle.epochMs > 0)))
         && (operation.ticket === undefined || operation.ticket === null || isValidTicket(operation.ticket));
@@ -148,7 +148,7 @@ const PAYLOAD_VALIDATORS = {
     ALBUM_DENIED: payload => isId(payload.albumId),
     ALBUM_REVOKED: payload => isId(payload.albumId),
     ALBUM_VIEW_CLOSED: payload => isId(payload.albumId),
-    ALBUM_KEY_REQUEST: payload => isId(payload.albumId),
+    ALBUM_KEY_REQUEST: payload => isId(payload.albumId) && (payload.viewId === undefined || isId(payload.viewId)),
     SNAP_VIEW_REQUEST: payload => isId(payload.snapId),
     SNAP_VIEW_GRANT: payload => isId(payload.snapId) && isOptionalString(payload.key, 100),
     SNAP_VIEW_DENIED: payload => payload.snapId === null || isId(payload.snapId),

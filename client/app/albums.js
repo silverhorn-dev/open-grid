@@ -67,6 +67,8 @@ async function loadAlbums() {
     enforceAlbumLimits().catch(logBackgroundError('loadAlbums'));
     // Betrachter: was waehrend der Pause abgelaufen ist, jetzt vergessen.
     runAlbumSelfDestruct().catch(logBackgroundError('loadAlbums'));
+    // Betrachter: begrenzte Ansichten, die ohne Schliessen endeten (Neu laden, App beendet), jetzt beenden.
+    endInterruptedAlbumViews().catch(logBackgroundError('loadAlbums'));
 }
 
 // Alben (inkl. Albumgeheimnis und rollender Keys) liegen mit dem Speicherschluessel verschluesselt
@@ -272,7 +274,12 @@ async function enforceAlbumLimits(now = null) {
             const over = limit.kind === 'time'
                 ? limit.until <= current
                 : (limit.used || 0) >= limit.views && (limit.sessionEndsAt || 0) <= current;
-            if (over) await revokeAlbumAccess(album.id, viewerId);
+            if (!over) continue;
+            // Besitzer erfaehrt, dass jemand fertig ist (alle Ansichten verbraucht).
+            if (limit.kind === 'views') {
+                notifyInApp('chatEvents', t('albums.viewerFinishedAlbum', { name: getPeerPresentation(viewerId).name || t('app.someone'), album: album.name }));
+            }
+            await revokeAlbumAccess(album.id, viewerId);
         }
     }
     scheduleAlbumLimitCheck(current);
@@ -459,7 +466,9 @@ async function openAlbumViewer(albumId, reference = null) {
     const album = state.albums[albumId];
     const ownerId = album?.ownerId || reference?.ownerId;
     openMediaModal(album?.name || reference?.name || t('albums.album'));
-    state.albumViewer = { albumId, ownerId };
+    // Jede Oeffnung ist eine eigene Ansicht (`viewId`): der Besitzer zaehlt eine neue Ansicht, auch wenn
+    // die vorige (z. B. vor dem Neu laden) noch nicht abgelaufen ist.
+    state.albumViewer = { albumId, ownerId, viewId: window.crypto.randomUUID() };
     if (album) await renderAlbumViewer(album);
     if (ownerId && ownerId !== state.myProfile.id) {
         if (!album) renderMediaModalMessage(t('albums.loadingAlbumFromOwnerOr'), 'fa-spinner');
@@ -1377,7 +1386,20 @@ async function requestAlbumKeys(ownerId, albumId) {
         if (album && state.albumViewer?.albumId === albumId) await renderAlbumViewer(album);
         return;
     }
-    await sendSecurePayload(ownerId, { type: 'ALBUM_KEY_REQUEST', albumId });
+    const viewId = state.albumViewer?.albumId === albumId ? state.albumViewer.viewId : undefined;
+    await sendSecurePayload(ownerId, { type: 'ALBUM_KEY_REQUEST', albumId, viewId });
+}
+
+// Betrachter, beim Start: Ansichts-Buendel liegen nur waehrend einer offenen begrenzten Ansicht. Sind
+// noch welche da, wurde die Ansicht nicht geschlossen (Neu laden, App beendet) -> jetzt beenden, sonst
+// liesse sich das Album ohne neue Zaehlung wieder oeffnen.
+async function endInterruptedAlbumViews() {
+    const records = await getAllDatabaseRecords('keys').catch(() => []);
+    const albumIds = new Set(records
+        .filter(record => typeof record.id === 'string' && record.id.startsWith(ALBUM_KEY_BUNDLE_PREFIX) && record.session === true)
+        .map(record => record.albumId)
+        .filter(albumId => typeof albumId === 'string' && state.albumViewer?.albumId !== albumId));
+    for (const albumId of albumIds) await endLimitedAlbumView(albumId);
 }
 
 // Betrachter: Album mit begrenzten Ansichten geschlossen -> Schluessel und gespeicherte Ansichts-Buendel
@@ -1393,7 +1415,34 @@ async function endLimitedAlbumView(albumId) {
     await Promise.all(sessionBundles.map(record => deleteDatabaseRecord('keys', record.id)));
     // Auch die verschluesselten Bilder: nach der Ansicht bleibt nichts liegen (naechste Ansicht laedt neu).
     await deleteReceivedAlbumImages(albumId);
-    if (ownerId) await sendSecurePayload(ownerId, { type: 'ALBUM_VIEW_CLOSED', albumId });
+    if (ownerId) await reportAlbumViewClosed(ownerId, albumId);
+}
+
+// Dem Besitzer melden, dass die Ansicht vorbei ist. Ohne diese Meldung entzieht er erst nach der
+// 15-Minuten-Frist (und nur, wenn seine App dann laeuft). Deshalb als Chat-Operation: bei offenem
+// Kanal direkt, sonst sofort ueber Pfad C (nicht erst nach 10 s, die App wird nach dem Schliessen oft
+// gleich beendet). Die alte Direktnachricht geht fuer aeltere App-Versionen zusaetzlich mit; doppelt
+// ankommend schadet nicht (die Ansicht ist dann schon beendet).
+async function reportAlbumViewClosed(ownerId, albumId) {
+    const operation = {
+        operationId: `albumclosed:${albumId}:${window.crypto.randomUUID()}`,
+        type: 'ALBUM_VIEW_CLOSED',
+        actorId: state.myProfile.id,
+        createdAt: Date.now(),
+        albumId
+    };
+    const payload = { type: 'CHAT_OPERATION', operation };
+    const channel = state.dataChannels[ownerId];
+    let delivered = false;
+    if (channel?.readyState === 'open' && state.sessionKeys[ownerId]) {
+        delivered = await sendSecurePayload(ownerId, payload).catch(() => false);
+    } else {
+        delivered = await queuePayloadInCache(ownerId, { payload, cacheQueued: false }).catch(() => false);
+    }
+    // Klappt beides nicht (z. B. beim Start noch ohne Router-Anmeldung): normale Warteschlange, die P2P
+    // versucht und nach 10 s ueber Pfad C geht.
+    if (!delivered) sendSecurePayload(ownerId, payload, () => {}).catch(logBackgroundError('reportAlbumViewClosed'));
+    sendSecurePayload(ownerId, { type: 'ALBUM_VIEW_CLOSED', albumId }).catch(logBackgroundError('reportAlbumViewClosed'));
 }
 
 async function deleteReceivedAlbumImages(albumId) {
@@ -1458,8 +1507,10 @@ async function handleAlbumKeyRequest(peerId, payload) {
     const limit = albumLimitFor(album, peerId);
     if (limit?.kind === 'views') {
         const now = (await fetchServerTime().catch(() => ({ now: Date.now() }))).now;
-        // Laufende Ansicht: dieselbe Frist erneut schicken, ohne zu zaehlen.
-        if ((limit.sessionEndsAt || 0) > now) {
+        // Dieselbe laufende Ansicht (gleiche `viewId`, z. B. erneute Anfrage): dieselbe Frist, ohne zu
+        // zaehlen. Eine neue Oeffnung (andere oder keine `viewId`) zaehlt, auch vor Ablauf der alten.
+        const sameView = typeof payload.viewId === 'string' && payload.viewId === limit.viewId;
+        if (sameView && (limit.sessionEndsAt || 0) > now) {
             await pushAlbumKeys(peerId, album, true, { sessionUntil: limit.sessionEndsAt });
             return;
         }
@@ -1468,7 +1519,7 @@ async function handleAlbumKeyRequest(peerId, payload) {
             await enforceAlbumLimits(now);
             return;
         }
-        album.limits = { ...album.limits, [peerId]: { ...limit, used: (limit.used || 0) + 1, sessionEndsAt: now + ALBUM_VIEW_SESSION_MS } };
+        album.limits = { ...album.limits, [peerId]: { ...limit, used: (limit.used || 0) + 1, sessionEndsAt: now + ALBUM_VIEW_SESSION_MS, viewId: typeof payload.viewId === 'string' ? payload.viewId : null } };
         await saveAlbum(album);
         scheduleAlbumLimitCheck(now);
         await pushAlbumKeys(peerId, album, true, { sessionUntil: now + ALBUM_VIEW_SESSION_MS });

@@ -375,8 +375,19 @@ test('loads the grid ring by ring with distance buckets and no locations', async
     const ring0 = await gridPeerIds('geohash=u10j2k');
     assert.deepEqual(ring0.peers.map(peer => peer.id), ['peer-a']);
     assert.equal(ring0.hasMore, true);
-    assert.deepEqual(Object.keys(ring0.peers[0]).sort(), ['avatar', 'distanceBucket', 'id', 'name']);
+    // Keine Standorte; die Profil-Version ist nur ein Zaehler (ohne Angabe null).
+    assert.deepEqual(Object.keys(ring0.peers[0]).sort(), ['avatar', 'distanceBucket', 'id', 'name', 'version']);
+    assert.equal(ring0.peers[0].version, null);
     assert.equal(ring0.peers[0].distanceBucket, 'lt1');
+    await app.inject({ method: 'POST', url: '/api/register', headers: authHeaders('peer-a'), payload: registrationPayload('peer-a', 'registration-peer-a', { profileVersion: 7 }) });
+    assert.equal((await gridPeerIds('geohash=u10j2k')).peers[0].version, 7, 'profile version on the card');
+    await app.inject({ method: 'POST', url: '/api/register', headers: authHeaders('peer-a'), payload: registrationPayload('peer-a', 'registration-peer-a', { profileVersion: 'x' }) });
+    assert.equal((await gridPeerIds('geohash=u10j2k')).peers[0].version, null, 'only integers');
+    // Sichtbarkeitsregel: nur ein kurzer Code, nur gueltige Form, nur wenn gesetzt.
+    await app.inject({ method: 'POST', url: '/api/register', headers: authHeaders('peer-a'), payload: registrationPayload('peer-a', 'registration-peer-a', { audience: 'AWcCAQE' }) });
+    assert.equal((await gridPeerIds('geohash=u10j2k')).peers[0].audience, 'AWcCAQE');
+    await app.inject({ method: 'POST', url: '/api/register', headers: authHeaders('peer-a'), payload: registrationPayload('peer-a', 'registration-peer-a', { audience: '<script>' }) });
+    assert.equal('audience' in (await gridPeerIds('geohash=u10j2k')).peers[0], false, 'invalid codes are dropped');
 
     const ring1 = await gridPeerIds('geohash=u10j2k&ring=1');
     assert.deepEqual(ring1.peers.map(peer => peer.id), ['peer-a', 'peer-b']);
@@ -688,6 +699,20 @@ test('shares presence only between mutually subscribed, unblocked chat partners 
     await new Promise(resolve => setTimeout(resolve, 100));
     assert.equal(peerC.has('PRESENCE'), false);
 
+    // Abwesend (App nicht sichtbar): Partner erfaehrt es, ein neues Abo bekommt es im Snapshot.
+    const peerB2 = await connectSocket(url, 'peer-b');
+    peerB2.send(JSON.stringify({ type: 'PRESENCE_SUBSCRIBE', peerIds: ['peer-a'] }));
+    await peerB2.next('PRESENCE_SNAPSHOT');
+    assert.deepEqual(await peerA.next('PRESENCE'), { type: 'PRESENCE', peerId: 'peer-b', online: true });
+    peerB2.send(JSON.stringify({ type: 'PRESENCE_AWAY', away: true }));
+    assert.deepEqual(await peerA.next('PRESENCE'), { type: 'PRESENCE', peerId: 'peer-b', online: true, away: true });
+    peerA.send(JSON.stringify({ type: 'PRESENCE_SUBSCRIBE', peerIds: ['peer-b'] }));
+    assert.deepEqual(await peerA.next('PRESENCE_SNAPSHOT'), { type: 'PRESENCE_SNAPSHOT', online: ['peer-b'], away: ['peer-b'] });
+    peerB2.send(JSON.stringify({ type: 'PRESENCE_AWAY', away: false }));
+    assert.deepEqual(await peerA.next('PRESENCE'), { type: 'PRESENCE', peerId: 'peer-b', online: true, away: false });
+    peerB2.close();
+    assert.deepEqual(await peerA.next('PRESENCE'), { type: 'PRESENCE', peerId: 'peer-b', online: false });
+
     // Blockiert: kein Status mehr.
     store.setChatControl('peer-a', 'peer-c', 'BLOCK');
     peerA.send(JSON.stringify({ type: 'PRESENCE_SUBSCRIBE', peerIds: ['peer-b', 'peer-c'] }));
@@ -970,6 +995,13 @@ test('serves the changelog as markdown', async () => {
 test('client defaults from the operator are validated and delivered with the app config', async () => {
     assert.deepEqual(parseClientDefaults('{"pullUpAction":"switcher","statusDirectOnly":true,"chatSwitchStyle":"teleport","evil":1,"albumKeyEpochsAhead":9}'),
         { pullUpAction: 'switcher', statusDirectOnly: true });
+    assert.deepEqual(parseClientDefaults('{"notifyFlame":false,"notifyProfileView":true,"shareProfileViews":"yes"}'),
+        { notifyFlame: false, notifyProfileView: true }, 'notification defaults are booleans only');
+    // Startregel fuer "Nur zeigen fuer ...": feste und relative Werte, sonst verworfen.
+    assert.deepEqual(parseClientDefaults('{"audience":{"ranges":{"age":{"relative":"same"}},"options":{"role":"same"}}}'),
+        { audience: { ranges: { age: { relative: 'same' } }, options: { role: 'same' } } });
+    assert.deepEqual(parseClientDefaults('{"audience":{"ranges":{"age":{"min":999}}}}'), {}, 'out of range');
+    assert.deepEqual(parseClientDefaults('{"audience":"everyone"}'), {});
     assert.deepEqual(parseClientDefaults('kaputt'), {});
     assert.deepEqual(parseClientDefaults('[1,2]'), {});
     const configured = await buildApp({ databasePath: ':memory:', clientDefaults: '{"listSwitchBehavior":"view","traceWatermark":false}' });
@@ -1034,3 +1066,34 @@ test('serves the web app manifest with a share target and redirects shares witho
     assert.equal(share.statusCode, 303);
     assert.equal(share.headers.location, '/chat?share=unavailable', 'nothing is stored on the server');
 });
+
+// Mindestwerte des Betreibers: der Router mischt sie in jede Karte, auch ohne eigene Regel.
+test('the operator minimum ends up in every grid card code', async () => {
+    await app.close();
+    app = await buildApp({ store, buildVersion: 'test-build', buildTimestamp: '2026-10-21T00:00:00.000Z', audienceMinimum: '{"ranges":{"age":{"min":18}}}' });
+    await registerPeer('peer-a');
+    const card = (await gridPeerIds('geohash=u10j2k')).peers[0];
+    assert.match(card.audience, /^[A-Za-z0-9_-]+$/, 'card without own rule still carries the minimum');
+    const config = (await app.inject({ method: 'GET', url: '/api/config' })).json();
+    assert.deepEqual(config.audienceMinimum, { ranges: { age: { min: 18 } } });
+});
+
+// Profil loeschen: nur der Peer selbst; danach ist er aus Grid, Zugang und Push verschwunden, Nachrichten
+// an ihn sind weg, Nachrichten von ihm (z. B. Loesch-Hinweise an Kontakte) bleiben bis zur Abholung.
+test('deleting an account removes the peer, its access and messages to it', async () => {
+    await registerPeer('peer-a');
+    await registerPeer('peer-b');
+    store.enqueueMessage({ recipientId: 'peer-a', senderId: 'peer-b', ciphertextPayload: 'to-a', ivHex: 'aXY=' });
+    store.enqueueMessage({ recipientId: 'peer-b', senderId: 'peer-a', ciphertextPayload: 'from-a', ivHex: 'aXY=' });
+    const forged = await app.inject({ method: 'DELETE', url: '/api/account/peer-a', headers: authHeaders('peer-b') });
+    assert.ok(forged.statusCode >= 400, 'only the peer itself');
+    const deleted = await app.inject({ method: 'DELETE', url: '/api/account/peer-a', headers: authHeaders('peer-a') });
+    assert.equal(deleted.statusCode, 200);
+    assert.deepEqual((await gridPeerIds('geohash=u10j2k')).peers.map(peer => peer.id), ['peer-b']);
+    assert.ok((await gridPeerIds('geohash=u10j2k')).removedPeerIds.includes('peer-a'), 'tombstone for other clients');
+    assert.equal(store.getMessages('peer-a').length, 0, 'messages to the deleted peer are gone');
+    assert.equal(store.getMessages('peer-b').length, 1, 'its last messages still reach the contacts');
+    const again = await app.inject({ method: 'GET', url: '/api/chat-controls/peer-a', headers: authHeaders('peer-a') });
+    assert.ok(again.statusCode >= 400, 'access token no longer valid');
+});
+

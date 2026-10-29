@@ -85,11 +85,15 @@ async function applyMatchOperation(peerId, operation) {
     if (wasMatched !== nowMatched) syncChatGate();
     if (!wasMatched && nowMatched) {
         await releaseHeldMessages(peerId);
-        if (operation.actorId === peerId) showToast(t('matching.matchWith', { name: getPeerPresentation(peerId).name || HIDDEN_PEER_NAME }), 'success');
+        if (operation.actorId === peerId) {
+            notifyInApp('match', t('matching.matchWith', { name: getPeerPresentation(peerId).name || HIDDEN_PEER_NAME }), 'success');
+            recordInteraction(peerId, 'flame', operation.createdAt || Date.now()).catch(logBackgroundError('applyMatchOperation'));
+        }
         // Das Profil ist jetzt fuer diesen Peer vollstaendig: neu anfragen.
         sendSecurePayload(peerId, { type: 'PROFILE_REQUEST' }).catch(logBackgroundError('applyMatchOperation'));
     } else if (operation.type === 'MATCH_PING' && operation.actorId === peerId && !nowMatched) {
-        showToast(t('matching.sentYouFlame', { value: getPeerPresentation(peerId).name || HIDDEN_PEER_NAME }), 'info');
+        notifyInApp('flame', t('matching.sentYouFlame', { value: getPeerPresentation(peerId).name || HIDDEN_PEER_NAME }));
+        recordInteraction(peerId, 'flame', operation.createdAt || Date.now()).catch(logBackgroundError('applyMatchOperation'));
     }
     if (wasMatched && !nowMatched) sendSecurePayload(peerId, { type: 'PROFILE_REQUEST' }).catch(logBackgroundError('applyMatchOperation'));
     renderMatchUi(peerId);
@@ -106,8 +110,13 @@ async function sendMatchOperation(peerId, type) {
     };
     await applyChatOperation(peerId, operation);
     const { peerId: _localPeerId, ...sharedOperation } = operation;
-    // Ohne direkte Verbindung nach 10 s ueber Pfad C (ohne Push).
-    await sendSecurePayload(peerId, { type: 'CHAT_OPERATION', operation: sharedOperation }, () => {});
+    // Benachrichtigung beim anderen: Flamme bzw. Match (wenn er schon eine geschickt hatte); ein Entmatchen
+    // meldet nichts. Ohne direkte Verbindung nach 10 s ueber Pfad C (mit Push dieser Art), direkt
+    // zugestellt an einen abwesenden Partner per Anstupsen.
+    const notifyKind = type === 'MATCH_PING' ? (isMatched(peerId) ? 'match' : 'flame') : null;
+    await sendSecurePayload(peerId, { type: 'CHAT_OPERATION', operation: sharedOperation }, path => {
+        if (path === 'p2p' && notifyKind) nudgeAwayPeer(peerId, notifyKind);
+    }, { notifyKind });
 }
 
 function flameCooldownLeft(peerId) {
@@ -174,10 +183,21 @@ function connectionWording() {
 
 // Absender-Sicht: was erlaubt die Einstellung des anderen? (nur Anzeige, durchgesetzt wird beim Empfaenger)
 function getPeerChatAllowance(peerId) {
+    // Profil geloescht (account.js): hier kommt nichts mehr an.
+    if (typeof isProfileDeleted === 'function' && isProfileDeleted(peerId)) {
+        return { allowed: false, remaining: 0, images: false, reason: t('chat.profileDeletedNoWriting') };
+    }
     if (isConnectedPeer(peerId)) return { allowed: true, remaining: Infinity, images: true };
     // Hat der andere schon geschrieben, hat er den Chat angenommen.
     const peerWrote = (state.chats[peerId] || []).some(message => message.senderId === peerId && !message.held);
     if (peerWrote) return { allowed: true, remaining: Infinity, images: true };
+    // Entdecken ohne bekanntes Profil (z. B. gerade per Einladung geoeffnet): die Chat-Sperre des
+    // anderen ist noch unbekannt. Erst das Profil holen, statt Nachrichten zu schicken, die er wegen
+    // "Nur Matches" zurueckhaelt (die Sperre gilt auch fuer Eingeladene).
+    if (!state.cachedProfiles[peerId] && chatScopeOf(peerId) === 'discovery') {
+        requestMissingProfile(peerId);
+        return { allowed: false, remaining: 0, images: false, reason: t('matching.waitingForProfile') };
+    }
     const policy = sanitizeChatPolicy(state.cachedProfiles[peerId]?.chatPolicy);
     if (policy.mode === 'A') return { allowed: true, remaining: Infinity, images: true };
     const wording = connectionWording();
@@ -347,6 +367,7 @@ function renderMatchingSettings() {
 // ----- UI -----
 function renderMatchUi(peerId) {
     renderActivePeerList();
+    if (typeof renderGridTabs === 'function') renderGridTabs();
     if (state.activeModalPeerId === peerId) renderProfileMatchActions(peerId);
     if (state.activeChatPeerId === peerId) {
         updateChatActionButtons();

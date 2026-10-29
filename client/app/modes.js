@@ -47,7 +47,9 @@ async function loadAppMode() {
             ageCheck: ['confirm', 'provider'].includes(config?.safety?.ageCheck) ? config.safety.ageCheck : 'off',
             ageProvider: typeof config?.safety?.ageProvider === 'string' ? config.safety.ageProvider : null,
             emailCheck: config?.safety?.emailCheck === 'required' ? 'required' : 'off'
-        }
+        },
+        // Mindestwerte des Betreibers fuer "Nur zeigen fuer ..." (der Router mischt sie selbst in die Karte).
+        audienceMinimum: config?.audienceMinimum && typeof config.audienceMinimum === 'object' ? config.audienceMinimum : null
     };
     document.querySelectorAll('[data-info-link]').forEach(link => { link.href = state.appConfig.infoUrl; });
     // Sprache: Standard des Betreibers gilt ab dem naechsten Start (oder sofort, wenn noch nichts gewaehlt).

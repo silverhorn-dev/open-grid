@@ -255,6 +255,8 @@ async function handleSignalingMessage(message) {
     }
 
     if (message.type === 'SOCKET_REGISTERED') {
+        // Neue Verbindung: der Server kennt den Abwesend-Zustand noch nicht.
+        reportAway(undefined, true);
         document.getElementById('network-indicator').className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse';
         document.getElementById('network-status-text').textContent = t('connection.connectedToRouter');
         refreshChatControls()
@@ -273,7 +275,9 @@ async function handleSignalingMessage(message) {
 
     if (message.type === 'PRESENCE_SNAPSHOT') {
         const online = new Set(Array.isArray(message.online) ? message.online : []);
+        const away = new Set(Array.isArray(message.away) ? message.away : []);
         state.peerPresence = Object.fromEntries(state.presenceSubscription.map(peerId => [peerId, online.has(peerId)]));
+        state.peerAway = Object.fromEntries([...away].filter(peerId => online.has(peerId)).map(peerId => [peerId, true]));
         online.forEach(peerId => handlePeerCameOnline(peerId));
         renderPresenceChange();
         return;
@@ -281,6 +285,8 @@ async function handleSignalingMessage(message) {
     if (message.type === 'PRESENCE') {
         if (typeof message.peerId !== 'string' || !state.presenceSubscription.includes(message.peerId)) return;
         state.peerPresence[message.peerId] = message.online === true;
+        if (message.online === true && message.away === true) state.peerAway[message.peerId] = true;
+        else delete state.peerAway[message.peerId];
         if (message.online === true) handlePeerCameOnline(message.peerId);
         else {
             updateProfilePresence(message.peerId, 'offline');
@@ -376,6 +382,37 @@ function subscribePresence() {
     state.ws.send(JSON.stringify({ type: 'PRESENCE_SUBSCRIBE', peerIds: state.presenceSubscription }));
 }
 
+// Abwesend: verbunden, aber App/Tab nicht sichtbar (Server meldet es per PRESENCE.away).
+function isPeerAway(peerId) {
+    return state.peerAway[peerId] === true && isPeerOnline(peerId);
+}
+
+// Eigenen Zustand melden: versteckte Seite = abwesend. `force` meldet auch ohne Aenderung (neue
+// WS-Verbindung). Bei `pagehide` gilt abwesend, egal was visibilityState gerade sagt.
+function reportAway(forceAway = undefined, force = false) {
+    const away = forceAway === undefined ? document.visibilityState === 'hidden' : forceAway;
+    if (!force && state.reportedAway === away) return;
+    if (state.ws?.readyState !== WebSocket.OPEN) return;
+    state.reportedAway = away;
+    state.ws.send(JSON.stringify({ type: 'PRESENCE_AWAY', away }));
+}
+
+// 'online' | 'away' | 'offline' fuer Punkte und Abzeichen (Chatliste, Kontaktleiste, Profil).
+function presenceStatusOf(peerId) {
+    if (!isPeerOnline(peerId) || isPeerBlocked(peerId)) return 'offline';
+    return isPeerAway(peerId) ? 'away' : 'online';
+}
+
+// Punkt am Avatar: gruen online, gelb abwesend, ohne Punkt offline.
+function createPresenceDot(peerId, className) {
+    const status = presenceStatusOf(peerId);
+    if (status === 'offline') return null;
+    const dot = document.createElement('span');
+    dot.className = `${className} rounded-full border-2 border-slate-900 ${status === 'away' ? 'bg-amber-400' : 'bg-emerald-400'}`;
+    dot.title = status === 'away' ? t('chat.away') : t('common.online');
+    return dot;
+}
+
 function isPeerOnline(peerId) {
     return state.peerPresence[peerId] === true || state.dataChannels[peerId]?.readyState === 'open';
 }
@@ -396,6 +433,11 @@ function handlePeerCameOnline(peerId) {
 function renderPresenceChange(peerId = null) {
     renderActivePeerList();
     if (!peerId || state.activeChatPeerId === peerId) renderChatPeerIndicator();
+    // Offenes Profil eines Chat-Partners: Abzeichen mitziehen (auch abwesend).
+    const modalPeerId = state.activeModalPeerId;
+    if (modalPeerId && (!peerId || modalPeerId === peerId) && modalPeerId in state.peerPresence) {
+        updateProfilePresence(modalPeerId, { online: 'online', away: 'absent', offline: 'offline' }[presenceStatusOf(modalPeerId)]);
+    }
 }
 
 // Offener Chat und Peers mit wartenden Nachrichten, auch wenn sie nicht im Grid stehen (Chat- und
@@ -693,7 +735,10 @@ async function handleIncomingProfileResponse(peerId, signedEnvelopeOrProfile) {
     }
     // Name und Bild in Chatliste und Kontaktleiste nachziehen.
     renderActivePeerList();
-    if (state.activeChatPeerId === peerId) renderChatPeerHeader(peerId);
+    if (state.activeChatPeerId === peerId) {
+        renderChatPeerHeader(peerId);
+        renderChatAllowance();
+    }
 }
 
 async function handleIncomingImageRequest(peerId, imageId) {
@@ -864,7 +909,10 @@ async function handleSecurePayload(peerId, payload, deliveredVia = 'E2EE P2P') {
             renderProfileModalData(acceptedProfile);
         }
         renderActivePeerList();
-        if (state.activeChatPeerId === targetNodeId) renderChatPeerHeader(targetNodeId);
+        if (state.activeChatPeerId === targetNodeId) {
+            renderChatPeerHeader(targetNodeId);
+            renderChatAllowance();
+        }
     } else if (payload.type === 'ALBUM_REQUEST') {
         await handleAlbumRequest(peerId, payload.albumId);
     } else if (payload.type === 'ALBUM_RESPONSE') {

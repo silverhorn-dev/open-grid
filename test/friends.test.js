@@ -32,6 +32,7 @@ function loadFriends({ appMode = 'chat' } = {}) {
         rememberChatPeer: peerId => { if (!context.state.chatPeerIds.includes(peerId)) context.state.chatPeerIds.push(peerId); },
         getPeerPresentation: peerId => ({ id: peerId, name: peerId }),
         showToast: (message, type) => toasts.push(`${type}: ${message}`),
+        notifyInApp: (kind, message, type = 'info') => toasts.push(`${type}: ${message}`),
         sendSecurePayload: async (peerId, payload) => sent.push({ peerId, payload }),
         syncChatGate: async () => {},
         getDatabaseRecordsByIndex: async () => [],
@@ -236,3 +237,64 @@ function emptyEntry() {
     return { sentAt: 0, receivedAt: 0, resetAt: 0 };
 }
 
+
+// Aus einem Match wird ein Freund: die Flamme im Chat schaltet pro Chat in den Flirt-Modus. Dort sieht
+// man alles und schreibt Flirt-Nachrichten; im normalen Chat ist der Flirt-Teil (Standard) verborgen.
+test('flirt mode in friend chats shows everything, the normal chat hides the flirt part', async () => {
+    const me = loadFriends({ appMode: 'chat' });
+    let scope = 'all';
+    let rendered = 0;
+    Object.assign(me, {
+        scopeIncludes: area => scope === 'all' || scope === area,
+        clientDefault: (key, fallback) => fallback,
+        isMatched: peerId => peerId === 'buddy',
+        renderChatHistory: () => { rendered += 1; },
+        updateChatAlbumButton: () => {}
+    });
+    await me.loadDiscoveryHistorySetting();
+    assert.equal(me.state.discoveryHistory.hide, true, 'default on');
+    await me.ensureChatScope('buddy', 'social');
+    await me.ensureChatScope('pal', 'social');
+    await me.ensureChatScope('date', 'discovery');
+    const flirt = { id: 'a', scope: 'discovery', senderId: 'buddy' };
+    const hello = { id: 'b', scope: 'social', senderId: 'buddy' };
+    const legacy = { id: 'c', senderId: 'buddy' };
+    me.state.chats.buddy = [flirt, hello, legacy];
+    assert.equal(me.canFlirt('buddy'), true, 'matched friend');
+    assert.equal(me.canFlirt('pal'), false, 'friends without a match have no flame');
+    assert.equal(me.canFlirt('nobody'), false);
+    assert.equal(me.canFlirt('date'), false, 'discovery chats need no flame');
+    assert.equal(me.isDiscoveryMessageHidden('buddy', flirt), true);
+    assert.equal(me.isDiscoveryMessageHidden('buddy', hello), false);
+    assert.equal(me.isDiscoveryMessageHidden('buddy', legacy), false, 'messages without scope stay');
+    assert.equal(me.isDiscoveryMessageHidden('date', flirt), false);
+    assert.equal(me.messageScopeFor('buddy'), 'social');
+    // Nur Match oder nur markierte Nachrichten: kein Flirt-Teil, keine Flamme, nichts verborgen.
+    me.state.chats.pal = [{ id: 'd', scope: 'discovery', senderId: 'pal' }];
+    assert.equal(me.canFlirt('pal'), false, 'discovery-tagged messages without a match');
+    assert.equal(me.isDiscoveryMessageHidden('pal', me.state.chats.pal[0]), false);
+    await me.ensureChatScope('matchedOnly', 'social');
+    me.isMatched = peerId => peerId === 'buddy' || peerId === 'matchedOnly';
+    me.state.chats.matchedOnly = [{ id: 'e', scope: 'social', senderId: 'matchedOnly' }];
+    assert.equal(me.canFlirt('matchedOnly'), false, 'a match without a flirt chat');
+
+    me.state.activeChatPeerId = 'buddy';
+    await me.toggleFlirtMode('buddy');
+    assert.equal(me.isFlirting('buddy'), true);
+    assert.equal(me.isDiscoveryMessageHidden('buddy', flirt), false, 'flirt mode shows everything');
+    assert.equal(me.isDiscoveryMessageHidden('buddy', hello), false);
+    assert.equal(me.messageScopeFor('buddy'), 'discovery', 'new messages are flirt messages');
+    assert.equal(rendered, 1);
+    assert.deepEqual([...me.records.get('keys:discovery-history').flirt], ['buddy']);
+
+    await me.toggleFlirtMode('buddy');
+    await me.updateDiscoveryHistorySetting(false);
+    assert.equal(me.isDiscoveryMessageHidden('buddy', flirt), false, 'setting off shows the flirt part in the normal chat');
+    assert.equal(me.isDiscoveryMessageAlwaysHidden('buddy', flirt), false, 'still counts as unread');
+
+    scope = 'social';
+    assert.equal(me.canFlirt('buddy'), false, 'no flame without the discovery area');
+    assert.equal(me.isDiscoveryMessageHidden('buddy', flirt), true, 'always hidden without the discovery area');
+    assert.equal(me.isDiscoveryMessageAlwaysHidden('buddy', flirt), true);
+    assert.equal(me.messageScopeFor('buddy'), 'social');
+});

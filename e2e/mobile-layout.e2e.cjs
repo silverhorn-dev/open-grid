@@ -99,29 +99,121 @@ async function main() {
         assert.match(await page.textContent('#menu-modes .menu-mode.is-active'), /Nur Chat/);
         await page.evaluate(() => closeMenu());
 
-        // Zahnrad im Profil oeffnet die Einstellungen; wischen: Profil <-> Einstellungen wie ein vierter Tab.
+        // Zahnrad im Profil oeffnet die Einstellungen. Wischen: im Profil nach links = Menue; in den
+        // Einstellungen seitlich = Bereiche blaettern, verlassen nur oben nach unten.
         // (Vorher war ein Chat offen: das Wischen zwischen Tabs muss trotzdem gehen.)
         await page.evaluate(() => switchTab('editprofile'));
-        await page.click('#profile-settings-btn');
-        await waitFor(page, () => !document.getElementById('view-keys').classList.contains('hidden'));
-        assert.equal(await page.evaluate(() => document.querySelector('[data-tab-btn="editprofile"][data-nav="bottom"]').classList.contains('is-active')), true, 'profile stays highlighted');
         const cdp = await page.context().newCDPSession(page);
         // Ueber der Ueberschrift der Ansicht (Eingabefelder und Auswahlen nehmen selbst keine Tab-Wischer an).
-        const swipe = async (fromX, toX) => {
-            const heading = await page.locator('main section:not(.hidden) h2').first().boundingBox();
-            const y = heading.y + heading.height / 2;
-            await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: fromX, y }] });
+        const drag = async (from, to) => {
+            await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [from] });
             for (let step = 1; step <= 8; step++) {
-                await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: fromX + (toX - fromX) * step / 8, y }] });
+                await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: from.x + (to.x - from.x) * step / 8, y: from.y + (to.y - from.y) * step / 8 }] });
                 await page.waitForTimeout(16);
             }
             await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
             await page.waitForTimeout(300);
         };
+        const headingY = async () => {
+            const heading = await page.locator('main section:not(.hidden) h2').first().boundingBox();
+            return heading.y + heading.height / 2;
+        };
+        const swipe = async (fromX, toX) => {
+            const y = await headingY();
+            await drag({ x: fromX, y }, { x: toX, y });
+        };
+        // Das Menue vom vorigen Schritt faehrt noch heraus und laege sonst unter dem Finger.
+        await page.waitForTimeout(800);
+        // Grid: oben nach unten ziehen = neu laden. "Nur Daten": holt das Grid neu (ohne Hinweis), im Menue
+        // gibt es dann "Seite neu laden"; kurz ziehen tut nichts.
+        await page.evaluate(async () => {
+            await updateReloadMode('app');
+            switchTab('grid');
+            window.scrollTo(0, 0);
+            window.__refreshes = 0;
+            window.__toastCount = 0;
+            const toast = showToast;
+            showToast = (...args) => { window.__toastCount += 1; toast(...args); };
+            fetchPeersFromWorkerGrid = async () => { window.__refreshes += 1; return true; };
+        });
+        assert.equal(await page.evaluate(() => document.getElementById('menu-reload-page').classList.contains('hidden')), false, 'menu entry in data-only mode');
+        await page.waitForTimeout(300);
+        const statusLine = await page.locator('.grid-status-line').boundingBox();
+        await drag({ x: 200, y: statusLine.y + 10 }, { x: 200, y: statusLine.y + 40 });
+        assert.equal(await page.evaluate(() => window.__refreshes), 0, 'short pull does nothing');
+        await drag({ x: 200, y: statusLine.y + 10 }, { x: 200, y: statusLine.y + 220 });
+        await waitFor(page, () => window.__refreshes === 1);
+        assert.equal(await page.evaluate(() => window.__toastCount), 0, 'no toast spam');
+        assert.equal(await page.evaluate(() => document.getElementById('grid-pull-refresh').style.height), '0px', 'indicator closes');
+        // Chatliste: ebenso.
+        await page.evaluate(() => { leaveActiveChat?.(); switchTab('chat'); window.__chatReloads = 0; loadChatPeerIds = async () => { window.__chatReloads += 1; }; });
+        await page.waitForTimeout(300);
+        const list = await page.locator('#active-peers-list').boundingBox();
+        await drag({ x: 200, y: list.y + 10 }, { x: 200, y: list.y + 220 });
+        await waitFor(page, () => window.__chatReloads === 1);
+        // Profil: ebenso (vorher keine eigene Geste, die des Browsers konkurrierte).
+        await page.evaluate(() => { switchTab('editprofile'); window.scrollTo(0, 0); window.__profileReloads = 0; loadMyLocalProfile = async () => { window.__profileReloads += 1; }; });
+        await page.waitForTimeout(300);
+        const profileHeading = await page.locator('#view-editprofile h2').first().boundingBox();
+        await drag({ x: 200, y: profileHeading.y + 5 }, { x: 200, y: profileHeading.y + 220 });
+        await waitFor(page, () => window.__profileReloads === 1);
+        assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).overscrollBehaviorY), 'contain', 'no competing browser pull-to-refresh');
+        // "Ganze Seite" (Standard): Runterziehen laedt den Tab neu, kein Menue-Eintrag.
+        await page.evaluate(async () => { await updateReloadMode('full'); window.__beforeReload = true; switchTab('grid'); window.scrollTo(0, 0); });
+        assert.equal(await page.evaluate(() => document.getElementById('menu-reload-page').classList.contains('hidden')), true);
+        await page.waitForTimeout(300);
+        await drag({ x: 200, y: statusLine.y + 10 }, { x: 200, y: statusLine.y + 220 });
+        await waitFor(page, () => window.__beforeReload === undefined && typeof state !== 'undefined' && Boolean(state.ws && state.ws.readyState === 1), null, 20000);
+        await page.evaluate(() => switchTab('editprofile'));
+        await page.waitForTimeout(300);
+
+        await swipe(330, 80);
+        await waitFor(page, () => document.getElementById('app-menu').classList.contains('is-open'));
+        assert.equal(await page.evaluate(() => document.getElementById('view-editprofile').classList.contains('hidden')), false, 'profile stays');
+        // Menue nach rechts wischen = schliessen.
+        await page.waitForTimeout(400);
+        const menuBox = await page.locator('#app-menu').boundingBox();
+        await drag({ x: menuBox.x + 60, y: menuBox.y + menuBox.height / 2 }, { x: menuBox.x + 260, y: menuBox.y + menuBox.height / 2 });
+        await waitFor(page, () => !document.getElementById('app-menu').classList.contains('is-open'));
+        await page.waitForTimeout(800);
+
+        // Eigenes Profil: Wischen darf auf einem (nicht fokussierten) Eingabefeld starten.
+        const field = page.locator('#view-editprofile input[type="text"], #view-editprofile textarea').first();
+        await field.evaluate(element => { element.blur(); element.scrollIntoView({ block: 'center' }); });
+        await page.waitForTimeout(200);
+        const fieldBox = await field.boundingBox();
+        await drag({ x: Math.min(330, fieldBox.x + fieldBox.width - 10), y: fieldBox.y + fieldBox.height / 2 }, { x: 60, y: fieldBox.y + fieldBox.height / 2 });
+        await waitFor(page, () => document.getElementById('app-menu').classList.contains('is-open'));
+        await page.evaluate(() => { closeMenu(); window.scrollTo(0, 0); });
+        await page.waitForTimeout(800);
+
+        await page.click('#profile-settings-btn');
+        await waitFor(page, () => !document.getElementById('view-keys').classList.contains('hidden'));
+        assert.equal(await page.evaluate(() => document.querySelector('[data-tab-btn="editprofile"][data-nav="bottom"]').classList.contains('is-active')), true, 'profile stays highlighted');
+        await page.evaluate(() => switchSettingsTab('general'));
+        await swipe(330, 80);
+        await waitFor(page, () => state.settingsTab === 'privacy');
+        await swipe(80, 330);
+        await waitFor(page, () => state.settingsTab === 'general');
+        // Wischen darf auf einem Schalter starten (der reagiert auf Tippen) und schaltet ihn nicht um.
+        await page.evaluate(() => switchSettingsTab('chat'));
+        await page.evaluate(() => document.getElementById('chat-swipe-close-toggle').scrollIntoView({ block: 'center' }));
+        await page.waitForTimeout(200);
+        const toggle = await page.locator('#chat-swipe-close-toggle').boundingBox();
+        const toggleBefore = await page.evaluate(() => document.getElementById('chat-swipe-close-toggle').checked);
+        await drag({ x: toggle.x + toggle.width / 2, y: toggle.y + toggle.height / 2 }, { x: toggle.x + toggle.width / 2 - 240, y: toggle.y + toggle.height / 2 });
+        await waitFor(page, () => state.settingsTab === 'media');
+        assert.equal(await page.evaluate(() => document.getElementById('chat-swipe-close-toggle').checked), toggleBefore, 'switch unchanged');
+        // Am ersten Bereich nach rechts = Einstellungen verlassen.
+        await page.evaluate(() => switchSettingsTab('general'));
         await swipe(80, 330);
         await waitFor(page, () => !document.getElementById('view-editprofile').classList.contains('hidden'));
-        await swipe(330, 80);
+        await page.click('#profile-settings-btn');
         await waitFor(page, () => !document.getElementById('view-keys').classList.contains('hidden'));
+        await page.evaluate(() => { switchSettingsTab('privacy'); window.scrollTo(0, 0); });
+        const y = await headingY();
+        await drag({ x: 200, y }, { x: 200, y: y + 260 });
+        await waitFor(page, () => !document.getElementById('view-editprofile').classList.contains('hidden'));
 
         assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log('E2E OK (mobile layout)');

@@ -1,7 +1,7 @@
 # Feature Request: Eigenes, rotierendes Verschluesselungsverfahren fuer Medien
 
-Status: Idee, nicht geplant (2026-10-24). Vor der Umsetzung klaeren, siehe
-Abschnitt 4 und 5.
+Status: eigener Algorithmus verworfen (2026-10-29, siehe `tasks/rejected.md`); Alternativen
+(Key-Splitting, Epochen-Geheimnis, Stream) besprochen und geparkt, siehe `tasks/board.md`.
 
 ## 1. Idee (Nutzer)
 
@@ -101,3 +101,38 @@ mitschneidet, hat das Bild.
   `S_e`.
 - `SPECE.md` (Alben, Schluesselverteilung) und `README.md` (Server-Rolle)
   aktualisiert.
+
+## 8. Besprechung 2026-10-29: Nutzer-Idee "Lese-Muster vom Router + Geheimnis vom Peer"
+
+Idee: Der Router liefert ein Lese-Muster, der Peer ein Geheimnis; ueber das Muster wird aus dem
+Geheimnis eine Zeit gelesen, passt sie nicht -> Fehler, sonst wird mit dem Zeitstempel der Rest zum
+Schluessel entschluesselt.
+
+Bewertung aus Sicht eines veraenderten Clients:
+
+- Die Zeitpruefung ist eine Verzweigung im Code; der Angreifer entfernt sie oder stellt die Uhr
+  zurueck. Pruefungen im Code schuetzen nur gegen ehrliche Clients (das leisten Limits und
+  Selbstzerstoerung bereits).
+- Ein Zeitstempel ist kein Geheimnis (steht in den Daten oder ist leicht zu raten).
+- Echter Schutz kommt nur vom Router-Anteil, und nur wenn er nicht zu erraten ist (~128 Bit Zufall,
+  ein Muster aus wenigen Positionen ist in Sekunden durchprobiert) und nach der Frist geloescht wird.
+  Dann ist es Key-Splitting.
+
+Saubere Fassung (gleiches Ziel, nur `crypto.subtle`):
+
+```
+Bildschluessel = HKDF( Besitzer-Geheimnis,
+                       salt = Router-Geheimnis (256 Bit, je Freigabe-Frist),
+                       info = album:bild:gueltig-bis )
+```
+
+- Der Router gibt sein Geheimnis nur bis zur Frist heraus (pro Bild beim Ansehen, begrenzt) und
+  loescht es danach. Die "Zeitpruefung" ist dann echt: nach der Frist gibt es den Bestandteil nicht mehr.
+- Bilder werden einmal verschluesselt, kein Neu-Verschluesseln pro Zeitscheibe.
+- Grenze bleibt: wer beide Teile waehrend einer gueltigen Ansicht hat, behaelt Schluessel bzw. Bild.
+  Schutz nur gegen kopierte App-Daten nach der Frist.
+
+Status: geparkt (Nutzer 2026-10-29).
+
+Hintergrund zu selbstzerstoerenden Schluesseln (Shamir, Hash-Ketten, Zeitschloss, durchstanzbare
+Verschluesselung, Hardware): `documentation/SELBSTZERSTOERENDE-SCHLUESSEL.md`.

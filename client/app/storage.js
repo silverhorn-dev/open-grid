@@ -262,6 +262,8 @@ async function cachePeerProfile(peerId, profile) {
         });
     }
     state.cachedProfiles[peerId] = profile;
+    // Grid-Filter: neu angekommenes Profil kann die Sortierung aendern (grid-filter.js).
+    if (typeof scheduleGridRefilter === 'function') scheduleGridRefilter();
     return profile;
 }
 
@@ -295,7 +297,7 @@ async function loadChatHistory(peerId) {
     const operations = await getChatOperations(peerId);
     const operationIds = new Set(operations.map(operation => operation.operationId));
     const missingOperations = messages
-        .filter(message => !message.deleted && !operationIds.has(`put:${message.id}`))
+        .filter(message => !message.deleted && !message.system && !operationIds.has(`put:${message.id}`))
         .map(message => createPutOperation(peerId, message));
     await Promise.all(missingOperations.map(persistChatOperation));
 }
@@ -681,6 +683,11 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
         if (localOperation.actorId !== peerId) return false;
         await forgetReceivedAlbum(peerId, localOperation.albumId);
         return true;
+    } else if (localOperation.type === 'ALBUM_VIEW_CLOSED') {
+        // Betrachter hat eine begrenzte Ansicht beendet (auch ueber Pfad C). Nicht im Log.
+        if (localOperation.actorId !== peerId) return false;
+        await handleAlbumViewClosed(peerId, { albumId: localOperation.albumId });
+        return true;
     } else if (localOperation.type === 'ALBUM_KEYS') {
         // Schluessel-Buendel werden separat gespeichert und nicht im Operations-Log synchronisiert.
         if (localOperation.actorId !== peerId) return false;
@@ -714,7 +721,7 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
         const target = state.chats[peerId]?.find(item => item.id === ownMessage.id) || ownMessage;
         target.savedByPeer = true;
         await persistChatMessage(peerId, target);
-        showToast(t('app.savedYourSnap', { name: getPeerPresentation(peerId).name || t('app.someone') }), 'info');
+        notifyInApp('chatEvents', t('app.savedYourSnap', { name: getPeerPresentation(peerId).name || t('app.someone') }));
     } else if (localOperation.type === 'MATCH_PING' || localOperation.type === 'MATCH_RESET') {
         if (!await applyMatchOperation(peerId, localOperation)) return false;
     } else if (localOperation.type === 'FRIEND_PING' || localOperation.type === 'FRIEND_RESET') {
@@ -743,6 +750,12 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
         }
     } else if (localOperation.type === 'CHAT_WIPE') {
         if (localOperation.actorId !== peerId) return false;
+        // Derselbe Wipe kommt oft zweimal (direkt und ueber Path C). Ein spaeter Doppelgaenger wuerde
+        // sonst auch die seither geschriebenen Nachrichten loeschen.
+        if (typeof localOperation.operationId !== 'string') return false;
+        const appliedWipes = JSON.parse(localStorage.getItem('appliedChatWipes') || '[]');
+        if (appliedWipes.includes(localOperation.operationId)) return true;
+        localStorage.setItem('appliedChatWipes', JSON.stringify([...appliedWipes, localOperation.operationId].slice(-100)));
         await storeChatControl(peerId, 'DELETE_CHAT');
 
         if (localOperation.hidePeer) {
@@ -757,8 +770,21 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
         if (state.activeChatPeerId === peerId) {
             resetActiveChat('Der Chat wurde vom Chat-Partner geloescht.');
         }
-        showToast(t('app.chatPartnerDeletedChatHistory'), 'info');
+        notifyInApp('chatEvents', t('app.chatPartnerDeletedChatHistory'));
         return true; // Return true, damit der Wipe nicht als endloser Sync gespeichert wird
+    } else if (localOperation.type === 'PROFILE_DELETED') {
+        // Kontakt hat sein Profil geloescht (account.js): Verlauf und Medien weg, Chat bleibt mit Hinweis.
+        if (localOperation.actorId !== peerId) return false;
+        await handleProfileDeleted(peerId);
+        return true;
+    } else if (localOperation.type === 'PROFILE_VIEW') {
+        // Profilbesuch (nur gesendet, wenn der Besucher es erlaubt); nur in "Entdecken", nie gespeichert.
+        if (localOperation.actorId !== peerId || isPeerBlocked(peerId)) return true;
+        if (typeof scopeIncludes === 'function' && scopeIncludes('discovery')) {
+            recordInteraction(peerId, 'view', localOperation.createdAt || Date.now()).catch(logBackgroundError('applyChatOperation'));
+            notifyInApp('profileView', t('notifications.viewedYourProfile', { name: getPeerPresentation(peerId).name || t('app.someone') }));
+        }
+        return true;
     } else if (localOperation.type === 'PEER_UNHIDE') {
         if (localOperation.actorId !== peerId) return false;
         const hidden = JSON.parse(localStorage.getItem('hiddenByPeers') || '[]');

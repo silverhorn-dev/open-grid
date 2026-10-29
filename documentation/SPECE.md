@@ -129,8 +129,14 @@
   (`expireUsedReplaySnaps`). Weiter zum naechsten ungesehenen Snap
   (`advanceReplaySnap`, zeitlich der naechste) per `snapSettings.nextGesture`:
   `doubletap`, `swipe` (seitlich > 80 px) oder `swipeup`.
-- Galerie-Mehrfachauswahl (max. 20): jedes Bild ohne Editor als eigener Snap,
-  Secure Snap, Bild oder Foto-Status (`sendPickedImages`).
+- Galerie-Mehrfachauswahl (max. 20): erst eine Durchsicht im Medienfenster
+  (grosses Bild, seitlich wischen oder Pfeile, Leiste mit allen, einzelne
+  entfernen, Art pro Bild Snap/Bild/Secure (vorbelegt wie im Snap-Menue),
+  einzelnes Bild im Snap-Editor bearbeiten: Stift -> Editor ohne Kamera,
+  "Uebernehmen" bzw. Schliessen fuehrt zurueck; "Alle senden (N)"), dann jedes
+  Bild als eigener Snap, Secure Snap, Bild oder Foto-Status
+  (`sendPickedImages`, `renderPickedReview`, `editPickedImage`,
+  `sendPickedReview`).
 - `SNAP_SAVED { messageId }` (Chat-Operation, vom Empfaenger eines Einmal-Snaps
   beim Speichern): der Absender markiert `savedByPeer` und zeigt einen Hinweis.
 - Listen-Wechsel (`chat-switch.js`): Knopf neben dem Titel der Chatliste,
@@ -212,8 +218,22 @@
   nach rechts, eigene nach links, ab 56 px) = antworten; lange druecken
   (450 ms) = Kontextmenue; doppelt tippen = Reaktion ❤️; seitlich wischen
   (ab 80 px, nicht in den 24-px-Kantenzonen, nicht in horizontal scrollbaren
-  Bereichen oder im offenen Chat) = Tab Grid/Chat/Profil wechseln; Profil- und
-  Medienfenster von oben nach unten wischen = schliessen; im Chat am Ende nach
+  Bereichen oder im offenen Chat) = Tab Grid/Chat/Profil wechseln; im Profil
+  nach links = Menue oeffnen; Seitenmenue nach rechts wischen = schliessen; in
+  den Einstellungen seitlich = Bereiche blaettern, am ersten Bereich nach
+  rechts oder ganz oben nach unten ziehen (ab 120 px) = zurueck ins Profil;
+  Wischen darf auf Schaltern, Auswahlen und nicht fokussierten Textfeldern
+  starten (die reagieren auf Tippen), nicht auf fokussierten Textfeldern und
+  Reglern; im offenen Chat die Eingabeleiste nach
+  rechts wischen = zur Chatliste (`keys`/`chat-swipe-close`, Router-Standard
+  `CLIENT_DEFAULTS.inputSwipeClosesChat`, sonst an); in Einstellungen, offenen
+  Fenstern, Menue und offenem Chat verhindert `overscroll-behavior` das
+  Neuladen der Seite durch den Browser (das brach sonst z. B. das Wischen im
+  Profil ab); Profil- und
+  Medienfenster von oben nach unten wischen = schliessen (ab 100 px; in der
+  Album-Ansicht erst ab 40 % der Bildschirmhoehe, mind. 220 px, damit 1x-Alben
+  nicht aus Versehen enden; ab der Schwelle wird die Karte durchsichtig =
+  loslassen schliesst); im Chat am Ende nach
   oben ziehen = einstellbare Aktion (`keys`/`pullup-settings.action`: `reload`
   = Tab neu laden (Standard, ohne Toast), `next` = naechster Chat der Liste,
   `switcher` = Auswahl aller Chats der Liste (`openChatSwitcherSheet`),
@@ -504,8 +524,15 @@ Online-Status von Chat-Partnern haengt nicht vom Grid ab:
   `{ type: 'PRESENCE_SUBSCRIBE', peerIds }` mit allen nicht blockierten
   Chat-Partnern (max. 500); erneut bei neuem Chat-Partner und nach
   Block-Aenderungen.
-- Der Server antwortet mit `{ type: 'PRESENCE_SNAPSHOT', online: [...] }` und
-  meldet danach Wechsel als `{ type: 'PRESENCE', peerId, online }`.
+- Der Server antwortet mit `{ type: 'PRESENCE_SNAPSHOT', online: [...],
+  away: [...] }` und meldet danach Wechsel als `{ type: 'PRESENCE', peerId,
+  online }` (mit `away`, wenn der Partner abwesend ist oder es sich aendert).
+- Abwesend: der Client meldet `{ type: 'PRESENCE_AWAY', away }`, sobald die
+  Seite versteckt (`visibilitychange`, `pagehide`) bzw. wieder sichtbar ist,
+  und nach jedem `SOCKET_REGISTERED`. Partner sehen dann "Abwesend" (gelber
+  Punkt in Chatliste, Chat-Wechsler und Kontaktleiste, Abzeichen im Profil)
+  statt "online" (`presenceStatusOf`, `createPresenceDot`); abwesend geht vor
+  "hat den Chat offen". Nur im Speicher, endet mit der Verbindung.
 - Sichtbar ist der Status nur **gegenseitig**: A sieht B nur, wenn A B und B A
   abonniert hat und keiner den anderen blockiert hat. Einseitige Abos liefern
   nichts.
@@ -581,7 +608,7 @@ Worker (Abschnitt 6.0). Der Datensatz `grid-settings` speichert `silent`, `ttlMi
 (Liste von Geohash-Zellen). Ein fehlender Datensatz entspricht den Standardwerten.
 Safe Zones verlassen nie das Geraet: Liegt die eigene Zelle in einer Safe
 Zone, registriert sich der Client als `silent`. Weitere Datensaetze:
-`chat-scopes` (Chatlisten, 6.0), `chat-reads` (Lesestand fuer Ungelesen-Badges, 6.0), `album-defaults`, `album-ticket:<albumId>`
+`chat-scopes` (Chatlisten, 6.0), `discovery-history` (Entdecken-Verlauf in Freundes-Chats), `chat-reads` (Lesestand fuer Ungelesen-Badges, 6.0), `album-defaults`, `album-ticket:<albumId>`
 (5.1), `privacy-settings` (Spur-Wasserzeichen) und `status-settings`
 (`directOnly`, Status).
 
@@ -630,17 +657,27 @@ ueber 1/12 wieder vergroessert, ohne `canvas.filter`), es verlaesst also nie
 ein scharfes Deckfoto das Geraet; `none` sendet kein `cover`.
 
 Begrenzt teilen (zweiter Schritt im Sendemenue, ueberspringbar = normal):
-`album.limits[viewerId]` = `{ kind: 'views', views: 1-3, used, sessionEndsAt }`
+`album.limits[viewerId]` = `{ kind: 'views', views: 1-3, used, sessionEndsAt, viewId }`
 oder `{ kind: 'time', until }` (15 min, 1 h, 24 h). Ansichten: keine Buendel
 vorab (`pushAlbumKeys` ueberspringt die Person); jede `ALBUM_KEY_REQUEST`
 (Oeffnen) zaehlt eine Ansicht und bekommt nur das laufende Buendel, gekuerzt
 auf 15 Minuten und mit `session: true` (der Betrachter fragt danach nicht von
-selbst nach); eine erneute Anfrage in derselben Ansicht zaehlt nicht. Die
+selbst nach). Jede Oeffnung hat eine eigene `viewId` (`ALBUM_KEY_REQUEST
+{ albumId, viewId }`); nur eine erneute Anfrage mit derselben `viewId` in der
+laufenden Ansicht zaehlt nicht, eine neue Oeffnung (z. B. nach Neu laden)
+zaehlt immer, auch vor Ablauf der alten Ansicht. Die
 Ansicht endet mit dem Schliessen: der Betrachter verwirft die Schluessel und
 die gespeicherten Ansichts-Buendel (spaet ankommende werden bei geschlossenem
-Album gar nicht gespeichert) und meldet `ALBUM_VIEW_CLOSED { albumId }`; der
-Besitzer beendet die Ansicht und entzieht sofort, wenn alle verbraucht sind.
-Die 15 Minuten bleiben als Sicherheitsnetz (z. B. Betrachter offline). Beim Schliessen loescht
+Album gar nicht gespeichert) und meldet das Ende als Chat-Operation
+`ALBUM_VIEW_CLOSED { albumId }` (bei offenem Kanal direkt, sonst sofort ueber
+Pfad C, klappt das nicht: normale Warteschlange mit Pfad C nach 10 s;
+zusaetzlich die alte Direktnachricht gleichen Namens); der Besitzer
+beendet die Ansicht und entzieht sofort, wenn alle verbraucht sind, mit
+Hinweis "X hat ... fertig angesehen".
+Endet die Ansicht ohne Schliessen (Neu laden, App beendet), liegen beim
+naechsten Start noch Ansichts-Buendel: `endInterruptedAlbumViews` beendet die
+Ansicht dann wie beim Schliessen. Die 15 Minuten bleiben als Sicherheitsnetz
+(z. B. Betrachter offline). Beim Schliessen loescht
 der Betrachter auch die verschluesselten Albumbilder (die naechste Ansicht
 laedt neu). Zeitlich begrenzte Buendel tragen `limitedUntil`; der Betrachter
 merkt sich die Frist (`keys`/`album-expires:<albumId>`) und vergisst zur Frist
@@ -953,6 +990,153 @@ erste Nachricht = `message.scope` des Absenders (Feld im verschluesselten
 `MESSAGE_PUT`). Freunde sind immer `social`. Chats ohne Zuordnung (aeltere
 Versionen) erscheinen in beiden Listen.
 
+**Flirt-Modus im Freundes-Chat** (`client/app/friends.js`): Pro Person gibt
+es nur einen Verlauf; jede Nachricht traegt den Bereich, in dem sie
+geschrieben wurde (`message.scope`). Wird aus einem Match ein Freund, wandert
+der Chat nach `social`. Einen Flirt-Teil (`hasFlirtPart`) hat ein
+Freundes-Chat nur mit Match UND Nachrichten aus "Entdecken"; eins allein
+reicht nicht (ein Match ohne Flirt-Chat, oder als `discovery` markierte
+Nachrichten aelterer Chats ohne Listen-Zuordnung). Ohne Flirt-Teil gibt es
+keine Flamme und nichts wird ausgeblendet. Bedienung (nur bei aktivem
+Entdecken-Bereich und Flirt-Teil):
+
+- Lasche mit Flamme (`#chat-flirt-tab`) auf der Oberkante der Eingabeleiste
+  ueber dem Senden-Knopf; Antwort-Leiste und Hinweise liegen darunter, der
+  Verlauf bekommt unten Platz (`.has-flirt-tab`). Ab einem halben Bildschirm
+  hochgescrollt faehrt sie zu einem schmalen Streifen ein
+  (`.flirt-tab-collapsed`); Tippen darauf oder Fokus im Eingabefeld klappt sie
+  aus (ohne umzuschalten), unten kommt sie von selbst zurueck. Tippen = Flirt-Modus pro
+  Chat an/aus (der Fokus des Eingabefelds bleibt, wie er war); lange druecken
+  = in diesem Chat ausblenden (zurueck ueber das Chat-Menue). Einstellung
+  "Flirt-Knopf über Senden" (`tab`), pro Chat `tabHidden`.
+- Flirt-Modus: alles sichtbar, Flirt-Nachrichten markiert (`.flirt-message`),
+  neue eigene Nachrichten mit `scope: 'discovery'` (`messageScopeFor`);
+  Lasche, Oberkante und Senden in Markenfarbe, Eingabefeld mit Rand und
+  "Flirt-Nachricht…"; Album und Video stehen hinter einem Medien-Knopf mit
+  einem Menue, das nach oben aufklappt.
+- Senden lange druecken = nur diese Nachricht als Flirt (`flirtSendOnce`).
+- Normal: neue Nachrichten `social`; Flirt-Nachrichten ausgeblendet, solange
+  "Flirt-Verlauf im normalen Chat ausblenden" an ist. Punkt an der Lasche, wenn
+  seit dem letzten Blick in den Flirt-Teil (`seen[peerId]`) eine neue,
+  ausgeblendete Flirt-Nachricht des anderen kam.
+- Chat-Menue: "Flirt-Modus an/aus", "Flirt-Knopf zeigen".
+
+Gespeichert in `keys`/`discovery-history = { hide, flirt, tab, tabHidden,
+seen }` (`hide` Standard an, Router-Standard
+`CLIENT_DEFAULTS.hideDiscoveryHistory`). Ist der Entdecken-Bereich aus, gibt
+es keine Flamme, der Flirt-Teil bleibt verborgen und zaehlt nicht als
+ungelesen. Nur Anzeige: nichts wird geloescht, das Gegenueber merkt nichts.
+Nachrichten ohne `scope` (aeltere Versionen) bleiben sichtbar.
+
+**Eingebautes Profil-Schema "Entdecken"** (Client `DEFAULT_PROFILE_SCHEMA`,
+Router-Standard, `compose.yaml`): Anzeigename, Alter, Position, Groesse (cm),
+Gewicht (kg), Koerperbau, Tribes (Mehrfachauswahl), Sucht nach
+(Mehrfachauswahl), Beziehungsstatus, Ueber mich. Im Profil-Editor erscheinen
+Mehrfachauswahlen als Chips, Einfachauswahlen ohne Pflicht haben einen leeren
+Eintrag.
+
+**Sprache der Seite und Browser-Uebersetzung**: `client/i18n.js` setzt
+`<html lang>` schon beim Laden des Kopfs auf die aktive Sprache (vorher stand fest
+`de` im Markup, Chrome bot dann auch fuer die englische Oberflaeche eine
+Uebersetzung an und umgekehrt). Uebersetzen per Browser ist nur fuer die
+Oberflaeche erlaubt: Nutzerinhalte (Chatverlauf, Chatliste, Grid, Interaktionen,
+Matches, Status, Profilfelder im Profil-Fenster) und die Eingabeleiste tragen
+`translate="no"`, damit Chats und Profile nicht an den Uebersetzungsdienst
+gehen und das Nachrichtenfeld nicht bricht (Uebersetzen veraendert Textknoten).
+
+**Grid: drei Bereiche** (`client/app/grid-tabs.js`, nur in "Entdecken"):
+Grid · Interaktionen · Matches. Interaktionen = eingegangene Flammen und
+Profilbesuche (`keys`/`interactions = { items: [{ peerId, kind, at }], seenAt }`,
+max. 200), nur lokal; angezeigt als eine Zeile pro Person, neueste Aktivitaet
+oben, kurz zusammengefasst ("hat dir eine Flamme geschickt · 3x dein Profil
+angesehen"); Badge am Tab = Personen mit Neuem seit `seenAt`; "Flamme zurueck"
+bzw. "Schreiben" je Zeile.
+Matches: alle gematchten Peers, noch nicht angeschriebene (ohne Chat-Vorschau)
+oben, "Schreiben" oeffnet den Chat. Im Social-Bereich gibt es die Tabs nicht.
+Kopf: die Tabs stehen oben, mit grauen Zahlen (sichtbare Karten am Grid-Tab,
+Matches am Matches-Tab; rot nur das Badge fuer neue Interaktionen); darunter
+eine schmale Statuszeile (wo, Stand, "Standort verwenden" solange keiner
+gesetzt ist). Aktualisieren: ganz oben nach unten ziehen (eigene Geste, die
+installierte PWA auf iOS hat kein Pull-to-Refresh; ab 70 px), am PC ein
+kleiner Knopf (nur Daten, ohne Hinweis).
+
+Neu laden (`keys`/`reload-mode`, Einstellungen > Allgemein > Erweitert,
+Router-Standard `CLIENT_DEFAULTS.reloadMode`, sonst `full`): gilt fuer
+Runterziehen im Grid, in der Chatliste und im eigenen Profil sowie fuer "Am Ende hochziehen: Seite
+neu laden" im Chat. `full` = Tab im Browser neu laden; `app` = nur die Daten
+der Ansicht (Grid neu abrufen; Chatliste bzw. Verlauf neu laden und den
+Router-Cache abholen; Profil neu laden), ohne Hinweis; dann steht im Menue
+"Seite neu laden". Das Pull-to-Refresh des Browsers ist ueberall aus
+(`overscroll-behavior-y: contain` am `html`), es konkurrierte mit diesen Gesten.
+
+Filter (`client/app/grid-filter.js`, nur auf dem Geraet, `keys`/`grid-filter`):
+Panel ueber den Pfeil-Knopf in der Tab-Leiste, gilt fuer alle drei Bereiche.
+Entfernung (hoechstens Stufe X) und "nur mit Foto" aus der Grid-Karte;
+Zahlenfelder (von-bis) und Auswahlfelder (ODER im Feld) aus dem Profil-Schema,
+UND zwischen Feldern. Profile kommen nur P2P: fehlt eins, gilt der Peer als
+unbekannt ("Unbekannte zeigen", Standard an). Passende stehen vorne,
+unbekannte danach. Die Grid-Karte traegt die Profil-Version (`version`, nur
+ein Zaehler, beim Registrieren als `profileVersion` gemeldet, Spalte
+`peers.profile_version`): geholt wird nur, wenn das Profil fehlt oder die
+Karte eine neuere Version meldet. Die ersten 10 sichtbaren Grid-Peers ohne (aktuelles) Profil bekommen
+2 s nach dem Zeichnen (gebuendelt) direkt ein `PROFILE_REQUEST` (je Peer
+hoechstens einmal pro Minute; nicht fuer Chat-Partner oder laufende
+Verbindungsaufbauten; die hoefliche Seite wartet 1,5 s, sonst verbinden sich
+zwei, die sich gegenseitig im Grid sehen, gleichzeitig und der Aufbau bricht
+ab, z. B. bei einer gerade geoeffneten Einladung); kommt ein
+Profil an, wird das Grid gebuendelt neu sortiert. Im offenen Profil blaettert
+seitliches Wischen (bzw. Pfeiltasten) zum naechsten/vorigen Profil der Liste,
+aus der es geoeffnet wurde: die Karte folgt dem Finger, faehrt ab 70 px hinaus
+und das neue Profil kommt von der anderen Seite; ohne Nachbarn federt sie
+zurueck (ohne Animation bei "reduced motion").
+
+**"Nur zeigen fuer ..."** (`client/app/audience.js`, Einstellungen >
+Privatsphaere > Sichtbarkeit im Grid, nur "Entdecken"; immer mit dem Schema von
+"Entdecken" bzw. im Event-Modus dem Event-Schema, nicht dem gerade aktiven
+Modus, `audienceSchema`): Regel ueber das Alter
+und alle Auswahlfelder (Einfach- und Mehrfachauswahl) des Profil-Schemas; der
+Router laesst alle diese Felder zu (keine Einschraenkung). Freitext-Tags (Typ
+`tag`) gehen nicht, sie haben keine feste Werteliste (`keys`/`audience-rule = { enabled, ranges, options }`;
+ein Schalter schaltet die Regel ab, ohne sie zu loeschen; das Badge zeigt "Regel aktiv" nur, wenn sie an
+ist und etwas gewaehlt ist). Sie geht als
+kurzer Binaer-Code mit der Registrierung an den Router (`audience`, Spalte
+`peers.audience`, nur die Form wird geprueft: base64url, 2-64 Zeichen) und
+kommt mit der Grid-Karte zurueck. Code: Byte 0 Version, Byte 1
+Schema-Fingerabdruck (FNV-1a ueber Schluessel/Typ/Optionen der filterbaren
+Felder, 8 Bit), dann je Feld Kopf `Feldnummer | Art << 7`; Auswahl = Laenge
+(1-4) + Bitmaske (Option n = Bit n), Bereich = min + max (je 1 Byte). Beispiel
+"Alter 21-35, Tribe Twink oder Femme" = 8 Byte, 11 Zeichen. Die App des
+Betrachters zeigt eine Karte nur, wenn das eigene Profil passt (ODER im Feld,
+UND zwischen Feldern; fehlt ein eigener Wert, passt es nicht). Falscher
+Fingerabdruck oder kaputter Code: Regel ignorieren (Karte sichtbar). Der
+Router erfaehrt nichts ueber Betrachter; die Regel ist fuer jeden lesbar, der
+die Karte abruft, und ein veraenderter Client koennte sie ignorieren (Hinweis
+bei der Einstellung).
+
+Relative Regeln (in `keys`/`audience-rule`, aufgeloest bei jeder Registrierung
+mit dem aktuellen Profil, `resolveAudienceRule`): Zahl `{ relative: 'same' }`
+= eigener Wert +-3, `'older'` = ab eigenem Wert, `'younger'` = bis eigenem
+Wert; Auswahl `'same'` = die eigenen Werte. Fehlt der eigene Wert, entfaellt
+der Teil. Startregel ohne eigene Wahl: `CLIENT_DEFAULTS.audience` (gleiche
+Form). Mindestwerte des Betreibers: `AUDIENCE_MINIMUM` (JSON wie eine Regel,
+nur feste Werte, z. B. `{"ranges":{"age":{"min":18}}}`); der Router mischt sie
+beim Registrieren in jeden Karten-Code in "Entdecken"/"Event" (auch ohne
+eigene Regel; Bereiche werden enger, Auswahlen geschnitten;
+`server/audience.js`, gleicher Code wie der Client, `test/audience-parity.test.js`)
+und nennt sie in `/api/config` (`audienceMinimum`) zur Anzeige. Wer den
+Wert nicht angegeben hat, sieht dann niemanden (fail closed, gewollt z. B. fuer 18+).
+
+**Verlauf in Seiten** (`client/app/chat-tools.js`): Ein Chat laedt weiter den
+ganzen Verlauf aus IndexedDB, zeichnet aber nur einen Teil. Durchgehend: die
+letzten 150 Nachrichten (`state.chatRenderLimit`), oben angekommen (bzw.
+Knopf "Aeltere Nachrichten laden (N)") 150 mehr, die Position bleibt. Option
+"Chat nach Tagen" (`keys`/`chat-view = { byDay }`, Router-Standard
+`CLIENT_DEFAULTS.chatPagesByDay`, sonst aus): eine Leiste unter der
+Kontaktleiste zeigt den Tag ("Heute", "Gestern", sonst Datum), Pfeile bzw.
+seitlich wischen wechseln zu Tagen mit Nachrichten; Senden springt zu heute.
+Suche und "nur markierte" durchsuchen immer alles. Tippen auf ein Zitat holt
+auch eine nicht gezeichnete Nachricht (`revealChatMessage`).
+
 **Ungelesen-Badges** (`client/app/unread.js`): Lesestand je Chat in
 `keys`/`chat-reads` (`{ reads: { <peerId>: ms, '*': ms } }`), nur lokal, geht
 weder an den Server noch an den Partner (keine Lesebestaetigung). Ungelesen =
@@ -981,7 +1165,11 @@ ueber den Regeln wird mit `held: true` gespeichert und nicht angezeigt. Beim
 Match werden alle `held`-Nachrichten freigegeben. Ein Chat gilt auch als
 angenommen, wenn man dem anderen selbst schon geschrieben hat. Der Client des
 Absenders liest die Regeln aus dem Profil und zeigt "Noch N Nachrichten bis
-zum Match" bzw. sperrt die Eingabe (nur Anzeige).
+zum Match" bzw. sperrt die Eingabe (nur Anzeige). Die Regeln gelten auch fuer
+Eingeladene (Einladungslink): ist bei einem Chat im Bereich "Grid & Event" das
+Profil des anderen noch unbekannt, bleibt die Eingabe gesperrt ("Profil wird
+geladen"), bis es per `requestMissingProfile` da ist; sonst gingen Nachrichten
+raus, die der andere wegen "Nur Matches" still zurueckhaelt.
 
 Der Service Worker kennt die Regeln nicht. Die Seite spiegelt deshalb
 `keys`/`chat-gate = { mode, acceptedPeerIds }`. Bei Modus B/C und nicht
@@ -1169,10 +1357,34 @@ blockierten Absender. Der Client liest die Tabelle beim Start, nach
 WebSocket-Reconnect und bei erneuter Aktivierung. Operationen vor dem
 Loesch-Cutoff sowie alle Payloads blockierter Peers werden verworfen.
 
+Der Partner erfaehrt das Loeschen/Blockieren ueber die Chat-Operation
+`CHAT_WIPE` (`wipeChatWithPeer`, `client/app/chat.js`). Reihenfolge: bei
+offenem Kanal sofort direkt; dann die Chat-Steuerung am Router (die alle
+wartenden Payloads des Chats loescht, also auch einen vorher eingereihten
+Wipe); danach den Wipe immer ueber Path C einreihen, damit ein offline
+Partner ihn beim naechsten Abruf bekommt. Ungesendetes in der lokalen
+Warteschlange fuer diesen Chat wird verworfen. Der Empfaenger merkt sich die
+`operationId` angewandter Wipes (`localStorage`/`appliedChatWipes`, max. 100)
+und ignoriert Doppelgaenger, sonst wuerde ein spaet ankommender zweiter Wipe
+auch seither geschriebene Nachrichten loeschen.
+
 Lokale Chatkontakte werden unabhaengig vom Discovery-Grid aus `messages` und
 `chatOperations` rekonstruiert. Dadurch kann ein Verlauf auch geoeffnet
 werden, wenn beide Clients zuvor offline waren und der andere Peer noch nicht
 wieder im Router registriert ist.
+
+### Profil loeschen
+
+`DELETE /api/account/:peerId` (authentifiziert als dieser Peer, `store.deleteIdentity`): Grid-Eintrag (mit
+Tombstone in `removed_peers`), Zugangsdaten, Push-Abo, eigene Chat-Kontrollen und wartende Nachrichten
+an den Peer werden geloescht, eine offene WS-Verbindung getrennt. Nachrichten von ihm bleiben bis zur
+Abholung bzw. zum Ablauf. Ablauf im Client (`client/app/account.js`, Einstellungen > Allgemein, zweimal
+bestaetigen): an alle Kontakte (Chats, Freunde, Matches) die Chat-Operation `PROFILE_DELETED` (direkt,
+wenn verbunden, und immer ueber Pfad C), dann die Router-Loeschung (schlaegt sie fehl, wird lokal nichts
+geloescht), dann IndexedDB, `localStorage`/`sessionStorage` und alle Caches, Neustart mit dem Onboarding.
+Beim Kontakt: Nachrichten, Chat-Operationen, Originale, empfangene Alben, Status und das gespeicherte Profil
+weg; der Chat bleibt mit einer Systemzeile (`message.system = 'profileDeleted'`, "Profil wurde geloescht",
+nicht synchronisiert), schreiben ist gesperrt.
 
 ## 9. Web Push und Service Worker
 
@@ -1183,6 +1395,45 @@ Der Server liefert `client/sw.js` unter `/sw.js` mit Scope `/` aus.
 | `GET` | `/api/push/vapid-public-key` | Oeffentlichen VAPID-Schluessel lesen |
 | `POST` | `/api/push/subscribe` | Push-Subscription eines Peers speichern (authentifiziert) |
 | `DELETE` | `/api/push/subscribe/:peerId` | Push-Subscription entfernen (authentifiziert) |
+| `POST` | `/api/push/nudge` | Abwesenden Empfaenger anstupsen (authentifiziert als Absender) |
+| `POST` | `/api/push/settings` | Stumme Benachrichtigungsarten hinterlegen (authentifiziert) |
+
+Benachrichtigungen je Art (Einstellungen > Chat > Benachrichtigungen,
+`keys`/`notification-settings = { kinds, shareProfileViews }`, `push.js`):
+`match`, `flame`, `add`, `discovery` (Nachricht in "Entdecken"), `chat`
+(Nachricht in "Chat & Freunde"), `profileView` (Standard aus), `chatEvents`
+(nur in der App: Snap gespeichert, Chat geloescht, Album fertig angesehen). Ein
+Schalter steuert Push und Hinweis in der App (`notifyInApp`). Abgeschaltete
+Push-Arten meldet der Client dem Router (Router-Standards je Art:
+`CLIENT_DEFAULTS.notifyMatch` ... `notifyChatEvents`, `shareProfileViews`;
+`mutedKinds`, Spalte
+`push_subscriptions.muted_kinds`); der Absender nennt die Art beim
+Cache-Eintrag (`notifyKind`) bzw. beim Anstupsen (`kind`), der Router pusht
+nur gewollte Arten und schreibt `kind` in den Push. Grund: Browser erwarten zu
+jedem Push eine Meldung; still verworfene Pushes fuehren zu Browser-eigenen
+Meldungen bzw. zum Entzug des Push-Rechts. Der Router erfaehrt dadurch die Art
+eines Ereignisses (nie den Inhalt). Push gibt es jetzt auch fuer Flamme/Match
+(`MATCH_PING`), Anfragen (`FRIEND_PING`) und Profilbesuche; der Service Worker
+zeigt dafuer "X hat dir eine Flamme geschickt", "Match mit X!" usw. (im
+Kompaktmodus ohne Namen) und laesst die Operation in der Queue, die Seite
+wendet sie beim Oeffnen an.
+
+Profilbesuch (`PROFILE_VIEW`, Chat-Operation, nicht im Log): nur wenn der
+Besucher "Meine Profilbesuche zeigen" eingeschaltet hat (Standard aus), nur in
+"Entdecken" (nicht bei Freunden/Chats aus "Chat & Freunde"), hoechstens alle
+6 Stunden pro Person (`localStorage`). Der Besuchte sieht ihn nur mit
+eingeschaltetem "Profilbesuch".
+
+Anstupsen: eine direkt (P2P) zugestellte Nachricht loest keinen Push aus. Ist
+der Empfaenger abwesend (App im Hintergrund, Verbindung steht noch), sieht er
+sonst keine Benachrichtigung. Der Absender ruft dann `POST /api/push/nudge
+{ senderId, recipientId }` auf (hoechstens alle 15 s pro Partner, `push.js`).
+Der Server schickt nur, wenn der Empfaenger laut Signaling wirklich abwesend
+oder offline ist, den Absender nicht blockiert hat und eine Subscription hat;
+hoechstens einmal pro 15 s und Paar, Rate-Limit `nudge`. Der Push enthaelt nur
+`{ type: 'NUDGE', senderId }`, keinen Inhalt. Der Service Worker zeigt dann
+(nur ohne sichtbares Fenster) die Kompakt-Meldung bzw. "Neue Nachricht von X"
+mit dem gespeicherten Namen.
 
 SQLite speichert pro Peer genau eine Subscription in `push_subscriptions`.
 Endpunkte muessen https sein und zu einem bekannten Push-Dienst gehoeren

@@ -347,8 +347,10 @@ Akzeptanzkriterien:
 - Der Absender stellt ein, wie lange ein Einmal-Snap nach dem ersten Ansehen
   noch wiederholt werden kann (15, 30, 60 min oder unbegrenzt; Standard 30 min).
   Danach ist er bei beiden weg. Der Empfaenger sieht keine Restzeit.
-- In der Galerie lassen sich mehrere Bilder auswaehlen; jedes wird ein eigener
-  Snap (bzw. Bild oder Foto-Status).
+- In der Galerie lassen sich mehrere Bilder auswaehlen; vor dem Senden sehe ich
+  alle durch (blaettern, einzelne entfernen, pro Bild Snap/Bild/Secure
+  waehlen, einzelne im Editor bearbeiten) und schicke sie mit "Alle senden";
+  jedes wird ein eigener Snap (bzw. Bild oder Foto-Status).
 - Mehrere ungesehene Snaps lassen sich hintereinander ansehen: weiter per
   Doppeltippen, seitlich oder nach oben wischen (einstellbar).
 - Gesten in der Kamera: nach unten wischen schliesst, am Ausloeser nach oben
@@ -897,3 +899,99 @@ Akzeptanzkriterien:
 - Knopf 1x / 1,5x / 2x, gilt fuer alle Sprachnachrichten.
 - Neue Nachrichten waehrend der Wiedergabe lassen Knopf und Leiste nicht
   flackern.
+
+## UC-53: Flirt-Modus im Freundes-Chat
+
+**Als Nutzer** moechte ich nach dem Adden normal schreiben, aber mit derselben
+Person auch weiter flirten koennen.
+
+Akzeptanzkriterien:
+
+- Pro Person bleibt es ein Chat; er steht nach dem Adden unter "Chat &
+  Freunde".
+- Eine Flamme ueber dem Senden-Knopf schaltet pro Chat in den Flirt-Modus:
+  dort sehe ich alles (Flirt-Nachrichten markiert) und schreibe
+  Flirt-Nachrichten; Senden lange druecken schickt nur eine Nachricht als
+  Flirt. Die Flamme laesst sich ausblenden (Einstellung oder pro Chat).
+- Im normalen Chat sind Flirt-Nachrichten standardmaessig ausgeblendet
+  (Einstellung "Flirt-Verlauf im normalen Chat ausblenden", Chat > Nach dem
+  Adden); kommt eine neue, zeigt die Flamme einen Punkt (auch wenn danach
+  schon weitere normale Nachrichten kamen).
+- Ohne aktiven Entdecken-Bereich gibt es keine Flamme, der Flirt-Teil bleibt
+  verborgen.
+- Nichts wird geloescht; das Gegenueber merkt nichts.
+
+## UC-54: Benachrichtigungen je Art
+
+**Als Nutzer** moechte ich festlegen, worueber ich benachrichtigt werde.
+
+Akzeptanzkriterien:
+
+- Einstellungen > Chat > Benachrichtigungen: Match, Flamme, Nachricht in
+  "Entdecken", Profilbesuch, Adden, Nachricht in "Chat & Freunde",
+  Chat-Ereignisse; nur die Arten der aktiven Bereiche sind sichtbar.
+- Ein Schalter gilt fuer Push (App geschlossen) und den Hinweis in der App.
+- Abgeschaltete Arten kommen gar nicht erst als Push.
+- Flamme, Match und Anfragen wecken die App jetzt auch im Hintergrund.
+- Profilbesuche: der Besucher muss "Meine Profilbesuche zeigen" einschalten
+  (Standard aus), der Besuchte "Profilbesuch" (Standard aus); nur in
+  "Entdecken", hoechstens alle 6 Stunden pro Person.
+
+## UC-55: Lange Chats
+
+**Als Nutzer** moechte ich, dass auch lange Chats schnell oeffnen, und auf Wunsch
+Tag fuer Tag lesen.
+
+Akzeptanzkriterien:
+
+- Ein Chat zeigt zuerst die letzten 150 Nachrichten; oben angekommen kommen
+  aeltere dazu, ohne dass die Ansicht springt.
+- Option "Chat nach Tagen" (Einstellungen > Chat): eine Leiste unter der
+  Kontaktleiste zeigt den Tag; Pfeile links/rechts oder seitlich wischen
+  wechseln zu Tagen mit Nachrichten. Nach dem Senden steht der Chat auf heute.
+- Suche und "nur markierte" finden Nachrichten aus allen Tagen.
+
+## UC-56: Interaktionen und Matches im Grid
+
+**Als Nutzer in "Entdecken"** moechte ich sehen, wer mich angesehen oder mir
+eine Flamme geschickt hat, und meine Matches an einem Ort.
+
+Akzeptanzkriterien:
+
+- Das Grid hat drei Bereiche: Grid, Interaktionen, Matches.
+- Interaktionen: Flammen und Profilbesuche, neueste oben, mit "Flamme
+  zurueck"; ein Badge zeigt Neues. Die Liste liegt nur auf dem Geraet.
+- Matches: noch nicht angeschriebene oben, "Schreiben" oeffnet den Chat.
+- Filter hinter einem Pfeil-Knopf: Entfernung, mit Foto, Zahlen von-bis und
+  Auswahlfelder aus dem Profil; nur auf dem Geraet. Wer noch ohne geladenes
+  Profil ist, steht als "unbekannt" hinten (abschaltbar).
+- Im geoeffneten Profil wische ich seitlich zum naechsten Profil.
+
+## UC-57: Nur fuer bestimmte Leute sichtbar
+
+**Als Nutzer in "Entdecken"** moechte ich festlegen, wer meine Karte im Grid
+sieht (z. B. nur Position "Top", Alter 21-35).
+
+Akzeptanzkriterien:
+
+- Einstellungen > Privatsphaere > "Wer mich im Grid sieht": Auswahl je Zahl-
+  oder Auswahlfeld des Profils; ohne Auswahl sehen mich alle.
+- Wer nicht passt (oder den Wert nicht angegeben hat), sieht meine Karte nicht.
+- Der Router bekommt nur einen kurzen Code der Regel, nie etwas ueber die
+  Betrachter; ein Hinweis sagt, dass die Regel lesbar ist und eine veraenderte
+  App sie ignorieren koennte.
+
+## UC-58: Profil loeschen
+
+**Als Nutzer** moechte ich mein Profil vollstaendig loeschen.
+
+Akzeptanzkriterien:
+
+- Einstellungen > Allgemein > "Profil endgueltig loeschen", zweimal bestaetigen.
+- Der Router loescht alles zu mir; mein Geraet loescht alle Daten, die App
+  startet neu mit der Einrichtung.
+- Bei meinen Kontakten verschwinden Verlauf, Bilder, Alben und Status; der
+  Chat bleibt in der Liste mit "Profil wurde geloescht", schreiben geht nicht
+  mehr. Kontakte, die gerade offline sind, bekommen das beim naechsten Oeffnen.
+- Ohne Verbindung zum Router wird nichts geloescht (Hinweis).
+

@@ -36,6 +36,7 @@
     - e-mail: wenn jemand deine fotos weitergibt und du findest den nutzer (wasserzeichen), hilft dir das heute nichts -> es braucht eine erreichbare/verantwortliche identitaet
   - offen: welche anbieter (datensparsam, nur "ja, 18+" als signiertes token), wo liegt die e-mail (nur beim betreiber, gehasht?), wie passt das zu "kein konto" und regel 1 (keine externen datendienste)
   - offen: einfaches 18+-bestaetigen im onboarding als minimum (`REQUIRE_AGE_CONFIRM`)
+  - entschieden (nutzer 2026-10-29): alle wege ausliefern, damit es rechtlich passt: EU-Wallet/EU-Altersnachweis UND andere anbieter (z. B. KJM-anerkannte) UND e-mail; der betreiber waehlt per konfiguration, was gilt (mehrere gleichzeitig moeglich)
   - diskussion 2026-10-26 (stand, noch nicht entschieden):
     - alter: router-konfig `AGE_CHECK=off|confirm|provider`; `confirm` = "ich bin 18+" im onboarding; `provider` = externer nachweis, router prueft nur ein signiertes "18+"-token und merkt sich "node X geprueft bis Y"
     - bevorzugt EU-Wallet (EUDI / EU-Altersnachweis): nur "18+" + pseudonym pro seite; das pseudonym entsteht in der wallet, der aussteller erfaehrt nicht, wo es gezeigt wird -> auch per gerichtsbeschluss keine zuordnung zur person (gewollt); bann auf das pseudonym haelt trotzdem (neues konto = gleiches pseudonym)
@@ -76,6 +77,13 @@
     - [x] tests `test/nudity.test.js`, e2e `nudity-filter` (test-modell)
     - [ ] modell auswaehlen und ausliefern (Bumble Private Detector o. ae., lizenz/groesse/browser) -> entscheidung
     - [ ] absender-warnung vor dem senden -> entscheidung
+  - recherche 2026-10-29 (primaerquellen: repos/model cards; leistung auf handys nicht gemessen):
+    - **NSFWJS** (infinitered/nsfwjs): code MIT, modell aus GantMan/nsfw_model ebenfalls MIT; TF.js, laeuft im browser, modell selbst hostbar; MobileNetV2 224x224 ca. 2,6-3,5 MB, ~90 % genauigkeit (mid-modell ~93 %); klassen Drawing/Hentai/Neutral/Porn/Sexy; trainingsdaten aus nsfw_data_scraper (vermutlich ueberwiegend weibliche motive -> fuer eine app mit vielen schwulen nutzern muss maennliche nacktheit eigens getestet werden)
+    - **Bumble Private Detector**: Apache-2.0, EfficientNet-v2, binaer "lewd", fuer ungefragte nacktbilder gebaut; nur als TF SavedModel -> wir muessten selbst nach TF.js/ONNX umwandeln und quantisieren; groesse und messwerte im repo nicht angegeben
+    - **NudeNet v3**: erkennt koerperteile einzeln (u. a. MALE_GENITALIA_EXPOSED), ONNX, laeuft im browser; aber lizenz AGPL-3.0 und basiert auf Ultralytics YOLOv8 (ebenfalls AGPL, laut Ultralytics gilt das auch fuer trainierte modelle) -> lizenzrisiko, nicht ohne klaerung
+    - **viddexa/nsfw-detection-2-nano**: Apache-2.0, EfficientNet, ONNX ueber onnxruntime-web moeglich; keine angaben zu daten/genauigkeit -> nur beobachten
+    - laufzeit: onnxruntime-web/TF.js mit WASM+SIMD+threads im browser machbar; WebGPU auf mobil noch nicht verlaesslich; vorsicht bei dauerlast (hitze, drosselung)
+  - empfehlung (vorschlag, nutzer entscheidet): start mit NSFWJS MobileNetV2 (MIT/MIT, klein, erprobt), modell + TF.js vom eigenen router ausliefern (keine CDN, regel 1), nur laden wenn der filter an ist, im SW-cache halten, im web worker rechnen; unscharf ab porn+hentai >= 0.7 ("sexy" nicht); vorher eigene testsammlung (auch maennliche motive) zur abschaetzung von fehlalarmen/treffern; Bumble als zweiter kandidat, falls die erkennung nicht reicht (umwandlung noetig)
 
 ## T4 Wrapper-App: native API zum Senden/Empfangen (wunsch 2026-10-27, erst planen)
 - [ ] die wrapper-app (siehe backlog "real application for android") stellt der PWA eine API bereit, um bilder zu senden und zu empfangen, auch offline bzw. wenn die app im hintergrund ist; grund: dauernd geladene PWA zieht viel akku
@@ -154,7 +162,9 @@
 - [x] einladung aus "Entdecken", geoeffnet im chat-modus: chat landete in der falschen liste
   - entschieden (nutzer): einladung traegt den modus; geht in dessen modus/liste; ist der bereich beim empfaenger aus, oeffnet sich nichts, nur "modus deaktiviert"
   - done 2026-10-27: link `#<peer>.<fingerprint>~<modus>`, `inviteTarget`, hinweis `modes.inviteModeDisabled`; tests `test/modes.test.js`, e2e `invite-modes`
-  - offen (nicht entschieden): im entdecken-bereich kann die chat-sperre des einladenden ("Nur Matches") nachrichten des eingeladenen zurueckhalten
+  - [x] chat-sperre des einladenden ("Nur Matches") im entdecken-bereich
+    - entschieden (nutzer 2026-10-28): sperre bleibt, auch fuer eingeladene (erst flamme/match)
+    - done 2026-10-28: ohne bekanntes profil bleibt die eingabe in "Grid & Event"-chats gesperrt ("Profil wird geladen"), profil wird aktiv angefragt; danach zeigt der hinweis die sperre statt still zurueckgehaltener nachrichten; test `test/matching.test.js`
 - [x] album: besitzer waehlt die vorschau (normal / unscharf / keine)
   - done 2026-10-27: `album.preview`, "Vorschau im Chat" in der album-karte, unscharf beim besitzer gerechnet; e2e `album-preview`; UC-50
 
@@ -199,6 +209,8 @@
   - done 2026-10-27: `album.limits`, `openAlbumShareOptions`, ansichten ueber `handleAlbumKeyRequest` (15-min-ansicht, `session`), zeit ueber gekuerzte buendel, `enforceAlbumLimits`; tests `test/albums.test.js`, e2e `album-preview`; UC-51
 
 ## Eigene rotierende Verschluesselung (geparkt, erst besprechen)
+- besprochen 2026-10-29 (nutzer): eigener algorithmus verworfen (siehe `tasks/rejected.md`); key-splitting (router-haelfte pro bild, beim ansehen ausgegeben, nach frist geloescht), zeitscheiben (ohne splitting nur mit neu-verschluesseln pro scheibe) und stream bringen in der praxis wenig: wer gerade ansieht, kann immer kopieren/screenshotten; splitting schuetzt nur kopierte app-daten nach der frist. fazit nutzer: "so ganz bringen tut das beides nicht wirklich was" -> geparkt, aktueller schutz (schluessel je epoche/ansicht, ende beim schliessen, selbstzerstoerung, sofortiger entzug ueber pfad c, wasserzeichen) bleibt
+- nutzer-idee 2026-10-29 "lese-muster vom router + geheimnis vom peer + zeitstempel" besprochen: zeitpruefung im code ist umgehbar, echter schutz nur durch ein nach der frist geloeschtes router-geheimnis = key-splitting; saubere fassung (HKDF mit router-geheimnis als salt) in `tasks/feature-request-rotating-encryption.md` abschnitt 8, geparkt
 - [ ] (geparkt 2026-10-28) echt selbstzerstoererische alben: key-splitting mit dem server (bildschluessel = haelfte besitzer + haelfte server; server gibt seine haelfte nur so oft/lange wie erlaubt und loescht sie dann; album danach kryptografisch tot, auch ohne besitzer online). beruehrt die regel "server sieht nur ciphertext + iv + routing-ids" (zufaellige schluesselhaelfte) -> zusammen mit der rotierenden verschluesselung entscheiden
 - [ ] (geparkt 2026-10-28) begrenzte album-ansichten als stream wie secure snaps (empfaenger bekommt keine bilddaten; besitzer muss online sein)
 - [ ] gestohlene album-schluessel sollen nach der epoche wertlos sein; idee: eigener, vom server getakteter algorithmus -> `tasks/feature-request-rotating-encryption.md`
@@ -285,3 +297,177 @@
     - [x] U9 menue: nur 3 punkte, viel leerraum -> modus-wechsel, kontakt einladen und changelog/version mit hinein
       - nutzer 2026-10-26: profil-kopf und drei eintraege fuer einstellungen doppelt -> zahnrad im profil, einstellungen per wischen wie 4. tab, menue = modus direkt + einstellungen/changelog/debug/abmelden
       - done 2026-10-26: profilkopf (avatar, name, modus), Modus wechseln, Kontakt einladen, Einstellungen, Changelog (jetzt immer sichtbar), Debug-Modus; Abmelden und version unten abgesetzt
+
+## T11 Entdecken-Verlauf im Freundes-Chat (nutzer 2026-10-28)
+- [x] nach dem adden (chat wandert nach "Chat & Freunde") ist der entdecken-teil des verlaufs ausgeblendet, oben einblendbar; standard an, aber einstellung
+  - done 2026-10-28: kein datenmodell-umbau (ein verlauf pro person, `message.scope`); `keys`/`discovery-history = { hide, flipped }`, router-standard `hideDiscoveryHistory`; zeile "Entdecken-Verlauf ausgeblendet (N) · anzeigen"; einstellung Chat > "Nach dem Adden" (nur bei beiden bereichen); ohne entdecken-bereich immer verborgen; ungelesen zaehlt nur sichtbares; tests `test/friends.test.js`, e2e `friends`; UC-53
+- [x] flirt-schalter im chat (nutzer 2026-10-28: "so kann man nicht mehr im chat flirten")
+  - entschieden: flamme im chat-kopf pro chat; flirt-modus zeigt alles (flirt markiert) und schreibt `scope: 'discovery'`; normal = social, flirt-teil verborgen (einstellung); punkt an der flamme bei neuer verborgener nachricht
+  - done 2026-10-28: `keys`/`discovery-history = { hide, flirt }` (ersetzt die zeile oben im verlauf), `canFlirt`/`isFlirting`/`messageScopeFor`, album-knopf im flirt-modus sichtbar; tests `test/friends.test.js`, e2e `friends`
+- [x] chat laedt und zeichnet immer den ganzen verlauf (keine seiten) -> bei langen chats evtl. nur die letzten N zeichnen, aeltere beim hochscrollen nachladen (frage nutzer 2026-10-28)
+  - entschieden (nutzer): dazu option "seiten pro tag" mit tagesleiste unter der kontaktleiste, wischbar, pfeile links/rechts
+  - done 2026-10-28: durchgehend 150 + je 150 beim hochscrollen (position bleibt, knopf "aeltere laden"); `keys`/`chat-view.byDay`, `CLIENT_DEFAULTS.chatPagesByDay`; tagesleiste mit pfeilen/wischen, nur tage mit nachrichten, senden springt zu heute; suche ueber alles; zitat holt nicht gezeichnete nachricht; tests `test/chat-pages.test.js`, e2e `chat-pages`; UC-55
+
+## T12 Bug: Album-Ansichten und Neu laden (nutzer 2026-10-28)
+- [x] album mit 1x/2x/3x ansehen: oeffnen + neu laden zaehlte nicht (wie frueher bei snaps)
+  - ursache: neu laden ueberspringt das schliessen -> ansichts-buendel blieben gespeichert (oeffnen ohne nachfrage), und der besitzer wertete jede anfrage innerhalb der 15-min-ansicht als dieselbe ansicht
+  - done 2026-10-28: `viewId` pro oeffnung in `ALBUM_KEY_REQUEST` (besitzer zaehlt neu bei anderer/fehlender viewId), `endInterruptedAlbumViews` beim start; tests `test/albums.test.js`, e2e `album-views` (mit neu laden)
+
+## T13 Bugs: Chat loeschen offline, Flamme in Social-Chats (nutzer 2026-10-28)
+- [x] chat loeschen/blockieren kam beim offline partner nicht an
+  - validiert: `deleteActiveChat` reihte den `CHAT_WIPE` per path c ein und setzte danach `DELETE_CHAT` am router; der loescht alle wartenden payloads des chats in beide richtungen, also auch den wipe. gleiches beim blockieren. e2e mit altem code: wipe kommt nie an
+  - done 2026-10-28: `wipeChatWithPeer`: direkt bei offenem kanal -> chat-steuerung -> danach path c; lokale warteschlange verworfen; empfaenger ignoriert doppelte wipes (`appliedChatWipes`); e2e `chat-wipe-offline`
+- [x] flamme (flirt-modus) erschien in chats, die nur in social liefen
+  - validiert: bedingung war match ODER `discovery`-nachrichten; ein match ohne flirt-chat (flammen im grid) bzw. markierte nachrichten aelterer chats ohne listen-zuordnung (aus der grid-liste beschrieben) reichten
+  - done 2026-10-28: `hasFlirtPart` = match UND flirt-nachrichten; ohne flirt-teil keine flamme und nichts ausgeblendet; test `test/friends.test.js`
+- [x] album mit x-ansichten: besitzer merkte das ende nicht, person blieb in den album-einstellungen (nutzer 2026-10-28)
+  - validiert: `ALBUM_VIEW_CLOSED` ging nur direkt (P2P), ohne pfad c; ohne offenen kanal (handy, app im hintergrund) kam es nie an -> entzug erst nach 15 min und nur bei laufender besitzer-app. e2e mit altem code: person bleibt
+  - done 2026-10-28: `ALBUM_VIEW_CLOSED` auch als chat-operation (offen -> direkt, sonst sofort pfad c), besitzer bekommt hinweis "X hat ... fertig angesehen"; tests `test/albums.test.js`, e2e `album-views` (schliessen ohne kanal)
+
+## T14 Wischgesten: Album-Ansicht, Profil im Chat (nutzer 2026-10-28)
+- [x] album-ansicht nach unten wischen ist zu empfindlich (1x-alben enden zu schnell)
+  - done 2026-10-28: `attachSwipeToClose(..., { trigger })`; album-ansicht ab 40 % der bildschirmhoehe (mind. 220 px) statt 100 px; ab der schwelle wird die karte durchsichtig; `touchcancel` setzt zurueck; e2e `chat-gestures` (mobil)
+- [x] profil im chat nach unten wischen = schliessen
+  - validiert 2026-10-28: gab es schon (profil-fenster, auch aus dem chat geoeffnet); funktioniert im e2e vom profilbild und von weiter unten aus; nur wenn das fenster ganz oben ist (sonst scrollt es erst). jetzt im e2e `chat-gestures` abgedeckt
+- [x] wisch-wunsch (nutzer 2026-10-28): im profil nach links = menue; einstellungen seitlich = bereiche blaettern (ausnahme regler); einstellungen verlassen nur nach unten
+  - done 2026-10-28: `SWIPE_TABS` ohne einstellungen, `stepSettingsTab`, runterziehen ab 120 px oben = zurueck ins profil; `overscroll-behavior-y: contain` solange die einstellungen offen sind (kein neu laden); e2e `mobile-layout`
+
+## T15 Praesenz: Abwesend + Benachrichtigung bei verstecktem Tab (nutzer 2026-10-28)
+- [x] PWA auf dem handy weggewischt/im hintergrund (und browser-tab/fenster am pc nicht sichtbar): status bleibt "online", nachrichten kommen an, aber keine benachrichtigung
+  - ursache: benachrichtigungen kamen nur per web push vom service worker; solange die app im hintergrund noch verbunden ist, stellt der absender direkt (P2P) zu und es geht kein push raus; die seite selbst zeigte nichts
+  - done 2026-10-28: `PRESENCE_AWAY` (versteckt/`pagehide`) -> partner sehen "Abwesend" (gelb); direkt zugestellt an einen abwesenden partner -> `POST /api/push/nudge` -> push ohne inhalt `{ type: 'NUDGE', senderId }` -> SW zeigt kompakt bzw. "Neue Nachricht von X" (nicht bei sichtbarem fenster); server prueft abwesend/offline, block, subscription, 15 s pro paar, rate-limit `nudge`; tests `test/server.test.js`, `test/push.test.js`, e2e `presence-away`
+  - nebenbei: doppelte i18n-schluessel (`chat.moreActions`) entfernt, neuer test findet doppelte schluessel
+  - wunsch: zustand "abwesend" (o. ae.), wenn die app nicht sichtbar ist
+  - zu pruefen: wird bei `visibilityState === 'hidden'` eine benachrichtigung gezeigt (seite selbst bzw. SW), oder unterdrueckt die app sie, weil die seite noch "lebt"? push kommt evtl. gar nicht, solange die WS-verbindung steht (server haelt peer fuer online)
+- [x] flirt-lasche ueber dem senden-knopf (nutzer 2026-10-28): ersetzt die flamme im chat-kopf; lasche tippen = flirt-modus, lasche lange druecken = in diesem chat ausblenden (zurueck ueber ⋮), senden lange druecken = diese nachricht als flirt; im flirt-modus lasche + senden als ein block, eingabefeld mit rand und "Flirt-Nachricht…"; einstellung "Flirt-Knopf über Senden"; verlauf unten mit platz fuer die lasche; e2e `friends`
+  - nachgezogen 2026-10-28 (nutzer): fokus des eingabefelds bleibt beim tippen auf die lasche; lasche hoeher und auf der oberkante der eingabeleiste (antwort-leiste darunter, nichts verdeckt, verlauf unten mehr platz, runter-knopf ueber der lasche); punkt fuer jede neue verborgene flirt-nachricht seit dem letzten blick (`seen`), nicht nur die letzte; im flirt-modus album + video hinter einem medien-knopf, der nach oben aufklappt (+ foto aus der galerie)
+- [x] pc: hover-leiste an nachrichten flackert (nutzer 2026-10-28)
+  - ursache: der verlauf zeichnet sich neu, das neue element verliert kurz `:hover` und die leiste blendete von 0 ein
+  - done 2026-10-28: `state.hoveredMessageId` (mouseover), neu gezeichnete nachricht bekommt `.is-hovered` ohne ueberblenden
+
+## T16 Wisch-Bugs (nutzer 2026-10-28)
+- [x] seitenmenue laesst sich nicht per wischen (nach rechts) schliessen
+  - done 2026-10-28: `attachSwipeRight` am menue
+- [x] profil im chat laesst sich (beim nutzer) nicht nach unten wischen; im e2e geht es -> auf echtem geraet pruefen
+  - wahrscheinliche ursache: im browser startet oben das eigene pull-to-refresh und bricht die geste ab (`touchcancel`); das e2e schickt rohe touch-events und sieht das nicht
+  - done 2026-10-28: `overscroll-behavior-y: contain` solange profil/medien-fenster, menue, einstellungen oder chat offen sind; profil startet immer oben (`scrollTop = 0`). auf dem geraet bestaetigen
+- [x] profil und einstellungen: wischen soll auch auf schaltern und auswahlen starten duerfen (die reagieren auf klick, nicht auf wischen)
+  - done 2026-10-28: `blocksTabSwipe` sperrt nur noch textfelder und regler
+- [x] einstellungen auch per wischen nach rechts schliessen (an "Allgemein" -> zurueck ins profil)
+  - done 2026-10-28: `stepSettingsTab` am ersten bereich nach rechts = profil
+- [x] im chat auf der eingabeleiste nach rechts wischen = chat schliessen (zur chat-uebersicht); einstellbar, standard vom router (`CLIENT_DEFAULTS`) (nutzer 2026-10-28)
+  - done 2026-10-28: `keys`/`chat-swipe-close`, `CLIENT_DEFAULTS.inputSwipeClosesChat`, schalter unter Chat; e2e `chat-gestures`
+
+- [x] gui der neuen eingabeleisten-funktionen ueberarbeitet (nutzer 2026-10-28): lasche genau ueber dem senden-knopf und optisch teil der leiste; medien-menue im stil des chat-menues (symbol + text); "foto aus der galerie" entfernt (fuehrte ins snap-menue)
+
+- [x] flirt-lasche beim hochscrollen (nutzer 2026-10-28): ab halbem bildschirm faehrt sie smooth zum streifen ein (gleicher hintergrund), tippen/fokus im eingabefeld klappt aus, unten wieder da; liegt jetzt vor der aktionsleiste der nachrichten (z-index); e2e `friends`
+- [x] eigenes profil: wischen auch ueber (nicht fokussierte) eingabefelder (nutzer 2026-10-28); e2e `mobile-layout`
+- [x] chatliste/chat-wechsler/profil zeigten nur gruen/offline, nicht "abwesend" (nutzer 2026-10-28)
+  - done: `presenceStatusOf`/`createPresenceDot` an allen stellen; e2e `presence-away` prueft den gelben punkt in der liste
+- [x] bug: im chat am ende hochziehen flackerte (nutzer 2026-10-28)
+  - ursache: anzeige waechst -> verlauf schrumpft -> nicht mehr "ganz unten" -> anzeige 0 -> wieder unten -> waechst ...
+  - done: "unten" nur beim aufsetzen pruefen, verlauf waehrend des ziehens unten anheften, `touchcancel`; e2e `pull-up` prueft, dass die anzeige nur waechst (mit altem code: 0,12,18,18,24,0,36,0,...)
+
+## T17 Mehrere Bilder/Snaps vor dem Senden durchsehen (nutzer 2026-10-28)
+- [x] beim versenden mehrerer bilder/snaps (mehrfachauswahl aus der galerie) alle vor dem senden durchsehen koennen
+  - done 2026-10-28: durchsicht im medienfenster: grosses bild, seitlich wischen/pfeile, zaehler, leiste mit allen, einzelne entfernen, "Alle senden (N)"; art (snap/bild/secure/status) wie im snap-menue gewaehlt; e2e `snap-camera` (4 waehlen, blaettern, eins entfernen, 3 kommen an)
+  - done 2026-10-28 (nachtrag): art pro bild (snap/bild/secure), einzelnes bild im snap-editor bearbeiten ("Uebernehmen"/schliessen -> zurueck zur durchsicht); e2e `snap-camera`
+  - ist-stand: `sendPickedImages` (snaps.js) schickt bei mehrfachauswahl jedes bild sofort einzeln, ohne editor/vorschau
+  - idee: vorschau-streifen mit allen bildern, durchwischen, einzelne entfernen, ggf. pro bild snap/bild/secure; dann "alle senden"
+
+## T18 Benachrichtigungen je Art (nutzer 2026-10-28)
+- [x] in den einstellungen einzeln einstellbar: match, flamme, adden, entdecken-nachricht, chat-nachricht, profilbesuch (entdecken), chat-ereignisse
+  - entschieden (nutzer): ein schalter = push + hinweis in der app; profilbesuche neu bauen, opt-in auf beiden seiten
+  - done 2026-10-28: `keys`/`notification-settings`, `notifyInApp`, `POST /api/push/settings` (stumme arten, spalte `muted_kinds`), `notifyKind` beim cache-eintrag und `kind` beim anstupsen, SW-texte je art; push jetzt auch fuer flamme/match/anfrage/profilbesuch; `PROFILE_VIEW` (opt-in, nur entdecken, 6 h pro person); tests `test/push.test.js`, e2e `notifications`
+  - metadaten: der router erfaehrt die art eines ereignisses (nicht den inhalt), sonst bestrafen browser still verworfene pushes (decisions log in claudy.md)
+  - nutzer hat auf dem geraet getestet (2026-10-28): passt
+  - done 2026-10-28: router-standards `CLIENT_DEFAULTS.notifyMatch` ... `notifyChatEvents`, `shareProfileViews`
+
+## T19 Skalierung: mehrere Router, der Client waehlt (nutzer 2026-10-28)
+- [ ] ein 2. container registriert sich beim 1.; der 1. gibt ihn per config an die clients; die clients entscheiden selbst, wohin sie ihren verkehr schicken (kein weiterleiten zwischen routern)
+  - entschieden (nutzer): aufteilung nach region (geohash); kein forwarding; zellen sind teilbar (laengeres praefix), sonst bekommt ein router alles; optional "sharing": zellen unter einem praefix abwechselnd verteilen (2 router = gerade/ungerade); der client ordnet anhand des hashs zu, ohne vorher einen router anzupingen; die regeln kommen mit der config vom router
+  - stand 2026-10-28: P1-modul (regeln, zuordnung, beitritt) auf branch `feature/federation` (`7c1c377`), nicht in main; dort steht der genaue stand. vorerst geparkt (nutzer: "musik aus der zukunft")
+  - plan P1 (router-seite, ein router bleibt wie heute):
+    - `POST /api/federation/join { id, url, token }` vom 2. container (token aus `FEDERATION_PEERS`), health-check, faellt er aus -> seine zellen zurueck an den 1.
+    - regeln per env (`FEDERATION_RULES`, z. B. `[{"prefix":"u1","routers":["r1"]},{"prefix":"u1hx","routers":["r2"]},{"prefix":"u0","routers":["r1","r2"],"mode":"share"}]`)
+    - `/api/config` liefert `routers: [{ id, url }]` + `rules`
+    - unit-tests: laengstes praefix gewinnt, share = wert des letzten zeichens mod anzahl, ausgefallener router faellt zurueck
+  - plan P2 (client):
+    - `routerForCell(cell)` (gleiche regeln wie der server, test fuer gleichlauf wie sw-parity)
+    - heimat-router = router der eigenen zelle: registrieren + WS dort
+    - grid: die 9 zellen (eigene + nachbarn) je router abfragen (parallel), ergebnisse mischen
+    - signaling an einen peer auf einem anderen router: kurzer WS dorthin (mit derselben identitaet registrieren), nach dem verbindungsaufbau wieder zu
+    - praesenz: WS auch zu den routern aktiver chat-partner (begrenzt)
+  - plan P3: pfad C und push immer beim heimat-router des empfaengers; peers nennen ihren heimat-router (grid-ergebnis, profil bzw. P2P); unbekannt -> alle router (wenige) versuchen
+  - plan P4: e2e mit zwei containern (compose mit r1 + r2), zelle teilen, sharing gerade/ungerade, ausfall von r2
+  - spaeter: automatisches teilen voller zellen, uebersicht fuer betreiber
+  - entschieden (nutzer 2026-10-28): router beisteuern darf jeder, den der router-admin freigibt
+    - freigabe: admin traegt freigegebene router mit eigenem token ein (`FEDERATION_PEERS`, z. B. `[{"id":"r2","token":"..."}]`); beitreten nur mit passendem token (statt einem gemeinsamen `FEDERATION_SECRET`), einzeln entziehbar
+  - metadaten: jeder router sieht nur seine zellen
+
+## T20 Grid: drei Bereiche, Filter, "nur zeigen fuer" (nutzer 2026-10-28)
+- [x] grid in drei tabs: **Grid** · **Interaktionen** (wer hat mein profil angesehen, wer hat mir eine flamme geschickt; nur lokal, nichts ueber den router) · **Matches** (eigener tab, nur bei aktivem matching)
+  - matches-tab: noch nicht angeschriebene matches oben, jede karte mit chat-knopf (keine doppelung zur chatliste)
+  - done 2026-10-28: `client/app/grid-tabs.js`, `keys`/`interactions`, badge, flamme zurueck / schreiben; e2e `grid-tabs`; UC-56
+  - interaktionen: neueste oben, "flamme zurueck"-knopf, badge am tab fuer neue
+- [x] filter (lokal auf die grid-ergebnisse): alter von-bis, entfernung, gerade online, mit foto, plus jedes select-/tag-feld aus dem profil-schema; mehrere selektoren: UND zwischen feldern, ODER innerhalb eines felds; zu wenige treffer -> "mehr laden"
+  - entschieden (nutzer 2026-10-28): kein filter-code auf der karte; stattdessen die ersten ~10 profile im hintergrund laden und auf dem client filtern/sortieren; filter auch in interaktionen und matches; panel nur ueber pfeil-knopf; dazu im profil seitlich zwischen den karten wischen
+  - nachtrag (nutzer 2026-10-28): animation beim seitlichen wischen im profil (karte folgt dem finger, faehrt hinaus, neues kommt herein; gummiband am ende); e2e `chat-gestures`
+  - test-stabilitaet: e2e `pull-up` leerte gelegentlich seine testchats (laufender db-abgleich der chatliste beim start), jetzt vor jedem ziehen sichergestellt
+  - nachtrag (nutzer 2026-10-28): profil-version auf der grid-karte (`profileVersion` beim registrieren, spalte `peers.profile_version`, nur ein zaehler); prefetch nur bei fehlendem oder veraltetem profil
+  - done 2026-10-28: `client/app/grid-filter.js` (`keys`/`grid-filter`), entfernung/foto/zahlen/auswahl, unbekannte hinten (abschaltbar), direktes `PROFILE_REQUEST` fuer die ersten 10, neu sortieren bei ankunft, blaettern im profil (wischen, pfeiltasten); tests `test/grid-filter.test.js`, e2e `grid-filter`
+- [x] "nur zeigen fuer ..." (sichtbarkeitsregel), auf jedem select-/tag-feld (z. B. tribe: twink, femme), symmetrisch zum filter
+  - entschieden (nutzer 2026-10-28): der router setzt die regel durch (P2P-pruefung skaliert nicht und wirkt offline nicht); die regel darf klartext sein ("wen ich sehen lassen will", keine aussage ueber den eigenen typ) - das ist der preis, deshalb steht ein hinweis bei der einstellung
+  - korrigiert (nutzer 2026-10-28): der router bekommt NIE die tags des betrachters. er liefert jede grid-karte mit der regel des besitzers (klartext) aus, die **app des betrachters filtert** mit ihren eigenen tags (die das geraet nie verlassen)
+    - preis (hinweis bei der einstellung): die regel sieht jeder, der die karte abruft; ein manipulierter client koennte sie ignorieren
+    - zusaetzlich: ist die app des besitzers online, gibt sie volles profil/fotos nicht an betrachter ausserhalb der regel (kostet nur bei anfragen)
+  - kodierung (nutzer 2026-10-28: so klein wie moeglich, binaer, baumartig, min/max):
+    - `code = version (1 byte) + eintraege`, base64url; eintrag = feldnummer (index im profil-schema) + art
+    - art "tags": bitmaske der erlaubten werte (option n = bit n), 1-4 byte; art "range": min + max (je 1 byte, z. B. alter)
+    - beispiel "tribe twink|femme, alter 21-35" = 8 byte (~11 zeichen auf der karte)
+    - pruefung beim betrachter: pro feld `regel & meine bits != 0` (ODER im feld), range `min <= wert <= max`, UND zwischen feldern
+    - schema geaendert -> version/feldnummer passt nicht -> regel wird ignoriert statt falsch angewendet
+    - filter (was ich sehe) nutzen dieselben masken, nur lokal
+  - done 2026-10-28: `client/app/audience.js` (kodierung wie oben, + schema-fingerabdruck), einstellung unter privatsphaere mit hinweis, router speichert nur den code (`peers.audience`), karte traegt ihn, app des betrachters blendet aus; tests `test/audience.test.js`, server-test, e2e `audience`; UC-57
+  - nicht gebaut: zusaetzliche pruefung beim besitzer (profil/fotos verweigern) - der besitzer kennt das profil des betrachters meist nicht, das waere fail-closed fuer fast alle
+  - plan: profil-schema feldtyp `tags` (mehrfachauswahl); router speichert pro peer nur die regel `audience` (feld -> erlaubte werte, begrenzt) und liefert sie mit der karte; client blendet karten aus, deren regel nicht zu den eigenen tags passt (eigene tags fehlen fuer das feld -> nicht passend); besitzer-app prueft bei PROFILE_REQUEST; tests (regel greift, regel entfernen, fehlende eigene tags)
+
+## T21 Grid-Kopf und Router-Standards fuer "nur zeigen fuer" (nutzer 2026-10-28)
+- [x] grid-kopf: tabs ueber die kachel, graue zahlen an den tabs (rot bleibt fuer neues), kachel "in deiner naehe" zur schmalen statuszeile, aktualisieren per runterziehen (eigene geste, iOS-PWA hat keins), am PC kleiner knopf; e2e `mobile-layout`
+- [x] router-standards fuer die sichtbarkeitsregel
+  - entschieden (nutzer 2026-10-28): startregel fuer neue nutzer (`CLIENT_DEFAULTS.audience`), router erzwingt mindestwerte (`AUDIENCE_MINIMUM`, router mischt sie in jeden karten-code, auch ohne eigene regel); relative regeln: alter "wie ich" (+-3), "aelter als ich" (>=), "juenger als ich" (<=); auswahlfelder "wie ich"
+  - folge: wer den wert (z. B. alter) nicht angibt, sieht bei einem mindestwert niemanden (fail closed, gewollt fuer 18+)
+  - done 2026-10-28: `resolveAudienceRule`, `CLIENT_DEFAULTS.audience`, `AUDIENCE_MINIMUM` + `server/audience.js` (gleicher code, parity-test), `audienceMinimum` in `/api/config`, hinweis "Vom Server vorgegeben"; tests `test/audience-parity.test.js`, server-tests
+- [x] einstellung "nur zeigen fuer" in die karte "Sichtbarkeit im Grid" verschoben, GUI ueberarbeitet (titel je feld, chips umbrechen, "wie ich" gestrichelt) (nutzer 2026-10-28)
+- [x] entdecken-profil um dating-felder erweitert: groesse, gewicht, koerperbau, tribes, sucht nach, beziehungsstatus; mehrfachauswahl im profil-editor als chips (nutzer 2026-10-28)
+- [x] router laesst fuer die regel alles zu: alter + alle auswahlfelder (freitext-tags gehen nicht, keine feste liste)
+- [x] neu laden einstellbar (nutzer 2026-10-28): "ganze seite" (browser, standard vom router `CLIENT_DEFAULTS.reloadMode`, sonst full) oder "nur daten"; gilt fuer grid, chatliste (neu: runterziehen) und hochziehen im chat; bei "nur daten" menue-eintrag "seite neu laden"; hinweis "grid aktualisiert" entfernt (spam); e2e `mobile-layout`
+
+## T22 Profil loeschen (nutzer 2026-10-28)
+- [x] es gibt keinen loesch-knopf fuer das eigene profil ("Abmelden" nimmt nur aus dem grid, die daten bleiben)
+  - plan: Einstellungen > Allgemein "Profil loeschen" mit doppelter bestaetigung
+  - router: alles zu mir entfernen (grid-eintrag, zugang/credentials, push-subscription, chat-steuerung, wartende nachrichten von und an mich)
+  - geraet: IndexedDB, localStorage, caches loeschen, danach startet die app mit dem onboarding
+  - entschieden (nutzer 2026-10-28): bei den kontakten alles loeschen (chats, bilder), der chat bleibt aber in der liste mit "Profil wurde geloescht", im chat dieselbe zeile
+  - done 2026-10-28: `client/app/account.js`, `PROFILE_DELETED` (direkt + pfad C), `DELETE /api/account/:peerId` (`deleteIdentity`, tombstone, WS getrennt), geraet komplett geleert; tests server-test, e2e `profile-delete` (mit offline-kontakt); UC-58
+
+## T23 Interaktionen: eine Zeile pro Person? (nutzer 2026-10-28, besprechen)
+- [x] heute: jedes ereignis eine zeile (gleiche person + art innerhalb 10 min zusammengefasst); jemand kann mehrfach als "hat dir eine flamme geschickt" erscheinen
+  - entschieden + done 2026-10-28: eine zeile pro person, neueste aktivitaet oben, zusammengefasst; badge zaehlt personen; e2e `grid-tabs`
+  - nutzer: "ungewoehnlich aber nicht schlecht"
+  - vorschlag: eine zeile pro person, neueste aktivitaet oben, kurz zusammengefasst ("flamme · 3x angesehen · zuletzt 18:05")
+- [x] bug: "nur zeigen fuer" ohne waehlbare felder, wenn die app im chat-modus startet (aktives schema = chat-schema) (nutzer 2026-10-28)
+  - done: regel nutzt immer das schema von "entdecken" (event: event-schema), neu zeichnen beim oeffnen von privatsphaere; e2e `audience` (start im chat-modus, mit altem code rot)
+
+## T24 Rueckmeldungen (nutzer 2026-10-28)
+- [x] neu laden in der chatliste und im profil klappt nicht gut
+  - ursache: das pull-to-refresh des browsers war in chatliste und profil noch an und konkurrierte mit unserer geste; im profil gab es keine eigene
+  - done 2026-10-29: browser-geste ueberall aus, runterziehen im profil (ganze seite bzw. profil neu laden); e2e `mobile-layout`
+- [x] "nur zeigen fuer": als schalter ein-/ausschaltbar (regel bleibt gespeichert, wirkt nur wenn an); das badge "Regel aktiv" bleibt (gefaellt); zuruecksetzbar bleibt
+  - done 2026-10-29: `audience-rule.enabled`, schalter neben dem badge, felder bei aus abgedunkelt; e2e `audience`
+- [x] sprache: seitenerkennung fuer google translate kaputt?
+  - befund: `index.html` hat fest `lang="de"`, auch wenn die app englisch anzeigt -> falsche erkennung; dazu `translate="no"` + `notranslate`, das schaltet uebersetzen bewusst ab
+  - entschieden (nutzer 2026-10-29): nur die oberflaeche uebersetzen; deutsch/englisch sollen keinen uebersetzer brauchen
+  - done 2026-10-29: `lang` schon im kopf richtig gesetzt (kein angebot mehr fuer DE/EN), sperre an `<html>`/meta entfernt, nutzerinhalte + eingabeleiste `translate="no"` (eingabeleiste: frueherer nachrichtenfeld-bug durch uebersetzen); tests `test/i18n.test.js`, `test/markup-actions.test.js`, e2e `i18n`
+  - e2e-hinweis: `p2p-recovery` schlug im gesamtlauf einmal knapp fehl (wachhund-zeit unter last), einzeln 3/3 gruen
+

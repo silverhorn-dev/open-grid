@@ -332,6 +332,7 @@ function hideSnapModal() {
     stopSnapCamera();
     resetSnapPreview();
     document.getElementById('snap-capture-modal').classList.add('hidden');
+    finishPickedEdit();
 }
 
 function resetSnapPreview() {
@@ -465,34 +466,256 @@ async function pickSnapImage(input) {
     }
 }
 
-// Mehrfachauswahl aus der Galerie: jedes Bild wird ein eigener Snap (bzw. Bild oder Foto-Status),
-// ohne Editor. Secure Snaps und Wasserzeichen gelten wie beim einzelnen Senden.
+// Mehrfachauswahl aus der Galerie: erst durchsehen, dann senden. Jedes Bild wird ein eigener Snap (bzw.
+// Bild oder Foto-Status). In der Ansicht: grosses Bild, seitlich wischen oder Pfeile, Leiste mit allen,
+// einzelne entfernen, Art pro Bild (Snap/Bild/Secure, vorbelegt wie im Snap-Menue), einzelnes Bild im
+// Snap-Editor bearbeiten (zurueck mit "Uebernehmen" oder Schliessen), "Alle senden".
 const MAX_PICKED_IMAGES = 20;
+const PICKED_MODES = ['snap', 'image', 'secure'];
+const pickedReview = { items: [], index: 0, context: null, editIndex: null };
 
 async function sendPickedImages(files) {
-    const target = state.snapTarget;
-    const peerId = state.activeChatPeerId;
-    const asImage = state.snapSendMode === 'image';
-    const secure = state.snapSettings.secureSnaps && !asImage;
+    const context = {
+        target: state.snapTarget,
+        peerId: state.activeChatPeerId,
+        asImage: state.snapSendMode === 'image',
+        secure: state.snapSettings.secureSnaps && state.snapSendMode !== 'image',
+        skipped: Math.max(0, files.length - MAX_PICKED_IMAGES)
+    };
     closeSnapModal();
-    let sent = 0;
+    const items = [];
     for (const file of files.slice(0, MAX_PICKED_IMAGES)) {
         try {
             const bitmap = await createImageBitmap(file);
             const base = captureSnapBase(bitmap, bitmap.width, bitmap.height, false);
             bitmap.close?.();
-            if (target === 'status') {
+            items.push({ id: window.crypto.randomUUID(), base, mode: context.asImage ? 'image' : context.secure ? 'secure' : 'snap' });
+        } catch (error) {
+            logDebug(`Picked image failed: ${error.message}`);
+        }
+    }
+    if (!items.length) {
+        showToast(t('snaps.imageCouldNotBeLoaded'), 'error');
+        return;
+    }
+    pickedReview.items = items;
+    pickedReview.index = 0;
+    pickedReview.context = context;
+    renderPickedReview();
+}
+
+function pickedReviewTitle() {
+    const count = pickedReview.items.length;
+    if (pickedReview.context.target === 'status') return t('snaps.reviewStatuses', { count });
+    const modes = new Set(pickedReview.items.map(item => item.mode));
+    if (modes.size > 1) return t('snaps.reviewMixed', { count });
+    if (modes.has('image')) return t('snaps.reviewImages', { count });
+    return modes.has('secure') ? t('snaps.reviewSecureSnaps', { count }) : t('snaps.reviewSnaps', { count });
+}
+
+// Verkleinerte Kopie fuer Vorschau/Leiste (das Original bleibt fuers Senden).
+function pickedPreviewCanvas(base, maxEdge) {
+    const scale = Math.min(1, maxEdge / Math.max(base.width, base.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(base.width * scale));
+    canvas.height = Math.max(1, Math.round(base.height * scale));
+    canvas.getContext('2d').drawImage(base, 0, 0, canvas.width, canvas.height);
+    return canvas;
+}
+
+function renderPickedReview() {
+    const { items } = pickedReview;
+    if (!items.length) {
+        closeMediaModal();
+        return;
+    }
+    pickedReview.index = Math.min(Math.max(0, pickedReview.index), items.length - 1);
+    // Neu zeichnen (blaettern, entfernen) ist kein Schliessen: alte Aufraeum-Funktion nicht ausfuehren.
+    if (document.getElementById('media-modal')?.classList.contains('hidden') === false) state.mediaModalCleanup = null;
+    const content = openMediaModal(pickedReviewTitle());
+    state.mediaModalCleanup = () => {
+        pickedReview.items = [];
+        pickedReview.context = null;
+    };
+    const wrap = document.createElement('div');
+    wrap.className = 'picked-review';
+
+    const stage = document.createElement('div');
+    stage.className = 'picked-review-stage';
+    stage.setAttribute('data-no-sheet-swipe', '');
+    const preview = pickedPreviewCanvas(items[pickedReview.index].base, 1080);
+    preview.className = 'picked-review-image';
+    stage.appendChild(preview);
+    const arrow = (direction, icon, label) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `picked-review-arrow ${direction < 0 ? 'is-prev' : 'is-next'}`;
+        button.setAttribute('aria-label', label);
+        button.innerHTML = `<i class="fa-solid ${icon}"></i>`;
+        button.disabled = direction < 0 ? pickedReview.index === 0 : pickedReview.index === items.length - 1;
+        button.onclick = () => stepPickedReview(direction);
+        return button;
+    };
+    if (items.length > 1) stage.append(arrow(-1, 'fa-chevron-left', t('snaps.previousImage')), arrow(1, 'fa-chevron-right', t('snaps.nextImage')));
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'picked-review-remove';
+    remove.setAttribute('aria-label', t('common.remove'));
+    remove.title = t('common.remove');
+    remove.innerHTML = '<i class="fa-solid fa-trash"></i>';
+    remove.onclick = removePickedImage;
+    stage.appendChild(remove);
+    const editButton = document.createElement('button');
+    editButton.type = 'button';
+    editButton.className = 'picked-review-edit';
+    editButton.setAttribute('aria-label', t('snaps.editImage'));
+    editButton.title = t('snaps.editImage');
+    editButton.innerHTML = '<i class="fa-solid fa-pen"></i>';
+    editButton.onclick = () => editPickedImage(pickedReview.index);
+    stage.appendChild(editButton);
+    const counter = document.createElement('span');
+    counter.className = 'picked-review-counter';
+    counter.textContent = `${pickedReview.index + 1} / ${items.length}`;
+    stage.appendChild(counter);
+    attachPickedReviewSwipe(stage);
+
+    const strip = document.createElement('div');
+    strip.className = 'picked-review-strip';
+    strip.setAttribute('data-no-tab-swipe', '');
+    strip.setAttribute('data-no-sheet-swipe', '');
+    items.forEach((item, index) => {
+        const thumb = document.createElement('button');
+        thumb.type = 'button';
+        thumb.className = `picked-review-thumb${index === pickedReview.index ? ' is-active' : ''}`;
+        thumb.setAttribute('aria-label', `${index + 1} / ${items.length}`);
+        thumb.appendChild(pickedPreviewCanvas(item.base, 160));
+        thumb.onclick = () => {
+            pickedReview.index = index;
+            renderPickedReview();
+        };
+        strip.appendChild(thumb);
+    });
+
+    const send = document.createElement('button');
+    send.type = 'button';
+    send.id = 'picked-review-send';
+    send.className = 'compose-btn compose-btn-primary w-full';
+    send.innerHTML = '<i class="fa-solid fa-paper-plane"></i>';
+    send.append(` ${t('snaps.sendAll', { count: items.length })}`);
+    send.onclick = sendPickedReview;
+
+    const parts = [stage];
+    // Art pro Bild (nicht beim Foto-Status).
+    if (pickedReview.context.target !== 'status') {
+        const modes = document.createElement('div');
+        modes.className = 'picked-review-modes';
+        modes.setAttribute('role', 'radiogroup');
+        const current = items[pickedReview.index];
+        const labels = { snap: t('common.snap'), image: t('common.image'), secure: t('common.secureSnap') };
+        PICKED_MODES.forEach(mode => {
+            const option = document.createElement('button');
+            option.type = 'button';
+            option.className = `picked-review-mode${current.mode === mode ? ' is-active' : ''}`;
+            option.dataset.mode = mode;
+            option.setAttribute('role', 'radio');
+            option.setAttribute('aria-checked', String(current.mode === mode));
+            option.textContent = labels[mode];
+            option.onclick = () => {
+                current.mode = mode;
+                renderPickedReview();
+            };
+            modes.appendChild(option);
+        });
+        parts.push(modes);
+    }
+    wrap.append(...parts, strip, send);
+    content.appendChild(wrap);
+    strip.querySelector('.is-active')?.scrollIntoView?.({ block: 'nearest', inline: 'center' });
+}
+
+function stepPickedReview(direction) {
+    const next = pickedReview.index + direction;
+    if (next < 0 || next >= pickedReview.items.length) return;
+    pickedReview.index = next;
+    renderPickedReview();
+}
+
+function removePickedImage() {
+    pickedReview.items.splice(pickedReview.index, 1);
+    renderPickedReview();
+}
+
+// Seitlich wischen auf dem grossen Bild = vor/zurueck.
+function attachPickedReviewSwipe(stage) {
+    let start = null;
+    stage.addEventListener('touchstart', event => {
+        start = event.touches.length === 1 ? { x: event.touches[0].clientX, y: event.touches[0].clientY } : null;
+    }, { passive: true });
+    stage.addEventListener('touchend', event => {
+        if (!start) return;
+        const touch = event.changedTouches[0];
+        const deltaX = touch.clientX - start.x;
+        const deltaY = touch.clientY - start.y;
+        start = null;
+        if (Math.abs(deltaX) < 50 || Math.abs(deltaX) < Math.abs(deltaY) * 1.5) return;
+        hapticTick();
+        stepPickedReview(deltaX < 0 ? 1 : -1);
+    }, { passive: true });
+}
+
+// Ein Bild im Snap-Editor bearbeiten (ohne Kamera); "Uebernehmen" bzw. Schliessen fuehrt zurueck.
+function editPickedImage(index) {
+    const item = pickedReview.items[index];
+    if (!item) return;
+    pickedReview.editIndex = index;
+    // Die Durchsicht bleibt erhalten, nur das Fenster geht zu. Erst nach dessen Zurueck-Schritt den Editor
+    // oeffnen (sonst schloesse das spaete "Zurueck" gleich den Editor).
+    state.mediaModalCleanup = null;
+    replaceModal(closeMediaModal, () => {
+        state.snapTarget = pickedReview.context.target;
+        document.getElementById('snap-capture-modal').classList.remove('hidden');
+        pushModalEntry('snap', hideSnapModal);
+        showSnapReview(item.base);
+        const send = document.getElementById('snap-send-btn');
+        if (send) {
+            send.dataset.label = send.textContent;
+            send.textContent = t('snaps.applyEdit');
+        }
+    });
+}
+
+// Aus hideSnapModal: Bearbeitung beenden und zur Durchsicht zurueck (uebernommen oder nicht).
+function finishPickedEdit() {
+    if (pickedReview.editIndex === null) return;
+    pickedReview.editIndex = null;
+    const send = document.getElementById('snap-send-btn');
+    if (send?.dataset.label) {
+        send.textContent = send.dataset.label;
+        delete send.dataset.label;
+    }
+    setTimeout(renderPickedReview, 0);
+}
+
+async function sendPickedReview() {
+    const { items, context } = pickedReview;
+    if (!items.length || !context) return;
+    const picked = items.map(item => ({ base: item.base, mode: item.mode }));
+    closeMediaModal();
+    let sent = 0;
+    for (const { base, mode } of picked) {
+        try {
+            if (context.target === 'status') {
                 const image = encodeSnap(base, base.width, base.height, false, null);
                 if (image) await postPhotoStatus(image, '');
-            } else if (peerId) {
-                const bits = isTraceWatermarkEnabled() ? await watermarkTag(peerId) : null;
+            } else if (context.peerId) {
+                const bits = isTraceWatermarkEnabled() ? await watermarkTag(context.peerId) : null;
                 const data = encodeSnap(base, base.width, base.height, false, bits);
                 if (!data) continue;
-                if (secure) {
-                    await sendChatMessage(null, '', null, await createSecureSnap(data, peerId, state.snapSettings.views, state.snapSettings.seconds));
+                if (mode === 'secure') {
+                    await sendChatMessage(null, '', null, await createSecureSnap(data, context.peerId, state.snapSettings.views, state.snapSettings.seconds));
                 } else {
                     // Ohne Editor gilt der Router-Standard fuer "speicherbar".
-                    await sendChatMessage(data, '', null, null, { asImage, ...(clientDefault('snapSaveable', true) !== false ? {} : { downloadable: 'none' }) });
+                    await sendChatMessage(data, '', null, null, { asImage: mode === 'image', ...(clientDefault('snapSaveable', true) !== false ? {} : { downloadable: 'none' }) });
                 }
             }
             sent += 1;
@@ -500,9 +723,9 @@ async function sendPickedImages(files) {
             logDebug(`Picked image failed: ${error.message}`);
         }
     }
-    const message = target === 'status' ? t('snaps.statusesSent', { count: sent })
-        : asImage ? t('snaps.imagesSent', { count: sent }) : t('snaps.sent', { count: sent });
-    const limit = files.length > MAX_PICKED_IMAGES ? t('snaps.atMost', { max: MAX_PICKED_IMAGES }) : '';
+    const message = context.target === 'status' ? t('snaps.statusesSent', { count: sent })
+        : picked.every(item => item.mode === 'image') ? t('snaps.imagesSent', { count: sent }) : t('snaps.sent', { count: sent });
+    const limit = context.skipped ? t('snaps.atMost', { max: MAX_PICKED_IMAGES }) : '';
     showToast(`${message}${limit}.`, sent ? 'success' : 'error');
 }
 
@@ -512,6 +735,14 @@ async function retakeSnap() {
 }
 
 async function sendSnapDraft() {
+    // Bild aus der Mehrfachauswahl bearbeitet: Ergebnis in die Durchsicht uebernehmen, nicht senden.
+    if (pickedReview.editIndex !== null) {
+        const flat = hasSnapDraft() ? flattenSnapDraft() : null;
+        const item = pickedReview.items[pickedReview.editIndex];
+        if (flat && item) item.base = flat;
+        closeSnapModal();
+        return;
+    }
     if (state.snapTarget === 'status') {
         const image = hasSnapDraft() ? await encodeSnapDraft(null) : null;
         const caption = document.getElementById('snap-caption-input').value;

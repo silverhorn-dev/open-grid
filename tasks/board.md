@@ -62,6 +62,13 @@
   - vorbild: Bumble "Private Detector" (2022 open source, kommerziell nutzbar; lizenz/framework im repo pruefen), Apple Communication Safety, Instagram-Nacktschutz
   - offen: modell selbst ausliefern (keine CDN, regel 1), groesse (einige MB, lazy laden, im SW-cache), tf.js/onnx im browser + leistung auf alten handys, standard an/aus, auch absender-seitig warnen?
   - grenze: nur schutz, keine durchsetzung (eigener client kann es abschalten); kein melden an den server
+  - recherche 2026-10-29 (primaerquellen: repos/model cards; leistung auf handys nicht gemessen):
+    - **NSFWJS** (infinitered/nsfwjs): code MIT, modell aus GantMan/nsfw_model ebenfalls MIT; TF.js, laeuft im browser, modell selbst hostbar; MobileNetV2 224x224 ca. 2,6-3,5 MB, ~90 % genauigkeit (mid-modell ~93 %); klassen Drawing/Hentai/Neutral/Porn/Sexy; trainingsdaten aus nsfw_data_scraper (vermutlich ueberwiegend weibliche motive -> fuer eine app mit vielen schwulen nutzern muss maennliche nacktheit eigens getestet werden)
+    - **Bumble Private Detector**: Apache-2.0, EfficientNet-v2, binaer "lewd", fuer ungefragte nacktbilder gebaut; nur als TF SavedModel -> wir muessten selbst nach TF.js/ONNX umwandeln und quantisieren; groesse und messwerte im repo nicht angegeben
+    - **NudeNet v3**: erkennt koerperteile einzeln (u. a. MALE_GENITALIA_EXPOSED), ONNX, laeuft im browser; aber lizenz AGPL-3.0 und basiert auf Ultralytics YOLOv8 (ebenfalls AGPL, laut Ultralytics gilt das auch fuer trainierte modelle) -> lizenzrisiko, nicht ohne klaerung
+    - **viddexa/nsfw-detection-2-nano**: Apache-2.0, EfficientNet, ONNX ueber onnxruntime-web moeglich; keine angaben zu daten/genauigkeit -> nur beobachten
+    - laufzeit: onnxruntime-web/TF.js mit WASM+SIMD+threads im browser machbar; WebGPU auf mobil noch nicht verlaesslich; vorsicht bei dauerlast (hitze, drosselung)
+  - empfehlung (vorschlag, nutzer entscheidet): start mit NSFWJS MobileNetV2 (MIT/MIT, klein, erprobt), modell + TF.js vom eigenen router ausliefern (keine CDN, regel 1), nur laden wenn der filter an ist, im SW-cache halten, im web worker rechnen; unscharf ab porn+hentai >= 0.7 ("sexy" nicht); vorher eigene testsammlung (auch maennliche motive) zur abschaetzung von fehlalarmen/treffern; Bumble als zweiter kandidat, falls die erkennung nicht reicht (umwandlung noetig)
 
 ## T4 Wrapper-App: native API zum Senden/Empfangen (wunsch 2026-10-27, erst planen)
 - [ ] die wrapper-app (siehe backlog "real application for android") stellt der PWA eine API bereit, um bilder zu senden und zu empfangen, auch offline bzw. wenn die app im hintergrund ist; grund: dauernd geladene PWA zieht viel akku

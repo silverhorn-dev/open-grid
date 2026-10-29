@@ -444,6 +444,11 @@ function handleTabTouchMove(event) {
 // transform auf einem Vorfahren macht diesen zum Bezugsrahmen, die Liste nahm dann dessen (kleine) Hoehe
 // an und schrumpfte sichtbar. Darum den festen Bereich selbst bewegen.
 function tabSwipeTarget(tab) {
+    // Einstellungen: nur der Inhalt bewegt sich, die Leiste mit den Bereichen bleibt stehen.
+    if (tab === 'keys') {
+        const cards = document.querySelector('#view-keys .settings-cards');
+        if (cards) return cards;
+    }
     if (tab === 'chat') {
         const panel = document.getElementById('chat-list-panel');
         if (panel && getComputedStyle(panel).position === 'fixed') return panel;

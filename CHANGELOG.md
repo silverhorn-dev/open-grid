@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 244 · 2026-10-29
+## Build 245 · 2026-10-29
+- Einstellungen: beim seitlichen Wischen bewegt sich nur der Inhalt, die Leiste mit den Bereichen bleibt stehen
+
+## Build 244 · 2026-10-29 · `ae05708`
 - Fluessigere Animationen ueberall: Menue (auch nach dem Wegwischen), Profil- und Albumfenster, Profile durchblaettern, Einstellungen (Bereiche gleiten herein, Verlassen gleitet hinaus), Video; der Menue-Hintergrund blendet weich ein und aus
 
 ## Build 243 · 2026-10-29 · `757aa70`

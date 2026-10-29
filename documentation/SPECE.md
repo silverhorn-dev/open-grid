@@ -236,7 +236,8 @@
   Strecke leicht kleiner (hoechstens auf 97 %, runde Ecken), `html` hat
   `overscroll-behavior-x: none` (kein Zurueck-Wischen des Browsers, das die Seite
   um ~10 % verkleinerte); Tab-Wischen bewegt feste Bereiche selbst (Chatliste am
-  Handy, `tabSwipeTarget`; ein transform auf dem Vorfahren liess sie schrumpfen),
+  Handy, `tabSwipeTarget`; ein transform auf dem Vorfahren liess sie schrumpfen;
+  in den Einstellungen nur der Inhalt `.settings-cards`, die Bereichsleiste bleibt stehen),
   zeichnet je Bild (`requestAnimationFrame`) und wechselt mit Aus-/Einblenden
   (`animateTabChange`, 110/160 ms); der Chat gleitet vor dem Schliessen ganz hinaus
   (`animateChatOut`, 160 ms); gemeinsame Hilfen fuer alle Wischgesten

@@ -31,6 +31,10 @@ async function main() {
 
         await page.evaluate(async () => {
             await setAppMode('chat');
+            // Der Abgleich der Chatliste beim Start (loadChatPeerIds) ersetzte sonst gelegentlich die
+            // Testchats aus dem Speicher durch die (leere) Datenbank: Liste zu kurz zum Scrollen.
+            window.__loadChatPeerIds = loadChatPeerIds;
+            loadChatPeerIds = async () => {};
             for (let index = 0; index < 25; index++) {
                 const id = `node_fake_${index}`;
                 state.friendState[id] = { sentAt: 2, receivedAt: 3, resetAt: 0 };
@@ -230,6 +234,26 @@ async function main() {
         await waitFor(page, () => !document.getElementById('view-keys').classList.contains('hidden'));
         assert.equal(await page.evaluate(() => document.querySelector('[data-tab-btn="editprofile"][data-nav="bottom"]').classList.contains('is-active')), true, 'profile stays highlighted');
         await page.evaluate(() => switchSettingsTab('general'));
+        // Beim seitlichen Wischen bewegt sich nur der Inhalt, die Leiste mit den Bereichen bleibt stehen.
+        const cardsBox = await page.locator('#view-keys .settings-cards').boundingBox();
+        const tabsBefore = await page.locator('#view-keys .settings-tabs').boundingBox();
+        const startY = cardsBox.y + 40;
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 300, y: startY }] });
+        for (let step = 1; step <= 6; step++) {
+            await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 300 - step * 12, y: startY }] });
+            await page.waitForTimeout(20);
+        }
+        await page.waitForTimeout(60);
+        const settingsDuring = await page.evaluate(() => ({
+            cards: document.querySelector('#view-keys .settings-cards').style.transform,
+            view: document.getElementById('view-keys').style.transform,
+            tabsX: document.querySelector('#view-keys .settings-tabs').getBoundingClientRect().x
+        }));
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+        await page.waitForTimeout(300);
+        assert.match(settingsDuring.cards, /translate3d\(-/, 'the settings content follows the finger');
+        assert.equal(settingsDuring.view, '', 'not the whole view');
+        assert.ok(Math.abs(settingsDuring.tabsX - tabsBefore.x) < 1, 'the section bar stays put');
         await swipe(330, 80);
         await waitFor(page, () => state.settingsTab === 'privacy');
         await swipe(80, 330);

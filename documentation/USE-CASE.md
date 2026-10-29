@@ -999,3 +999,24 @@ Akzeptanzkriterien:
   mehr. Kontakte, die gerade offline sind, bekommen das beim naechsten Oeffnen.
 - Ohne Verbindung zum Router wird nichts geloescht (Hinweis).
 
+## UC-59: Alter mit der Wallet nachweisen
+
+**Als Nutzer** moechte ich mein Alter mit meiner digitalen Wallet nachweisen,
+ohne Namen oder Geburtsdatum preiszugeben, und **als Betreiber** nur Nachweise
+von Ausstellern annehmen, denen die EU (oder ich selbst) vertraut.
+
+Akzeptanzkriterien:
+
+- Mit `AGE_CHECK=provider` und `AGE_PROVIDER=eudi` fuehrt "Alter nachweisen" zur
+  Wallet-Auswahl des Browsers; abgefragt wird nur `age_over_18`.
+- Nach gueltigem Nachweis ist der Nutzer sichtbar und bekommt das Grid.
+- Abgelehnt werden: unbekannte Aussteller, Antworten fuer eine andere Seite,
+  falsche oder wiederverwendete Nonces, `age_over_18 = false`, nicht erlaubte
+  Nachweisarten.
+- Ohne Unterstuetzung im Browser oder bei Abbruch erscheint ein Hinweis statt
+  eines Fehlers.
+- Die EU-Liste anerkannter Aussteller wird automatisch und nur mit gueltiger
+  Signatur des bekannten Unterzeichners uebernommen; eine ungueltige Fassung
+  aendert nichts.
+- Der Router speichert nur "18+" und einen HMAC des Geraeteschluessels.
+

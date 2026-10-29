@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 220 · 2026-10-29
+## Build 221 · 2026-10-29
+- Fuer Betreiber: Altersnachweis mit der digitalen Wallet (EU-Altersnachweis, EU-Wallet, Fuehrerschein in der Wallet). Abgefragt wird nur "ueber 18"; anerkannte Aussteller kommen automatisch aus der signierten EU-Liste
+
+## Build 220 · 2026-10-29 · `a1fe983`
 - Nacktbild-Filter: Bumble Private Detector und NudeNet sind jetzt direkt im Server enthalten und auf der Testseite (Debug-Modus) waehlbar
 
 ## Build 218 · 2026-10-29 · `0af26b3`

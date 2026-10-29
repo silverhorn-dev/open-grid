@@ -9,6 +9,8 @@ import { registerSignalingRoute } from './signaling.js';
 import { loadTranslations, translationScript } from './i18n.js';
 import { infoSiteUrl, registerInfoSite } from './info-site.js';
 import { createSafety, parseSafetyConfig, registerSafetyRoutes } from './safety.js';
+import { createEudiAgeProvider, parseEudiDoctypes } from './age-eudi.js';
+import { createAgeTrustStore, parseAgeTrustConfig } from './age-trust.js';
 import {
     GRID_PRECISION,
     MAX_GRID_RING,
@@ -644,21 +646,48 @@ export async function buildApp(options = {}) {
     }
 
     // Alters-/E-Mail-Nachweis, Sperren, IP-Protokoll (server/safety.js); standardmaessig alles aus.
-    const safety = createSafety({
-        config: parseSafetyConfig(options.safety ?? {
-            ageCheck: process.env.AGE_CHECK,
-            ageProvider: process.env.AGE_PROVIDER,
-            emailCheck: process.env.EMAIL_CHECK,
-            emailTransport: process.env.EMAIL_TRANSPORT,
-            abuseLogDays: process.env.ABUSE_LOG_DAYS,
-            safetyKey: process.env.SAFETY_KEY,
-            smtpUrl: process.env.SMTP_URL,
-            smtpFrom: process.env.SMTP_FROM
-        }),
-        store,
-        log: app.log,
-        now
+    const safetyConfig = parseSafetyConfig(options.safety ?? {
+        ageCheck: process.env.AGE_CHECK,
+        ageProvider: process.env.AGE_PROVIDER,
+        emailCheck: process.env.EMAIL_CHECK,
+        emailTransport: process.env.EMAIL_TRANSPORT,
+        abuseLogDays: process.env.ABUSE_LOG_DAYS,
+        safetyKey: process.env.SAFETY_KEY,
+        smtpUrl: process.env.SMTP_URL,
+        smtpFrom: process.env.SMTP_FROM
     });
+    // EU-Altersnachweis ueber die Wallet (age-eudi.js) mit Vertrauensankern aus age-trust.js.
+    const ageProviders = {};
+    if (safetyConfig.ageCheck === 'provider' && safetyConfig.ageProvider === 'eudi') {
+        const ageTrust = createAgeTrustStore({
+            config: parseAgeTrustConfig(options.ageTrust ?? {
+                certs: process.env.AGE_TRUST_CERTS,
+                listUrl: process.env.AGE_TRUSTED_LIST_URL,
+                listSigners: process.env.AGE_TRUSTED_LIST_SIGNER
+            }),
+            dataDirectory: databasePath === ':memory:' ? null : dirname(databasePath),
+            log: app.log,
+            ...(options.ageTrustFetch ? { fetchList: options.ageTrustFetch } : {})
+        });
+        if (options.ageTrustAutoStart !== false) ageTrust.start();
+        app.addHook('onClose', async () => ageTrust.stop());
+        const appUrl = String(options.appUrl ?? process.env.APP_URL ?? '').trim();
+        let origins = [];
+        try {
+            origins = appUrl ? [new URL(appUrl).origin] : [];
+        } catch {
+            app.log.warn('APP_URL is not a valid URL; the EUDI age check binds to the request host.');
+        }
+        ageProviders.eudi = createEudiAgeProvider({
+            trust: ageTrust,
+            doctypes: parseEudiDoctypes(options.ageEudiDoctypes ?? process.env.AGE_EUDI_DOCTYPES),
+            origins,
+            now: () => new Date(now()),
+            log: app.log
+        });
+        app.decorate('ageTrust', ageTrust);
+    }
+    const safety = createSafety({ config: safetyConfig, store, log: app.log, now, ageProviders });
     registerSafetyRoutes(app, { safety, allowRequest, requirePeerAuth, isString });
 
     function verifyRegistrationProof(peerId, registrationId, authToken, proof) {

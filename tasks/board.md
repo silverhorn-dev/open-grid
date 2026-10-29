@@ -62,7 +62,14 @@
   - [x] client: nachweis-fenster (18+ bestaetigen, anbieter-knopf, e-mail-code), karte unter Privatsphaere (`client/app/safety.js`)
   - [x] betreiber-werkzeug `scripts/safety-admin.mjs` (sperren, ip-protokoll, e-mail entschluesseln)
   - [x] tests `test/safety.test.js`, e2e `safety-gate` (nur mit `E2E_SAFETY=1` gegen `AGE_CHECK=confirm`)
-  - [ ] echter anbieter (EU-Altersnachweis per OpenID4VP oder KJM-anbieter) -> entscheidung
+  - [x] EU-Altersnachweis ueber die wallet (2026-10-29, nutzer: bauen, mit automatischem zertifikat-import)
+    - `AGE_PROVIDER=eudi`: Digital Credentials API + OpenID4VP 1.0 (dc_api, unsigniert), DCQL nur `age_over_18` (av/pid/mdl, `AGE_EUDI_DOCTYPES`); pruefung mit `@animo-id/mdoc` + `node:crypto` (`server/age-eudi.js`), bindung an nonce + `APP_URL`
+    - anker: EU "Age Verification Trusted List" (`server/age-trust.js`): XML-signatur (`xml-crypto`) + gepinnter unterzeichner der kommission, nur signierter inhalt, PAA + recognized/granted, taeglich, cache im datenordner; dazu eigene PEMs (`AGE_TRUST_CERTS`); `safety-admin.mjs age-trust`
+    - stand der EU-liste 10/2026: nur Daenemark (AltID); DE-wallet laut tracker ab 01/2027
+    - tests `test/age-eudi.test.js` (echte EU-liste als fixture, test-aussteller + test-wallet, negativfaelle, app-seite); UC-59
+  - [ ] eudi: signierte anfragen (relying-party-zugangszertifikat), sobald wallets/laender das verlangen; erster echter test mit AltID oder DE-wallet
+  - [ ] eudi: QR-ablauf fuer "website am PC, wallet am handy" (cross-device)
+  - [ ] KJM-anerkannter anbieter (generische token-schnittstelle) -> entscheidung
   - [x] SMTP-versand der codes (2026-10-29, nutzer: nodemailer, optional): `EMAIL_TRANSPORT=smtp`, `SMTP_URL`, `SMTP_FROM` (`server/email-smtp.js`), nodemailer in `optionalDependencies`, erst beim ersten versand geladen; fehlversand -> 502, code verworfen; tests `test/email-smtp.test.js`, `test/safety.test.js`; einmal echt gegen mailpit verschickt
   - [ ] meldeweg mit wasserzeichen-nachweis -> sperre (nur werkzeug da, kein UI)
 

@@ -1567,10 +1567,40 @@ Ein Klick auf die Benachrichtigung fokussiert die App und oeffnet den Chat
 
 - Nachweise (T2, `server/safety.js`, `server/safety-store.js`), alles
   standardmaessig aus:
-  - `AGE_CHECK` (`off`/`confirm`/`provider`), `AGE_PROVIDER` (nur `dev`,
+  - `AGE_CHECK` (`off`/`confirm`/`provider`), `AGE_PROVIDER` (`eudi`, `dev`,
     unbekannt = `confirm`), `EMAIL_CHECK` (`off`/`required`),
     `EMAIL_TRANSPORT` (`log` oder `smtp`), `SMTP_URL`, `SMTP_FROM`,
     `SAFETY_KEY`, `ABUSE_LOG_DAYS` (0-14).
+  - EU-Altersnachweis `eudi` (`server/age-eudi.js`, `server/age-trust.js`):
+    - `age/start` -> `{ kind: 'eudi', protocol: 'openid4vp-v1-unsigned', request }`,
+      `request` = OpenID4VP 1.0 (`response_type: vp_token`, `response_mode: dc_api`,
+      `nonce` 32 Byte, 5 min, je Peer eine offene Anfrage) mit DCQL nur fuer
+      `age_over_18` je erlaubtem Nachweis (`AGE_EUDI_DOCTYPES`: `av` =
+      `eu.europa.ec.av.1`, `pid` = `eu.europa.ec.eudi.pid.1`, `mdl` =
+      `org.iso.18013.5.1.mDL`), als `credential_sets`-Alternativen.
+    - App: `navigator.credentials.get({ mediation: 'required', digital: {
+      requests: [{ protocol, data: request }] } })`, Antwort unveraendert an
+      `age/finish` (`payload = { protocol, data }`).
+    - Router: `vp_token` (je Credential-ID Liste base64url-`DeviceResponse`) mit
+      `@animo-id/mdoc` pruefen, Krypto ueber `node:crypto` (ES256/384/512,
+      EdDSA). SessionTranscript = Tag-24-CBOR von `[null, null,
+      ["OpenID4VPDCAPIHandover", sha256(cbor([origin, nonce, null]))]]`
+      (OpenID4VP 1.0, unverschluesselt); Fallback Draft 24 `[origin,
+      "web-origin:" + origin, nonce]`. `origin` = `APP_URL`, sonst Protokoll + Host
+      der Anfrage. Kette: jedes Zertifikat zur Zeit gueltig, lueckenlos signiert,
+      ein Zertifikat der Kette ist selbst Anker oder das letzte wurde von einem
+      Anker ausgestellt. Erfolg nur mit erlaubtem Nachweis und `age_over_18 ===
+      true`; `subject` = `eudi:` + SHA-256 des CBOR-Geraeteschluessels (fuer
+      Sperren, als HMAC gespeichert). Ablehnung -> 403 mit `reason`.
+    - Anker: PEM-Dateien aus `AGE_TRUST_CERTS` und die EU-Liste
+      (`AGE_TRUSTED_LIST_URL`, ETSI TS 119 612 XML): XML-Signatur (`xml-crypto`)
+      mit dem eingebetteten Zertifikat, dessen SHA-256 in
+      `AGE_TRUSTED_LIST_SIGNER` stehen muss (Standard: Kommission, `e0a620fb...`,
+      gueltig bis 2027-11-17); ausgewertet wird nur der signierte Inhalt
+      (Referenz `""`); uebernommen werden `TSPService` mit Typ `.../paa` und Status
+      `recognized`/`granted`. Import beim Start und alle 24 h; die letzte gueltige
+      Liste liegt als `age-trusted-list.xml` im Datenordner, ein fehlgeschlagener
+      Import laesst sie in Kraft.
   - SMTP (`server/email-smtp.js`): nodemailer als optionale Abhaengigkeit, erst
     beim ersten Versand geladen; zweisprachige Mail (Betreff `OpenGrid: <code>`),
     Zeitlimit 15 s. Schlaegt der Versand fehl, wird der Code verworfen und

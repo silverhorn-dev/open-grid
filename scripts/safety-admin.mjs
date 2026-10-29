@@ -7,22 +7,38 @@
  *   node scripts/safety-admin.mjs ban-email <adresse> [grund]
  *   node scripts/safety-admin.mjs access-log <peerId>      IP-Protokoll (nur mit ABUSE_LOG_DAYS > 0)
  *   node scripts/safety-admin.mjs email <peerId>           bestaetigte E-Mail entschluesseln
+ *   node scripts/safety-admin.mjs age-trust                EU-Altersnachweis: Liste jetzt importieren und
+ *                                                         anerkannte Aussteller zeigen (AGE_PROVIDER=eudi)
  *
  * Auskunft nur auf richterlichen Beschluss; jede Abfrage steht im Server-Log.
  */
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createStore } from '../server/database.js';
 import { createSafetyCrypto, loadSafetyKey, normalizeEmail, parseSafetyConfig } from '../server/safety.js';
+import { createAgeTrustStore, parseAgeTrustConfig } from '../server/age-trust.js';
 
 const root = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 const [command, value, ...rest] = process.argv.slice(2);
+const databasePath = process.env.DATABASE_PATH || join(root, 'data', 'open-grid.sqlite');
+if (command === 'age-trust') {
+    // Gleiche Konfiguration wie der Server; die importierte Liste landet im Datenordner (Cache des Servers,
+    // der Server liest sie beim naechsten Start bzw. bei seiner taeglichen Erneuerung).
+    const trust = createAgeTrustStore({
+        config: parseAgeTrustConfig({ certs: process.env.AGE_TRUST_CERTS, listUrl: process.env.AGE_TRUSTED_LIST_URL, listSigners: process.env.AGE_TRUSTED_LIST_SIGNER }),
+        dataDirectory: dirname(databasePath),
+        log: { info: console.log, warn: console.warn, error: console.error }
+    });
+    console.log(JSON.stringify(await trust.refresh()));
+    console.log(JSON.stringify(trust.status(), null, 2));
+    process.exit(0);
+}
 const reason = rest.join(' ') || null;
 if (!command || !value) {
-    console.error('Aufruf: safety-admin.mjs ban-peer|ban-email|access-log|email <wert> [grund]');
+    console.error('Aufruf: safety-admin.mjs ban-peer|ban-email|access-log|email <wert> [grund] | age-trust');
     process.exit(1);
 }
-const store = createStore(process.env.DATABASE_PATH || join(root, 'data', 'open-grid.sqlite'));
+const store = createStore(databasePath);
 const config = parseSafetyConfig({ safetyKey: process.env.SAFETY_KEY });
 const safetyCrypto = () => createSafetyCrypto(loadSafetyKey(config, store));
 try {

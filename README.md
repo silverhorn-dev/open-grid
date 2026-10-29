@@ -156,7 +156,11 @@ laufen durch dieselben Tests und bauen das echte Image zur Probe
 | `APP_MODES` | alle | Erlaubte App-Modi, kommagetrennt: `discovery`, `chat`, `friends`, `event`. Z. B. `chat` fuer einen reinen Chat-Server. Sind nur Modi eines Bereichs erlaubt (Entdecken: `discovery`/`event`, Social: `chat`/`friends`), entfaellt die Bereichswahl beim Onboarding |
 | `DEFAULT_APP_MODE` | erster erlaubter | Vorauswahl fuer neue Nutzer |
 | `AGE_CHECK` | `off` | Altersnachweis: `off`, `confirm` (Nutzer bestaetigt "mindestens 18"), `provider` (Nachweis ueber einen Anbieter, siehe `AGE_PROVIDER`). Bis zum Nachweis ist ein Nutzer unsichtbar und bekommt kein Grid |
-| `AGE_PROVIDER` | - | Anbieter fuer `AGE_CHECK=provider`. Enthalten ist nur `dev` (bestaetigt auf Knopfdruck, nur zum Testen); unbekannt = es gilt `confirm` |
+| `AGE_PROVIDER` | - | Anbieter fuer `AGE_CHECK=provider`: `eudi` (EU-Altersnachweis ueber die Wallet, siehe "Nachweise und Sperren") oder `dev` (bestaetigt auf Knopfdruck, nur zum Testen); unbekannt = es gilt `confirm` |
+| `AGE_TRUST_CERTS` | - | Fuer `eudi`: Ordner mit PEM-Dateien zusaetzlich anerkannter Aussteller (Aussteller- oder CA-Zertifikate) |
+| `AGE_TRUSTED_LIST_URL` | EU-Liste | Fuer `eudi`: automatischer Import der "Age Verification Trusted List" der Kommission (taeglich, nur mit gueltiger Signatur); `off` = kein Import |
+| `AGE_TRUSTED_LIST_SIGNER` | Zertifikat der Kommission | SHA-256-Fingerabdruecke (Komma-Liste) erlaubter Unterzeichner der Liste; bei einem Zertifikatswechsel der Kommission hier den neuen eintragen |
+| `AGE_EUDI_DOCTYPES` | `av,pid,mdl` | Welche Nachweise gelten: `av` (EU-Altersnachweis), `pid` (EU-Personalausweis in der Wallet), `mdl` (ISO-Fuehrerschein, z. B. in Apple/Google Wallet); gelesen wird nur `age_over_18` |
 | `EMAIL_CHECK` | `off` | `required`: Nutzer bestaetigen eine E-Mail-Adresse per 6-stelligem Code. Gespeichert wird sie verschluesselt (`SAFETY_KEY`) plus ein HMAC fuer Sperren |
 | `EMAIL_TRANSPORT` | `log` | Versand der E-Mail-Codes: `log` (Code im Server-Log, nur zum Testen) oder `smtp` (Mailserver des Betreibers, siehe `SMTP_URL`) |
 | `SMTP_URL` | - | Fuer `EMAIL_TRANSPORT=smtp`: `smtp://user:pass@mail.example.org:587` (STARTTLS) oder `smtps://user:pass@mail.example.org:465` (TLS). Der Mailserver erfaehrt nur Adresse und Code. Fuer gute Zustellung SPF/DKIM der Absender-Domain einrichten |
@@ -212,9 +216,29 @@ Grid, bis er ihn erbracht hat. Chats ueber Einladungslinks funktionieren
 weiter. Der Router speichert nur den Status, die E-Mail verschluesselt und bei
 Anbieter-Nachweisen einen HMAC des Pseudonyms, nie Ausweis- oder
 Gesichtsdaten. E-Mail-Codes gehen ueber den eigenen Mailserver
-(`EMAIL_TRANSPORT=smtp`, nodemailer ist eine optionale Abhaengigkeit). Echte
-Alters-Anbieter (EU-Altersnachweis, KJM-anerkannte Dienste) folgen, siehe
-`tasks/board.md` (T2).
+(`EMAIL_TRANSPORT=smtp`, nodemailer ist eine optionale Abhaengigkeit).
+KJM-anerkannte Alters-Anbieter folgen, siehe `tasks/board.md` (T2).
+
+EU-Altersnachweis ueber die Wallet (`AGE_CHECK=provider`, `AGE_PROVIDER=eudi`):
+
+- Die App fragt ueber die Digital Credentials API des Browsers (Chrome/Edge ab
+  141, Safari ab 26) nur `age_over_18` ab; der Nutzer waehlt seine Wallet
+  (EU-Altersnachweis-App, EUDI-Wallet, Fuehrerschein in der Wallet). Der Router
+  prueft die Antwort (Ausstellersignatur, Bindung an Nonce und `APP_URL`,
+  Gueltigkeit) und speichert nur "18+" und einen HMAC des Geraeteschluessels
+  (fuer Sperren). Kein externer Dienst, keine Ausweisdaten.
+- Anerkannte Aussteller: automatisch aus der EU-Liste
+  (`https://trust.tech.ec.europa.eu/lists/age-verification/av-tl.xml`, nur mit
+  gueltiger Signatur des bekannten Kommissions-Zertifikats, taeglich erneuert,
+  letzte gueltige Fassung im Datenordner) und/oder eigene PEM-Dateien in
+  `AGE_TRUST_CERTS`. Stand 10/2026 steht darin nur Daenemark (AltID); Deutschland
+  plant eine Wallet ab 2027.
+- `APP_URL` setzen: die Wallet-Antwort ist an die Herkunft der Seite gebunden.
+- Je nach Land verlangen Wallets eine Registrierung als "Relying Party"; ohne
+  sie koennen Anfragen abgelehnt werden. Signierte Anfragen sind noch nicht
+  eingebaut.
+- Status und sofortiger Import:
+  `docker compose exec open-grid node scripts/safety-admin.mjs age-trust`.
 
 Sperren und Auskunft (nur auf richterlichen Beschluss) im Container:
 

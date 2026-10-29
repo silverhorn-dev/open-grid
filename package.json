@@ -19,14 +19,19 @@
     "node": ">=22"
   },
   "dependencies": {
+    "@animo-id/mdoc": "^0.5.2",
     "@fastify/websocket": "^11.2.0",
     "@fortawesome/fontawesome-free": "^6.4.0",
     "@tensorflow/tfjs": "^4.22.0",
+    "@xmldom/xmldom": "^0.8.11",
     "fastify": "^5.6.1",
     "nsfwjs": "^4.3.0",
-    "qrcode-generator": "^1.4.4"
+    "qrcode-generator": "^1.4.4",
+    "xml-crypto": "^6.4.0",
+    "xpath": "^0.0.34"
   },
   "devDependencies": {
+    "@peculiar/x509": "^1.12.3",
     "@tailwindcss/cli": "^4.1.0",
     "tailwindcss": "^4.1.0"
   },

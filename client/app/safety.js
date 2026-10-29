@@ -110,14 +110,16 @@ async function confirmAgeSelf() {
     }
 }
 
-// Anbieter-Nachweis. `dev` (nur Test) bestaetigt sofort; echte Anbieter liefern spaeter eine
-// Weiterleitung (kind: 'redirect') oder eine Wallet-Anfrage.
+// Anbieter-Nachweis. `dev` (nur Test) bestaetigt sofort; `eudi` fragt die Wallet ueber die Digital
+// Credentials API (server/age-eudi.js); spaetere Anbieter koennen weiterleiten (kind: 'redirect').
 async function startAgeProviderCheck() {
     try {
         const start = await safetyRequest('age/start', {});
         if (start.kind === 'dev') {
             await safetyRequest('age/finish', { payload: { over18: true } });
             await afterVerificationStep(t('safety.ageConfirmed'));
+        } else if (start.kind === 'eudi') {
+            await presentEudiCredential(start);
         } else if (start.kind === 'redirect' && /^https:\/\//.test(start.url || '')) {
             window.location.assign(start.url);
         } else {
@@ -126,6 +128,36 @@ async function startAgeProviderCheck() {
     } catch (error) {
         showSafetyError(error);
     }
+}
+
+// EU-Altersnachweis: der Browser zeigt die passenden Wallets, der Nutzer gibt nur "ueber 18" frei.
+// Chrome/Edge ab 141, Safari ab 26; ohne Unterstuetzung ein Hinweis statt eines Fehlers.
+function digitalCredentialsSupported() {
+    return typeof window.DigitalCredential === 'function' && typeof navigator.credentials?.get === 'function';
+}
+
+async function presentEudiCredential(start) {
+    if (!digitalCredentialsSupported()) {
+        showToast(t('safety.walletUnsupported'), 'warning');
+        return;
+    }
+    let credential;
+    try {
+        credential = await navigator.credentials.get({
+            mediation: 'required',
+            digital: { requests: [{ protocol: start.protocol, data: start.request }] }
+        });
+    } catch (error) {
+        logDebug(`Wallet request ended: ${error.name} ${error.message}`);
+        showToast(['NotAllowedError', 'AbortError'].includes(error.name) ? t('safety.walletCancelled') : t('safety.walletFailed'), 'warning');
+        return;
+    }
+    if (!credential?.data) {
+        showToast(t('safety.walletCancelled'), 'warning');
+        return;
+    }
+    await safetyRequest('age/finish', { payload: { protocol: credential.protocol, data: credential.data } });
+    await afterVerificationStep(t('safety.ageConfirmed'));
 }
 
 async function sendEmailCode() {

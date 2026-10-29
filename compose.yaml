@@ -24,6 +24,11 @@ services:
       # Nachweise und IP-Protokoll (standardmaessig aus), siehe README "Nachweise und Sperren".
       AGE_CHECK: ${AGE_CHECK:-off}
       AGE_PROVIDER: ${AGE_PROVIDER:-}
+      # AGE_PROVIDER=eudi (EU-Altersnachweis ueber die Wallet), siehe README "Nachweise und Sperren".
+      AGE_TRUST_CERTS: ${AGE_TRUST_CERTS:-}
+      AGE_TRUSTED_LIST_URL: ${AGE_TRUSTED_LIST_URL:-}
+      AGE_TRUSTED_LIST_SIGNER: ${AGE_TRUSTED_LIST_SIGNER:-}
+      AGE_EUDI_DOCTYPES: ${AGE_EUDI_DOCTYPES:-}
       EMAIL_CHECK: ${EMAIL_CHECK:-off}
       EMAIL_TRANSPORT: ${EMAIL_TRANSPORT:-log}
       SMTP_URL: ${SMTP_URL:-}

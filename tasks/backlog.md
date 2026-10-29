@@ -67,3 +67,8 @@ Ideen ohne festen Termin. Neue Phasen werden von hier auf `tasks/board.md` gehol
   - abschaltbar nur per router; die router-option wird NICHT dokumentiert, das verhalten (scan aktiv) aber schon
   - haengt an T2 (alter) und T3 (modell); passt zur backlog-notiz "einladung im dating-modus: unter 18 kann nicht oeffnen"
 
+## Admin-Panel fuer die Web-App (nutzer 2026-10-29)
+- [ ] betreiber-oberflaeche statt nur env-variablen und `scripts/safety-admin.mjs`
+  - ideen: status (version, peers online, queue-groesse, push), router-standards (`CLIENT_DEFAULTS`, `AUDIENCE_MINIMUM`, nacktbild-modell/schwelle), nachweise (alters-anker der EU-liste, eigene zertifikate, sperren), meldungen (leak mit wasserzeichen -> sperre), logs
+  - offen: zugang (eigener admin-schluessel/passkey, nur aus dem LAN/per tunnel?), was davon zur laufzeit aenderbar ist vs. env, getrennte route/seite (CSP wie die app), nie nutzerinhalte (die hat der router ohnehin nicht)
+

@@ -4,8 +4,8 @@
 //
 // Altersnachweis ueber Anbieter: ein Anbieter-Modul liefert nur "ueber 18: ja/nein" und optional ein
 // Pseudonym (subject). Der Router speichert davon nur einen HMAC des Pseudonyms (fuer Sperren),
-// nie Ausweis-, Gesichts- oder Geburtsdaten. Echte Anbieter (EU-Altersnachweis, KJM-anerkannte
-// Dienste) kommen spaeter; enthalten ist nur der Test-Anbieter `dev`.
+// nie Ausweis-, Gesichts- oder Geburtsdaten. Anbieter: `eudi` (EU-Altersnachweis ueber die Wallet,
+// age-eudi.js, wird in app.js erzeugt) und der Test-Anbieter `dev`; KJM-anerkannte Dienste folgen.
 import { createCipheriv, createDecipheriv, createHmac, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
 import { createSmtpTransport, parseSmtpConfig } from './email-smtp.js';
 
@@ -17,7 +17,7 @@ const EMAIL_CODE_MAX_ATTEMPTS = 5;
 const AGE_PROVIDER_VALIDITY_MS = 365 * 24 * 60 * 60 * 1000;
 const MAX_EMAIL_LENGTH = 254;
 
-// Anbieter: { id, start({ peerId }) -> { kind, ... }, finish({ peerId, payload }) -> { over18, subject? } }.
+// Anbieter: { id, start({ peerId }) -> { kind, ... }, finish({ peerId, payload, origin }) -> { over18, subject?, reason? } }.
 // `dev` bestaetigt auf Knopfdruck und ist nur zum Testen des Ablaufs gedacht.
 export const AGE_PROVIDERS = {
     dev: {
@@ -97,12 +97,12 @@ function sameHash(left, right) {
     return a.length === b.length && timingSafeEqual(a, b);
 }
 
-export function createSafety({ config, store, log, now = Date.now }) {
+export function createSafety({ config, store, log, now = Date.now, ageProviders = {} }) {
     const safetyStore = store.safety;
     let ageCheck = config.ageCheck;
     let provider = null;
     if (ageCheck === 'provider') {
-        provider = AGE_PROVIDERS[config.ageProvider] || null;
+        provider = ageProviders[config.ageProvider] || AGE_PROVIDERS[config.ageProvider] || null;
         if (!provider) {
             // Ohne Anbieter kann niemand den Nachweis erbringen; dann wenigstens die Bestaetigung.
             log.error(`AGE_CHECK=provider, aber AGE_PROVIDER "${config.ageProvider || ''}" ist unbekannt. Es gilt AGE_CHECK=confirm.`);
@@ -180,10 +180,10 @@ export function createSafety({ config, store, log, now = Date.now }) {
             return { ok: true, provider: provider.id, ...(await provider.start({ peerId })) };
         },
 
-        async finishAgeCheck(peerId, payload) {
+        async finishAgeCheck(peerId, payload, { origin } = {}) {
             if (!provider) return { error: 'Age provider not enabled', code: 400 };
-            const result = await provider.finish({ peerId, payload });
-            if (!result?.over18) return { error: 'Age not confirmed', code: 403 };
+            const result = await provider.finish({ peerId, payload, origin });
+            if (!result?.over18) return { error: 'Age not confirmed', code: 403, ...(result?.reason ? { reason: result.reason } : {}) };
             const subjectHash = result.subject ? safetyCrypto.hash('subject', result.subject) : null;
             if (subjectHash && safetyStore.isBanned('subject', subjectHash)) return { error: 'Banned', code: 403 };
             safetyStore.saveVerification(peerId, 'age', {
@@ -250,7 +250,7 @@ export function createSafety({ config, store, log, now = Date.now }) {
 
 export function registerSafetyRoutes(app, { safety, allowRequest, requirePeerAuth, isString }) {
     const send = (reply, result) => (result.error
-        ? reply.code(result.code || 400).send({ error: result.error })
+        ? reply.code(result.code || 400).send({ error: result.error, ...(result.reason ? { reason: result.reason } : {}) })
         : result);
     const authed = (request, reply) => {
         if (!allowRequest('safety', request.ip, reply)) return null;
@@ -281,7 +281,8 @@ export function registerSafetyRoutes(app, { safety, allowRequest, requirePeerAut
     app.post('/api/safety/age/finish', async (request, reply) => {
         const peerId = authed(request, reply);
         if (!peerId) return reply;
-        return send(reply, await safety.finishAgeCheck(peerId, request.body?.payload));
+        // Herkunft der Seite (fuer die Bindung der Wallet-Antwort, wenn APP_URL fehlt).
+        return send(reply, await safety.finishAgeCheck(peerId, request.body?.payload, { origin: `${request.protocol}://${request.host}` }));
     });
     app.post('/api/safety/email/start', async (request, reply) => {
         const peerId = authed(request, reply);

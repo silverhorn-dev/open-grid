@@ -134,3 +134,5 @@ Bildschluessel = HKDF( Besitzer-Geheimnis,
 
 Status: geparkt (Nutzer 2026-10-29).
 
+Hintergrund zu selbstzerstoerenden Schluesseln (Shamir, Hash-Ketten, Zeitschloss, durchstanzbare
+Verschluesselung, Hardware): `documentation/SELBSTZERSTOERENDE-SCHLUESSEL.md`.

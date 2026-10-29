@@ -70,5 +70,6 @@ Ideen ohne festen Termin. Neue Phasen werden von hier auf `tasks/board.md` gehol
 ## Admin-Panel fuer die Web-App (nutzer 2026-10-29)
 - [ ] betreiber-oberflaeche statt nur env-variablen und `scripts/safety-admin.mjs`
   - ideen: status (version, peers online, queue-groesse, push), router-standards (`CLIENT_DEFAULTS`, `AUDIENCE_MINIMUM`, nacktbild-modell/schwelle), nachweise (alters-anker der EU-liste, eigene zertifikate, sperren), meldungen (leak mit wasserzeichen -> sperre), logs
-  - offen: zugang (eigener admin-schluessel/passkey, nur aus dem LAN/per tunnel?), was davon zur laufzeit aenderbar ist vs. env, getrennte route/seite (CSP wie die app), nie nutzerinhalte (die hat der router ohnehin nicht)
+  - live-konfiguration (nutzer 2026-10-29): einstellungen zur laufzeit aendern, ohne neustart/neues deployment; env bleibt der startwert, aenderungen aus dem panel liegen in der datenbank und gewinnen
+  - offen: zugang (eigener admin-schluessel/passkey, nur aus dem LAN/per tunnel?), welche einstellungen live gehen (z. B. CLIENT_DEFAULTS, AUDIENCE_MINIMUM, nacktbild-modell/schwelle, nachweis-pflichten) und welche einen neustart brauchen (ports, datenbank, TURN), getrennte route/seite (CSP wie die app), nie nutzerinhalte (die hat der router ohnehin nicht)
 

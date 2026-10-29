@@ -69,6 +69,7 @@
     - tests `test/age-eudi.test.js` (echte EU-liste als fixture, test-aussteller + test-wallet, negativfaelle, app-seite); UC-59
   - [ ] eudi: signierte anfragen (relying-party-zugangszertifikat), sobald wallets/laender das verlangen; erster echter test mit AltID oder DE-wallet
   - [ ] eudi: QR-ablauf fuer "website am PC, wallet am handy" (cross-device)
+  - [ ] eudi: aussteller der EUDI-wallets (PID-anbieter) automatisch importieren, sobald die EU deren "List of Trusted Entities" (ETSI TS 119 602, JSON/JAdES) veroeffentlicht; bis dahin PID-anbieter per `AGE_TRUST_CERTS`
   - [ ] KJM-anerkannter anbieter (generische token-schnittstelle) -> entscheidung
   - [x] SMTP-versand der codes (2026-10-29, nutzer: nodemailer, optional): `EMAIL_TRANSPORT=smtp`, `SMTP_URL`, `SMTP_FROM` (`server/email-smtp.js`), nodemailer in `optionalDependencies`, erst beim ersten versand geladen; fehlversand -> 502, code verworfen; tests `test/email-smtp.test.js`, `test/safety.test.js`; einmal echt gegen mailpit verschickt
   - [ ] meldeweg mit wasserzeichen-nachweis -> sperre (nur werkzeug da, kein UI)

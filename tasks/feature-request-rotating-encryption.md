@@ -1,7 +1,7 @@
 # Feature Request: Eigenes, rotierendes Verschluesselungsverfahren fuer Medien
 
-Status: Idee, nicht geplant (2026-10-24). Vor der Umsetzung klaeren, siehe
-Abschnitt 4 und 5.
+Status: eigener Algorithmus verworfen (2026-10-29, siehe `tasks/rejected.md`); Alternativen
+(Key-Splitting, Epochen-Geheimnis, Stream) besprochen und geparkt, siehe `tasks/board.md`.
 
 ## 1. Idee (Nutzer)
 

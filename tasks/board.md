@@ -36,6 +36,7 @@
     - e-mail: wenn jemand deine fotos weitergibt und du findest den nutzer (wasserzeichen), hilft dir das heute nichts -> es braucht eine erreichbare/verantwortliche identitaet
   - offen: welche anbieter (datensparsam, nur "ja, 18+" als signiertes token), wo liegt die e-mail (nur beim betreiber, gehasht?), wie passt das zu "kein konto" und regel 1 (keine externen datendienste)
   - offen: einfaches 18+-bestaetigen im onboarding als minimum (`REQUIRE_AGE_CONFIRM`)
+  - entschieden (nutzer 2026-10-29): alle wege ausliefern, damit es rechtlich passt: EU-Wallet/EU-Altersnachweis UND andere anbieter (z. B. KJM-anerkannte) UND e-mail; der betreiber waehlt per konfiguration, was gilt (mehrere gleichzeitig moeglich)
   - diskussion 2026-10-26 (stand, noch nicht entschieden):
     - alter: router-konfig `AGE_CHECK=off|confirm|provider`; `confirm` = "ich bin 18+" im onboarding; `provider` = externer nachweis, router prueft nur ein signiertes "18+"-token und merkt sich "node X geprueft bis Y"
     - bevorzugt EU-Wallet (EUDI / EU-Altersnachweis): nur "18+" + pseudonym pro seite; das pseudonym entsteht in der wallet, der aussteller erfaehrt nicht, wo es gezeigt wird -> auch per gerichtsbeschluss keine zuordnung zur person (gewollt); bann auf das pseudonym haelt trotzdem (neues konto = gleiches pseudonym)

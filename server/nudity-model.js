@@ -22,7 +22,8 @@ import { dirname, join } from 'node:path';
 // Konfiguration (Betreiber):
 //   NUDITY_MODEL      aktives Modell (Standard nudenet, im Nutzertest 2026-10-29 das beste) oder 'off';
 //                     fehlt das gewaehlte (z. B. ohne Docker kein NudeNet), gilt nsfwjs
-//   NUDITY_THRESHOLD  ab welchem Wert unscharf (0.5-0.95, Standard 0.7)
+//   NUDITY_THRESHOLD  ab welchem Wert unscharf (0.2-0.95); ohne Angabe der Standard des Modells
+//                     (NudeNet 0.4, sonst 0.7)
 //   NUDITY_CLASSES    welche Klassen des aktiven Modells zaehlen (Komma-Liste, Standard je Modell)
 //   NUDITY_MODEL_DIR  eigener Ordner fuer Modelle (Standard: data/nudity-models neben der Datenbank)
 export const NSFWJS_CLASSES = ['Drawing', 'Hentai', 'Neutral', 'Porn', 'Sexy'];
@@ -37,25 +38,34 @@ export const NUDENET_CLASSES = [
 // combine: wie aus den Klassen ein Wert wird. 'sum' fuer sich ausschliessende Klassen (Wahrscheinlichkeiten),
 // 'max' fuer den Detektor (jede Klasse ist eine eigene Fundstelle).
 export const NUDITY_MODELS = {
-    nsfwjs: { kind: 'nsfwjs', directory: 'mobilenet_v2', size: 224, type: 'layers', classes: NSFWJS_CLASSES, defaultClasses: ['Porn', 'Hentai'], combine: 'sum' },
-    'nsfwjs-mid': { kind: 'nsfwjs', directory: 'mobilenet_v2_mid', size: 224, type: 'graph', classes: NSFWJS_CLASSES, defaultClasses: ['Porn', 'Hentai'], combine: 'sum' },
-    'nsfwjs-inception': { kind: 'nsfwjs', directory: 'inception_v3', size: 299, type: 'layers', classes: NSFWJS_CLASSES, defaultClasses: ['Porn', 'Hentai'], combine: 'sum' },
-    bumble: { kind: 'bumble', directory: 'bumble', size: 480, classes: ['Lewd'], defaultClasses: ['Lewd'], combine: 'sum' },
+    nsfwjs: { kind: 'nsfwjs', directory: 'mobilenet_v2', size: 224, type: 'layers', classes: NSFWJS_CLASSES, defaultClasses: ['Porn', 'Hentai'], combine: 'sum', defaultThreshold: 0.7 },
+    'nsfwjs-mid': { kind: 'nsfwjs', directory: 'mobilenet_v2_mid', size: 224, type: 'graph', classes: NSFWJS_CLASSES, defaultClasses: ['Porn', 'Hentai'], combine: 'sum', defaultThreshold: 0.7 },
+    'nsfwjs-inception': { kind: 'nsfwjs', directory: 'inception_v3', size: 299, type: 'layers', classes: NSFWJS_CLASSES, defaultClasses: ['Porn', 'Hentai'], combine: 'sum', defaultThreshold: 0.7 },
+    bumble: { kind: 'bumble', directory: 'bumble', size: 480, classes: ['Lewd'], defaultClasses: ['Lewd'], combine: 'sum', defaultThreshold: 0.7 },
     nudenet: {
         kind: 'nudenet', directory: 'nudenet', size: 320, classes: NUDENET_CLASSES, combine: 'max',
+        // Detektor: Werte klarer Treffer liegen oft nur bei 0,4-0,7 (Nutzertest 2026-10-29: Treffer mit 0,46).
+        defaultThreshold: 0.4,
         defaultClasses: ['MALE_GENITALIA_EXPOSED', 'FEMALE_GENITALIA_EXPOSED', 'FEMALE_BREAST_EXPOSED', 'ANUS_EXPOSED', 'BUTTOCKS_EXPOSED']
     }
 };
 const DEFAULT_MODEL = 'nudenet';
 const FALLBACK_MODEL = 'nsfwjs';
-const DEFAULT_THRESHOLD = 0.7;
+export const MIN_THRESHOLD = 0.2;
+export const MAX_THRESHOLD = 0.95;
+
+// Gueltige Schwelle oder null (= Standard des Modells).
+export function parseNudityThreshold(value) {
+    if (value === null || value === undefined || String(value).trim() === '') return null;
+    const threshold = Number(value);
+    return Number.isFinite(threshold) && threshold >= MIN_THRESHOLD && threshold <= MAX_THRESHOLD ? threshold : null;
+}
 
 export function parseNudityConfig({ model, threshold, classes } = {}) {
     const name = String(model ?? DEFAULT_MODEL).trim().toLowerCase();
-    const parsedThreshold = Number(threshold);
     return {
         model: name === 'off' ? 'off' : (NUDITY_MODELS[name] ? name : DEFAULT_MODEL),
-        threshold: Number.isFinite(parsedThreshold) && parsedThreshold >= 0.5 && parsedThreshold <= 0.95 ? parsedThreshold : DEFAULT_THRESHOLD,
+        threshold: parseNudityThreshold(threshold),
         // Rohliste; gegen die Klassen des aktiven Modells geprueft in nudityModelClasses().
         classes: String(classes ?? '').split(',').map(value => value.trim()).filter(Boolean)
     };
@@ -232,7 +242,7 @@ export function nudityPublicConfig(config, assets) {
     return {
         ...assets.models[active],
         model: active,
-        threshold: config.threshold,
+        threshold: config.threshold ?? NUDITY_MODELS[active].defaultThreshold,
         classes: nudityModelClasses(active, config.classes),
         models: assets.models
     };

@@ -82,6 +82,21 @@ test('a failing model blurs as "not checked" and retries next time; the highest 
     assert.equal(await context.shouldBlurImage({}, 'b'), 'nude', 'one working model with a hit is enough');
 });
 
+test('a viewer without canvas clicks (snap viewer) can reveal a blurred image itself', async () => {
+    const { context } = loadNudity();
+    context.state.nudityFilter = true;
+    const canvas = fakeCanvas();
+    let redraws = 0;
+    assert.equal(context.revealBlurredImage(canvas), false, 'nothing blurred yet');
+    context.drawBlurredImage(canvas, { width: 800, height: 600 }, 'snap-blob', () => { redraws += 1; });
+    assert.equal(context.revealBlurredImage(canvas), true);
+    assert.equal(redraws, 1);
+    assert.equal(canvas.dataset.nudityBlurred, undefined);
+    assert.equal(context.revealBlurredImage(canvas), false, 'only once');
+    context.registerNudityClassifier({ id: 'fake', classify: async () => 1 });
+    assert.equal(await context.shouldBlurImage({}, 'snap-blob'), false, 'stays revealed');
+});
+
 test('blurred images are revealed by a tap that does not reach other click handlers', async () => {
     const { context } = loadNudity();
     context.state.nudityFilter = true;

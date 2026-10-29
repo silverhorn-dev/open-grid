@@ -155,6 +155,32 @@ async function main() {
         assert.equal(result.secondClickOpened, 1);
         assert.equal(result.viewerBlurred, null, 'revealed images stay visible in the viewer');
 
+        // Snap-Viewer: die Canvas bekommt keine Klicks; Tippen auf den Viewer deckt auf, erst dann laeuft die Zeit.
+        const snap = await page.evaluate(async () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 300;
+            canvas.height = 300;
+            const context = canvas.getContext('2d');
+            context.fillStyle = '#ff0000';
+            context.fillRect(0, 0, 300, 300);
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+            openSecureSnapViewer('');
+            state.secureSnapViewing = { mode: 'received', peerId: 'x', snapId: 'y', pendingCountdown: 5 };
+            const image = document.getElementById('secure-snap-image');
+            delete image.dataset.ownImage;
+            await drawSecureImage(image, blob);
+            image.classList.remove('hidden');
+            return { blurred: image.dataset.nudityBlurred || null };
+        });
+        assert.equal(snap.blurred, 'true', 'snap blurred');
+        assert.equal(await page.isVisible('#secure-snap-countdown'), false, 'no countdown while blurred');
+        const box = await page.locator('#secure-snap-viewer').boundingBox();
+        await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+        await page.waitForTimeout(400);
+        assert.equal(await page.evaluate(() => document.getElementById('secure-snap-image').dataset.nudityBlurred || null), null, 'tap on the viewer reveals the snap');
+        assert.equal(await page.isVisible('#secure-snap-countdown'), true, 'countdown starts after revealing');
+        await page.evaluate(() => closeSecureSnapViewer());
+
         assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log('E2E OK (nudity filter)');
     } finally {

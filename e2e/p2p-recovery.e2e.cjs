@@ -28,6 +28,9 @@ async function main() {
         await input.dispatchEvent('change');
         await page.click('#complete-onboarding-btn');
         await waitFor(page, () => Boolean(state.ws && state.ws.readyState === 1 && state.myProfile.id));
+        // Kein Profil-Prefetch im Hintergrund (grid-filter.js): sonst baut Bob die Verbindung manchmal selbst
+        // auf, das verlorene Angebot passiert nie und der Wachhund wird gar nicht geprueft.
+        await page.evaluate(() => { window.prefetchGridProfiles = () => {}; });
         return page;
     }
     try {

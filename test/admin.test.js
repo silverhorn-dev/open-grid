@@ -173,6 +173,12 @@ test('admin live config: takes effect at once, survives a restart, rejects inval
     assert.equal((await put(app, 'NUDITY_THRESHOLD', 0.85, cookie)).statusCode, 200);
     assert.equal((await appConfig(app)).nudity.threshold, 0.85, 'effective without restart');
     assert.equal((await put(app, 'NUDITY_THRESHOLD', 2, cookie)).statusCode, 400);
+    assert.equal((await put(app, 'NUDITY_THRESHOLD', 0.1, cookie)).statusCode, 400);
+    assert.equal((await put(app, 'NUDITY_THRESHOLD', 0.4, cookie)).statusCode, 200, 'low thresholds allowed (NudeNet hits around 0.46)');
+    assert.equal((await appConfig(app)).nudity.threshold, 0.4);
+    assert.equal((await put(app, 'NUDITY_THRESHOLD', null, cookie)).statusCode, 200, 'empty = default of the model');
+    assert.equal((await appConfig(app)).nudity.threshold, 0.7);
+    assert.equal((await put(app, 'NUDITY_THRESHOLD', 0.85, cookie)).statusCode, 200);
     assert.equal((await put(app, 'CLIENT_DEFAULTS', '{"language":"en"}', cookie)).statusCode, 200);
     assert.equal((await appConfig(app)).clientDefaults.language, 'en');
     assert.equal((await put(app, 'CLIENT_DEFAULTS', '{oops', cookie)).statusCode, 400);

@@ -1338,7 +1338,10 @@ installierten mit `defaultClasses`), bzw. `{ model: 'off' }`.
 Gibt es ein Modell, meldet `initNudityModel()` einen Klassifikator an; der Web
 Worker samt Bibliothek und Modell startet erst beim ersten zu pruefenden Bild
 (also nur bei eingeschaltetem Filter). Das Bild geht als `ImageBitmap`-Kopie in
-den Worker und wird dort geschlossen; unscharf ab `threshold`. Bilder laufen
+den Worker und wird dort geschlossen; unscharf ab `threshold`. Schwelle: `NUDITY_THRESHOLD` (0,2-0,95), ohne Angabe der
+Standard des Modells (`defaultThreshold`: NudeNet 0,4, sonst 0,7). Im Snap-Viewer
+(Canvas ohne Klicks) deckt ein Tippen auf den Viewer auf (`revealBlurredImage`);
+die Anzeigezeit eines Snaps laeuft erst danach. Eigene Snaps werden nie geprueft. Bilder laufen
 nacheinander durch den Worker (Warteschlange); das Zeitlimit von 90 s je Bild
 beginnt erst, wenn der Worker das Bild bekommt (erstes Laden eingeschlossen).
 Liefert kein Modell ein Ergebnis (Fehler, Zeitlimit), bleibt das Bild unscharf

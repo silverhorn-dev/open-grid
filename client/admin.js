@@ -395,7 +395,7 @@ const LIVE_SETTINGS = {
     EMAIL_CHECK: { type: 'select', label: () => t('admin.settingEmailCheck') },
     ABUSE_LOG_DAYS: { type: 'number', min: 0, max: 14, step: 1, label: () => t('admin.settingAbuseLog') },
     NUDITY_MODEL: { type: 'select', label: () => t('admin.settingNudityModel') },
-    NUDITY_THRESHOLD: { type: 'number', min: 0.5, max: 0.95, step: 0.05, label: () => t('admin.settingNudityThreshold') },
+    NUDITY_THRESHOLD: { type: 'number', min: 0.2, max: 0.95, step: 0.05, label: () => t('admin.settingNudityThreshold') },
     NUDITY_CLASSES: { type: 'checkboxes', label: () => t('admin.settingNudityClasses') },
     CLIENT_DEFAULTS: { type: 'json', label: () => t('admin.settingClientDefaults') },
     AUDIENCE_MINIMUM: { type: 'json', label: () => t('admin.settingAudienceMinimum') }
@@ -452,8 +452,10 @@ function settingRow(key, spec, setting) {
     } else if (spec.type === 'number') {
         input = document.createElement('input');
         Object.assign(input, { type: 'number', min: spec.min, max: spec.max, step: spec.step, value: setting.value ?? '' });
-        input.className = 'setting-input w-32';
-        read = () => Number(input.value);
+        // Leer = Standard (z. B. Schwelle des aktiven Modells), als Platzhalter sichtbar.
+        if (setting.options?.effective != null) input.placeholder = t('admin.defaultValue', { value: setting.options.effective });
+        input.className = 'setting-input w-40';
+        read = () => (input.value.trim() === '' ? null : Number(input.value));
     } else if (spec.type === 'checkboxes') {
         input = document.createElement('div');
         input.className = 'admin-checkboxes';

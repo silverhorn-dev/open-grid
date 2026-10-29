@@ -219,6 +219,8 @@ async function openOwnSecureSnap(messageId) {
     openSecureSnapViewer('');
     state.secureSnapViewing = { mode: 'own', peerId, snapId, messageId };
     const image = document.getElementById('secure-snap-image');
+    // Eigener Snap: nie durch den Nacktbild-Filter.
+    image.dataset.ownImage = 'true';
     await drawSecureImage(image, blob);
     image.classList.remove('hidden');
     // Eigenes Bild: als Datei speichern.
@@ -475,6 +477,7 @@ async function handleSnapViewGrant(peerId, payload) {
         bytes?.fill(0);
     }
     const image = document.getElementById('secure-snap-image');
+    delete image.dataset.ownImage;
     await drawSecureImage(image, blob);
     if (state.secureSnapViewing !== viewing) {
         clearSecureCanvas(image);
@@ -488,7 +491,9 @@ async function handleSnapViewGrant(peerId, payload) {
     setSecureSnapStatus('');
     if (alreadyStarted) return;
     viewing.started = true;
-    startSecureSnapCountdown(Number(payload.seconds) || 0);
+    // Unscharf (Nacktbild-Filter): die Anzeigezeit laeuft erst ab dem Aufdecken (revealSecureSnapImage).
+    if (image.dataset.nudityBlurred === 'true') viewing.pendingCountdown = Number(payload.seconds) || 0;
+    else startSecureSnapCountdown(Number(payload.seconds) || 0);
     await recordSecureSnapView(peerId, payload.snapId, Number(payload.viewsLeft) || 0);
 }
 
@@ -732,9 +737,12 @@ function initSecureSnaps() {
             closeSecureSnapViewer();
             return;
         }
+        const tapped = Math.hypot(deltaX, rawY) < 10;
+        // Nacktbild-Filter: Tippen deckt den Snap auf (die Canvas selbst bekommt keine Klicks), erst dann
+        // laeuft die Anzeigezeit.
+        if (tapped && revealSecureSnapImage()) return;
         if (state.secureSnapViewing?.mode !== 'replay') return;
         const gesture = state.snapSettings.nextGesture;
-        const tapped = Math.hypot(deltaX, rawY) < 10;
         if (gesture === 'swipe' && Math.abs(deltaX) > SNAP_VIEWER_NEXT_SWIPE && Math.abs(deltaX) > Math.abs(rawY)) {
             advanceReplaySnap();
         } else if (gesture === 'swipeup' && -rawY > SNAP_VIEWER_NEXT_SWIPE && Math.abs(rawY) > Math.abs(deltaX)) {
@@ -751,6 +759,18 @@ function initSecureSnaps() {
     };
     viewer.addEventListener('pointerup', finish);
     viewer.addEventListener('pointercancel', finish);
+}
+
+function revealSecureSnapImage() {
+    const image = document.getElementById('secure-snap-image');
+    if (typeof revealBlurredImage !== 'function' || !image || !revealBlurredImage(image)) return false;
+    const viewing = state.secureSnapViewing;
+    if (viewing && 'pendingCountdown' in viewing) {
+        const seconds = viewing.pendingCountdown;
+        delete viewing.pendingCountdown;
+        startSecureSnapCountdown(seconds);
+    }
+    return true;
 }
 
 // ----- Chat-Darstellung -----

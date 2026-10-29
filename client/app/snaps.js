@@ -69,6 +69,9 @@ function openReplaySnap(messageId) {
     openSecureSnapViewer('');
     state.secureSnapViewing = { mode: 'replay', peerId, messageId, isMine };
     const image = document.getElementById('secure-snap-image');
+    // Eigene Snaps nie durch den Nacktbild-Filter (der Viewer wird fuer beide genutzt).
+    if (isMine) image.dataset.ownImage = 'true';
+    else delete image.dataset.ownImage;
     drawSecureImage(image, message.snapData).catch(logBackgroundError('openReplaySnap'));
     image.classList.remove('hidden');
     renderReplayQueueLabel();

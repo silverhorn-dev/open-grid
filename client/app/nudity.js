@@ -13,6 +13,8 @@ const nudityClassifiers = [];
 const nudityScores = new Map();
 const revealedNudityImages = new Set();
 const nudityRevealHandlers = new WeakSet();
+// Unscharf gezeichnete Canvas -> { source, redraw } (zum Aufdecken, auch von aussen: Snap-Viewer).
+const blurredCanvases = new WeakMap();
 
 function registerNudityClassifier(classifier) {
     if (!classifier || typeof classifier.classify !== 'function') return false;
@@ -102,15 +104,25 @@ function drawBlurredImage(canvas, bitmap, source, redraw, reason = 'nude') {
     context.fillText(t('nudity.tapToView'), canvas.width / 2, canvas.height / 2 + canvas.width / 22);
     canvas.dataset.nudityBlurred = 'true';
     canvas.setAttribute('aria-label', label);
+    blurredCanvases.set(canvas, { source, redraw });
     if (nudityRevealHandlers.has(canvas)) return;
     nudityRevealHandlers.add(canvas);
     canvas.addEventListener('click', event => {
         if (canvas.dataset.nudityBlurred !== 'true') return;
         event.preventDefault();
         event.stopImmediatePropagation();
-        revealedNudityImages.add(source);
-        delete canvas.dataset.nudityBlurred;
-        canvas.setAttribute('aria-label', t('common.image'));
-        redraw();
+        revealBlurredImage(canvas);
     }, true);
+}
+
+// Aufdecken (Tippen). Fuer Ansichten, deren Canvas keine Klicks bekommt (Snap-Viewer: pointer-events-none,
+// die Gesten liegen auf dem Viewer), ruft der Viewer das selbst auf. true = war unscharf.
+function revealBlurredImage(canvas) {
+    const entry = blurredCanvases.get(canvas);
+    if (!entry || canvas.dataset.nudityBlurred !== 'true') return false;
+    revealedNudityImages.add(entry.source);
+    delete canvas.dataset.nudityBlurred;
+    canvas.setAttribute('aria-label', t('common.image'));
+    entry.redraw();
+    return true;
 }

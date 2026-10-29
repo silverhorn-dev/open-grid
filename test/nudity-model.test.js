@@ -29,13 +29,15 @@ function optionalModels({ bumble = true, nudenet = true } = {}) {
 }
 
 test('nudity config: defaults, off, unknown model, threshold range', () => {
-    assert.deepEqual(parseNudityConfig({}), { model: 'nudenet', threshold: 0.7, classes: [] });
+    assert.deepEqual(parseNudityConfig({}), { model: 'nudenet', threshold: null, classes: [] }, 'no threshold = default of the model');
     assert.equal(parseNudityConfig({ model: 'OFF' }).model, 'off');
     for (const model of ['nsfwjs-mid', 'nsfwjs-inception', 'bumble', 'nudenet']) assert.equal(parseNudityConfig({ model }).model, model);
     assert.equal(parseNudityConfig({ model: 'unknown' }).model, 'nudenet');
     assert.equal(parseNudityConfig({ threshold: '0.85' }).threshold, 0.85);
-    assert.equal(parseNudityConfig({ threshold: '0.2' }).threshold, 0.7);
-    assert.equal(parseNudityConfig({ threshold: 'abc' }).threshold, 0.7);
+    assert.equal(parseNudityConfig({ threshold: '0.4' }).threshold, 0.4);
+    assert.equal(parseNudityConfig({ threshold: '0.2' }).threshold, 0.2);
+    assert.equal(parseNudityConfig({ threshold: '0.1' }).threshold, null);
+    assert.equal(parseNudityConfig({ threshold: 'abc' }).threshold, null);
 });
 
 test('nudity classes are checked against the active model', () => {
@@ -147,8 +149,12 @@ test('NudeNet is the default when installed, nsfwjs otherwise', async t => {
     const withNudenet = await appWith({ nudityModelDir: directory, nudityBuiltInModels: false });
     const without = await appWith({ nudityModelDir: join(tmpdir(), 'og-no-models'), nudityBuiltInModels: false });
     t.after(async () => { await withNudenet.close(); await without.close(); rmSync(directory, { recursive: true, force: true }); });
-    assert.equal((await withNudenet.app.inject({ method: 'GET', url: '/api/config' })).json().nudity.model, 'nudenet');
-    assert.equal((await without.app.inject({ method: 'GET', url: '/api/config' })).json().nudity.model, 'nsfwjs');
+    const nudenet = (await withNudenet.app.inject({ method: 'GET', url: '/api/config' })).json().nudity;
+    const fallback = (await without.app.inject({ method: 'GET', url: '/api/config' })).json().nudity;
+    assert.equal(nudenet.model, 'nudenet');
+    assert.equal(nudenet.threshold, 0.4, 'NudeNet scores run lower: own default threshold');
+    assert.equal(fallback.model, 'nsfwjs');
+    assert.equal(fallback.threshold, 0.7);
 });
 
 test('a selected but missing optional model falls back to nsfwjs', async t => {

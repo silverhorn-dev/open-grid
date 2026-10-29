@@ -36,7 +36,7 @@ import {
     securityHeaders
 } from './security.js';
 import { applyAudienceMinimum, parseAudienceMinimum } from './audience.js';
-import { nudityPublicConfig as describeNudityModels, parseNudityConfig, registerNudityModelRoutes } from './nudity-model.js';
+import { MAX_THRESHOLD, MIN_THRESHOLD, nudityPublicConfig as describeNudityModels, parseNudityConfig, parseNudityThreshold, registerNudityModelRoutes } from './nudity-model.js';
 
 const MAX_GRID_RESULTS = 100;
 // Quoten fuer den Pfad-C-Zwischenspeicher, damit niemand die Queue eines Empfaengers flutet.
@@ -760,12 +760,15 @@ export async function buildApp(options = {}) {
                 options: () => ['off', ...Object.keys(nudityAssets?.models || {})]
             },
             NUDITY_THRESHOLD: {
+                // null = Standard des aktiven Modells (NudeNet 0,4, sonst 0,7).
                 env: nudityConfig.threshold,
                 apply: value => {
-                    const threshold = Number(value);
-                    if (!(threshold >= 0.5 && threshold <= 0.95)) throw new Error('NUDITY_THRESHOLD must be 0.5-0.95');
+                    const threshold = parseNudityThreshold(value);
+                    const empty = value === null || value === undefined || String(value).trim() === '';
+                    if (threshold === null && !empty) throw new Error(`NUDITY_THRESHOLD must be ${MIN_THRESHOLD}-${MAX_THRESHOLD}`);
                     refreshNudity({ ...nudityConfig, threshold });
-                }
+                },
+                options: () => ({ effective: nudityPublicConfig.threshold ?? null })
             },
             NUDITY_CLASSES: {
                 // Leer = Standard des Modells; angezeigt werden die wirksamen Klassen.

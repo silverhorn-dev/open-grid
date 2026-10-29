@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 232 · 2026-10-29
+## Build 233 · 2026-10-29
+- Behoben: unscharfe Snaps liessen sich nicht aufdecken; Tippen deckt jetzt auf, die Anzeigezeit laeuft erst danach. Eigene Snaps werden nie unscharf
+- Nacktbild-Filter: Schwelle ab 0,2 einstellbar; NudeNet hat eine eigene Standard-Schwelle von 0,4
+
+## Build 232 · 2026-10-29 · `1b78643`
 - Behoben: Nacktbild-Filter liess Bilder scharf durch, wenn die Pruefung zu lange dauerte oder fehlschlug (z. B. viele Bilder auf einmal, Modell laedt noch). Bilder werden jetzt nacheinander geprueft; was nicht geprueft werden kann, bleibt unscharf
 
 ## Build 231 · 2026-10-29 · `434afba`

@@ -343,6 +343,13 @@ function handleViewerPointerUp(event) {
 }
 
 function handleViewerTap(event) {
+    // Nacktbild-Filter: der Viewer faengt den Zeiger auf der Buehne ab (setPointerCapture), ein Klick
+    // erreicht die Canvas nie. Ein Tippen deckt das unscharfe Bild deshalb hier auf (kein Zoom).
+    const image = viewerElement('image-viewer-image');
+    if (image?.dataset.nudityBlurred === 'true' && typeof revealBlurredImage === 'function' && revealBlurredImage(image)) {
+        viewer.lastTap = 0;
+        return;
+    }
     const now = Date.now();
     if (now - viewer.lastTap < 300) {
         viewer.lastTap = 0;

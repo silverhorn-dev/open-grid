@@ -155,6 +155,31 @@ async function main() {
         assert.equal(result.secondClickOpened, 1);
         assert.equal(result.viewerBlurred, null, 'revealed images stay visible in the viewer');
 
+        // Bildbetrachter: ein unscharfes Bild im Viewer laesst sich per Tippen aufdecken (der Viewer faengt
+        // den Zeiger auf der Buehne ab, der Klick erreicht die Canvas nicht).
+        const viewerResult = await page.evaluate(async () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 400;
+            canvas.height = 300;
+            const context = canvas.getContext('2d');
+            context.fillStyle = '#ff0000';
+            context.fillRect(0, 0, 400, 300);
+            // Andere Quelle als oben (die ist schon aufgedeckt).
+            context.fillStyle = '#fe0000';
+            context.fillRect(0, 0, 10, 10);
+            const red = canvas.toDataURL('image/png');
+            openImageViewer([red], 0);
+            await new Promise(resolve => setTimeout(resolve, 500));
+            return document.getElementById('image-viewer-image').dataset.nudityBlurred || null;
+        });
+        assert.equal(viewerResult, 'true', 'blurred in the viewer');
+        const stage = await page.locator('#image-viewer-stage').boundingBox();
+        await page.mouse.click(stage.x + stage.width / 2, stage.y + stage.height / 2);
+        await page.waitForTimeout(400);
+        assert.equal(await page.evaluate(() => document.getElementById('image-viewer-image').dataset.nudityBlurred || null), null, 'a tap in the viewer reveals the image');
+        assert.equal(await page.evaluate(() => viewer.scale), 1, 'the revealing tap does not zoom');
+        await page.evaluate(() => closeImageViewer());
+
         // Snap-Viewer: die Canvas bekommt keine Klicks; Tippen auf den Viewer deckt auf, erst dann laeuft die Zeit.
         const snap = await page.evaluate(async () => {
             const canvas = document.createElement('canvas');

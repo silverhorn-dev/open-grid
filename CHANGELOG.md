@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 234 · 2026-10-29
+## Build 235 · 2026-10-29
+- Behoben: ein unscharfes Bild liess sich im Bildbetrachter nicht aufdecken; Tippen deckt es jetzt auf
+
+## Build 234 · 2026-10-29 · `2514e55`
 - Behoben: Alben flackerten am PC beim Oeffnen und waehrend Bilder nachkamen
 
 ## Build 233 · 2026-10-29 · `57308cf`

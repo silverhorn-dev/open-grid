@@ -102,7 +102,7 @@
     - [x] docker-image verkleinert (802 -> 374 MB): `scripts/slim-modules.sh` behaelt von TF.js/onnxruntime-web/NSFWJS/Font Awesome nur ausgelieferte dateien; geprueft per image-build (healthy, 35 dateien ausgeliefert)
     - [x] erledigt durch obiges: nutzer vergleicht nsfwjs-mid/-inception, bumble, nudenet mit echten bildern auf dem handy (treffer + zeit), danach `NUDITY_MODEL` + schwelle festlegen
     - [ ] nutzer testet auf dem handy mit echten bildern (maennliche nacktheit, fehlalarme bei badehose/oberkoerper), danach schwelle/klassen festlegen; falls zu schwach: Bumble Private Detector umwandeln
-    - [ ] docker-image wird groesser (nsfwjs bringt alle drei modelle + tfjs mit); bei bedarf nur mobilenet_v2 + bibliothek ins image kopieren
+    - [x] docker-image wird groesser -> erledigt 2026-10-29 (`scripts/slim-modules.sh`, 802 -> 374 MB)
     - [ ] absender-warnung vor dem senden -> entscheidung
   - recherche 2026-10-29 (primaerquellen: repos/model cards; leistung auf handys nicht gemessen):
     - **NSFWJS** (infinitered/nsfwjs): code MIT, modell aus GantMan/nsfw_model ebenfalls MIT; TF.js, laeuft im browser, modell selbst hostbar; MobileNetV2 224x224 ca. 2,6-3,5 MB, ~90 % genauigkeit (mid-modell ~93 %); klassen Drawing/Hentai/Neutral/Porn/Sexy; trainingsdaten aus nsfw_data_scraper (vermutlich ueberwiegend weibliche motive -> fuer eine app mit vielen schwulen nutzern muss maennliche nacktheit eigens getestet werden)

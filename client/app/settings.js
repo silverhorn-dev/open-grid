@@ -412,11 +412,18 @@ async function chooseModeFromMenu(mode) {
     await setAppMode(mode);
 }
 
+// Hintergrund blendet weich ein und aus (vorher hart an/aus, zusammen mit dem gleitenden Menue ruckelig).
+const MENU_BACKDROP_MS = 200;
+let menuBackdropTimer = null;
+
 function openMenu() {
     renderMenu();
     document.getElementById('app-menu').classList.add('is-open');
     document.getElementById('app-menu').setAttribute('aria-hidden', 'false');
-    document.getElementById('app-menu-backdrop').classList.remove('hidden');
+    const backdrop = document.getElementById('app-menu-backdrop');
+    clearTimeout(menuBackdropTimer);
+    backdrop.classList.remove('hidden');
+    requestAnimationFrame(() => backdrop.classList.add('is-visible'));
     pushModalEntry('menu', hideMenu);
 }
 
@@ -428,7 +435,12 @@ function closeMenu() {
 function hideMenu() {
     document.getElementById('app-menu').classList.remove('is-open');
     document.getElementById('app-menu').setAttribute('aria-hidden', 'true');
-    document.getElementById('app-menu-backdrop').classList.add('hidden');
+    const backdrop = document.getElementById('app-menu-backdrop');
+    backdrop.classList.remove('is-visible');
+    clearTimeout(menuBackdropTimer);
+    menuBackdropTimer = setTimeout(() => {
+        if (!document.getElementById('app-menu').classList.contains('is-open')) backdrop.classList.add('hidden');
+    }, MENU_BACKDROP_MS);
 }
 
 // ================= SICHTBARKEIT & SPEICHER =================

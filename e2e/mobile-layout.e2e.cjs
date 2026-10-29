@@ -196,6 +196,24 @@ async function main() {
         const menuBox = await page.locator('#app-menu').boundingBox();
         await drag({ x: menuBox.x + 60, y: menuBox.y + menuBox.height / 2 }, { x: menuBox.x + 260, y: menuBox.y + menuBox.height / 2 });
         await waitFor(page, () => !document.getElementById('app-menu').classList.contains('is-open'));
+        // Nach dem Wischen keine haengengebliebene Inline-Transition: sonst verschwand das Menue beim
+        // naechsten Schliessen ohne zu gleiten. Danach: Oeffnen und per Hintergrund schliessen gleitet weich.
+        await page.waitForTimeout(400);
+        assert.equal(await page.evaluate(() => document.getElementById('app-menu').style.transition), '', 'no leftover inline transition');
+        await page.evaluate(() => openMenu());
+        await page.waitForTimeout(350);
+        assert.equal(await page.evaluate(() => document.getElementById('app-menu-backdrop').classList.contains('is-visible')), true, 'backdrop faded in');
+        const closing = await page.evaluate(async () => {
+            closeMenu();
+            await new Promise(resolve => setTimeout(resolve, 70));
+            const menu = document.getElementById('app-menu');
+            const left = menu.getBoundingClientRect().left;
+            return { left, width: window.innerWidth, visibility: getComputedStyle(menu).visibility, backdropOpacity: Number(getComputedStyle(document.getElementById('app-menu-backdrop')).opacity) };
+        });
+        assert.equal(closing.visibility, 'visible', 'still visible while sliding out');
+        assert.ok(closing.left < closing.width - 5, `menu slides out instead of vanishing (left ${closing.left})`);
+        assert.ok(closing.backdropOpacity > 0 && closing.backdropOpacity < 1, `backdrop fades out (${closing.backdropOpacity})`);
+        await waitFor(page, () => document.getElementById('app-menu-backdrop').classList.contains('hidden'));
         await page.waitForTimeout(800);
 
         // Eigenes Profil: Wischen darf auf einem (nicht fokussierten) Eingabefeld starten.

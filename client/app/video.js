@@ -272,9 +272,9 @@ function initVideoViewer() {
             }
         }
         drag.deltaY = Math.max(0, deltaY);
-        video.style.transition = 'none';
-        video.style.transform = `translate3d(0, ${drag.deltaY}px, 0) scale(${1 - Math.min(0.2, drag.deltaY / 1500)})`;
-        root.style.backgroundColor = `rgb(0 0 0 / ${1 - Math.min(0.6, drag.deltaY / 400)})`;
+        // Einmal je Bild zeichnen (gestures.js).
+        setStylesNextFrame(video, { transition: 'none', transform: `translate3d(0, ${drag.deltaY}px, 0) scale(${1 - Math.min(0.2, drag.deltaY / 1500)})` });
+        setStylesNextFrame(root, { backgroundColor: `rgb(0 0 0 / ${1 - Math.min(0.6, drag.deltaY / 400)})` });
     });
     const finish = event => {
         const drag = videoViewer.drag;
@@ -282,11 +282,13 @@ function initVideoViewer() {
         videoViewer.drag = null;
         if (!drag.active) return;
         if (event.type !== 'pointercancel' && drag.deltaY >= VIDEO_VIEWER_CLOSE_THRESHOLD) {
+            cancelFrameStyles(video);
+            cancelFrameStyles(root);
             closeVideoViewer();
             return;
         }
-        video.style.transition = prefersReducedMotion() ? 'none' : 'transform 200ms ease-out';
-        video.style.transform = '';
+        springBack(video, 200);
+        cancelFrameStyles(root);
         root.style.backgroundColor = '';
     };
     stage.addEventListener('pointerup', finish);

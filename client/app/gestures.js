@@ -113,6 +113,66 @@ function hapticTick(duration = 10) {
     }
 }
 
+// ----- Gemeinsame Animations-Hilfen (alle Wischgesten) -----
+// 1. Stile einmal je Bild setzen statt bei jedem Touch-Ereignis (ruckelte auf Handys).
+const pendingFrameStyles = new Map();
+let frameStylesHandle = 0;
+function setStylesNextFrame(element, styles) {
+    if (!element) return;
+    pendingFrameStyles.set(element, { ...(pendingFrameStyles.get(element) || {}), ...styles });
+    if (frameStylesHandle) return;
+    frameStylesHandle = requestAnimationFrame(() => {
+        frameStylesHandle = 0;
+        const entries = [...pendingFrameStyles];
+        pendingFrameStyles.clear();
+        for (const [target, values] of entries) Object.assign(target.style, values);
+    });
+}
+
+function cancelFrameStyles(element) {
+    pendingFrameStyles.delete(element);
+}
+
+// 2. Zurueckfedern. Die Inline-Transition danach wieder entfernen: sie ueberschrieb sonst CSS-Uebergaenge
+// (Menue: nach einem Wischen verschwand es beim naechsten Schliessen ohne zu gleiten).
+function springBack(element, ms = 180, extra = {}) {
+    if (!element) return;
+    cancelFrameStyles(element);
+    Object.assign(element.style, {
+        transition: prefersReducedMotion() ? 'none' : `transform ${ms}ms ease-out, opacity ${ms}ms ease-out`,
+        transform: '',
+        opacity: '',
+        ...extra
+    });
+    setTimeout(() => {
+        if (element.style.transform) return;
+        element.style.transition = '';
+        element.style.willChange = '';
+    }, ms + 30);
+}
+
+// 3. Erst hinausgleiten, dann schliessen (vorher: zurueckspringen und gleichzeitig verschwinden = Ruckeln);
+// danach Inline-Stile ohne Animation entfernen.
+function slideOutThen(element, transform, done, { ms = 160, fade = false } = {}) {
+    if (element) cancelFrameStyles(element);
+    if (!element || prefersReducedMotion()) {
+        done();
+        return;
+    }
+    Object.assign(element.style, {
+        transition: `transform ${ms}ms ease-in${fade ? `, opacity ${ms}ms ease-in` : ''}`,
+        transform,
+        ...(fade ? { opacity: '0' } : {})
+    });
+    setTimeout(() => {
+        done();
+        Object.assign(element.style, { transition: 'none', transform: '', opacity: '', willChange: '' });
+        requestAnimationFrame(() => {
+            if (!element.style.transform) element.style.transition = '';
+        });
+    }, ms);
+}
+
 function messageIdFromRow(row) {
     return row?.id?.startsWith('chat-message-') ? row.id.slice('chat-message-'.length) : null;
 }
@@ -356,9 +416,12 @@ function handleTabTouchMove(event) {
     if (gesture.axis === 'y' && currentTab() === 'keys' && gesture.atTop && window.scrollY <= 0) {
         gesture.deltaY = Math.max(0, deltaY);
         if (view && !prefersReducedMotion()) {
-            view.style.transition = 'none';
-            view.style.transform = `translate3d(0, ${gesture.deltaY * 0.4}px, 0)`;
-            view.style.opacity = gesture.deltaY > SETTINGS_LEAVE_TRIGGER ? '0.6' : '';
+            setStylesNextFrame(view, {
+                transition: 'none',
+                willChange: 'transform',
+                transform: `translate3d(0, ${gesture.deltaY * 0.4}px, 0)`,
+                opacity: gesture.deltaY > SETTINGS_LEAVE_TRIGGER ? '0.6' : ''
+            });
         }
         return;
     }
@@ -407,8 +470,9 @@ function animateTabChange(view, forward, apply) {
         view.style.opacity = '';
         view.style.willChange = '';
         apply();
+        // Auch dieselbe Ansicht (Einstellungen: naechster Bereich) gleitet von der anderen Seite herein.
         const next = tabSwipeTarget(currentTab());
-        if (!next || next === view) return;
+        if (!next) return;
         next.style.transition = 'none';
         next.style.transform = `translate3d(${-offset}px, 0, 0)`;
         next.style.opacity = '0';
@@ -451,7 +515,8 @@ function handleTabTouchEnd() {
     if (tab === 'keys' && gesture.axis === 'y') {
         if (gesture.deltaY > SETTINGS_LEAVE_TRIGGER) {
             hapticTick();
-            switchTab('editprofile');
+            // Erst nach unten hinausgleiten, dann ins Profil (vorher: zurueckspringen und hart umschalten).
+            slideOutThen(view, 'translate3d(0, 35%, 0)', () => switchTab('editprofile'), { fade: true });
         }
         return;
     }
@@ -460,7 +525,8 @@ function handleTabTouchEnd() {
     if (Math.abs(gesture.deltaX) < TAB_SWIPE_TRIGGER && !fast) return;
     const forward = gesture.deltaX < 0;
     if (tab === 'keys') {
-        stepSettingsTab(forward ? 1 : -1);
+        // Naechster Einstellungsbereich gleitet herein (vorher hart umgeschaltet).
+        animateTabChange(target, forward, () => stepSettingsTab(forward ? 1 : -1));
         return;
     }
     if (tab === 'editprofile' && forward) {
@@ -512,10 +578,7 @@ function attachSwipeRight(area, { moving = () => area, close, enabled = () => tr
     let gesture = null;
     const reset = () => {
         if (resetView) return resetView();
-        const element = moving();
-        if (!element) return;
-        element.style.transition = prefersReducedMotion() ? 'none' : 'transform 180ms ease-out';
-        element.style.transform = '';
+        springBack(moving());
     };
     area.addEventListener('touchstart', event => {
         gesture = null;
@@ -540,8 +603,7 @@ function attachSwipeRight(area, { moving = () => area, close, enabled = () => tr
         }
         const element = moving();
         if (element && !prefersReducedMotion()) {
-            element.style.transition = 'none';
-            element.style.transform = `translate3d(${gesture.deltaX}px, 0, 0)`;
+            setStylesNextFrame(element, { transition: 'none', willChange: 'transform', transform: `translate3d(${gesture.deltaX}px, 0, 0)` });
         }
     }, { passive: true });
     const finish = cancelled => {
@@ -558,8 +620,8 @@ function attachSwipeRight(area, { moving = () => area, close, enabled = () => tr
             animateOut(close);
             return;
         }
-        reset();
-        close();
+        // Standard: ganz hinausgleiten, dann schliessen.
+        slideOutThen(moving(), 'translate3d(100%, 0, 0)', close);
     };
     area.addEventListener('touchend', () => finish(false), { passive: true });
     area.addEventListener('touchcancel', () => finish(true), { passive: true });
@@ -604,19 +666,23 @@ function attachSwipeToClose(scrollContainer, card, close, { trigger = () => SHEE
         }
         if (gesture.axis !== 'down' || scrollContainer.scrollTop > 0) return;
         gesture.deltaY = Math.max(0, deltaY);
-        card.style.transition = 'none';
-        card.style.transform = `translate3d(0, ${gesture.deltaY}px, 0)`;
-        card.style.opacity = gesture.deltaY > trigger() ? '0.6' : '';
+        setStylesNextFrame(card, {
+            transition: 'none',
+            willChange: 'transform',
+            transform: `translate3d(0, ${gesture.deltaY}px, 0)`,
+            opacity: gesture.deltaY > trigger() ? '0.6' : ''
+        });
     }, { passive: true });
     const finish = cancelled => {
         const finished = gesture;
         gesture = null;
         // Nur nach eigenem Zug nach unten zuruecksetzen (sonst stoert es z. B. das seitliche Blaettern).
         if (finished?.axis !== 'down') return;
-        card.style.transition = prefersReducedMotion() ? 'none' : 'transform 200ms ease-out, opacity 200ms ease-out';
-        card.style.transform = '';
-        card.style.opacity = '';
-        if (!cancelled && finished.deltaY > trigger()) close();
+        if (!cancelled && finished.deltaY > trigger()) {
+            slideOutThen(card, `translate3d(0, ${Math.max(window.innerHeight || 0, finished.deltaY + 200)}px, 0)`, close, { fade: true });
+            return;
+        }
+        springBack(card, 200);
     };
     scrollContainer.addEventListener('touchend', () => finish(false), { passive: true });
     scrollContainer.addEventListener('touchcancel', () => finish(true), { passive: true });

@@ -288,6 +288,7 @@ function stepProfile(direction, fromOffset = 0) {
         openProfileModal(next);
         return;
     }
+    cancelFrameStyles(card);
     card.style.transition = `transform ${PROFILE_SLIDE_MS}ms ease-in, opacity ${PROFILE_SLIDE_MS}ms ease-in`;
     card.style.transform = `translate3d(${direction > 0 ? '-110%' : '110%'}, 0, 0)`;
     card.style.opacity = '0';
@@ -303,9 +304,7 @@ function stepProfile(direction, fromOffset = 0) {
 }
 
 function springBackProfileCard(card) {
-    card.style.transition = prefersReducedMotion() ? 'none' : 'transform 200ms ease-out, opacity 200ms ease-out';
-    card.style.transform = '';
-    card.style.opacity = '';
+    springBack(card, 200);
 }
 
 function initProfileBrowsing() {
@@ -328,9 +327,13 @@ function initProfileBrowsing() {
         // Ohne Nachbarn in der Richtung nur ein kleiner Gummiband-Zug.
         const hasNext = Boolean(profileNeighbour(deltaX < 0 ? 1 : -1));
         gesture.deltaX = deltaX;
-        card.style.transition = 'none';
-        card.style.transform = `translate3d(${hasNext ? deltaX : deltaX * 0.25}px, 0, 0)`;
-        card.style.opacity = hasNext ? String(1 - Math.min(0.5, Math.abs(deltaX) / 600)) : '';
+        // Einmal je Bild zeichnen (gestures.js).
+        setStylesNextFrame(card, {
+            transition: 'none',
+            willChange: 'transform',
+            transform: `translate3d(${hasNext ? deltaX : deltaX * 0.25}px, 0, 0)`,
+            opacity: hasNext ? String(1 - Math.min(0.5, Math.abs(deltaX) / 600)) : ''
+        });
     }, { passive: true });
     const finish = cancelled => {
         const finished = gesture;

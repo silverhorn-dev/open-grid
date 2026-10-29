@@ -239,7 +239,14 @@
   Handy, `tabSwipeTarget`; ein transform auf dem Vorfahren liess sie schrumpfen),
   zeichnet je Bild (`requestAnimationFrame`) und wechselt mit Aus-/Einblenden
   (`animateTabChange`, 110/160 ms); der Chat gleitet vor dem Schliessen ganz hinaus
-  (`animateChatOut`, 160 ms); in Einstellungen, offenen
+  (`animateChatOut`, 160 ms); gemeinsame Hilfen fuer alle Wischgesten
+  (`gestures.js`): `setStylesNextFrame` (einmal je Bild zeichnen),
+  `springBack` (zurueckfedern, Inline-Transition danach entfernen, damit
+  CSS-Uebergaenge wie beim Menue greifen), `slideOutThen` (erst hinausgleiten,
+  dann schliessen) fuer Menue, Profil-/Albumfenster, Profil-Blaettern,
+  Chat-Kopfzeile, Videobetrachter und Einstellungen (Bereiche gleiten herein,
+  Verlassen nach unten gleitet hinaus); Menue-Hintergrund blendet weich (200 ms);
+  in Einstellungen, offenen
   Fenstern, Menue und offenem Chat verhindert `overscroll-behavior` das
   Neuladen der Seite durch den Browser (das brach sonst z. B. das Wischen im
   Profil ab); Profil- und

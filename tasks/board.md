@@ -525,6 +525,10 @@
     - ruckeln: bewegung je bild (`requestAnimationFrame`), `will-change`, beim ziehen kein ausblenden der ganzen seite; tab-wechsel gleitet aus/ein (`animateTabChange`); chat gleitet erst ganz hinaus, dann schliesst er (`animateChatOut`, vorher sprang er zurueck und verschwand gleichzeitig)
 
 ## T25 Admin-Panel (nutzer 2026-10-29: "do the admin panel"; aus dem backlog)
+  - nachtrag 3 (nutzer 2026-10-29): "alle animationen durchschauen" (menue schliessen, profile, einstellungen abgehackt)
+    - muster ueberall: zurueckspringen + gleichzeitig schliessen; jedes touch-ereignis zeichnet neu; harte umschaltung; beim menue blieb nach dem wischen eine inline-transition haengen und ueberschrieb die CSS-transition (inkl. visibility) -> menue verschwand beim naechsten schliessen ohne zu gleiten
+    - jetzt gemeinsame hilfen (`setStylesNextFrame`, `springBack`, `slideOutThen`) fuer menue, profil-/albumfenster, profil-blaettern, chat-kopfzeile, video, einstellungen (bereiche gleiten herein, verlassen gleitet hinaus); menue-hintergrund blendet weich; tests unit + e2e `mobile-layout` (schlaegt auf dem alten code bei der haengenden transition fehl)
+
 - [x] entschieden (nutzer 2026-10-29): login per **admin-passkey**; umfang: status, live-config, sperren, meldungen, "most of all, auslastung"
 - [x] phase 1 done 2026-10-29: `server/admin.js` (passkey per `@simplewebauthn/server`, setup-link im log, `ADMIN_SETUP_TOKEN`), `server/admin-store.js`, `server/metrics.js`, `admin.html` + `client/admin.js` (auslastung: 12 diagramme, 1 h/24 h, warnungen, tabelle; status; passkeys); tests `test/admin.test.js` (software-authenticator), e2e `admin` (virtueller authenticator von Chrome); UC-60
 - plan:

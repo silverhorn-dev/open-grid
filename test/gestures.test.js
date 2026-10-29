@@ -227,3 +227,34 @@ test('the chat follows the finger and shrinks only slightly (never below 97 %)',
     context.finishMessageGesture(pointer(390, 100), true);
     assert.equal(view.style.transform, '', 'springs back');
 });
+
+test('animation helpers: one style update per frame, clean spring back, slide out before closing', () => {
+    const { context } = setup();
+    const frames = [];
+    context.requestAnimationFrame = callback => { frames.push(callback); return frames.length; };
+    const element = { style: {} };
+    context.setStylesNextFrame(element, { transform: 'translate3d(10px, 0, 0)' });
+    context.setStylesNextFrame(element, { transform: 'translate3d(20px, 0, 0)', opacity: '0.8' });
+    assert.equal(frames.length, 1, 'several moves, one frame');
+    assert.equal(element.style.transform, undefined, 'nothing drawn before the frame');
+    frames.shift()();
+    assert.equal(element.style.transform, 'translate3d(20px, 0, 0)', 'latest value wins');
+
+    // Zurueckfedern: danach keine Inline-Transition mehr (sie ueberschrieb sonst CSS-Uebergaenge).
+    const pending = [];
+    context.setTimeout = (callback, ms) => { pending.push({ callback, ms }); return pending.length; };
+    context.springBack(element, 180);
+    assert.match(element.style.transition, /transform 180ms/);
+    assert.equal(element.style.transform, '');
+    pending.shift().callback();
+    assert.equal(element.style.transition, '', 'inline transition removed after springing back');
+
+    // Hinausgleiten: erst die Bewegung, erst danach schliessen.
+    const order = [];
+    context.slideOutThen(element, 'translate3d(100%, 0, 0)', () => order.push('closed'));
+    assert.equal(element.style.transform, 'translate3d(100%, 0, 0)');
+    assert.deepEqual(order, [], 'not closed while sliding');
+    pending.shift().callback();
+    assert.deepEqual(order, ['closed']);
+    assert.equal(element.style.transform, '', 'styles cleared afterwards');
+});

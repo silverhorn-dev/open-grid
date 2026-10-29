@@ -263,6 +263,17 @@ html {
     transform: translateX(0);
     visibility: visible;
 }
+/* Hintergrund des Menues blendet weich ein/aus (settings.js, MENU_BACKDROP_MS). */
+.menu-backdrop {
+    opacity: 0;
+    transition: opacity 200ms ease-out;
+}
+.menu-backdrop.is-visible {
+    opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+    .menu-backdrop { transition: none; }
+}
 .menu-item {
     width: 100%;
     display: flex;

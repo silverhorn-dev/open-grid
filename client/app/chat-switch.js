@@ -140,8 +140,7 @@ function initChatSwitchSwipe() {
     if (!header) return;
     let start = null;
     const reset = () => {
-        header.style.transition = prefersReducedMotion() ? 'none' : 'transform 160ms ease-out';
-        header.style.transform = '';
+        springBack(header, 160);
         header.classList.remove('is-pulling');
         start = null;
     };
@@ -153,9 +152,8 @@ function initChatSwitchSwipe() {
         if (!start || start.pointerId !== event.pointerId) return;
         const deltaY = event.clientY - start.y;
         if (deltaY <= 0 || deltaY < Math.abs(event.clientX - start.x)) return;
-        header.style.transition = 'none';
         header.classList.add('is-pulling');
-        header.style.transform = `translate3d(0, ${Math.min(HEADER_PULL_MAX, deltaY * 0.4)}px, 0)`;
+        setStylesNextFrame(header, { transition: 'none', transform: `translate3d(0, ${Math.min(HEADER_PULL_MAX, deltaY * 0.4)}px, 0)` });
     });
     header.addEventListener('pointerup', event => {
         if (!start || start.pointerId !== event.pointerId) return;

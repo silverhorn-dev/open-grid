@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 233 · 2026-10-29
+## Build 234 · 2026-10-29
+- Behoben: Alben flackerten am PC beim Oeffnen und waehrend Bilder nachkamen
+
+## Build 233 · 2026-10-29 · `57308cf`
 - Behoben: unscharfe Snaps liessen sich nicht aufdecken; Tippen deckt jetzt auf, die Anzeigezeit laeuft erst danach. Eigene Snaps werden nie unscharf
 - Nacktbild-Filter: Schwelle ab 0,2 einstellbar; NudeNet hat eine eigene Standard-Schwelle von 0,4
 

@@ -447,13 +447,14 @@ function openViewerFromTiles(dataUrl) {
     openImageViewer(images, Math.max(0, images.indexOf(dataUrl)));
 }
 
-function createThumbnail(dataUrl, onClick) {
+// reuseKey: dieselbe Canvas beim Neuzeichnen wiederverwenden (kein leeres Aufblitzen).
+function createThumbnail(dataUrl, onClick, reuseKey = null) {
     const tile = document.createElement('button');
     tile.type = 'button';
     tile.className = 'aspect-square rounded-xl overflow-hidden border border-slate-800 bg-slate-800 hover:border-brand-500 transition';
     if (dataUrl && isSafeInlineImage(dataUrl)) {
         tile.dataset.viewerImage = 'true';
-        tile.appendChild(createSecureImage(dataUrl, 'w-full h-full object-cover'));
+        tile.appendChild(createSecureImage(dataUrl, 'w-full h-full object-cover', null, { reuseKey }));
     } else {
         tile.classList.add('animate-pulse', 'flex', 'items-center', 'justify-center', 'text-brand-500');
         tile.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
@@ -479,27 +480,49 @@ async function openAlbumViewer(albumId, reference = null) {
     }
 }
 
+// Neu gezeichnet wird bei jedem Album, Schluessel und Bild, das ankommt. Frueher wurde das Raster erst
+// geleert und dann Bild fuer Bild (mit Entschluesseln) neu aufgebaut: das zentrierte Fenster am PC sprang
+// dabei staendig in der Hoehe (Flackern). Jetzt erst alles vorbereiten, dann in einem Schritt tauschen
+// (Canvas werden wiederverwendet); nur das neueste Zeichnen zaehlt.
+let albumRenderToken = 0;
+
 async function renderAlbumViewer(album) {
     if (state.albumViewer?.albumId !== album.id) return;
+    const token = ++albumRenderToken;
+    const isOwn = album.ownerId === state.myProfile.id;
+    const prepared = [];
+    for (const item of album.items) {
+        if (isOwn) {
+            const media = await loadMedia(item.id);
+            prepared.push({ item, dataUrl: media && media.version === item.version ? media.data : null });
+        } else {
+            prepared.push({ item, ...await prepareReceivedAlbumTile(album, item) });
+        }
+    }
+    if (token !== albumRenderToken || state.albumViewer?.albumId !== album.id) return;
+
     document.getElementById('media-modal-title').textContent = album.name;
     const content = document.getElementById('media-modal-content');
-    content.innerHTML = '';
     if (!album.items.length) {
+        content.replaceChildren();
         renderMediaModalMessage(t('albums.thisAlbumIsEmpty'));
         return;
     }
-    const isOwn = album.ownerId === state.myProfile.id;
+    // Ab hier ohne await: altes Raster raus, neues rein, ohne Zwischenstand auf dem Bildschirm.
+    content.replaceChildren();
     const grid = document.createElement('div');
     grid.className = 'grid grid-cols-3 sm:grid-cols-4 gap-2';
-    content.appendChild(grid);
-    for (const item of album.items) {
+    for (const { item, dataUrl, locked } of prepared) {
+        const reuseKey = `album-tile:${album.id}:${item.id}`;
         if (!isOwn) {
-            grid.appendChild(await renderReceivedAlbumTile(album, item));
+            const tile = dataUrl
+                ? createThumbnail(dataUrl, () => openViewerFromTiles(dataUrl), reuseKey)
+                : locked ? createLockedTile() : createThumbnail(null, () => {});
+            tile.id = `album-tile-${item.id}`;
+            grid.appendChild(tile);
             continue;
         }
-        const media = await loadMedia(item.id);
-        const hasCurrent = media && media.version === item.version;
-        const tile = createThumbnail(hasCurrent ? media.data : null, () => hasCurrent && openViewerFromTiles(media.data));
+        const tile = createThumbnail(dataUrl, () => dataUrl && openViewerFromTiles(dataUrl), reuseKey);
         tile.id = `album-tile-${item.id}`;
         const wrapper = document.createElement('div');
         wrapper.className = 'relative group';
@@ -512,10 +535,12 @@ async function renderAlbumViewer(album) {
         wrapper.append(tile, remove);
         grid.appendChild(wrapper);
     }
+    content.appendChild(grid);
 }
 
 // Empfangene Albumbilder liegen nur als Ciphertext vor und brauchen den Schluessel der aktuellen Epoche.
-async function renderReceivedAlbumTile(album, item) {
+// Liefert das entschluesselte Bild (oder null) und ob der Schluessel abgelaufen ist; fordert Fehlendes an.
+async function prepareReceivedAlbumTile(album, item) {
     const stored = await loadMedia(item.id);
     const isCurrent = stored?.encrypted && stored.version === item.version && stored.keyVersion === album.keyVersion
         && stored.keyScheme === ALBUM_KEY_SCHEME;
@@ -523,15 +548,11 @@ async function renderReceivedAlbumTile(album, item) {
     // Weitergegebene Kopien werden durch die des Besitzers ersetzt, sobald er erreichbar ist.
     if (!isCurrent || (stored.relayedBy && ownerOnline)) {
         state.pendingImageRequests[`${album.ownerId}:${item.id}`] = item.version;
-        sendSecurePayload(album.ownerId, { type: 'IMAGE_REQUEST', imageId: item.id, version: item.version }).catch(logBackgroundError('renderReceivedAlbumTile'));
-        if (!isCurrent && !ownerOnline) requestAlbumImageFromSwarm(album, item).catch(logBackgroundError('renderReceivedAlbumTile'));
+        sendSecurePayload(album.ownerId, { type: 'IMAGE_REQUEST', imageId: item.id, version: item.version }).catch(logBackgroundError('prepareReceivedAlbumTile'));
+        if (!isCurrent && !ownerOnline) requestAlbumImageFromSwarm(album, item).catch(logBackgroundError('prepareReceivedAlbumTile'));
     }
     const dataUrl = isCurrent ? await decryptAlbumImage(album.id, item.id, stored.encrypted) : null;
-    const tile = dataUrl
-        ? createThumbnail(dataUrl, () => openViewerFromTiles(dataUrl))
-        : isCurrent ? createLockedTile() : createThumbnail(null, () => {});
-    tile.id = `album-tile-${item.id}`;
-    return tile;
+    return { dataUrl, locked: Boolean(isCurrent && !dataUrl) };
 }
 
 function createLockedTile() {

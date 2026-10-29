@@ -506,6 +506,9 @@
   - done 2026-10-29: toast nur fuer den offenen chat, hoechstens alle 5 min je peer, sonst nur debug-log; test `test/p2p-transport.test.js`
 - [x] entdecken-chat: album- und video-knopf getrennt, sollen einer sein (nutzer 2026-10-29)
   - done 2026-10-29: medien-knopf (wie im flirt-modus) in allen chats ausser dem reinen freundes-chat (`media-combined`, `updateChatAlbumButton`); e2e `friends`
+- [x] album flackert am PC beim oeffnen (nutzer 2026-10-29: "halben epileptischen anfall")
+  - ursache: `renderAlbumViewer` leerte bei jedem ankommenden bild/schluessel das raster und baute es bild fuer bild (mit entschluesseln) neu auf; das am PC zentrierte fenster sprang dabei in der hoehe, neue canvas blitzten leer auf (handy: fenster unten verankert, kaum sichtbar)
+  - done 2026-10-29: erst vorbereiten, dann in einem schritt tauschen, canvas wiederverwenden (`reuseKey`), nur das neueste zeichnen zaehlt; e2e `album-flicker` (schlaegt auf dem alten code fehl)
 
 ## T25 Admin-Panel (nutzer 2026-10-29: "do the admin panel"; aus dem backlog)
 - [x] entschieden (nutzer 2026-10-29): login per **admin-passkey**; umfang: status, live-config, sperren, meldungen, "most of all, auslastung"

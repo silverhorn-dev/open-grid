@@ -82,6 +82,7 @@
       - `nudenet` 320n: GitHub-release braucht login -> aus dem PyPI-wheel nudenet 3.4.2 (sha256 fest); metadaten sagen MIT, die LICENSE-datei im wheel ist AGPL-3.0 -> als AGPL behandelt (passt zu GPL-3.0 von OpenGrid)
       - installation: `scripts/nudity-models/fetch.sh --volume <volume> nudenet bumble` -> `NUDITY_MODEL_DIR` (std data/nudity-models); `onnxruntime-web` optionale abhaengigkeit; nur der worker bekommt `'wasm-unsafe-eval'`; TF.js als ES2017-build (der ES5-build braucht `Function()`)
       - e2e (headless, ohne GPU): nudenet 1,2 s/bild, bumble 68 s/bild (CPU) -> auf dem handy mit WebGL messen
+    - [x] nutzer 2026-10-29: neue modelle fehlten in der auswahl (nur per fetch.sh installierbar) -> bumble umgewandelt ins repo (`models/bumble`, 51 MB), nudenet laedt das docker-image beim bauen (eigene stufe, pruefsumme); router sucht `NUDITY_MODEL_DIR`, dann `models/`; image geprueft: alle 5 in `/api/config` (image 802 MB -> verkleinern ist offen)
     - [ ] nutzer vergleicht nsfwjs-mid/-inception, bumble, nudenet mit echten bildern auf dem handy (treffer + zeit), danach `NUDITY_MODEL` + schwelle festlegen
     - [ ] nutzer testet auf dem handy mit echten bildern (maennliche nacktheit, fehlalarme bei badehose/oberkoerper), danach schwelle/klassen festlegen; falls zu schwach: Bumble Private Detector umwandeln
     - [ ] docker-image wird groesser (nsfwjs bringt alle drei modelle + tfjs mit); bei bedarf nur mobilenet_v2 + bibliothek ins image kopieren

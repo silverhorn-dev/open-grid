@@ -3,3 +3,4 @@ data/
 .idea/
 # Wird von `npm run build:css` erzeugt
 client/tailwind.css
+models/nudenet/

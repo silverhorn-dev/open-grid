@@ -471,9 +471,11 @@ export async function buildApp(options = {}) {
         threshold: options.nudityThreshold ?? process.env.NUDITY_THRESHOLD,
         classes: options.nudityClasses ?? process.env.NUDITY_CLASSES
     });
-    // Optionale Modelle (Bumble, NudeNet) liegen im Datenordner, siehe scripts/nudity-models/fetch.sh.
+    // Optionale Modelle (Bumble, NudeNet): eigener Ordner im Datenordner (Vorrang), sonst models/ (models/README.md).
     const nudityModelDirectory = options.nudityModelDir ?? process.env.NUDITY_MODEL_DIR ?? join(dirname(databasePath === ':memory:' ? join(projectDirectory, 'data', 'x') : databasePath), 'nudity-models');
-    const nudityAssets = await registerNudityModelRoutes(app, nudityConfig, { modelDirectory: nudityModelDirectory });
+    const nudityAssets = await registerNudityModelRoutes(app, nudityConfig, {
+        modelDirectories: [nudityModelDirectory, ...(options.nudityBuiltInModels === false ? [] : [join(projectDirectory, 'models')])]
+    });
     const nudityPublicConfig = describeNudityModels(nudityConfig, nudityAssets);
     const audienceMinimums = {
         public: parseAudienceMinimum(audienceMinimumRule, audienceSchemaFor('public')),

@@ -47,7 +47,7 @@ test('nudity classes are checked against the active model', () => {
 });
 
 test('router serves the nsfwjs models itself and announces them in /api/config', async t => {
-    const { app, close } = await appWith({ nudityThreshold: '0.8', nudityClasses: 'Porn', nudityModelDir: join(tmpdir(), 'og-no-models') });
+    const { app, close } = await appWith({ nudityThreshold: '0.8', nudityClasses: 'Porn', nudityModelDir: join(tmpdir(), 'og-no-models'), nudityBuiltInModels: false });
     t.after(close);
     const config = (await app.inject({ method: 'GET', url: '/api/config' })).json();
     assert.equal(config.nudity.model, 'nsfwjs');
@@ -121,9 +121,30 @@ test('optional models (bumble, nudenet) are served from NUDITY_MODEL_DIR', async
     assert.equal((await app.inject({ method: 'GET', url: `${bumble.modelUrl}LICENSE` })).statusCode, 404, 'only files from the manifest');
 });
 
+test('the converted Bumble model in models/ is served completely', async t => {
+    const { app, close } = await appWith({ nudityModel: 'bumble', nudityModelDir: join(tmpdir(), 'og-no-models') });
+    t.after(close);
+    const config = (await app.inject({ method: 'GET', url: '/api/config' })).json();
+    assert.equal(config.nudity.model, 'bumble');
+    assert.deepEqual(config.nudity.classes, ['Lewd']);
+    const manifest = (await app.inject({ method: 'GET', url: `${config.nudity.modelUrl}model.json` })).json();
+    assert.equal(manifest.format, 'graph-model');
+    let expected = 0;
+    let actual = 0;
+    for (const group of manifest.weightsManifest) {
+        expected += group.weights.reduce((sum, entry) => {
+            const count = entry.shape.reduce((product, value) => product * value, 1);
+            const bytes = entry.quantization ? { uint8: 1, uint16: 2, float16: 2 }[entry.quantization.dtype] : { float32: 4, int32: 4 }[entry.dtype];
+            return sum + count * bytes;
+        }, 0);
+        for (const path of group.paths) actual += (await app.inject({ method: 'GET', url: `${config.nudity.modelUrl}${path}` })).rawPayload.length;
+    }
+    assert.equal(actual, expected);
+});
+
 test('a selected but missing optional model falls back to nsfwjs', async t => {
     const directory = optionalModels({ bumble: false, nudenet: false });
-    const { app, close } = await appWith({ nudityModel: 'bumble', nudityModelDir: directory });
+    const { app, close } = await appWith({ nudityModel: 'bumble', nudityModelDir: directory, nudityBuiltInModels: false });
     t.after(async () => { await close(); rmSync(directory, { recursive: true, force: true }); });
     const config = (await app.inject({ method: 'GET', url: '/api/config' })).json();
     assert.equal(config.nudity.model, 'nsfwjs');

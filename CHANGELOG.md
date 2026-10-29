@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 218 · 2026-10-29
+## Build 220 · 2026-10-29
+- Nacktbild-Filter: Bumble Private Detector und NudeNet sind jetzt direkt im Server enthalten und auf der Testseite (Debug-Modus) waehlbar
+
+## Build 218 · 2026-10-29 · `0af26b3`
 - Entdecken- und Event-Chats: Album und Video liegen hinter einem Medien-Knopf (wie im Flirt-Modus), die Eingabeleiste bleibt schmal
 
 ## Build 217 · 2026-10-29 · `d1c9b34`

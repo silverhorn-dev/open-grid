@@ -142,10 +142,10 @@ laufen durch dieselben Tests und bauen das echte Image zur Probe
 | `STUN_SERVER` | eigener TURN-Server | STUN-Server (`host:port`) oder `none`. Ohne Angabe dient der eigene coturn auch als STUN; erst ohne TURN wird der oeffentliche Google-STUN genutzt |
 | `PUSH_HOST_ALLOWLIST` | – | Zusaetzliche erlaubte Push-Hosts, kommagetrennt (z. B. ein eigener UnifiedPush-/ntfy-Server). Standard: Google, Mozilla, Apple, Microsoft |
 | `CLIENT_DEFAULTS` | - | JSON mit Standardwerten fuer Client-Einstellungen, solange ein Nutzer nichts Eigenes gespeichert hat. Erlaubt: `language` (`auto`/`de`/`en`, Sprache fuer alle ohne eigene Wahl), `chatSwitchEnabled`, `chatSwitchStyle` (`bar`/`arrows`/`swipe`), `notifyMatch`, `notifyFlame`, `notifyAdd`, `notifyDiscovery`, `notifyChat`, `notifyProfileView`, `notifyChatEvents` (Benachrichtigungen je Art, Standard an, Profilbesuch aus), `shareProfileViews` (eigene Profilbesuche melden, Standard `false`), `audience` (Startregel fuer "Wer mich im Grid sieht", z. B. `{"ranges":{"age":{"relative":"same"}}}`), `reloadMode` (`full`/`app`: Runterziehen laedt die ganze Seite oder nur die Daten, Standard `full`), `chatPagesByDay` (Chat nach Tagen statt durchgehend, Standard `false`), `inputSwipeClosesChat` (Eingabeleiste nach rechts wischen schliesst den Chat, Standard `true`), `pullUpAction` (`reload`/`next`/`switcher`/`snap`/`album`), `listSwitchEnabled`, `listSwitchBehavior` (`mode`/`view`), `statusDirectOnly`, `hideDiscoveryHistory` (Flirt-Verlauf im normalen Freundes-Chat ausblenden, Standard `true`), `traceWatermark`, `nudityFilter` (Nacktbild-Filter, Standard aus), `mediaDownload` (`friends`/`all`: wer Chat-Bilder und Videos speichern darf, Standard `friends`), `snapSaveable` (Startwert des "speicherbar"-Schalters im Snap-Editor, Standard `true`), `secureSnaps`, `snapNextGesture` (`doubletap`/`swipe`/`swipeup`), `snapExpiry` (Ablauf von Einmal-Snaps nach der ersten Ansicht: `15m`/`30m`/`60m`/`off`, ohne Angabe `30m`), `ownSnapKeep` (wie lange der Absender seine Snaps behaelt, nachdem der Empfaenger alle Ansichten verbraucht hat: `now`/`15m`/`1h`/`24h`, Standard `1h`), `albumKeyEpochMinutes` (0/15/60/180/1440/10080), `albumKeyEpochsAhead` (1-3). Unbekanntes wird ignoriert. Beispiel: `{"pullUpAction":"switcher","statusDirectOnly":true}` |
-| `NUDITY_MODEL` | `nsfwjs` | Erkennungsmodell fuer den Nacktbild-Filter, vom Router ausgeliefert: `nsfwjs` (MobileNetV2, ca. 2,6 MB), `nsfwjs-mid` (ca. 4 MB), `nsfwjs-inception` (ca. 21 MB), optional `bumble` (Bumble Private Detector, ca. 51 MB) oder `nudenet` (NudeNet, ca. 12 MB + 15 MB Laufzeit), oder `off`. Die optionalen Modelle muessen erst mit `scripts/nudity-models/fetch.sh` installiert werden, sonst gilt `nsfwjs`. Auf der Testseite (Debug-Modus) lassen sich alle installierten vergleichen |
+| `NUDITY_MODEL` | `nsfwjs` | Erkennungsmodell fuer den Nacktbild-Filter, vom Router ausgeliefert: `nsfwjs` (MobileNetV2, ca. 2,6 MB), `nsfwjs-mid` (ca. 4 MB), `nsfwjs-inception` (ca. 21 MB), `bumble` (Bumble Private Detector, ca. 51 MB) oder `nudenet` (NudeNet, ca. 12 MB + 15 MB Laufzeit), oder `off`. Alle sind im Docker-Image enthalten (`models/README.md`); fehlt eins (z. B. ohne Docker), gilt `nsfwjs`. Auf der Testseite (Debug-Modus) lassen sich alle installierten vergleichen |
 | `NUDITY_THRESHOLD` | `0.7` | Ab welchem Wert (0.5 bis 0.95) ein Bild unscharf erscheint; hoeher = weniger Fehlalarme, mehr Durchrutscher |
 | `NUDITY_CLASSES` | je Modell | Welche Klassen des aktiven Modells zaehlen (Komma-Liste). NSFWJS: `Drawing`, `Hentai`, `Neutral`, `Porn`, `Sexy` (Standard `Porn,Hentai`, mit `Sexy` strenger); NudeNet: Koerperteile wie `MALE_GENITALIA_EXPOSED` (Standard: alle entbloessten Genitalien, Brust, Anus, Po); Bumble: nur `Lewd` |
-| `NUDITY_MODEL_DIR` | `data/nudity-models` | Ordner der optionalen Modelle (neben der Datenbank, im Container also im Daten-Volume) |
+| `NUDITY_MODEL_DIR` | `data/nudity-models` | Eigener Ordner fuer Modelle (neben der Datenbank, im Container also im Daten-Volume); ein Ordner `bumble/` bzw. `nudenet/` darin hat Vorrang vor den mitgelieferten |
 | `AUDIENCE_MINIMUM` | - | Mindestwerte fuer "Wer mich im Grid sieht", die der Router in jede Karte in "Entdecken"/"Event" mischt (JSON wie eine Regel, z. B. `{"ranges":{"age":{"min":18}}}`). Wer den Wert nicht angibt, sieht dann niemanden. |
 | `RATE_LIMIT_SCALE` | `1` | Faktor fuer alle Rate-Limits (1 bis 100), nur fuer Tests mit vielen Clients hinter einer IP (die E2E-Tests nutzen 20) |
 | `CREDENTIAL_RETENTION_DAYS` | `180` | Nach so vielen Tagen ohne Registrierung werden Zugangsdaten, Push-Abo, eigene Chat-Kontrollen und wartende Nachrichten eines Peers geloescht (mindestens 7) |
@@ -233,24 +233,20 @@ Im Debug-Modus zeigt Medien > Schutz > "Erkennung testen" die Werte fuer eigene
 Bilder (alles lokal), um Modell und Schwelle zu waehlen.
 
 Die mitgelieferten NSFWJS-Modelle erkennen maennliche Nacktheit schlecht
-(Trainingsdaten ueberwiegend weiblich). Zwei staerkere Modelle sind optional:
+(Trainingsdaten ueberwiegend weiblich). Zwei staerkere Modelle sind im
+Docker-Image enthalten und per `NUDITY_MODEL` waehlbar:
 
 | Modell | Lizenz | Groesse | Hinweis |
 |---|---|---|---|
 | `bumble` (Bumble Private Detector) | Apache-2.0 | ca. 51 MB | fuer ungefragte Nacktbilder in Dating-Apps gebaut; ohne Grafikbeschleunigung langsam |
 | `nudenet` (NudeNet 320n) | AGPL-3.0 | ca. 12 MB + 15 MB WASM | erkennt Koerperteile einzeln; AGPL passt zur GPL-3.0 von OpenGrid, bei eigenen Aenderungen den Quelltext anbieten |
 
-Installation in das Daten-Volume (Docker noetig, Name per `docker volume ls`),
-danach den Router neu starten:
-
-```
-sh scripts/nudity-models/fetch.sh --volume open-grid_open-grid-data nudenet bumble
-```
-
-NudeNet kommt aus dem PyPI-Paket `nudenet` 3.4.2 (feste Pruefsumme); Bumble wird
-heruntergeladen (ca. 600 MB) und in einem Python-Container nach TF.js
-umgewandelt (`scripts/nudity-models/convert-bumble.py`, ca. 3 GB freier Platz,
-einige Minuten). NudeNet braucht `onnxruntime-web` (optionale Abhaengigkeit);
+Bumble liegt umgewandelt im Repository (`models/bumble`, aus dem Original mit
+`scripts/nudity-models/convert-bumble.py`); NudeNet laedt das Docker-Image beim
+Bauen aus dem PyPI-Paket `nudenet` 3.4.2 (feste Pruefsumme). Ohne Docker oder fuer
+eigene Fassungen: `sh scripts/nudity-models/fetch.sh --dir models nudenet` bzw.
+`--volume <docker-volume> nudenet bumble` (Bumble: ca. 600 MB Download, ca. 3 GB
+freier Platz, einige Minuten). NudeNet braucht `onnxruntime-web` (optionale Abhaengigkeit);
 nur das Worker-Skript des Filters darf dafuer WebAssembly kompilieren
 (`'wasm-unsafe-eval'`), die Seite selbst nicht.
 

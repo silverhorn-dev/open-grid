@@ -29,7 +29,7 @@ services:
       SMTP_URL: ${SMTP_URL:-}
       SMTP_FROM: ${SMTP_FROM:-}
       # Nacktbild-Filter: nsfwjs (Standard), nsfwjs-mid, nsfwjs-inception, bumble, nudenet oder off;
-      # bumble/nudenet vorher mit scripts/nudity-models/fetch.sh ins Volume legen.
+      # Alle im Image enthalten (models/README.md).
       NUDITY_MODEL: ${NUDITY_MODEL:-nsfwjs}
       NUDITY_THRESHOLD: ${NUDITY_THRESHOLD:-}
       NUDITY_CLASSES: ${NUDITY_CLASSES:-}

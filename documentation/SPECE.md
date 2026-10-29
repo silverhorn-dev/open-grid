@@ -1319,14 +1319,15 @@ Modelle (`server/nudity-model.js`, `client/app/nudity-model.js`,
 | `GET /vendor/nsfwjs/<version>/nsfwjs.min.js` | NSFWJS inkl. TF.js |
 | `GET /vendor/nsfwjs/<version>/<ordner>/model.json`, `.../<teil>` | NSFWJS-Modelle (`mobilenet_v2`, `mobilenet_v2_mid`, `inception_v3`), aus dem npm-Paket umgepackt |
 | `GET /vendor/tfjs/<version>/tf.es2017.min.js` | TF.js fuer Bumble (ES2017-Build ohne `Function()`-Polyfills) |
-| `GET /vendor/nudity-models/bumble/<hash>/model.json`, `.../<teil>` | Bumble aus `NUDITY_MODEL_DIR/bumble` (nur Dateien laut Manifest) |
-| `GET /vendor/nudity-models/nudenet/<hash>/320n.onnx` | NudeNet aus `NUDITY_MODEL_DIR/nudenet` |
+| `GET /vendor/nudity-models/bumble/<hash>/model.json`, `.../<teil>` | Bumble (nur Dateien laut Manifest) |
+| `GET /vendor/nudity-models/nudenet/<hash>/320n.onnx` | NudeNet |
 | `GET /vendor/onnxruntime-web/<version>/ort.wasm.min.js`, `ort-wasm-simd-threaded.mjs`, `.wasm` | Laufzeit fuer NudeNet (optionale Abhaengigkeit) |
 
 Alle mit `Cache-Control: immutable` (Version bzw. Hash im Pfad), im SW wie
-andere `/vendor/`-Dateien gecacht. Die optionalen Modelle erscheinen nur, wenn
-ihre Dateien in `NUDITY_MODEL_DIR` liegen (`scripts/nudity-models/fetch.sh`);
-ist das gewaehlte nicht installiert, gilt `nsfwjs`. `/api/config.nudity` =
+andere `/vendor/`-Dateien gecacht. Bumble und NudeNet werden in
+`NUDITY_MODEL_DIR` (Vorrang) und danach in `models/` gesucht (Bumble im
+Repository, NudeNet laedt das Docker-Image beim Bauen, `models/README.md`); ist
+das gewaehlte nicht vorhanden, gilt `nsfwjs`. `/api/config.nudity` =
 aktives Modell flach (`model`, `kind`, `library`, `modelUrl`, `runtimeUrl`,
 `size`, `type`, `combine`, `classes` = `NUDITY_CLASSES` gegen die Klassen des
 Modells geprueft, sonst dessen Standard) + `threshold` + `models` (alle

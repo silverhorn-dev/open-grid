@@ -13,15 +13,17 @@ import { dirname, join } from 'node:path';
 //       Hentai, Neutral, Porn, Sexy. Gemessen 2026-10-29 (Nutzer): erkennt ein maennliches Nacktbild
 //       (Badezimmer-Selfie) nicht (Neutral 85 %), die Trainingsdaten sind ueberwiegend weiblich.
 //   bumble   Bumble Private Detector (Apache-2.0), gebaut fuer ungefragte Nacktbilder in Dating-Apps;
-//       optional, vom Betreiber mit scripts/nudity-models/fetch.sh umgewandelt (~51 MB).
+//       umgewandelt im Repository unter models/bumble (~51 MB).
 //   nudenet  NudeNet 320n (AGPL-3.0, YOLOv8), erkennt Koerperteile einzeln (u. a. MALE_GENITALIA_EXPOSED);
-//       optional (fetch.sh, ~12 MB) und braucht onnxruntime-web (optionalDependencies, WASM ~15 MB).
+//       ~12 MB, das Docker-Image laedt es beim Bauen nach models/nudenet; braucht onnxruntime-web
+//       (optionalDependencies, WASM ~15 MB).
+// Gesucht wird in NUDITY_MODEL_DIR (Vorrang) und danach in models/ des Projekts (models/README.md).
 //
 // Konfiguration (Betreiber):
 //   NUDITY_MODEL      aktives Modell (Standard nsfwjs) oder 'off'; fehlt ein optionales Modell, gilt nsfwjs
 //   NUDITY_THRESHOLD  ab welchem Wert unscharf (0.5-0.95, Standard 0.7)
 //   NUDITY_CLASSES    welche Klassen des aktiven Modells zaehlen (Komma-Liste, Standard je Modell)
-//   NUDITY_MODEL_DIR  Ordner der optionalen Modelle (Standard: data/nudity-models neben der Datenbank)
+//   NUDITY_MODEL_DIR  eigener Ordner fuer Modelle (Standard: data/nudity-models neben der Datenbank)
 export const NSFWJS_CLASSES = ['Drawing', 'Hentai', 'Neutral', 'Porn', 'Sexy'];
 export const NUDENET_CLASSES = [
     'FEMALE_GENITALIA_COVERED', 'FACE_FEMALE', 'BUTTOCKS_EXPOSED', 'FEMALE_BREAST_EXPOSED',
@@ -140,9 +142,14 @@ async function serveModelFiles(app, { directory, route, files, main }) {
 }
 
 // Bumble: TF.js-Graph-Modell (model.json + Teile) aus NUDITY_MODEL_DIR/bumble, Bibliothek = TF.js.
-async function registerBumble(app, require, modelDirectory, log) {
-    const directory = join(modelDirectory, 'bumble');
-    if (!existsSync(join(directory, 'model.json'))) return {};
+// Erster Ordner, der die Hauptdatei enthaelt.
+function findModelDirectory(modelDirectories, name, main) {
+    return modelDirectories.map(base => join(base, name)).find(directory => existsSync(join(directory, main))) || null;
+}
+
+async function registerBumble(app, require, modelDirectories, log) {
+    const directory = findModelDirectory(modelDirectories, 'bumble', 'model.json');
+    if (!directory) return {};
     const tfRoot = packageRoot(require, '@tensorflow/tfjs');
     if (!tfRoot) {
         log.warn('Bumble model found, but @tensorflow/tfjs is missing.');
@@ -165,9 +172,9 @@ async function registerBumble(app, require, modelDirectory, log) {
 }
 
 // NudeNet: ONNX-Datei aus NUDITY_MODEL_DIR/nudenet, Laufzeit onnxruntime-web (WASM, ein Thread).
-async function registerNudenet(app, require, modelDirectory, log) {
-    const directory = join(modelDirectory, 'nudenet');
-    if (!existsSync(join(directory, '320n.onnx'))) return {};
+async function registerNudenet(app, require, modelDirectories, log) {
+    const directory = findModelDirectory(modelDirectories, 'nudenet', '320n.onnx');
+    if (!directory) return {};
     const ortRoot = packageRoot(require, 'onnxruntime-web');
     if (!ortRoot) {
         log.warn('NudeNet model found, but onnxruntime-web is missing (optional dependency).');
@@ -190,13 +197,13 @@ async function registerNudenet(app, require, modelDirectory, log) {
 }
 
 // Routen fuer alle verfuegbaren Modelle; Rueckgabe = oeffentliche Beschreibung je Modell (fuer /api/config).
-export async function registerNudityModelRoutes(app, config, { modelDirectory } = {}) {
+export async function registerNudityModelRoutes(app, config, { modelDirectories = [] } = {}) {
     if (config.model === 'off') return null;
     const require = createRequire(import.meta.url);
     const found = {
         ...await registerNsfwjs(app, require),
-        ...(modelDirectory ? await registerBumble(app, require, modelDirectory, app.log) : {}),
-        ...(modelDirectory ? await registerNudenet(app, require, modelDirectory, app.log) : {})
+        ...await registerBumble(app, require, modelDirectories, app.log),
+        ...await registerNudenet(app, require, modelDirectories, app.log)
     };
     const models = Object.fromEntries(Object.entries(found).map(([id, urls]) => {
         const { kind, size, type, classes, defaultClasses, combine } = NUDITY_MODELS[id];
@@ -208,7 +215,7 @@ export async function registerNudityModelRoutes(app, config, { modelDirectory } 
     }
     let active = config.model;
     if (!models[active]) {
-        app.log.warn(`NUDITY_MODEL=${active} is not installed (scripts/nudity-models/fetch.sh); using nsfwjs.`);
+        app.log.warn(`NUDITY_MODEL=${active} is not installed (models/README.md); using nsfwjs.`);
         active = models[DEFAULT_MODEL] ? DEFAULT_MODEL : Object.keys(models)[0];
     }
     return { active, models };

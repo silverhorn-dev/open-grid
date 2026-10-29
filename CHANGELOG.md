@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 238 · 2026-10-29
+## Build 239 · 2026-10-29
+- Neu fuer Betreiber mit Altersnachweis: Entdecken und Event sind nach Alter getrennt (unter 18 und 18+ begegnen sich dort nicht; ohne Nachweis kein Entdecken). Ein Wallet-Nachweis "unter 18" wird jetzt angenommen
+- Neu: Pflicht-Scan fuer Nacktbilder, vom Betreiber waehlbar (fuer unter 18, fuer Chats mit unter 18 oder fuer alle)
+
+## Build 238 · 2026-10-29 · `9bfd2cd`
 - Neu: Vor dem Senden eines Bilds oder Snaps fragt die App nach, wenn es nach einem Nacktbild aussieht (Medien > Schutz, abschaltbar). Geprueft wird nur auf deinem Geraet
 
 ## Build 235 · 2026-10-29 · `ecfa9b7`

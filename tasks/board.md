@@ -71,6 +71,9 @@
     - testen: demo-app (android, github eu-digital-identity-wallet/av-app-android-wallet-ui/releases) -> "National eID" (demo-aussteller) -> in OpenGrid debug "Wallet fragen" (Chrome/Edge 141+)
   - [ ] eudi: signierte anfragen (relying-party-zugangszertifikat), sobald wallets/laender das verlangen; erster echter test mit AltID oder DE-wallet
   - [ ] eudi: QR-ablauf fuer "website am PC, wallet am handy" (cross-device) -> verschoben (nutzer 2026-10-29)
+  - [x] getrenntes entdecken nach alter + pflicht-scan (nutzer 2026-10-29, aus dem backlog), entscheidungen: ohne nachweis kein entdecken; pflicht-scan als admin-wahl (`NUDITY_SCAN_REQUIRED`: off/minors/minor-chats/everyone); router-schalter zum abschalten der trennung existiert, bleibt bewusst undokumentiert
+    - router: `age_group` je nachweis, wallet "unter 18" = gruppe minor, grid (public/event) nur gleiche gruppe; app: filter erzwungen + gesperrt, `message.nudityScan` bei minor-chats (verschluesselt); tests `test/safety.test.js`, `test/age-eudi.test.js`, `test/nudity.test.js`, e2e `age-scan`; UC-61
+    - offen: einladungen im dating-modus (unter 18 kann sie nicht oeffnen, backlog), gruppenwechsel bei geburtstag (nachweis laeuft nach 1 jahr ab)
   - [ ] **deutschland (nutzer 2026-10-29: "muessen wir noch einbauen, also KJM oder die Ausweis-App")**
     - Online-Ausweis (AusweisApp): sonderfunktion altersverifikation ("ueber 18: ja/nein", kein geburtsdatum); braucht ein berechtigungszertifikat (vergabestelle beim BVA) und einen eID-server bzw. eID-service-anbieter -> klaeren: selbst betreiben oder dienstleister (regel 1: der anbieter sieht nur die ausweis-pruefung, keine nutzerdaten der app)
     - KJM-anerkannte anbieter: pruefen, welche nur "18+" als signiertes ergebnis liefern; generische token-schnittstelle (wie `AGE_PROVIDERS`)

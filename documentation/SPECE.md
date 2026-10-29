@@ -1653,6 +1653,18 @@ Ein Klick auf die Benachrichtigung fokussiert die App und oeffnet den Chat
     unbekannt = `confirm`), `EMAIL_CHECK` (`off`/`required`),
     `EMAIL_TRANSPORT` (`log` oder `smtp`), `SMTP_URL`, `SMTP_FROM`,
     `SAFETY_KEY`, `ABUSE_LOG_DAYS` (0-14).
+  - Altersgruppen: `safety_verifications.age_group` ('adult' | 'minor', alte Eintraege
+    'adult'). `confirm` und Anbieter mit "ueber 18" -> adult; ein gueltiger Anbieter-
+    Nachweis "unter 18" (EUDI: `age_over_18 = false` eines anerkannten Ausstellers,
+    `dev`: `over18: false`) -> minor statt Ablehnung. `/api/safety/status` liefert
+    `age.group`, `age/finish` `{ ok, group }`. Ist ein Altersnachweis verlangt,
+    filtert `/api/grid` (public und event) auf dieselbe Gruppe wie der Anfragende.
+  - Pflicht-Scan `NUDITY_SCAN_REQUIRED` (live): `/api/config.nudity.required`. App:
+    `nudityScanForced()` (minors/minor-chats: Gruppe minor; everyone: alle) erzwingt
+    den Filter (Schalter gesperrt, Hinweis); bei `minor-chats` setzen Nachrichten
+    mit Bild/Snap/Video von unter 18 `message.nudityScan = true` (verschluesselt,
+    `isValidMessage`: boolean), der Empfaenger prueft diese Bilder immer
+    (`markForcedNudityScan`).
   - EU-Altersnachweis `eudi` (`server/age-eudi.js`, `server/age-trust.js`):
     - `age/start` -> `{ kind: 'eudi', protocol: 'openid4vp-v1-unsigned', request }`,
       `request` = OpenID4VP 1.0 (`response_type: vp_token`, `response_mode: dc_api`,

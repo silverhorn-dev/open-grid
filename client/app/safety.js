@@ -34,6 +34,9 @@ async function refreshSafetyStatus() {
     try {
         const status = await safetyRequest(`status?peerId=${encodeURIComponent(state.myProfile.id)}`);
         state.verificationRequired = ['age', 'email'].filter(kind => status[kind]?.required && !status[kind]?.verified);
+        // Altersgruppe laut Nachweis (Pflicht-Scan fuer unter 18, nudity.js).
+        state.ageGroup = ['adult', 'minor'].includes(status.age?.group) ? status.age.group : null;
+        if (typeof renderNuditySettings === 'function') renderNuditySettings();
     } catch (error) {
         logDebug(`Could not load verification status: ${error.message}`);
     }
@@ -190,7 +193,7 @@ async function testEudiWallet() {
         }
         const result = await safetyRequest('age-test/finish', { payload: { protocol: credential?.protocol, data: credential?.data } });
         show([
-            result.over18 ? t('safety.walletTestPassed') : t('safety.walletTestFailed', { reason: result.reason || '?' }),
+            result.over18 ? t('safety.walletTestPassed') : result.minor ? t('safety.walletTestMinor') : t('safety.walletTestFailed', { reason: result.reason || '?' }),
             JSON.stringify(result.details || {}, null, 2)
         ].join('\n'));
     } catch (error) {

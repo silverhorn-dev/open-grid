@@ -72,6 +72,7 @@ function openReplaySnap(messageId) {
     // Eigene Snaps nie durch den Nacktbild-Filter (der Viewer wird fuer beide genutzt).
     if (isMine) image.dataset.ownImage = 'true';
     else delete image.dataset.ownImage;
+    if (!isMine && message.nudityScan && typeof markForcedNudityScan === 'function') markForcedNudityScan(message.snapData);
     drawSecureImage(image, message.snapData).catch(logBackgroundError('openReplaySnap'));
     image.classList.remove('hidden');
     renderReplayQueueLabel();

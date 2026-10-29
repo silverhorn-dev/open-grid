@@ -28,8 +28,30 @@ function hasNudityClassifier() {
     return nudityClassifiers.length > 0;
 }
 
+// Pflicht-Scan (Router: NUDITY_SCAN_REQUIRED): dann laesst sich der Filter nicht abschalten.
+function nudityScanForced() {
+    const mode = state.appConfig?.nudity?.required;
+    if (mode === 'everyone') return true;
+    if (mode === 'minors' || mode === 'minor-chats') return state.ageGroup === 'minor';
+    return false;
+}
+
+// 'minor-chats': Bilder von unter 18 tragen in der (verschluesselten) Nachricht `nudityScan`; jeder
+// Empfaenger prueft sie dann, auch mit abgeschaltetem Filter. Der Router erfaehrt davon nichts.
+function outgoingNudityScanFlag() {
+    return state.appConfig?.nudity?.required === 'minor-chats' && state.ageGroup === 'minor';
+}
+
+const forcedNudityScanSources = new Set();
+const FORCED_SCAN_SOURCE_LIMIT = 500;
+function markForcedNudityScan(source) {
+    if (!source) return;
+    if (forcedNudityScanSources.size >= FORCED_SCAN_SOURCE_LIMIT) forcedNudityScanSources.delete(forcedNudityScanSources.values().next().value);
+    forcedNudityScanSources.add(source);
+}
+
 function isNudityFilterActive() {
-    return state.nudityFilter === true && hasNudityClassifier();
+    return (state.nudityFilter === true || nudityScanForced()) && hasNudityClassifier();
 }
 
 async function loadNuditySettings() {
@@ -62,7 +84,12 @@ async function updateNudityWarnBeforeSend(enabled) {
 
 function renderNuditySettings() {
     const toggle = document.getElementById('nudity-filter-toggle');
-    if (toggle) toggle.checked = state.nudityFilter === true;
+    const forced = nudityScanForced();
+    if (toggle) {
+        toggle.checked = state.nudityFilter === true || forced;
+        toggle.disabled = forced;
+    }
+    document.getElementById('nudity-filter-forced')?.classList.toggle('hidden', !forced);
     const warn = document.getElementById('nudity-warn-toggle');
     if (warn) warn.checked = state.nudityWarnBeforeSend !== false;
     document.getElementById('nudity-filter-no-model')?.classList.toggle('hidden', hasNudityClassifier());
@@ -90,7 +117,8 @@ async function nudityScore(bitmap, source) {
 // false = scharf zeigen; 'nude' = moegliches Nacktbild; 'unchecked' = Pruefung fehlgeschlagen. Bei
 // eingeschaltetem Filter lieber unscharf als ungeprueft durchlassen (vorher galt ein Fehler als 0).
 async function shouldBlurImage(bitmap, source) {
-    if (!isNudityFilterActive() || revealedNudityImages.has(source)) return false;
+    const active = isNudityFilterActive() || (forcedNudityScanSources.has(source) && hasNudityClassifier());
+    if (!active || revealedNudityImages.has(source)) return false;
     const score = await nudityScore(bitmap, source);
     if (score === null) return 'unchecked';
     // Schwelle vom Router (NUDITY_THRESHOLD), sonst 0,7.

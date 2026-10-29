@@ -46,7 +46,7 @@ const grid = (app, peerId, headers) => app.inject({ method: 'GET', url: `/api/gr
 
 test('safety config defaults to everything off and clamps values', () => {
     assert.deepEqual(parseSafetyConfig({}), {
-        ageCheck: 'off', ageProvider: null, emailCheck: 'off', emailTransport: 'log', abuseLogDays: 0, safetyKey: null, smtp: null
+        ageCheck: 'off', ageProvider: null, emailCheck: 'off', emailTransport: 'log', abuseLogDays: 0, ageSeparation: true, safetyKey: null, smtp: null
     });
     const parsed = parseSafetyConfig({ ageCheck: 'PROVIDER', ageProvider: 'Dev', emailCheck: 'required', abuseLogDays: '99' });
     assert.equal(parsed.ageCheck, 'provider');
@@ -89,8 +89,8 @@ test('provider age check stores only a hash of the pseudonym and honours bans', 
     const { headers } = await register(app, 'alice');
     const start = (await app.inject({ method: 'POST', url: '/api/safety/age/start', headers, payload: { peerId: 'alice' } })).json();
     assert.deepEqual(start, { ok: true, provider: 'dev', kind: 'dev' });
-    const refused = await app.inject({ method: 'POST', url: '/api/safety/age/finish', headers, payload: { peerId: 'alice', payload: { over18: false } } });
-    assert.equal(refused.statusCode, 403);
+    const refused = await app.inject({ method: 'POST', url: '/api/safety/age/finish', headers, payload: { peerId: 'alice', payload: {} } });
+    assert.equal(refused.statusCode, 403, 'no age at all');
     const finished = await app.inject({ method: 'POST', url: '/api/safety/age/finish', headers, payload: { peerId: 'alice', payload: { over18: true, subject: 'person-1' } } });
     assert.equal(finished.statusCode, 200);
     const status = (await app.inject({ method: 'GET', url: '/api/safety/status?peerId=alice', headers })).json();
@@ -178,4 +178,52 @@ test('access log only when ABUSE_LOG_DAYS is set, deduplicated and pruned', asyn
     on.store.safety.logAccess('alice', '203.0.113.9', clock);
     on.store.safety.pruneAccessLog(clock - 2 * 24 * 60 * 60 * 1000);
     assert.deepEqual(on.store.safety.listAccess('alice').map(entry => entry.ip), ['203.0.113.9'], 'older entries are deleted');
+});
+
+// Registrieren mit festem Schluessel: nach dem Nachweis erneut registrieren macht den Peer sichtbar.
+function stablePeer(app, peerId) {
+    const keys = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+    const authToken = randomBytes(32).toString('base64url');
+    const headers = { authorization: `Bearer ${authToken}` };
+    const registerAgain = async () => {
+        const registrationId = `registration-${peerId}-${randomBytes(4).toString('hex')}`;
+        const signature = sign('sha256', Buffer.from(JSON.stringify({ peerId, registrationId, authToken })), { key: keys.privateKey, dsaEncoding: 'ieee-p1363' });
+        return app.inject({
+            method: 'POST', url: '/api/register', headers,
+            payload: { peerId, registrationId, geohash: 'u10j2k', authToken, registrationProof: { publicKey: keys.publicKey.export({ format: 'jwk' }), signature: signature.toString('base64') } }
+        });
+    };
+    return { headers, registerAgain };
+}
+
+async function verifiedPeople(app, list) {
+    const people = {};
+    for (const [peerId, over18] of list) {
+        const peer = stablePeer(app, peerId);
+        people[peerId] = peer.headers;
+        await peer.registerAgain();
+        if (over18 === null) continue;
+        const finished = await app.inject({ method: 'POST', url: '/api/safety/age/finish', headers: peer.headers, payload: { peerId, payload: { over18, subject: peerId } } });
+        assert.equal(finished.statusCode, 200);
+        assert.equal(finished.json().group, over18 ? 'adult' : 'minor');
+        assert.equal((await peer.registerAgain()).statusCode, 200);
+    }
+    return people;
+}
+
+test('age separation: discovery only within the own age group, no proof = no grid', async () => {
+    const { app } = await startApp({ ageCheck: 'provider', ageProvider: 'dev', safetyKey: randomBytes(32).toString('base64') });
+    const people = await verifiedPeople(app, [['adult-a', true], ['adult-b', true], ['minor-a', false], ['minor-b', false], ['nobody', null]]);
+    const seen = async peerId => (await grid(app, peerId, people[peerId])).json().peers.map(peer => peer.id).sort();
+    assert.deepEqual(await seen('adult-a'), ['adult-a', 'adult-b']);
+    assert.deepEqual(await seen('minor-a'), ['minor-a', 'minor-b']);
+    assert.equal((await grid(app, 'nobody', people.nobody)).statusCode, 403, 'no proof, no discovery');
+    const status = (await app.inject({ method: 'GET', url: '/api/safety/status?peerId=minor-a', headers: people['minor-a'] })).json();
+    assert.equal(status.age.group, 'minor');
+});
+
+test('age separation can be switched off by the operator (undocumented)', async () => {
+    const { app } = await startApp({ ageCheck: 'provider', ageProvider: 'dev', ageSeparation: 'off', safetyKey: randomBytes(32).toString('base64') });
+    const people = await verifiedPeople(app, [['adult-a', true], ['minor-a', false]]);
+    assert.deepEqual((await grid(app, 'adult-a', people['adult-a'])).json().peers.map(peer => peer.id).sort(), ['adult-a', 'minor-a']);
 });

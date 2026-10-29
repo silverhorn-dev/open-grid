@@ -160,7 +160,7 @@ test('EUDI age check: older wallets (draft transcript) and the ISO mDL are accep
     assert.equal((await finishCheck(app, 'bob', headers, payload)).statusCode, 200);
 });
 
-test('EUDI age check rejects untrusted issuers, other origins, wrong nonces, under 18 and unwanted credentials', async () => {
+test('EUDI age check rejects untrusted issuers, other origins, wrong nonces and unwanted credentials', async () => {
     const issuer = await testIssuer();
     const stranger = await testIssuer();
     const app = await eudiApp({ trusted: [issuer.der], doctypes: 'av' });
@@ -173,11 +173,22 @@ test('EUDI age check rejects untrusted issuers, other origins, wrong nonces, und
     assert.equal((await attempt(() => ({ issuer: stranger }))).statusCode, 403, 'untrusted issuer');
     assert.equal((await attempt(() => ({ origin: 'https://evil.example' }))).statusCode, 403, 'presentation made for another site');
     assert.equal((await attempt(() => ({ nonce: 'old-nonce' }))).statusCode, 403, 'wrong nonce');
-    assert.equal((await attempt(() => ({ over18: false }))).statusCode, 403, 'under 18');
     assert.equal((await attempt(() => ({ docType: 'org.iso.18013.5.1.mDL' }))).statusCode, 403, 'mDL not accepted when only av is configured');
     assert.equal((await finishCheck(app, 'carol', headers, { data: { vp_token: 'not-base64-mdoc' } })).statusCode, 403, 'no open request');
     const grid = await app.inject({ method: 'GET', url: '/api/grid?geohash=u10j2k&peerId=carol', headers });
     assert.equal(grid.statusCode, 403);
+});
+
+test('EUDI: a trusted proof "under 18" verifies into the minor group', async () => {
+    const issuer = await testIssuer();
+    const app = await eudiApp({ trusted: [issuer.der] });
+    const headers = await register(app, 'teen');
+    const started = await startCheck(app, 'teen', headers);
+    const finished = await finishCheck(app, 'teen', headers, await walletPresentation({ issuer, origin: 'https://og.example.org', nonce: started.request.nonce, over18: false }));
+    assert.equal(finished.statusCode, 200);
+    assert.equal(finished.json().group, 'minor');
+    const status = (await app.inject({ method: 'GET', url: '/api/safety/status?peerId=teen', headers })).json();
+    assert.equal(status.age.group, 'minor');
 });
 
 test('EUDI age check without any trusted issuer refuses with a reason', async () => {

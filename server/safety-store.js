@@ -41,16 +41,22 @@ export function createSafetyStore(database) {
         CREATE INDEX IF NOT EXISTS abuse_log_seen ON abuse_log (seen_at);
     `);
 
+    // Altersgruppe aus dem Nachweis ('adult' | 'minor'); aeltere Eintraege ohne Spalte gelten als 'adult'.
+    if (!database.prepare('PRAGMA table_info(safety_verifications)').all().some(column => column.name === 'age_group')) {
+        database.exec('ALTER TABLE safety_verifications ADD COLUMN age_group TEXT');
+    }
+
     const statements = {
         findVerification: database.prepare(`
-            SELECT method, verified_at AS verifiedAt, expires_at AS expiresAt
+            SELECT method, verified_at AS verifiedAt, expires_at AS expiresAt, age_group AS ageGroup
             FROM safety_verifications WHERE peer_id = ? AND kind = ?
         `),
         upsertVerification: database.prepare(`
-            INSERT INTO safety_verifications (peer_id, kind, method, verified_at, expires_at, subject_hash, email_encrypted)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO safety_verifications (peer_id, kind, method, verified_at, expires_at, subject_hash, email_encrypted, age_group)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT (peer_id, kind) DO UPDATE SET method = excluded.method, verified_at = excluded.verified_at,
-                expires_at = excluded.expires_at, subject_hash = excluded.subject_hash, email_encrypted = excluded.email_encrypted
+                expires_at = excluded.expires_at, subject_hash = excluded.subject_hash, email_encrypted = excluded.email_encrypted,
+                age_group = excluded.age_group
         `),
         deleteVerifications: database.prepare('DELETE FROM safety_verifications WHERE peer_id = ?'),
         findEmailCiphertext: database.prepare("SELECT email_encrypted AS value FROM safety_verifications WHERE peer_id = ? AND kind = 'email'"),
@@ -86,8 +92,8 @@ export function createSafetyStore(database) {
             return row;
         },
 
-        saveVerification(peerId, kind, { method, expiresAt = null, subjectHash = null, emailEncrypted = null }, now = Date.now()) {
-            statements.upsertVerification.run(peerId, kind, method, now, expiresAt, subjectHash, emailEncrypted);
+        saveVerification(peerId, kind, { method, expiresAt = null, subjectHash = null, emailEncrypted = null, ageGroup = null }, now = Date.now()) {
+            statements.upsertVerification.run(peerId, kind, method, now, expiresAt, subjectHash, emailEncrypted, ageGroup);
         },
 
         getEmailCiphertext(peerId) {

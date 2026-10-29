@@ -61,7 +61,7 @@ Ideen ohne festen Termin. Neue Phasen werden von hier auf `tasks/board.md` gehol
 - [x] grid improvement: filter, matches, interests, views (umgesetzt 2026-10-28/29, siehe board T20/T21)
   - per einstellung konfigurierbar: grid zeigt nur profile mit bestimmtem profil-tag (z. B. alter, tribes)
   - anlass: neue invite/match-funktion
-- [ ] mit der altersverifikation (T2): im entdecken-bereich sehen/kontaktieren sich nur minderjaehrige untereinander und 18+ untereinander
+- [x] mit der altersverifikation (T2): im entdecken-bereich sehen/kontaktieren sich nur minderjaehrige untereinander und 18+ untereinander -> umgesetzt 2026-10-29 (board T3/T2, UC-61)
   - social ("Chat & Freunde") ist davon nicht betroffen
   - dafuer im social-bereich ein nicht abschaltbarer nacktbild-scan (T3) fuer diese faelle
   - abschaltbar nur per router; die router-option wird NICHT dokumentiert, das verhalten (scan aktiv) aber schon

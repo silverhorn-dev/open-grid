@@ -478,6 +478,8 @@ async function handleSnapViewGrant(peerId, payload) {
     }
     const image = document.getElementById('secure-snap-image');
     delete image.dataset.ownImage;
+    // Pflicht-Scan 'minor-chats' (nudity.js): Snap von unter 18 immer pruefen.
+    if (message.nudityScan && typeof markForcedNudityScan === 'function') markForcedNudityScan(blob);
     await drawSecureImage(image, blob);
     if (state.secureSnapViewing !== viewing) {
         clearSecureCanvas(image);

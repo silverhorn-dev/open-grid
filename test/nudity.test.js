@@ -152,3 +152,35 @@ test('warning before sending: on by default, asks only on a hit, never blocks wh
     await operator.context.loadNuditySettings();
     assert.equal(operator.context.state.nudityWarnBeforeSend, false, 'operator default applies');
 });
+
+test('mandatory scan (router choice): forced filter, marked images from under-18s, own flag when sending', async () => {
+    const { context } = loadNudity();
+    context.registerNudityClassifier({ id: 'fake', classify: async bitmap => bitmap.score });
+    context.state.nudityFilter = false;
+    const mode = (required, ageGroup) => {
+        context.state.appConfig = { nudity: { required } };
+        context.state.ageGroup = ageGroup;
+    };
+
+    mode('off', 'minor');
+    assert.equal(context.nudityScanForced(), false);
+    assert.equal(await context.shouldBlurImage({ score: 0.9 }, 'a'), false, 'own choice: off');
+
+    mode('minors', 'adult');
+    assert.equal(context.nudityScanForced(), false, 'adults keep their choice');
+    mode('minors', 'minor');
+    assert.equal(context.nudityScanForced(), true);
+    assert.equal(await context.shouldBlurImage({ score: 0.9 }, 'b'), 'nude', 'under 18: always checked');
+    assert.equal(context.outgoingNudityScanFlag(), false, 'flag only in minor-chats');
+
+    mode('minor-chats', 'minor');
+    assert.equal(context.outgoingNudityScanFlag(), true, 'images from under-18s carry the flag');
+    mode('minor-chats', 'adult');
+    assert.equal(context.nudityScanForced(), false);
+    assert.equal(await context.shouldBlurImage({ score: 0.9 }, 'c'), false, 'normal images: own choice');
+    context.markForcedNudityScan('from-minor');
+    assert.equal(await context.shouldBlurImage({ score: 0.9 }, 'from-minor'), 'nude', 'images from under-18s: always checked');
+
+    mode('everyone', null);
+    assert.equal(context.nudityScanForced(), true);
+});

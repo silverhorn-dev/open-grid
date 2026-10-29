@@ -125,6 +125,8 @@ const state = {
     chatListScopeOverride: null,
     // Fehlende Nachweise ('age', 'email') laut Router und ob das Fenster dazu weggeklickt wurde (safety.js).
     verificationRequired: [],
+    // Altersgruppe laut Nachweis ('adult' | 'minor' | null), fuer den Pflicht-Scan (nudity.js).
+    ageGroup: null,
     // Nacktbild-Filter fuer eingehende Bilder (nudity.js), standardmaessig aus.
     nudityFilter: false,
     // Vor dem Senden eigener Bilder nachfragen, wenn das Modell ein Nacktbild sieht (nudity.js).

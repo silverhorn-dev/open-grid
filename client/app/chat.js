@@ -484,6 +484,8 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
             : (snapData && options.asImage) || options.video ? state.mediaDownload : undefined,
         // Liste dieses Chats (Grid & Event oder Chat & Freunde), der Empfaenger uebernimmt sie fuer neue Chats.
         scope: messageScopeFor(peerId),
+        // Pflicht-Scan 'minor-chats': Bilder von unter 18 prueft jeder Empfaenger (nudity.js).
+        nudityScan: (snapData || secureSnap || options.video) && typeof outgoingNudityScanFlag === 'function' && outgoingNudityScanFlag() ? true : undefined,
         timestamp: formatClockTime(Date.now()),
         createdAt: Date.now(),
         deliveredVia: 'Establishing secure channel...'
@@ -712,6 +714,7 @@ function renderChatHistory() {
             renderVideoMessage(bubble, message, isMine);
         } else if (message.snapData) {
             if (isSafeInlineImage(message.snapData)) {
+                if (message.nudityScan && message.senderId !== state.myProfile.id && typeof markForcedNudityScan === 'function') markForcedNudityScan(message.snapData);
                 const image = createSecureImage(message.snapData, 'w-48 sm:w-64 rounded-xl mb-1.5 border border-slate-900/50 cursor-zoom-in', message.imageSize, { own: isMine, reuseKey: `image:${message.id}` });
                 image.onclick = event => {
                     event.stopPropagation();

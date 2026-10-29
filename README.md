@@ -145,6 +145,7 @@ laufen durch dieselben Tests und bauen das echte Image zur Probe
 | `NUDITY_MODEL` | `nudenet` | Erkennungsmodell fuer den Nacktbild-Filter, vom Router ausgeliefert: `nudenet` (Standard, im Test das beste, erkennt Koerperteile einzeln), `nsfwjs` (MobileNetV2, ca. 2,6 MB), `nsfwjs-mid` (ca. 4 MB), `nsfwjs-inception` (ca. 21 MB), `bumble` (Bumble Private Detector, ca. 51 MB) oder `off`; NudeNet ca. 12 MB + 15 MB Laufzeit. Alle sind im Docker-Image enthalten (`models/README.md`); fehlt eins (z. B. ohne Docker), gilt `nsfwjs`. Auf der Testseite (Debug-Modus) lassen sich alle installierten vergleichen |
 | `NUDITY_THRESHOLD` | je Modell | Ab welchem Wert (0.2 bis 0.95) ein Bild unscharf erscheint; ohne Angabe der Standard des Modells (NudeNet 0.4, sonst 0.7). Hoeher = weniger Fehlalarme, mehr Durchrutscher |
 | `NUDITY_CLASSES` | je Modell | Welche Klassen des aktiven Modells zaehlen (Komma-Liste). NSFWJS: `Drawing`, `Hentai`, `Neutral`, `Porn`, `Sexy` (Standard `Porn,Hentai`, mit `Sexy` strenger); NudeNet: Koerperteile wie `MALE_GENITALIA_EXPOSED` (Standard: alle entbloessten Genitalien, Brust, Anus, Po); Bumble: nur `Lewd` |
+| `NUDITY_SCAN_REQUIRED` | `off` | Pflicht-Scan (auch live im Admin-Panel): `off` (jeder entscheidet selbst), `minors` (unter 18 kann den Nacktbild-Filter nicht abschalten), `minor-chats` (dazu prueft jeder Empfaenger Bilder von unter 18, markiert in der verschluesselten Nachricht), `everyone` (fuer alle) |
 | `NUDITY_MODEL_DIR` | `data/nudity-models` | Eigener Ordner fuer Modelle (neben der Datenbank, im Container also im Daten-Volume); ein Ordner `bumble/` bzw. `nudenet/` darin hat Vorrang vor den mitgelieferten |
 | `AUDIENCE_MINIMUM` | - | Mindestwerte fuer "Wer mich im Grid sieht", die der Router in jede Karte in "Entdecken"/"Event" mischt (JSON wie eine Regel, z. B. `{"ranges":{"age":{"min":18}}}`). Wer den Wert nicht angibt, sieht dann niemanden. |
 | `RATE_LIMIT_SCALE` | `1` | Faktor fuer alle Rate-Limits (1 bis 100), nur fuer Tests mit vielen Clients hinter einer IP (die E2E-Tests nutzen 20) |
@@ -220,6 +221,11 @@ Anbieter-Nachweisen einen HMAC des Pseudonyms, nie Ausweis- oder
 Gesichtsdaten. E-Mail-Codes gehen ueber den eigenen Mailserver
 (`EMAIL_TRANSPORT=smtp`, nodemailer ist eine optionale Abhaengigkeit).
 KJM-anerkannte Alters-Anbieter folgen, siehe `tasks/board.md` (T2).
+
+Getrennte Altersgruppen: Ist ein Altersnachweis verlangt, sehen sich in
+"Entdecken" und "Event" nur Menschen derselben Gruppe. Wer "ueber 18" nachweist,
+sieht nur 18+; wer mit der Wallet "unter 18" nachweist, sieht nur unter 18; ohne
+Nachweis gibt es kein Entdecken. "Chat & Freunde" ist davon nicht betroffen.
 
 EU-Altersnachweis ueber die Wallet (`AGE_CHECK=provider`, `AGE_PROVIDER=eudi`):
 

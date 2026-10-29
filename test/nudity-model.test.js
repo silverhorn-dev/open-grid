@@ -179,5 +179,5 @@ test('NUDITY_MODEL=off: no model routes, config says off', async t => {
     const { app, close } = await appWith({ nudityModel: 'off' });
     t.after(close);
     const config = (await app.inject({ method: 'GET', url: '/api/config' })).json();
-    assert.deepEqual(config.nudity, { model: 'off' });
+    assert.deepEqual(config.nudity, { model: 'off', required: 'off' });
 });

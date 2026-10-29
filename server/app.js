@@ -501,6 +501,11 @@ export async function buildApp(options = {}) {
         modelDirectories: [nudityModelDirectory, ...(options.nudityBuiltInModels === false ? [] : [join(projectDirectory, 'models')])]
     });
     let nudityPublicConfig = describeNudityModels(nudityConfig, nudityAssets);
+    // Pflicht-Scan (Admin-Wahl): 'off', 'minors' (unter 18 kann den Filter nicht abschalten), 'minor-chats'
+    // (dazu prueft jeder Empfaenger Bilder von unter 18) oder 'everyone'. Die App setzt es um.
+    const NUDITY_SCAN_MODES = ['off', 'minors', 'minor-chats', 'everyone'];
+    const parseScanRequired = value => (NUDITY_SCAN_MODES.includes(String(value ?? '').trim()) ? String(value).trim() : null);
+    let nudityScanRequired = parseScanRequired(options.nudityScanRequired ?? process.env.NUDITY_SCAN_REQUIRED) || 'off';
     let audienceMinimums = {
         public: parseAudienceMinimum(audienceMinimumRule, audienceSchemaFor('public')),
         event: parseAudienceMinimum(audienceMinimumRule, audienceSchemaFor('event'))
@@ -680,7 +685,8 @@ export async function buildApp(options = {}) {
         abuseLogDays: process.env.ABUSE_LOG_DAYS,
         safetyKey: process.env.SAFETY_KEY,
         smtpUrl: process.env.SMTP_URL,
-        smtpFrom: process.env.SMTP_FROM
+        smtpFrom: process.env.SMTP_FROM,
+        ageSeparation: process.env.AGE_SEPARATION
     });
     // EU-Altersnachweis ueber die Wallet (age-eudi.js) mit Vertrauensankern aus age-trust.js.
     const ageProviders = {};
@@ -776,6 +782,15 @@ export async function buildApp(options = {}) {
                 env: nudityConfig.classes.length ? nudityConfig.classes : (nudityPublicConfig.classes || []),
                 apply: value => refreshNudity({ ...nudityConfig, classes: (Array.isArray(value) ? value : String(value ?? '').split(',')).map(entry => String(entry).trim()).filter(Boolean) }),
                 options: () => nudityAssets?.models?.[nudityPublicConfig.model]?.classes || []
+            },
+            NUDITY_SCAN_REQUIRED: {
+                env: nudityScanRequired,
+                apply: value => {
+                    const mode = parseScanRequired(value ?? 'off');
+                    if (!mode) throw new Error(`NUDITY_SCAN_REQUIRED must be one of ${NUDITY_SCAN_MODES.join(', ')}`);
+                    nudityScanRequired = mode;
+                },
+                options: () => NUDITY_SCAN_MODES
             },
             AGE_CHECK: {
                 env: safety.publicConfig().ageCheck,
@@ -982,7 +997,7 @@ export async function buildApp(options = {}) {
     });
     app.post('/api/unregister', unregister);
 
-    app.get('/api/config', async () => ({ modes: appModes, defaultMode: defaultAppMode, profileSchemas, lanMode: isLanMode, clientDefaults, infoUrl: infoSiteUrl(infoHost), safety: safety.publicConfig(), nudity: nudityPublicConfig,
+    app.get('/api/config', async () => ({ modes: appModes, defaultMode: defaultAppMode, profileSchemas, lanMode: isLanMode, clientDefaults, infoUrl: infoSiteUrl(infoHost), safety: safety.publicConfig(), nudity: { ...nudityPublicConfig, required: nudityScanRequired },
         // Fuer die Anzeige in den Einstellungen ("vom Server vorgegeben").
         audienceMinimum: audienceMinimumRule ? (typeof audienceMinimumRule === 'string' ? JSON.parse(audienceMinimumRule) : audienceMinimumRule) : null }));
 
@@ -1009,12 +1024,18 @@ export async function buildApp(options = {}) {
         const origin = decodeGeohash(normalizedGeohash);
 
         // Mit Nachweis-Pflicht sieht das Grid nur, wer angemeldet und nachgewiesen ist.
+        let sameAgeGroup = () => true;
         if (safety.active) {
             const { peerId } = request.query;
             if (!isString(peerId, 200)) return reply.code(401).send({ error: 'Peer authentication required' });
             if (!requirePeerAuth(request, reply, peerId)) return;
             const missing = safety.missing(peerId);
             if (missing.length) return reply.code(403).send({ error: 'Verification required', verificationRequired: missing });
+            // Entdecken und Event getrennt nach Altersgruppe: unter 18 sieht nur unter 18, 18+ nur 18+.
+            if (safety.ageSeparationActive) {
+                const group = safety.ageGroupOf(peerId);
+                sameAgeGroup = peer => safety.ageGroupOf(peer.peerId) === group;
+            }
         }
 
         // Freunde in der Naehe: nur gegenseitige Kontakte des anfragenden Peers.
@@ -1032,7 +1053,7 @@ export async function buildApp(options = {}) {
             if (!appModes.includes('event')) return reply.code(403).send({ error: 'Mode not enabled' });
             const { eventHash } = request.query;
             if (!isEventHash(eventHash)) return reply.code(400).send({ error: 'Invalid eventHash' });
-            const peers = withDistance(origin, store.getEventPeers(eventHash));
+            const peers = withDistance(origin, store.getEventPeers(eventHash).filter(sameAgeGroup));
             return { geohash: normalizedGeohash, scope, count: peers.length, hasMore: false, peers: peers.map(toGridPeer(origin)), removedPeerIds: [] };
         }
 
@@ -1043,7 +1064,7 @@ export async function buildApp(options = {}) {
             return reply.code(400).send({ error: 'Invalid ring' });
         }
         const liveOnly = live === '1';
-        const visible = peer => !liveOnly || signaling.isPeerOnline(peer.peerId);
+        const visible = peer => (!liveOnly || signaling.isPeerOnline(peer.peerId)) && sameAgeGroup(peer);
 
         const grid = store.getGridArea(gridRingCells(normalizedGeohash, ring));
         // Entfernung nur zwischen Zellmittelpunkten; die Antwort enthaelt weder Koordinaten noch Geohash.

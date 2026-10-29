@@ -1052,3 +1052,19 @@ Akzeptanzkriterien:
   Bild hochzuladen); im Panel unter "Meldungen" sperrt der Betreiber mit einem
   Klick oder legt die Meldung ab.
 
+## UC-61: Getrenntes Entdecken nach Alter und Pflicht-Scan
+
+**Als Betreiber** moechte ich, dass sich Minderjaehrige und Erwachsene beim
+Entdecken nicht begegnen und Minderjaehrige vor Nacktbildern geschuetzt sind.
+
+Akzeptanzkriterien:
+
+- Mit Altersnachweis-Pflicht sehen sich in "Entdecken" und "Event" nur Menschen
+  derselben Altersgruppe; ohne Nachweis gibt es kein Entdecken.
+- Ein gueltiger Wallet-Nachweis "unter 18" fuehrt in die Gruppe unter 18 (statt
+  abgelehnt zu werden).
+- `NUDITY_SCAN_REQUIRED` legt fest, fuer wen der Nacktbild-Filter Pflicht ist
+  (aus, unter 18, Chats mit unter 18, alle); der Schalter ist dann gesperrt.
+- Bei "Chats mit unter 18" prueft der Empfaenger Bilder von unter 18 immer; der
+  Router erfaehrt dabei nicht, wer unter 18 ist.
+

@@ -590,6 +590,8 @@ function createPutOperation(peerId, message) {
             transcript: message.transcript,
             video: message.video,
             downloadable: message.downloadable,
+            // Pflicht-Scan 'minor-chats' (nudity.js): Bilder dieser Nachricht immer pruefen.
+            nudityScan: message.nudityScan === true ? true : undefined,
             scope: message.scope,
             timestamp: message.timestamp,
             createdAt: message.createdAt

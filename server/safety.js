@@ -23,7 +23,7 @@ export const AGE_PROVIDERS = {
     dev: {
         id: 'dev',
         start: () => ({ kind: 'dev' }),
-        finish: ({ peerId, payload }) => ({ over18: payload?.over18 === true, subject: `dev:${payload?.subject || peerId}` })
+        finish: ({ peerId, payload }) => ({ over18: payload?.over18 === true, minor: payload?.over18 === false, subject: `dev:${payload?.subject || peerId}` })
     }
 };
 
@@ -45,6 +45,7 @@ export function parseSafetyConfig(source = {}) {
         emailCheck: pick(source.emailCheck, EMAIL_CHECK_MODES, 'off'),
         emailTransport: String(source.emailTransport ?? '').trim().toLowerCase() || 'log',
         abuseLogDays: Number.isFinite(days) ? Math.min(MAX_ABUSE_LOG_DAYS, Math.max(0, days)) : 0,
+        ageSeparation: String(source.ageSeparation ?? '').trim().toLowerCase() !== 'off',
         safetyKey: source.safetyKey ? String(source.safetyKey).trim() : null,
         // Nur fuer EMAIL_TRANSPORT=smtp (email-smtp.js).
         smtp: parseSmtpConfig({ url: source.smtpUrl, from: source.smtpFrom })
@@ -149,10 +150,17 @@ export function createSafety({ config: startConfig, store, log, now = Date.now, 
                 required: required().includes(kind),
                 verified: Boolean(verification),
                 method: verification?.method || null,
-                expiresAt: verification?.expiresAt ?? null
+                expiresAt: verification?.expiresAt ?? null,
+                ...(kind === 'age' ? { group: verification ? verification.ageGroup || 'adult' : null } : {})
             };
         }
         return result;
+    }
+
+    // Altersgruppe laut Nachweis: 'adult', 'minor' oder null (kein Nachweis).
+    function ageGroupOf(peerId) {
+        const verification = safetyStore.getVerification(peerId, 'age', now());
+        return verification ? verification.ageGroup || 'adult' : null;
     }
 
     return {
@@ -192,6 +200,11 @@ export function createSafety({ config: startConfig, store, log, now = Date.now, 
         },
         missing,
         status,
+        ageGroupOf,
+        // Getrennte Gruppen in Entdecken/Event, sobald ein Altersnachweis verlangt ist.
+        get ageSeparationActive() {
+            return ageCheck !== 'off' && config.ageSeparation !== false;
+        },
         isPeerBanned(peerId) {
             return safetyStore.isBanned('peer', peerId);
         },
@@ -206,7 +219,7 @@ export function createSafety({ config: startConfig, store, log, now = Date.now, 
 
         confirmAge(peerId) {
             if (ageCheck !== 'confirm') return { error: 'Age confirmation not enabled', code: 400 };
-            safetyStore.saveVerification(peerId, 'age', { method: 'confirm' }, now());
+            safetyStore.saveVerification(peerId, 'age', { method: 'confirm', ageGroup: 'adult' }, now());
             return { ok: true };
         },
 
@@ -218,15 +231,17 @@ export function createSafety({ config: startConfig, store, log, now = Date.now, 
         async finishAgeCheck(peerId, payload, { origin } = {}) {
             if (!provider || ageCheck !== 'provider') return { error: 'Age provider not enabled', code: 400 };
             const result = await provider.finish({ peerId, payload, origin });
-            if (!result?.over18) return { error: 'Age not confirmed', code: 403, ...(result?.reason ? { reason: result.reason } : {}) };
+            // Ein gueltiger Nachweis "unter 18" ist auch ein Nachweis: Gruppe 'minor' (getrenntes Entdecken).
+            if (!result?.over18 && !result?.minor) return { error: 'Age not confirmed', code: 403, ...(result?.reason ? { reason: result.reason } : {}) };
             const subjectHash = result.subject ? safetyCrypto.hash('subject', result.subject) : null;
             if (subjectHash && safetyStore.isBanned('subject', subjectHash)) return { error: 'Banned', code: 403 };
             safetyStore.saveVerification(peerId, 'age', {
                 method: `provider:${provider.id}`,
                 expiresAt: now() + AGE_PROVIDER_VALIDITY_MS,
-                subjectHash
+                subjectHash,
+                ageGroup: result.over18 ? 'adult' : 'minor'
             }, now());
-            return { ok: true };
+            return { ok: true, group: result.over18 ? 'adult' : 'minor' };
         },
 
         async startEmailCheck(peerId, rawEmail) {

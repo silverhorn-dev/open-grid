@@ -211,12 +211,15 @@ export function createEudiAgeProvider({ trust, doctypes = ['av', 'pid', 'mdl'], 
                             ageOver18: document.getIssuerNameSpace(accepted.get(document.docType) || document.docType)?.get('age_over_18') ?? null
                         }));
                         const details = { origin: candidate, transcript, documents };
-                        const match = mdoc.documents.find(document => accepted.has(document.docType)
-                            && document.getIssuerNameSpace(accepted.get(document.docType))?.get('age_over_18') === true);
-                        if (!match) return { over18: false, reason: 'No accepted credential with age_over_18 = true', details };
+                        const ageOf = document => document.getIssuerNameSpace(accepted.get(document.docType))?.get('age_over_18');
+                        const usable = mdoc.documents.filter(document => accepted.has(document.docType) && typeof ageOf(document) === 'boolean');
+                        // Ein gueltiger Nachweis "unter 18" zaehlt auch: Gruppe 'minor' (getrenntes Entdecken).
+                        const match = usable.find(document => ageOf(document) === true) || usable[0];
+                        if (!match) return { over18: false, reason: 'No accepted credential with age_over_18', details };
                         const deviceKey = match.issuerSigned.issuerAuth.decodedPayload.deviceKeyInfo?.deviceKey;
                         const subject = deviceKey ? `eudi:${createHash('sha256').update(cborEncode(deviceKey)).digest('hex')}` : null;
-                        return { over18: true, subject, details };
+                        const over18 = ageOf(match) === true;
+                        return { over18, minor: !over18, subject, details };
                     } catch (error) {
                         errors.push(error.message);
                         log?.info?.(`EUDI age check rejected: ${error.message}`);
@@ -270,7 +273,7 @@ export function registerEudiTestRoutes(app, { allowRequest, requirePeerAuth, isS
         if (!peerId) return reply;
         const current = await ready();
         const result = await current.finish({ peerId: `test:${peerId}`, payload: request.body?.payload, origin: `${request.protocol}://${request.host}` });
-        return { over18: result.over18 === true, reason: result.reason || null, details: result.details || null };
+        return { over18: result.over18 === true, minor: result.minor === true, reason: result.reason || null, details: result.details || null };
     });
 }
 

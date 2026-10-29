@@ -30,12 +30,17 @@ async function main() {
         await input.dispatchEvent('change');
         await page.click('#complete-onboarding-btn');
         await waitFor(page, () => Boolean(state.ws && state.ws.readyState === 1 && state.myProfile.id));
+        await noPrefetch(page);
         await page.evaluate(setup);
         return page;
     }
+    // Kein Profil-Prefetch im Hintergrund (grid-filter.js): unter Last baute er sonst gelegentlich parallel
+    // eine Verbindung auf, und die Einladungs-Nachricht kam nicht rechtzeitig an.
+    const noPrefetch = page => page.evaluate(() => { window.prefetchGridProfiles = () => {}; });
     const open = async (page, link) => {
         await page.goto(`${BASE_URL}${new URL(link).pathname}${new URL(link).hash}`);
         await waitFor(page, () => Boolean(state.ws && state.ws.readyState === 1));
+        await noPrefetch(page);
     };
 
     try {

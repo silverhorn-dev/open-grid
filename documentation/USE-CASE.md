@@ -1020,3 +1020,20 @@ Akzeptanzkriterien:
   aendert nichts.
 - Der Router speichert nur "18+" und einen HMAC des Geraeteschluessels.
 
+## UC-60: Router im Admin-Panel ueberwachen
+
+**Als Betreiber** moechte ich auf einen Blick sehen, wie ausgelastet mein Router
+ist, und mich dafuer sicher ohne Passwort anmelden.
+
+Akzeptanzkriterien:
+
+- Ohne Passkey steht beim Start ein einmaliger Setup-Link im Log; damit entsteht
+  der erste Passkey, danach gilt der Link nicht mehr.
+- Anmelden nur per Passkey; fremde Seiten, fremde Passkeys und wiederverwendete
+  Challenges werden abgelehnt.
+- "Auslastung" zeigt je Wert ein Diagramm mit aktuellem Wert, die letzte Stunde
+  oder 24 Stunden, Warnungen mit Symbol und Text und eine Tabelle.
+- "Status" zeigt Version, Peers, Push-Abos, Zwischenspeicher, Nacktbild-Modell
+  und Nachweise; Nutzerinhalte zeigt das Panel nie.
+- Weitere Passkeys lassen sich anlegen, der letzte nicht entfernen.
+

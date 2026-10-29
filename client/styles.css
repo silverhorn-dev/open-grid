@@ -1356,3 +1356,53 @@ html {
 .nudity-test-row { padding: 0.5rem 0.625rem; border-radius: 0.625rem; border: 1px solid rgb(var(--slate-800)); background: rgb(var(--slate-950) / 0.5); }
 .nudity-test-row.is-blurred { border-color: rgb(var(--brand-500) / 0.6); }
 
+
+/* ================= Admin-Panel (admin.html, client/admin.js) ================= */
+/* Farben fuer die Auslastung: Linie = validierter Serienton fuer dunkle Flaechen; Status nur mit Symbol + Text. */
+.admin-page {
+    --viz-series: #3987e5;
+    --viz-grid: rgb(var(--slate-800));
+    --viz-axis: rgb(var(--slate-500));
+    --status-warning: #fab219;
+    --status-critical: #d03b3b;
+}
+.admin-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.75rem 1rem; border-bottom: 1px solid rgb(var(--slate-800)); position: sticky; top: 0; background: rgb(var(--slate-950) / 0.95); z-index: 10; }
+.admin-main { max-width: 72rem; margin: 0 auto; padding: 1rem; }
+.admin-tabs { display: flex; gap: 0.25rem; margin-bottom: 1rem; border-bottom: 1px solid rgb(var(--slate-800)); }
+.admin-tab { padding: 0.5rem 0.875rem; font-size: 0.875rem; font-weight: 600; color: rgb(var(--slate-400)); border-bottom: 2px solid transparent; }
+.admin-tab.is-active { color: rgb(var(--slate-100)); border-bottom-color: rgb(var(--brand-500)); }
+.admin-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.75rem; }
+.admin-range { display: inline-flex; border: 1px solid rgb(var(--slate-700)); border-radius: 0.625rem; overflow: hidden; }
+.admin-range-btn { padding: 0.375rem 0.75rem; font-size: 0.8125rem; color: rgb(var(--slate-300)); }
+.admin-range-btn.is-active { background: rgb(var(--slate-800)); color: rgb(var(--slate-100)); }
+.admin-alerts { display: flex; flex-direction: column; gap: 0.375rem; margin-bottom: 0.75rem; }
+.admin-alert { font-size: 0.8125rem; padding: 0.5rem 0.75rem; border-radius: 0.625rem; border: 1px solid; color: rgb(var(--slate-100)); }
+.admin-alert.is-warning { border-color: var(--status-warning); }
+.admin-alert.is-warning i { color: var(--status-warning); }
+.admin-alert.is-critical { border-color: var(--status-critical); }
+.admin-alert.is-critical i { color: var(--status-critical); }
+.admin-charts { display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: 0.75rem; }
+.admin-chart { padding: 0.75rem; border: 1px solid rgb(var(--slate-800)); border-radius: 0.875rem; background: rgb(var(--slate-900)); }
+.admin-chart-title { font-size: 0.75rem; color: rgb(var(--slate-400)); font-weight: 600; }
+.admin-chart-value { font-size: 1.375rem; font-weight: 700; color: rgb(var(--slate-100)); font-variant-numeric: tabular-nums; margin: 0.125rem 0 0.25rem; }
+.admin-chart-value.is-warning .admin-chart-status { color: var(--status-warning); font-size: 1rem; }
+.admin-chart-value.is-critical .admin-chart-status { color: var(--status-critical); font-size: 1rem; }
+.admin-chart-svg { display: block; max-width: 100%; overflow: visible; touch-action: pan-y; }
+.admin-grid { stroke: var(--viz-grid); stroke-width: 1; }
+.admin-axis { fill: var(--viz-axis); font-size: 11px; font-variant-numeric: tabular-nums; }
+.admin-line { fill: none; stroke: var(--viz-series); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.admin-dot { fill: var(--viz-series); stroke: rgb(var(--slate-900)); stroke-width: 2; }
+.admin-cross { stroke: rgb(var(--slate-400)); stroke-width: 1; stroke-dasharray: 2 2; }
+.admin-dot.hidden, .admin-cross.hidden { display: none; }
+.admin-hit { fill: transparent; cursor: crosshair; }
+.admin-tooltip { position: absolute; z-index: 30; pointer-events: none; padding: 0.375rem 0.5rem; font-size: 0.75rem; border-radius: 0.5rem; background: rgb(var(--slate-800)); border: 1px solid rgb(var(--slate-700)); color: rgb(var(--slate-100)); white-space: nowrap; }
+.admin-table-details { margin-top: 1rem; font-size: 0.8125rem; color: rgb(var(--slate-300)); }
+.admin-table-details summary { cursor: pointer; color: rgb(var(--slate-400)); }
+.admin-table { width: 100%; margin-top: 0.5rem; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.admin-table th, .admin-table td { text-align: left; padding: 0.375rem 0.5rem; border-bottom: 1px solid rgb(var(--slate-800)); }
+.admin-table td { text-align: right; }
+.admin-status { display: grid; grid-template-columns: minmax(8rem, max-content) 1fr; gap: 0.5rem 1rem; font-size: 0.875rem; }
+.admin-status dt { color: rgb(var(--slate-400)); }
+.admin-status dd { color: rgb(var(--slate-100)); word-break: break-word; }
+.admin-list { display: flex; flex-direction: column; }
+.admin-list-item { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.625rem 1rem; border-top: 1px solid rgb(var(--slate-800)); font-size: 0.875rem; }

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="de" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="robots" content="noindex, nofollow">
+    <title>OpenGrid Admin</title>
+    <meta name="theme-color" content="#0f172a">
+    <link rel="stylesheet" href="/client/tailwind.css?v={{assetVersion}}">
+    <link rel="stylesheet" href="/vendor/fontawesome/css/all.min.css">
+    <link rel="icon" href="/client/icon.svg?v={{assetVersion}}" type="image/svg+xml">
+    <link rel="stylesheet" href="/client/styles.css?v={{assetVersion}}">
+    <script src="/client/i18n.js?v={{assetVersion}}"></script>
+</head>
+<!-- Admin-Panel (server/admin.js, client/admin.js, Board T25). Login nur per Passkey. -->
+<body class="admin-page bg-slate-950 text-slate-100 min-h-screen">
+    <header class="admin-header">
+        <div class="flex items-center gap-2 min-w-0">
+            <i class="fa-solid fa-shield-halved text-brand-400" aria-hidden="true"></i>
+            <h1 class="font-bold truncate"><span data-i18n="admin.title">OpenGrid Admin</span> <span class="text-xs text-slate-500 font-normal">{{versionTag}}</span></h1>
+        </div>
+        <button id="admin-logout" data-admin-action="logout" class="btn-secondary hidden" data-i18n="admin.logout">Abmelden</button>
+    </header>
+
+    <!-- Anmelden bzw. ersten Passkey anlegen -->
+    <main id="admin-login" class="admin-main hidden">
+        <section class="settings-card max-w-md mx-auto">
+            <h2 id="admin-login-title" data-i18n="admin.loginTitle" class="settings-card-title">Anmelden</h2>
+            <div class="setting-block">
+                <p id="admin-login-text" data-i18n="admin.loginText" class="setting-desc">Melde dich mit deinem Admin-Passkey an (Gesichtserkennung, Fingerabdruck oder Sicherheitsschlüssel).</p>
+                <input id="admin-passkey-name" type="text" maxlength="60" class="input-field w-full mt-3 hidden" data-i18n-attr="placeholder:admin.passkeyNamePlaceholder" placeholder="Name des Geräts, z. B. Handy">
+                <button id="admin-login-btn" data-admin-action="login" class="btn-primary w-full mt-3" data-i18n="admin.loginButton">Mit Passkey anmelden</button>
+                <p id="admin-login-error" class="setting-desc text-red-300 mt-2 hidden" role="alert"></p>
+            </div>
+        </section>
+    </main>
+
+    <!-- Panel -->
+    <main id="admin-panel" class="admin-main hidden">
+        <nav class="admin-tabs" role="tablist">
+            <button data-admin-tab="load" role="tab" class="admin-tab" data-i18n="admin.tabLoad">Auslastung</button>
+            <button data-admin-tab="status" role="tab" class="admin-tab" data-i18n="admin.tabStatus">Status</button>
+            <button data-admin-tab="passkeys" role="tab" class="admin-tab" data-i18n="admin.tabPasskeys">Passkeys</button>
+        </nav>
+
+        <section data-admin-view="load" class="admin-view">
+            <div class="admin-toolbar">
+                <div class="admin-range" role="group" data-i18n-attr="aria-label:admin.range" aria-label="Zeitraum">
+                    <button data-admin-range="1h" class="admin-range-btn is-active">1 h</button>
+                    <button data-admin-range="24h" class="admin-range-btn">24 h</button>
+                </div>
+                <p id="admin-load-updated" class="text-xs text-slate-500"></p>
+            </div>
+            <div id="admin-alerts" class="admin-alerts" aria-live="polite"></div>
+            <div id="admin-charts" class="admin-charts"></div>
+            <details class="admin-table-details">
+                <summary data-i18n="admin.asTable">Als Tabelle</summary>
+                <table class="admin-table">
+                    <thead><tr><th data-i18n="admin.metric">Wert</th><th data-i18n="admin.now">Jetzt</th><th data-i18n="admin.average">Mittel</th><th data-i18n="admin.peak">Spitze</th></tr></thead>
+                    <tbody id="admin-load-table"></tbody>
+                </table>
+            </details>
+        </section>
+
+        <section data-admin-view="status" class="admin-view hidden">
+            <dl id="admin-status" class="admin-status"></dl>
+        </section>
+
+        <section data-admin-view="passkeys" class="admin-view hidden">
+            <section class="settings-card">
+                <h2 data-i18n="admin.passkeysTitle" class="settings-card-title">Admin-Passkeys</h2>
+                <ul id="admin-passkey-list" class="admin-list"></ul>
+                <div class="setting-block flex gap-2">
+                    <input id="admin-new-passkey-name" type="text" maxlength="60" class="input-field flex-1" data-i18n-attr="placeholder:admin.passkeyNamePlaceholder" placeholder="Name des Geräts, z. B. Handy">
+                    <button data-admin-action="add-passkey" class="btn-secondary" data-i18n="admin.addPasskey">Passkey hinzufügen</button>
+                </div>
+            </section>
+        </section>
+    </main>
+
+    <div id="admin-tooltip" class="admin-tooltip hidden" role="status"></div>
+    <script src="/client/admin.js?v={{assetVersion}}"></script>
+</body>
+</html>

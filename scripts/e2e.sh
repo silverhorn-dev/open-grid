@@ -10,7 +10,7 @@ PLAYWRIGHT_IMAGE="mcr.microsoft.com/playwright:v1.48.2-jammy"
 trap 'docker rm -f "$NAME" "$NAME-browser" >/dev/null 2>&1 || true' EXIT
 
 docker create --name "$NAME" node:22-alpine sh -c \
-    'cd /work && rm -rf node_modules && npm install --silent && npm run build:css && DATABASE_PATH=/tmp/e2e.sqlite RATE_LIMIT_SCALE=20 node server/index.js' >/dev/null
+    'cd /work && rm -rf node_modules && npm install --silent && npm run build:css && DATABASE_PATH=/tmp/e2e.sqlite RATE_LIMIT_SCALE=20 ADMIN_SETUP_TOKEN=e2e-admin-setup node server/index.js' >/dev/null
 docker cp -q . "$NAME:/work"
 docker start "$NAME" >/dev/null
 

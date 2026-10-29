@@ -1345,6 +1345,41 @@ Testseite (Debug-Modus, Medien > Schutz, "Erkennung testen"): Modell waehlen
 (vorgewaehlt das aktive), eigene Bilder waehlen, je Bild Wert, Rechenzeit, Werte aller Klassen und ob der Filter es
 unscharf zeigen wuerde. Alles lokal.
 
+### 6.5 Admin-Panel (T25, `server/admin.js`, `server/metrics.js`, `client/admin.js`)
+
+Seite `GET /admin` (`admin.html`, CSP wie die App, `noindex`); der Service Worker
+laesst `/admin` und `/client/admin.js` durch. Login per Passkey
+(`@simplewebauthn/server`, Nutzerpruefung Pflicht, Attestation `none`,
+residente Schluessel). RP-ID/Origin aus `APP_URL`, sonst Protokoll + Host der
+Anfrage. Tabelle `admin_passkeys` (`id`, `public_key`, `counter`,
+`transports`, `name`, `created_at`, `last_used_at`).
+
+| Methode | Route | Funktion |
+|---|---|---|
+| GET | `/api/admin/session` | `{ loggedIn, setupPending }` |
+| POST | `/api/admin/passkeys/options` | Registrierungsoptionen; ohne Sitzung nur mit `setupToken` |
+| POST | `/api/admin/passkeys` | Passkey speichern (`challenge`, `response`, `name`); per Setup-Token startet die Sitzung |
+| POST | `/api/admin/login/options`, `/api/admin/login` | Anmelden (Challenge einmalig, 5 min) |
+| POST | `/api/admin/logout` | Sitzung beenden |
+| GET/DELETE | `/api/admin/passkeys`, `/api/admin/passkeys/:id` | Liste, entfernen (nicht den letzten) |
+| GET | `/api/admin/status` | Version, System, Peers, Push, Queue, Nacktbild-Modell, Nachweise, Alters-Anker |
+| GET | `/api/admin/metrics?range=1h\|24h` | Messreihe |
+
+Setup-Token: zufaellig (oder `ADMIN_SETUP_TOKEN`), 24 h, nur solange kein
+Passkey existiert, steht beim Start im Log. Sitzung: Cookie `og_admin`
+(HttpOnly, SameSite=Strict, Pfad `/api/admin`, 12 h, `Secure` bei https), nur
+im Speicher; aendernde Anfragen mit Sitzung brauchen `x-opengrid-admin: 1`.
+Rate-Limit `admin` 120/min.
+
+Auslastung (`server/metrics.js`): alle 10 s `cpu` (Prozess, Anteil aller Kerne),
+`memory` (RSS), `systemMemory` (%), `load`, `eventLoopMs` (p99), `sockets`,
+`peersOnline`, `requestsPerSecond`, `errorsPerSecond` (5xx), `responseMs`,
+`queueMessages`, `queueBytes`, `diskFreeBytes` (Datenordner), `databaseBytes`
+(SQLite + WAL). 1 h als 10-s-Werte, 24 h als Minutenwerte (Mittel; Spitzen bei
+Event Loop, Antwortzeit, Fehlern). Nur im Speicher. Panel: ein Liniendiagramm je
+Wert (keine zweite Achse), aktueller Wert gross, Fadenkreuz + Tooltip,
+Warnungen mit Symbol + Text, Tabellenansicht.
+
 ## 7. Message Queue Cache API
 
 Die Queue dient ausschliesslich als Store-and-Forward-Speicher fuer bereits

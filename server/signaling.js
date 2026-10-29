@@ -205,6 +205,9 @@ export function registerSignalingRoute(app, store, { messageLimiter = null, hear
 
     return {
         isPeerOnline: isOnline,
+        // Fuer die Auslastung im Admin-Panel (server/metrics.js).
+        socketCount: () => allSockets.size,
+        onlineCount: () => activeSockets.size,
         // Nach dem Loeschen eines Profils: offene Verbindung schliessen (Abmeldung wie beim Trennen).
         disconnectPeer(peerId) {
             activeSockets.get(peerId)?.close();

@@ -9,6 +9,8 @@ import { registerSignalingRoute } from './signaling.js';
 import { loadTranslations, translationScript } from './i18n.js';
 import { infoSiteUrl, registerInfoSite } from './info-site.js';
 import { createSafety, parseSafetyConfig, registerSafetyRoutes } from './safety.js';
+import { registerAdminRoutes } from './admin.js';
+import { createMetrics } from './metrics.js';
 import { createEudiAgeProvider, parseEudiDoctypes, registerEudiTestRoutes } from './age-eudi.js';
 import { createAgeTrustStore, EU_AGE_TEST_TRUSTED_LIST_SIGNERS, EU_AGE_TEST_TRUSTED_LIST_URL, EU_AGE_TRUSTED_LIST_SIGNERS, EU_AGE_TRUSTED_LIST_URL, parseAgeTrustConfig } from './age-trust.js';
 import {
@@ -371,8 +373,10 @@ export async function buildApp(options = {}) {
     const buildTimestamp = options.buildTimestamp || process.env.BUILD_TIMESTAMP || new Date().toISOString();
     const assetVersion = encodeURIComponent(`${buildVersion}-${buildTimestamp}`);
     const profileSchema = options.profileSchema || parseProfileSchema(process.env.PROFILE_SCHEMA);
-    const [indexTemplate, serviceWorkerTemplate, ...clientAssetSources] = await Promise.all([
+    const [indexTemplate, adminTemplate, adminScript, serviceWorkerTemplate, ...clientAssetSources] = await Promise.all([
         readFile(join(projectDirectory, 'index.html'), 'utf8'),
+        readFile(join(projectDirectory, 'admin.html'), 'utf8'),
+        readFile(join(projectDirectory, 'client', 'admin.js'), 'utf8'),
         readFile(join(projectDirectory, 'client', 'sw.js'), 'utf8'),
         ...clientAssetFiles.map(file => readFile(join(projectDirectory, 'client', file), 'utf8'))
     ]);
@@ -414,6 +418,8 @@ export async function buildApp(options = {}) {
     });
     const clientAssets = new Map([
         ...clientAssetFiles.map((file, index) => [`/client/${file}`, clientAssetSources[index]]),
+        // Admin-Panel: nicht in der App-Shell und nicht im Precache des Service Workers.
+        ['/client/admin.js', adminScript],
         ...translationAssets
     ]);
 
@@ -427,6 +433,18 @@ export async function buildApp(options = {}) {
 
     app.addHook('onClose', async () => {
         if (ownsStore) store.close();
+    });
+
+    // Auslastung fuer das Admin-Panel (server/metrics.js): alle 10 s eine Messung, nur im Speicher.
+    const metrics = createMetrics({
+        store, signaling, databasePath,
+        dataDirectory: databasePath === ':memory:' ? projectDirectory : dirname(databasePath),
+        ...(options.metricsIntervalMs ? { intervalMs: options.metricsIntervalMs } : {})
+    });
+    if (options.metrics !== false) metrics.start();
+    app.addHook('onClose', async () => metrics.stop());
+    app.addHook('onResponse', async (request, reply) => {
+        metrics.recordResponse(reply.statusCode, reply.elapsedTime);
     });
 
     // Die App laeuft komplett same-origin: keine CORS-Header, dafuer Sicherheits-Header.
@@ -509,6 +527,10 @@ export async function buildApp(options = {}) {
             .replace('{{profileSchema}}', JSON.stringify(profileSchemas));
         return reply.type('text/html; charset=utf-8').header('Cache-Control', 'no-cache').send(html);
     };
+    // Admin-Panel (eigene Seite, gleiche CSP wie die App).
+    const adminHtml = adminTemplate.replaceAll('{{assetVersion}}', assetVersion).replaceAll('{{versionTag}}', buildVersion);
+    app.get('/admin', async (_request, reply) => reply.type('text/html; charset=utf-8').header('Cache-Control', 'no-cache').send(adminHtml));
+
     // Client-Routen (client/app/router.js) liefern dieselbe App-Shell.
     for (const path of ['/', '/index.html', '/grid', '/chat', '/chat/:peerId', '/profile', '/settings', '/cloud', '/invite']) {
         app.get(path, serveAppShell);
@@ -688,6 +710,27 @@ export async function buildApp(options = {}) {
         app.decorate('ageTrust', ageTrust);
     }
     const safety = createSafety({ config: safetyConfig, store, log: app.log, now, ageProviders });
+    // Admin-Panel (server/admin.js): Passkey-Login, Status, Auslastung.
+    registerAdminRoutes(app, {
+        store, metrics, allowRequest, log: app.log, now,
+        appUrl: options.appUrl ?? process.env.APP_URL ?? '',
+        // Fester Setup-Token (z. B. automatisiertes Aufsetzen, E2E); gilt nur, solange kein Passkey existiert.
+        setupToken: options.adminSetupToken ?? (process.env.ADMIN_SETUP_TOKEN || null),
+        status: () => ({
+            version: buildVersion,
+            built: buildTimestamp,
+            system: metrics.system(),
+            peers: { registered: store.admin.peerCount(), online: signaling.onlineCount(), sockets: signaling.socketCount() },
+            pushSubscriptions: store.admin.pushCount(),
+            queue: store.admin.queueTotals(now()),
+            nudity: nudityPublicConfig.model === 'off'
+                ? { model: 'off' }
+                : { model: nudityPublicConfig.model, threshold: nudityPublicConfig.threshold, classes: nudityPublicConfig.classes, available: Object.keys(nudityPublicConfig.models || {}) },
+            safety: { ...safety.publicConfig(), abuseLogDays: safetyConfig.abuseLogDays },
+            ageTrust: app.ageTrust?.status() ?? null,
+            latest: metrics.latest()
+        })
+    });
     // Testseite fuer den Wallet-Nachweis (Debug-Modus): prueft echt, speichert nichts (age-eudi.js).
     if (String(options.ageEudiTest ?? process.env.AGE_EUDI_TEST ?? 'true').toLowerCase() !== 'false') {
         let testOrigins = [];

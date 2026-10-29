@@ -160,6 +160,7 @@ laufen durch dieselben Tests und bauen das echte Image zur Probe
 | `AGE_TRUST_CERTS` | - | Fuer `eudi`: Ordner mit PEM-Dateien zusaetzlich anerkannter Aussteller (Aussteller- oder CA-Zertifikate) |
 | `AGE_TRUSTED_LIST_URL` | EU-Liste | Fuer `eudi`: automatischer Import der "Age Verification Trusted List" der Kommission (taeglich, nur mit gueltiger Signatur); `off` = kein Import |
 | `AGE_TRUSTED_LIST_SIGNER` | Zertifikat der Kommission | SHA-256-Fingerabdruecke (Komma-Liste) erlaubter Unterzeichner der Liste; bei einem Zertifikatswechsel der Kommission hier den neuen eintragen |
+| `ADMIN_SETUP_TOKEN` | zufaellig | Setup-Token fuer den ersten Admin-Passkey (sonst steht ein zufaelliger im Log); wirkt nur, solange kein Passkey existiert |
 | `AGE_EUDI_TEST` | `true` | Testseite fuer den Wallet-Nachweis im Debug-Modus (`/api/safety/age-test/...`, prueft gegen EU-Test- und echte Liste, speichert nichts); `false` = aus |
 | `AGE_EUDI_DOCTYPES` | `av,pid,mdl` | Welche Nachweise gelten: `av` (EU-Altersnachweis), `pid` (EU-Personalausweis in der Wallet), `mdl` (ISO-Fuehrerschein, z. B. in Apple/Google Wallet); gelesen wird nur `age_over_18` |
 | `EMAIL_CHECK` | `off` | `required`: Nutzer bestaetigen eine E-Mail-Adresse per 6-stelligem Code. Gespeichert wird sie verschluesselt (`SAFETY_KEY`) plus ein HMAC fuer Sperren |
@@ -282,6 +283,29 @@ eigene Fassungen: `sh scripts/nudity-models/fetch.sh --dir models nudenet` bzw.
 freier Platz, einige Minuten). NudeNet braucht `onnxruntime-web` (optionale Abhaengigkeit);
 nur das Worker-Skript des Filters darf dafuer WebAssembly kompilieren
 (`'wasm-unsafe-eval'`), die Seite selbst nicht.
+
+## Admin-Panel
+
+Unter `/admin` (eigene Seite, gleiche Sicherheitsregeln wie die App, nicht
+indexiert). Anmeldung nur per Passkey (Gesichtserkennung, Fingerabdruck oder
+Sicherheitsschluessel), kein Passwort.
+
+- Erster Passkey: Solange keiner existiert, schreibt der Router beim Start
+  einen einmaligen Setup-Link ins Log (24 Stunden gueltig), z. B.
+  `docker compose logs open-grid | grep "Admin panel"`. Link oeffnen, Passkey
+  anlegen, fertig. Fuer automatisiertes Aufsetzen kann `ADMIN_SETUP_TOKEN` den
+  Token festlegen (wirkt nur, solange kein Passkey existiert).
+- `APP_URL` setzen: Passkeys sind an die Domain gebunden.
+- Weitere Passkeys (z. B. Handy und Laptop) im Panel unter "Passkeys"; der
+  letzte laesst sich nicht entfernen.
+- Auslastung: alle 10 Sekunden CPU, Arbeitsspeicher, Event-Loop-Verzoegerung,
+  Peers online, WebSocket-Verbindungen, Anfragen, Serverfehler, Antwortzeit,
+  Zwischenspeicher, freier Platz und Datenbankgroesse; letzte Stunde bzw. 24
+  Stunden, mit Warnungen (z. B. wenig Platz). Nur im Speicher, nach einem
+  Neustart leer.
+- Status: Version, Laufzeit, Peers, Push-Abos, Nacktbild-Modell, Nachweise,
+  Alters-Aussteller.
+- Sperren, Live-Konfiguration und Meldungen folgen (`tasks/board.md`, T25).
 
 ## Club-/LAN-Betrieb
 

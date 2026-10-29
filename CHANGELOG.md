@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 223 · 2026-10-29
+## Build 224 · 2026-10-29
+- Neu fuer Betreiber: Admin-Panel unter /admin, Anmeldung per Passkey. Zeigt die Auslastung des Servers (CPU, Speicher, Verbindungen, Anfragen, Fehler, Platz) der letzten Stunde bzw. 24 Stunden mit Warnungen, dazu den Status. Den ersten Passkey legt ein einmaliger Link aus dem Server-Log an
+
+## Build 223 · 2026-10-29 · `1a3f806`
 - Debug-Modus: "Altersnachweis testen (Wallet)" unter Privatsphaere. Prueft einen Wallet-Nachweis wie echt (auch mit der Demo-App der EU), speichert aber nichts und schaltet nichts frei
 
 ## Build 221 · 2026-10-29 · `9e71222`

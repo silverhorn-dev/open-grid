@@ -498,3 +498,16 @@
   - done 2026-10-29: toast nur fuer den offenen chat, hoechstens alle 5 min je peer, sonst nur debug-log; test `test/p2p-transport.test.js`
 - [x] entdecken-chat: album- und video-knopf getrennt, sollen einer sein (nutzer 2026-10-29)
   - done 2026-10-29: medien-knopf (wie im flirt-modus) in allen chats ausser dem reinen freundes-chat (`media-combined`, `updateChatAlbumButton`); e2e `friends`
+
+## T25 Admin-Panel (nutzer 2026-10-29: "do the admin panel"; aus dem backlog)
+- [ ] entschieden (nutzer 2026-10-29): login per **admin-passkey**; umfang: status, live-config, sperren, meldungen, "most of all, auslastung"
+- [x] phase 1 done 2026-10-29: `server/admin.js` (passkey per `@simplewebauthn/server`, setup-link im log, `ADMIN_SETUP_TOKEN`), `server/admin-store.js`, `server/metrics.js`, `admin.html` + `client/admin.js` (auslastung: 12 diagramme, 1 h/24 h, warnungen, tabelle; status; passkeys); tests `test/admin.test.js` (software-authenticator), e2e `admin` (virtueller authenticator von Chrome); UC-60
+- plan:
+  - phase 1: passkey-login + panel + status + auslastung
+    - `/admin` eigene seite (CSP wie die app), `server/admin.js`
+    - erster start ohne admin-passkey: einmaliger setup-link im server-log (24 h), damit passkey anlegen; weitere passkeys im panel; sitzung per HttpOnly-cookie (SameSite=Strict, 12 h)
+    - auslastung: alle 10 s messen (CPU, speicher, event-loop-verzoegerung, WS-verbindungen, peers online, anfragen/s + fehler, queue, push, platz auf der platte, datenbankgroesse), 1 h in 10-s-schritten + 24 h in minuten, nur im speicher
+    - status: version, laufzeit, peers, push-abos, nacktbild-modell, alters-anker (EU-listen)
+  - phase 2: sperren (liste, setzen, aufheben) + live-config (tabelle `admin_settings`, gewinnt ueber env; nur was ohne neustart geht: CLIENT_DEFAULTS, AUDIENCE_MINIMUM, nacktbild, nachweise, IP-protokoll; rest nur anzeigen)
+  - phase 3: meldungen: in der app "Weitergabe melden" (bild mit spur-wasserzeichen -> peer-id des weitergebers, nie das bild selbst), panel zeigt meldung + sperren mit einem klick
+

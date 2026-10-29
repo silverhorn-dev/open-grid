@@ -468,7 +468,8 @@ self.addEventListener('fetch', event => {
     if (request.method !== 'GET') return;
     const url = new URL(request.url);
     // Nur eigene Seiten und Dateien; API, WebSocket und Fremd-URLs laufen ungecacht durch.
-    if (url.origin !== self.location.origin || url.pathname.startsWith('/api/') || url.pathname === '/ws') return;
+    // Admin-Panel (admin.html) nie aus dem Cache: immer frisch vom Router.
+    if (url.origin !== self.location.origin || url.pathname.startsWith('/api/') || url.pathname === '/ws' || url.pathname === '/admin' || url.pathname === '/client/admin.js') return;
     if (request.mode === 'navigate') {
         event.respondWith(handleNavigation(request));
     } else if (url.pathname.startsWith('/client/') || url.pathname.startsWith('/vendor/')) {

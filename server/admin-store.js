@@ -1,0 +1,42 @@
+// Speicher fuer das Admin-Panel (server/admin.js, Board T25): Passkeys der Betreiber und Kennzahlen,
+// die das Panel aus der Datenbank liest. Keine Nutzerinhalte.
+export function createAdminStore(database) {
+    database.exec(`
+        CREATE TABLE IF NOT EXISTS admin_passkeys (
+            id TEXT PRIMARY KEY,
+            public_key BLOB NOT NULL,
+            counter INTEGER NOT NULL DEFAULT 0,
+            transports TEXT,
+            name TEXT,
+            created_at INTEGER NOT NULL,
+            last_used_at INTEGER
+        );
+    `);
+    const statements = {
+        list: database.prepare('SELECT id, name, created_at AS createdAt, last_used_at AS lastUsedAt FROM admin_passkeys ORDER BY created_at'),
+        find: database.prepare('SELECT id, public_key AS publicKey, counter, transports FROM admin_passkeys WHERE id = ?'),
+        count: database.prepare('SELECT COUNT(*) AS count FROM admin_passkeys'),
+        insert: database.prepare('INSERT INTO admin_passkeys (id, public_key, counter, transports, name, created_at) VALUES (?, ?, ?, ?, ?, ?)'),
+        touch: database.prepare('UPDATE admin_passkeys SET counter = ?, last_used_at = ? WHERE id = ?'),
+        remove: database.prepare('DELETE FROM admin_passkeys WHERE id = ?'),
+        queueTotals: database.prepare('SELECT COUNT(*) AS count, COALESCE(SUM(LENGTH(ciphertext_payload)), 0) AS bytes FROM queued_messages WHERE expires_at > ?'),
+        peerTotals: database.prepare('SELECT COUNT(*) AS count FROM peers'),
+        pushTotals: database.prepare('SELECT COUNT(*) AS count FROM push_subscriptions')
+    };
+    return {
+        countPasskeys: () => statements.count.get().count,
+        listPasskeys: () => statements.list.all(),
+        findPasskey(id) {
+            const row = statements.find.get(id);
+            return row ? { ...row, publicKey: new Uint8Array(row.publicKey), transports: row.transports ? JSON.parse(row.transports) : [] } : null;
+        },
+        addPasskey({ id, publicKey, counter, transports, name }, now = Date.now()) {
+            statements.insert.run(id, Buffer.from(publicKey), counter || 0, JSON.stringify(transports || []), name || null, now);
+        },
+        touchPasskey: (id, counter, now = Date.now()) => statements.touch.run(counter, now, id),
+        removePasskey: id => statements.remove.run(id).changes > 0,
+        queueTotals: (now = Date.now()) => statements.queueTotals.get(now),
+        peerCount: () => statements.peerTotals.get().count,
+        pushCount: () => statements.pushTotals.get().count
+    };
+}

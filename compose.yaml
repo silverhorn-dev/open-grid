@@ -17,6 +17,8 @@ services:
       # Info-Seite auf eigener Subdomain (leer = unter /info) und Ziel von "Zur App" dort.
       INFO_HOST: ${INFO_HOST:-}
       APP_URL: ${APP_URL:-}
+      # Admin-Panel (/admin): ohne Passkey steht ein Setup-Link im Log; optional fester Setup-Token.
+      ADMIN_SETUP_TOKEN: ${ADMIN_SETUP_TOKEN:-}
       # Web Push
       VAPID_SUBJECT: ${VAPID_SUBJECT:-}
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}

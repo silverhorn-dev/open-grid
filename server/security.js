@@ -26,6 +26,7 @@ export function createRateLimiter({ windowMs, max }) {
 
 export const DEFAULT_RATE_LIMITS = {
     register: { windowMs: 60_000, max: 30 },
+    admin: { windowMs: 60_000, max: 120 },
     grid: { windowMs: 60_000, max: 90 },
     cache: { windowMs: 60_000, max: 120 },
     chatControls: { windowMs: 60_000, max: 30 },

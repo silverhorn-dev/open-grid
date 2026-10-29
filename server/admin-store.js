@@ -26,6 +26,20 @@ export function createAdminStore(database) {
         );
         CREATE INDEX IF NOT EXISTS reports_status ON reports (status, created_at);
 
+        -- Admin-Sitzungen (nur der SHA-256 der Sitzungs-ID, damit eine Datenbank-Kopie kein Login ist).
+        CREATE TABLE IF NOT EXISTS admin_sessions (
+            id_hash TEXT PRIMARY KEY,
+            expires_at INTEGER NOT NULL
+        );
+
+        -- Auslastung (server/metrics.js): 'live' = 10-s-Werte der letzten Stunde, 'day' = Minutenwerte 24 h.
+        CREATE TABLE IF NOT EXISTS admin_metrics (
+            series TEXT NOT NULL,
+            at INTEGER NOT NULL,
+            data TEXT NOT NULL,
+            PRIMARY KEY (series, at)
+        );
+
         -- Live-Konfiguration aus dem Panel (server/live-config.js); gewinnt ueber die Umgebungsvariablen.
         CREATE TABLE IF NOT EXISTS admin_settings (
             key TEXT PRIMARY KEY,
@@ -40,6 +54,13 @@ export function createAdminStore(database) {
         insert: database.prepare('INSERT INTO admin_passkeys (id, public_key, counter, transports, name, created_at) VALUES (?, ?, ?, ?, ?, ?)'),
         touch: database.prepare('UPDATE admin_passkeys SET counter = ?, last_used_at = ? WHERE id = ?'),
         remove: database.prepare('DELETE FROM admin_passkeys WHERE id = ?'),
+        insertSession: database.prepare('INSERT OR REPLACE INTO admin_sessions (id_hash, expires_at) VALUES (?, ?)'),
+        findSession: database.prepare('SELECT expires_at AS expiresAt FROM admin_sessions WHERE id_hash = ? AND expires_at > ?'),
+        deleteSession: database.prepare('DELETE FROM admin_sessions WHERE id_hash = ?'),
+        pruneSessions: database.prepare('DELETE FROM admin_sessions WHERE expires_at <= ?'),
+        insertMetric: database.prepare('INSERT OR REPLACE INTO admin_metrics (series, at, data) VALUES (?, ?, ?)'),
+        loadMetrics: database.prepare('SELECT data FROM admin_metrics WHERE series = ? AND at > ? ORDER BY at'),
+        pruneMetrics: database.prepare('DELETE FROM admin_metrics WHERE series = ? AND at <= ?'),
         listSettings: database.prepare('SELECT key, value, updated_at AS updatedAt FROM admin_settings'),
         upsertSetting: database.prepare('INSERT INTO admin_settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at'),
         deleteSetting: database.prepare('DELETE FROM admin_settings WHERE key = ?'),
@@ -72,6 +93,13 @@ export function createAdminStore(database) {
         },
         touchPasskey: (id, counter, now = Date.now()) => statements.touch.run(counter, now, id),
         removePasskey: id => statements.remove.run(id).changes > 0,
+        saveSession: (idHash, expiresAt) => statements.insertSession.run(idHash, expiresAt),
+        findSession: (idHash, now = Date.now()) => statements.findSession.get(idHash, now) || null,
+        deleteSession: idHash => statements.deleteSession.run(idHash),
+        pruneSessions: (now = Date.now()) => statements.pruneSessions.run(now),
+        saveMetric: (series, point) => statements.insertMetric.run(series, point.at, JSON.stringify(point)),
+        loadMetrics: (series, since) => statements.loadMetrics.all(series, since).map(row => JSON.parse(row.data)),
+        pruneMetrics: (series, before) => statements.pruneMetrics.run(series, before),
         settings: () => Object.fromEntries(statements.listSettings.all().map(row => [row.key, { value: JSON.parse(row.value), updatedAt: row.updatedAt }])),
         saveSetting: (key, value, now = Date.now()) => statements.upsertSetting.run(key, JSON.stringify(value), now),
         deleteSetting: key => statements.deleteSetting.run(key).changes > 0,

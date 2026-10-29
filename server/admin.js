@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import {
     generateAuthenticationOptions,
     generateRegistrationOptions,
@@ -10,7 +10,8 @@ import {
 // Eigene Seite /admin (admin.html, client/admin.js), Login nur per Passkey (WebAuthn, Nutzerpruefung
 // Pflicht). Gibt es noch keinen Passkey, schreibt der Router beim Start einen einmaligen Setup-Link
 // (24 h) ins Log; damit legt der Betreiber den ersten Passkey an, weitere im Panel. Sitzung per
-// HttpOnly-Cookie (SameSite=Strict, Pfad /api/admin, 12 h), aendernde Anfragen brauchen zusaetzlich den
+// HttpOnly-Cookie (SameSite=Strict, Pfad /api/admin, 12 h; in der Datenbank nur als SHA-256, uebersteht
+// also einen Neustart), aendernde Anfragen brauchen zusaetzlich den
 // Header `x-opengrid-admin: 1`. Das Panel sieht nur Technisches und Router-Daten, nie Nutzerinhalte.
 const SESSION_COOKIE = 'og_admin';
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
@@ -28,8 +29,8 @@ export function registerAdminRoutes(app, {
     allowRequest, setupToken: fixedSetupToken = null,
     liveConfig = null, restartOnly = () => [], safety = null, disconnectPeer = () => {}
 }) {
-    const sessions = new Map();
     const challenges = new Map();
+    const sessionHash = id => createHash('sha256').update(id).digest('hex');
     let configuredOrigin = null;
     try {
         configuredOrigin = appUrl ? new URL(appUrl).origin : null;
@@ -72,18 +73,15 @@ export function registerAdminRoutes(app, {
 
     function sessionOf(request) {
         const id = parseCookies(request.headers.cookie)[SESSION_COOKIE];
-        const session = id ? sessions.get(id) : null;
-        if (!session) return null;
-        if (session.expiresAt <= now()) {
-            sessions.delete(id);
-            return null;
-        }
-        return { id, ...session };
+        if (!id || id.length > 100) return null;
+        const session = store.admin.findSession(sessionHash(id), now());
+        return session ? { id, ...session } : null;
     }
 
     function startSession(request, reply) {
         const id = randomBytes(32).toString('base64url');
-        sessions.set(id, { expiresAt: now() + SESSION_TTL_MS });
+        store.admin.pruneSessions(now());
+        store.admin.saveSession(sessionHash(id), now() + SESSION_TTL_MS);
         const secure = relyingParty(request).origin.startsWith('https:') ? '; Secure' : '';
         reply.header('Set-Cookie', `${SESSION_COOKIE}=${id}; Path=/api/admin; HttpOnly; SameSite=Strict; Max-Age=${SESSION_TTL_MS / 1000}${secure}`);
     }
@@ -193,7 +191,7 @@ export function registerAdminRoutes(app, {
 
     app.post('/api/admin/logout', async (request, reply) => {
         const session = sessionOf(request);
-        if (session) sessions.delete(session.id);
+        if (session) store.admin.deleteSession(sessionHash(session.id));
         reply.header('Set-Cookie', `${SESSION_COOKIE}=; Path=/api/admin; HttpOnly; SameSite=Strict; Max-Age=0`);
         return { ok: true };
     });
@@ -299,5 +297,5 @@ export function registerAdminRoutes(app, {
         return removed ? { ok: true } : reply.code(404).send({ error: 'Unknown ban' });
     });
 
-    return { sessionCount: () => sessions.size };
+    return {};
 }

@@ -301,8 +301,9 @@ Sicherheitsschluessel), kein Passwort.
 - Auslastung: alle 10 Sekunden CPU, Arbeitsspeicher, Event-Loop-Verzoegerung,
   Peers online, WebSocket-Verbindungen, Anfragen, Serverfehler, Antwortzeit,
   Zwischenspeicher, freier Platz und Datenbankgroesse; letzte Stunde bzw. 24
-  Stunden, mit Warnungen (z. B. wenig Platz). Nur im Speicher, nach einem
-  Neustart leer.
+  Stunden, mit Warnungen (z. B. wenig Platz). Der Verlauf liegt in der
+  Datenbank und uebersteht Neustart und Deployment; eine Anmeldung gilt 12
+  Stunden, auch ueber einen Neustart hinweg.
 - Status: Version, Laufzeit, Peers, Push-Abos, Nacktbild-Modell, Nachweise,
   Alters-Aussteller.
 - Einstellungen: sofort wirksam (ohne Neustart, gespeichert, gewinnt ueber die

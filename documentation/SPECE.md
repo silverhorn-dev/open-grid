@@ -1375,8 +1375,8 @@ Anfrage. Tabelle `admin_passkeys` (`id`, `public_key`, `counter`,
 
 Setup-Token: zufaellig (oder `ADMIN_SETUP_TOKEN`), 24 h, nur solange kein
 Passkey existiert, steht beim Start im Log. Sitzung: Cookie `og_admin`
-(HttpOnly, SameSite=Strict, Pfad `/api/admin`, 12 h, `Secure` bei https), nur
-im Speicher; aendernde Anfragen mit Sitzung brauchen `x-opengrid-admin: 1`.
+(HttpOnly, SameSite=Strict, Pfad `/api/admin`, 12 h, `Secure` bei https); in
+der Tabelle `admin_sessions` nur der SHA-256 der ID (uebersteht Neustarts); aendernde Anfragen mit Sitzung brauchen `x-opengrid-admin: 1`.
 Rate-Limit `admin` 120/min.
 
 Meldungen (`server/reports.js`): `POST /api/reports` (Peer + Bearer, Rate-Limit
@@ -1402,7 +1402,9 @@ Auslastung (`server/metrics.js`): alle 10 s `cpu` (Prozess, Anteil aller Kerne),
 `peersOnline`, `requestsPerSecond`, `errorsPerSecond` (5xx), `responseMs`,
 `queueMessages`, `queueBytes`, `diskFreeBytes` (Datenordner), `databaseBytes`
 (SQLite + WAL). 1 h als 10-s-Werte, 24 h als Minutenwerte (Mittel; Spitzen bei
-Event Loop, Antwortzeit, Fehlern). Nur im Speicher. Panel: ein Liniendiagramm je
+Event Loop, Antwortzeit, Fehlern). Tabelle `admin_metrics` (`series` live/day,
+`at`, `data` JSON): jede Messung bzw. jeder Minutenwert wird gespeichert, aeltere
+als 1 h bzw. 24 h geloescht; beim Start wird der Verlauf geladen. Panel: ein Liniendiagramm je
 Wert (keine zweite Achse), aktueller Wert gross, Fadenkreuz + Tooltip,
 Warnungen mit Symbol + Text, Tabellenansicht.
 

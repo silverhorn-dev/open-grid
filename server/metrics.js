@@ -4,7 +4,8 @@ import { monitorEventLoopDelay } from 'node:perf_hooks';
 
 // ================= AUSLASTUNG (Admin-Panel, Board T25) =================
 // Alle 10 s eine Messung; die letzte Stunde in 10-s-Schritten, die letzten 24 h als Minutenwerte
-// (Mittel bzw. Hoechstwert der sechs Messungen). Nur im Speicher, nach einem Neustart leer.
+// (Mittel bzw. Hoechstwert der sechs Messungen). Beides liegt auch in der Datenbank (admin_metrics,
+// aeltere Werte werden geloescht), damit der Verlauf einen Neustart bzw. ein Deployment uebersteht.
 // Gemessen wird nur Technisches: Prozess (CPU, Speicher, Event Loop), System (Last, Speicher, Platte),
 // Verbindungen, Anfragen, Warteschlange. Keine Inhalte, keine IDs.
 export const METRIC_KEYS = [
@@ -18,8 +19,9 @@ const LIVE_SAMPLES = 360;
 const DAY_SAMPLES = 1440;
 
 export function createMetrics({ store, signaling, databasePath, dataDirectory, intervalMs = SAMPLE_MS, now = Date.now }) {
-    const live = [];
-    const day = [];
+    // Verlauf aus der Datenbank (nach einem Neustart).
+    const live = store.admin.loadMetrics('live', now() - LIVE_SAMPLES * intervalMs);
+    const day = store.admin.loadMetrics('day', now() - DAY_SAMPLES * 60_000);
     const delay = monitorEventLoopDelay({ resolution: 20 });
     delay.enable();
     let requests = 0;
@@ -77,10 +79,15 @@ export function createMetrics({ store, signaling, databasePath, dataDirectory, i
         responseTotal = 0;
         live.push(point);
         if (live.length > LIVE_SAMPLES) live.shift();
+        store.admin.saveMetric('live', point);
+        store.admin.pruneMetrics('live', at - LIVE_SAMPLES * intervalMs);
         pendingMinute.push(point);
         if (pendingMinute.length >= Math.round(60_000 / intervalMs)) {
-            day.push(aggregate(pendingMinute));
+            const minute = aggregate(pendingMinute);
+            day.push(minute);
             if (day.length > DAY_SAMPLES) day.shift();
+            store.admin.saveMetric('day', minute);
+            store.admin.pruneMetrics('day', at - DAY_SAMPLES * 60_000);
             pendingMinute = [];
         }
         return point;

@@ -158,7 +158,7 @@ const appConfig = async app => (await app.inject({ method: 'GET', url: '/api/con
 
 test('admin live config: takes effect at once, survives a restart, rejects invalid values, resets to env', async () => {
     const store = createStore(':memory:');
-    const build = () => buildApp({ store, buildVersion: 'test', buildTimestamp: 'x', appUrl: ORIGIN, adminSetupToken: SETUP, metrics: false });
+    const build = () => buildApp({ store, buildVersion: 'test', buildTimestamp: 'x', appUrl: ORIGIN, adminSetupToken: SETUP });
     let app = await build();
     cleanup.push(async () => store.close());
     const cookie = await setupPasskey(app, authenticator());
@@ -193,8 +193,9 @@ test('admin live config: takes effect at once, survives a restart, rejects inval
     assert.equal((await appConfig(app)).nudity.model, 'off');
     assert.equal((await appConfig(app)).safety.ageCheck, 'confirm');
 
-    // Sitzungen liegen nur im Speicher: nach dem Neustart neu anmelden.
-    assert.equal((await app.inject({ method: 'GET', url: '/api/admin/session', headers: { cookie } })).json().loggedIn, false);
+    // Sitzung und Auslastungs-Verlauf ueberstehen den Neustart (Datenbank).
+    assert.equal((await app.inject({ method: 'GET', url: '/api/admin/session', headers: { cookie } })).json().loggedIn, true);
+    assert.ok((await app.inject({ method: 'GET', url: '/api/admin/metrics?range=1h', headers: { cookie } })).json().points.length >= 2, 'samples from before and after the restart');
 });
 
 test('admin live config: reset brings back the environment value', async () => {
@@ -281,4 +282,20 @@ test('reports: peers report a leak (no image), the panel bans with one click or 
     const all = (await app.inject({ method: 'GET', url: '/api/admin/reports?status=all', headers: { cookie } })).json();
     assert.deepEqual(all.reports.map(entry => entry.status).sort(), ['banned', 'banned', 'dismissed']);
     assert.equal((await post(app, '/api/admin/reports/unknown', { action: 'ban' }, H(cookie))).statusCode, 404);
+});
+
+test('admin sessions are stored only as a hash; old load samples are pruned', async () => {
+    const store = createStore(':memory:');
+    const app = await buildApp({ store, buildVersion: 'test', buildTimestamp: 'x', appUrl: ORIGIN, adminSetupToken: SETUP });
+    cleanup.push(async () => { await app.close(); store.close(); });
+    const cookie = await setupPasskey(app, authenticator());
+    const sessionId = cookie.split('=')[1];
+    const stored = store.admin.findSession(createHash('sha256').update(sessionId).digest('hex'));
+    assert.ok(stored, 'session found by its hash');
+    assert.equal(store.admin.findSession(sessionId), null, 'never stored in plain text');
+
+    store.admin.saveMetric('live', { at: Date.now() - 2 * 60 * 60 * 1000, cpu: 1 });
+    assert.equal(store.admin.loadMetrics('live', 0).length, 2);
+    store.admin.pruneMetrics('live', Date.now() - 60 * 60 * 1000);
+    assert.equal(store.admin.loadMetrics('live', 0).length, 1, 'older than one hour removed');
 });

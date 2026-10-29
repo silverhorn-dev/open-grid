@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 229 · 2026-10-29
+## Build 230 · 2026-10-29
+- Admin-Panel: Anmeldung und Auslastungs-Verlauf bleiben nach einem Update bzw. Neustart erhalten
+
+## Build 229 · 2026-10-29 · `ace8307`
 - Nacktbild-Filter: NudeNet ist jetzt das Standard-Modell (erkennt im Test auch maennliche Nacktbilder)
 - Das Server-Image ist weniger als halb so gross (schnellere Updates)
 

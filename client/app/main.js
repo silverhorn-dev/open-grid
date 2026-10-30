@@ -77,6 +77,7 @@ window.onload = async () => {
         await initDatabase();
         await initializeStorageEncryption();
         await runStartupStep('App-Modus', loadAppMode);
+        await runStartupStep('Module', loadEnabledFeatures);
         const hasLocalProfile = await loadMyLocalProfile();
         if (!hasLocalProfile) await openProfileOnboarding();
         if (!state.myProfile.updatedAt) {

@@ -310,6 +310,12 @@ nur das Worker-Skript des Filters darf dafuer WebAssembly kompilieren
 
 ## Admin-Panel
 
+Abgeschaltete Teile (Nacktbild-Filter mit `NUDITY_MODEL=off`, Alters-/E-Mail-
+Nachweis bei `AGE_CHECK=off` und `EMAIL_CHECK=off`, Wallet-Testseite mit
+`AGE_EUDI_TEST=false`) liefert der Router gar nicht aus: weder Code noch
+Oberflaeche noch Modell. Wird ein Teil im Panel eingeschaltet, bekommen ihn die
+Apps beim naechsten Laden.
+
 Unter `/admin` (eigene Seite, gleiche Sicherheitsregeln wie die App, nicht
 indexiert). Anmeldung nur per Passkey (Gesichtserkennung, Fingerabdruck oder
 Sicherheitsschluessel), kein Passwort.

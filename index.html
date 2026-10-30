@@ -658,6 +658,7 @@
                     </div>
                 </div>
 
+                <!-- feature:safety -->
                 <div id="safety-card" class="settings-card hidden" data-settings-tab="privacy">
                     <h3 class="settings-card-title"><i class="fa-solid fa-user-shield text-brand-400"></i> <span data-i18n="safety.cardTitle">Nachweise</span></h3>
                     <div class="setting-block space-y-2">
@@ -665,7 +666,9 @@
                         <button data-i18n="safety.verifyNow" id="safety-card-btn" data-click="reopenSafetyGate" class="btn-secondary hidden">Jetzt nachweisen</button>
                     </div>
                 </div>
-                <!-- Testseite Wallet-Altersnachweis (Debug-Modus, safety.js): prueft echt, speichert nichts -->
+                <!-- /feature:safety -->
+                <!-- feature:agetest -->
+                <!-- Testseite Wallet-Altersnachweis (Debug-Modus, age-test.js): prueft echt, speichert nichts -->
                 <div id="age-test-card" class="settings-card debug-only" data-settings-tab="privacy">
                     <h3 data-i18n="safety.walletTestTitle" class="settings-card-title">Altersnachweis testen (Wallet)</h3>
                     <div class="setting-block">
@@ -675,6 +678,7 @@
                         <pre id="age-test-result" class="hidden mt-2 text-xs whitespace-pre-wrap break-words text-slate-300"></pre>
                     </div>
                 </div>
+                <!-- /feature:agetest -->
 
                 <!-- ===== Chat ===== -->
                 <div class="settings-card" data-settings-tab="chat">
@@ -853,6 +857,7 @@
                         <span class="setting-text"><span data-i18n="settings.traceWatermark" class="setting-title">Spur-Wasserzeichen</span><span data-i18n="settings.yourSnapsAndAlbumImages" class="setting-desc">Eigene Snaps und Albumbilder tragen unsichtbar die ID des Empfängers. So lässt sich ein Leak (z. B. Screenshot) zuordnen.</span></span>
                         <input type="checkbox" role="switch" id="trace-watermark-toggle" checked data-change="updateTraceWatermark" data-args='["$checked"]' class="switch">
                     </label>
+                    <!-- feature:nudity -->
                     <label class="setting-row">
                         <span class="setting-text"><span data-i18n="nudity.filter" class="setting-title">Nacktbilder unscharf</span><span data-i18n="nudity.filterDescription" class="setting-desc">Eingehende Bilder werden auf deinem Gerät geprüft; mögliche Nacktbilder erscheinen unscharf, bis du tippst. Kein Bild verlässt dabei dein Gerät.</span><span data-i18n="nudity.forced" id="nudity-filter-forced" class="setting-desc text-amber-300 hidden">Auf diesem Server immer an.</span><span data-i18n="nudity.noModel" id="nudity-filter-no-model" class="setting-desc text-amber-300">Auf diesem Server ist noch kein Erkennungsmodell installiert, der Filter wirkt noch nicht.</span></span>
                         <input type="checkbox" role="switch" id="nudity-filter-toggle" data-change="updateNudityFilter" data-args='["$checked"]' class="switch">
@@ -869,6 +874,7 @@
                         <input id="nudity-test-input" type="file" accept="image/*" multiple data-change="testNudityImages" data-args='["$el"]' class="text-xs mt-2">
                         <div id="nudity-test-results" class="flex flex-col gap-2 mt-2 text-xs"></div>
                     </div>
+                    <!-- /feature:nudity -->
                     <label class="setting-row">
                         <span class="setting-text"><span data-i18n="settings.whoMaySaveMyMedia" class="setting-title">Wer darf meine Bilder und Videos speichern</span><span data-i18n="settings.whoMaySaveMyMediaDescription" class="setting-desc">Gilt für neue Chat-Bilder und Videos, auch fürs Teilen. Alben und Snaps nie.</span></span>
                         <select id="media-download-select" data-change="updateMediaDownloadSetting" data-args='["$value"]' class="setting-select">
@@ -1005,6 +1011,7 @@
     </div>
 
     <!-- Detailed Profile View Modal -->
+    <!-- feature:safety -->
     <div id="safety-modal" class="hidden fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[62] flex items-center justify-center p-4 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="safety-modal-title">
         <div class="bg-slate-900 border border-brand-500/40 rounded-2xl max-w-md w-full shadow-2xl my-8">
             <div class="p-5 border-b border-slate-800 flex items-start gap-3">
@@ -1041,6 +1048,7 @@
             </div>
         </div>
     </div>
+    <!-- /feature:safety -->
 
     <div id="profile-detail-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-start justify-center p-4 overflow-y-auto">
         <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full overflow-hidden shadow-2xl space-y-0 my-auto">
@@ -1299,6 +1307,7 @@
     <script src="/client/crypto.client.js?v={{assetVersion}}"></script>
     <script src="/client/geohash.client.js?v={{assetVersion}}"></script>
     <script src="/client/app/config.js?v={{assetVersion}}"></script>
+    <script src="/client/app/features.js?v={{assetVersion}}"></script>
     <script src="/client/app/ui.js?v={{assetVersion}}"></script>
     <script src="/client/app/markdown.js?v={{assetVersion}}"></script>
     <script src="/client/app/storage.js?v={{assetVersion}}"></script>
@@ -1318,8 +1327,10 @@
     <script src="/client/app/snap-editor.js?v={{assetVersion}}"></script>
     <script src="/client/app/snap-camera.js?v={{assetVersion}}"></script>
     <script src="/client/app/secure-canvas.js?v={{assetVersion}}"></script>
+    <!-- feature:nudity -->
     <script src="/client/app/nudity.js?v={{assetVersion}}"></script>
     <script src="/client/app/nudity-model.js?v={{assetVersion}}"></script>
+    <!-- /feature:nudity -->
     <script src="/client/app/media-rights.js?v={{assetVersion}}"></script>
     <script src="/client/app/viewer.js?v={{assetVersion}}"></script>
     <script src="/client/app/watermark.js?v={{assetVersion}}"></script>
@@ -1340,7 +1351,12 @@
     <script src="/client/app/router.js?v={{assetVersion}}"></script>
     <script src="/client/app/actions.js?v={{assetVersion}}"></script>
     <script src="/client/app/push.js?v={{assetVersion}}"></script>
+    <!-- feature:safety -->
     <script src="/client/app/safety.js?v={{assetVersion}}"></script>
+    <!-- /feature:safety -->
+    <!-- feature:agetest -->
+    <script src="/client/app/age-test.js?v={{assetVersion}}"></script>
+    <!-- /feature:agetest -->
     <script src="/client/app/share-target.js?v={{assetVersion}}"></script>
     <script src="/client/app/main.js?v={{assetVersion}}"></script>
 </body>

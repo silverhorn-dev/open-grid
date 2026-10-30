@@ -551,3 +551,7 @@
   - offen (prinzip): meldungen ohne beweis pruefbar (bild bleibt beim melder)
   - phase 3: meldungen: in der app "Weitergabe melden" (bild mit spur-wasserzeichen -> peer-id des weitergebers, nie das bild selbst), panel zeigt meldung + sperren mit einem klick
 
+## T26 Nur ausliefern, was an ist (nutzer 2026-10-30)
+- [x] "sachen wie dieser check sollten nicht geshipped werden wenn sie aus sind, auch das nude modell wenn das serverseitig/admin-seitig aus ist"
+  - umgesetzt 2026-10-30: teile `nudity` (filter, modell, worker), `safety` (nachweise), `agetest` (wallet-testseite, eigenes `client/app/age-test.js`); router entfernt markup + skripte je anfrage (marker in `index.html`), dateien 404, nicht im precache; `client/app/features.js` mit platzhaltern + nachladen; tests `test/features.test.js`; SPECE 9.1
+  - offen: weitere kandidaten (z. B. snaps/alben/video, wenn ein betreiber sie abschalten kann) -> erst wenn es dafuer schalter gibt

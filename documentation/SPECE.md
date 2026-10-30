@@ -1646,7 +1646,33 @@ aktiven Worker beantwortet der Server den POST ohne zu speichern mit `303` auf
 
 Der Server setzt beim Ausliefern von `/sw.js` die Asset-Version und die
 Precache-Liste ein (`__ASSET_VERSION__`, `__PRECACHE_URLS__`): `/`, alle
-`clientAssetFiles` mit `?v=<Version>`, Font-Awesome-CSS und die woff2-Schriften.
+`clientAssetFiles` mit `?v=<Version>` ausser den abschaltbaren Teilen (siehe
+unten), Font-Awesome-CSS und die woff2-Schriften.
+
+**Abschaltbare Teile** (seit 2026-10-30, `FEATURE_ASSET_FILES` in
+`server/app.js`, `client/app/features.js`): was der Router aus hat, liefert er
+nicht aus.
+
+| Teil | an, wenn | Dateien |
+|---|---|---|
+| `nudity` | Nacktbild-Modell nicht `off` (auch live) | `nudity.js`, `nudity-model.js`, `nudity-worker.js` |
+| `safety` | `AGE_CHECK` nicht `off` oder `EMAIL_CHECK=required` (auch live) | `safety.js` |
+| `agetest` | `AGE_EUDI_TEST` nicht `false` | `age-test.js` |
+
+- `index.html`: Bloecke zwischen `<!-- feature:<name> -->` und
+  `<!-- /feature:<name> -->` (Skript-Tags und Oberflaeche) fallen je Anfrage weg
+  (`renderFeatureBlocks`); Marker werden immer entfernt.
+- Dateien ausgeschalteter Teile: 404. `/api/config.features` listet die
+  eingeschalteten.
+- `features.js` (immer geladen, vor allen anderen) definiert neutrale Platzhalter
+  fuer alle Funktionen, die der Rest der App aus diesen Teilen aufruft
+  (`shouldBlurImage` -> false, `confirmNudeSend` -> true, `isSafetyGateActive` ->
+  false, ...); das echte Modul ersetzt sie (globale Funktionsdeklaration).
+  `test/features.test.js` prueft, dass jede solche Funktion einen Platzhalter hat.
+- Kam die Seite aus dem Cache und ist ein Teil inzwischen an, laedt
+  `loadEnabledFeatures` (Start) die Skripte nach; ein Grid-403 mit
+  `verificationRequired` laedt `safety.js` ebenfalls nach. Der Service Worker
+  legt nachgeladene `/client/app/*?v=<Version>` in den Shell-Cache.
 
 - `install`: alle URLs in den Cache `opengrid-shell-<Version>` laden; jede
   Antwort muss `ok` und same-origin sein, sonst wird der Cache verworfen und

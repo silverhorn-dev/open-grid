@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 249 · 2026-10-30
+## Build 250 · 2026-10-30
+- Ausgeschaltete Teile werden nicht mehr ausgeliefert: ist der Nacktbild-Filter oder der Alters-/E-Mail-Nachweis auf dem Server aus, laedt die App weder deren Code noch Oberflaeche noch Modell
+
+## Build 249 · 2026-10-30 · `56df4e6`
 - Altersnachweis ueber einen beliebigen Pruefdienst (OpenID Connect, z. B. KJM-anerkannte Anbieter): Betreiber stellen ihn per Umgebung oder live im Admin-Panel ein, das Client-Secret liegt verschluesselt; "unter 18" gilt nur, wenn der Dienst es ausdruecklich bestaetigt
 
 ## Build 247 · 2026-10-30 · `ba8f454`

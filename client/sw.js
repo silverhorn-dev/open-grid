@@ -421,10 +421,18 @@ async function handleNavigation(request) {
     }
 }
 
-// Versionierte Dateien: Cache zuerst, sonst Netzwerk.
+// Versionierte Dateien: Cache zuerst, sonst Netzwerk. Abschaltbare Teile (client/app/features.js) stehen
+// nicht im Precache; laedt die App sie, kommen sie hier in denselben Cache (offline nutzbar).
 async function handleAsset(request) {
     const cached = await caches.match(request, { cacheName: SHELL_CACHE });
-    return cached || fetch(request);
+    if (cached) return cached;
+    const response = await fetch(request);
+    const url = new URL(request.url);
+    if (response.ok && response.type === 'basic' && url.pathname.startsWith('/client/app/') && url.searchParams.get('v') === ASSET_VERSION) {
+        const copy = response.clone();
+        caches.open(SHELL_CACHE).then(cache => cache.put(request, copy)).catch(() => {});
+    }
+    return response;
 }
 
 // "Teilen nach OpenGrid" (share_target im Manifest): geteilte Bilder und Text bleiben lokal in einem

@@ -165,6 +165,7 @@ const clientAssetFiles = [
     'icon.svg',
     'app/theme.js',
     'app/config.js',
+    'app/features.js',
     'app/ui.js',
     'app/markdown.js',
     'info/site.js',
@@ -204,9 +205,25 @@ const clientAssetFiles = [
     'app/actions.js',
     'app/push.js',
     'app/safety.js',
+    'app/age-test.js',
     'app/share-target.js',
     'app/main.js'
 ];
+// Abschaltbare Teile (client/app/features.js): ist ein Teil aus, liefert der Router weder diese Dateien
+// noch die markierte Oberflaeche (<!-- feature:<name> --> in index.html) aus.
+const FEATURE_ASSET_FILES = {
+    nudity: ['app/nudity.js', 'app/nudity-model.js', 'app/nudity-worker.js'],
+    safety: ['app/safety.js'],
+    agetest: ['app/age-test.js']
+};
+const featureOfAsset = new Map(Object.entries(FEATURE_ASSET_FILES).flatMap(([name, files]) => files.map(file => [`/client/${file}`, name])));
+
+// index.html ohne die Bloecke ausgeschalteter Teile (Marker selbst fallen immer weg).
+export function renderFeatureBlocks(html, enabled) {
+    return html.replace(/[ \t]*<!-- feature:([a-z]+) -->\n?([\s\S]*?)[ \t]*<!-- \/feature:\1 -->\n?/g,
+        (_match, name, body) => (enabled.has(name) ? body : ''));
+}
+
 const defaultSchema = [
     { key: 'displayName', label: { de: 'Anzeigename', en: 'Display name' }, type: 'string', required: true, default: 'Alex' },
     { key: 'age', label: { de: 'Alter', en: 'Age' }, type: 'number', min: 18, max: 99, default: 26 },
@@ -393,7 +410,8 @@ export async function buildApp(options = {}) {
     // Installieren in einen eigenen Cache und prueft jede Antwort.
     const precacheUrls = [
         '/',
-        ...clientAssetFiles.map(file => `/client/${file}?v=${assetVersion}`),
+        // Abschaltbare Teile nicht: die holt der Service Worker erst, wenn die App sie laedt.
+        ...clientAssetFiles.filter(file => !featureOfAsset.has(`/client/${file}`)).map(file => `/client/${file}?v=${assetVersion}`),
         ...translationAssets.map(([path]) => `${path}?v=${assetVersion}`),
         // Schriften: nur woff2, die ttf-Varianten laedt kein aktueller Browser.
         ...[...vendorAssets.keys()].filter(path => !path.endsWith('.ttf'))
@@ -529,8 +547,10 @@ export async function buildApp(options = {}) {
         version: buildVersion
     }));
 
+    // Wird gesetzt, sobald Nachweise und Nacktbild-Modell eingerichtet sind (weiter unten).
+    let enabledFeatures = () => new Set(Object.keys(FEATURE_ASSET_FILES));
     const serveAppShell = async (_request, reply) => {
-        const html = indexTemplate
+        const html = renderFeatureBlocks(indexTemplate, enabledFeatures())
             .replaceAll('{{versionTag}}', buildVersion)
             .replaceAll('{{timestamp}}', buildTimestamp)
             .replaceAll('{{assetVersion}}', assetVersion)
@@ -579,7 +599,9 @@ export async function buildApp(options = {}) {
 
     for (const [path, source] of clientAssets) {
         const contentType = path.endsWith('.css') ? 'text/css' : path.endsWith('.svg') ? 'image/svg+xml' : 'text/javascript';
+        const feature = featureOfAsset.get(path);
         app.get(path, async (_request, reply) => {
+            if (feature && !enabledFeatures().has(feature)) return reply.code(404).send({ error: 'Not found' });
             return reply
                 .type(`${contentType}; charset=utf-8`)
                 .header('Cache-Control', 'no-cache')
@@ -757,6 +779,16 @@ export async function buildApp(options = {}) {
         });
     }
     const safety = createSafety({ config: safetyConfig, store, log: app.log, now, ageProviders });
+    const ageTestEnabled = String(options.ageEudiTest ?? process.env.AGE_EUDI_TEST ?? 'true').toLowerCase() !== 'false';
+    // Eingeschaltete Teile, je Anfrage (das Admin-Panel kann sie live umschalten).
+    enabledFeatures = () => {
+        const features = new Set();
+        if (nudityPublicConfig.model !== 'off') features.add('nudity');
+        const { ageCheck, emailCheck } = safety.publicConfig();
+        if (ageCheck !== 'off' || emailCheck === 'required') features.add('safety');
+        if (ageTestEnabled) features.add('agetest');
+        return features;
+    };
     let liveSecretCrypto = null;
     const secretCrypto = () => (liveSecretCrypto ||= createSafetyCrypto(loadSafetyKey(safetyConfig, store)));
     // Live-Konfiguration (server/live-config.js): Panel-Werte gewinnen ueber die Umgebung, ohne Neustart.
@@ -911,7 +943,7 @@ export async function buildApp(options = {}) {
         })
     });
     // Testseite fuer den Wallet-Nachweis (Debug-Modus): prueft echt, speichert nichts (age-eudi.js).
-    if (String(options.ageEudiTest ?? process.env.AGE_EUDI_TEST ?? 'true').toLowerCase() !== 'false') {
+    if (ageTestEnabled) {
         let testOrigins = [];
         try {
             const appUrl = String(options.appUrl ?? process.env.APP_URL ?? '').trim();
@@ -1062,7 +1094,7 @@ export async function buildApp(options = {}) {
     });
     app.post('/api/unregister', unregister);
 
-    app.get('/api/config', async () => ({ modes: appModes, defaultMode: defaultAppMode, profileSchemas, lanMode: isLanMode, clientDefaults, infoUrl: infoSiteUrl(infoHost), safety: safety.publicConfig(), nudity: { ...nudityPublicConfig, required: nudityScanRequired },
+    app.get('/api/config', async () => ({ features: [...enabledFeatures()], modes: appModes, defaultMode: defaultAppMode, profileSchemas, lanMode: isLanMode, clientDefaults, infoUrl: infoSiteUrl(infoHost), safety: safety.publicConfig(), nudity: { ...nudityPublicConfig, required: nudityScanRequired },
         // Fuer die Anzeige in den Einstellungen ("vom Server vorgegeben").
         audienceMinimum: audienceMinimumRule ? (typeof audienceMinimumRule === 'string' ? JSON.parse(audienceMinimumRule) : audienceMinimumRule) : null }));
 

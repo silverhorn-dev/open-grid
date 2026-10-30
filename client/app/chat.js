@@ -98,7 +98,41 @@ function openProfileModal(peerId) {
     sendProfileView(peerId);
 }
 
+// Match + Freund mit eigenem Social-Profil: zwei duenne Reiter "Dating | Freunde" (das Entdecken-Profil kommt
+// als `discoveryProfile` mit). Im Entdecken-Modus ist "Dating" vorgewaehlt, sonst "Freunde".
+function profileModalTab(profile) {
+    const peerId = state.activeModalPeerId;
+    const both = Boolean(profile?.discoveryProfile) && isMatched(peerId) && typeof isFriend === 'function' && isFriend(peerId);
+    if (!both) return null;
+    if (state.profileModalTab?.peerId !== peerId) {
+        state.profileModalTab = { peerId, tab: typeof inExploringMode === 'function' && inExploringMode() ? 'dating' : 'friends' };
+    }
+    return state.profileModalTab.tab;
+}
+
+function setProfileModalTab(tab) {
+    const peerId = state.activeModalPeerId;
+    if (!peerId || !['dating', 'friends'].includes(tab)) return;
+    state.profileModalTab = { peerId, tab };
+    const profile = state.cachedProfiles[peerId];
+    if (profile) renderProfileModalData(profile);
+}
+
+// Was im Popup gezeigt wird: das Profil oder (Reiter "Dating") das mitgeschickte Entdecken-Profil.
+function profileModalView(profile) {
+    return profileModalTab(profile) === 'dating' ? { ...profile, ...profile.discoveryProfile } : profile;
+}
+
 function renderProfileModalData(profile) {
+    const tab = profileModalTab(profile);
+    const tabs = document.getElementById('modal-profile-tabs');
+    tabs?.classList.toggle('hidden', !tab);
+    tabs?.querySelectorAll('[data-profile-tab]').forEach(button => {
+        const active = button.dataset.profileTab === tab;
+        button.classList.toggle('is-active', active);
+        button.setAttribute('aria-selected', String(active));
+    });
+    profile = profileModalView(profile);
     document.getElementById('modal-profile-name').textContent = profile.fields?.displayName || HIDDEN_PEER_NAME;
     if (isSafeInlineImage(profile.avatar)) document.getElementById('modal-profile-img').src = profile.avatar;
     const container = document.getElementById('modal-rendered-fields');
@@ -215,7 +249,8 @@ async function openProfileImageViewer(startImage) {
     const peerId = state.activeModalPeerId;
     const avatar = document.getElementById('modal-profile-img').src;
     const ownPart = typeof editingProfilePart === 'function' ? editingProfilePart() : state.myProfile;
-    const fullMeta = peerId === state.myProfile.id ? ownPart.avatarFull : (peerId ? state.cachedProfiles[peerId]?.avatarFull : null);
+    const fullMeta = peerId === state.myProfile.id ? ownPart.avatarFull
+        : (peerId && state.cachedProfiles[peerId] ? profileModalView(state.cachedProfiles[peerId]).avatarFull : null);
     const fullMedia = fullMeta?.id ? await loadMedia(fullMeta.id).catch(() => null) : null;
     const fullAvatar = fullMedia?.version === fullMeta?.version && isSafeInlineImage(fullMedia?.data) ? fullMedia.data : null;
     const gallery = [...document.querySelectorAll('#modal-gallery-container [data-viewer-image] img')].map(image => image.src);

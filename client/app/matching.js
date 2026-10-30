@@ -291,6 +291,21 @@ function profilePartForPeer(peerId) {
     return typeof profilePart === 'function' ? profilePart(profileAreaForPeer(peerId)) : state.myProfile;
 }
 
+// Match + Freund bei eigenem Social-Profil: zusaetzlich das Entdecken-Profil, damit der andere es im
+// Profil-Popup unter "Dating" sieht (Reiter, chat.js). Reine Freunde ohne Match bekommen es nicht.
+function discoveryProfileFor(peerId) {
+    if (!socialProfileActive() || profileAreaForPeer(peerId) !== 'social') return undefined;
+    if (!isMatched(peerId) || typeof isFriend !== 'function' || !isFriend(peerId)) return undefined;
+    const schemas = typeof PROFILE_SCHEMAS === 'object' && PROFILE_SCHEMAS ? PROFILE_SCHEMAS : {};
+    const keys = new Set(['displayName', ...(schemas.discovery || PROFILE_SCHEMA).map(field => field.key)]);
+    return {
+        fields: Object.fromEntries(Object.entries(state.myProfile.fields || {}).filter(([key]) => keys.has(key))),
+        avatar: state.myProfile.avatar,
+        avatarFull: avatarFullMeta(state.myProfile),
+        gallery: state.myProfile.gallery || []
+    };
+}
+
 // Verweis auf die grosse Fassung des Profilbilds (profile.js), nur mit Profilbild.
 function avatarFullMeta(part = state.myProfile) {
     const meta = part.avatarFull;
@@ -321,7 +336,8 @@ function buildProfilePayloadFor(peerId) {
             fields: activeSchemaFields(peerId),
             avatar: part.avatar,
             avatarFull: avatarFullMeta(part),
-            gallery: part.gallery || []
+            gallery: part.gallery || [],
+            discoveryProfile: discoveryProfileFor(peerId)
         };
     }
     if (visibility === 2) {

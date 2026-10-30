@@ -98,7 +98,11 @@ function isValidProfileEnvelope(envelope) {
     const avatarFullOk = profile.avatarFull === undefined || profile.avatarFull === null
         || (isId(profile.avatarFull?.id) && isSmallInt(profile.avatarFull.version) && isOptionalString(profile.avatarFull.sha256, 64));
     const areaOk = profile.area === undefined || profile.area === null || profile.area === 'discovery' || profile.area === 'social';
-    return fieldsOk && galleryOk && avatarFullOk && areaOk && isOptionalString(profile.avatar, MAX_INLINE_IMAGE_LENGTH);
+    // Zusaetzliches Entdecken-Profil (Match + Freund): gleiche Regeln, aber ohne weitere Verschachtelung.
+    const extra = profile.discoveryProfile;
+    const extraOk = extra === undefined || extra === null || (typeof extra === 'object' && !Array.isArray(extra)
+        && extra.discoveryProfile === undefined && isValidProfileEnvelope({ payload: extra }));
+    return fieldsOk && galleryOk && avatarFullOk && areaOk && extraOk && isOptionalString(profile.avatar, MAX_INLINE_IMAGE_LENGTH);
 }
 
 function isValidTicket(ticket) {

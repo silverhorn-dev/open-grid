@@ -305,7 +305,8 @@ function canPeerAccessImage(peerId, imageId) {
     const parts = [state.myProfile, state.myProfile.social].filter(Boolean);
     if (parts.some(part => part.avatarFull?.id === imageId || (part.gallery || []).some(item => item.id === imageId))) {
         const profile = buildProfilePayloadFor(peerId);
-        return profile.avatarFull?.id === imageId || (profile.gallery || []).some(item => item.id === imageId);
+        return [profile, profile.discoveryProfile].filter(Boolean)
+            .some(view => view.avatarFull?.id === imageId || (view.gallery || []).some(item => item.id === imageId));
     }
     return getOwnAlbums().some(album => album.acl.includes(peerId) && album.items.some(item => item.id === imageId));
 }

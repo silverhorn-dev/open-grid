@@ -250,6 +250,8 @@ const state = {
     pendingImageRequests: {},
     // Bildbetrachter wartet auf die grosse Fassung eines Profilbilds ({ peerId, thumbnail }), chat.js.
     profilePictureViewer: null,
+    // Gewaehlter Reiter im Profil-Popup bei Match + Freund ({ peerId, tab: 'dating' | 'friends' }), chat.js.
+    profileModalTab: null,
     // Schwarm-Abruf (swarm.js): offene Anfragen pro `${peerId}:${imageId}` bzw. `${peerId}:${albumId}`.
     pendingSwarmImages: {},
     pendingSwarmAlbums: {},

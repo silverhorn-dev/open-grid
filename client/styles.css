@@ -1477,3 +1477,12 @@ html {
 .message-selection-action:hover { background: rgb(var(--slate-800)); }
 .message-selection-action.is-danger { color: #fca5a5; }
 #chat-messages .is-selected { background: rgb(var(--brand-500) / 0.15); border-radius: 0.75rem; }
+
+/* Duenne Reiter im Profil-Popup (Match + Freund): Dating | Freunde */
+.profile-tabs { display: flex; gap: 0.25rem; margin-top: -0.25rem; border-bottom: 1px solid rgb(var(--slate-800)); }
+.profile-tabs.hidden { display: none; }
+.profile-tabs button {
+    flex: 1; padding: 0.2rem 0.5rem; font-size: 0.7rem; font-weight: 600; color: rgb(var(--slate-400));
+    border-bottom: 2px solid transparent; margin-bottom: -1px; display: flex; align-items: center; justify-content: center; gap: 0.35rem;
+}
+.profile-tabs button.is-active { color: rgb(var(--brand-400)); border-bottom-color: rgb(var(--brand-500)); }

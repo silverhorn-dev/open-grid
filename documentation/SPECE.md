@@ -1078,6 +1078,12 @@ wenn sich `area` aendert (Chat wanderte in die andere Liste). Der Profil-Editor
 zeigt bei eingeschaltetem Social-Profil eine Auswahl "Entdecken | Chat &
 Freunde" (`state.profileEditArea`, Standard: Bereich des Modus) und nutzt das
 Schema des gewaehlten Bereichs.
+Match + Freund: das Profil fuer die Liste `social` traegt zusaetzlich
+`discoveryProfile = { fields, avatar, avatarFull, gallery }` (Felder des
+Entdecken-Schemas, signiert mit). Der Empfaenger zeigt im Profil-Popup duenne
+Reiter "Dating | Freunde" (`profileModalTab`, Entdecken-Modus waehlt "Dating"
+vor); Bilder beider Teile darf er anfragen (`canPeerAccessImage`, Pruefsumme aus
+dem jeweiligen Teil). Reine Freunde ohne Match bekommen kein `discoveryProfile`.
 
 **Profilbild in gross** (seit 2026-10-30): Das Profil traegt das Profilbild
 mit 200 px (`avatar`). Beim Hochladen legt der Client zusaetzlich eine Fassung

@@ -1081,6 +1081,11 @@
             </div>
 
             <div class="p-5 space-y-4">
+                <!-- Match + Freund: Dating- und Freundes-Profil (chat.js profileModalTab) -->
+                <div id="modal-profile-tabs" class="hidden profile-tabs" role="tablist">
+                    <button type="button" role="tab" data-profile-tab="dating" data-click="setProfileModalTab" data-args='["dating"]'><i class="fa-solid fa-fire"></i> <span data-i18n="profileModal.tabDating">Dating</span></button>
+                    <button type="button" role="tab" data-profile-tab="friends" data-click="setProfileModalTab" data-args='["friends"]'><i class="fa-solid fa-user-group"></i> <span data-i18n="profileModal.tabFriends">Freunde</span></button>
+                </div>
                 <h2 data-i18n="app.loading" id="modal-profile-name" translate="no" class="text-xl font-bold text-slate-100">Wird geladen...</h2>
                 <p id="modal-profile-id" class="debug-only text-xs font-mono text-slate-500 break-all"></p>
                 

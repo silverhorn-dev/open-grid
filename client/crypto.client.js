@@ -25,6 +25,8 @@ async function signProfileData(profileData, privateKey, jwkPublic) {
         audience: profileData.audience || 'public',
         // 'discovery' | 'social' bei eigenem Social-Profil (sonst fehlt es).
         area: profileData.area || undefined,
+        // Match + Freund: zusaetzlich das Entdecken-Profil (Reiter "Dating" beim anderen).
+        discoveryProfile: profileData.discoveryProfile || undefined,
         // Chat-Regeln und "Matches koennen mich adden" (nicht angezeigt, steuern nur Knoepfe beim anderen).
         chatPolicy: profileData.chatPolicy,
         allowMatchFriends: profileData.allowMatchFriends !== false,

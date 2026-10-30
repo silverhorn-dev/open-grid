@@ -37,6 +37,7 @@ async function main() {
         const bob = await user('Bob', 'chat');
         const carol = await user('Carol', 'discovery');
         const aliceId = await alice.evaluate(() => state.myProfile.id);
+        const bobId = await bob.evaluate(() => state.myProfile.id);
 
         // Alice: im Profil das eigene Social-Profil einschalten, dort einen anderen Namen speichern.
         await alice.evaluate(() => switchTab('editprofile'));
@@ -64,6 +65,38 @@ async function main() {
         for (const page of [bob, carol]) await page.evaluate(id => sendSecurePayload(id, { type: 'PROFILE_REQUEST' }), aliceId);
         await waitFor(bob, id => state.cachedProfiles[id]?.fields?.displayName === 'Alex', aliceId);
         await waitFor(carol, id => state.cachedProfiles[id]?.fields?.displayName === 'Hot Alex', aliceId);
+
+        // Match + Freund (Erin): Reiter "Dating | Freunde" im Profil-Popup, im Entdecken-Modus "Dating" vorgewaehlt.
+        const erin = await user('Erin', 'discovery');
+        const erinId = await erin.evaluate(() => state.myProfile.id);
+        await alice.evaluate(async () => { await setAppMode('discovery'); });
+        await erin.evaluate(id => sendFlame(id), aliceId);
+        await waitFor(alice, id => hasReceivedFlame(id), erinId);
+        await alice.evaluate(id => sendFlame(id), erinId);
+        await waitFor(erin, id => isMatched(id), aliceId);
+        await erin.evaluate(id => addFriend(id), aliceId);
+        await waitFor(alice, id => hasFriendRequest(id), erinId);
+        await alice.evaluate(id => addFriend(id), erinId);
+        await waitFor(erin, id => isFriend(id), aliceId);
+        await waitFor(erin, id => Boolean(state.cachedProfiles[id]?.discoveryProfile), aliceId);
+        await erin.evaluate(id => openProfileModal(id), aliceId);
+        await erin.waitForSelector('#modal-profile-tabs', { state: 'visible' });
+        await waitFor(erin, () => document.getElementById('modal-profile-name').textContent === 'Hot Alex');
+        assert.equal(await erin.getAttribute('#modal-profile-tabs [data-profile-tab="dating"]', 'aria-selected'), 'true', 'exploring: dating first');
+        await erin.click('#modal-profile-tabs [data-profile-tab="friends"]');
+        await waitFor(erin, () => document.getElementById('modal-profile-name').textContent === 'Alex');
+        await erin.evaluate(() => closeProfileModal());
+
+        // Bob ist nur Freund (kein Match): kein Dating-Profil, keine Reiter.
+        await bob.evaluate(id => addFriend(id), aliceId);
+        await waitFor(alice, id => hasFriendRequest(id), bobId);
+        await alice.evaluate(id => addFriend(id), bobId);
+        await waitFor(bob, id => isFriend(id), aliceId);
+        await bob.evaluate(id => sendSecurePayload(id, { type: 'PROFILE_REQUEST' }), aliceId);
+        await bob.waitForTimeout(1500);
+        assert.equal(await bob.evaluate(id => Boolean(state.cachedProfiles[id]?.discoveryProfile), aliceId), false, 'plain friends get only the social profile');
+        await bob.evaluate(id => openProfileModal(id), aliceId);
+        assert.equal(await bob.isVisible('#modal-profile-tabs'), false);
 
         assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log('E2E OK (separate social profile)');

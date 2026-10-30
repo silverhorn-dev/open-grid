@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 264 · 2026-10-30
+## Build 266 · 2026-10-30
+- Profil eines Matches, der auch Freund ist: oben duenne Reiter "Dating | Freunde", so siehst du auch im Entdecken sein Dating-Profil (wenn er ein eigenes Freunde-Profil hat)
+
+## Build 265 · 2026-10-30 · `d1f1d91`
 - Eigene Nachrichten bearbeiten (Menue > Bearbeiten), der andere sieht "bearbeitet"
 - Mehrere Nachrichten auswaehlen (Menue > Auswaehlen): zusammen kopieren oder eigene loeschen
 - Behoben: "Kopieren" im Nachrichten-Menue legte nichts in die Zwischenablage

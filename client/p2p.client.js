@@ -774,8 +774,10 @@ async function handleIncomingImageResponse(peerId, imageId, version, data) {
     const requestKey = `${peerId}:${imageId}`;
     const requestedVersion = state.pendingImageRequests[requestKey];
     const cachedProfile = state.cachedProfiles[peerId];
-    const galleryEntry = cachedProfile?.gallery?.find(item => item.id === imageId)
-        || (cachedProfile?.avatarFull?.id === imageId ? cachedProfile.avatarFull : null);
+    // Galerie/Profilbild aus dem Profil oder dem mitgeschickten Entdecken-Profil (Reiter "Dating").
+    const views = [cachedProfile, cachedProfile?.discoveryProfile].filter(Boolean);
+    const avatarMeta = views.map(view => view.avatarFull).find(meta => meta?.id === imageId) || null;
+    const galleryEntry = views.flatMap(view => view.gallery || []).find(item => item.id === imageId) || avatarMeta;
     if (requestedVersion !== version || galleryEntry?.version !== version || !isSafeInlineImage(data)) {
         logDebug(`Rejected unsolicited gallery image ${imageId} from ${peerId}.`);
         return;
@@ -784,8 +786,8 @@ async function handleIncomingImageResponse(peerId, imageId, version, data) {
     const currentMedia = await loadMedia(imageId);
     if (currentMedia && currentMedia.version > version) return;
     // Grosse Fassung des Profilbilds: Pruefsumme aus dem signierten Profil muss passen.
-    if (cachedProfile?.avatarFull?.id === imageId) {
-        if (cachedProfile.avatarFull.sha256 && await sha256Base64(data) !== cachedProfile.avatarFull.sha256) {
+    if (avatarMeta) {
+        if (avatarMeta.sha256 && await sha256Base64(data) !== avatarMeta.sha256) {
             logDebug(`Rejected profile picture ${imageId} from ${peerId}: checksum mismatch.`);
             return;
         }

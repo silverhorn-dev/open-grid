@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 262 · 2026-10-30
+## Build 263 · 2026-10-30
+- Nacktbild-Filter einschalten wirkt sofort auch auf schon angezeigte Chat-Bilder
+
+## Build 262 · 2026-10-30 · `9b575a4`
 - Behoben: Nacktbild-Filter (NudeNet) mit eigener Klassen-Auswahl am Server ordnete die Werte falschen Klassen zu (z. B. ein Gesicht als Nacktheit) und machte normale Bilder unscharf
 
 ## Build 261 · 2026-10-30 · `d813a4a`

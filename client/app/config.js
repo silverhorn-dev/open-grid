@@ -129,6 +129,8 @@ const state = {
     ageGroup: null,
     // Nacktbild-Filter fuer eingehende Bilder (nudity.js), standardmaessig aus.
     nudityFilter: false,
+    // Stand des Nacktbild-Filters (nudity.js bumpNudityRevision), fuer zwischengespeicherte Bild-Canvas.
+    nudityRevision: 0,
     // Vor dem Senden eigener Bilder nachfragen, wenn das Modell ein Nacktbild sieht (nudity.js).
     nudityWarnBeforeSend: true,
     safetyGateDismissed: false,

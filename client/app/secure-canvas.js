@@ -31,6 +31,8 @@ async function drawSecureImage(canvas, source) {
         if (secureImageDrawTokens.get(canvas) !== token) return false;
         canvas.width = bitmap.width;
         canvas.height = bitmap.height;
+        // Mit welchem Filter-Stand gezeichnet (nudity.js bumpNudityRevision), fuer die Wiederverwendung.
+        canvas.dataset.nudityRevision = String(state.nudityRevision || 0);
         if (blur) drawBlurredImage(canvas, bitmap, source, () => drawSecureImage(canvas, source).catch(logBackgroundError('drawSecureImage')), blur);
         else canvas.getContext('2d').drawImage(bitmap, 0, 0);
         return true;
@@ -74,6 +76,8 @@ function rememberSecureImage(key, canvas) {
 function reusableSecureImage(key, dataUrl) {
     const canvas = key ? secureImageRegistry.get(key) : null;
     if (!canvas || canvas.isConnected || !canvas.width || secureImageSources.get(canvas) !== dataUrl) return null;
+    // Fremdes Bild, gezeichnet mit einem alten Filter-Stand: neu zeichnen (vielleicht jetzt unscharf).
+    if (canvas.dataset.ownImage !== 'true' && canvas.dataset.nudityRevision !== String(state.nudityRevision || 0)) return null;
     rememberSecureImage(key, canvas);
     return canvas;
 }

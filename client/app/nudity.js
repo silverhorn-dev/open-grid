@@ -21,7 +21,16 @@ function registerNudityClassifier(classifier) {
     nudityClassifiers.push(classifier);
     nudityScores.clear();
     renderNuditySettings();
+    bumpNudityRevision();
     return true;
+}
+
+// Stand des Filters (an/aus, Modelle). Aendert er sich, gelten schon gezeichnete Bilder als veraltet:
+// secure-canvas.js nimmt dann keinen zwischengespeicherten Canvas mehr, der offene Chat zeichnet neu
+// (z. B. Filter eingeschaltet: schon sichtbare Chat-Bilder werden jetzt geprueft).
+function bumpNudityRevision() {
+    state.nudityRevision = (state.nudityRevision || 0) + 1;
+    if (state.activeChatPeerId && typeof renderChatHistory === 'function') renderChatHistory();
 }
 
 function hasNudityClassifier() {
@@ -60,6 +69,7 @@ async function loadNuditySettings() {
     // Warnung vor dem Senden: Standard an (Router: CLIENT_DEFAULTS.nudityWarnBeforeSend).
     state.nudityWarnBeforeSend = stored && 'warnBeforeSend' in stored ? stored.warnBeforeSend !== false : clientDefault('nudityWarnBeforeSend', true) !== false;
     renderNuditySettings();
+    bumpNudityRevision();
 }
 
 async function saveNuditySettings() {
@@ -75,6 +85,7 @@ async function saveNuditySettings() {
 async function updateNudityFilter(enabled) {
     state.nudityFilter = enabled === true;
     await saveNuditySettings();
+    bumpNudityRevision();
 }
 
 async function updateNudityWarnBeforeSend(enabled) {

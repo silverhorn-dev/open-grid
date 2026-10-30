@@ -203,6 +203,8 @@ const state = {
     earlyEnvelopes: {},
     // Profil-Editor: ungespeicherte Felder (profile.js, Leiste unten) und Stand beim letzten Speichern.
     profileDirty: false,
+    // Im Profil-Editor gewaehlter Bereich bei eigenem Social-Profil ('discovery' | 'social' | null = Modus), profile.js.
+    profileEditArea: null,
     profileSnapshot: null,
     // Aktiver Bereich der Einstellungen (settings.js).
     settingsTab: 'general',

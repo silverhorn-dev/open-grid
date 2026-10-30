@@ -275,18 +275,37 @@ function isGalleryVisibleTo(peerId) {
     return getMyVisibility() === 1 || isConnectedPeer(peerId);
 }
 
+// Bereich, dessen Profil ein Peer sieht: die Liste des Chats mit ihm, ohne Chat der aktive Modus.
+function profileAreaForPeer(peerId) {
+    const scope = peerId && typeof chatScopeOf === 'function' ? chatScopeOf(peerId) : null;
+    if (scope === 'social' || scope === 'discovery') return scope;
+    return isSocialMode() ? 'social' : 'discovery';
+}
+
+function socialProfileActive() {
+    return typeof socialProfileEnabled === 'function' && socialProfileEnabled();
+}
+
+// Profilteil (profile.js profilePart) fuer diesen Peer; ohne eigenes Social-Profil immer das Hauptprofil.
+function profilePartForPeer(peerId) {
+    return typeof profilePart === 'function' ? profilePart(profileAreaForPeer(peerId)) : state.myProfile;
+}
+
 // Verweis auf die grosse Fassung des Profilbilds (profile.js), nur mit Profilbild.
-function avatarFullMeta() {
-    const meta = state.myProfile.avatarFull;
-    return state.myProfile.avatar && meta?.id ? { id: meta.id, version: meta.version || 1, sha256: meta.sha256 } : undefined;
+function avatarFullMeta(part = state.myProfile) {
+    const meta = part.avatarFull;
+    return part.avatar && meta?.id ? { id: meta.id, version: meta.version || 1, sha256: meta.sha256 } : undefined;
 }
 
 // Baut das Profil, das genau dieser Peer sehen darf. `audience` bindet ein Match-Profil an ihn.
 function buildProfilePayloadFor(peerId) {
     const visibility = getMyVisibility();
+    const part = profilePartForPeer(peerId);
     const matched = isConnectedPeer(peerId);
     const base = {
         id: state.myProfile.id,
+        // Bereich des Profils (eigenes Social-Profil): wechselt er, ersetzt der Empfaenger auch bei gleicher Version.
+        area: socialProfileActive() ? profileAreaForPeer(peerId) : undefined,
         version: state.myProfile.version,
         updatedAt: state.myProfile.updatedAt,
         visibility,
@@ -300,16 +319,16 @@ function buildProfilePayloadFor(peerId) {
             ...base,
             audience: visibility === 1 ? 'public' : peerId,
             fields: activeSchemaFields(peerId),
-            avatar: state.myProfile.avatar,
-            avatarFull: avatarFullMeta(),
-            gallery: state.myProfile.gallery || []
+            avatar: part.avatar,
+            avatarFull: avatarFullMeta(part),
+            gallery: part.gallery || []
         };
     }
     if (visibility === 2) {
         const privateFields = new Set(state.myProfile.privateFields || []);
         const fields = Object.fromEntries(Object.entries(activeSchemaFields(peerId))
             .filter(([key]) => !privateFields.has(key)));
-        return { ...base, audience: 'public', fields, avatar: state.myProfile.avatar, avatarFull: avatarFullMeta(), gallery: [], restricted: true };
+        return { ...base, audience: 'public', fields, avatar: part.avatar, avatarFull: avatarFullMeta(part), gallery: [], restricted: true };
     }
     return { ...base, audience: 'public', fields: {}, avatar: null, gallery: [], restricted: true };
 }
@@ -330,7 +349,7 @@ function profileSchemaForPeer(peerId) {
 
 // Nur Felder des passenden Schemas gehen raus (z. B. in "Chat & Freunde" keine Dating-Details).
 function activeSchemaFields(peerId = null) {
-    const fields = state.myProfile.fields || {};
+    const fields = profilePartForPeer(peerId).fields || {};
     const keys = new Set(['displayName', ...profileSchemaForPeer(peerId).map(field => field.key)]);
     return Object.fromEntries(Object.entries(fields).filter(([key]) => keys.has(key)));
 }
@@ -347,10 +366,11 @@ function isProfileShareable(profile) {
 // Was der Router zu sehen bekommt.
 function getRegistrationIdentity() {
     if (getMyVisibility() === 3) return { name: '', thumbnail: null };
-    // Nur echte Bilder an den Router, keine externen Platzhalter-URLs alter Profile.
-    const avatar = state.myProfile.avatar;
+    // Nur echte Bilder an den Router, keine externen Platzhalter-URLs alter Profile. Profil des aktiven Modus.
+    const part = profilePartForPeer(null);
+    const avatar = part.avatar;
     return {
-        name: state.myProfile.fields.displayName || 'Peer',
+        name: part.fields?.displayName || state.myProfile.fields.displayName || 'Peer',
         thumbnail: typeof avatar === 'string' && avatar.startsWith('data:image/') ? avatar : null
     };
 }

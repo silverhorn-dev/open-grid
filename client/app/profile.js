@@ -1,6 +1,97 @@
 // ================= MEDIA & COMPRESSION =================
 // Kantenlaenge der grossen Profilbild-Fassung (Bildbetrachter), das Profil selbst traegt nur 200 px.
 const AVATAR_FULL_EDGE = 1280;
+
+// ----- Eigenes Profil fuer "Chat & Freunde" -----
+// Standard: ein Profil fuer alles. Eingeschaltet (`myProfile.social.enabled`) hat "Chat & Freunde" eigene
+// Felder, Profilbild und Galerie; Peers in dieser Liste bekommen sie (matching.js buildProfilePayloadFor),
+// alle anderen das Entdecken-Profil. Beim Einschalten wird das bisherige Profil als Start kopiert.
+function socialProfileEnabled() {
+    return state.myProfile?.social?.enabled === true;
+}
+
+// Teil des eigenen Profils fuer einen Bereich ('discovery' | 'social'): { fields, avatar, avatarFull, gallery }.
+function profilePart(area) {
+    return area === 'social' && socialProfileEnabled() ? state.myProfile.social : state.myProfile;
+}
+
+function currentModeArea() {
+    return typeof isSocialMode === 'function' && isSocialMode() ? 'social' : 'discovery';
+}
+
+// Bereich, der im Profil-Editor gerade bearbeitet wird (Auswahl nur bei eigenem Social-Profil).
+function editingProfileArea() {
+    if (!socialProfileEnabled()) return currentModeArea();
+    return state.profileEditArea === 'social' || state.profileEditArea === 'discovery' ? state.profileEditArea : currentModeArea();
+}
+
+function editingProfilePart() {
+    return profilePart(editingProfileArea());
+}
+
+// Felder des bearbeiteten Bereichs: das Schema des aktiven Modus, sonst das des anderen Bereichs.
+function editingProfileSchema() {
+    const area = editingProfileArea();
+    if (area === currentModeArea()) return PROFILE_SCHEMA;
+    const schemas = typeof PROFILE_SCHEMAS === 'object' && PROFILE_SCHEMAS ? PROFILE_SCHEMAS : {};
+    return (area === 'social' ? schemas.friends || schemas.chat : schemas.discovery) || PROFILE_SCHEMA;
+}
+
+// Medien-Ids, die ein anderer Profilteil noch nutzt (Kopie beim Einschalten teilt Bilder).
+function profileMediaInUse(mediaId, exceptPart) {
+    return [state.myProfile, state.myProfile.social].filter(part => part && part !== exceptPart)
+        .some(part => part.avatarFull?.id === mediaId || (part.gallery || []).some(item => item.id === mediaId));
+}
+
+async function setSocialProfileEnabled(enabled) {
+    const social = state.myProfile.social;
+    if (enabled && !social?.fields) {
+        state.myProfile.social = {
+            enabled: true,
+            fields: JSON.parse(JSON.stringify(state.myProfile.fields || {})),
+            avatar: state.myProfile.avatar || null,
+            avatarFull: state.myProfile.avatarFull ? { ...state.myProfile.avatarFull } : null,
+            gallery: (state.myProfile.gallery || []).map(item => ({ ...item }))
+        };
+    } else if (social) {
+        // Aus: die Social-Werte bleiben gespeichert (wieder an = wie vorher).
+        state.myProfile.social = { ...social, enabled: Boolean(enabled) };
+    }
+    state.profileEditArea = null;
+    renderSocialProfileControls();
+    renderProfileForm();
+    await saveUserProfile();
+}
+
+function setProfileEditArea(area) {
+    if (!socialProfileEnabled() || !['discovery', 'social'].includes(area)) return;
+    if (state.profileDirty && !window.confirm(t('profile.discardUnsavedChanges'))) {
+        renderSocialProfileControls();
+        return;
+    }
+    if (state.profileDirty) discardProfileChanges();
+    state.profileEditArea = area;
+    renderSocialProfileControls();
+    renderProfileForm();
+}
+
+// Schalter + Bereichsauswahl im Profil. Nur wenn beide Bereiche an sind (sonst gibt es nichts zu trennen).
+function renderSocialProfileControls() {
+    const card = document.getElementById('social-profile-controls');
+    if (!card) return;
+    const bothAreas = typeof scopeIncludes !== 'function' || (scopeIncludes('social') && scopeIncludes('discovery'));
+    card.classList.toggle('hidden', !bothAreas);
+    const toggle = document.getElementById('social-profile-toggle');
+    if (toggle) toggle.checked = socialProfileEnabled();
+    const chooser = document.getElementById('profile-area-chooser');
+    chooser?.classList.toggle('hidden', !socialProfileEnabled());
+    const area = editingProfileArea();
+    chooser?.querySelectorAll('[data-profile-area]').forEach(button => {
+        const active = button.dataset.profileArea === area;
+        button.classList.toggle('is-active', active);
+        button.setAttribute('aria-pressed', String(active));
+    });
+}
 function compressImage(file, maxWidth, maxHeight, quality = 0.8) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -29,12 +120,13 @@ async function handleAvatarUpload(input) {
         // Grosse Fassung fuer den Bildbetrachter: liegt nur lokal, andere holen sie wie Galeriebilder per
         // P2P (IMAGE_REQUEST), sofern sie das Profilbild sehen duerfen. Im Profil steht nur der Verweis.
         const full = await compressImage(input.files[0], AVATAR_FULL_EDGE, AVATAR_FULL_EDGE, 0.82);
-        const previousFull = state.myProfile.avatarFull?.id;
+        const part = editingProfilePart();
+        const previousFull = part.avatarFull?.id;
         const fullId = `avatar_${window.crypto.randomUUID()}`;
         await cacheMedia(fullId, full, 1);
-        state.myProfile.avatarFull = { id: fullId, version: 1, sha256: await sha256Base64(full) };
-        if (previousFull) deleteDatabaseRecord('media', previousFull).catch(() => {});
-        state.myProfile.avatar = base64;
+        part.avatarFull = { id: fullId, version: 1, sha256: await sha256Base64(full) };
+        if (previousFull && !profileMediaInUse(previousFull, part)) deleteDatabaseRecord('media', previousFull).catch(() => {});
+        part.avatar = base64;
         document.getElementById('edit-avatar-preview').src = base64;
         await saveUserProfile();
         showToast(t('profile.pictureUpdated'), 'success');
@@ -43,12 +135,13 @@ async function handleAvatarUpload(input) {
 
 async function handleGalleryUpload(input) {
     if (!input.files?.[0]) return;
-    if (!state.myProfile.gallery) state.myProfile.gallery = [];
+    const part = editingProfilePart();
+    if (!part.gallery) part.gallery = [];
     try {
         const base64 = await compressImage(input.files[0], 800, 800, 0.75);
         const imgId = 'img_' + window.crypto.randomUUID();
         await cacheMedia(imgId, base64, 1);
-        state.myProfile.gallery.push({ id: imgId, version: 1, sha256: await sha256Base64(base64) });
+        part.gallery.push({ id: imgId, version: 1, sha256: await sha256Base64(base64) });
         renderEditGallery();
         await saveUserProfile();
         showToast(t('profile.imageAddedToGallery'), 'success');
@@ -57,19 +150,21 @@ async function handleGalleryUpload(input) {
 }
 
 function removeGalleryImage(id) {
-    state.myProfile.gallery = state.myProfile.gallery.filter(g => g.id !== id);
-    deleteDatabaseRecord('media', id);
+    const part = editingProfilePart();
+    part.gallery = (part.gallery || []).filter(g => g.id !== id);
+    if (!profileMediaInUse(id, part)) deleteDatabaseRecord('media', id);
     renderEditGallery();
     saveUserProfile();
 }
 
 async function renderEditGallery() {
-    if (!state.myProfile.gallery) state.myProfile.gallery = [];
+    const part = editingProfilePart();
+    if (!part.gallery) part.gallery = [];
     const container = document.getElementById('edit-gallery-container');
     if (!container) return;
 
     // DOM statt HTML-Strings: keine Inline-Handler (strikte CSP) und kein innerHTML mit Daten.
-    const tiles = await Promise.all(state.myProfile.gallery.map(async meta => {
+    const tiles = await Promise.all(part.gallery.map(async meta => {
         const media = await loadMedia(meta.id);
         if (!media || !isSafeInlineImage(media.data)) return null;
         const tile = document.createElement('div');
@@ -107,7 +202,7 @@ async function renderEditGallery() {
 // Felder schreiben bei "change" in state.myProfile.fields; gespeichert (verteilt) wird erst mit
 // "Speichern". Solange etwas abweicht, steht unten eine Leiste mit Verwerfen/Speichern.
 function snapshotProfileFields() {
-    state.profileSnapshot = JSON.stringify(state.myProfile.fields || {});
+    state.profileSnapshot = JSON.stringify(editingProfilePart().fields || {});
     setProfileDirty(false);
 }
 
@@ -117,11 +212,11 @@ function setProfileDirty(dirty) {
 }
 
 function refreshProfileDirty() {
-    setProfileDirty(state.profileSnapshot !== null && JSON.stringify(state.myProfile.fields || {}) !== state.profileSnapshot);
+    setProfileDirty(state.profileSnapshot !== null && JSON.stringify(editingProfilePart().fields || {}) !== state.profileSnapshot);
 }
 
 function discardProfileChanges() {
-    if (state.profileSnapshot) state.myProfile.fields = JSON.parse(state.profileSnapshot);
+    if (state.profileSnapshot) editingProfilePart().fields = JSON.parse(state.profileSnapshot);
     setProfileDirty(false);
     renderProfileForm();
 }
@@ -133,9 +228,15 @@ function renderProfileForm(containerId = 'dynamic-profile-form') {
 
     const schemaInput = document.getElementById('schema-json-input');
     if (schemaInput) schemaInput.value = JSON.stringify(PROFILE_SCHEMA, null, 2);
+    // Profil-Editor: der gewaehlte Bereich (eigenes Social-Profil); Onboarding: immer das Hauptprofil.
+    const editor = containerId === 'dynamic-profile-form';
+    const part = editor ? editingProfilePart() : state.myProfile;
+    if (!part.fields) part.fields = {};
+    const schema = editor ? editingProfileSchema() : PROFILE_SCHEMA;
 
-    if (containerId === 'dynamic-profile-form') {
-        document.getElementById('edit-avatar-preview').src = localAvatar(state.myProfile.avatar);
+    if (editor) {
+        renderSocialProfileControls();
+        document.getElementById('edit-avatar-preview').src = localAvatar(part.avatar);
         renderEditGallery();
         // Neu zeichnen (z. B. Moduswechsel) behaelt ungespeicherte Aenderungen und ihre Leiste.
         if (!state.profileDirty) snapshotProfileFields();
@@ -143,7 +244,7 @@ function renderProfileForm(containerId = 'dynamic-profile-form') {
         container.onchange = () => refreshProfileDirty();
     }
 
-    PROFILE_SCHEMA.forEach(field => {
+    schema.forEach(field => {
         const wrapper = document.createElement('div');
         // Freitextfelder ("Ueber mich") nehmen die ganze Breite ein.
         wrapper.className = field.type === 'description' ? 'space-y-1 md:col-span-2' : 'space-y-1';
@@ -165,9 +266,9 @@ function renderProfileForm(containerId = 'dynamic-profile-form') {
             wrapper.appendChild(privacy);
         }
 
-        const currentValue = state.myProfile.fields[field.key] ?? localizedText(field.default) ?? '';
-        if (state.myProfile.fields[field.key] === undefined && field.default !== undefined) {
-            state.myProfile.fields[field.key] = currentValue;
+        const currentValue = part.fields[field.key] ?? localizedText(field.default) ?? '';
+        if (part.fields[field.key] === undefined && field.default !== undefined) {
+            part.fields[field.key] = currentValue;
         }
         let input;
 
@@ -188,7 +289,7 @@ function renderProfileForm(containerId = 'dynamic-profile-form') {
                     else selected.add(optionValue);
                     chip.classList.toggle('is-active', selected.has(optionValue));
                     chip.setAttribute('aria-pressed', String(selected.has(optionValue)));
-                    state.myProfile.fields[field.key] = field.options.filter(value => selected.has(value));
+                    part.fields[field.key] = field.options.filter(value => selected.has(value));
                 };
                 chips.appendChild(chip);
             });
@@ -239,13 +340,13 @@ function renderProfileForm(containerId = 'dynamic-profile-form') {
 
         input.onchange = (e) => {
             if (field.type === 'multiselect') {
-                state.myProfile.fields[field.key] = Array.from(e.target.selectedOptions, option => option.value);
+                part.fields[field.key] = Array.from(e.target.selectedOptions, option => option.value);
             } else if (field.type === 'number') {
-                state.myProfile.fields[field.key] = e.target.value === '' ? '' : Number(e.target.value);
+                part.fields[field.key] = e.target.value === '' ? '' : Number(e.target.value);
             } else if (field.type === 'tag') {
-                state.myProfile.fields[field.key] = e.target.value.split(',').map(value => value.trim()).filter(Boolean);
+                part.fields[field.key] = e.target.value.split(',').map(value => value.trim()).filter(Boolean);
             } else {
-                state.myProfile.fields[field.key] = e.target.value;
+                part.fields[field.key] = e.target.value;
             }
         };
         wrapper.appendChild(input);

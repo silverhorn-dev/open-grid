@@ -86,6 +86,8 @@ function clientDefault(key, fallback) {
 
 // Jeder Modus hat sein eigenes Profil-Schema (z. B. "Nur Chat": Name + Status).
 function applyProfileSchemaForMode() {
+    // Profil-Editor folgt dem Modus (eigenes Social-Profil, profile.js), ausser es ist etwas ungespeichert.
+    if (!state.profileDirty) state.profileEditArea = null;
     PROFILE_SCHEMA = PROFILE_SCHEMAS[state.appMode] || PROFILE_SCHEMAS.discovery || Object.values(PROFILE_SCHEMAS)[0] || DEFAULT_PROFILE_SCHEMA;
     if (typeof renderProfileForm === 'function' && document.getElementById('dynamic-profile-form')) renderProfileForm();
 }
@@ -150,6 +152,7 @@ async function setModeScope(scope) {
     }
     applyAppModeUi();
     if (typeof renderMatchingSettings === 'function') renderMatchingSettings();
+    if (typeof renderSocialProfileControls === 'function') renderSocialProfileControls();
     if (typeof renderListSwitch === 'function') renderListSwitch();
     if (typeof renderActivePeerList === 'function') renderActivePeerList();
     if (state.myProfile?.id && typeof refreshPresenceAndGrid === 'function') await refreshPresenceAndGrid();

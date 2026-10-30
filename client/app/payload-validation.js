@@ -94,7 +94,8 @@ function isValidProfileEnvelope(envelope) {
             && profile.gallery.every(item => isId(item?.id) && isOptionalString(item.sha256, 64)));
     const avatarFullOk = profile.avatarFull === undefined || profile.avatarFull === null
         || (isId(profile.avatarFull?.id) && isSmallInt(profile.avatarFull.version) && isOptionalString(profile.avatarFull.sha256, 64));
-    return fieldsOk && galleryOk && avatarFullOk && isOptionalString(profile.avatar, MAX_INLINE_IMAGE_LENGTH);
+    const areaOk = profile.area === undefined || profile.area === null || profile.area === 'discovery' || profile.area === 'social';
+    return fieldsOk && galleryOk && avatarFullOk && areaOk && isOptionalString(profile.avatar, MAX_INLINE_IMAGE_LENGTH);
 }
 
 function isValidTicket(ticket) {

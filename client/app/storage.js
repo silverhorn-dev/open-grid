@@ -245,7 +245,9 @@ async function cachePeerProfile(peerId, profile) {
     const isTrustUpgrade = current?.trustLevel === 'unpinned' && profile.trustLevel === 'trusted';
     // Match/Entmatchen aendert, was der Besitzer zeigt, ohne neue Version.
     const isAudienceChange = Boolean(current) && (current.audience || 'public') !== (profile.audience || 'public');
-    if (!isTrustUpgrade && !isAudienceChange) {
+    // Eigenes Social-Profil: gleiche Version, aber anderer Bereich (Chat wanderte in die andere Liste).
+    const isAreaChange = Boolean(current) && (current.area || null) !== (profile.area || null);
+    if (!isTrustUpgrade && !isAudienceChange && !isAreaChange) {
         // Aktualisiere, wenn die Version höher ist ODER bei gleicher Version der Zeitstempel neuer ist (z.B. Avatar-Update)
         if (current && (current.version || 0) > (profile.version || 0)) return current;
         if (current && (current.version || 0) === (profile.version || 0) && (current.updatedAt || 0) >= (profile.updatedAt || 0)) return current;
@@ -892,10 +894,10 @@ async function renderStorageUsage(warn = false) {
 
 // IDs aller Medien, die noch gebraucht werden. Alles andere im Store `media` kann weg.
 async function collectReferencedMediaIds() {
-    const referenced = new Set((state.myProfile.gallery || []).map(item => item.id));
+    const referenced = new Set([...(state.myProfile.gallery || []), ...(state.myProfile.social?.gallery || [])].map(item => item.id));
     Object.values(state.cachedProfiles).forEach(profile => (profile.gallery || []).forEach(item => referenced.add(item.id)));
     // Grosse Fassungen der Profilbilder (eigene und zwischengespeicherte).
-    [state.myProfile, ...Object.values(state.cachedProfiles)].forEach(profile => {
+    [state.myProfile, state.myProfile.social, ...Object.values(state.cachedProfiles)].forEach(profile => {
         if (profile?.avatarFull?.id) referenced.add(profile.avatarFull.id);
     });
     Object.values(state.albums).forEach(album => (album.items || []).forEach(item => referenced.add(item.id)));

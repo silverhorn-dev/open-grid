@@ -395,3 +395,47 @@ test('ending a friendship while still matched moves the chat back to the grid li
     assert.equal(plainFriend.chatScopeOf('pal'), 'social');
     assert.deepEqual(plainMoved, []);
 });
+
+test('a separate social profile goes to people in the social list, everyone else gets the exploring one', async () => {
+    const me = loadFriends({ appMode: 'discovery' });
+    vm.runInNewContext(read('client/app/profile.js'), me);
+    vm.runInNewContext(read('client/app/albums.js'), me);
+    me.saveUserProfile = async () => {};
+    me.renderProfileForm = () => {};
+    me.state.myProfile.visibility = 1;
+    me.state.myProfile.avatar = 'data:image/jpeg;base64,AAAA';
+    me.state.myProfile.avatarFull = { id: 'avatar_main', version: 1 };
+    me.state.myProfile.fields = { displayName: 'Hot Alex', bio: 'dating' };
+    await me.ensureChatScope('date', 'discovery');
+    await me.ensureChatScope('buddy', 'social');
+    assert.equal(me.buildProfilePayloadFor('buddy').fields.displayName, 'Hot Alex', 'off: one profile for all');
+
+    await me.setSocialProfileEnabled(true);
+    assert.equal(me.state.myProfile.social.fields.displayName, 'Hot Alex', 'starts as a copy');
+    me.state.myProfile.social.fields.displayName = 'Alex';
+    me.state.myProfile.social.avatar = 'data:image/jpeg;base64,BBBB';
+    me.state.myProfile.social.avatarFull = { id: 'avatar_social', version: 1 };
+    me.state.myProfile.social.gallery = [{ id: 'img_social', version: 1 }];
+    me.state.myProfile.gallery = [{ id: 'img_main', version: 1 }];
+
+    const toBuddy = me.buildProfilePayloadFor('buddy');
+    const toDate = me.buildProfilePayloadFor('date');
+    assert.equal(toBuddy.fields.displayName, 'Alex');
+    assert.equal(toBuddy.avatarFull.id, 'avatar_social');
+    assert.equal(toDate.fields.displayName, 'Hot Alex');
+    assert.equal(toDate.avatarFull.id, 'avatar_main');
+    // Bilder nur aus dem Profil, das der Peer sieht.
+    assert.equal(me.canPeerAccessImage('buddy', 'img_social'), true);
+    assert.equal(me.canPeerAccessImage('buddy', 'img_main'), false);
+    assert.equal(me.canPeerAccessImage('date', 'img_main'), true);
+    assert.equal(me.canPeerAccessImage('date', 'avatar_social'), false);
+    // Ohne Chat: Profil des aktiven Modus (auch fuer den Router).
+    assert.equal(me.getRegistrationIdentity().name, 'Hot Alex');
+    me.state.appMode = 'chat';
+    assert.equal(me.getRegistrationIdentity().name, 'Alex');
+
+    // Ausschalten: wieder ein Profil, die Social-Werte bleiben fuer spaeter.
+    await me.setSocialProfileEnabled(false);
+    assert.equal(me.buildProfilePayloadFor('buddy').fields.displayName, 'Hot Alex');
+    assert.equal(me.state.myProfile.social.fields.displayName, 'Alex');
+});

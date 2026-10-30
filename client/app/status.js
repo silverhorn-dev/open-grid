@@ -224,7 +224,9 @@ function statusAvatar(peerId, { ring, label, onClick }) {
     const frame = document.createElement('div');
     frame.className = `relative w-14 h-14 rounded-full p-0.5 ${ring}`;
     const image = document.createElement('img');
-    image.src = localAvatar(peerId === state.myProfile.id ? state.myProfile.avatar : getPeerPresentation(peerId).avatar);
+    // Eigener Status geht an Freunde: Profilbild aus dem Social-Profil (falls eigenes, profile.js).
+    const ownAvatar = typeof profilePart === 'function' ? profilePart('social').avatar : state.myProfile.avatar;
+    image.src = localAvatar(peerId === state.myProfile.id ? ownAvatar : getPeerPresentation(peerId).avatar);
     image.alt = '';
     image.className = 'w-full h-full rounded-full object-cover border-2 border-slate-900';
     frame.appendChild(image);

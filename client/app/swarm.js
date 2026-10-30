@@ -20,7 +20,7 @@ function openSwarmPeers(excludeId) {
 // Eigene Galerie: Hash pro Bild, damit Dritte Kopien pruefen koennen (wird mit signiert).
 async function ensureGalleryHashes() {
     let changed = false;
-    for (const item of state.myProfile.gallery || []) {
+    for (const item of [...(state.myProfile.gallery || []), ...(state.myProfile.social?.gallery || [])]) {
         if (item.sha256) continue;
         const media = await loadMedia(item.id);
         if (!media?.data) continue;

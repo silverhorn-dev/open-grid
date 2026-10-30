@@ -571,5 +571,5 @@
 
 ## T28 Profil: Bild gross, eigenes Social-Profil (nutzer 2026-10-30)
 - [x] profilbild im profil-popup antippbar, laedt die grosse fassung wie galeriebilder (`avatarFull`, IMAGE_REQUEST, sha256-pruefung); bug: ein verlauf ueber dem bild fing alle klicks ab; e2e `profile-picture`, UC-66
-- [ ] social-profil kann sich vom entdecken-profil unterscheiden
+- [x] social-profil kann sich vom entdecken-profil unterscheiden (2026-10-30): schalter im profil, dann auswahl "Entdecken | Chat & Freunde"; getrennt: felder, profilbild (+gross), galerie; empfaenger nach liste des chats; signiertes `area`, damit ein listenwechsel das zwischengespeicherte profil ersetzt; tests `test/friends.test.js`, e2e `social-profile`, UC-67
 

@@ -1042,6 +1042,22 @@ dasselbe Menue: Oeffnen, Profil, Chat loeschen, Blockieren/Blockierung
 aufheben; bei einem Verweis: In "Chat & Freunde" oeffnen, Profil, Aus dieser
 Liste entfernen. Zurueck-Taste schliesst es (`pushModalEntry('chatlistmenu')`).
 
+**Eigenes Profil fuer "Chat & Freunde"** (seit 2026-10-30, `client/app/profile.js`):
+Standard ist ein Profil fuer alles. Mit `myProfile.social.enabled` hat der
+Bereich `social` eigene `fields`, `avatar`, `avatarFull` und `gallery`
+(`myProfile.social`, beim ersten Einschalten eine Kopie, Bilder geteilt; Medien
+werden nur geloescht, wenn kein Teil sie mehr nutzt). Ausschalten behaelt die
+Werte. Welcher Teil rausgeht: `profileAreaForPeer` = Liste des Chats mit dem
+Peer (`chatScopeOf`), ohne Chat der aktive Modus; `buildProfilePayloadFor`,
+`activeSchemaFields`, `canPeerAccessImage` (nur Bilder des gesendeten Teils) und
+`getRegistrationIdentity` (Router: Name/Bild des aktiven Modus) folgen dem.
+Das signierte Profil traegt dann `area` ('discovery' | 'social'); der
+Empfaenger ersetzt sein zwischengespeichertes Profil auch bei gleicher Version,
+wenn sich `area` aendert (Chat wanderte in die andere Liste). Der Profil-Editor
+zeigt bei eingeschaltetem Social-Profil eine Auswahl "Entdecken | Chat &
+Freunde" (`state.profileEditArea`, Standard: Bereich des Modus) und nutzt das
+Schema des gewaehlten Bereichs.
+
 **Profilbild in gross** (seit 2026-10-30): Das Profil traegt das Profilbild
 mit 200 px (`avatar`). Beim Hochladen legt der Client zusaetzlich eine Fassung
 mit hoechstens 1280 px lokal ab (`media`, Id `avatar_<uuid>`) und setzt

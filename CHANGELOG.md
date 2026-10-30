@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 258 · 2026-10-30
+## Build 259 · 2026-10-30
+- Eigenes Profil fuer "Chat & Freunde" (im Profil einschaltbar): Name, Angaben, Profilbild und Galerie koennen sich vom Entdecken-Profil unterscheiden; Freunde sehen das eine, alle anderen das andere
+
+## Build 258 · 2026-10-30 · `223b6d3`
 - Behoben: das Aufraeumen des Speichers haette die grossen Profilbilder geloescht
 
 ## Build 257 · 2026-10-30 · `ad34172`

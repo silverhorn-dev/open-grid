@@ -214,7 +214,8 @@ function renderModalGalleryImage(imageId, base64) {
 async function openProfileImageViewer(startImage) {
     const peerId = state.activeModalPeerId;
     const avatar = document.getElementById('modal-profile-img').src;
-    const fullMeta = peerId === state.myProfile.id ? state.myProfile.avatarFull : (peerId ? state.cachedProfiles[peerId]?.avatarFull : null);
+    const ownPart = typeof editingProfilePart === 'function' ? editingProfilePart() : state.myProfile;
+    const fullMeta = peerId === state.myProfile.id ? ownPart.avatarFull : (peerId ? state.cachedProfiles[peerId]?.avatarFull : null);
     const fullMedia = fullMeta?.id ? await loadMedia(fullMeta.id).catch(() => null) : null;
     const fullAvatar = fullMedia?.version === fullMeta?.version && isSafeInlineImage(fullMedia?.data) ? fullMedia.data : null;
     const gallery = [...document.querySelectorAll('#modal-gallery-container [data-viewer-image] img')].map(image => image.src);

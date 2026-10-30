@@ -70,6 +70,8 @@ function loadAlbums({ identity = null, peerKeys = {}, signingKeys = {}, withSwar
             return { now: clock.now, epochMs: clock.epochMs, epoch, epochEndsAt: (epoch + 1) * clock.epochMs };
         },
         isGalleryVisibleTo: () => true,
+        // Profil fuer einen Peer (matching.js): hier immer die oeffentliche Galerie.
+        buildProfilePayloadFor: () => ({ gallery: context.state.myProfile.gallery }),
         logDebug: () => {},
         logBackgroundError: () => () => {},
         sendSecurePayload: async (peerId, payload) => sent.push({ peerId, payload }),

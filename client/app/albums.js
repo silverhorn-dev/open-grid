@@ -300,9 +300,13 @@ function scheduleAlbumLimitCheck(now = Date.now()) {
 
 // ----- P2P-Protokoll -----
 function canPeerAccessImage(peerId, imageId) {
-    if ((state.myProfile.gallery || []).some(item => item.id === imageId)) return isGalleryVisibleTo(peerId);
-    // Grosse Fassung des Profilbilds: wer das Profilbild bekommt (gleiche Regel wie das Profil).
-    if (state.myProfile.avatarFull?.id === imageId) return buildProfilePayloadFor(peerId).avatarFull?.id === imageId;
+    // Galerie und grosse Fassung des Profilbilds: genau das, was dieser Peer im Profil bekommt (Bereich,
+    // Sichtbarkeit, eigenes Social-Profil; matching.js buildProfilePayloadFor).
+    const parts = [state.myProfile, state.myProfile.social].filter(Boolean);
+    if (parts.some(part => part.avatarFull?.id === imageId || (part.gallery || []).some(item => item.id === imageId))) {
+        const profile = buildProfilePayloadFor(peerId);
+        return profile.avatarFull?.id === imageId || (profile.gallery || []).some(item => item.id === imageId);
+    }
     return getOwnAlbums().some(album => album.acl.includes(peerId) && album.items.some(item => item.id === imageId));
 }
 

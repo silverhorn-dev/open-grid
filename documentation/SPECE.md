@@ -1717,6 +1717,11 @@ Ein Klick auf die Benachrichtigung fokussiert die App und oeffnet den Chat
     mit Bild/Snap/Video von unter 18 `message.nudityScan = true` (verschluesselt,
     `isValidMessage`: boolean), der Empfaenger prueft diese Bilder immer
     (`markForcedNudityScan`).
+  - `AGE_PROVIDER` ist live (Panel, vor `AGE_CHECK` angewendet): `none`/`eudi`/`oidc`
+    (`dev` nur per Umgebung). Beide Anbieter werden immer erzeugt; `eudi` startet den
+    Import der EU-Liste erst bei Auswahl (`activate`). `none` ist bei
+    `AGE_CHECK=provider` abgelehnt; stand `AGE_CHECK=provider` ohne Anbieter (dann
+    vorerst `confirm`), gilt nach der Auswahl wieder `provider`.
   - OIDC-Pruefdienst `oidc` (`server/age-oidc.js`), Konfiguration `AGE_OIDC_*`
     bzw. live `AGE_OIDC` (JSON: issuer, clientId, clientSecret, scope, claim,
     adultValue, minorValue, redirectUri; in `admin_settings` mit

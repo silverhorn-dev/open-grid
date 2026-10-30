@@ -157,7 +157,7 @@ laufen durch dieselben Tests und bauen das echte Image zur Probe
 | `APP_MODES` | alle | Erlaubte App-Modi, kommagetrennt: `discovery`, `chat`, `friends`, `event`. Z. B. `chat` fuer einen reinen Chat-Server. Sind nur Modi eines Bereichs erlaubt (Entdecken: `discovery`/`event`, Social: `chat`/`friends`), entfaellt die Bereichswahl beim Onboarding |
 | `DEFAULT_APP_MODE` | erster erlaubter | Vorauswahl fuer neue Nutzer |
 | `AGE_CHECK` | `off` | Altersnachweis: `off`, `confirm` (Nutzer bestaetigt "mindestens 18"), `provider` (Nachweis ueber einen Anbieter, siehe `AGE_PROVIDER`). Bis zum Nachweis ist ein Nutzer unsichtbar und bekommt kein Grid |
-| `AGE_PROVIDER` | - | Anbieter fuer `AGE_CHECK=provider`: `eudi` (EU-Altersnachweis ueber die Wallet, siehe "Nachweise und Sperren"), `oidc` (beliebiger OpenID-Connect-Pruefdienst, z. B. KJM-anerkannt, siehe `AGE_OIDC_*`) oder `dev` (bestaetigt auf Knopfdruck, nur zum Testen); unbekannt = es gilt `confirm` |
+| `AGE_PROVIDER` | - | Startwert, im Admin-Panel live umschaltbar. Anbieter fuer `AGE_CHECK=provider`: `eudi` (EU-Altersnachweis ueber die Wallet, siehe "Nachweise und Sperren"), `oidc` (beliebiger OpenID-Connect-Pruefdienst, z. B. KJM-anerkannt, siehe `AGE_OIDC_*`) oder `dev` (bestaetigt auf Knopfdruck, nur zum Testen); unbekannt = es gilt `confirm` |
 | `AGE_TRUST_CERTS` | - | Fuer `eudi`: Ordner mit PEM-Dateien zusaetzlich anerkannter Aussteller (Aussteller- oder CA-Zertifikate) |
 | `AGE_TRUSTED_LIST_URL` | EU-Liste | Fuer `eudi`: automatischer Import der "Age Verification Trusted List" der Kommission (taeglich, nur mit gueltiger Signatur); `off` = kein Import |
 | `AGE_TRUSTED_LIST_SIGNER` | Zertifikat der Kommission | SHA-256-Fingerabdruecke (Komma-Liste) erlaubter Unterzeichner der Liste; bei einem Zertifikatswechsel der Kommission hier den neuen eintragen |
@@ -342,12 +342,13 @@ Sicherheitsschluessel), kein Passwort.
   Empfaenger. Inhalt und Art bleiben verschluesselt und werden nicht erfasst.
   Aufraeumen: abgelaufene, alles fuer einen Empfaenger oder alles.
 - Einstellungen: sofort wirksam (ohne Neustart, gespeichert, gewinnt ueber die
-  Umgebungsvariable, "Zuruecksetzen" nimmt wieder deren Wert): `AGE_CHECK`,
-  `EMAIL_CHECK`, `ABUSE_LOG_DAYS`, `NUDITY_MODEL`, `NUDITY_THRESHOLD`,
+  Umgebungsvariable, "Zuruecksetzen" nimmt wieder deren Wert): `AGE_PROVIDER`
+  (`none`, `eudi`, `oidc`), `AGE_OIDC` (Pruefdienst), `AGE_CHECK`, `EMAIL_CHECK`, `ABUSE_LOG_DAYS`, `NUDITY_MODEL`, `NUDITY_THRESHOLD`,
   `NUDITY_CLASSES`, `CLIENT_DEFAULTS`, `AUDIENCE_MINIMUM`. Der Rest (Ports,
-  Datenbank, TURN, SMTP, `AGE_PROVIDER`, ...) steht zur Ansicht da und braucht
+  Datenbank, TURN, SMTP, ...) steht zur Ansicht da und braucht
   einen Neustart; Geheimnisse nur als "gesetzt". `AGE_CHECK=provider` geht nur
-  mit gesetztem `AGE_PROVIDER`.
+  mit gewaehltem `AGE_PROVIDER` (erst Anbieter waehlen, dann `AGE_CHECK`); `dev`
+  ist im Panel nie waehlbar.
 - Sperren: Peer-ID oder E-Mail-Adresse sperren (gespeichert nur als HMAC),
   aufheben; eine offene Verbindung des Peers wird getrennt.
 - Meldungen: Findet jemand ein weitergegebenes Bild, prueft er es in der App

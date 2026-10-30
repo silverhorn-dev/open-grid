@@ -711,73 +711,74 @@ export async function buildApp(options = {}) {
         smtpFrom: process.env.SMTP_FROM,
         ageSeparation: process.env.AGE_SEPARATION
     });
-    // EU-Altersnachweis ueber die Wallet (age-eudi.js) mit Vertrauensankern aus age-trust.js.
+    // Anbieter fuer AGE_CHECK=provider. Beide werden immer vorbereitet: AGE_PROVIDER laesst sich im Admin-Panel
+    // umschalten; Netzverkehr gibt es erst, wenn ein Anbieter gewaehlt ist (activate) bzw. benutzt wird.
     const ageProviders = {};
-    // Auch ohne AGE_CHECK=provider vorbereitet: das Admin-Panel kann den Nachweis live einschalten.
-    if (safetyConfig.ageProvider === 'eudi') {
-        const ageTrust = createAgeTrustStore({
-            config: parseAgeTrustConfig(options.ageTrust ?? {
-                certs: process.env.AGE_TRUST_CERTS,
-                listUrl: process.env.AGE_TRUSTED_LIST_URL,
-                listSigners: process.env.AGE_TRUSTED_LIST_SIGNER
-            }),
-            dataDirectory: databasePath === ':memory:' ? null : dirname(databasePath),
-            log: app.log,
-            ...(options.ageTrustFetch ? { fetchList: options.ageTrustFetch } : {})
-        });
-        if (options.ageTrustAutoStart !== false) ageTrust.start();
-        app.addHook('onClose', async () => ageTrust.stop());
-        const appUrl = String(options.appUrl ?? process.env.APP_URL ?? '').trim();
-        let origins = [];
-        try {
-            origins = appUrl ? [new URL(appUrl).origin] : [];
-        } catch {
-            app.log.warn('APP_URL is not a valid URL; the EUDI age check binds to the request host.');
-        }
-        ageProviders.eudi = createEudiAgeProvider({
+    const appUrlSetting = String(options.appUrl ?? process.env.APP_URL ?? '').trim();
+    // EU-Altersnachweis ueber die Wallet (age-eudi.js) mit Vertrauensankern aus age-trust.js.
+    const ageTrust = createAgeTrustStore({
+        config: parseAgeTrustConfig(options.ageTrust ?? {
+            certs: process.env.AGE_TRUST_CERTS,
+            listUrl: process.env.AGE_TRUSTED_LIST_URL,
+            listSigners: process.env.AGE_TRUSTED_LIST_SIGNER
+        }),
+        dataDirectory: databasePath === ':memory:' ? null : dirname(databasePath),
+        log: app.log,
+        ...(options.ageTrustFetch ? { fetchList: options.ageTrustFetch } : {})
+    });
+    app.addHook('onClose', async () => ageTrust.stop());
+    let eudiOrigins = [];
+    try {
+        eudiOrigins = appUrlSetting ? [new URL(appUrlSetting).origin] : [];
+    } catch {
+        app.log.warn('APP_URL is not a valid URL; the EUDI age check binds to the request host.');
+    }
+    ageProviders.eudi = {
+        ...createEudiAgeProvider({
             trust: ageTrust,
             doctypes: parseEudiDoctypes(options.ageEudiDoctypes ?? process.env.AGE_EUDI_DOCTYPES),
-            origins,
+            origins: eudiOrigins,
             now: () => new Date(now()),
             log: app.log
-        });
-        app.decorate('ageTrust', ageTrust);
-    }
+        }),
+        // Import der EU-Liste erst, wenn die Wallet als Anbieter gewaehlt ist (taeglich, idempotent).
+        activate: () => {
+            if (options.ageTrustAutoStart !== false) ageTrust.start();
+        }
+    };
+    app.decorate('ageTrust', ageTrust);
+
     // Beliebiger OpenID-Connect-Dienst (age-oidc.js), z. B. KJM-anerkannte Pruefdienste. Startwert aus
     // AGE_OIDC_*, im Admin-Panel live aenderbar (Eintrag AGE_OIDC, Client-Secret verschluesselt gespeichert).
     let oidcEnvConfig = null;
-    let oidcConfig = null;
-    if (safetyConfig.ageProvider === 'oidc') {
-        try {
-            oidcEnvConfig = parseOidcConfig(options.ageOidc ?? {
-                issuer: process.env.AGE_OIDC_ISSUER,
-                clientId: process.env.AGE_OIDC_CLIENT_ID,
-                clientSecret: process.env.AGE_OIDC_CLIENT_SECRET,
-                scope: process.env.AGE_OIDC_SCOPE,
-                claim: process.env.AGE_OIDC_CLAIM,
-                adultValue: process.env.AGE_OIDC_ADULT_VALUE,
-                minorValue: process.env.AGE_OIDC_MINOR_VALUE,
-                redirectUri: process.env.AGE_OIDC_REDIRECT_URI
-            });
-        } catch (error) {
-            app.log.error(`AGE_OIDC_* is invalid (${error.message}); the OIDC age check stays off until it is set in the admin panel.`);
-        }
-        oidcConfig = oidcEnvConfig;
-        const appUrl = String(options.appUrl ?? process.env.APP_URL ?? '').trim();
-        ageProviders.oidc = createOidcAgeProvider({
-            getConfig: () => oidcConfig,
-            fetch: options.ageOidcFetch,
-            now,
-            log: app.log,
-            defaultRedirectUri: origin => {
-                try {
-                    return `${new URL(appUrl || origin).origin}/age-callback`;
-                } catch {
-                    return null;
-                }
-            }
+    try {
+        oidcEnvConfig = parseOidcConfig(options.ageOidc ?? {
+            issuer: process.env.AGE_OIDC_ISSUER,
+            clientId: process.env.AGE_OIDC_CLIENT_ID,
+            clientSecret: process.env.AGE_OIDC_CLIENT_SECRET,
+            scope: process.env.AGE_OIDC_SCOPE,
+            claim: process.env.AGE_OIDC_CLAIM,
+            adultValue: process.env.AGE_OIDC_ADULT_VALUE,
+            minorValue: process.env.AGE_OIDC_MINOR_VALUE,
+            redirectUri: process.env.AGE_OIDC_REDIRECT_URI
         });
+    } catch (error) {
+        app.log.error(`AGE_OIDC_* is invalid (${error.message}); the OIDC age check stays off until it is set in the admin panel.`);
     }
+    let oidcConfig = oidcEnvConfig;
+    ageProviders.oidc = createOidcAgeProvider({
+        getConfig: () => oidcConfig,
+        fetch: options.ageOidcFetch,
+        now,
+        log: app.log,
+        defaultRedirectUri: origin => {
+            try {
+                return `${new URL(appUrlSetting || origin).origin}/age-callback`;
+            } catch {
+                return null;
+            }
+        }
+    });
     const safety = createSafety({ config: safetyConfig, store, log: app.log, now, ageProviders });
     const ageTestEnabled = String(options.ageEudiTest ?? process.env.AGE_EUDI_TEST ?? 'true').toLowerCase() !== 'false';
     // Eingeschaltete Teile, je Anfrage (das Admin-Panel kann sie live umschalten).
@@ -862,6 +863,12 @@ export async function buildApp(options = {}) {
                 },
                 options: () => NUDITY_SCAN_MODES
             },
+            // Vor AGE_CHECK: ein gespeichertes AGE_CHECK=provider braucht beim Start schon den Anbieter.
+            AGE_PROVIDER: {
+                env: safetyConfig.ageProvider || 'none',
+                apply: value => safety.updateConfig({ ageProvider: value ?? 'none' }),
+                options: () => safety.options().ageProviders
+            },
             AGE_CHECK: {
                 env: safety.publicConfig().ageCheck,
                 apply: value => safety.updateConfig({ ageCheck: value }),
@@ -876,39 +883,37 @@ export async function buildApp(options = {}) {
                 env: safetyConfig.abuseLogDays,
                 apply: value => safety.updateConfig({ abuseLogDays: Number(value) })
             },
-            ...(ageProviders.oidc ? {
-                AGE_OIDC: {
-                    env: oidcEnvConfig,
-                    // Ohne clientSecret in der Eingabe bleibt das bisherige (das Panel sieht es nie); "" loescht es.
-                    prepare: value => {
-                        const input = jsonSetting(value, 'AGE_OIDC');
-                        if (input === null) return null;
-                        if (typeof input !== 'object' || Array.isArray(input)) throw new Error('AGE_OIDC must be a JSON object');
-                        const { clientSecretSet, ...rest } = input;
-                        return parseOidcConfig(Object.hasOwn(rest, 'clientSecret') ? rest : { ...rest, clientSecret: oidcConfig?.clientSecret ?? null });
-                    },
-                    apply: value => {
-                        oidcConfig = value ? parseOidcConfig(value) : null;
-                    },
-                    encode: value => {
-                        if (!value?.clientSecret) return value;
-                        const { clientSecret, ...rest } = value;
-                        return { ...rest, clientSecretEncrypted: secretCrypto().encrypt(clientSecret) };
-                    },
-                    decode: value => {
-                        if (!value?.clientSecretEncrypted) return value;
-                        const { clientSecretEncrypted, ...rest } = value;
-                        return { ...rest, clientSecret: secretCrypto().decrypt(clientSecretEncrypted) };
-                    },
-                    view: describeOidcConfig
-                }
-            } : {})
+            AGE_OIDC: {
+                env: oidcEnvConfig,
+                // Ohne clientSecret in der Eingabe bleibt das bisherige (das Panel sieht es nie); "" loescht es.
+                prepare: value => {
+                    const input = jsonSetting(value, 'AGE_OIDC');
+                    if (input === null) return null;
+                    if (typeof input !== 'object' || Array.isArray(input)) throw new Error('AGE_OIDC must be a JSON object');
+                    const { clientSecretSet, ...rest } = input;
+                    return parseOidcConfig(Object.hasOwn(rest, 'clientSecret') ? rest : { ...rest, clientSecret: oidcConfig?.clientSecret ?? null });
+                },
+                apply: value => {
+                    oidcConfig = value ? parseOidcConfig(value) : null;
+                },
+                encode: value => {
+                    if (!value?.clientSecret) return value;
+                    const { clientSecret, ...rest } = value;
+                    return { ...rest, clientSecretEncrypted: secretCrypto().encrypt(clientSecret) };
+                },
+                decode: value => {
+                    if (!value?.clientSecretEncrypted) return value;
+                    const { clientSecretEncrypted, ...rest } = value;
+                    return { ...rest, clientSecret: secretCrypto().decrypt(clientSecretEncrypted) };
+                },
+                view: describeOidcConfig
+            }
         }
     });
     // Nur mit Neustart aenderbar: im Panel zur Ansicht, Geheimnisse nur als "gesetzt".
     const RESTART_ONLY = ['APP_MODES', 'DEFAULT_APP_MODE', 'LAN_MODE', 'APP_URL', 'INFO_HOST', 'TURN_SERVER', 'TURN_PORT', 'STUN_SERVER',
         'DATABASE_PATH', 'CREDENTIAL_RETENTION_DAYS', 'MEDIA_KEY_EPOCH_MINUTES', 'TRUST_PROXY', 'RATE_LIMIT_SCALE', 'VAPID_SUBJECT',
-        'AGE_PROVIDER', 'AGE_TRUST_CERTS', 'AGE_TRUSTED_LIST_URL', 'AGE_EUDI_DOCTYPES', 'AGE_EUDI_TEST', 'EMAIL_TRANSPORT', 'SMTP_FROM', 'NUDITY_MODEL_DIR'];
+        'AGE_TRUST_CERTS', 'AGE_TRUSTED_LIST_URL', 'AGE_EUDI_DOCTYPES', 'AGE_EUDI_TEST', 'EMAIL_TRANSPORT', 'SMTP_FROM', 'NUDITY_MODEL_DIR'];
     const RESTART_ONLY_SECRETS = ['TURN_SECRET', 'SAFETY_KEY', 'SMTP_URL', 'VAPID_PRIVATE_KEY', 'ADMIN_SETUP_TOKEN'];
     const restartOnly = () => [
         ...RESTART_ONLY.map(key => ({ key, value: process.env[key] ?? null })),
@@ -937,7 +942,7 @@ export async function buildApp(options = {}) {
                 ? { model: 'off' }
                 : { model: nudityPublicConfig.model, threshold: nudityPublicConfig.threshold, classes: nudityPublicConfig.classes, available: Object.keys(nudityPublicConfig.models || {}) },
             safety: { ...safety.publicConfig(), abuseLogDays: safetyConfig.abuseLogDays },
-            ageTrust: app.ageTrust?.status() ?? null,
+            ageTrust: safety.options().ageProvider === 'eudi' ? ageTrust.status() : null,
             latest: metrics.latest(),
             openReports: store.admin.openReportCount()
         })

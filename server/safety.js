@@ -101,17 +101,24 @@ function sameHash(left, right) {
 
 export function createSafety({ config: startConfig, store, log, now = Date.now, ageProviders = {} }) {
     const safetyStore = store.safety;
-    // Eigene Kopie: AGE_CHECK, EMAIL_CHECK und ABUSE_LOG_DAYS lassen sich zur Laufzeit aendern (updateConfig,
-    // Admin-Panel); Anbieter und Versand stehen ab dem Start fest.
+    // Eigene Kopie: AGE_CHECK, AGE_PROVIDER, EMAIL_CHECK und ABUSE_LOG_DAYS lassen sich zur Laufzeit aendern
+    // (updateConfig, Admin-Panel); der Versand steht ab dem Start fest.
     const config = { ...startConfig };
     let ageCheck = config.ageCheck;
+    const resolveProvider = id => (id ? (ageProviders[id] || AGE_PROVIDERS[id] || null) : null);
+    // Waehlbar: die in app.js erzeugten Anbieter (eudi, oidc); `dev` nur, wenn er per Umgebung gesetzt ist.
+    const selectableProviders = [...Object.keys(ageProviders), ...(config.ageProvider === 'dev' ? ['dev'] : [])];
     // Der Anbieter wird auch ohne AGE_CHECK=provider vorbereitet, damit das Panel ihn spaeter einschalten kann.
-    const provider = config.ageProvider ? (ageProviders[config.ageProvider] || AGE_PROVIDERS[config.ageProvider] || null) : null;
+    let provider = resolveProvider(config.ageProvider);
+    provider?.activate?.();
+    // AGE_CHECK=provider ohne Anbieter: vorerst confirm; wird im Panel ein Anbieter gewaehlt, gilt wieder provider.
+    let providerPending = false;
     if (ageCheck === 'provider') {
         if (!provider) {
             // Ohne Anbieter kann niemand den Nachweis erbringen; dann wenigstens die Bestaetigung.
             log.error(`AGE_CHECK=provider, aber AGE_PROVIDER "${config.ageProvider || ''}" ist unbekannt. Es gilt AGE_CHECK=confirm.`);
             ageCheck = 'confirm';
+            providerPending = true;
         } else if (provider.id === 'dev') {
             log.warn('AGE_PROVIDER=dev bestaetigt jedes Alter auf Knopfdruck. Nur zum Testen verwenden.');
         }
@@ -177,15 +184,28 @@ export function createSafety({ config: startConfig, store, log, now = Date.now, 
                 ageCheck: AGE_CHECK_MODES.filter(mode => mode !== 'provider' || provider),
                 emailCheck: EMAIL_CHECK_MODES.filter(mode => mode !== 'required' || transport),
                 ageProvider: provider?.id || null,
+                ageProviders: ['none', ...selectableProviders],
                 abuseLogDays: config.abuseLogDays
             };
         },
         // Live-Aenderung aus dem Admin-Panel; ungueltige Werte werden abgelehnt (Fehler).
-        updateConfig({ ageCheck: nextAgeCheck, emailCheck, abuseLogDays } = {}) {
+        updateConfig({ ageCheck: nextAgeCheck, ageProvider, emailCheck, abuseLogDays } = {}) {
+            if (ageProvider !== undefined) {
+                const id = ageProvider === null || ageProvider === '' || ageProvider === 'none' ? null : String(ageProvider).trim().toLowerCase();
+                if (id && !selectableProviders.includes(id)) throw new Error(`AGE_PROVIDER=${id} is not possible here`);
+                if (!id && ageCheck === 'provider') throw new Error('Set AGE_CHECK to something other than provider first');
+                provider = resolveProvider(id);
+                provider?.activate?.();
+                if (provider && providerPending && ageCheck === 'confirm') {
+                    ageCheck = 'provider';
+                    providerPending = false;
+                }
+            }
             const allowed = this.options();
             if (nextAgeCheck !== undefined) {
                 if (!allowed.ageCheck.includes(nextAgeCheck)) throw new Error(`AGE_CHECK=${nextAgeCheck} is not possible here`);
                 ageCheck = nextAgeCheck;
+                providerPending = false;
                 if (ageCheck === 'provider' && provider?.id === 'dev') log.warn('AGE_PROVIDER=dev bestaetigt jedes Alter auf Knopfdruck. Nur zum Testen verwenden.');
             }
             if (emailCheck !== undefined) {

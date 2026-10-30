@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 250 · 2026-10-30
+## Build 251 · 2026-10-30
+- Admin-Panel: der Anbieter fuer den Altersnachweis (EU-Wallet oder OIDC-Pruefdienst) laesst sich jetzt ohne Neustart umschalten, die OIDC-Einstellungen sind immer sichtbar
+
+## Build 250 · 2026-10-30 · `cab23b0`
 - Ausgeschaltete Teile werden nicht mehr ausgeliefert: ist der Nacktbild-Filter oder der Alters-/E-Mail-Nachweis auf dem Server aus, laedt die App weder deren Code noch Oberflaeche noch Modell
 
 ## Build 249 · 2026-10-30 · `56df4e6`

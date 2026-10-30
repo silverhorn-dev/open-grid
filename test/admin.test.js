@@ -390,3 +390,26 @@ test('admin live config: OIDC age service, client secret encrypted and never sho
     assert.equal((await put(app, 'AGE_OIDC', JSON.stringify({ issuer: 'https://idp.example.org', clientId: 'og', clientSecret: '' }), cookie)).statusCode, 200);
     assert.equal((await live()).value.clientSecretSet, false);
 });
+
+test('admin live config: age provider can be switched without a restart', async () => {
+    const store = createStore(':memory:');
+    const app = await buildApp({ store, buildVersion: 'test', buildTimestamp: 'x', appUrl: ORIGIN, adminSetupToken: SETUP, ageTrustAutoStart: false });
+    cleanup.push(async () => { await app.close(); store.close(); });
+    const cookie = await setupPasskey(app, authenticator());
+    const live = async () => (await app.inject({ method: 'GET', url: '/api/admin/config', headers: { cookie } })).json().live;
+
+    const before = await live();
+    assert.deepEqual(before.AGE_PROVIDER.options, ['none', 'eudi', 'oidc'], 'dev is never offered');
+    assert.equal(before.AGE_PROVIDER.value, 'none');
+    assert.ok(before.AGE_OIDC, 'OIDC settings are always editable');
+    assert.equal((await put(app, 'AGE_CHECK', 'provider', cookie)).statusCode, 400, 'no provider chosen yet');
+    assert.equal((await put(app, 'AGE_PROVIDER', 'dev', cookie)).statusCode, 400);
+
+    assert.equal((await put(app, 'AGE_PROVIDER', 'oidc', cookie)).statusCode, 200);
+    assert.deepEqual((await live()).AGE_CHECK.options, ['off', 'confirm', 'provider']);
+    assert.equal((await put(app, 'AGE_CHECK', 'provider', cookie)).statusCode, 200);
+    assert.deepEqual((await appConfig(app)).safety, { ageCheck: 'provider', ageProvider: 'oidc', emailCheck: 'off' });
+    assert.equal((await put(app, 'AGE_PROVIDER', 'none', cookie)).statusCode, 400, 'not while AGE_CHECK=provider');
+    assert.equal((await put(app, 'AGE_PROVIDER', 'eudi', cookie)).statusCode, 200);
+    assert.equal((await appConfig(app)).safety.ageProvider, 'eudi');
+});

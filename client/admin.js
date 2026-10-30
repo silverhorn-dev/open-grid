@@ -391,6 +391,7 @@ async function refreshStatus() {
 // ----- Einstellungen (Live-Konfiguration) -----
 // Welche Eingabe je Einstellung; Optionen kommen vom Router (nur was dort moeglich ist).
 const LIVE_SETTINGS = {
+    AGE_PROVIDER: { type: 'select', label: () => t('admin.settingAgeProvider') },
     AGE_CHECK: { type: 'select', label: () => t('admin.settingAgeCheck') },
     AGE_OIDC: { type: 'json', label: () => t('admin.settingAgeOidc') },
     EMAIL_CHECK: { type: 'select', label: () => t('admin.settingEmailCheck') },

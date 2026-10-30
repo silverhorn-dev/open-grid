@@ -496,7 +496,11 @@ test('private mode (only chat & friends): eye tab in every friend chat, private 
     assert.equal(me.isDiscoveryMessageHidden('pal', secret), false, 'private view shows it');
     assert.equal(me.messageScopeFor('pal'), 'discovery', 'new messages are private');
 
-    // Mit Entdecken gilt wieder die Flirt-Logik (Privat-Modus nur fuer "nur Chat & Freunde").
+    // Auch mit Entdecken: Privat-Modus in sozialen Chats ohne Match; aus einem Match bleibt es der Flirt.
     scope = 'all';
-    assert.equal(me.privateModeOn(), false);
+    assert.equal(me.privateModeOn(), true);
+    assert.equal(me.hasPrivatePart('pal'), true);
+    me.isMatched = peerId => peerId === 'pal';
+    assert.equal(me.hasPrivatePart('pal'), false, 'flirt part from a match keeps the flame');
+    assert.equal(me.canFlirt('pal'), true);
 });

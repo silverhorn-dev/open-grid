@@ -581,5 +581,7 @@
 - [x] nachrichten bearbeiten (`MESSAGE_EDIT`), "bearbeitet"; mehrfachauswahl (kopieren mit namen, eigene loeschen); e2e `message-tools`, UC-68
 - [x] profil-popup bei match + freund: duenne reiter "Dating | Freunde" (entdecken-modus waehlt dating vor); besitzer schickt matched friends beide profile; reine freunde nur social
 - [x] privatsphaere: im grid verstecken vor 3-fach: aus | freunde | freunde + chat-partner; flag im signierten profil, gefiltert beim anderen (einseitig), matches sehen immer
+- [x] chatliste: menue per langem druecken ging auf dem handy sofort wieder zu (kontextmenue-ereignis des handys traf den hintergrund) -> nur schliessen, wenn der druck dort begann; auch beim nachrichten-menue
+- [x] privat-modus auch mit beiden bereichen (nutzer: einstellung war bei "alle modi" ausgeblendet), in sozialen chats ohne match; menue-texte "Privat-Knopf zeigen"
 - [x] "Privat"-modus (auge) fuer nur-social: versteckter schalter in den einstellungen, lasche in jedem freundes-chat ohne match; hinweis "lange druecken zum ausblenden" links neben der lasche
 

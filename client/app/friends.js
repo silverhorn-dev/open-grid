@@ -294,16 +294,20 @@ function hasFlirtPart(peerId) {
     return Boolean(peerId) && chatScopeOf(peerId) === 'social' && isMatched(peerId) && hasDiscoveryHistory(peerId);
 }
 
-// Privat-Modus (nur "Chat & Freunde", Einstellung): dieselbe Lasche wie der Flirt-Modus, aber mit Auge
-// und in jedem Freundes-Chat, auch ohne Match. Private Nachrichten tragen `scope: 'discovery'` wie
-// Flirt-Nachrichten; ausgeblendet sind sie nur bei dem, der den Privat-Modus an hat (nur Anzeige).
+// Privat-Modus (Einstellung unter Chat, sobald "Chat & Freunde" an ist): dieselbe Lasche wie der Flirt-Modus,
+// aber mit Auge, in jedem Chat in "Chat & Freunde" ohne Flirt-Teil (aus einem Match bleibt es die Flamme).
+// Private Nachrichten tragen `scope: 'discovery'` wie Flirt-Nachrichten; ausgeblendet sind sie nur bei dem,
+// der den Privat-Modus an hat (nur Anzeige).
 function privateModeOn() {
-    return state.discoveryHistory?.privateMode === true && scopeIncludes('social') && !scopeIncludes('discovery');
+    return state.discoveryHistory?.privateMode === true && scopeIncludes('social');
 }
 
-// Ohne Entdecken ist jeder Chat ein Chat in "Chat & Freunde" (auch ohne gespeicherte Zuordnung).
 function hasPrivatePart(peerId) {
-    return Boolean(peerId) && privateModeOn() && chatScopeOf(peerId) !== 'discovery';
+    if (!peerId || !privateModeOn()) return false;
+    const scope = chatScopeOf(peerId);
+    // Ohne gespeicherte Zuordnung: ohne Entdecken ist jeder Chat sozial, sonst zaehlt die offene Liste.
+    const social = scope === 'social' || (!scope && (!scopeIncludes('discovery') || currentChatScope() === 'social'));
+    return social && !(scopeIncludes('discovery') && hasFlirtPart(peerId));
 }
 
 function canFlirt(peerId) {
@@ -328,6 +332,8 @@ function inExploringMode() {
 // `flirtOff`), sonst nur, wenn man ihn eingeschaltet hat (`flirt`).
 function isFlirting(peerId) {
     if (!canFlirt(peerId)) return false;
+    // Privat-Modus nie automatisch (nur die automatische Flirt-Ansicht im Entdecken-Modus).
+    if (hasPrivatePart(peerId)) return state.discoveryHistory.flirt.includes(peerId);
     return inExploringMode()
         ? !(state.discoveryHistory.flirtOff || []).includes(peerId)
         : state.discoveryHistory.flirt.includes(peerId);
@@ -366,7 +372,7 @@ function messageScopeFor(peerId) {
 async function toggleFlirtMode(peerId = state.activeChatPeerId) {
     if (!canFlirt(peerId)) return;
     // Im Entdecken-Modus wird die Ausnahme (aus) umgeschaltet, sonst die Einschaltung.
-    const key = inExploringMode() ? 'flirtOff' : 'flirt';
+    const key = inExploringMode() && !hasPrivatePart(peerId) ? 'flirtOff' : 'flirt';
     const list = new Set(state.discoveryHistory[key] || []);
     if (list.has(peerId)) list.delete(peerId);
     else list.add(peerId);
@@ -421,7 +427,12 @@ function updateFlirtButton() {
         const icon = menuFlirt.querySelector('i');
         if (icon) icon.className = privateMode ? 'fa-solid fa-eye text-brand-400' : 'fa-solid fa-fire text-brand-400';
     }
-    document.getElementById('chat-menu-flirt-tab')?.classList.toggle('hidden', !available || tabShown);
+    const menuTab = document.getElementById('chat-menu-flirt-tab');
+    if (menuTab) {
+        menuTab.classList.toggle('hidden', !available || tabShown);
+        const label = menuTab.querySelector('span');
+        if (label) label.textContent = privateMode ? t('friends.showPrivateTab') : t('friends.showFlirtTab');
+    }
     updateFlirtTabCollapse();
 }
 

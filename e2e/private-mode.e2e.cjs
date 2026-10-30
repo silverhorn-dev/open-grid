@@ -65,6 +65,29 @@ async function main() {
         await waitFor(alice, () => !document.querySelector('#chat-messages').textContent.includes('nur privat'));
         assert.match(await chatText(alice), /hallo/);
 
+        // Beide Bereiche an (Entdecken & Freunde): Einstellung sichtbar, Auge im Freundes-Chat ohne Match.
+        const carol = await user('Carol');
+        const dave = await user('Dave');
+        for (const page of [carol, dave]) await page.evaluate(async () => { await setModeScope('all'); await setAppMode('chat'); });
+        const daveId = await dave.evaluate(() => state.myProfile.id);
+        const carolId = await carol.evaluate(() => state.myProfile.id);
+        await carol.evaluate(id => openChatWithPeer(id), daveId);
+        await carol.fill('#chat-input', 'hi dave');
+        await carol.click('#send-chat-btn');
+        await waitFor(dave, id => (state.chats[id] || []).length > 0, carolId);
+        await carol.evaluate(() => { switchTab('keys'); switchSettingsTab('chat'); });
+        await carol.waitForSelector('#private-mode-toggle', { state: 'attached' });
+        assert.equal(await carol.isVisible('#private-mode-toggle'), true, 'setting visible with both areas');
+        await carol.check('#private-mode-toggle');
+        await carol.evaluate(id => openChatWithPeer(id), daveId);
+        await carol.waitForSelector('#chat-flirt-tab', { state: 'visible' });
+        assert.equal(await carol.getAttribute('#chat-flirt-tab i', 'class'), 'fa-solid fa-eye');
+        // Ausgeblendet (lange druecken): im Chat-Menue steht "Privat-Knopf zeigen", nicht "Flirt-Knopf".
+        await carol.evaluate(id => setFlirtTabHidden(id, true), daveId);
+        await carol.waitForSelector('#chat-flirt-tab', { state: 'hidden' });
+        assert.equal((await carol.textContent('#chat-menu-flirt-tab')).trim(), 'Privat-Knopf zeigen');
+        assert.equal((await carol.textContent('#chat-menu-flirt-label')).trim(), 'Privat-Modus an');
+
         assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log('E2E OK (private mode)');
     } finally {

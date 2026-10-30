@@ -140,9 +140,11 @@ function openChatListMenu(peerId, anchor) {
     backdrop.onclick = () => {
         if (backdrop.dataset.armed === 'true') closeChatListMenu();
     };
+    // Das Handy schickt nach dem langen Druecken noch ein eigenes Kontextmenue-Ereignis; das trifft schon
+    // den Hintergrund und haette das Menue gleich wieder geschlossen. Schliessen nur, wenn der Druck dort begann.
     backdrop.oncontextmenu = event => {
         event.preventDefault();
-        closeChatListMenu();
+        if (backdrop.dataset.armed === 'true') closeChatListMenu();
     };
     const menu = document.createElement('div');
     menu.id = 'chat-list-menu';

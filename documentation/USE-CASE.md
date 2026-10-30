@@ -1176,16 +1176,19 @@ Akzeptanzkriterien:
   das nicht auch anhaben.
 - Matches sehen sich immer; das Freunde-Grid ist nicht betroffen.
 
-## UC-70: Privat-Modus ohne Entdecken
+## UC-70: Privat-Modus in Freundes-Chats
 
-**Als Nutzer** nur mit "Chat & Freunde" moechte ich in einem Chat einen privaten
+**Als Nutzer** moechte ich in einem Chat in "Chat & Freunde" einen privaten
 Teil haben, der in der normalen Ansicht nicht erscheint.
 
 Akzeptanzkriterien:
 
-- Versteckte Einstellung unter Chat: "Privat-Modus in Freundes-Chats".
-- Dann ein Auge ueber dem Senden-Knopf in jedem Chat; antippen wechselt in den
-  privaten Teil, neue Nachrichten sind dort privat.
+- Unauffaellige Einstellung unter Chat: "Privat-Modus in Freundes-Chats"
+  (sichtbar, sobald "Chat & Freunde" an ist, auch mit Entdecken).
+- Dann ein Auge ueber dem Senden-Knopf in jedem Chat in "Chat & Freunde" ohne
+  Match (aus einem Match bleibt es die Flamme); antippen wechselt in den
+  privaten Teil, neue Nachrichten sind dort privat. Menue-Texte heissen
+  "Privat-Modus" bzw. "Privat-Knopf zeigen".
 - Die ersten Male steht daneben "Lange druecken zum Ausblenden".
 
 ## UC-65: Flammen nach dem Match, gestapelt

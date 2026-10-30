@@ -344,9 +344,10 @@ function renderMessageMenu() {
             if (backdrop.dataset.armed !== 'true') return;
             closeMessageMenu();
         };
+        // Kontextmenue-Ereignis des Handys nach dem langen Druecken: nur schliessen, wenn der Druck hier begann.
         backdrop.oncontextmenu = event => {
             event.preventDefault();
-            closeMessageMenu();
+            if (backdrop.dataset.armed === 'true') closeMessageMenu();
         };
         document.body.appendChild(backdrop);
     }

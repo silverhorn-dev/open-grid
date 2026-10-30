@@ -90,6 +90,10 @@ async function main() {
         await bob.mouse.up();
         await bob.waitForSelector('#chat-list-menu', { state: 'visible' });
         assert.equal(await bob.evaluate(() => state.activeChatPeerId), null, 'long press does not open the chat');
+        // Handy: nach dem langen Druecken kommt noch das Kontextmenue-Ereignis, jetzt auf dem Hintergrund.
+        await bob.evaluate(() => document.getElementById('chat-list-menu-backdrop').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })));
+        await bob.waitForTimeout(300);
+        assert.equal(await bob.locator('#chat-list-menu').count(), 1, 'the phone context menu event does not close the menu');
         await bob.click('#chat-list-menu button:has-text("Aus dieser Liste entfernen")');
         await waitFor(bob, id => !isMovedChatHint(id), aliceId);
         assert.equal(await bob.locator(`#active-peers-list .chat-list-row[data-peer-id="${aliceId}"]`).count(), 0, 'pointer removed');

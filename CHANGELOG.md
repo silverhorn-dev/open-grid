@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 268 · 2026-10-30
+## Build 269 · 2026-10-30
+- Behoben: das Menue eines Chats (langes Druecken in der Chatliste) ging auf dem Handy sofort wieder zu
+- Privat-Modus gibt es jetzt auch mit Entdecken & Freunde (Einstellungen > Chat), fuer Chats in "Chat & Freunde" ohne Match; das Chat-Menue sagt dann "Privat-Knopf zeigen"
+
+## Build 268 · 2026-10-30 · `588c24a`
 - Nur "Chat & Freunde": versteckter Privat-Modus (Einstellungen > Chat), ein Auge ueber dem Senden-Knopf oeffnet einen privaten Teil jedes Chats
 - Neben der Flirt-/Privat-Lasche steht die ersten Male "Lange druecken zum Ausblenden"
 

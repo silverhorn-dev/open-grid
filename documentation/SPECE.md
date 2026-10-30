@@ -1127,9 +1127,10 @@ Nachrichten aelterer Chats ohne Listen-Zuordnung). Ohne Flirt-Teil gibt es
 keine Flamme und nichts wird ausgeblendet. Bedienung (nur bei aktivem
 Entdecken-Bereich und Flirt-Teil):
 
-- Privat-Modus (seit 2026-10-30, nur ohne Entdecken-Bereich): Einstellung
-  `discovery-history.privateMode` (Karte unter Chat, `data-scope="social-only"`).
-  Dann gibt es die Lasche in jedem Chat (ohne Match), mit Auge statt Flamme und
+- Privat-Modus (seit 2026-10-30): Einstellung `discovery-history.privateMode`
+  (Karte unter Chat, sichtbar mit Bereich `social`). Dann gibt es die Lasche in
+  jedem Chat in "Chat & Freunde" ohne Flirt-Teil (aus einem Match bleibt es die
+  Flamme; nie automatisch an, auch nicht im Entdecken-Modus), mit Auge statt Flamme und
   eigenen Texten; private Nachrichten tragen `scope: 'discovery'` wie
   Flirt-Nachrichten und sind nur in der privaten Ansicht sichtbar (nur Anzeige:
   wer den Privat-Modus nicht an hat, sieht sie normal). Neben der Lasche steht

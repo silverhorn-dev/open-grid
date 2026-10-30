@@ -1,10 +1,19 @@
 // ================= CHATLISTE: MENUE UND VERSCHOBENE CHATS =================
 // Jede Zeile der Chatliste hat rechts ein Menue (⋮), auch per langem Druecken oder Rechtsklick.
-// Wird aus einem Match eine Freundschaft, wandert der Chat nach "Chat & Freunde". In "Grid & Event"
-// bleibt ein Verweis stehen ("Jetzt in Chat & Freunde"): Antippen oeffnet den Chat im Entdecken-Modus
-// als Flirt, das Menue fuehrt auch nach "Chat & Freunde"; der Verweis laesst sich entfernen.
+// Wandert ein Chat zwischen den Listen, bleibt in der alten ein Verweis stehen, der hinfuehrt und sich
+// entfernen laesst:
+// - Match wird Freund: Chat nach "Chat & Freunde", Verweis in "Grid & Event" ("Jetzt in Chat & Freunde").
+//   Antippen oeffnet ihn im Entdecken-Modus hier (automatisch als Flirt, friends.js isFlirting).
+// - Freundschaft endet, das Match bleibt: Chat zurueck nach "Grid & Event", Verweis in "Chat & Freunde".
 // Nur Anzeige auf diesem Geraet, das Gegenueber merkt nichts.
 const MOVED_CHATS_RECORD_ID = 'moved-chats';
+
+// Eintrag je Peer: { at, to } (to = Liste, in der der Chat jetzt steht). Alte Eintraege (nur Zeit) = 'social'.
+function movedChatEntry(peerId) {
+    const value = state.movedChats?.[peerId];
+    if (!value) return null;
+    return typeof value === 'number' ? { at: value, to: 'social' } : value;
+}
 
 async function loadMovedChats() {
     const stored = await databaseRequest('keys', 'readonly', store => store.get(MOVED_CHATS_RECORD_ID)).catch(() => null);
@@ -16,9 +25,9 @@ async function saveMovedChats() {
         .catch(error => logDebug(`Could not store moved chats: ${error.message}`));
 }
 
-// Aus applyFriendOperation: der Chat stand in "Grid & Event" und gehoert jetzt zu "Chat & Freunde".
-async function markChatMoved(peerId) {
-    state.movedChats = { ...state.movedChats, [peerId]: Date.now() };
+// Aus applyFriendOperation: der Chat gehoert jetzt zu `to` ('social' oder 'discovery').
+async function markChatMoved(peerId, to = 'social') {
+    state.movedChats = { ...state.movedChats, [peerId]: { at: Date.now(), to } };
     await saveMovedChats();
 }
 
@@ -30,28 +39,38 @@ async function dismissMovedChat(peerId) {
     renderActivePeerList();
 }
 
-// Verweis zeigen: Freundschaft besteht noch, die Grid-Liste ist offen und der Bereich ist an.
-function isMovedChatHint(peerId) {
-    return Boolean(state.movedChats?.[peerId]) && isFriend(peerId) && currentChatScope() === 'discovery' && scopeIncludes('social');
+// Liste, in die der Verweis fuehrt, oder null (kein Verweis in der gerade offenen Liste).
+function movedChatTarget(peerId) {
+    const entry = movedChatEntry(peerId);
+    if (!entry) return null;
+    const viewing = currentChatScope();
+    if (entry.to === 'social') {
+        return isFriend(peerId) && viewing === 'discovery' && scopeIncludes('social') ? 'social' : null;
+    }
+    return !isFriend(peerId) && chatScopeOf(peerId) === 'discovery' && viewing === 'social' && scopeIncludes('discovery') ? 'discovery' : null;
 }
 
-// Antippen des Verweises: im Entdecken-Modus den Chat hier oeffnen (dort automatisch im Flirt-Modus,
-// friends.js isFlirting), sonst wie openChatInFriends.
+function isMovedChatHint(peerId) {
+    return Boolean(movedChatTarget(peerId));
+}
+
+// Antippen des Verweises. Nach "Chat & Freunde" gewandert: im Entdecken-Modus hier oeffnen (als Flirt).
 async function openMovedChat(peerId) {
-    if (inExploringMode()) {
+    const target = movedChatTarget(peerId);
+    if (target === 'social' && inExploringMode()) {
         await openChatWithPeer(peerId);
         return;
     }
-    await openChatInFriends(peerId);
+    await openChatInList(peerId, target || 'social');
 }
 
-// Zum Chat in "Chat & Freunde": Liste (oder Modus, je nach Listen-Wechsel-Einstellung) wechseln, dann oeffnen.
-async function openChatInFriends(peerId) {
+// Chat in der anderen Liste: Liste (oder Modus, je nach Listen-Wechsel-Einstellung) wechseln, dann oeffnen.
+async function openChatInList(peerId, scope) {
     if (state.listSwitchSettings?.behavior === 'mode') {
-        const mode = modeForChatScope('social');
+        const mode = modeForChatScope(scope);
         if (mode) await setAppMode(mode);
     } else {
-        state.chatListScopeOverride = modeChatScope() === 'social' ? null : 'social';
+        state.chatListScopeOverride = modeChatScope() === scope ? null : scope;
     }
     await openChatWithPeer(peerId);
 }
@@ -76,10 +95,18 @@ function runChatListMenuAction(action) {
 }
 
 function chatListMenuEntries(peerId) {
-    if (isMovedChatHint(peerId)) {
+    const target = movedChatTarget(peerId);
+    if (target === 'discovery') {
+        return [
+            ['fa-solid fa-arrow-right', t('chatList.openInGrid'), () => openChatInList(peerId, 'discovery')],
+            ['fa-regular fa-user', t('common.profile'), () => openProfileModal(peerId)],
+            ['fa-solid fa-xmark', t('chatList.removeFromList'), () => dismissMovedChat(peerId)]
+        ];
+    }
+    if (target === 'social') {
         return [
             ['fa-solid fa-fire', t('chatList.openAsFlirt'), () => openChatWithPeer(peerId)],
-            ['fa-solid fa-arrow-right', t('chatList.openInFriends'), () => openChatInFriends(peerId)],
+            ['fa-solid fa-arrow-right', t('chatList.openInFriends'), () => openChatInList(peerId, 'social')],
             ['fa-regular fa-user', t('common.profile'), () => openProfileModal(peerId)],
             ['fa-solid fa-xmark', t('chatList.removeFromList'), () => dismissMovedChat(peerId)]
         ];

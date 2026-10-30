@@ -365,3 +365,33 @@ test('in exploring mode a chat that lives in both areas is a flirt by default, s
     me.state.appMode = 'discovery';
     assert.equal(me.isFlirting('buddy'), false, 'exploring keeps its own choice');
 });
+
+test('ending a friendship while still matched moves the chat back to the grid list with a pointer in social', async () => {
+    const me = loadFriends({ appMode: 'chat' });
+    me.state.statusPushes = {};
+    const moved = [];
+    me.markChatMoved = async (peerId, to = 'social') => moved.push([peerId, to]);
+    await me.ensureChatScope('dating', 'discovery');
+    me.state.chatPreviews = { dating: { text: 'hi', at: 1 } };
+    me.state.matchState.dating = { sentAt: 2, receivedAt: 3, resetAt: 0 };
+    await me.applyFriendOperation('dating', { operationId: 'friend:1', type: 'FRIEND_PING', actorId: 'dating', createdAt: 10 });
+    await me.addFriend('dating');
+    assert.equal(me.chatScopeOf('dating'), 'social');
+
+    await me.applyFriendOperation('dating', { operationId: 'unfriend:1', type: 'FRIEND_RESET', actorId: 'dating', createdAt: Date.now() + 100 });
+    assert.equal(me.isFriend('dating'), false);
+    assert.equal(me.chatScopeOf('dating'), 'discovery', 'back to Grid & Event');
+    assert.deepEqual(moved, [['dating', 'social'], ['dating', 'discovery']]);
+
+    // Ohne Match (Kontakt aus Chat & Freunde): bleibt ein normaler Chat in "Chat & Freunde".
+    const plainFriend = loadFriends({ appMode: 'chat' });
+    plainFriend.state.statusPushes = {};
+    const plainMoved = [];
+    plainFriend.markChatMoved = async (peerId, to) => plainMoved.push([peerId, to]);
+    plainFriend.state.chatPreviews = {};
+    await plainFriend.applyFriendOperation('pal', { operationId: 'friend:2', type: 'FRIEND_PING', actorId: 'pal', createdAt: 10 });
+    await plainFriend.addFriend('pal');
+    await plainFriend.applyFriendOperation('pal', { operationId: 'unfriend:2', type: 'FRIEND_RESET', actorId: 'pal', createdAt: Date.now() + 100 });
+    assert.equal(plainFriend.chatScopeOf('pal'), 'social');
+    assert.deepEqual(plainMoved, []);
+});

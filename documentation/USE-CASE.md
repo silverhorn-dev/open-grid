@@ -1117,6 +1117,8 @@ Akzeptanzkriterien:
   fuehrt und sich entfernen laesst.
 - Jede Zeile der Chatliste hat ein Menue (Knopf rechts, langes Druecken,
   Rechtsklick): Oeffnen, Profil, Chat loeschen, Blockieren.
+- Endet die Freundschaft und das Match bleibt, wandert der Chat zurueck nach
+  "Grid & Event"; in "Chat & Freunde" bleibt ein Verweis dorthin (entfernbar).
 - Im Entdecken-Modus ist ein Chat, der in beiden Bereichen steht, automatisch
   im Flirt-Modus (pro Chat abschaltbar); der Verweis oeffnet ihn dort als Flirt.
 

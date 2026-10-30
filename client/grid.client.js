@@ -242,7 +242,7 @@ function renderActivePeerList() {
             ? (hasFriendRequest(peer.id) ? t('common.wantsToAddYou') : '')
             : (hasReceivedFlame(peer.id) ? t('common.sentYouFlame') : '');
         previewText.textContent = moved
-            ? t('chatList.movedToFriends')
+            ? (movedChatTarget(peer.id) === 'discovery' ? t('chatList.movedToGrid') : t('chatList.movedToFriends'))
             : preview ? `${preview.mine ? t('common.you') : ''}${preview.text}` : pendingNote;
         if (moved) previewText.classList.add('text-brand-400');
         const unread = moved ? 0 : unreadCountOf(peer.id);

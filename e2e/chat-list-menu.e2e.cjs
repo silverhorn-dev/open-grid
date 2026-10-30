@@ -113,6 +113,21 @@ async function main() {
         }, aliceId);
         assert.deepEqual(indicator, { flames: '2', icons: 2, count: null }, 'two flames = double flame icon');
 
+        // Entfreunden, Match bleibt: Chat zurueck nach "Grid & Event", Verweis in "Chat & Freunde".
+        await alice.evaluate(id => resetFriendship(id), bobId);
+        await waitFor(bob, id => !isFriend(id) && chatScopeOf(id) === 'discovery', aliceId);
+        assert.equal(await alice.evaluate(id => chatScopeOf(id), bobId), 'discovery', 'back on both sides');
+        await bob.evaluate(() => { state.chatListScopeOverride = 'social'; state.activeChatPeerId = null; switchTab('chat'); renderActivePeerList(); });
+        await waitFor(bob, id => movedChatTarget(id) === 'discovery', aliceId);
+        const socialRow = bob.locator(`#active-peers-list .chat-list-row[data-peer-id="${aliceId}"]`);
+        assert.match(await socialRow.textContent(), /Jetzt in „Grid & Event“/);
+        await socialRow.locator('.chat-list-menu-btn').click();
+        assert.deepEqual((await bob.locator('#chat-list-menu button').allTextContents()).map(text => text.trim()),
+            ['In „Grid & Event“ öffnen', 'Profil', 'Aus dieser Liste entfernen']);
+        await bob.click('#chat-list-menu button:has-text("In „Grid & Event“ öffnen")');
+        await waitFor(bob, id => state.activeChatPeerId === id && currentChatScope() === 'discovery', aliceId);
+        assert.equal(await bob.evaluate(id => canFlirt(id), aliceId), false, 'a plain exploring chat again, no flirt tab');
+
         assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log('E2E OK (chat list menu, moved chats, stacked flames)');
     } finally {

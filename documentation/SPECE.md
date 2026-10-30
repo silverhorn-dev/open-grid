@@ -1019,12 +1019,20 @@ Eine Anfrage verschiebt keinen Chat; nur ganz neue Kontakte (kein Verlauf,
 kein Match) landen mit der Anfrage in `social`. Erst die Freundschaft
 verschiebt den Chat nach `social`. Stand er vorher in `discovery` (oder hatte
 keine Zuordnung, aber ein Match), merkt sich
-der Client einen Verweis (`keys`/`moved-chats`, `{ peers: { <peerId>: Zeit } }`,
+der Client einen Verweis (`keys`/`moved-chats`, `{ peers: { <peerId>: { at, to } } }`,
+alte Eintraege nur mit Zeit = `to: 'social'`,
 `client/app/chat-list-menu.js`): in "Grid & Event" erscheint eine gestrichelte
 Zeile "Jetzt in Chat & Freunde", die in die andere Liste fuehrt (je nach
 Listen-Wechsel-Einstellung Modus oder nur Liste) und sich ueber das Menue
 entfernen laesst. Nur so lange die Freundschaft besteht und der Bereich
 `social` an ist; nur lokal.
+
+Endet die Freundschaft (`FRIEND_RESET`) und das Match besteht noch, wandert
+der Chat zurueck nach `discovery` (bei beiden, jeder Client fuer sich) und in
+"Chat & Freunde" erscheint der umgekehrte Verweis "Jetzt in Grid & Event"
+(`to: 'discovery'`, Menue: In "Grid & Event" oeffnen, Profil, entfernen). Der
+Flirt-Teil entfaellt damit (wieder ein normaler Entdecken-Chat). Ohne Match
+bleibt der Chat in `social`.
 
 **Menue der Chatliste**: jede Zeile hat rechts einen Knopf (⋮); langes
 Druecken (450 ms, ohne zusaetzliches Oeffnen) oder Rechtsklick oeffnen

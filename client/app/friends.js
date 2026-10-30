@@ -109,6 +109,13 @@ async function applyFriendOperation(peerId, operation) {
         if (acceptsFriendRequestFrom(peerId)) notifyInApp('add', t('friends.wantsToAddYou', { name }));
     }
     if (wasFriend && !nowFriend) {
+        // Freundschaft vorbei, Match besteht noch: Chat zurueck nach "Grid & Event", Verweis in
+        // "Chat & Freunde" (chat-list-menu.js). Ohne Match bleibt er ein normaler Chat in "Chat & Freunde".
+        if (isMatched(peerId) && (typeof scopeIncludes !== 'function' || scopeIncludes('discovery'))) {
+            await setChatScope(peerId, 'discovery');
+            if (typeof markChatMoved === 'function') await markChatMoved(peerId, 'discovery');
+            if (state.activeChatPeerId === peerId && typeof updateFlirtButton === 'function') updateFlirtButton();
+        }
         delete state.statusPushes[peerId];
         await forgetStatusesOf(peerId);
         sendSecurePayload(peerId, { type: 'PROFILE_REQUEST' }).catch(logBackgroundError('applyFriendOperation'));

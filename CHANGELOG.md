@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 254 · 2026-10-30
+## Build 255 · 2026-10-30
+- Freundschaft beendet, Match besteht noch: der Chat wandert zurueck nach "Grid & Event", in "Chat & Freunde" bleibt ein Verweis dorthin (entfernbar)
+
+## Build 254 · 2026-10-30 · `266d51a`
 - Im Entdecken-Modus ist ein Chat, der in beiden Bereichen steht (Freund aus einem Match), automatisch im Flirt-Modus; pro Chat ueber die Flamme abschaltbar. Der Verweis in "Grid & Event" oeffnet ihn dort als Flirt
 - Behoben: die aktive Flirt-Lasche ragte ein Stueck rot in die Eingabezeile
 

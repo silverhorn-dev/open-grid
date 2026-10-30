@@ -7,6 +7,14 @@
 // Grosszuegig: beim ersten Bild laedt der Worker Bibliothek und Modell (Bumble ~51 MB). Die Frist gilt je
 // Bild ab dem Moment, in dem der Worker es bekommt (Bilder laufen nacheinander, siehe nudityQueue).
 const NUDITY_CLASSIFY_TIMEOUT_MS = 90000;
+// Hat ein Modell einmal gerechnet, braucht ein Bild 70-100 ms: dann gilt eine kurze Frist. Laeuft sie ab,
+// haengt der Worker (z. B. WASM ohne Speicher) und wird neu gestartet, statt jedes weitere Bild 90 s warten
+// zu lassen.
+const NUDITY_CLASSIFY_READY_TIMEOUT_MS = 15000;
+// Die Modelle rechnen mit 224-480 px: die Kopie fuer den Worker wird vorher verkleinert (spart Speicher).
+const NUDITY_INPUT_MAX_EDGE = 640;
+// Modelle (modelUrl), die im aktuellen Worker schon einmal gerechnet haben: nur fuer sie gilt die kurze Frist.
+const nudityReadyModels = new Set();
 // Warteschlange: immer nur ein Bild im Worker. Vorher liefen alle Bilder eines Chats gleichzeitig los,
 // ihre Fristen liefen schon beim Warten ab, und sie erschienen ungeprueft.
 let nudityQueue = Promise.resolve();
@@ -31,10 +39,40 @@ function nudityWorkerInstance() {
         nudityPending.delete(id);
         clearTimeout(pending.timer);
         if (error) pending.reject(new Error(error));
-        else pending.resolve(predictions);
+        else {
+            nudityReadyModels.add(pending.modelUrl);
+            pending.resolve(predictions);
+        }
     };
-    nudityWorker.onerror = event => logDebug(`Nudity worker error: ${event.message}`);
+    // Abgestuerzt (z. B. kein Speicher mehr): offene Bilder sofort als Fehler, beim naechsten neu starten.
+    nudityWorker.onerror = event => {
+        logDebug(`Nudity worker error: ${event.message || 'crashed'}`);
+        resetNudityWorker('Nudity worker crashed.');
+    };
+    nudityWorker.onmessageerror = () => resetNudityWorker('Nudity worker message error.');
     return nudityWorker;
+}
+
+function resetNudityWorker(reason) {
+    nudityWorker?.terminate();
+    nudityWorker = null;
+    nudityReadyModels.clear();
+    for (const [id, pending] of nudityPending) {
+        clearTimeout(pending.timer);
+        pending.reject(new Error(reason));
+        nudityPending.delete(id);
+    }
+}
+
+// Kopie fuer den Worker, hoechstens NUDITY_INPUT_MAX_EDGE an der laengeren Seite (Seitenverhaeltnis bleibt).
+function nudityInputCopy(bitmap) {
+    const scale = Math.min(1, NUDITY_INPUT_MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+    if (scale >= 1) return createImageBitmap(bitmap);
+    return createImageBitmap(bitmap, {
+        resizeWidth: Math.max(1, Math.round(bitmap.width * scale)),
+        resizeHeight: Math.max(1, Math.round(bitmap.height * scale)),
+        resizeQuality: 'high'
+    });
 }
 
 // Alle Klassen mit Wahrscheinlichkeit (fuer den Filter und die Testseite im Debug-Modus).
@@ -43,15 +81,18 @@ async function classifyNudity(bitmap, modelId = null) {
     const active = nudityModelConfig();
     if (!active) throw new Error('No nudity model configured.');
     const config = modelId && active.models?.[modelId] ? active.models[modelId] : active;
-    // Eine Kopie geht in den Worker; das Original zeichnet die Seite weiter.
-    const copy = await createImageBitmap(bitmap);
+    // Eine (verkleinerte) Kopie geht in den Worker; das Original zeichnet die Seite weiter.
+    const copy = await nudityInputCopy(bitmap);
     const job = nudityQueue.then(() => new Promise((resolve, reject) => {
         const id = ++nudityRequestId;
+        const ready = nudityReadyModels.has(config.modelUrl);
         const timer = setTimeout(() => {
             nudityPending.delete(id);
             reject(new Error('Nudity model timed out.'));
-        }, NUDITY_CLASSIFY_TIMEOUT_MS);
-        nudityPending.set(id, { resolve, reject, timer });
+            // Haengt der Worker, nicht weiter auf ihn warten: neu starten (das Modell laedt dann neu).
+            if (ready) resetNudityWorker('Nudity worker restarted after a timeout.');
+        }, ready ? NUDITY_CLASSIFY_READY_TIMEOUT_MS : NUDITY_CLASSIFY_TIMEOUT_MS);
+        nudityPending.set(id, { resolve, reject, timer, modelUrl: config.modelUrl });
         const { kind, library, runtimeUrl, modelUrl, size, type, classes } = config;
         nudityWorkerInstance().postMessage({ type: 'classify', id, bitmap: copy, config: { kind: kind || 'nsfwjs', library, runtimeUrl, modelUrl, size: size || 224, type: type || 'layers', classes } }, [copy]);
     }));
@@ -72,7 +113,11 @@ function initNudityModel() {
     registerNudityClassifier({
         id: nudityModelConfig().model,
         async classify(bitmap) {
-            const predictions = await classifyNudity(bitmap);
+            // Ein zweiter Versuch, wenn der Worker abgestuerzt oder haengen geblieben war (er startet neu).
+            const predictions = await classifyNudity(bitmap).catch(error => {
+                logDebug(`Nudity check failed (${error.message}), retrying once.`);
+                return classifyNudity(bitmap);
+            });
             const score = nudityScoreFromPredictions(predictions);
             // Fuer das Einstellen der Schwelle (Debug-Log): Wert und die staerksten Klassen.
             logDebug(`Nudity ${nudityModelConfig().model}: ${Math.round(score * 100)} % (${[...predictions].sort((left, right) => right.probability - left.probability).slice(0, 3).map(entry => `${entry.className} ${Math.round(entry.probability * 100)} %`).join(', ')})`);

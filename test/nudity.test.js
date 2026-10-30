@@ -184,3 +184,19 @@ test('mandatory scan (router choice): forced filter, marked images from under-18
     mode('everyone', null);
     assert.equal(context.nudityScanForced(), true);
 });
+
+test('a redraw while an image is still being checked joins the running check instead of queueing it again', async () => {
+    const { context } = loadNudity({ stored: { id: 'nudity-settings', enabled: true } });
+    await context.loadNuditySettings();
+    let calls = 0;
+    let finish;
+    context.registerNudityClassifier({ id: 'slow', classify: () => { calls += 1; return new Promise(resolve => { finish = resolve; }); } });
+    const first = context.shouldBlurImage({}, 'img-a');
+    const second = context.shouldBlurImage({}, 'img-a');
+    await new Promise(resolve => setTimeout(resolve, 0));
+    finish(0.1);
+    assert.deepEqual([await first, await second], [false, false]);
+    assert.equal(calls, 1, 'one check for both draws');
+    assert.equal(await context.shouldBlurImage({}, 'img-a'), false);
+    assert.equal(calls, 1, 'afterwards from the cache');
+});

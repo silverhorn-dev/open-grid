@@ -1391,6 +1391,15 @@ vergisst ab 150 Eintraegen die aeltesten nicht angezeigten (bis 100).
 
 ### 6.4 Nacktbild-Filter (T3, `client/app/nudity.js`)
 
+Robustheit (seit 2026-10-30): dieselbe Quelle wird nur einmal gleichzeitig
+geprueft (`nudityChecksInFlight`, ein Neuzeichnen haengt sich an); die Kopie
+fuer den Worker ist hoechstens 640 px gross; hat ein Modell im Worker schon
+gerechnet, gilt je Bild eine Frist von 15 s (sonst 90 s fuer das erste Laden);
+nach Ablauf oder einem Absturz wird der Worker beendet, offene Bilder
+scheitern sofort, der naechste Aufruf startet ihn neu; jede Pruefung bekommt
+einen zweiten Versuch. Im Debug-Modus steht auf einem unscharfen Bild der Grund
+(Wert / Schwelle / Modell bzw. Fehlertext), zum Vergleich mit der Testseite.
+
 Standardmaessig aus (`keys`/`nudity-settings = { enabled }`, Router-Standard
 `CLIENT_DEFAULTS.nudityFilter`). `drawSecureImage` fragt fuer jeden Canvas ohne
 `data-own-image` `shouldBlurImage(bitmap, source)`: alle per

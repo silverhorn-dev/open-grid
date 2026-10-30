@@ -45,7 +45,7 @@ async function main() {
         // Standard ist NudeNet; ohne installiertes NudeNet (Repo ohne Docker) gilt nsfwjs.
         assert.equal(real.config.model, real.config.models.nudenet ? 'nudenet' : 'nsfwjs');
         assert.deepEqual(real.batch, [5, 5, 5, 5, 5], 'queued images all get checked');
-        assert.equal(real.config.threshold, 0.7);
+        assert.equal(real.config.threshold, real.config.models.nudenet ? 0.4 : 0.7, 'default threshold of the active model');
         assert.equal(real.workerStarted, true);
         assert.deepEqual(real.predictions.map(entry => entry.className).sort(), ['Drawing', 'Hentai', 'Neutral', 'Porn', 'Sexy']);
         const total = real.predictions.reduce((sum, entry) => sum + entry.probability, 0);

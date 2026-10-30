@@ -97,8 +97,22 @@ function renderNuditySettings() {
 
 // Hoechster Wert aller Modelle, je Quelle gemerkt (Data-URL oder Blob). null = kein Modell hat ein
 // Ergebnis geliefert (Fehler, Frist): nicht merken, beim naechsten Anzeigen neu pruefen.
-async function nudityScore(bitmap, source) {
-    if (nudityScores.has(source)) return nudityScores.get(source);
+// Laufende Pruefungen je Quelle: zeichnet die Seite ein Bild neu, waehrend es noch geprueft wird, haengt
+// sich der zweite Aufruf an die erste Pruefung an (sonst stand dasselbe Bild mehrfach in der Warteschlange).
+const nudityChecksInFlight = new Map();
+
+function nudityScore(bitmap, source) {
+    if (nudityScores.has(source)) return Promise.resolve(nudityScores.get(source));
+    if (source && nudityChecksInFlight.has(source)) return nudityChecksInFlight.get(source);
+    const check = computeNudityScore(bitmap, source).finally(() => nudityChecksInFlight.delete(source));
+    if (source) nudityChecksInFlight.set(source, check);
+    return check;
+}
+
+// Letzter Fehler je Quelle (nur fuer den Debug-Hinweis auf dem unscharfen Bild).
+const nudityCheckErrors = new Map();
+
+async function computeNudityScore(bitmap, source) {
     let score = null;
     for (const classifier of nudityClassifiers) {
         try {
@@ -106,9 +120,11 @@ async function nudityScore(bitmap, source) {
             if (Number.isFinite(value)) score = Math.max(score ?? 0, Math.min(1, Math.max(0, value)));
         } catch (error) {
             logDebug(`Nudity classifier ${classifier.id || '?'} failed: ${error.message}`);
+            if (source) nudityCheckErrors.set(source, error.message);
         }
     }
     if (score === null) return null;
+    nudityCheckErrors.delete(source);
     if (nudityScores.size >= NUDITY_CACHE_LIMIT) nudityScores.delete(nudityScores.keys().next().value);
     nudityScores.set(source, score);
     return score;
@@ -143,6 +159,14 @@ function drawBlurredImage(canvas, bitmap, source, redraw, reason = 'nude') {
     context.fillText(label, canvas.width / 2, canvas.height / 2 - canvas.width / 30);
     context.font = `${Math.max(12, Math.round(canvas.width / 24))}px sans-serif`;
     context.fillText(t('nudity.tapToView'), canvas.width / 2, canvas.height / 2 + canvas.width / 22);
+    // Debug-Modus: Grund und Wert direkt auf dem Bild (zum Vergleich mit der Testseite).
+    if (typeof CONFIG === 'object' && CONFIG.DEBUG_MODE) {
+        const detail = reason === 'unchecked'
+            ? nudityCheckErrors.get(source) || '?'
+            : `${Math.round((nudityScores.get(source) ?? 0) * 100)} % / ${Math.round((state.appConfig?.nudity?.threshold ?? NUDITY_THRESHOLD) * 100)} % (${state.appConfig?.nudity?.model || '?'})`;
+        context.font = `${Math.max(11, Math.round(canvas.width / 30))}px monospace`;
+        context.fillText(detail.slice(0, 60), canvas.width / 2, canvas.height / 2 + canvas.width / 9);
+    }
     canvas.dataset.nudityBlurred = 'true';
     canvas.setAttribute('aria-label', label);
     blurredCanvases.set(canvas, { source, redraw });

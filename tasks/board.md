@@ -571,5 +571,7 @@
 
 ## T28 Profil: Bild gross, eigenes Social-Profil (nutzer 2026-10-30)
 - [x] profilbild im profil-popup antippbar, laedt die grosse fassung wie galeriebilder (`avatarFull`, IMAGE_REQUEST, sha256-pruefung); bug: ein verlauf ueber dem bild fing alle klicks ab; e2e `profile-picture`, UC-66
+- [x] nacktfilter (nutzer 2026-10-30: "falsches blurring, debug-testseite meldet sichtbar"): doppelte pruefungen beim neuzeichnen zusammengelegt, kopie max 640 px, worker-neustart nach absturz/haengen (15 s frist nach dem laden), 1 wiederholung; debug zeigt grund + wert auf dem unscharfen bild
+  - offen: nutzer prueft im debug, ob es "nicht geprueft" (fehler) oder ein wert knapp ueber der schwelle ist (testseite prueft das originalbild, der chat das empfangene, neu komprimierte mit wasserzeichen)
 - [x] social-profil kann sich vom entdecken-profil unterscheiden (2026-10-30): schalter im profil, dann auswahl "Entdecken | Chat & Freunde"; getrennt: felder, profilbild (+gross), galerie; empfaenger nach liste des chats; signiertes `area`, damit ein listenwechsel das zwischengespeicherte profil ersetzt; tests `test/friends.test.js`, e2e `social-profile`, UC-67
 

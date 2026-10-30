@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 259 · 2026-10-30
+## Build 260 · 2026-10-30
+- Nacktbild-Filter zuverlaessiger: dasselbe Bild wird nicht mehr mehrfach gleichzeitig geprueft, die Pruefung haengt nicht mehr fest (Neustart statt Warten), ein Fehlversuch wird einmal wiederholt
+- Debug-Modus: ein unscharfes Bild zeigt den Grund (Wert und Schwelle oder den Fehler)
+
+## Build 259 · 2026-10-30 · `d682766`
 - Eigenes Profil fuer "Chat & Freunde" (im Profil einschaltbar): Name, Angaben, Profilbild und Galerie koennen sich vom Entdecken-Profil unterscheiden; Freunde sehen das eine, alle anderen das andere
 
 ## Build 258 · 2026-10-30 · `223b6d3`

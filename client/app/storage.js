@@ -894,6 +894,10 @@ async function renderStorageUsage(warn = false) {
 async function collectReferencedMediaIds() {
     const referenced = new Set((state.myProfile.gallery || []).map(item => item.id));
     Object.values(state.cachedProfiles).forEach(profile => (profile.gallery || []).forEach(item => referenced.add(item.id)));
+    // Grosse Fassungen der Profilbilder (eigene und zwischengespeicherte).
+    [state.myProfile, ...Object.values(state.cachedProfiles)].forEach(profile => {
+        if (profile?.avatarFull?.id) referenced.add(profile.avatarFull.id);
+    });
     Object.values(state.albums).forEach(album => (album.items || []).forEach(item => referenced.add(item.id)));
     // Schluessel noch offener Secure Snaps des Senders.
     const messages = await getAllDatabaseRecords('messages').catch(() => []);

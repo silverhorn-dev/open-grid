@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 257 · 2026-10-30
+## Build 258 · 2026-10-30
+- Behoben: das Aufraeumen des Speichers haette die grossen Profilbilder geloescht
+
+## Build 257 · 2026-10-30 · `ad34172`
 - Profilbild im Profil antippen zeigt es in voller Groesse (wie die Galeriebilder); neu hochgeladene Profilbilder haben dafuer eine grosse Fassung
 - Behoben: das Profilbild im Profil liess sich gar nicht antippen
 

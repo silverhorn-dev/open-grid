@@ -81,10 +81,10 @@
   - [ ] eudi: aussteller der EUDI-wallets (PID-anbieter) automatisch importieren, sobald die EU deren "List of Trusted Entities" (ETSI TS 119 602, JSON/JAdES) veroeffentlicht; bis dahin PID-anbieter per `AGE_TRUST_CERTS`
   - [ ] KJM-anerkannter anbieter (generische token-schnittstelle) -> entscheidung
   - [x] SMTP-versand der codes (2026-10-29, nutzer: nodemailer, optional): `EMAIL_TRANSPORT=smtp`, `SMTP_URL`, `SMTP_FROM` (`server/email-smtp.js`), nodemailer in `optionalDependencies`, erst beim ersten versand geladen; fehlversand -> 502, code verworfen; tests `test/email-smtp.test.js`, `test/safety.test.js`; einmal echt gegen mailpit verschickt
-  - [ ] meldeweg mit wasserzeichen-nachweis -> sperre (nur werkzeug da, kein UI)
+  - [x] meldeweg mit wasserzeichen-nachweis -> sperre: umgesetzt 2026-10-29 (T25 phase 3, "Weitergabe melden" + panel "Meldungen")
 
 ## T3 Nacktbild-Erkennung beim Empfaenger (idee 2026-10-26, besprechen)
-- [ ] lokales modell auf dem geraet des empfaengers erkennt nacktbilder in chat-bildern/snaps/alben -> unscharf + "trotzdem ansehen"; bild verlaesst das geraet nie (passt zu E2EE)
+- [x] lokales modell auf dem geraet des empfaengers erkennt nacktbilder in chat-bildern/snaps/alben -> unscharf + "trotzdem ansehen"; bild verlaesst das geraet nie (passt zu E2EE)
   - kontext: app ist nicht fuer nacktbilder gedacht (galerien, normale fotos) -> JMStV-pflichten fuer jugendgefaehrdende inhalte greifen wohl nicht; schutz gegen ungefragte bilder trotzdem sinnvoll
   - vorbild: Bumble "Private Detector" (2022 open source, kommerziell nutzbar; lizenz/framework im repo pruefen), Apple Communication Safety, Instagram-Nacktschutz
   - offen: modell selbst ausliefern (keine CDN, regel 1), groesse (einige MB, lazy laden, im SW-cache), tf.js/onnx im browser + leistung auf alten handys, standard an/aus, auch absender-seitig warnen?
@@ -108,7 +108,7 @@
     - [x] e2e `p2p-recovery` war wackelig: der profil-prefetch (T20) baute die verbindung manchmal von der anderen seite auf -> im test aus
     - [x] docker-image verkleinert (802 -> 374 MB): `scripts/slim-modules.sh` behaelt von TF.js/onnxruntime-web/NSFWJS/Font Awesome nur ausgelieferte dateien; geprueft per image-build (healthy, 35 dateien ausgeliefert)
     - [x] erledigt durch obiges: nutzer vergleicht nsfwjs-mid/-inception, bumble, nudenet mit echten bildern auf dem handy (treffer + zeit), danach `NUDITY_MODEL` + schwelle festlegen
-    - [ ] nutzer testet auf dem handy mit echten bildern (maennliche nacktheit, fehlalarme bei badehose/oberkoerper), danach schwelle/klassen festlegen; falls zu schwach: Bumble Private Detector umwandeln
+    - [x] nutzer testet auf dem handy mit echten bildern (maennliche nacktheit, fehlalarme bei badehose/oberkoerper), danach schwelle/klassen festlegen; falls zu schwach: Bumble Private Detector umwandeln
     - [x] docker-image wird groesser -> erledigt 2026-10-29 (`scripts/slim-modules.sh`, 802 -> 374 MB)
     - [x] absender-warnung vor dem senden (nutzer 2026-10-29: "1 klingt gut"): `confirmNudeSend` vor `sendPickedReview`/`sendSnapDraft`, einstellung "Vor dem Senden warnen" (std an, `CLIENT_DEFAULTS.nudityWarnBeforeSend`), fehlschlag = senden, modell wird beim oeffnen der kamera vorgeladen; tests unit + e2e `nudity-filter`
   - recherche 2026-10-29 (primaerquellen: repos/model cards; leistung auf handys nicht gemessen):

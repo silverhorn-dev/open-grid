@@ -93,8 +93,12 @@ async function classifyNudity(bitmap, modelId = null) {
             if (ready) resetNudityWorker('Nudity worker restarted after a timeout.');
         }, ready ? NUDITY_CLASSIFY_READY_TIMEOUT_MS : NUDITY_CLASSIFY_TIMEOUT_MS);
         nudityPending.set(id, { resolve, reject, timer, modelUrl: config.modelUrl });
-        const { kind, library, runtimeUrl, modelUrl, size, type, classes } = config;
-        nudityWorkerInstance().postMessage({ type: 'classify', id, bitmap: copy, config: { kind: kind || 'nsfwjs', library, runtimeUrl, modelUrl, size: size || 224, type: type || 'layers', classes } }, [copy]);
+        const { kind, library, runtimeUrl, modelUrl, size, type } = config;
+        // Namen der Modell-Ausgaben in Reihenfolge: immer die volle Liste des Modells. Die vom Betreiber
+        // gewaehlten Klassen (config.classes) zaehlen erst beim Wert (nudityScoreFromPredictions); vorher bekam
+        // der Worker die Auswahl und benannte damit die falschen Ausgaben (z. B. Gesicht als Genitalien).
+        const labels = active.models?.[modelId || active.model]?.classes || config.classes;
+        nudityWorkerInstance().postMessage({ type: 'classify', id, bitmap: copy, config: { kind: kind || 'nsfwjs', library, runtimeUrl, modelUrl, size: size || 224, type: type || 'layers', labels } }, [copy]);
     }));
     // Die Kette laeuft auch nach einem Fehler weiter.
     nudityQueue = job.catch(() => {});

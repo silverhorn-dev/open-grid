@@ -90,7 +90,8 @@ async function classifyNudenet(session, bitmap, config) {
     const output = (await session.run(feeds))[session.outputNames[0]];
     const [, rows, anchors] = output.dims;
     const values = output.data;
-    return config.classes.slice(0, rows - 4).map((className, classIndex) => {
+    // Ausgabe-Zeile 4 + i gehoert zur Klasse labels[i] (volle Liste des Modells, nicht die Auswahl des Betreibers).
+    return (config.labels || config.classes).slice(0, rows - 4).map((className, classIndex) => {
         let best = 0;
         const offset = (4 + classIndex) * anchors;
         for (let anchor = 0; anchor < anchors; anchor += 1) best = Math.max(best, values[offset + anchor]);

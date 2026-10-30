@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 261 · 2026-10-30
+## Build 262 · 2026-10-30
+- Behoben: Nacktbild-Filter (NudeNet) mit eigener Klassen-Auswahl am Server ordnete die Werte falschen Klassen zu (z. B. ein Gesicht als Nacktheit) und machte normale Bilder unscharf
+
+## Build 261 · 2026-10-30 · `d813a4a`
 - Einladen mit beiden Bereichen: in der Einladungskarte waehlst du "Chat & Freunde" (Standard) oder "Entdecken", egal in welchem Modus du gerade bist; wer den Link oeffnet, bleibt in seinem Modus, der Chat oeffnet in der passenden Liste
 
 ## Build 260 · 2026-10-30 · `a58438f`

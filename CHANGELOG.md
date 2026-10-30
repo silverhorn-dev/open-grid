@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 260 · 2026-10-30
+## Build 261 · 2026-10-30
+- Einladen mit beiden Bereichen: in der Einladungskarte waehlst du "Chat & Freunde" (Standard) oder "Entdecken", egal in welchem Modus du gerade bist; wer den Link oeffnet, bleibt in seinem Modus, der Chat oeffnet in der passenden Liste
+
+## Build 260 · 2026-10-30 · `a58438f`
 - Nacktbild-Filter zuverlaessiger: dasselbe Bild wird nicht mehr mehrfach gleichzeitig geprueft, die Pruefung haengt nicht mehr fest (Neustart statt Warten), ein Fehlversuch wird einmal wiederholt
 - Debug-Modus: ein unscharfes Bild zeigt den Grund (Wert und Schwelle oder den Fehler)
 

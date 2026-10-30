@@ -192,6 +192,8 @@ const state = {
     appModeSettings: {},
     eventExpiryTimer: null,
     pendingInvite: null,
+    // Bereich des eigenen Einladungslinks bei beiden Bereichen ('social' Standard | 'discovery'), modes.js.
+    inviteArea: 'social',
     // Rueckkehr vom OIDC-Altersnachweis ({ code, state, error }), safety.js.
     pendingAgeCallback: null,
     // Nach "Chat & Freunde" gewanderte Chats mit Verweis in "Grid & Event" ({ peerId: Zeit }), chat-list-menu.js.

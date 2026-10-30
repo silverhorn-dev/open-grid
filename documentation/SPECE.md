@@ -415,6 +415,12 @@ Modus des Bereichs, der Event-Code fehlt) und legt die Chat-Liste fest
 beim Einladenden in derselben Liste. Ist der Bereich aus (eigene
 Bereichswahl oder `APP_MODES`), oeffnet sich nichts, nur ein Hinweis. Links
 ohne Modus verhalten sich wie bisher.
+Beide Bereiche an (seit 2026-10-30): die Einladungskarte zeigt "Einladen in:
+Chat & Freunde | Entdecken" (`state.inviteArea`, Standard `social`); der Link
+traegt den aktiven Modus, wenn er zum gewaehlten Bereich gehoert, sonst den
+ersten erlaubten des Bereichs (`inviteModeForArea`). Beim Oeffnen wechselt die
+App den Modus nicht mehr, sondern oeffnet den Chat in der Liste des Bereichs
+(`chatListScopeOverride`, wie der Listen-Wechsel).
 Altersnachweis (seit 2026-10-30, `discoveryInvitesAllowed`): mit Nachweis
 "unter 18" oder fehlendem, aber verlangtem Altersnachweis oeffnet die App keine
 Einladung aus "Grid & Event" (nur ein Hinweis); der eigene Link traegt dann

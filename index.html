@@ -533,6 +533,10 @@
                     <h3 class="settings-card-title"><i class="fa-solid fa-user-plus text-brand-400"></i> <span data-i18n="common.inviteContact">Kontakt einladen</span></h3>
                     <div class="setting-block space-y-3">
                         <p data-i18n="settings.anyoneWhoOpensThisLink" class="setting-desc">Wer diesen Link öffnet oder den QR-Code scannt, kann dir schreiben. Der Link enthält deinen Schlüssel-Fingerprint, so fällt ein Abfangen auf.</p>
+                        <div id="invite-area-chooser" class="hidden grid-filter-chips" role="group" data-i18n-attr="aria-label:modes.inviteFor" aria-label="Einladen in">
+                            <button type="button" data-invite-area="social" data-click="setInviteArea" data-args='["social"]' class="grid-filter-chip"><i class="fa-solid fa-user-group"></i> <span data-i18n="profile.areaSocial">Chat & Freunde</span></button>
+                            <button type="button" data-invite-area="discovery" data-click="setInviteArea" data-args='["discovery"]' class="grid-filter-chip"><i class="fa-solid fa-fire"></i> <span data-i18n="profile.areaDiscovery">Entdecken</span></button>
+                        </div>
                         <img data-i18n-attr="alt:settings.qrCodeWithYourInvite" id="invite-qr" alt="QR-Code mit deinem Einladungslink" class="hidden w-40 h-40 rounded-lg bg-white p-1 [image-rendering:pixelated]">
                         <input id="invite-link-output" type="text" readonly class="setting-input w-full text-[11px] font-mono">
                         <div class="flex gap-2">

@@ -100,7 +100,7 @@ function fallbackMode() {
 
 // ----- Bereich (Nur Entdecken / Social / Entdecken & Freunde) -----
 // Bereiche, fuer die der Betreiber mindestens einen Modus erlaubt.
-function availableModeAreas(routerModes = state.appConfig.routerModes) {
+function availableModeAreas(routerModes = state.appConfig.routerModes || state.appConfig.modes || []) {
     return Object.keys(MODE_SCOPE_MODES).filter(area => MODE_SCOPE_MODES[area].some(mode => routerModes.includes(mode)));
 }
 
@@ -444,8 +444,32 @@ function discoveryInvitesAllowed() {
     return state.ageGroup !== 'minor' && !(state.verificationRequired || []).includes('age');
 }
 
+// Beide Bereiche an (und Entdecken-Einladungen erlaubt): man waehlt, wofuer der Link gilt; Standard
+// "Chat & Freunde", unabhaengig vom gerade aktiven Modus (vorher wurde aus Entdecken heraus jede
+// Einladung eine Entdecken-Einladung).
+function inviteAreaChoiceAvailable() {
+    return availableModeAreas().length > 1 && scopeIncludes('social') && scopeIncludes('discovery') && discoveryInvitesAllowed();
+}
+
+function chosenInviteArea() {
+    return state.inviteArea === 'discovery' ? 'discovery' : 'social';
+}
+
+// Modus fuer einen Bereich im Link: der aktive, wenn er dazu gehoert, sonst der erste erlaubte (ohne Event).
+function inviteModeForArea(area) {
+    if (MODE_SCOPE_MODES[area].includes(state.appMode) && state.appMode !== 'event') return state.appMode;
+    return MODE_SCOPE_MODES[area].find(mode => mode !== 'event' && (state.appConfig.routerModes || state.appConfig.modes || []).includes(mode)) || null;
+}
+
+async function setInviteArea(area) {
+    if (!['social', 'discovery'].includes(area)) return;
+    state.inviteArea = area;
+    await renderInviteCard();
+}
+
 function inviteLinkMode() {
     if (!APP_MODE_INFO[state.appMode]) return null;
+    if (inviteAreaChoiceAvailable()) return inviteModeForArea(chosenInviteArea());
     if (!MODE_SCOPE_MODES.discovery.includes(state.appMode) || discoveryInvitesAllowed()) return state.appMode;
     return MODE_SCOPE_MODES.social.find(mode => state.appConfig.routerModes.includes(mode)) || null;
 }
@@ -461,6 +485,13 @@ async function renderInviteCard() {
     const output = document.getElementById('invite-link-output');
     const qr = document.getElementById('invite-qr');
     if (!output || !state.myKeys) return;
+    const chooser = document.getElementById('invite-area-chooser');
+    chooser?.classList.toggle('hidden', !inviteAreaChoiceAvailable());
+    chooser?.querySelectorAll('[data-invite-area]').forEach(button => {
+        const active = button.dataset.inviteArea === chosenInviteArea();
+        button.classList.toggle('is-active', active);
+        button.setAttribute('aria-pressed', String(active));
+    });
     const link = await getMyInviteLink();
     output.value = link;
     if (qr && typeof qrcode === 'function') {
@@ -501,7 +532,7 @@ function parseInvite(fragment) {
     return { peerId, fingerprint, mode };
 }
 
-// Bereich und Modus fuer eine Einladung: null, wenn der Bereich hier ausgeschaltet ist (eigene
+// Bereich (und passender Modus) fuer eine Einladung: null, wenn der Bereich hier ausgeschaltet ist (eigene
 // Bereichswahl oder Betreiber). Event-Einladungen landen in "Grid & Event", aber im Entdecken-Modus
 // (der Event-Code fehlt hier).
 function inviteTarget(mode) {
@@ -541,7 +572,8 @@ async function acceptInvite(fragment) {
     }
     await putDatabaseRecord('keys', { id: `invite-expect:${invite.peerId}`, fingerprint: invite.fingerprint });
     if (target.area) {
-        if (target.mode && target.mode !== state.appMode) await setAppMode(target.mode);
+        // Kein erzwungener Moduswechsel: der Chat oeffnet in der Liste des Bereichs (wie der Listen-Wechsel).
+        state.chatListScopeOverride = target.area === modeChatScope() ? null : target.area;
         await ensureChatScope(invite.peerId, target.area);
     }
     rememberChatPeer(invite.peerId);

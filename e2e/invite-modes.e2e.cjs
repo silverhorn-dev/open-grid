@@ -44,16 +44,24 @@ async function main() {
     };
 
     try {
-        const alice = await user('Alice', () => setAppMode('discovery'));
+        const alice = await user('Alice', async () => { await setAppMode('discovery'); });
         const aliceId = await alice.evaluate(() => state.myProfile.id);
         const link = await alice.evaluate(() => getMyInviteLink());
-        assert.match(link, /~discovery$/);
+        // Beide Bereiche: Standard ist "Chat & Freunde", Entdecken waehlt man in der Einladungskarte.
+        assert.match(link, /~chat$/, 'default: Chat & Friends, even from Explore');
+        await alice.evaluate(() => { switchTab('keys'); return renderInviteCard(); });
+        await alice.waitForSelector('#invite-area-chooser', { state: 'visible' });
+        await alice.click('#invite-area-chooser [data-invite-area="discovery"]');
+        const exploringLink = await alice.evaluate(() => getMyInviteLink());
+        assert.match(exploringLink, /~discovery$/);
+        assert.equal(await alice.inputValue('#invite-link-output'), exploringLink, 'card shows the chosen link');
 
         const bob = await user('Bob', () => setAppMode('chat'));
         const bobId = await bob.evaluate(() => state.myProfile.id);
-        await open(bob, link);
+        await open(bob, exploringLink);
         await waitFor(bob, id => state.activeChatPeerId === id, aliceId);
-        assert.equal(await bob.evaluate(() => state.appMode), 'discovery', 'switched to the mode of the invite');
+        assert.equal(await bob.evaluate(() => state.appMode), 'chat', 'no forced mode switch');
+        assert.equal(await bob.evaluate(() => currentChatScope()), 'discovery', 'opens in the Grid & Event list')
         assert.equal(await bob.evaluate(id => state.chatScopes[id], aliceId), 'discovery');
         await bob.evaluate(() => { document.getElementById('chat-input').value = 'hallo aus der einladung'; return sendChatMessage(); });
         await waitFor(alice, id => (state.chats[id] || []).some(message => message.text === 'hallo aus der einladung'), bobId);
@@ -61,7 +69,7 @@ async function main() {
         assert.equal(await alice.evaluate(id => isInCurrentChatList(id), bobId), true, 'visible in her current list');
 
         const carol = await user('Carol', () => setModeScope('social'));
-        await open(carol, link);
+        await open(carol, exploringLink);
         await carol.waitForTimeout(2500);
         assert.match(await carol.textContent('body'), /Diese Einladung ist für „Entdecken“/);
         assert.equal(await carol.evaluate(id => state.chatPeerIds.includes(id), aliceId), false, 'nothing opened');

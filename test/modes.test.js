@@ -61,6 +61,7 @@ test('invite links carry the key fingerprint and are verified on first contact',
     const { context, records } = loadModes();
     const jwk = { crv: 'P-256', x: 'abc', y: 'def' };
     context.state.myKeys = { jwkEcdsaPublic: jwk };
+    context.state.inviteArea = 'discovery';
     const link = await context.getMyInviteLink();
     assert.match(link, /^https:\/\/grid\.example\/invite#me\.[0-9a-f]{32}~discovery$/, 'the link remembers the mode');
 
@@ -155,7 +156,9 @@ test('under 18 (or without the required age proof) neither opens nor sends explo
     const adult = loadScoped(all, { scope: 'all', mode: 'discovery' }).context;
     adult.state.ageGroup = 'adult';
     assert.equal(adult.discoveryInvitesAllowed(), true);
-    assert.equal(adult.inviteLinkMode(), 'discovery');
+    assert.equal(adult.inviteLinkMode(), 'chat', 'both areas: invites go to Chat & Friends by default');
+    adult.state.inviteArea = 'discovery';
+    assert.equal(adult.inviteLinkMode(), 'discovery', 'chosen: exploring');
 
     const minor = loadScoped(all, { scope: 'all', mode: 'discovery' }).context;
     minor.state.ageGroup = 'minor';
@@ -187,4 +190,17 @@ test('switching to "just exploring" republishes the profile so matches lose the 
     assert.equal(saves.length, 1, 'nothing changed: no new version');
     await context.setModeScope('all');
     assert.equal(saves.length, 2, 'back with friends: allowed again');
+});
+
+test('with both areas the invite area is a choice, independent of the active mode', () => {
+    const all = ['discovery', 'chat', 'friends', 'event'];
+    const me = loadScoped(all, { scope: 'all', mode: 'friends' }).context;
+    me.state.ageGroup = 'adult';
+    assert.equal(me.inviteAreaChoiceAvailable(), true);
+    assert.equal(me.inviteLinkMode(), 'friends', 'active mode belongs to the chosen area');
+    me.state.inviteArea = 'discovery';
+    assert.equal(me.inviteLinkMode(), 'discovery');
+    const onlySocial = loadScoped(all, { scope: 'social', mode: 'chat' }).context;
+    assert.equal(onlySocial.inviteAreaChoiceAvailable(), false, 'one area: no choice, link follows the mode');
+    assert.equal(onlySocial.inviteLinkMode(), 'chat');
 });

@@ -157,12 +157,16 @@ laufen durch dieselben Tests und bauen das echte Image zur Probe
 | `APP_MODES` | alle | Erlaubte App-Modi, kommagetrennt: `discovery`, `chat`, `friends`, `event`. Z. B. `chat` fuer einen reinen Chat-Server. Sind nur Modi eines Bereichs erlaubt (Entdecken: `discovery`/`event`, Social: `chat`/`friends`), entfaellt die Bereichswahl beim Onboarding |
 | `DEFAULT_APP_MODE` | erster erlaubter | Vorauswahl fuer neue Nutzer |
 | `AGE_CHECK` | `off` | Altersnachweis: `off`, `confirm` (Nutzer bestaetigt "mindestens 18"), `provider` (Nachweis ueber einen Anbieter, siehe `AGE_PROVIDER`). Bis zum Nachweis ist ein Nutzer unsichtbar und bekommt kein Grid |
-| `AGE_PROVIDER` | - | Anbieter fuer `AGE_CHECK=provider`: `eudi` (EU-Altersnachweis ueber die Wallet, siehe "Nachweise und Sperren") oder `dev` (bestaetigt auf Knopfdruck, nur zum Testen); unbekannt = es gilt `confirm` |
+| `AGE_PROVIDER` | - | Anbieter fuer `AGE_CHECK=provider`: `eudi` (EU-Altersnachweis ueber die Wallet, siehe "Nachweise und Sperren"), `oidc` (beliebiger OpenID-Connect-Pruefdienst, z. B. KJM-anerkannt, siehe `AGE_OIDC_*`) oder `dev` (bestaetigt auf Knopfdruck, nur zum Testen); unbekannt = es gilt `confirm` |
 | `AGE_TRUST_CERTS` | - | Fuer `eudi`: Ordner mit PEM-Dateien zusaetzlich anerkannter Aussteller (Aussteller- oder CA-Zertifikate) |
 | `AGE_TRUSTED_LIST_URL` | EU-Liste | Fuer `eudi`: automatischer Import der "Age Verification Trusted List" der Kommission (taeglich, nur mit gueltiger Signatur); `off` = kein Import |
 | `AGE_TRUSTED_LIST_SIGNER` | Zertifikat der Kommission | SHA-256-Fingerabdruecke (Komma-Liste) erlaubter Unterzeichner der Liste; bei einem Zertifikatswechsel der Kommission hier den neuen eintragen |
 | `ADMIN_SETUP_TOKEN` | zufaellig | Setup-Token fuer den ersten Admin-Passkey (sonst steht ein zufaelliger im Log); wirkt nur, solange kein Passkey existiert |
 | `AGE_EUDI_TEST` | `true` | Testseite fuer den Wallet-Nachweis im Debug-Modus (`/api/safety/age-test/...`, prueft gegen EU-Test- und echte Liste, speichert nichts); `false` = aus |
+| `AGE_OIDC_ISSUER`, `AGE_OIDC_CLIENT_ID`, `AGE_OIDC_CLIENT_SECRET` | - | Fuer `oidc`: Aussteller (https, mit `/.well-known/openid-configuration`), Client-ID und optional Client-Secret (sonst oeffentlicher Client mit PKCE). Im Admin-Panel live aenderbar (Eintrag `AGE_OIDC`, Secret verschluesselt mit `SAFETY_KEY`, nie angezeigt) |
+| `AGE_OIDC_SCOPE`, `AGE_OIDC_CLAIM` | `openid`, `age_over_18` | Scopes und der Claim, der "ab 18" sagt (auch verschachtelt, z. B. `age.over_18`); gelesen aus dem ID-Token, sonst vom userinfo-Endpunkt |
+| `AGE_OIDC_ADULT_VALUE`, `AGE_OIDC_MINOR_VALUE` | `true`, `false` | JSON-Werte des Claims fuer "ab 18" bzw. "sicher unter 18" (Gruppe unter 18). Andere oder fehlende Werte = abgelehnt; `AGE_OIDC_MINOR_VALUE` leer = nie "unter 18" |
+| `AGE_OIDC_REDIRECT_URI` | `APP_URL/age-callback` | Rueckleitung nach dem Dienst; beim Dienst so eintragen |
 | `AGE_EUDI_DOCTYPES` | `av,pid,mdl` | Welche Nachweise gelten: `av` (EU-Altersnachweis), `pid` (EU-Personalausweis in der Wallet), `mdl` (ISO-Fuehrerschein, z. B. in Apple/Google Wallet); gelesen wird nur `age_over_18` |
 | `EMAIL_CHECK` | `off` | `required`: Nutzer bestaetigen eine E-Mail-Adresse per 6-stelligem Code. Gespeichert wird sie verschluesselt (`SAFETY_KEY`) plus ein HMAC fuer Sperren |
 | `EMAIL_TRANSPORT` | `log` | Versand der E-Mail-Codes: `log` (Code im Server-Log, nur zum Testen) oder `smtp` (Mailserver des Betreibers, siehe `SMTP_URL`) |
@@ -226,6 +230,20 @@ Getrennte Altersgruppen: Ist ein Altersnachweis verlangt, sehen sich in
 "Entdecken" und "Event" nur Menschen derselben Gruppe. Wer "ueber 18" nachweist,
 sieht nur 18+; wer mit der Wallet "unter 18" nachweist, sieht nur unter 18; ohne
 Nachweis gibt es kein Entdecken. "Chat & Freunde" ist davon nicht betroffen.
+
+Pruefdienst ueber OpenID Connect (`AGE_CHECK=provider`, `AGE_PROVIDER=oidc`), z. B. ein
+KJM-anerkannter Anbieter oder ein eID-Service mit OIDC (Vergleich der Optionen fuer
+Deutschland: `documentation/ALTERSNACHWEIS-DEUTSCHLAND.md`):
+
+- Beim Dienst einen Client anlegen, Rueckleitung `APP_URL/age-callback`; Aussteller,
+  Client-ID/-Secret und den Claim per `AGE_OIDC_*` oder im Admin-Panel (`AGE_OIDC`) setzen.
+- Ablauf: die App leitet zum Dienst (Authorization Code + PKCE), der Dienst zurueck in
+  die App, der Router prueft das ID-Token (Signatur, Aussteller, Client, Ablauf, Nonce)
+  und liest nur den Alters-Claim. Gespeichert werden nur die Altersgruppe und ein HMAC
+  von Aussteller + `sub` (fuer Sperren), keine Tokens, keine Namen.
+- "Unter 18" gilt nur, wenn der Dienst es ausdruecklich sagt (`AGE_OIDC_MINOR_VALUE`);
+  fehlt der Claim oder ist er unklar, wird der Nachweis abgelehnt.
+- Der Dienst sieht nur die Pruefung, nie Profile, Chats oder Standorte.
 
 EU-Altersnachweis ueber die Wallet (`AGE_CHECK=provider`, `AGE_PROVIDER=eudi`):
 

@@ -8,12 +8,13 @@ import { createStore } from './database.js';
 import { registerSignalingRoute } from './signaling.js';
 import { loadTranslations, translationScript } from './i18n.js';
 import { infoSiteUrl, registerInfoSite } from './info-site.js';
-import { createSafety, parseSafetyConfig, registerSafetyRoutes } from './safety.js';
+import { createSafety, createSafetyCrypto, loadSafetyKey, parseSafetyConfig, registerSafetyRoutes } from './safety.js';
 import { registerAdminRoutes } from './admin.js';
 import { createMetrics } from './metrics.js';
 import { createLiveConfig } from './live-config.js';
 import { registerReportRoutes } from './reports.js';
 import { createEudiAgeProvider, parseEudiDoctypes, registerEudiTestRoutes } from './age-eudi.js';
+import { createOidcAgeProvider, describeOidcConfig, parseOidcConfig } from './age-oidc.js';
 import { createAgeTrustStore, EU_AGE_TEST_TRUSTED_LIST_SIGNERS, EU_AGE_TEST_TRUSTED_LIST_URL, EU_AGE_TRUSTED_LIST_SIGNERS, EU_AGE_TRUSTED_LIST_URL, parseAgeTrustConfig } from './age-trust.js';
 import {
     GRID_PRECISION,
@@ -541,7 +542,7 @@ export async function buildApp(options = {}) {
     app.get('/admin', async (_request, reply) => reply.type('text/html; charset=utf-8').header('Cache-Control', 'no-cache').send(adminHtml));
 
     // Client-Routen (client/app/router.js) liefern dieselbe App-Shell.
-    for (const path of ['/', '/index.html', '/grid', '/chat', '/chat/:peerId', '/profile', '/settings', '/cloud', '/invite']) {
+    for (const path of ['/', '/index.html', '/grid', '/chat', '/chat/:peerId', '/profile', '/settings', '/cloud', '/invite', '/age-callback']) {
         app.get(path, serveAppShell);
     }
 
@@ -720,7 +721,44 @@ export async function buildApp(options = {}) {
         });
         app.decorate('ageTrust', ageTrust);
     }
+    // Beliebiger OpenID-Connect-Dienst (age-oidc.js), z. B. KJM-anerkannte Pruefdienste. Startwert aus
+    // AGE_OIDC_*, im Admin-Panel live aenderbar (Eintrag AGE_OIDC, Client-Secret verschluesselt gespeichert).
+    let oidcEnvConfig = null;
+    let oidcConfig = null;
+    if (safetyConfig.ageProvider === 'oidc') {
+        try {
+            oidcEnvConfig = parseOidcConfig(options.ageOidc ?? {
+                issuer: process.env.AGE_OIDC_ISSUER,
+                clientId: process.env.AGE_OIDC_CLIENT_ID,
+                clientSecret: process.env.AGE_OIDC_CLIENT_SECRET,
+                scope: process.env.AGE_OIDC_SCOPE,
+                claim: process.env.AGE_OIDC_CLAIM,
+                adultValue: process.env.AGE_OIDC_ADULT_VALUE,
+                minorValue: process.env.AGE_OIDC_MINOR_VALUE,
+                redirectUri: process.env.AGE_OIDC_REDIRECT_URI
+            });
+        } catch (error) {
+            app.log.error(`AGE_OIDC_* is invalid (${error.message}); the OIDC age check stays off until it is set in the admin panel.`);
+        }
+        oidcConfig = oidcEnvConfig;
+        const appUrl = String(options.appUrl ?? process.env.APP_URL ?? '').trim();
+        ageProviders.oidc = createOidcAgeProvider({
+            getConfig: () => oidcConfig,
+            fetch: options.ageOidcFetch,
+            now,
+            log: app.log,
+            defaultRedirectUri: origin => {
+                try {
+                    return `${new URL(appUrl || origin).origin}/age-callback`;
+                } catch {
+                    return null;
+                }
+            }
+        });
+    }
     const safety = createSafety({ config: safetyConfig, store, log: app.log, now, ageProviders });
+    let liveSecretCrypto = null;
+    const secretCrypto = () => (liveSecretCrypto ||= createSafetyCrypto(loadSafetyKey(safetyConfig, store)));
     // Live-Konfiguration (server/live-config.js): Panel-Werte gewinnen ueber die Umgebung, ohne Neustart.
     const jsonSetting = (value, name) => {
         if (value === null || value === undefined || value === '') return null;
@@ -805,7 +843,34 @@ export async function buildApp(options = {}) {
             ABUSE_LOG_DAYS: {
                 env: safetyConfig.abuseLogDays,
                 apply: value => safety.updateConfig({ abuseLogDays: Number(value) })
-            }
+            },
+            ...(ageProviders.oidc ? {
+                AGE_OIDC: {
+                    env: oidcEnvConfig,
+                    // Ohne clientSecret in der Eingabe bleibt das bisherige (das Panel sieht es nie); "" loescht es.
+                    prepare: value => {
+                        const input = jsonSetting(value, 'AGE_OIDC');
+                        if (input === null) return null;
+                        if (typeof input !== 'object' || Array.isArray(input)) throw new Error('AGE_OIDC must be a JSON object');
+                        const { clientSecretSet, ...rest } = input;
+                        return parseOidcConfig(Object.hasOwn(rest, 'clientSecret') ? rest : { ...rest, clientSecret: oidcConfig?.clientSecret ?? null });
+                    },
+                    apply: value => {
+                        oidcConfig = value ? parseOidcConfig(value) : null;
+                    },
+                    encode: value => {
+                        if (!value?.clientSecret) return value;
+                        const { clientSecret, ...rest } = value;
+                        return { ...rest, clientSecretEncrypted: secretCrypto().encrypt(clientSecret) };
+                    },
+                    decode: value => {
+                        if (!value?.clientSecretEncrypted) return value;
+                        const { clientSecretEncrypted, ...rest } = value;
+                        return { ...rest, clientSecret: secretCrypto().decrypt(clientSecretEncrypted) };
+                    },
+                    view: describeOidcConfig
+                }
+            } : {})
         }
     });
     // Nur mit Neustart aenderbar: im Panel zur Ansicht, Geheimnisse nur als "gesetzt".

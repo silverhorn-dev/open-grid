@@ -192,6 +192,8 @@ const state = {
     appModeSettings: {},
     eventExpiryTimer: null,
     pendingInvite: null,
+    // Rueckkehr vom OIDC-Altersnachweis ({ code, state, error }), safety.js.
+    pendingAgeCallback: null,
     // Online-Status der Chat-Partner (nur gegenseitig, vom Server per PRESENCE gemeldet).
     peerPresence: {},
     // Verschluesselte Nachrichten, die vor dem eigenen Sitzungsschluessel ankamen (p2p.client.js).

@@ -127,6 +127,14 @@ function resolveInitialRoute() {
         state.routePath = TAB_PATHS.chat;
         return { tab: 'chat', peerId: null };
     }
+    // Rueckkehr vom Altersnachweis-Dienst (OIDC): code + state merken, nach dem Start an den Router.
+    if (window.location.pathname === '/age-callback') {
+        const params = new URLSearchParams(window.location.search);
+        state.pendingAgeCallback = { code: params.get('code'), state: params.get('state'), error: params.get('error') };
+        window.history.replaceState({ route: TAB_PATHS.keys, from: null }, '', TAB_PATHS.keys);
+        state.routePath = TAB_PATHS.keys;
+        return { tab: 'keys', peerId: null };
+    }
     const legacyChatPeerId = new URLSearchParams(window.location.search).get('chat');
     const route = legacyChatPeerId ? { tab: 'chat', peerId: legacyChatPeerId } : parseRoute();
     const path = route.peerId ? `/chat/${encodeURIComponent(route.peerId)}` : TAB_PATHS[route.tab];

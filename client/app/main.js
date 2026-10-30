@@ -148,6 +148,7 @@ window.onload = async () => {
         if (!state.activeChatPeerId) updateChatLayout();
         reportStartupProblems();
         renderInviteCard().catch(error => logDebug(`Invite card failed: ${error.message}`));
+        if (state.pendingAgeCallback) finishPendingAgeCallback().catch(error => logDebug(`Age check failed: ${error.message}`));
         if (state.pendingInvite) acceptPendingInvite().catch(error => logDebug(`Invite failed: ${error.message}`));
         handleIncomingShare().catch(error => logDebug(`Share target failed: ${error.message}`));
         const chatInput = document.getElementById('chat-input');

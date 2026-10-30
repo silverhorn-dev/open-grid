@@ -81,7 +81,8 @@
     - erst planen + entscheiden, dann bauen
     - recherche 2026-10-30: `documentation/ALTERSNACHWEIS-DEUTSCHLAND.md`; vorschlag: generische OIDC-schnittstelle (`AGE_PROVIDER=oidc`) fuer KJM-dienste/eID-service-anbieter, DE-wallet ab 01/2027 ueber `eudi`, kein eigener eID-server -> wartet auf entscheidung
   - [ ] eudi: aussteller der EUDI-wallets (PID-anbieter) automatisch importieren, sobald die EU deren "List of Trusted Entities" (ETSI TS 119 602, JSON/JAdES) veroeffentlicht; bis dahin PID-anbieter per `AGE_TRUST_CERTS`
-  - [ ] KJM-anerkannter anbieter (generische token-schnittstelle) -> entscheidung
+  - [x] KJM-anerkannter anbieter (generische token-schnittstelle) (2026-10-30, nutzer: "flexibility is key"): `AGE_PROVIDER=oidc` (`server/age-oidc.js`), code + PKCE, ID-token-pruefung ueber JWKS, claim frei waehlbar; "unter 18" nur bei ausdruecklichem wert (nutzer: nur wenn sicher), sonst abgelehnt; live im panel (`AGE_OIDC`), client-secret verschluesselt mit `SAFETY_KEY` (nutzer: ok); tests `test/age-oidc.test.js`, `test/admin.test.js`; UC-63
+    - offen: erster echter test mit einem anbieter (sandbox eines KJM-dienstes)
   - [x] SMTP-versand der codes (2026-10-29, nutzer: nodemailer, optional): `EMAIL_TRANSPORT=smtp`, `SMTP_URL`, `SMTP_FROM` (`server/email-smtp.js`), nodemailer in `optionalDependencies`, erst beim ersten versand geladen; fehlversand -> 502, code verworfen; tests `test/email-smtp.test.js`, `test/safety.test.js`; einmal echt gegen mailpit verschickt
   - [x] meldeweg mit wasserzeichen-nachweis -> sperre: umgesetzt 2026-10-29 (T25 phase 3, "Weitergabe melden" + panel "Meldungen")
 

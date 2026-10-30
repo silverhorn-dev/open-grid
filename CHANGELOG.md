@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 247 · 2026-10-30
+## Build 249 · 2026-10-30
+- Altersnachweis ueber einen beliebigen Pruefdienst (OpenID Connect, z. B. KJM-anerkannte Anbieter): Betreiber stellen ihn per Umgebung oder live im Admin-Panel ein, das Client-Secret liegt verschluesselt; "unter 18" gilt nur, wenn der Dienst es ausdruecklich bestaetigt
+
+## Build 247 · 2026-10-30 · `ba8f454`
 - Unter 18 (oder ohne verlangten Altersnachweis) oeffnen sich Einladungen aus "Entdecken" nicht mehr, es erscheint nur ein Hinweis; der eigene Einladungslink fuehrt dann in den Chat-Bereich
 
 ## Build 245 · 2026-10-29 · `b55ec19`

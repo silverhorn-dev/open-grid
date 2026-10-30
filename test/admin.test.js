@@ -350,3 +350,43 @@ test('queue: admin sees the analysis and clears expired, per recipient or everyt
     assert.equal((await clear({ scope: 'all' })).json().removed, 1);
     assert.equal((await app.inject({ method: 'GET', url: '/api/admin/queue', headers: { cookie } })).json().total, 0);
 });
+
+test('admin live config: OIDC age service, client secret encrypted and never shown', async () => {
+    const store = createStore(':memory:');
+    const build = () => buildApp({
+        store, buildVersion: 'test', buildTimestamp: 'x', appUrl: ORIGIN, adminSetupToken: SETUP,
+        safety: { ageCheck: 'provider', ageProvider: 'oidc' }, ageOidc: {}
+    });
+    let app = await build();
+    cleanup.push(async () => store.close());
+    const cookie = await setupPasskey(app, authenticator());
+    const live = async () => (await app.inject({ method: 'GET', url: '/api/admin/config', headers: { cookie } })).json().live.AGE_OIDC;
+    assert.equal((await live()).value, null, 'not set up yet');
+
+    const value = JSON.stringify({ issuer: 'https://idp.example.org', clientId: 'og', clientSecret: 'top-secret', claim: 'age.over18' });
+    assert.equal((await put(app, 'AGE_OIDC', value, cookie)).statusCode, 200);
+    const shown = await live();
+    assert.equal(shown.value.clientSecretSet, true);
+    assert.equal(JSON.stringify(shown).includes('top-secret'), false, 'secret never leaves the router');
+    const stored = JSON.stringify(store.admin.settings().AGE_OIDC);
+    assert.equal(stored.includes('top-secret'), false, 'encrypted in the database');
+    assert.match(stored, /clientSecretEncrypted/);
+
+    // Speichern ohne clientSecret (so wie das Panel es anzeigt) behaelt das Geheimnis.
+    assert.equal((await put(app, 'AGE_OIDC', JSON.stringify({ ...shown.value, scope: 'openid age' }), cookie)).statusCode, 200);
+    assert.equal((await live()).value.clientSecretSet, true);
+    assert.equal((await live()).value.scope, 'openid age');
+    assert.equal((await put(app, 'AGE_OIDC', '{"issuer":"http://idp.example.org","clientId":"og"}', cookie)).statusCode, 400, 'https only');
+
+    // Nach einem Neustart wieder entschluesselt und aktiv.
+    await app.close();
+    app = await build();
+    cleanup.push(async () => app.close());
+    const after = (await app.inject({ method: 'GET', url: '/api/admin/config', headers: { cookie } })).json().live.AGE_OIDC;
+    assert.equal(after.source, 'panel');
+    assert.equal(after.value.clientSecretSet, true, 'decrypted again after the restart');
+    assert.equal(after.value.claim, 'age.over18');
+    // Leeres clientSecret loescht es (oeffentlicher Client mit PKCE).
+    assert.equal((await put(app, 'AGE_OIDC', JSON.stringify({ issuer: 'https://idp.example.org', clientId: 'og', clientSecret: '' }), cookie)).statusCode, 200);
+    assert.equal((await live()).value.clientSecretSet, false);
+});

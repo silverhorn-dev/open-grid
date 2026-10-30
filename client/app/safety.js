@@ -114,7 +114,8 @@ async function confirmAgeSelf() {
 }
 
 // Anbieter-Nachweis. `dev` (nur Test) bestaetigt sofort; `eudi` fragt die Wallet ueber die Digital
-// Credentials API (server/age-eudi.js); spaetere Anbieter koennen weiterleiten (kind: 'redirect').
+// Credentials API (server/age-eudi.js); `oidc` leitet zum Pruefdienst weiter (kind: 'redirect',
+// server/age-oidc.js), der Dienst schickt zurueck auf /age-callback (finishPendingAgeCallback).
 async function startAgeProviderCheck() {
     try {
         const start = await safetyRequest('age/start', {});
@@ -128,6 +129,27 @@ async function startAgeProviderCheck() {
         } else {
             showToast(t('safety.unavailable'), 'error');
         }
+    } catch (error) {
+        showSafetyError(error);
+    }
+}
+
+// Rueckkehr vom Pruefdienst: code + state an den Router (der prueft das Token und speichert nur die
+// Altersgruppe). Erst wenn die Anmeldung beim Router steht.
+async function finishPendingAgeCallback() {
+    const callback = state.pendingAgeCallback;
+    state.pendingAgeCallback = null;
+    const startedAt = Date.now();
+    while (!state.routerAuthToken && Date.now() - startedAt < 15000) {
+        await new Promise(resolve => setTimeout(resolve, 250));
+    }
+    if (!callback?.code || !callback?.state) {
+        showToast(callback?.error === 'access_denied' ? t('safety.providerCancelled') : t('safety.failed'), 'warning');
+        return;
+    }
+    try {
+        const result = await safetyRequest('age/finish', { payload: { code: callback.code, state: callback.state } });
+        await afterVerificationStep(result.group === 'minor' ? t('safety.ageMinorConfirmed') : t('safety.ageConfirmed'));
     } catch (error) {
         showSafetyError(error);
     }

@@ -5,7 +5,8 @@
 // Altersnachweis ueber Anbieter: ein Anbieter-Modul liefert nur "ueber 18: ja/nein" und optional ein
 // Pseudonym (subject). Der Router speichert davon nur einen HMAC des Pseudonyms (fuer Sperren),
 // nie Ausweis-, Gesichts- oder Geburtsdaten. Anbieter: `eudi` (EU-Altersnachweis ueber die Wallet,
-// age-eudi.js, wird in app.js erzeugt) und der Test-Anbieter `dev`; KJM-anerkannte Dienste folgen.
+// age-eudi.js), jeder OpenID-Connect-Dienst `oidc` (z. B. KJM-anerkannte Pruefdienste, age-oidc.js; beide
+// werden in app.js erzeugt) und der Test-Anbieter `dev`.
 import { createCipheriv, createDecipheriv, createHmac, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
 import { createSmtpTransport, parseSmtpConfig } from './email-smtp.js';
 
@@ -223,9 +224,18 @@ export function createSafety({ config: startConfig, store, log, now = Date.now, 
             return { ok: true };
         },
 
-        async startAgeCheck(peerId) {
+        async startAgeCheck(peerId, { origin } = {}) {
             if (!provider || ageCheck !== 'provider') return { error: 'Age provider not enabled', code: 400 };
-            return { ok: true, provider: provider.id, ...(await provider.start({ peerId })) };
+            let start;
+            try {
+                start = await provider.start({ peerId, origin });
+            } catch (error) {
+                log.warn(`Age provider ${provider.id} could not start: ${error.message}`);
+                return { error: 'Age provider unavailable', code: 503 };
+            }
+            // Anbieter noch nicht eingerichtet (z. B. OIDC ohne Aussteller).
+            if (start?.kind === 'unavailable') return { error: 'Age provider unavailable', code: 503 };
+            return { ok: true, provider: provider.id, ...start };
         },
 
         async finishAgeCheck(peerId, payload, { origin } = {}) {
@@ -330,7 +340,7 @@ export function registerSafetyRoutes(app, { safety, allowRequest, requirePeerAut
     app.post('/api/safety/age/start', async (request, reply) => {
         const peerId = authed(request, reply);
         if (!peerId) return reply;
-        return send(reply, await safety.startAgeCheck(peerId));
+        return send(reply, await safety.startAgeCheck(peerId, { origin: `${request.protocol}://${request.host}` }));
     });
     app.post('/api/safety/age/finish', async (request, reply) => {
         const peerId = authed(request, reply);

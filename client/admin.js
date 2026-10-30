@@ -392,6 +392,7 @@ async function refreshStatus() {
 // Welche Eingabe je Einstellung; Optionen kommen vom Router (nur was dort moeglich ist).
 const LIVE_SETTINGS = {
     AGE_CHECK: { type: 'select', label: () => t('admin.settingAgeCheck') },
+    AGE_OIDC: { type: 'json', label: () => t('admin.settingAgeOidc') },
     EMAIL_CHECK: { type: 'select', label: () => t('admin.settingEmailCheck') },
     ABUSE_LOG_DAYS: { type: 'number', min: 0, max: 14, step: 1, label: () => t('admin.settingAbuseLog') },
     NUDITY_MODEL: { type: 'select', label: () => t('admin.settingNudityModel') },

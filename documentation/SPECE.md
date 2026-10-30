@@ -1675,7 +1675,7 @@ Ein Klick auf die Benachrichtigung fokussiert die App und oeffnet den Chat
 
 - Nachweise (T2, `server/safety.js`, `server/safety-store.js`), alles
   standardmaessig aus:
-  - `AGE_CHECK` (`off`/`confirm`/`provider`), `AGE_PROVIDER` (`eudi`, `dev`,
+  - `AGE_CHECK` (`off`/`confirm`/`provider`), `AGE_PROVIDER` (`eudi`, `oidc`, `dev`,
     unbekannt = `confirm`), `EMAIL_CHECK` (`off`/`required`),
     `EMAIL_TRANSPORT` (`log` oder `smtp`), `SMTP_URL`, `SMTP_FROM`,
     `SAFETY_KEY`, `ABUSE_LOG_DAYS` (0-14).
@@ -1691,6 +1691,25 @@ Ein Klick auf die Benachrichtigung fokussiert die App und oeffnet den Chat
     mit Bild/Snap/Video von unter 18 `message.nudityScan = true` (verschluesselt,
     `isValidMessage`: boolean), der Empfaenger prueft diese Bilder immer
     (`markForcedNudityScan`).
+  - OIDC-Pruefdienst `oidc` (`server/age-oidc.js`), Konfiguration `AGE_OIDC_*`
+    bzw. live `AGE_OIDC` (JSON: issuer, clientId, clientSecret, scope, claim,
+    adultValue, minorValue, redirectUri; in `admin_settings` mit
+    `clientSecretEncrypted` = AES-GCM ueber `SAFETY_KEY`, Anzeige nur
+    `clientSecretSet`; Speichern ohne `clientSecret` behaelt das alte, `""` loescht):
+    - `age/start` -> `{ kind: 'redirect', url }`: Discovery (1 h Cache),
+      Authorization Code mit `state`, `nonce` (je 24 Byte) und PKCE S256; `state`
+      gehoert zu genau einem Peer, 10 min, einmalig. `redirect_uri` =
+      `redirectUri` oder `APP_URL` (sonst Herkunft der Anfrage) + `/age-callback`.
+    - App: `/age-callback?code&state` liefert die App aus; `resolveInitialRoute`
+      merkt `state.pendingAgeCallback`, nach der Router-Anmeldung
+      `age/finish` mit `payload = { code, state }`.
+    - Router: Token-Endpunkt (Secret per HTTP Basic, sonst `client_id`), ID-Token
+      pruefen: JWS RS/PS/ES 256-512 oder EdDSA ueber JWKS (`kid`, bei unbekannter
+      `kid` einmal neu laden; `none`/HS* abgelehnt), `iss`, `aud` (+ `azp` bei
+      mehreren), `exp`/`iat` (120 s Toleranz), `nonce`, `sub`. Claim (Pfad mit
+      Punkten) aus dem ID-Token, sonst `userinfo` mit gleichem `sub`. Vergleich
+      streng per JSON: = `adultValue` -> adult, = `minorValue` -> minor, sonst
+      Ablehnung (403, `reason`). `subject` = `oidc:<iss>:<sub>` (als HMAC).
   - EU-Altersnachweis `eudi` (`server/age-eudi.js`, `server/age-trust.js`):
     - `age/start` -> `{ kind: 'eudi', protocol: 'openid4vp-v1-unsigned', request }`,
       `request` = OpenID4VP 1.0 (`response_type: vp_token`, `response_mode: dc_api`,

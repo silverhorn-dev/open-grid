@@ -1087,3 +1087,17 @@ Akzeptanzkriterien:
 - Geloeschte Nachrichten lassen sich weder beantworten noch per Geste bedienen.
 - Abschaltbar zusammen mit dem Wischen auf der Eingabeleiste.
 
+## UC-63: Altersnachweis ueber einen OIDC-Pruefdienst
+
+**Als Betreiber** moechte ich einen beliebigen Pruefdienst (z. B. KJM-anerkannt)
+anbinden, ohne dass OpenGrid an einen Anbieter gebunden ist.
+
+Akzeptanzkriterien:
+
+- Mit `AGE_PROVIDER=oidc` leitet "Alter nachweisen" zum Dienst und zurueck in die
+  App; danach ist der Nachweis gespeichert (nur Altersgruppe + HMAC).
+- Aussteller, Client und Claim sind per Umgebung oder live im Admin-Panel
+  einstellbar; das Client-Secret liegt verschluesselt und wird nie angezeigt.
+- "Unter 18" nur bei ausdruecklichem Wert des Dienstes; fehlender oder unklarer
+  Claim, falsche Signatur, Nonce, Aussteller oder Client -> abgelehnt.
+- Ein `state` gilt nur fuer den Peer, der den Ablauf gestartet hat, und nur einmal.

@@ -108,7 +108,11 @@ Keine Rechtsberatung: was ein Betreiber rechtlich braucht, muss er selbst klaere
    Open-Source-Server; wer den Online-Ausweis will, nimmt einen
    eID-Service-Anbieter ueber Punkt 1.
 
-Offene Entscheidungen fuer den Nutzer:
+Entschieden 2026-10-30 (umgesetzt, `server/age-oidc.js`, UC-63): `oidc` gebaut; "unter 18"
+nur, wenn der Dienst es ausdruecklich sagt, sonst Ablehnung; Client-Secret im Panel,
+verschluesselt mit `SAFETY_KEY`.
+
+Fruehere Fragen:
 
 - `AGE_PROVIDER=oidc` bauen (ja/nein)?
 - Welche Altersgruppe gilt, wenn der Dienst nur "ab 18: nein" liefert

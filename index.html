@@ -1053,8 +1053,9 @@
     <div id="profile-detail-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-start justify-center p-4 overflow-y-auto">
         <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full overflow-hidden shadow-2xl space-y-0 my-auto">
             <div class="relative h-64 bg-slate-950">
-                <img id="modal-profile-img" src="" class="w-full h-full object-cover cursor-zoom-in" data-click="openProfileImageViewer" data-args='["$src"]'>
-                <div class="absolute inset-0 bg-linear-to-t from-slate-900 via-slate-900/20 to-transparent"></div>
+                <img id="modal-profile-img" src="" data-i18n-attr="alt:profile.pictureOpen" alt="Profilbild gross ansehen" class="w-full h-full object-cover cursor-zoom-in" data-click="openProfileImageViewer" data-args='["$src"]'>
+                <!-- Verlauf nur zur Optik: Klicks gehen durch auf das Bild (Bildbetrachter). -->
+                <div class="pointer-events-none absolute inset-0 bg-linear-to-t from-slate-900 via-slate-900/20 to-transparent"></div>
                 <button data-click="closeProfileModal" class="absolute top-3 right-3 w-8 h-8 rounded-full bg-slate-950/70 hover:bg-slate-900 text-slate-200 border border-slate-700 flex items-center justify-center transition">
                     <i class="fa-solid fa-xmark"></i>
                 </button>

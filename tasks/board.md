@@ -569,3 +569,7 @@
 - [x] entfreunden nach match (nutzer 2026-10-30: "verweis-eintrag in social wie umgekehrt"): chat zurueck nach "Grid & Event", verweis "Jetzt in Grid & Event" in "Chat & Freunde"; ohne match bleibt er in social
 - [x] bug: aktive flirt-lasche ragte 1 px rot in die eingabezeile (`margin-bottom: -1px` zusaetzlich zum rand) -> e2e prueft die kante
 
+## T28 Profil: Bild gross, eigenes Social-Profil (nutzer 2026-10-30)
+- [x] profilbild im profil-popup antippbar, laedt die grosse fassung wie galeriebilder (`avatarFull`, IMAGE_REQUEST, sha256-pruefung); bug: ein verlauf ueber dem bild fing alle klicks ab; e2e `profile-picture`, UC-66
+- [ ] social-profil kann sich vom entdecken-profil unterscheiden
+

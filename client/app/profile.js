@@ -1,4 +1,6 @@
 // ================= MEDIA & COMPRESSION =================
+// Kantenlaenge der grossen Profilbild-Fassung (Bildbetrachter), das Profil selbst traegt nur 200 px.
+const AVATAR_FULL_EDGE = 1280;
 function compressImage(file, maxWidth, maxHeight, quality = 0.8) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -24,6 +26,14 @@ async function handleAvatarUpload(input) {
     try {
         // Starke Komprimierung, da der Server in app.js bei 50.000 Zeichen abschneidet
         const base64 = await compressImage(input.files[0], 200, 200, 0.6);
+        // Grosse Fassung fuer den Bildbetrachter: liegt nur lokal, andere holen sie wie Galeriebilder per
+        // P2P (IMAGE_REQUEST), sofern sie das Profilbild sehen duerfen. Im Profil steht nur der Verweis.
+        const full = await compressImage(input.files[0], AVATAR_FULL_EDGE, AVATAR_FULL_EDGE, 0.82);
+        const previousFull = state.myProfile.avatarFull?.id;
+        const fullId = `avatar_${window.crypto.randomUUID()}`;
+        await cacheMedia(fullId, full, 1);
+        state.myProfile.avatarFull = { id: fullId, version: 1, sha256: await sha256Base64(full) };
+        if (previousFull) deleteDatabaseRecord('media', previousFull).catch(() => {});
         state.myProfile.avatar = base64;
         document.getElementById('edit-avatar-preview').src = base64;
         await saveUserProfile();

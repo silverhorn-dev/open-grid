@@ -49,6 +49,16 @@ function openImageViewer(images, startIndex = 0, options = {}) {
     showViewerImage();
 }
 
+// Bild im offenen Betrachter austauschen (z. B. grosse Fassung des Profilbilds kommt nach).
+function replaceViewerImage(previous, next) {
+    if (!isImageViewerOpen() || !isSafeInlineImage(next)) return false;
+    const index = viewer.images.indexOf(previous);
+    if (index < 0) return false;
+    viewer.images[index] = next;
+    if (index === viewer.index || Math.abs(index - viewer.index) === 1) showViewerImage();
+    return true;
+}
+
 function closeImageViewer() {
     dismissModalEntry('viewer', hideImageViewer);
 }

@@ -239,6 +239,8 @@ const state = {
     chatPreviews: {},
     chatControls: {},
     pendingImageRequests: {},
+    // Bildbetrachter wartet auf die grosse Fassung eines Profilbilds ({ peerId, thumbnail }), chat.js.
+    profilePictureViewer: null,
     // Schwarm-Abruf (swarm.js): offene Anfragen pro `${peerId}:${imageId}` bzw. `${peerId}:${albumId}`.
     pendingSwarmImages: {},
     pendingSwarmAlbums: {},

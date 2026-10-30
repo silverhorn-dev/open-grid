@@ -209,12 +209,31 @@ function renderModalGalleryImage(imageId, base64) {
     imgEl.onclick = () => openProfileImageViewer(base64);
 }
 
-// Profilbild plus alle schon geladenen Galeriebilder des offenen Profils.
-function openProfileImageViewer(startImage) {
+// Profilbild plus alle schon geladenen Galeriebilder des offenen Profils. Das Profilbild in grosser Fassung,
+// wenn es schon da ist; sonst erst das kleine, die grosse holt IMAGE_REQUEST nach (showFullProfilePicture).
+async function openProfileImageViewer(startImage) {
+    const peerId = state.activeModalPeerId;
     const avatar = document.getElementById('modal-profile-img').src;
+    const fullMeta = peerId === state.myProfile.id ? state.myProfile.avatarFull : (peerId ? state.cachedProfiles[peerId]?.avatarFull : null);
+    const fullMedia = fullMeta?.id ? await loadMedia(fullMeta.id).catch(() => null) : null;
+    const fullAvatar = fullMedia?.version === fullMeta?.version && isSafeInlineImage(fullMedia?.data) ? fullMedia.data : null;
     const gallery = [...document.querySelectorAll('#modal-gallery-container [data-viewer-image] img')].map(image => image.src);
-    const images = [avatar, ...gallery].filter((image, index, all) => isSafeInlineImage(image) && all.indexOf(image) === index);
-    openImageViewer(images, Math.max(0, images.indexOf(startImage)));
+    const images = [fullAvatar || avatar, ...gallery].filter((image, index, all) => isSafeInlineImage(image) && all.indexOf(image) === index);
+    const start = startImage === avatar ? (fullAvatar || avatar) : startImage;
+    openImageViewer(images, Math.max(0, images.indexOf(start)));
+    if (fullMeta?.id && !fullAvatar && peerId !== state.myProfile.id) {
+        state.profilePictureViewer = { peerId, thumbnail: avatar };
+        state.pendingImageRequests[`${peerId}:${fullMeta.id}`] = fullMeta.version;
+        sendSecurePayload(peerId, { type: 'IMAGE_REQUEST', imageId: fullMeta.id, version: fullMeta.version }).catch(logBackgroundError('openProfileImageViewer'));
+    }
+}
+
+// Grosse Fassung des Profilbilds ist angekommen (p2p.client.js): im offenen Betrachter austauschen.
+function showFullProfilePicture(peerId, data) {
+    const pending = state.profilePictureViewer;
+    if (pending?.peerId !== peerId) return;
+    replaceViewerImage(pending.thumbnail, data);
+    state.profilePictureViewer = null;
 }
 
 function isSafeInlineImage(value) {

@@ -275,6 +275,12 @@ function isGalleryVisibleTo(peerId) {
     return getMyVisibility() === 1 || isConnectedPeer(peerId);
 }
 
+// Verweis auf die grosse Fassung des Profilbilds (profile.js), nur mit Profilbild.
+function avatarFullMeta() {
+    const meta = state.myProfile.avatarFull;
+    return state.myProfile.avatar && meta?.id ? { id: meta.id, version: meta.version || 1, sha256: meta.sha256 } : undefined;
+}
+
 // Baut das Profil, das genau dieser Peer sehen darf. `audience` bindet ein Match-Profil an ihn.
 function buildProfilePayloadFor(peerId) {
     const visibility = getMyVisibility();
@@ -295,6 +301,7 @@ function buildProfilePayloadFor(peerId) {
             audience: visibility === 1 ? 'public' : peerId,
             fields: activeSchemaFields(peerId),
             avatar: state.myProfile.avatar,
+            avatarFull: avatarFullMeta(),
             gallery: state.myProfile.gallery || []
         };
     }
@@ -302,7 +309,7 @@ function buildProfilePayloadFor(peerId) {
         const privateFields = new Set(state.myProfile.privateFields || []);
         const fields = Object.fromEntries(Object.entries(activeSchemaFields(peerId))
             .filter(([key]) => !privateFields.has(key)));
-        return { ...base, audience: 'public', fields, avatar: state.myProfile.avatar, gallery: [], restricted: true };
+        return { ...base, audience: 'public', fields, avatar: state.myProfile.avatar, avatarFull: avatarFullMeta(), gallery: [], restricted: true };
     }
     return { ...base, audience: 'public', fields: {}, avatar: null, gallery: [], restricted: true };
 }

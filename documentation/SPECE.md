@@ -1042,6 +1042,18 @@ dasselbe Menue: Oeffnen, Profil, Chat loeschen, Blockieren/Blockierung
 aufheben; bei einem Verweis: In "Chat & Freunde" oeffnen, Profil, Aus dieser
 Liste entfernen. Zurueck-Taste schliesst es (`pushModalEntry('chatlistmenu')`).
 
+**Profilbild in gross** (seit 2026-10-30): Das Profil traegt das Profilbild
+mit 200 px (`avatar`). Beim Hochladen legt der Client zusaetzlich eine Fassung
+mit hoechstens 1280 px lokal ab (`media`, Id `avatar_<uuid>`) und setzt
+`myProfile.avatarFull = { id, version, sha256 }`; der Verweis steht im
+signierten Profil (`avatarFull`), immer nur zusammen mit `avatar`. Antippen des
+Profilbilds im Profil-Popup oeffnet den Bildbetrachter; ist die grosse Fassung
+noch nicht lokal, zeigt er erst die kleine und holt die grosse per
+`IMAGE_REQUEST` beim Besitzer (`canPeerAccessImage`: nur wer laut
+`buildProfilePayloadFor` den Verweis bekommt). Die Antwort wird gegen
+`sha256` aus dem signierten Profil geprueft und im offenen Betrachter getauscht
+(`replaceViewerImage`).
+
 Signiertes Profil: neben `fields`, `avatar`, `gallery` und `audience` sind
 jetzt auch `chatPolicy` und `allowMatchFriends` signiert und kommen beim
 anderen an (vorher fehlten die Chat-Regeln beim Empfaenger, Absender sahen

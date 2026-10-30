@@ -773,7 +773,9 @@ async function handleIncomingImageRequest(peerId, imageId) {
 async function handleIncomingImageResponse(peerId, imageId, version, data) {
     const requestKey = `${peerId}:${imageId}`;
     const requestedVersion = state.pendingImageRequests[requestKey];
-    const galleryEntry = state.cachedProfiles[peerId]?.gallery?.find(item => item.id === imageId);
+    const cachedProfile = state.cachedProfiles[peerId];
+    const galleryEntry = cachedProfile?.gallery?.find(item => item.id === imageId)
+        || (cachedProfile?.avatarFull?.id === imageId ? cachedProfile.avatarFull : null);
     if (requestedVersion !== version || galleryEntry?.version !== version || !isSafeInlineImage(data)) {
         logDebug(`Rejected unsolicited gallery image ${imageId} from ${peerId}.`);
         return;
@@ -781,6 +783,16 @@ async function handleIncomingImageResponse(peerId, imageId, version, data) {
     delete state.pendingImageRequests[requestKey];
     const currentMedia = await loadMedia(imageId);
     if (currentMedia && currentMedia.version > version) return;
+    // Grosse Fassung des Profilbilds: Pruefsumme aus dem signierten Profil muss passen.
+    if (cachedProfile?.avatarFull?.id === imageId) {
+        if (cachedProfile.avatarFull.sha256 && await sha256Base64(data) !== cachedProfile.avatarFull.sha256) {
+            logDebug(`Rejected profile picture ${imageId} from ${peerId}: checksum mismatch.`);
+            return;
+        }
+        await cacheMedia(imageId, data, version);
+        if (typeof showFullProfilePicture === 'function') showFullProfilePicture(peerId, data);
+        return;
+    }
     await cacheMedia(imageId, data, version);
     if (typeof renderModalGalleryImage === 'function') renderModalGalleryImage(imageId, data);
 }

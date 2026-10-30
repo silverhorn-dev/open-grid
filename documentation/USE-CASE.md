@@ -1122,6 +1122,18 @@ Akzeptanzkriterien:
 - Im Entdecken-Modus ist ein Chat, der in beiden Bereichen steht, automatisch
   im Flirt-Modus (pro Chat abschaltbar); der Verweis oeffnet ihn dort als Flirt.
 
+## UC-66: Profilbild gross ansehen
+
+**Als Nutzer** moechte ich das Profilbild im Profil-Popup antippen und es in
+voller Groesse sehen, wie die Galeriebilder.
+
+Akzeptanzkriterien:
+
+- Antippen des Profilbilds oeffnet den Bildbetrachter.
+- Gezeigt wird die grosse Fassung (bis 1280 px), geholt per P2P beim Besitzer,
+  nur wenn man das Profilbild ohnehin sehen darf; danach lokal gespeichert.
+- Die grosse Fassung muss zur Pruefsumme im signierten Profil passen.
+
 ## UC-65: Flammen nach dem Match, gestapelt
 
 **Als Nutzer** moechte ich einem Match weiter Flammen schicken und sehen, wie

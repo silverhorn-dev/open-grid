@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 256 · 2026-10-30
+## Build 257 · 2026-10-30
+- Profilbild im Profil antippen zeigt es in voller Groesse (wie die Galeriebilder); neu hochgeladene Profilbilder haben dafuer eine grosse Fassung
+- Behoben: das Profilbild im Profil liess sich gar nicht antippen
+
+## Build 256 · 2026-10-30 · `ae1f2b5`
 - Flammen: der Server legt fest, wie lange sie sichtbar sind (Standard 2 Tage) und wann man derselben Person die naechste schicken kann (Standard 1 Stunde); beides live im Admin-Panel
 
 ## Build 255 · 2026-10-30 · `7799ab0`

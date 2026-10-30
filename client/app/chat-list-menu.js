@@ -1,7 +1,8 @@
 // ================= CHATLISTE: MENUE UND VERSCHOBENE CHATS =================
 // Jede Zeile der Chatliste hat rechts ein Menue (⋮), auch per langem Druecken oder Rechtsklick.
 // Wird aus einem Match eine Freundschaft, wandert der Chat nach "Chat & Freunde". In "Grid & Event"
-// bleibt ein Verweis stehen ("Jetzt in Chat & Freunde"), der dorthin fuehrt und sich entfernen laesst.
+// bleibt ein Verweis stehen ("Jetzt in Chat & Freunde"): Antippen oeffnet den Chat im Entdecken-Modus
+// als Flirt, das Menue fuehrt auch nach "Chat & Freunde"; der Verweis laesst sich entfernen.
 // Nur Anzeige auf diesem Geraet, das Gegenueber merkt nichts.
 const MOVED_CHATS_RECORD_ID = 'moved-chats';
 
@@ -34,8 +35,18 @@ function isMovedChatHint(peerId) {
     return Boolean(state.movedChats?.[peerId]) && isFriend(peerId) && currentChatScope() === 'discovery' && scopeIncludes('social');
 }
 
-// Zum Chat in "Chat & Freunde": Liste (oder Modus, je nach Listen-Wechsel-Einstellung) wechseln, dann oeffnen.
+// Antippen des Verweises: im Entdecken-Modus den Chat hier oeffnen (dort automatisch im Flirt-Modus,
+// friends.js isFlirting), sonst wie openChatInFriends.
 async function openMovedChat(peerId) {
+    if (inExploringMode()) {
+        await openChatWithPeer(peerId);
+        return;
+    }
+    await openChatInFriends(peerId);
+}
+
+// Zum Chat in "Chat & Freunde": Liste (oder Modus, je nach Listen-Wechsel-Einstellung) wechseln, dann oeffnen.
+async function openChatInFriends(peerId) {
     if (state.listSwitchSettings?.behavior === 'mode') {
         const mode = modeForChatScope('social');
         if (mode) await setAppMode(mode);
@@ -67,7 +78,8 @@ function runChatListMenuAction(action) {
 function chatListMenuEntries(peerId) {
     if (isMovedChatHint(peerId)) {
         return [
-            ['fa-solid fa-arrow-right', t('chatList.openInFriends'), () => openMovedChat(peerId)],
+            ['fa-solid fa-fire', t('chatList.openAsFlirt'), () => openChatWithPeer(peerId)],
+            ['fa-solid fa-arrow-right', t('chatList.openInFriends'), () => openChatInFriends(peerId)],
             ['fa-regular fa-user', t('common.profile'), () => openProfileModal(peerId)],
             ['fa-solid fa-xmark', t('chatList.removeFromList'), () => dismissMovedChat(peerId)]
         ];

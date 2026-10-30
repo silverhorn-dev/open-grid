@@ -565,4 +565,6 @@
 - [x] flammen nach dem match weiter (1/tag), stapeln (2 = doppelflamme, ab 3 = zahl), sichtbar 7 tage (`FLAME_VISIBLE_MS`), match loesen loescht sie
   - tests `test/friends.test.js`, `test/matching.test.js`, `test/modes.test.js`, e2e `chat-list-menu`; UC-64, UC-65
   - offen: sichtdauer 7 tage ok? (bei 24 h abklingzeit max. 7 gestapelt)
+- [x] im entdecken-modus ist ein chat in beiden bereichen automatisch im flirt-modus (nutzer 2026-10-30), pro chat abschaltbar (`flirtOff`); verweis oeffnet ihn dort als flirt
+- [x] bug: aktive flirt-lasche ragte 1 px rot in die eingabezeile (`margin-bottom: -1px` zusaetzlich zum rand) -> e2e prueft die kante
 

@@ -110,7 +110,7 @@ async function main() {
 
         // Freundes-Chat aus einem Match: normal ist der Flirt-Teil verborgen, die Flamme schaltet in den
         // Flirt-Modus (alles sichtbar, neue Nachrichten sind Flirt-Nachrichten).
-        await carol.evaluate(() => closeProfileModal());
+        await carol.evaluate(() => { closeProfileModal(); return setAppMode('chat'); });
         await carol.evaluate(id => openChatWithPeer(id), daveId);
         await carol.fill('#chat-input', 'jetzt als freunde');
         await carol.click('#send-chat-btn');
@@ -135,6 +135,13 @@ async function main() {
         assert.equal(await dave.evaluate(() => document.activeElement?.id), 'chat-input', 'input keeps the focus');
         assert.equal(await dave.evaluate(() => document.querySelector('#chat-messages').textContent.includes('jetzt als freunde')), true, 'flirt mode shows everything');
         assert.equal(await dave.locator('.flirt-message').count(), 2, 'flirt messages are marked');
+        // Aktive Lasche endet genau auf dem 1-px-Rand der Eingabeleiste, nichts Rotes ragt hinein.
+        const tabEdge = await dave.evaluate(() => {
+            const tab = document.getElementById('chat-flirt-tab').getBoundingClientRect();
+            const bar = document.getElementById('chat-input-bar').getBoundingClientRect();
+            return tab.bottom - bar.top;
+        });
+        assert.ok(tabEdge >= 0.5 && tabEdge <= 1.5, `active tab covers only the border: ${tabEdge}px`);
         // Flirt-Modus: Album und Video hinter einem Knopf, Menue klappt nach oben auf.
         assert.equal(await dave.isVisible('#chat-video-btn'), false, 'video folded away');
         await dave.click('#chat-media-btn');

@@ -76,6 +76,13 @@ async function main() {
         // Zurueck in der Grid-Liste: langes Druecken oeffnet das Menue, "Aus dieser Liste entfernen".
         await bob.evaluate(async () => { await setAppMode('discovery'); state.chatListScopeOverride = null; state.activeChatPeerId = null; switchTab('chat'); renderActivePeerList(); });
         await waitFor(bob, id => isMovedChatHint(id), aliceId);
+        // Antippen im Entdecken-Modus: Chat oeffnet hier, automatisch im Flirt-Modus.
+        await row.locator('.chat-list-open').click();
+        await waitFor(bob, id => state.activeChatPeerId === id, aliceId);
+        assert.deepEqual(await bob.evaluate(id => ({ mode: state.appMode, flirting: isFlirting(id), bar: document.getElementById('chat-input-bar').classList.contains('is-flirt') }), aliceId),
+            { mode: 'discovery', flirting: true, bar: true }, 'exploring: flirt mode on its own');
+        assert.ok(await bob.evaluate(() => document.querySelector('#chat-messages').textContent.includes('hallo match')), 'flirt part visible');
+        await bob.evaluate(() => { state.activeChatPeerId = null; switchTab('chat'); renderActivePeerList(); });
         const box = await row.locator('.chat-list-open').boundingBox();
         await bob.mouse.move(box.x + 20, box.y + box.height / 2);
         await bob.mouse.down();

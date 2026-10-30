@@ -204,6 +204,11 @@ async function setAppMode(mode) {
     applyProfileSchemaForMode();
     applyAppModeUi();
     renderActivePeerList();
+    // Offener Freundes-Chat: im Entdecken-Modus automatisch Flirt (friends.js), also neu zeichnen.
+    if (state.activeChatPeerId && typeof updateFlirtButton === 'function') {
+        updateFlirtButton();
+        if (typeof renderChatHistory === 'function') renderChatHistory();
+    }
     await refreshPresenceAndGrid();
 }
 

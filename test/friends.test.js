@@ -334,3 +334,34 @@ test('the sender of a match chat (no list stored yet) also keeps a pointer after
     assert.equal(me.isFriend('dating'), true);
     assert.deepEqual(moved, ['dating']);
 });
+
+test('in exploring mode a chat that lives in both areas is a flirt by default, switchable off per chat', async () => {
+    const me = loadFriends({ appMode: 'discovery' });
+    Object.assign(me, {
+        scopeIncludes: () => true,
+        clientDefault: (key, fallback) => fallback,
+        isMatched: peerId => peerId === 'buddy',
+        renderChatHistory: () => {},
+        updateChatAlbumButton: () => {}
+    });
+    await me.loadDiscoveryHistorySetting();
+    await me.ensureChatScope('buddy', 'social');
+    const flirt = { id: 'a', scope: 'discovery', senderId: 'buddy' };
+    me.state.chats.buddy = [flirt, { id: 'b', scope: 'social', senderId: 'buddy' }];
+
+    assert.equal(me.isFlirting('buddy'), true, 'exploring: flirt without switching it on');
+    assert.equal(me.messageScopeFor('buddy'), 'discovery');
+    assert.equal(me.isDiscoveryMessageHidden('buddy', flirt), false);
+
+    await me.toggleFlirtMode('buddy');
+    assert.equal(me.isFlirting('buddy'), false, 'switched off for this chat');
+    assert.deepEqual([...me.records.get('keys:discovery-history').flirtOff], ['buddy']);
+
+    // Im Chat-Modus gilt wieder die normale Wahl (aus), die Ausnahme bleibt fuers Entdecken.
+    me.state.appMode = 'chat';
+    assert.equal(me.isFlirting('buddy'), false);
+    await me.toggleFlirtMode('buddy');
+    assert.equal(me.isFlirting('buddy'), true);
+    me.state.appMode = 'discovery';
+    assert.equal(me.isFlirting('buddy'), false, 'exploring keeps its own choice');
+});

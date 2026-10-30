@@ -1080,7 +1080,8 @@ html {
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: -1px;
+    /* bottom: 100% = Oberkante des Innenbereichs der Leiste, also direkt unter deren 1-px-Rand: die Lasche
+       deckt genau den Rand ab (wirkt wie eine offene Lasche) und ragt nicht in die Eingabezeile. */
     border: 1px solid rgb(var(--slate-800));
     border-bottom: 0;
     border-radius: 0.75rem 0.75rem 0 0;

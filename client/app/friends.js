@@ -209,6 +209,8 @@ async function loadDiscoveryHistorySetting() {
     state.discoveryHistory = {
         hide: typeof stored?.hide === 'boolean' ? stored.hide : routerDefault !== false,
         flirt: peerIdList(stored?.flirt),
+        // Im Entdecken-Modus ist der Flirt-Modus an; hier die Chats, in denen man ihn dort ausgeschaltet hat.
+        flirtOff: peerIdList(stored?.flirtOff),
         tab: stored?.tab !== false,
         tabHidden: peerIdList(stored?.tabHidden),
         // Wann man den Flirt-Teil eines Chats zuletzt gesehen hat (Punkt an der Lasche fuer Neues danach).
@@ -283,8 +285,18 @@ function canFlirt(peerId) {
     return scopeIncludes('discovery') && hasFlirtPart(peerId);
 }
 
+// Entdecken- bzw. Event-Modus aktiv (nicht nur die Liste angesehen).
+function inExploringMode() {
+    return typeof isSocialMode === 'function' && !isSocialMode();
+}
+
+// Chats in beiden Bereichen (Freund mit Flirt-Teil): im Entdecken-Modus automatisch Flirt (abschaltbar,
+// `flirtOff`), sonst nur, wenn man ihn eingeschaltet hat (`flirt`).
 function isFlirting(peerId) {
-    return canFlirt(peerId) && state.discoveryHistory.flirt.includes(peerId);
+    if (!canFlirt(peerId)) return false;
+    return inExploringMode()
+        ? !(state.discoveryHistory.flirtOff || []).includes(peerId)
+        : state.discoveryHistory.flirt.includes(peerId);
 }
 
 // Ohne Entdecken-Bereich ist der Flirt-Teil immer weg (zaehlt dann auch nicht als ungelesen).
@@ -316,12 +328,14 @@ function messageScopeFor(peerId) {
 
 async function toggleFlirtMode(peerId = state.activeChatPeerId) {
     if (!canFlirt(peerId)) return;
-    const flirt = new Set(state.discoveryHistory.flirt);
-    if (flirt.has(peerId)) flirt.delete(peerId);
-    else flirt.add(peerId);
+    // Im Entdecken-Modus wird die Ausnahme (aus) umgeschaltet, sonst die Einschaltung.
+    const key = inExploringMode() ? 'flirtOff' : 'flirt';
+    const list = new Set(state.discoveryHistory[key] || []);
+    if (list.has(peerId)) list.delete(peerId);
+    else list.add(peerId);
     // Beim Ein- wie beim Ausschalten ist der Flirt-Teil gerade gesehen.
     const seen = { ...state.discoveryHistory.seen, [peerId]: Date.now() };
-    state.discoveryHistory = { ...state.discoveryHistory, flirt: [...flirt], seen };
+    state.discoveryHistory = { ...state.discoveryHistory, [key]: [...list], seen };
     await saveDiscoveryHistory();
     if (state.activeChatPeerId === peerId) {
         renderChatHistory();

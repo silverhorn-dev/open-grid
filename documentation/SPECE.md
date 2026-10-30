@@ -1055,6 +1055,14 @@ Nachrichten aelterer Chats ohne Listen-Zuordnung). Ohne Flirt-Teil gibt es
 keine Flamme und nichts wird ausgeblendet. Bedienung (nur bei aktivem
 Entdecken-Bereich und Flirt-Teil):
 
+- Im Entdecken- oder Event-Modus (App-Modus, nicht nur angesehene Liste) ist
+  ein solcher Chat automatisch im Flirt-Modus (seit 2026-10-30); abschalten pro
+  Chat ueber die Lasche, gespeichert als Ausnahme `discovery-history.flirtOff`.
+  Im Chat-/Freunde-Modus gilt wie bisher `discovery-history.flirt` (Standard
+  aus). Ein Moduswechsel zeichnet den offenen Chat neu. Der Verweis in
+  "Grid & Event" (siehe oben) oeffnet den Chat im Entdecken-Modus direkt hier,
+  also als Flirt; "In Chat & Freunde oeffnen" steht im Menue.
+
 - Lasche mit Flamme (`#chat-flirt-tab`) auf der Oberkante der Eingabeleiste
   ueber dem Senden-Knopf; Antwort-Leiste und Hinweise liegen darunter, der
   Verlauf bekommt unten Platz (`.has-flirt-tab`). Ab einem halben Bildschirm

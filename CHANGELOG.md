@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 253 · 2026-10-30
+## Build 254 · 2026-10-30
+- Im Entdecken-Modus ist ein Chat, der in beiden Bereichen steht (Freund aus einem Match), automatisch im Flirt-Modus; pro Chat ueber die Flamme abschaltbar. Der Verweis in "Grid & Event" oeffnet ihn dort als Flirt
+- Behoben: die aktive Flirt-Lasche ragte ein Stueck rot in die Eingabezeile
+
+## Build 253 · 2026-10-30 · `550bffb`
 - Behoben: in neuen Chats aus "Entdecken" ging nach der ersten Nachricht nichts mehr raus, solange das Profil des anderen fehlte (seit Build 252)
 
 ## Build 252 · 2026-10-30 · `39b4f48`

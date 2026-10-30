@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 267 · 2026-10-30
+## Build 268 · 2026-10-30
+- Nur "Chat & Freunde": versteckter Privat-Modus (Einstellungen > Chat), ein Auge ueber dem Senden-Knopf oeffnet einen privaten Teil jedes Chats
+- Neben der Flirt-/Privat-Lasche steht die ersten Male "Lange druecken zum Ausblenden"
+
+## Build 267 · 2026-10-30 · `a01022e`
 - Privatsphaere: "Im Entdecken-Grid verstecken vor" Freunden oder Freunden & Chat-Partnern; du siehst sie weiter, Matches sehen dich immer
 
 ## Build 266 · 2026-10-30 · `dd5dc94`

@@ -129,12 +129,15 @@ function applyModeScope() {
 }
 
 // Einstellungen und Knoepfe mit data-scope: "discovery"/"social" = nur, wenn der Bereich dabei ist,
-// "all" = nur bei Entdecken & Freunde (z. B. Listen-Wechsel, Adden nach Match).
+// "all" = nur bei Entdecken & Freunde (z. B. Listen-Wechsel, Adden nach Match), "social-only" = nur ohne
+// Entdecken (z. B. Privat-Modus, friends.js).
 function applyModeScopeVisibility() {
     const scope = effectiveModeScope();
     document.querySelectorAll('[data-scope]').forEach(element => {
         const wanted = element.dataset.scope;
-        const visible = wanted === 'all' ? scope === 'all' : scopeIncludes(wanted);
+        const visible = wanted === 'all' ? scope === 'all'
+            : wanted === 'social-only' ? scopeIncludes('social') && !scopeIncludes('discovery')
+                : scopeIncludes(wanted);
         element.classList.toggle('scope-hidden', !visible);
     });
 }

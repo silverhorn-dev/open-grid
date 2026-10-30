@@ -287,6 +287,7 @@
                     <!-- Flirt-Lasche (friends.js) auf der Oberkante der Eingabeleiste, ueber dem Senden-Knopf:
                          tippen = Flirt-Modus, lange druecken = hier ausblenden. Antwort-Leiste und Hinweise liegen
                          darunter, nichts wird verdeckt. -->
+                    <span id="chat-flirt-tab-hint" data-i18n="friends.tabHint" class="flirt-tab-hint hidden" aria-hidden="true">Lange drücken zum Ausblenden</span>
                     <button type="button" data-i18n-attr="title:friends.flirtMode;aria-label:friends.flirtMode" id="chat-flirt-tab" data-click="toggleFlirtMode" class="flirt-tab hidden" title="Flirt-Modus" aria-label="Flirt-Modus" aria-pressed="false">
                         <i class="fa-solid fa-fire"></i>
                     </button>
@@ -747,6 +748,15 @@
                     <label class="setting-row">
                         <span class="setting-text"><span data-i18n="settings.chatByDay" class="setting-title">Chat nach Tagen</span><span data-i18n="settings.chatByDayDescription" class="setting-desc">Zeigt einen Tag nach dem anderen; unter der Kontaktleiste wechselst du mit Pfeilen oder Wischen den Tag.</span></span>
                         <input type="checkbox" role="switch" id="chat-by-day-toggle" data-change="updateChatViewSetting" data-args='["$checked"]' class="switch">
+                    </label>
+                </div>
+
+                <!-- Privat-Modus nur ohne Entdecken (friends.js privateModeOn), unauffaellig unter "Chat" -->
+                <div class="settings-card" data-settings-tab="chat" data-scope="social-only">
+                    <h3 class="settings-card-title"><i class="fa-solid fa-eye text-brand-400"></i> <span data-i18n="friends.privateModeTitle">Privat-Modus</span></h3>
+                    <label class="setting-row">
+                        <span class="setting-text"><span data-i18n="friends.privateModeSetting" class="setting-title">Privat-Modus in Freundes-Chats</span><span data-i18n="friends.privateModeDescription" class="setting-desc">Ein Auge über dem Senden-Knopf schaltet in einen privaten Teil des Chats; private Nachrichten siehst du nur dort. Lange drücken blendet das Auge in diesem Chat aus.</span></span>
+                        <input type="checkbox" role="switch" id="private-mode-toggle" data-change="updatePrivateModeSetting" data-args='["$checked"]' class="switch">
                     </label>
                 </div>
 

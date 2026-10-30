@@ -467,3 +467,36 @@ test('hiding from friends in the exploring grid is one-way and never hides match
     me.state.myProfile.gridHideFrom = 'off';
     assert.equal(me.buildProfilePayloadFor('pal').gridHideFrom, undefined);
 });
+
+test('private mode (only chat & friends): eye tab in every friend chat, private messages only in the private view', async () => {
+    const me = loadFriends({ appMode: 'chat' });
+    let scope = 'social';
+    Object.assign(me, {
+        scopeIncludes: area => scope === 'all' || scope === area,
+        clientDefault: (key, fallback) => fallback,
+        renderChatHistory: () => {},
+        updateChatAlbumButton: () => {}
+    });
+    await me.loadDiscoveryHistorySetting();
+    await me.ensureChatScope('pal', 'social');
+    const secret = { id: 'a', scope: 'discovery', senderId: 'pal' };
+    const normal = { id: 'b', scope: 'social', senderId: 'pal' };
+    me.state.chats.pal = [secret, normal];
+    assert.equal(me.canFlirt('pal'), false, 'off by default');
+    assert.equal(me.isDiscoveryMessageHidden('pal', secret), false, 'off: no match, no flirt part, shown normally');
+
+    await me.updatePrivateModeSetting(true);
+    assert.equal(me.privateModeOn(), true);
+    assert.equal(me.canFlirt('pal'), true, 'any friend chat, no match needed');
+    assert.equal(me.isDiscoveryMessageHidden('pal', secret), true, 'private message hidden in the normal view');
+    assert.equal(me.isDiscoveryMessageAlwaysHidden('pal', secret), false, 'still counts as unread');
+    me.state.activeChatPeerId = 'pal';
+    await me.toggleFlirtMode('pal');
+    assert.equal(me.isFlirting('pal'), true);
+    assert.equal(me.isDiscoveryMessageHidden('pal', secret), false, 'private view shows it');
+    assert.equal(me.messageScopeFor('pal'), 'discovery', 'new messages are private');
+
+    // Mit Entdecken gilt wieder die Flirt-Logik (Privat-Modus nur fuer "nur Chat & Freunde").
+    scope = 'all';
+    assert.equal(me.privateModeOn(), false);
+});

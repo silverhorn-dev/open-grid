@@ -1486,3 +1486,10 @@ html {
     border-bottom: 2px solid transparent; margin-bottom: -1px; display: flex; align-items: center; justify-content: center; gap: 0.35rem;
 }
 .profile-tabs button.is-active { color: rgb(var(--brand-400)); border-bottom-color: rgb(var(--brand-500)); }
+
+/* Hinweis links neben der Flirt-/Privat-Lasche (friends.js renderFlirtTabHint) */
+.flirt-tab-hint {
+    position: absolute; right: 3.75rem; bottom: calc(100% + 0.5rem); z-index: 20;
+    font-size: 0.65rem; color: rgb(var(--slate-400)); white-space: nowrap; pointer-events: none;
+}
+.flirt-tab-hint.hidden { display: none; }

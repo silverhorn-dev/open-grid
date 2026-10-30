@@ -218,6 +218,10 @@ async function loadDiscoveryHistorySetting() {
         flirt: peerIdList(stored?.flirt),
         // Im Entdecken-Modus ist der Flirt-Modus an; hier die Chats, in denen man ihn dort ausgeschaltet hat.
         flirtOff: peerIdList(stored?.flirtOff),
+        // Privat-Modus fuer "nur Chat & Freunde" (Einstellung, Standard aus) und wie oft der Hinweis
+        // "lange druecken zum Ausblenden" schon kam.
+        privateMode: stored?.privateMode === true,
+        tabHintShown: Number.isInteger(stored?.tabHintShown) ? stored.tabHintShown : 0,
         tab: stored?.tab !== false,
         tabHidden: peerIdList(stored?.tabHidden),
         // Wann man den Flirt-Teil eines Chats zuletzt gesehen hat (Punkt an der Lasche fuer Neues danach).
@@ -250,6 +254,8 @@ async function updateDiscoveryHistorySetting(hide) {
 function renderDiscoveryHistorySetting() {
     const toggle = document.getElementById('discovery-history-toggle');
     if (toggle) toggle.checked = state.discoveryHistory.hide;
+    const privateToggle = document.getElementById('private-mode-toggle');
+    if (privateToggle) privateToggle.checked = state.discoveryHistory.privateMode === true;
     const tab = document.getElementById('flirt-tab-toggle');
     if (tab) tab.checked = state.discoveryHistory.tab;
 }
@@ -288,8 +294,29 @@ function hasFlirtPart(peerId) {
     return Boolean(peerId) && chatScopeOf(peerId) === 'social' && isMatched(peerId) && hasDiscoveryHistory(peerId);
 }
 
+// Privat-Modus (nur "Chat & Freunde", Einstellung): dieselbe Lasche wie der Flirt-Modus, aber mit Auge
+// und in jedem Freundes-Chat, auch ohne Match. Private Nachrichten tragen `scope: 'discovery'` wie
+// Flirt-Nachrichten; ausgeblendet sind sie nur bei dem, der den Privat-Modus an hat (nur Anzeige).
+function privateModeOn() {
+    return state.discoveryHistory?.privateMode === true && scopeIncludes('social') && !scopeIncludes('discovery');
+}
+
+// Ohne Entdecken ist jeder Chat ein Chat in "Chat & Freunde" (auch ohne gespeicherte Zuordnung).
+function hasPrivatePart(peerId) {
+    return Boolean(peerId) && privateModeOn() && chatScopeOf(peerId) !== 'discovery';
+}
+
 function canFlirt(peerId) {
+    if (hasPrivatePart(peerId)) return true;
     return scopeIncludes('discovery') && hasFlirtPart(peerId);
+}
+
+async function updatePrivateModeSetting(enabled) {
+    state.discoveryHistory = { ...state.discoveryHistory, privateMode: Boolean(enabled) };
+    await saveDiscoveryHistory();
+    renderDiscoveryHistorySetting();
+    updateFlirtButton();
+    if (state.activeChatPeerId) renderChatHistory();
 }
 
 // Entdecken- bzw. Event-Modus aktiv (nicht nur die Liste angesehen).
@@ -308,11 +335,14 @@ function isFlirting(peerId) {
 
 // Ohne Entdecken-Bereich ist der Flirt-Teil immer weg (zaehlt dann auch nicht als ungelesen).
 function isDiscoveryMessageAlwaysHidden(peerId, message) {
-    return message?.scope === 'discovery' && !scopeIncludes('discovery') && hasFlirtPart(peerId);
+    return message?.scope === 'discovery' && !scopeIncludes('discovery') && !hasPrivatePart(peerId) && hasFlirtPart(peerId);
 }
 
 function isDiscoveryMessageHidden(peerId, message) {
-    if (message?.scope !== 'discovery' || !hasFlirtPart(peerId)) return false;
+    if (message?.scope !== 'discovery') return false;
+    // Privat-Modus: private Nachrichten nur in der privaten Ansicht (wie der Flirt-Teil).
+    if (hasPrivatePart(peerId)) return state.discoveryHistory.hide && !isFlirting(peerId);
+    if (!hasFlirtPart(peerId)) return false;
     if (!scopeIncludes('discovery')) return true;
     return state.discoveryHistory.hide && !isFlirting(peerId);
 }
@@ -360,27 +390,57 @@ function updateFlirtButton() {
     const flirting = available && isFlirting(peerId);
     const tab = document.getElementById('chat-flirt-tab');
     const tabShown = available && isFlirtTabShown(peerId);
+    // Privat-Modus: Auge statt Flamme, eigene Texte.
+    const privateMode = hasPrivatePart(peerId);
     if (tab) {
         tab.classList.toggle('hidden', !tabShown);
         tab.classList.toggle('is-active', flirting);
         tab.setAttribute('aria-pressed', String(flirting));
         tab.classList.toggle('has-news', available && hasUnseenFlirt(peerId));
+        const icon = tab.querySelector('i');
+        if (icon) icon.className = privateMode ? 'fa-solid fa-eye' : 'fa-solid fa-fire';
+        const label = privateMode ? t('friends.privateMode') : t('friends.flirtMode');
+        tab.title = label;
+        tab.setAttribute('aria-label', label);
     }
+    renderFlirtTabHint(tabShown);
     document.getElementById('chat-send-group')?.classList.toggle('is-flirt', flirting);
     document.getElementById('chat-input-bar')?.classList.toggle('is-flirt', flirting);
     document.getElementById('chat-compose-row')?.classList.toggle('is-flirt', flirting);
     // Platz unten im Verlauf, damit die Lasche nie die letzte Nachricht verdeckt.
     document.getElementById('chat-messages')?.classList.toggle('has-flirt-tab', tabShown);
     const input = document.getElementById('chat-input');
-    if (input) input.placeholder = flirting ? t('friends.flirtMessagePlaceholder') : t('chat.writeMessage');
+    if (input) input.placeholder = flirting ? (privateMode ? t('friends.privateMessagePlaceholder') : t('friends.flirtMessagePlaceholder')) : t('chat.writeMessage');
     const menuFlirt = document.getElementById('chat-menu-flirt');
     if (menuFlirt) {
         menuFlirt.classList.toggle('hidden', !available);
         const label = document.getElementById('chat-menu-flirt-label');
-        if (label) label.textContent = flirting ? t('friends.flirtModeOff') : t('friends.flirtModeOn');
+        if (label) label.textContent = privateMode
+            ? (flirting ? t('friends.privateModeOff') : t('friends.privateModeOn'))
+            : (flirting ? t('friends.flirtModeOff') : t('friends.flirtModeOn'));
+        const icon = menuFlirt.querySelector('i');
+        if (icon) icon.className = privateMode ? 'fa-solid fa-eye text-brand-400' : 'fa-solid fa-fire text-brand-400';
     }
     document.getElementById('chat-menu-flirt-tab')?.classList.toggle('hidden', !available || tabShown);
     updateFlirtTabCollapse();
+}
+
+// Hinweis links neben der Lasche: "Lange druecken zum Ausblenden", die ersten Male, wenn sie erscheint
+// (je Chat-Oeffnung einmal gezaehlt, hoechstens FLIRT_TAB_HINT_TIMES).
+const FLIRT_TAB_HINT_TIMES = 3;
+let flirtTabHintCountedFor = null;
+
+function renderFlirtTabHint(tabShown) {
+    const hint = document.getElementById('chat-flirt-tab-hint');
+    if (!hint) return;
+    const peerId = state.activeChatPeerId;
+    const show = tabShown && (state.discoveryHistory.tabHintShown || 0) < FLIRT_TAB_HINT_TIMES;
+    hint.classList.toggle('hidden', !show);
+    if (show && flirtTabHintCountedFor !== peerId) {
+        flirtTabHintCountedFor = peerId;
+        state.discoveryHistory = { ...state.discoveryHistory, tabHintShown: (state.discoveryHistory.tabHintShown || 0) + 1 };
+        saveDiscoveryHistory().catch(logBackgroundError('renderFlirtTabHint'));
+    }
 }
 
 // Neue, gerade ausgeblendete Flirt-Nachrichten des anderen seit dem letzten Blick in den Flirt-Teil.

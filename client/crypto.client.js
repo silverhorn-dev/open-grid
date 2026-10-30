@@ -30,6 +30,7 @@ async function signProfileData(profileData, privateKey, jwkPublic) {
         // Chat-Regeln und "Matches koennen mich adden" (nicht angezeigt, steuern nur Knoepfe beim anderen).
         chatPolicy: profileData.chatPolicy,
         allowMatchFriends: profileData.allowMatchFriends !== false,
+        gridHideFrom: profileData.gridHideFrom || undefined,
         // Kurzstatus nur im Profil fuer Freunde.
         presenceText: profileData.presenceText || undefined
     };

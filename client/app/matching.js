@@ -325,7 +325,9 @@ function buildProfilePayloadFor(peerId) {
         updatedAt: state.myProfile.updatedAt,
         visibility,
         chatPolicy: getMyChatPolicy(),
-        allowMatchFriends: allowsMatchFriends()
+        allowMatchFriends: allowsMatchFriends(),
+        // Im Entdecken-Grid verstecken vor Freunden/Chat-Partnern (gefiltert beim anderen).
+        gridHideFrom: GRID_HIDE_OPTIONS.includes(state.myProfile.gridHideFrom) && state.myProfile.gridHideFrom !== 'off' ? state.myProfile.gridHideFrom : undefined
     };
     // Kurzstatus (Rich Presence) sehen nur Freunde.
     if (typeof isFriend === 'function' && isFriend(peerId) && state.myProfile.presenceText) base.presenceText = state.myProfile.presenceText;
@@ -430,6 +432,8 @@ async function updateMatchingSetting(key, value) {
     else if (key === 'matchFriends') {
         // Steht im Profil (nicht als Feld sichtbar): Matches bekommen dann keinen "Adden"-Knopf.
         state.myProfile.allowMatchFriends = Boolean(value);
+    } else if (key === 'gridHideFrom') {
+        state.myProfile.gridHideFrom = GRID_HIDE_OPTIONS.includes(value) ? value : 'off';
     }
     renderMatchingSettings();
     if (key === 'visibility' && typeof renderProfileForm === 'function') renderProfileForm();
@@ -458,6 +462,21 @@ function renderMatchingSettings() {
     document.getElementById('chat-limit-options')?.classList.toggle('hidden', policy.mode !== 'B');
     const matchFriends = document.getElementById('match-friends-toggle');
     if (matchFriends) matchFriends.checked = state.myProfile.allowMatchFriends !== false;
+    const gridHide = document.getElementById('grid-hide-from-select');
+    if (gridHide) gridHide.value = GRID_HIDE_OPTIONS.includes(state.myProfile.gridHideFrom) ? state.myProfile.gridHideFrom : 'off';
+}
+
+// ----- Im Entdecken-Grid verstecken vor Freunden (bzw. auch Chat-Partnern) -----
+// Einseitig: steht im eigenen signierten Profil (`gridHideFrom`), gefiltert wird beim anderen. Wer es bei
+// sich an hat, verschwindet aus dem Entdecken-/Event-Grid seiner Freunde; sieht sie selbst aber weiter,
+// solange die das nicht auch anhaben. Matches sehen sich immer. Der Router weiss davon nichts.
+const GRID_HIDE_OPTIONS = ['off', 'friends', 'contacts'];
+
+function hiddenFromMyGrid(peerId) {
+    const mode = state.cachedProfiles[peerId]?.gridHideFrom;
+    if (!mode || mode === 'off' || isMatched(peerId)) return false;
+    if (typeof isFriend === 'function' && isFriend(peerId)) return true;
+    return mode === 'contacts' && (state.chatPeerIds || []).includes(peerId);
 }
 
 // ----- UI -----

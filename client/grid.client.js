@@ -41,7 +41,10 @@ function renderDiscoveryGrid() {
     // Filter nur auf dem Geraet (grid-filter.js); die ersten Profile im Hintergrund holen.
     const discovery = gridTabsAvailable();
     // Sichtbarkeitsregeln der anderen (audience.js): Karten, die nicht fuer mich bestimmt sind, weglassen.
-    const allowedPeers = discovery ? listedPeers.filter(peer => audienceAllows(peer.audience)) : listedPeers;
+    // Dazu: wer sich vor Freunden/Chat-Partnern im Entdecken versteckt (matching.js hiddenFromMyGrid).
+    const allowedPeers = discovery
+        ? listedPeers.filter(peer => audienceAllows(peer.audience) && !(typeof hiddenFromMyGrid === 'function' && hiddenFromMyGrid(peer.id)))
+        : listedPeers;
     const visiblePeers = discovery ? applyGridFilter(allowedPeers) : allowedPeers;
     if (discovery) prefetchGridProfiles(listedPeers);
     setProfileBrowseList(visiblePeers.map(peer => peer.id));

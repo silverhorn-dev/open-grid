@@ -1097,6 +1097,13 @@ noch nicht lokal, zeigt er erst die kleine und holt die grosse per
 `sha256` aus dem signierten Profil geprueft und im offenen Betrachter getauscht
 (`replaceViewerImage`).
 
+**Im Entdecken-Grid verstecken** (seit 2026-10-30, Privatsphaere, nur mit beiden
+Bereichen): `myProfile.gridHideFrom` = `off` | `friends` | `contacts` (Freunde
+und Chat-Partner), signiert im Profil. Einseitig: gefiltert wird beim anderen
+(`hiddenFromMyGrid` in `renderDiscoveryGrid`, nur Entdecken/Event): Freund bzw.
+(bei `contacts`) jemand mit Chat, ausser Match. Der Router bleibt unbeteiligt;
+wer das Profil (noch) nicht hat, sieht die Karte weiter.
+
 Signiertes Profil: neben `fields`, `avatar`, `gallery` und `audience` sind
 jetzt auch `chatPolicy` und `allowMatchFriends` signiert und kommen beim
 anderen an (vorher fehlten die Chat-Regeln beim Empfaenger, Absender sahen

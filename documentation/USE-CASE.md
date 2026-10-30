@@ -1163,6 +1163,19 @@ Akzeptanzkriterien:
 - "Auswaehlen" erlaubt mehrere Nachrichten: zusammen kopieren (mit Namen) oder,
   wenn alle eigene sind, fuer beide loeschen.
 
+## UC-69: Im Entdecken-Grid vor Freunden verstecken
+
+**Als Nutzer** moechte ich, dass Freunde (oder auch Chat-Partner) mich beim
+Entdecken nicht im Grid sehen.
+
+Akzeptanzkriterien:
+
+- Privatsphaere: "Im Entdecken-Grid verstecken vor: Niemandem | Freunden |
+  Freunden & Chat-Partnern".
+- Einseitig: ich verschwinde aus deren Grid, sehe sie aber weiter, solange sie
+  das nicht auch anhaben.
+- Matches sehen sich immer; das Freunde-Grid ist nicht betroffen.
+
 ## UC-65: Flammen nach dem Match, gestapelt
 
 **Als Nutzer** moechte ich einem Match weiter Flammen schicken und sehen, wie

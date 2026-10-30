@@ -439,3 +439,31 @@ test('a separate social profile goes to people in the social list, everyone else
     assert.equal(me.buildProfilePayloadFor('buddy').fields.displayName, 'Hot Alex');
     assert.equal(me.state.myProfile.social.fields.displayName, 'Alex');
 });
+
+test('hiding from friends in the exploring grid is one-way and never hides matches', async () => {
+    const me = loadFriends({ appMode: 'discovery' });
+    me.state.friendState.pal = { sentAt: 2, receivedAt: 3, resetAt: 0 };
+    me.state.friendState.date = { sentAt: 2, receivedAt: 3, resetAt: 0 };
+    me.state.matchState.date = { sentAt: 2, receivedAt: 3, resetAt: 0 };
+    me.state.chatPeerIds = ['chatty'];
+    me.state.cachedProfiles = {
+        pal: { gridHideFrom: 'friends' },
+        date: { gridHideFrom: 'friends' },
+        chatty: { gridHideFrom: 'friends' },
+        open: {}
+    };
+    assert.equal(me.hiddenFromMyGrid('pal'), true, 'friend who hides from friends');
+    assert.equal(me.hiddenFromMyGrid('date'), false, 'matches always see each other');
+    assert.equal(me.hiddenFromMyGrid('chatty'), false, 'chat partner: only with the third option');
+    me.state.cachedProfiles.chatty.gridHideFrom = 'contacts';
+    assert.equal(me.hiddenFromMyGrid('chatty'), true);
+    assert.equal(me.hiddenFromMyGrid('open'), false, 'nothing set: visible');
+
+    // Eigene Einstellung geht nur ins eigene Profil, an meinem Grid aendert sie nichts.
+    me.state.myProfile.gridHideFrom = 'friends';
+    me.state.myProfile.visibility = 1;
+    assert.equal(me.buildProfilePayloadFor('pal').gridHideFrom, 'friends');
+    assert.equal(me.hiddenFromMyGrid('open'), false);
+    me.state.myProfile.gridHideFrom = 'off';
+    assert.equal(me.buildProfilePayloadFor('pal').gridHideFrom, undefined);
+});

@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 266 · 2026-10-30
+## Build 267 · 2026-10-30
+- Privatsphaere: "Im Entdecken-Grid verstecken vor" Freunden oder Freunden & Chat-Partnern; du siehst sie weiter, Matches sehen dich immer
+
+## Build 266 · 2026-10-30 · `dd5dc94`
 - Profil eines Matches, der auch Freund ist: oben duenne Reiter "Dating | Freunde", so siehst du auch im Entdecken sein Dating-Profil (wenn er ein eigenes Freunde-Profil hat)
 
 ## Build 265 · 2026-10-30 · `d1f1d91`

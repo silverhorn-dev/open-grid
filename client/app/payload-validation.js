@@ -97,6 +97,8 @@ function isValidProfileEnvelope(envelope) {
             && profile.gallery.every(item => isId(item?.id) && isOptionalString(item.sha256, 64)));
     const avatarFullOk = profile.avatarFull === undefined || profile.avatarFull === null
         || (isId(profile.avatarFull?.id) && isSmallInt(profile.avatarFull.version) && isOptionalString(profile.avatarFull.sha256, 64));
+    const hideOk = profile.gridHideFrom === undefined || profile.gridHideFrom === null || ['off', 'friends', 'contacts'].includes(profile.gridHideFrom);
+    if (!hideOk) return false;
     const areaOk = profile.area === undefined || profile.area === null || profile.area === 'discovery' || profile.area === 'social';
     // Zusaetzliches Entdecken-Profil (Match + Freund): gleiche Regeln, aber ohne weitere Verschachtelung.
     const extra = profile.discoveryProfile;

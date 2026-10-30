@@ -598,6 +598,14 @@
                         <span class="setting-text"><span data-i18n="settings.silentMode" class="setting-title">Silent-Modus</span><span data-i18n="settings.notVisibleInGridBut" class="setting-desc">Nicht im Grid sichtbar, aber für bestehende Chats erreichbar.</span></span>
                         <input type="checkbox" role="switch" id="silent-mode-toggle" data-change="updateGridSetting" data-args='["silent", "$checked"]' class="switch">
                     </label>
+                    <label class="setting-row" data-scope="all">
+                        <span class="setting-text"><span data-i18n="settings.gridHideFrom" class="setting-title">Im Entdecken-Grid verstecken vor</span><span data-i18n="settings.gridHideFromDescription" class="setting-desc">Freunde (und auf Wunsch Chat-Partner) sehen dich nicht im Entdecken-Grid; du siehst sie weiter, solange sie das nicht auch anhaben. Matches sehen dich immer.</span></span>
+                        <select id="grid-hide-from-select" data-change="updateMatchingSetting" data-args='["gridHideFrom", "$value"]' class="setting-select">
+                            <option data-i18n="settings.gridHideOff" value="off">Niemandem</option>
+                            <option data-i18n="settings.gridHideFriends" value="friends">Freunden</option>
+                            <option data-i18n="settings.gridHideContacts" value="contacts">Freunden & Chat-Partnern</option>
+                        </select>
+                    </label>
                     <label class="setting-row">
                         <span class="setting-text"><span data-i18n="settings.visibleAfterClosing" class="setting-title">Sichtbar nach dem Schließen</span></span>
                         <select id="grid-ttl-select" data-change="updateGridSetting" data-args='["ttlMinutes", "$number"]' class="setting-select">

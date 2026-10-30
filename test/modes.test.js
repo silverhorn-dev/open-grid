@@ -149,3 +149,27 @@ test('invites land in the area of the inviting mode, or open nothing when that a
     const operator = loadScoped(['chat', 'friends']).context;
     assert.equal(operator.inviteTarget('event'), null, 'area not offered by the operator');
 });
+
+test('under 18 (or without the required age proof) neither opens nor sends exploring invites', () => {
+    const all = ['discovery', 'chat', 'friends', 'event'];
+    const adult = loadScoped(all, { scope: 'all', mode: 'discovery' }).context;
+    adult.state.ageGroup = 'adult';
+    assert.equal(adult.discoveryInvitesAllowed(), true);
+    assert.equal(adult.inviteLinkMode(), 'discovery');
+
+    const minor = loadScoped(all, { scope: 'all', mode: 'discovery' }).context;
+    minor.state.ageGroup = 'minor';
+    assert.equal(minor.discoveryInvitesAllowed(), false);
+    assert.equal(minor.inviteLinkMode(), 'chat', 'own link points to the chat area instead');
+    minor.state.appMode = 'friends';
+    assert.equal(minor.inviteLinkMode(), 'friends', 'chat area links stay as they are');
+
+    const unverified = loadScoped(all, { scope: 'all', mode: 'event' }).context;
+    unverified.state.verificationRequired = ['age'];
+    assert.equal(unverified.discoveryInvitesAllowed(), false);
+    assert.equal(unverified.inviteLinkMode(), 'chat');
+
+    const onlyDiscovery = loadScoped(['discovery', 'event'], { mode: 'discovery' }).context;
+    onlyDiscovery.state.ageGroup = 'minor';
+    assert.equal(onlyDiscovery.inviteLinkMode(), null, 'no chat area: link without a mode');
+});

@@ -415,6 +415,11 @@ Modus des Bereichs, der Event-Code fehlt) und legt die Chat-Liste fest
 beim Einladenden in derselben Liste. Ist der Bereich aus (eigene
 Bereichswahl oder `APP_MODES`), oeffnet sich nichts, nur ein Hinweis. Links
 ohne Modus verhalten sich wie bisher.
+Altersnachweis (seit 2026-10-30, `discoveryInvitesAllowed`): mit Nachweis
+"unter 18" oder fehlendem, aber verlangtem Altersnachweis oeffnet die App keine
+Einladung aus "Grid & Event" (nur ein Hinweis); der eigene Link traegt dann
+statt `discovery`/`event` den ersten Chat-Modus (`chat`/`friends`) bzw. keinen
+Modus. Die Pruefung laeuft im Client, der Router sieht Einladungen nie.
 
 ### 3.1 Grid in Ringen
 

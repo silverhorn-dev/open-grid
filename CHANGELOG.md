@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 245 · 2026-10-29
+## Build 247 · 2026-10-30
+- Unter 18 (oder ohne verlangten Altersnachweis) oeffnen sich Einladungen aus "Entdecken" nicht mehr, es erscheint nur ein Hinweis; der eigene Einladungslink fuehrt dann in den Chat-Bereich
+
+## Build 245 · 2026-10-29 · `b55ec19`
 - Einstellungen: beim seitlichen Wischen bewegt sich nur der Inhalt, die Leiste mit den Bereichen bleibt stehen
 
 ## Build 244 · 2026-10-29 · `ae05708`

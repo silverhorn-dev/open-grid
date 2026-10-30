@@ -420,9 +420,22 @@ async function keyFingerprint(jwk) {
     return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('').substring(0, INVITE_FINGERPRINT_LENGTH);
 }
 
+// Entdecken-Einladungen nur mit Altersnachweis ab 18: unter 18 (oder ohne verlangten Nachweis)
+// oeffnet keine und verschickt keine (der Link zeigt dann auf den Chat-Bereich).
+function discoveryInvitesAllowed() {
+    return state.ageGroup !== 'minor' && !(state.verificationRequired || []).includes('age');
+}
+
+function inviteLinkMode() {
+    if (!APP_MODE_INFO[state.appMode]) return null;
+    if (!MODE_SCOPE_MODES.discovery.includes(state.appMode) || discoveryInvitesAllowed()) return state.appMode;
+    return MODE_SCOPE_MODES.social.find(mode => state.appConfig.routerModes.includes(mode)) || null;
+}
+
 async function getMyInviteLink() {
     const fingerprint = await keyFingerprint(state.myKeys.jwkEcdsaPublic);
-    const mode = APP_MODE_INFO[state.appMode] ? `~${state.appMode}` : '';
+    const linkMode = inviteLinkMode();
+    const mode = linkMode ? `~${linkMode}` : '';
     return `${window.location.origin}/invite#${encodeURIComponent(state.myProfile.id)}.${fingerprint}${mode}`;
 }
 
@@ -497,6 +510,10 @@ async function acceptInvite(fragment) {
     if (!target) {
         // Bereich ausgeschaltet: nichts oeffnen, nur sagen, warum.
         showToast(t('modes.inviteModeDisabled', { mode: APP_MODE_INFO[invite.mode].label }), 'warning');
+        return;
+    }
+    if (target.area === 'discovery' && !discoveryInvitesAllowed()) {
+        showToast(t('modes.inviteDiscoveryNeedsAdult'), 'warning');
         return;
     }
     const known = await getPeerIdentity(invite.peerId).catch(() => null);

@@ -43,7 +43,7 @@ Ideen ohne festen Termin. Neue Phasen werden von hier auf `tasks/board.md` gehol
 ## improvements
 - (2026-10-27 auf das board verschoben: video-flackern, secure-snap-bugs, speicherbar-schalter)
 - (2026-10-27 auf das board verschoben: kontaktleiste z-achse, wischen in snap-vorschau, editing improvement)
-- [ ] einladung im dating-modus (entdecken): unter 18 kann die einladung nicht oeffnen; im chat-modus normal (nutzer 2026-10-27, haengt an T2 alter)
+- [x] einladung im dating-modus (entdecken): unter 18 kann die einladung nicht oeffnen; im chat-modus normal (nutzer 2026-10-27, haengt an T2 alter) -> umgesetzt 2026-10-30, siehe board T2
 - [x] chat-threads besprechen (nutzer 2026-10-27; umgesetzt 2026-10-28, siehe board T11): technisch nur EIN chat pro person statt zwei listen; nachrichten aus dem entdecken-bereich werden im social-bereich ausgeblendet
   - ablauf: match -> chat (entdecken) -> adden -> chat (social); im social-chat ein knopf wie "ausgeblendeten hot-chat wieder anzeigen"
   - nur wenn der entdecken-bereich beim nutzer aktiv ist

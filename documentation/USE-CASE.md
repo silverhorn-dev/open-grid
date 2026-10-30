@@ -1067,6 +1067,9 @@ Akzeptanzkriterien:
   (aus, unter 18, Chats mit unter 18, alle); der Schalter ist dann gesperrt.
 - Bei "Chats mit unter 18" prueft der Empfaenger Bilder von unter 18 immer; der
   Router erfaehrt dabei nicht, wer unter 18 ist.
+- Unter 18 (oder ohne verlangten Nachweis) oeffnet keine Einladung aus
+  "Entdecken"/"Event", sondern sieht einen Hinweis; der eigene Einladungslink
+  fuehrt dann in den Chat-Bereich. Einladungen aus "Chat & Freunde" gehen normal.
 
 ## UC-62: Chat per Wischen schliessen (Hintergrund-Geste)
 

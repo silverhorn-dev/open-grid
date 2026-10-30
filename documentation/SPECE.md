@@ -1017,7 +1017,8 @@ Profilversion (sonst behielten Matches das alte Profil mit "Adden").
 
 Eine Anfrage verschiebt keinen Chat; nur ganz neue Kontakte (kein Verlauf,
 kein Match) landen mit der Anfrage in `social`. Erst die Freundschaft
-verschiebt den Chat nach `social`. Stand er vorher in `discovery`, merkt sich
+verschiebt den Chat nach `social`. Stand er vorher in `discovery` (oder hatte
+keine Zuordnung, aber ein Match), merkt sich
 der Client einen Verweis (`keys`/`moved-chats`, `{ peers: { <peerId>: Zeit } }`,
 `client/app/chat-list-menu.js`): in "Grid & Event" erscheint eine gestrichelte
 Zeile "Jetzt in Chat & Freunde", die in die andere Liste fuehrt (je nach
@@ -1039,8 +1040,7 @@ immer die Standardregeln).
 **Getrennte Chatlisten**: Jeder Chat gehoert zu `discovery` (Grid & Event)
 oder `social` (Chat & Freunde), gespeichert in `keys`/`chat-scopes`
 (`{ scopes: { <peerId>: scope } }`). Festgelegt beim ersten
-Nachrichtenaustausch: eigene erste Nachricht = deren `scope` (gesetzt beim
-Senden, seit 2026-10-30 auch beim Absender gespeichert), eingehende
+Nachrichtenaustausch: eigene erste Nachricht = aktueller Modus, eingehende
 erste Nachricht = `message.scope` des Absenders (Feld im verschluesselten
 `MESSAGE_PUT`). Freunde sind immer `social`. Chats ohne Zuordnung (aeltere
 Versionen) erscheinen in beiden Listen.

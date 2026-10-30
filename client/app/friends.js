@@ -93,8 +93,10 @@ async function applyFriendOperation(peerId, operation) {
     if (wasFriend !== nowFriend) syncChatGate();
     const name = getPeerPresentation(peerId).name || HIDDEN_PEER_NAME;
     if (!wasFriend && nowFriend) {
-        // Stand der Chat in "Grid & Event", bleibt dort ein Verweis (chat-list-menu.js).
-        if (state.chatScopes[peerId] === 'discovery' && typeof markChatMoved === 'function') await markChatMoved(peerId);
+        // Stand der Chat in "Grid & Event" (zugeordnet oder aus einem Match), bleibt dort ein Verweis
+        // (chat-list-menu.js). Der eigene erste Text ordnet den Chat nicht zu, daher auch das Match.
+        const previousScope = state.chatScopes[peerId] || (isMatched(peerId) ? 'discovery' : null);
+        if (previousScope === 'discovery' && typeof markChatMoved === 'function') await markChatMoved(peerId);
         await setChatScope(peerId, 'social');
         await releaseHeldMessages(peerId);
         pushStatusesToPeer(peerId).catch(logBackgroundError('applyFriendOperation'));

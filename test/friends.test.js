@@ -322,3 +322,15 @@ test('a request never moves a chat, only the friendship does; the grid list keep
     await fresh.applyFriendOperation('stranger', { operationId: 'friend:2', type: 'FRIEND_PING', actorId: 'stranger', createdAt: 10 });
     assert.equal(fresh.chatScopeOf('stranger'), 'social');
 });
+
+test('the sender of a match chat (no list stored yet) also keeps a pointer after becoming friends', async () => {
+    const me = loadFriends({ appMode: 'discovery' });
+    const moved = [];
+    me.markChatMoved = async peerId => moved.push(peerId);
+    me.state.chatPreviews = { dating: { text: 'hi', at: 1, mine: true } };
+    me.state.matchState.dating = { sentAt: 2, receivedAt: 3, resetAt: 0 };
+    await me.addFriend('dating');
+    await me.applyFriendOperation('dating', { operationId: 'friend:9', type: 'FRIEND_PING', actorId: 'dating', createdAt: Date.now() + 10 });
+    assert.equal(me.isFriend('dating'), true);
+    assert.deepEqual(moved, ['dating']);
+});

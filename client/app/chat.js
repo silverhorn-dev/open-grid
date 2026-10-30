@@ -497,8 +497,6 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
     // Chat nach Tagen: nach dem Senden zum heutigen Tag.
     if (state.chatDayMode) state.chatDay = null;
     rememberChatPeer(peerId);
-    // Erster eigener Text: der Chat gehoert ab jetzt zur Liste, in der er geschrieben wurde (wie beim Empfaenger).
-    if (typeof ensureChatScope === 'function') await ensureChatScope(peerId, message.scope === 'discovery' ? 'discovery' : 'social');
     await persistChatMessage(peerId, message);
     const operation = createPutOperation(peerId, message);
     await persistChatOperation(operation);

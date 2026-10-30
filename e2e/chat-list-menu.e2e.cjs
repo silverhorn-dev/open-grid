@@ -55,7 +55,7 @@ async function main() {
         await alice.evaluate(id => addFriend(id), bobId);
         await waitFor(bob, id => hasFriendRequest(id), aliceId);
         assert.equal(await bob.evaluate(id => chatScopeOf(id), aliceId), 'discovery', 'request alone does not move the chat');
-        assert.equal(await alice.evaluate(id => chatScopeOf(id), bobId), 'discovery');
+        assert.notEqual(await alice.evaluate(id => chatScopeOf(id), bobId), 'social', 'not moved on the sender side either');
 
         // Annehmen: Freunde, Chat wandert; in der Grid-Liste bleibt ein Verweis.
         await bob.evaluate(id => addFriend(id), aliceId);

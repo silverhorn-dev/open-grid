@@ -559,7 +559,7 @@
 
 ## T27 Match -> Freund, Chatliste-Menue, Flammen stapeln (nutzer 2026-10-30)
 - [x] bug: adden ging, obwohl einer nur "Entdecken" nutzt -> ursache: bereichswechsel aenderte `allowMatchFriends`, aber keine neue profilversion; jetzt `setModeScope` speichert still neu
-- [x] chat wandert erst bei freundschaft nach social, nicht schon bei der anfrage (nur ganz neue kontakte ohne verlauf/match gleich nach social); absender speichert die liste jetzt beim ersten senden
+- [x] chat wandert erst bei freundschaft nach social, nicht schon bei der anfrage (nur ganz neue kontakte ohne verlauf/match gleich nach social)
 - [x] verweis im alten "Grid & Event"-eintrag ("Jetzt in Chat & Freunde"), fuehrt hin, entfernbar (`client/app/chat-list-menu.js`, `keys`/`moved-chats`)
 - [x] menue rechts an jeder chatzeile (⋮) + langes druecken/rechtsklick: oeffnen, profil, chat loeschen, blockieren
 - [x] flammen nach dem match weiter (1/tag), stapeln (2 = doppelflamme, ab 3 = zahl), sichtbar 7 tage (`FLAME_VISIBLE_MS`), match loesen loescht sie

@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 252 · 2026-10-30
+## Build 253 · 2026-10-30
+- Behoben: in neuen Chats aus "Entdecken" ging nach der ersten Nachricht nichts mehr raus, solange das Profil des anderen fehlte (seit Build 252)
+
+## Build 252 · 2026-10-30 · `39b4f48`
 - Behoben: man konnte jemanden adden, der nur "Entdecken" nutzt
 - Ein Chat wandert erst nach "Chat & Freunde", wenn ihr wirklich Freunde seid (nicht schon bei der Anfrage); im alten Eintrag unter "Grid & Event" bleibt ein Verweis, der dorthin fuehrt und sich entfernen laesst
 - Chatliste: Menue rechts an jedem Chat (auch per langem Druecken): Oeffnen, Profil, Chat loeschen, Blockieren

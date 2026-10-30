@@ -2,7 +2,10 @@
 // Flammen (MATCH_PING) und Match-Aufloesungen (MATCH_RESET) sind normale Chat-Operationen:
 // verschluesselt, idempotent, per P2P oder Pfad C, im Chat-Sync enthalten. Ein Match besteht,
 // wenn beide Seiten nach der letzten Aufloesung eine Flamme gesendet haben. Der Server weiss nichts.
+// Wenn sich zwei matchen ... duerfen weiter Flammen kommen (eine pro Tag und Person). Erhaltene Flammen
+// sind eine Woche sichtbar und stapeln sich: 2 = Doppelflamme, mehr = kleine Zahl (flameIndicator).
 const FLAME_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+const FLAME_VISIBLE_MS = 7 * 24 * 60 * 60 * 1000;
 const CHAT_LIMIT_OPTIONS = [1, 3, 5, 10];
 const HIDDEN_PEER_NAME = t('matching.someoneNearby');
 
@@ -49,6 +52,36 @@ function hasReceivedFlame(peerId) {
     return entry.receivedAt > entry.resetAt;
 }
 
+// Erhaltene Flammen, die noch sichtbar sind (nach der letzten Aufloesung, juenger als eine Woche).
+function visibleFlameCount(peerId, now = Date.now()) {
+    const entry = getMatchEntry(peerId);
+    return (entry.flames || []).filter(at => at > entry.resetAt && at > now - FLAME_VISIBLE_MS).length;
+}
+
+// Flammen-Symbol fuer Grid, Chatliste und Profil: bei Match oder sichtbaren Flammen. 1 = Flamme,
+// 2 = Doppelflamme, mehr = Flamme mit Zahl. null = nichts anzeigen.
+function flameIndicator(peerId, className = '') {
+    const matched = isMatched(peerId);
+    const count = visibleFlameCount(peerId);
+    if (!matched && !count) return null;
+    const indicator = document.createElement('span');
+    indicator.className = `flame-indicator${matched ? ' is-match' : ''}${count > 1 ? ' is-stacked' : ''} ${className}`.trim();
+    indicator.dataset.flames = String(count);
+    indicator.title = matched
+        ? (count > 1 ? t('matching.matchWithFlames', { count }) : t('common.match'))
+        : (count > 1 ? t('matching.flamesReceived', { count }) : t('common.sentYouFlame'));
+    indicator.innerHTML = count === 2
+        ? '<i class="fa-solid fa-fire"></i><i class="fa-solid fa-fire flame-second"></i>'
+        : '<i class="fa-solid fa-fire"></i>';
+    if (count > 2) {
+        const badge = document.createElement('span');
+        badge.className = 'flame-count';
+        badge.textContent = count > 99 ? '99+' : String(count);
+        indicator.appendChild(badge);
+    }
+    return indicator;
+}
+
 function hasSentFlame(peerId) {
     const entry = getMatchEntry(peerId);
     return entry.sentAt > entry.resetAt;
@@ -59,7 +92,10 @@ function recordMatchOperation(peerId, operation) {
     const at = operation.createdAt || 0;
     if (operation.type === 'MATCH_PING') {
         if (operation.actorId === state.myProfile.id) entry.sentAt = Math.max(entry.sentAt, at);
-        else entry.receivedAt = Math.max(entry.receivedAt, at);
+        else {
+            entry.receivedAt = Math.max(entry.receivedAt, at);
+            entry.flames = [...new Set([...(entry.flames || []), at])].sort((a, b) => a - b).slice(-50);
+        }
     } else if (operation.type === 'MATCH_RESET') {
         entry.resetAt = Math.max(entry.resetAt, at);
     }
@@ -91,7 +127,8 @@ async function applyMatchOperation(peerId, operation) {
         }
         // Das Profil ist jetzt fuer diesen Peer vollstaendig: neu anfragen.
         sendSecurePayload(peerId, { type: 'PROFILE_REQUEST' }).catch(logBackgroundError('applyMatchOperation'));
-    } else if (operation.type === 'MATCH_PING' && operation.actorId === peerId && !nowMatched) {
+    } else if (operation.type === 'MATCH_PING' && operation.actorId === peerId) {
+        // Flamme vor dem Match oder eine weitere danach.
         notifyInApp('flame', t('matching.sentYouFlame', { value: getPeerPresentation(peerId).name || HIDDEN_PEER_NAME }));
         recordInteraction(peerId, 'flame', operation.createdAt || Date.now()).catch(logBackgroundError('applyMatchOperation'));
     }
@@ -101,6 +138,7 @@ async function applyMatchOperation(peerId, operation) {
 }
 
 async function sendMatchOperation(peerId, type) {
+    const wasMatched = isMatched(peerId);
     const operation = {
         operationId: `${type === 'MATCH_PING' ? 'flame' : 'unmatch'}:${window.crypto.randomUUID()}`,
         peerId,
@@ -113,7 +151,7 @@ async function sendMatchOperation(peerId, type) {
     // Benachrichtigung beim anderen: Flamme bzw. Match (wenn er schon eine geschickt hatte); ein Entmatchen
     // meldet nichts. Ohne direkte Verbindung nach 10 s ueber Pfad C (mit Push dieser Art), direkt
     // zugestellt an einen abwesenden Partner per Anstupsen.
-    const notifyKind = type === 'MATCH_PING' ? (isMatched(peerId) ? 'match' : 'flame') : null;
+    const notifyKind = type === 'MATCH_PING' ? (!wasMatched && isMatched(peerId) ? 'match' : 'flame') : null;
     await sendSecurePayload(peerId, { type: 'CHAT_OPERATION', operation: sharedOperation }, path => {
         if (path === 'p2p' && notifyKind) nudgeAwayPeer(peerId, notifyKind);
     }, { notifyKind });
@@ -124,15 +162,16 @@ function flameCooldownLeft(peerId) {
     return Math.max(0, entry.sentAt + FLAME_COOLDOWN_MS - Date.now());
 }
 
+// Auch nach einem Match moeglich (eine weitere Flamme), immer hoechstens eine pro Tag.
 async function sendFlame(peerId) {
     if (!peerId || isPeerBlocked(peerId)) return;
-    if (isMatched(peerId)) return;
     if (flameCooldownLeft(peerId) > 0) {
         showToast(t('matching.youAlreadySentFlameNext'), 'info');
         return;
     }
+    const wasMatched = isMatched(peerId);
     await sendMatchOperation(peerId, 'MATCH_PING');
-    showToast(isMatched(peerId) ? t('matching.match') : t('matching.flameSent2'), 'success');
+    showToast(!wasMatched && isMatched(peerId) ? t('matching.match') : t('matching.flameSent2'), 'success');
 }
 
 async function dissolveMatch(peerId) {
@@ -390,20 +429,31 @@ function renderProfileMatchActions(peerId) {
     const button = document.createElement('button');
     button.type = 'button';
     if (isMatched(peerId)) {
-        status.innerHTML = '<i class="fa-solid fa-fire text-orange-400"></i>';
+        status.appendChild(flameIndicator(peerId, 'text-orange-400'));
         status.appendChild(document.createTextNode(` ${t('matching.itsMatch')}`));
         button.className = 'text-xs px-3 py-1.5 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800';
         button.textContent = t('matching.undoMatch');
         button.onclick = () => dissolveMatch(peerId);
+        // Nach dem Match weiter Flammen schicken (eine pro Tag).
+        const again = document.createElement('button');
+        again.type = 'button';
+        again.className = 'text-xs px-3 py-1.5 rounded-lg bg-orange-500/20 border border-orange-500/40 text-orange-300 hover:bg-orange-500/30 font-semibold flex items-center gap-1.5 disabled:opacity-50';
+        again.innerHTML = '<i class="fa-solid fa-fire"></i>';
+        again.appendChild(document.createTextNode(` ${t('matching.sendFlame')}`));
+        again.disabled = flameCooldownLeft(peerId) > 0;
+        again.onclick = () => sendFlame(peerId);
+        const matchedActions = document.createElement('div');
+        matchedActions.className = 'flex items-center gap-2';
+        matchedActions.append(again, button);
+        container.append(status, matchedActions);
         // Nach einem Match auch adden, wenn beide es erlauben.
         if (canAddMatch(peerId)) {
-            container.append(status, button);
             const friendRow = document.createElement('div');
             friendRow.className = 'w-full flex items-center justify-between gap-2 pt-2 mt-1 border-t border-slate-800';
             renderProfileFriendActions(friendRow, peerId);
             container.appendChild(friendRow);
-            return;
         }
+        return;
     } else {
         if (hasReceivedFlame(peerId)) status.textContent = t('common.sentYouFlame');
         else if (hasSentFlame(peerId)) status.textContent = t('matching.flameSent');

@@ -174,6 +174,7 @@ const clientAssetFiles = [
     'app/chat.js',
     'app/chat-tools.js',
     'app/chat-switch.js',
+    'app/chat-list-menu.js',
     'app/unread.js',
     'app/snaps.js',
     'app/originals.js',

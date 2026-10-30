@@ -974,12 +974,20 @@ Match-Operationen sind normale Chat-Operationen (P2P, Pfad C, Chat-Sync):
 
 | Operation | Bedeutung |
 |---|---|
-| `MATCH_PING { actorId, createdAt }` (`flame:<uuid>`) | Flamme; max. eine pro Peer und 24 h (Client) |
+| `MATCH_PING { actorId, createdAt }` (`flame:<uuid>`) | Flamme; max. eine pro Peer und 24 h (Client), auch nach einem Match |
 | `MATCH_RESET { actorId, createdAt }` (`unmatch:<uuid>`) | Match loesen |
 
 Ein **Match** besteht, wenn beide Seiten nach dem letzten `MATCH_RESET` eine
 Flamme gesendet haben. Beide Clients berechnen das aus ihrem Operations-Log;
 der Server erfaehrt nichts. Flammen loesen keinen Web Push aus.
+
+Seit 2026-10-30 gehen Flammen auch nach dem Match weiter (Benachrichtigung
+"Flamme", Interaktion). `matchState[peerId].flames` = Zeitpunkte erhaltener
+`MATCH_PING` (hoechstens 50); sichtbar sind die nach dem letzten `MATCH_RESET`
+und juenger als `FLAME_VISIBLE_MS` (7 Tage, `visibleFlameCount`). Anzeige
+`flameIndicator` (Grid-Karte, Chatliste, Profil): bei Match oder sichtbaren
+Flammen; 1 = Flamme, 2 = Doppelflamme, ab 3 = Flamme mit Zahl. Ein Match
+entsteht weiter aus `receivedAt`/`sentAt` (auch mit abgelaufener Anzeige).
 
 **Freunde (R6, `client/app/friends.js`)**: Im Chat- und Freunde-Modus ersetzt
 "Adden" die Flamme; gleiche Mechanik, eigene Beziehung:
@@ -1002,8 +1010,26 @@ Aus Grid/Event: Chats in `discovery` lassen sich erst nach einem Match adden
 ist sie aus, bekommt der Match keinen "Adden"-Knopf (`canAddMatch` prueft
 beide Seiten). Zusaetzlich ignoriert der Empfaenger `FRIEND_PING` aus
 `discovery`-Chats ohne Match oder bei abgeschalteter Einstellung (gespeichert,
-aber weder gemeldet noch annehmbar). Eine angenommene Freundschaft verschiebt
-den Chat nach `social`.
+aber weder gemeldet noch annehmbar). Wer nur "Entdecken" nutzt (kein Bereich
+`social`), sendet immer `allowMatchFriends: false`; wechselt der Bereich und
+aendert sich dadurch der Wert, speichert `setModeScope` still eine neue
+Profilversion (sonst behielten Matches das alte Profil mit "Adden").
+
+Eine Anfrage verschiebt keinen Chat; nur ganz neue Kontakte (kein Verlauf,
+kein Match) landen mit der Anfrage in `social`. Erst die Freundschaft
+verschiebt den Chat nach `social`. Stand er vorher in `discovery`, merkt sich
+der Client einen Verweis (`keys`/`moved-chats`, `{ peers: { <peerId>: Zeit } }`,
+`client/app/chat-list-menu.js`): in "Grid & Event" erscheint eine gestrichelte
+Zeile "Jetzt in Chat & Freunde", die in die andere Liste fuehrt (je nach
+Listen-Wechsel-Einstellung Modus oder nur Liste) und sich ueber das Menue
+entfernen laesst. Nur so lange die Freundschaft besteht und der Bereich
+`social` an ist; nur lokal.
+
+**Menue der Chatliste**: jede Zeile hat rechts einen Knopf (⋮); langes
+Druecken (450 ms, ohne zusaetzliches Oeffnen) oder Rechtsklick oeffnen
+dasselbe Menue: Oeffnen, Profil, Chat loeschen, Blockieren/Blockierung
+aufheben; bei einem Verweis: In "Chat & Freunde" oeffnen, Profil, Aus dieser
+Liste entfernen. Zurueck-Taste schliesst es (`pushModalEntry('chatlistmenu')`).
 
 Signiertes Profil: neben `fields`, `avatar`, `gallery` und `audience` sind
 jetzt auch `chatPolicy` und `allowMatchFriends` signiert und kommen beim
@@ -1013,7 +1039,8 @@ immer die Standardregeln).
 **Getrennte Chatlisten**: Jeder Chat gehoert zu `discovery` (Grid & Event)
 oder `social` (Chat & Freunde), gespeichert in `keys`/`chat-scopes`
 (`{ scopes: { <peerId>: scope } }`). Festgelegt beim ersten
-Nachrichtenaustausch: eigene erste Nachricht = aktueller Modus, eingehende
+Nachrichtenaustausch: eigene erste Nachricht = deren `scope` (gesetzt beim
+Senden, seit 2026-10-30 auch beim Absender gespeichert), eingehende
 erste Nachricht = `message.scope` des Absenders (Feld im verschluesselten
 `MESSAGE_PUT`). Freunde sind immer `social`. Chats ohne Zuordnung (aeltere
 Versionen) erscheinen in beiden Listen.

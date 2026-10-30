@@ -173,3 +173,18 @@ test('under 18 (or without the required age proof) neither opens nor sends explo
     onlyDiscovery.state.ageGroup = 'minor';
     assert.equal(onlyDiscovery.inviteLinkMode(), null, 'no chat area: link without a mode');
 });
+
+test('switching to "just exploring" republishes the profile so matches lose the add button', async () => {
+    const all = ['discovery', 'chat', 'friends', 'event'];
+    const { context } = loadScoped(all, { scope: 'all', mode: 'discovery' });
+    const saves = [];
+    context.state.myProfile = { id: 'me', updatedAt: 1 };
+    context.allowsMatchFriends = () => context.scopeIncludes('social');
+    context.saveUserProfile = async options => saves.push(options);
+    await context.setModeScope('discovery');
+    assert.deepEqual(JSON.parse(JSON.stringify(saves)), [{ quiet: true }], 'flag changed: new profile version, quietly');
+    await context.setModeScope('discovery');
+    assert.equal(saves.length, 1, 'nothing changed: no new version');
+    await context.setModeScope('all');
+    assert.equal(saves.length, 2, 'back with friends: allowed again');
+});

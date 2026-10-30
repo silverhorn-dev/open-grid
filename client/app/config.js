@@ -194,6 +194,9 @@ const state = {
     pendingInvite: null,
     // Rueckkehr vom OIDC-Altersnachweis ({ code, state, error }), safety.js.
     pendingAgeCallback: null,
+    // Nach "Chat & Freunde" gewanderte Chats mit Verweis in "Grid & Event" ({ peerId: Zeit }), chat-list-menu.js.
+    movedChats: {},
+    chatListMenu: null,
     // Online-Status der Chat-Partner (nur gegenseitig, vom Server per PRESENCE gemeldet).
     peerPresence: {},
     // Verschluesselte Nachrichten, die vor dem eigenen Sitzungsschluessel ankamen (p2p.client.js).

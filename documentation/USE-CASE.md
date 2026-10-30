@@ -1101,3 +1101,31 @@ Akzeptanzkriterien:
 - "Unter 18" nur bei ausdruecklichem Wert des Dienstes; fehlender oder unklarer
   Claim, falsche Signatur, Nonce, Aussteller oder Client -> abgelehnt.
 - Ein `state` gilt nur fuer den Peer, der den Ablauf gestartet hat, und nur einmal.
+
+## UC-64: Vom Match zum Freund, Chatliste mit Menue
+
+**Als Nutzer** moechte ich, dass ein Chat erst dann zu "Chat & Freunde" wandert,
+wenn wir wirklich Freunde sind, und ihn in der Liste schnell bedienen koennen.
+
+Akzeptanzkriterien:
+
+- Wer nur "Entdecken" nutzt, kann nicht geaddet werden; der "Adden"-Knopf
+  verschwindet beim Match, sobald er den Bereich umstellt.
+- Eine Anfrage laesst den Chat in "Grid & Event"; erst die Freundschaft
+  verschiebt ihn.
+- In "Grid & Event" bleibt ein Verweis "Jetzt in Chat & Freunde", der dorthin
+  fuehrt und sich entfernen laesst.
+- Jede Zeile der Chatliste hat ein Menue (Knopf rechts, langes Druecken,
+  Rechtsklick): Oeffnen, Profil, Chat loeschen, Blockieren.
+
+## UC-65: Flammen nach dem Match, gestapelt
+
+**Als Nutzer** moechte ich einem Match weiter Flammen schicken und sehen, wie
+viele ich bekommen habe.
+
+Akzeptanzkriterien:
+
+- Auch nach einem Match geht eine Flamme pro Tag und Person; der andere wird
+  benachrichtigt, das Match bleibt.
+- Erhaltene Flammen stapeln sich: 2 = Doppelflamme, ab 3 = Flamme mit Zahl.
+- Flammen verschwinden nach einer Woche; Match aufloesen loescht sie.

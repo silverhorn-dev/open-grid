@@ -2,7 +2,13 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 251 · 2026-10-30
+## Build 252 · 2026-10-30
+- Behoben: man konnte jemanden adden, der nur "Entdecken" nutzt
+- Ein Chat wandert erst nach "Chat & Freunde", wenn ihr wirklich Freunde seid (nicht schon bei der Anfrage); im alten Eintrag unter "Grid & Event" bleibt ein Verweis, der dorthin fuehrt und sich entfernen laesst
+- Chatliste: Menue rechts an jedem Chat (auch per langem Druecken): Oeffnen, Profil, Chat loeschen, Blockieren
+- Flammen gehen auch nach einem Match weiter und stapeln sich (zwei = Doppelflamme, mehr = Zahl); nach einer Woche verschwinden sie
+
+## Build 251 · 2026-10-30 · `9040f85`
 - Admin-Panel: der Anbieter fuer den Altersnachweis (EU-Wallet oder OIDC-Pruefdienst) laesst sich jetzt ohne Neustart umschalten, die OIDC-Einstellungen sind immer sichtbar
 
 ## Build 250 · 2026-10-30 · `cab23b0`

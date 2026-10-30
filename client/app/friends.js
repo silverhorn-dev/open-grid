@@ -33,7 +33,8 @@ function peerAllowsMatchFriends(peerId) {
     return state.cachedProfiles[peerId]?.allowMatchFriends !== false;
 }
 
-// "Adden" bei einem Grid-/Event-Match: nur nach dem Match und wenn beide es erlauben.
+// "Adden" bei einem Grid-/Event-Match: nur nach dem Match und wenn beide es erlauben (wer nur
+// "Entdecken" nutzt, erlaubt es nie, siehe allowsMatchFriends).
 function canAddMatch(peerId) {
     return isMatched(peerId) && allowsMatchFriends() && peerAllowsMatchFriends(peerId);
 }
@@ -92,14 +93,17 @@ async function applyFriendOperation(peerId, operation) {
     if (wasFriend !== nowFriend) syncChatGate();
     const name = getPeerPresentation(peerId).name || HIDDEN_PEER_NAME;
     if (!wasFriend && nowFriend) {
+        // Stand der Chat in "Grid & Event", bleibt dort ein Verweis (chat-list-menu.js).
+        if (state.chatScopes[peerId] === 'discovery' && typeof markChatMoved === 'function') await markChatMoved(peerId);
         await setChatScope(peerId, 'social');
         await releaseHeldMessages(peerId);
         pushStatusesToPeer(peerId).catch(logBackgroundError('applyFriendOperation'));
         if (operation.actorId === peerId) notifyInApp('add', t('friends.andYouAreFriendsNow', { name }), 'success');
         sendSecurePayload(peerId, { type: 'PROFILE_REQUEST' }).catch(logBackgroundError('applyFriendOperation'));
     } else if (operation.type === 'FRIEND_PING' && operation.actorId === peerId && !nowFriend) {
-        // Neue Kontakte (noch ohne Liste) gehoeren nach "Chat & Freunde"; Grid-Kontakte nur nach Match.
-        await ensureChatScope(peerId, 'social');
+        // Eine Anfrage verschiebt keinen bestehenden Chat (erst die Freundschaft). Nur ganz neue Kontakte
+        // (kein Verlauf, kein Match) gehoeren gleich nach "Chat & Freunde".
+        if (!isMatched(peerId) && !(state.chats[peerId] || []).length && !state.chatPreviews?.[peerId]) await ensureChatScope(peerId, 'social');
         if (acceptsFriendRequestFrom(peerId)) notifyInApp('add', t('friends.wantsToAddYou', { name }));
     }
     if (wasFriend && !nowFriend) {
@@ -423,7 +427,8 @@ function chatMenuShowFlirtTab() {
 // Lasche lange druecken = in diesem Chat ausblenden; Senden lange druecken = diese Nachricht als Flirt.
 const FLIRT_LONG_PRESS_MS = 450;
 
-function attachLongPress(element, onLongPress) {
+// suppressClick: der Klick nach dem langen Druecken loest die normale Aktion nicht mehr aus.
+function attachLongPress(element, onLongPress, { suppressClick = false } = {}) {
     if (!element) return;
     let timer = null;
     let fired = false;
@@ -450,7 +455,7 @@ function attachLongPress(element, onLongPress) {
     element.addEventListener('click', event => {
         if (!fired) return;
         fired = false;
-        if (element.id === 'chat-flirt-tab') {
+        if (suppressClick || element.id === 'chat-flirt-tab') {
             event.stopImmediatePropagation();
             event.preventDefault();
         }

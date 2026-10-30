@@ -302,11 +302,16 @@ function updateProfileSchemaFromJSON() {
     }
 }
 
-async function saveUserProfile() {
+// quiet: ohne Meldung (z. B. wenn sich nur ein unsichtbares Profil-Flag aendert).
+async function saveUserProfile({ quiet = false } = {}) {
     state.myProfile.version = (state.myProfile.version || 0) + 1;
     state.myProfile.updatedAt = Date.now();
     const persisted = await cacheOwnProfile();
     await registerWithWorkerGrid();
+    if (quiet) {
+        snapshotProfileFields();
+        return;
+    }
     showToast(
         persisted
             ? t('profile.savedAndShared')

@@ -298,3 +298,27 @@ test('flirt mode in friend chats shows everything, the normal chat hides the fli
     assert.equal(me.isDiscoveryMessageAlwaysHidden('buddy', flirt), true);
     assert.equal(me.messageScopeFor('buddy'), 'social');
 });
+
+test('a request never moves a chat, only the friendship does; the grid list keeps a pointer', async () => {
+    const me = loadFriends({ appMode: 'discovery' });
+    const moved = [];
+    me.markChatMoved = async peerId => moved.push(peerId);
+    await me.ensureChatScope('dating', 'discovery');
+    me.state.chatPreviews = { dating: { text: 'hi', at: 1 } };
+    me.state.matchState.dating = { sentAt: 2, receivedAt: 3, resetAt: 0 };
+
+    await me.applyFriendOperation('dating', { operationId: 'friend:1', type: 'FRIEND_PING', actorId: 'dating', createdAt: 10 });
+    assert.equal(me.chatScopeOf('dating'), 'discovery', 'request alone: chat stays in the grid list');
+    assert.equal(moved.length, 0);
+
+    await me.addFriend('dating');
+    assert.equal(me.isFriend('dating'), true);
+    assert.equal(me.chatScopeOf('dating'), 'social', 'friends: the chat moves');
+    assert.deepEqual(moved, ['dating'], 'pointer stays in the grid list');
+
+    // Ganz neuer Kontakt ohne Verlauf und ohne Match: Anfrage landet gleich in "Chat & Freunde".
+    const fresh = loadFriends({ appMode: 'chat' });
+    fresh.state.chatPreviews = {};
+    await fresh.applyFriendOperation('stranger', { operationId: 'friend:2', type: 'FRIEND_PING', actorId: 'stranger', createdAt: 10 });
+    assert.equal(fresh.chatScopeOf('stranger'), 'social');
+});

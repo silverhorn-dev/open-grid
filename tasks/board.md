@@ -556,3 +556,13 @@
 - [x] "sachen wie dieser check sollten nicht geshipped werden wenn sie aus sind, auch das nude modell wenn das serverseitig/admin-seitig aus ist"
   - umgesetzt 2026-10-30: teile `nudity` (filter, modell, worker), `safety` (nachweise), `agetest` (wallet-testseite, eigenes `client/app/age-test.js`); router entfernt markup + skripte je anfrage (marker in `index.html`), dateien 404, nicht im precache; `client/app/features.js` mit platzhaltern + nachladen; tests `test/features.test.js`; SPECE 9.1
   - offen: weitere kandidaten (z. B. snaps/alben/video, wenn ein betreiber sie abschalten kann) -> erst wenn es dafuer schalter gibt
+
+## T27 Match -> Freund, Chatliste-Menue, Flammen stapeln (nutzer 2026-10-30)
+- [x] bug: adden ging, obwohl einer nur "Entdecken" nutzt -> ursache: bereichswechsel aenderte `allowMatchFriends`, aber keine neue profilversion; jetzt `setModeScope` speichert still neu
+- [x] chat wandert erst bei freundschaft nach social, nicht schon bei der anfrage (nur ganz neue kontakte ohne verlauf/match gleich nach social); absender speichert die liste jetzt beim ersten senden
+- [x] verweis im alten "Grid & Event"-eintrag ("Jetzt in Chat & Freunde"), fuehrt hin, entfernbar (`client/app/chat-list-menu.js`, `keys`/`moved-chats`)
+- [x] menue rechts an jeder chatzeile (⋮) + langes druecken/rechtsklick: oeffnen, profil, chat loeschen, blockieren
+- [x] flammen nach dem match weiter (1/tag), stapeln (2 = doppelflamme, ab 3 = zahl), sichtbar 7 tage (`FLAME_VISIBLE_MS`), match loesen loescht sie
+  - tests `test/friends.test.js`, `test/matching.test.js`, `test/modes.test.js`, e2e `chat-list-menu`; UC-64, UC-65
+  - offen: sichtdauer 7 tage ok? (bei 24 h abklingzeit max. 7 gestapelt)
+

@@ -89,6 +89,7 @@ window.onload = async () => {
         await runStartupStep('Grid-Cache', loadCachedGridPeers);
         await runStartupStep('Freunde', async () => {
             await loadChatScopes();
+            await loadMovedChats();
             await loadFriendState();
         });
         await runStartupStep('Status', async () => {

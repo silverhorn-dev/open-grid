@@ -137,6 +137,7 @@ function applyModeScopeVisibility() {
 
 async function setModeScope(scope) {
     if (!MODE_SCOPES.includes(scope)) return;
+    const couldBeAdded = typeof allowsMatchFriends === 'function' ? allowsMatchFriends() : null;
     await saveAppModeSettings({ scope });
     applyModeScope();
     state.chatListScopeOverride = null;
@@ -150,6 +151,11 @@ async function setModeScope(scope) {
     if (typeof renderListSwitch === 'function') renderListSwitch();
     if (typeof renderActivePeerList === 'function') renderActivePeerList();
     if (state.myProfile?.id && typeof refreshPresenceAndGrid === 'function') await refreshPresenceAndGrid();
+    // Ohne "Chat & Freunde" kann mich niemand adden: das steht im Profil (allowMatchFriends). Neue Version,
+    // sonst behalten Matches das alte Profil und bieten weiter "Adden" an.
+    if (couldBeAdded !== null && state.myProfile?.updatedAt && allowsMatchFriends() !== couldBeAdded && typeof saveUserProfile === 'function') {
+        await saveUserProfile({ quiet: true });
+    }
 }
 
 // Schalter "Alle Modi anzeigen" (Einstellungen > Allgemein > Erweitert).

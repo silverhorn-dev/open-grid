@@ -1447,3 +1447,18 @@ html {
 .admin-danger { border-color: var(--status-critical); }
 .admin-chart-value.is-long { font-size: 1rem; line-height: 1.5rem; }
 .admin-table th { font-weight: 600; font-size: 0.75rem; color: rgb(var(--slate-400)); }
+
+/* Chatliste: Zeile mit Menue-Knopf (chat-list-menu.js) */
+.chat-list-row.is-moved { opacity: 0.75; border-style: dashed; }
+.chat-list-row.is-menu-target { border-color: rgb(var(--brand-500) / 0.6); }
+.chat-list-open.is-pressing { opacity: 0.8; }
+
+/* Flammen-Symbol (matching.js flameIndicator): Doppelflamme bei 2, kleine Zahl ab 3 */
+.flame-indicator { display: inline-flex; align-items: center; position: relative; line-height: 1; }
+.flame-indicator .flame-second { margin-left: -0.35em; transform: translateY(-0.15em) scale(0.85); opacity: 0.9; }
+.flame-indicator .flame-count {
+    margin-left: 0.2em; min-width: 1.1em; padding: 0 0.25em; border-radius: 999px;
+    font-size: 0.65em; font-weight: 700; line-height: 1.3; text-align: center;
+    background: rgb(249 115 22); color: #fff;
+}
+.flame-indicator.is-match .flame-count { background: #fff; color: rgb(234 88 12); }

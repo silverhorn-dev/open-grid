@@ -364,21 +364,21 @@ async function wipeChatWithPeer(peerId, action, extra = {}) {
     if (!queued) logDebug(`Chat wipe for ${peerId} not queued in the router cache.`);
 }
 
-async function deleteActiveChat() {
-    const peerId = state.activeChatPeerId;
-    if (!peerId || !window.confirm(t('chat.deleteThisChatLocallyAnd'))) return;
+// Ohne Argument der offene Chat; aus dem Menue der Chatliste auch ein anderer.
+async function deleteActiveChat(peerId = state.activeChatPeerId) {
+    if (typeof peerId !== 'string' || !peerId || !window.confirm(t('chat.deleteThisChatLocallyAnd'))) return;
     try {
         await wipeChatWithPeer(peerId, 'DELETE_CHAT');
-        resetActiveChat('Chat geloescht.');
+        if (peerId === state.activeChatPeerId) resetActiveChat('Chat geloescht.');
+        else renderActivePeerList();
         showToast(t('chat.andCachedRouterMessages'), 'success');
     } catch (error) {
         showToast(t('chat.couldNotDeleteChat', { message: error.message }), 'error');
     }
 }
 
-async function toggleActivePeerBlock() {
-    const peerId = state.activeChatPeerId;
-    if (!peerId) return;
+async function toggleActivePeerBlock(peerId = state.activeChatPeerId) {
+    if (typeof peerId !== 'string' || !peerId) return;
     try {
         if (isPeerBlocked(peerId)) {
             const response = await fetch(
@@ -497,6 +497,8 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
     // Chat nach Tagen: nach dem Senden zum heutigen Tag.
     if (state.chatDayMode) state.chatDay = null;
     rememberChatPeer(peerId);
+    // Erster eigener Text: der Chat gehoert ab jetzt zur Liste, in der er geschrieben wurde (wie beim Empfaenger).
+    if (typeof ensureChatScope === 'function') await ensureChatScope(peerId, message.scope === 'discovery' ? 'discovery' : 'social');
     await persistChatMessage(peerId, message);
     const operation = createPutOperation(peerId, message);
     await persistChatOperation(operation);

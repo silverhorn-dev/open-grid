@@ -182,3 +182,24 @@ test('the profile a peer gets follows the list of the chat, not the own active m
     context.state.friendState.contact = { sentAt: 2, receivedAt: 3, resetAt: 0 };
     assert.deepEqual(fieldsFor('contact'), ['bio', 'displayName'], 'friends get the friends profile');
 });
+
+test('flames stack, fade after a week, reset clears them and flames continue after a match', () => {
+    const context = loadMatching();
+    const now = Date.now();
+    const day = 24 * 60 * 60 * 1000;
+    context.recordMatchOperation('peer', { type: 'MATCH_PING', actorId: 'peer', createdAt: now - 9 * day });
+    assert.equal(context.visibleFlameCount('peer', now), 0, 'older than a week: gone');
+    assert.equal(context.hasReceivedFlame('peer'), true, 'flaming back still makes a match');
+    context.recordMatchOperation('peer', { type: 'MATCH_PING', actorId: 'peer', createdAt: now - 2 * day });
+    context.recordMatchOperation('peer', { type: 'MATCH_PING', actorId: 'me', createdAt: now - 2 * day + 5 });
+    assert.equal(context.isMatched('peer'), true);
+    assert.equal(context.visibleFlameCount('peer', now), 1);
+    // Nach dem Match weitere Flammen: sie stapeln sich, das Match bleibt.
+    context.recordMatchOperation('peer', { type: 'MATCH_PING', actorId: 'peer', createdAt: now - day });
+    context.recordMatchOperation('peer', { type: 'MATCH_PING', actorId: 'peer', createdAt: now - day }, 'same flame twice counts once');
+    context.recordMatchOperation('peer', { type: 'MATCH_PING', actorId: 'peer', createdAt: now - 10 });
+    assert.equal(context.visibleFlameCount('peer', now), 3);
+    assert.equal(context.isMatched('peer'), true);
+    context.recordMatchOperation('peer', { type: 'MATCH_RESET', actorId: 'me', createdAt: now - 5 });
+    assert.equal(context.visibleFlameCount('peer', now), 0, 'unmatching clears the flames');
+});

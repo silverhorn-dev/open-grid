@@ -100,13 +100,9 @@ function renderDiscoveryGrid() {
             image.className = 'w-full h-full object-cover group-hover:scale-105 transition duration-500';
             imageWrapper.appendChild(image);
         }
-        if (isMatched(peer.id) || hasReceivedFlame(peer.id)) {
-            const flame = document.createElement('span');
-            flame.className = `absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center text-sm ${isMatched(peer.id) ? 'bg-orange-500 text-white' : 'bg-black/60 text-orange-300'}`;
-            flame.title = isMatched(peer.id) ? t('common.match') : t('common.sentYouFlame');
-            flame.innerHTML = '<i class="fa-solid fa-fire"></i>';
-            imageWrapper.appendChild(flame);
-        }
+        // Match oder sichtbare Flammen (gestapelt: Doppelflamme, sonst Zahl), matching.js.
+        const flame = flameIndicator(peer.id, `absolute top-2 right-2 h-7 min-w-7 px-1.5 rounded-full flex items-center justify-center text-sm ${isMatched(peer.id) ? 'bg-orange-500 text-white' : 'bg-black/60 text-orange-300'}`);
+        if (flame) imageWrapper.appendChild(flame);
 
         const footer = document.createElement('div');
         footer.className = 'p-3 flex items-center justify-between gap-2';
@@ -141,7 +137,8 @@ function formatChatListTime(timestamp) {
 
 // Chats der aktuellen Liste (Grid & Event oder Chat & Freunde), neueste oben. Der aktive Chat bleibt
 // drin, auch wenn er gerade erst ueber das Grid gestartet wurde. Auch fuer den Chat-Wechsel.
-function visibleChatPeerIds() {
+// includeMoved: auch die Verweise auf nach "Chat & Freunde" gewanderte Chats (nur die Liste selbst).
+function visibleChatPeerIds({ includeMoved = false } = {}) {
     let hiddenList = [];
     try {
         hiddenList = JSON.parse(localStorage.getItem('hiddenByPeers') || '[]');
@@ -152,7 +149,8 @@ function visibleChatPeerIds() {
     if (state.activeChatPeerId) activeSet.add(state.activeChatPeerId);
     return Array.from(activeSet)
         .filter(peerId => !isPeerBlocked(peerId) && !hiddenList.includes(peerId)
-            && (peerId === state.activeChatPeerId || isInCurrentChatList(peerId)))
+            && (peerId === state.activeChatPeerId || isInCurrentChatList(peerId)
+                || (includeMoved && typeof isMovedChatHint === 'function' && isMovedChatHint(peerId))))
         .sort((left, right) => (state.chatPreviews[right]?.at || 0) - (state.chatPreviews[left]?.at || 0));
 }
 
@@ -161,7 +159,7 @@ function renderActivePeerList() {
     const count = document.getElementById('active-peers-count');
     if (!container || !count) return;
 
-    const peerIds = visibleChatPeerIds();
+    const peerIds = visibleChatPeerIds({ includeMoved: true });
 
     count.textContent = peerIds.length;
     renderUnreadBadges();
@@ -183,10 +181,22 @@ function renderActivePeerList() {
     peerIds.forEach(peerId => {
         const peer = getPeerPresentation(peerId);
         const blocked = isPeerBlocked(peer.id);
+        // Verweis auf einen nach "Chat & Freunde" gewanderten Chat (chat-list-menu.js).
+        const moved = peer.id !== state.activeChatPeerId && typeof isMovedChatHint === 'function' && isMovedChatHint(peer.id);
+        const row = document.createElement('div');
+        row.className = `chat-list-row flex items-stretch rounded-xl border transition ${state.activeChatPeerId === peer.id ? 'border-brand-500/60 bg-brand-500/10' : 'border-slate-800 bg-slate-950/40 hover:border-slate-700'}${moved ? ' is-moved' : ''}`;
+        row.dataset.peerId = peer.id;
         const button = document.createElement('button');
         button.type = 'button';
-        button.className = `w-full flex items-center gap-3 rounded-xl border p-2 text-left transition ${state.activeChatPeerId === peer.id ? 'border-brand-500/60 bg-brand-500/10' : 'border-slate-800 bg-slate-950/40 hover:border-slate-700'}`;
-        button.onclick = () => openChatWithPeer(peer.id);
+        button.className = 'chat-list-open min-w-0 flex-1 flex items-center gap-3 p-2 text-left';
+        button.onclick = () => (moved ? openMovedChat(peer.id) : openChatWithPeer(peer.id));
+        const menuButton = document.createElement('button');
+        menuButton.type = 'button';
+        menuButton.className = 'chat-list-menu-btn shrink-0 w-9 flex items-center justify-center text-slate-500 hover:text-slate-200';
+        menuButton.title = t('chatList.menu');
+        menuButton.setAttribute('aria-label', t('chatList.menu'));
+        menuButton.setAttribute('aria-haspopup', 'menu');
+        menuButton.innerHTML = '<i class="fa-solid fa-ellipsis-vertical"></i>';
 
         const avatar = document.createElement('div');
         avatar.className = 'relative shrink-0';
@@ -208,11 +218,9 @@ function renderActivePeerList() {
             friend.className = `fa-solid ${isFriend(peer.id) ? 'fa-user-check text-emerald-400' : 'fa-user-plus text-brand-400'} ml-1.5`;
             friend.title = isFriend(peer.id) ? t('grid.friends') : t('common.wantsToAddYou');
             name.appendChild(friend);
-        } else if (!socialList && (isMatched(peer.id) || hasReceivedFlame(peer.id))) {
-            const flame = document.createElement('i');
-            flame.className = `fa-solid fa-fire ml-1.5 ${isMatched(peer.id) ? 'text-orange-400' : 'text-orange-300/60'}`;
-            flame.title = isMatched(peer.id) ? t('common.match') : t('common.sentYouFlame');
-            name.appendChild(flame);
+        } else if (!socialList) {
+            const flame = flameIndicator(peer.id, `ml-1.5 ${isMatched(peer.id) ? 'text-orange-400' : 'text-orange-300/60'}`);
+            if (flame) name.appendChild(flame);
         }
         const status = document.createElement('div');
         status.className = 'debug-only text-[10px] font-mono text-slate-400';
@@ -233,11 +241,14 @@ function renderActivePeerList() {
         const pendingNote = socialList
             ? (hasFriendRequest(peer.id) ? t('common.wantsToAddYou') : '')
             : (hasReceivedFlame(peer.id) ? t('common.sentYouFlame') : '');
-        previewText.textContent = preview ? `${preview.mine ? t('common.you') : ''}${preview.text}` : pendingNote;
-        const unread = unreadCountOf(peer.id);
+        previewText.textContent = moved
+            ? t('chatList.movedToFriends')
+            : preview ? `${preview.mine ? t('common.you') : ''}${preview.text}` : pendingNote;
+        if (moved) previewText.classList.add('text-brand-400');
+        const unread = moved ? 0 : unreadCountOf(peer.id);
         if (unread) previewText.classList.add('font-semibold', 'text-slate-100');
         previewLine.appendChild(previewText);
-        if (preview?.at) {
+        if (preview?.at && !moved) {
             const time = document.createElement('span');
             time.className = `shrink-0 ${unread ? 'text-brand-400 font-semibold' : 'text-slate-500'}`;
             time.textContent = formatChatListTime(preview.at);
@@ -251,7 +262,9 @@ function renderActivePeerList() {
         presenceLine.textContent = presence;
         details.append(name, presenceLine, previewLine, status);
         button.append(avatar, details);
-        container.appendChild(button);
+        row.append(button, menuButton);
+        if (typeof attachChatListMenu === 'function') attachChatListMenu(row, button, menuButton, peer.id);
+        container.appendChild(row);
     });
 }
 

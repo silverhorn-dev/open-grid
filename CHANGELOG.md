@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 255 · 2026-10-30
+## Build 256 · 2026-10-30
+- Flammen: der Server legt fest, wie lange sie sichtbar sind (Standard 2 Tage) und wann man derselben Person die naechste schicken kann (Standard 1 Stunde); beides live im Admin-Panel
+
+## Build 255 · 2026-10-30 · `7799ab0`
 - Freundschaft beendet, Match besteht noch: der Chat wandert zurueck nach "Grid & Event", in "Chat & Freunde" bleibt ein Verweis dorthin (entfernbar)
 
 ## Build 254 · 2026-10-30 · `266d51a`

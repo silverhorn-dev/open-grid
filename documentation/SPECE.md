@@ -974,7 +974,7 @@ Match-Operationen sind normale Chat-Operationen (P2P, Pfad C, Chat-Sync):
 
 | Operation | Bedeutung |
 |---|---|
-| `MATCH_PING { actorId, createdAt }` (`flame:<uuid>`) | Flamme; max. eine pro Peer und 24 h (Client), auch nach einem Match |
+| `MATCH_PING { actorId, createdAt }` (`flame:<uuid>`) | Flamme; max. eine pro Peer und `FLAME_COOLDOWN_MINUTES` (Client, Standard 60 min), auch nach einem Match |
 | `MATCH_RESET { actorId, createdAt }` (`unmatch:<uuid>`) | Match loesen |
 
 Ein **Match** besteht, wenn beide Seiten nach dem letzten `MATCH_RESET` eine
@@ -984,7 +984,9 @@ der Server erfaehrt nichts. Flammen loesen keinen Web Push aus.
 Seit 2026-10-30 gehen Flammen auch nach dem Match weiter (Benachrichtigung
 "Flamme", Interaktion). `matchState[peerId].flames` = Zeitpunkte erhaltener
 `MATCH_PING` (hoechstens 50); sichtbar sind die nach dem letzten `MATCH_RESET`
-und juenger als `FLAME_VISIBLE_MS` (7 Tage, `visibleFlameCount`). Anzeige
+und juenger als `FLAME_VISIBLE_HOURS` (Router, Standard 48 h, `visibleFlameCount`).
+Beide Werte kommen als `/api/config.flames = { visibleHours, cooldownMinutes }`
+(Umgebung, live im Admin-Panel; ganze Zahlen, 1-720 h bzw. 1-10080 min). Anzeige
 `flameIndicator` (Grid-Karte, Chatliste, Profil): bei Match oder sichtbaren
 Flammen; 1 = Flamme, 2 = Doppelflamme, ab 3 = Flamme mit Zahl. Ein Match
 entsteht weiter aus `receivedAt`/`sentAt` (auch mit abgelaufener Anzeige).

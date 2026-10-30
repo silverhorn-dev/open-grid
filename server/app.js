@@ -219,6 +219,28 @@ const FEATURE_ASSET_FILES = {
 };
 const featureOfAsset = new Map(Object.entries(FEATURE_ASSET_FILES).flatMap(([name, files]) => files.map(file => [`/client/${file}`, name])));
 
+// Flammen (client/app/matching.js): wie lange eine erhaltene Flamme sichtbar ist (Stunden, Standard 2 Tage)
+// und wann man derselben Person wieder eine schicken darf (Minuten, Standard 1 Stunde).
+export const FLAME_DEFAULTS = { visibleHours: 48, cooldownMinutes: 60 };
+const FLAME_LIMITS = { visibleHours: [1, 24 * 30], cooldownMinutes: [1, 24 * 60 * 7] };
+
+export function parseFlameSetting(key, value) {
+    if (value === null || value === undefined || String(value).trim() === '') return FLAME_DEFAULTS[key];
+    const number = Number(value);
+    const [min, max] = FLAME_LIMITS[key];
+    if (!Number.isInteger(number) || number < min || number > max) throw new Error(`${key} must be a whole number ${min}-${max}`);
+    return number;
+}
+
+function flameSettingFromEnv(key, raw, log) {
+    try {
+        return parseFlameSetting(key, raw);
+    } catch (error) {
+        log.warn(`${error.message}; using ${FLAME_DEFAULTS[key]}.`);
+        return FLAME_DEFAULTS[key];
+    }
+}
+
 // index.html ohne die Bloecke ausgeschalteter Teile (Marker selbst fallen immer weg).
 export function renderFeatureBlocks(html, enabled) {
     return html.replace(/[ \t]*<!-- feature:([a-z]+) -->\n?([\s\S]*?)[ \t]*<!-- \/feature:\1 -->\n?/g,
@@ -503,6 +525,11 @@ export async function buildApp(options = {}) {
     const defaultAppMode = appModes.includes(requestedDefaultMode) ? requestedDefaultMode : appModes[0];
     // Live aenderbar (Admin-Panel, server/live-config.js): CLIENT_DEFAULTS, AUDIENCE_MINIMUM, NUDITY_*.
     let clientDefaults = parseClientDefaults(options.clientDefaults ?? process.env.CLIENT_DEFAULTS);
+    const flameEnv = {
+        visibleHours: flameSettingFromEnv('visibleHours', options.flameVisibleHours ?? process.env.FLAME_VISIBLE_HOURS, app.log),
+        cooldownMinutes: flameSettingFromEnv('cooldownMinutes', options.flameCooldownMinutes ?? process.env.FLAME_COOLDOWN_MINUTES, app.log)
+    };
+    const flameSettings = { ...flameEnv };
     const profileSchemas = options.profileSchemas
         || parseProfileSchemas(process.env.PROFILE_SCHEMAS, profileSchema, appModes);
     // Mindestwerte fuer "Nur zeigen fuer ..." (z. B. {"ranges":{"age":{"min":18}}}), je Grid-Bereich gegen
@@ -811,6 +838,14 @@ export async function buildApp(options = {}) {
     const liveConfig = createLiveConfig({
         store, log: app.log, now,
         entries: {
+            FLAME_VISIBLE_HOURS: {
+                env: flameEnv.visibleHours,
+                apply: value => { flameSettings.visibleHours = parseFlameSetting('visibleHours', value); }
+            },
+            FLAME_COOLDOWN_MINUTES: {
+                env: flameEnv.cooldownMinutes,
+                apply: value => { flameSettings.cooldownMinutes = parseFlameSetting('cooldownMinutes', value); }
+            },
             CLIENT_DEFAULTS: {
                 env: clientDefaults,
                 apply: value => {
@@ -1100,7 +1135,7 @@ export async function buildApp(options = {}) {
     });
     app.post('/api/unregister', unregister);
 
-    app.get('/api/config', async () => ({ features: [...enabledFeatures()], modes: appModes, defaultMode: defaultAppMode, profileSchemas, lanMode: isLanMode, clientDefaults, infoUrl: infoSiteUrl(infoHost), safety: safety.publicConfig(), nudity: { ...nudityPublicConfig, required: nudityScanRequired },
+    app.get('/api/config', async () => ({ features: [...enabledFeatures()], flames: { ...flameSettings }, modes: appModes, defaultMode: defaultAppMode, profileSchemas, lanMode: isLanMode, clientDefaults, infoUrl: infoSiteUrl(infoHost), safety: safety.publicConfig(), nudity: { ...nudityPublicConfig, required: nudityScanRequired },
         // Fuer die Anzeige in den Einstellungen ("vom Server vorgegeben").
         audienceMinimum: audienceMinimumRule ? (typeof audienceMinimumRule === 'string' ? JSON.parse(audienceMinimumRule) : audienceMinimumRule) : null }));
 

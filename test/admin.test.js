@@ -413,3 +413,17 @@ test('admin live config: age provider can be switched without a restart', async 
     assert.equal((await put(app, 'AGE_PROVIDER', 'eudi', cookie)).statusCode, 200);
     assert.equal((await appConfig(app)).safety.ageProvider, 'eudi');
 });
+
+test('flame visibility and cooldown come from the router, live editable', async () => {
+    const store = createStore(':memory:');
+    const app = await buildApp({ store, buildVersion: 'test', buildTimestamp: 'x', appUrl: ORIGIN, adminSetupToken: SETUP, flameCooldownMinutes: '15' });
+    cleanup.push(async () => { await app.close(); store.close(); });
+    assert.deepEqual((await appConfig(app)).flames, { visibleHours: 48, cooldownMinutes: 15 }, 'default two days, env cooldown');
+    const cookie = await setupPasskey(app, authenticator());
+    assert.equal((await put(app, 'FLAME_VISIBLE_HOURS', 24, cookie)).statusCode, 200);
+    assert.equal((await put(app, 'FLAME_COOLDOWN_MINUTES', 0, cookie)).statusCode, 400);
+    assert.equal((await put(app, 'FLAME_COOLDOWN_MINUTES', 1.5, cookie)).statusCode, 400);
+    assert.deepEqual((await appConfig(app)).flames, { visibleHours: 24, cooldownMinutes: 15 });
+    assert.equal((await app.inject({ method: 'DELETE', url: '/api/admin/config/FLAME_VISIBLE_HOURS', headers: H(cookie) })).statusCode, 200);
+    assert.equal((await appConfig(app)).flames.visibleHours, 48);
+});

@@ -400,6 +400,8 @@ const LIVE_SETTINGS = {
     NUDITY_THRESHOLD: { type: 'number', min: 0.2, max: 0.95, step: 0.05, label: () => t('admin.settingNudityThreshold') },
     NUDITY_CLASSES: { type: 'checkboxes', label: () => t('admin.settingNudityClasses') },
     NUDITY_SCAN_REQUIRED: { type: 'select', label: () => t('admin.settingNudityScanRequired') },
+    FLAME_VISIBLE_HOURS: { type: 'number', min: 1, max: 720, step: 1, label: () => t('admin.settingFlameVisible') },
+    FLAME_COOLDOWN_MINUTES: { type: 'number', min: 1, max: 10080, step: 1, label: () => t('admin.settingFlameCooldown') },
     CLIENT_DEFAULTS: { type: 'json', label: () => t('admin.settingClientDefaults') },
     AUDIENCE_MINIMUM: { type: 'json', label: () => t('admin.settingAudienceMinimum') }
 };

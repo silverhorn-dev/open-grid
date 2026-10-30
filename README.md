@@ -156,6 +156,8 @@ laufen durch dieselben Tests und bauen das echte Image zur Probe
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | generiert | Optional feste VAPID-Schluessel (base64url); sonst einmalig erzeugt und in SQLite gespeichert |
 | `APP_MODES` | alle | Erlaubte App-Modi, kommagetrennt: `discovery`, `chat`, `friends`, `event`. Z. B. `chat` fuer einen reinen Chat-Server. Sind nur Modi eines Bereichs erlaubt (Entdecken: `discovery`/`event`, Social: `chat`/`friends`), entfaellt die Bereichswahl beim Onboarding |
 | `DEFAULT_APP_MODE` | erster erlaubter | Vorauswahl fuer neue Nutzer |
+| `FLAME_VISIBLE_HOURS` | `48` | Wie lange eine erhaltene Flamme sichtbar ist (1-720 Stunden); Flammen stapeln sich in dieser Zeit. Im Admin-Panel live aenderbar |
+| `FLAME_COOLDOWN_MINUTES` | `60` | Abstand, bevor man derselben Person wieder eine Flamme schicken kann (1-10080 Minuten), auch nach einem Match. Im Admin-Panel live aenderbar |
 | `AGE_CHECK` | `off` | Altersnachweis: `off`, `confirm` (Nutzer bestaetigt "mindestens 18"), `provider` (Nachweis ueber einen Anbieter, siehe `AGE_PROVIDER`). Bis zum Nachweis ist ein Nutzer unsichtbar und bekommt kein Grid |
 | `AGE_PROVIDER` | - | Startwert, im Admin-Panel live umschaltbar. Anbieter fuer `AGE_CHECK=provider`: `eudi` (EU-Altersnachweis ueber die Wallet, siehe "Nachweise und Sperren"), `oidc` (beliebiger OpenID-Connect-Pruefdienst, z. B. KJM-anerkannt, siehe `AGE_OIDC_*`) oder `dev` (bestaetigt auf Knopfdruck, nur zum Testen); unbekannt = es gilt `confirm` |
 | `AGE_TRUST_CERTS` | - | Fuer `eudi`: Ordner mit PEM-Dateien zusaetzlich anerkannter Aussteller (Aussteller- oder CA-Zertifikate) |
@@ -342,7 +344,8 @@ Sicherheitsschluessel), kein Passwort.
   Empfaenger. Inhalt und Art bleiben verschluesselt und werden nicht erfasst.
   Aufraeumen: abgelaufene, alles fuer einen Empfaenger oder alles.
 - Einstellungen: sofort wirksam (ohne Neustart, gespeichert, gewinnt ueber die
-  Umgebungsvariable, "Zuruecksetzen" nimmt wieder deren Wert): `AGE_PROVIDER`
+  Umgebungsvariable, "Zuruecksetzen" nimmt wieder deren Wert): `FLAME_VISIBLE_HOURS`,
+  `FLAME_COOLDOWN_MINUTES`, `AGE_PROVIDER`
   (`none`, `eudi`, `oidc`), `AGE_OIDC` (Pruefdienst), `AGE_CHECK`, `EMAIL_CHECK`, `ABUSE_LOG_DAYS`, `NUDITY_MODEL`, `NUDITY_THRESHOLD`,
   `NUDITY_CLASSES`, `CLIENT_DEFAULTS`, `AUDIENCE_MINIMUM`. Der Rest (Ports,
   Datenbank, TURN, SMTP, ...) steht zur Ansicht da und braucht

@@ -2,10 +2,22 @@
 // Flammen (MATCH_PING) und Match-Aufloesungen (MATCH_RESET) sind normale Chat-Operationen:
 // verschluesselt, idempotent, per P2P oder Pfad C, im Chat-Sync enthalten. Ein Match besteht,
 // wenn beide Seiten nach der letzten Aufloesung eine Flamme gesendet haben. Der Server weiss nichts.
-// Wenn sich zwei matchen ... duerfen weiter Flammen kommen (eine pro Tag und Person). Erhaltene Flammen
-// sind eine Woche sichtbar und stapeln sich: 2 = Doppelflamme, mehr = kleine Zahl (flameIndicator).
-const FLAME_COOLDOWN_MS = 24 * 60 * 60 * 1000;
-const FLAME_VISIBLE_MS = 7 * 24 * 60 * 60 * 1000;
+// Auch nach einem Match duerfen weiter Flammen kommen. Erhaltene Flammen bleiben eine Weile sichtbar und
+// stapeln sich: 2 = Doppelflamme, mehr = kleine Zahl (flameIndicator). Beides legt der Router fest
+// (/api/config `flames`: FLAME_VISIBLE_HOURS, Standard 48 h; FLAME_COOLDOWN_MINUTES, Standard 60 min).
+const DEFAULT_FLAME_VISIBLE_HOURS = 48;
+const DEFAULT_FLAME_COOLDOWN_MINUTES = 60;
+
+function flameVisibleMs() {
+    const hours = Number(state.appConfig?.flames?.visibleHours);
+    return (Number.isFinite(hours) && hours > 0 ? hours : DEFAULT_FLAME_VISIBLE_HOURS) * 60 * 60 * 1000;
+}
+
+// Abstand zwischen zwei Flammen an dieselbe Person.
+function flameCooldownMs() {
+    const minutes = Number(state.appConfig?.flames?.cooldownMinutes);
+    return (Number.isFinite(minutes) && minutes > 0 ? minutes : DEFAULT_FLAME_COOLDOWN_MINUTES) * 60 * 1000;
+}
 const CHAT_LIMIT_OPTIONS = [1, 3, 5, 10];
 const HIDDEN_PEER_NAME = t('matching.someoneNearby');
 
@@ -52,10 +64,10 @@ function hasReceivedFlame(peerId) {
     return entry.receivedAt > entry.resetAt;
 }
 
-// Erhaltene Flammen, die noch sichtbar sind (nach der letzten Aufloesung, juenger als eine Woche).
+// Erhaltene Flammen, die noch sichtbar sind (nach der letzten Aufloesung, juenger als die Sichtdauer).
 function visibleFlameCount(peerId, now = Date.now()) {
     const entry = getMatchEntry(peerId);
-    return (entry.flames || []).filter(at => at > entry.resetAt && at > now - FLAME_VISIBLE_MS).length;
+    return (entry.flames || []).filter(at => at > entry.resetAt && at > now - flameVisibleMs()).length;
 }
 
 // Flammen-Symbol fuer Grid, Chatliste und Profil: bei Match oder sichtbaren Flammen. 1 = Flamme,
@@ -159,14 +171,16 @@ async function sendMatchOperation(peerId, type) {
 
 function flameCooldownLeft(peerId) {
     const entry = getMatchEntry(peerId);
-    return Math.max(0, entry.sentAt + FLAME_COOLDOWN_MS - Date.now());
+    return Math.max(0, entry.sentAt + flameCooldownMs() - Date.now());
 }
 
-// Auch nach einem Match moeglich (eine weitere Flamme), immer hoechstens eine pro Tag.
+// Auch nach einem Match moeglich (eine weitere Flamme), mit Abstand (flameCooldownMs).
 async function sendFlame(peerId) {
     if (!peerId || isPeerBlocked(peerId)) return;
     if (flameCooldownLeft(peerId) > 0) {
-        showToast(t('matching.youAlreadySentFlameNext'), 'info');
+        const minutes = Math.ceil(flameCooldownLeft(peerId) / 60000);
+        const time = minutes < 90 ? t('matching.inMinutes', { count: minutes }) : t('matching.inHours', { count: Math.round(minutes / 60) });
+        showToast(t('matching.youAlreadySentFlameNext', { time }), 'info');
         return;
     }
     const wasMatched = isMatched(peerId);

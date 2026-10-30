@@ -50,6 +50,8 @@ async function loadAppMode() {
         },
         // Nacktbild-Modell vom Router (Board T3): Modell, Schwelle, Klassen, Pfade (nudity-model.js).
         nudity: config?.nudity && typeof config.nudity === 'object' ? config.nudity : { model: 'off' },
+        // Flammen: Sichtdauer und Abstand (matching.js), vom Router.
+        flames: config?.flames && typeof config.flames === 'object' ? config.flames : {},
         // Eingeschaltete Feature-Module (features.js); fehlt die Liste, gilt, was die Seite mitbrachte.
         features: Array.isArray(config?.features) ? config.features.filter(name => typeof name === 'string') : [],
         // Mindestwerte des Betreibers fuer "Nur zeigen fuer ..." (der Router mischt sie selbst in die Karte).

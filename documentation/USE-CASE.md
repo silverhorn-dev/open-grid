@@ -1129,7 +1129,8 @@ viele ich bekommen habe.
 
 Akzeptanzkriterien:
 
-- Auch nach einem Match geht eine Flamme pro Tag und Person; der andere wird
-  benachrichtigt, das Match bleibt.
+- Auch nach einem Match geht eine weitere Flamme, mit Abstand (Router,
+  Standard 1 Stunde); der andere wird benachrichtigt, das Match bleibt.
 - Erhaltene Flammen stapeln sich: 2 = Doppelflamme, ab 3 = Flamme mit Zahl.
-- Flammen verschwinden nach einer Woche; Match aufloesen loescht sie.
+- Flammen verschwinden nach der vom Router festgelegten Zeit (Standard 2 Tage);
+  Match aufloesen loescht sie.

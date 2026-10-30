@@ -79,6 +79,7 @@
     - Online-Ausweis (AusweisApp): sonderfunktion altersverifikation ("ueber 18: ja/nein", kein geburtsdatum); braucht ein berechtigungszertifikat (vergabestelle beim BVA) und einen eID-server bzw. eID-service-anbieter -> klaeren: selbst betreiben oder dienstleister (regel 1: der anbieter sieht nur die ausweis-pruefung, keine nutzerdaten der app)
     - KJM-anerkannte anbieter: pruefen, welche nur "18+" als signiertes ergebnis liefern; generische token-schnittstelle (wie `AGE_PROVIDERS`)
     - erst planen + entscheiden, dann bauen
+    - recherche 2026-10-30: `documentation/ALTERSNACHWEIS-DEUTSCHLAND.md`; vorschlag: generische OIDC-schnittstelle (`AGE_PROVIDER=oidc`) fuer KJM-dienste/eID-service-anbieter, DE-wallet ab 01/2027 ueber `eudi`, kein eigener eID-server -> wartet auf entscheidung
   - [ ] eudi: aussteller der EUDI-wallets (PID-anbieter) automatisch importieren, sobald die EU deren "List of Trusted Entities" (ETSI TS 119 602, JSON/JAdES) veroeffentlicht; bis dahin PID-anbieter per `AGE_TRUST_CERTS`
   - [ ] KJM-anerkannter anbieter (generische token-schnittstelle) -> entscheidung
   - [x] SMTP-versand der codes (2026-10-29, nutzer: nodemailer, optional): `EMAIL_TRANSPORT=smtp`, `SMTP_URL`, `SMTP_FROM` (`server/email-smtp.js`), nodemailer in `optionalDependencies`, erst beim ersten versand geladen; fehlversand -> 502, code verworfen; tests `test/email-smtp.test.js`, `test/safety.test.js`; einmal echt gegen mailpit verschickt

@@ -1463,3 +1463,17 @@ html {
     background: rgb(249 115 22); color: #fff;
 }
 .flame-indicator.is-match .flame-count { background: #fff; color: rgb(234 88 12); }
+
+/* Mehrfachauswahl von Nachrichten (chat-tools.js) */
+.message-selection-bar {
+    display: flex; align-items: center; gap: 0.5rem; padding: 0.375rem 0.75rem;
+    border-bottom: 1px solid rgb(var(--slate-800)); background: rgb(var(--slate-900));
+}
+.message-selection-count { flex: 1; font-size: 0.8rem; font-weight: 600; color: rgb(var(--slate-200)); }
+.message-selection-action {
+    width: 2.25rem; height: 2.25rem; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center;
+    color: rgb(var(--slate-300));
+}
+.message-selection-action:hover { background: rgb(var(--slate-800)); }
+.message-selection-action.is-danger { color: #fca5a5; }
+#chat-messages .is-selected { background: rgb(var(--brand-500) / 0.15); border-radius: 0.75rem; }

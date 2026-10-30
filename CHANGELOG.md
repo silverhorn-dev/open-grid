@@ -2,7 +2,12 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 263 · 2026-10-30
+## Build 264 · 2026-10-30
+- Eigene Nachrichten bearbeiten (Menue > Bearbeiten), der andere sieht "bearbeitet"
+- Mehrere Nachrichten auswaehlen (Menue > Auswaehlen): zusammen kopieren oder eigene loeschen
+- Behoben: "Kopieren" im Nachrichten-Menue legte nichts in die Zwischenablage
+
+## Build 263 · 2026-10-30 · `a0d02c2`
 - Nacktbild-Filter einschalten wirkt sofort auch auf schon angezeigte Chat-Bilder
 
 ## Build 262 · 2026-10-30 · `9b575a4`

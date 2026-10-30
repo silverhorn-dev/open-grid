@@ -10,7 +10,7 @@ const MAX_PROFILE_FIELDS = 50;
 const MAX_PROFILE_VALUE_LENGTH = 5000;
 const MAX_SYNC_IDS = 50;
 const CHAT_OPERATION_TYPES = [
-    'MESSAGE_PUT', 'MESSAGE_DELETE', 'MESSAGE_REACT', 'CHAT_WIPE', 'PEER_UNHIDE',
+    'MESSAGE_PUT', 'MESSAGE_DELETE', 'MESSAGE_REACT', 'MESSAGE_EDIT', 'CHAT_WIPE', 'PEER_UNHIDE',
     'MATCH_PING', 'MATCH_RESET', 'FRIEND_PING', 'FRIEND_RESET', 'SNAP_CONSUMED', 'SNAP_SAVED', 'ALBUM_KEYS', 'ALBUM_REVOKE', 'ALBUM_VIEW_CLOSED',
     'STATUS_POST', 'STATUS_DELETE', 'PROFILE_VIEW', 'PROFILE_DELETED'
 ];
@@ -27,6 +27,7 @@ function isValidMessage(message) {
         && isOptionalString(message.text, MAX_TEXT_LENGTH)
         && isOptionalString(message.snapData, MAX_INLINE_IMAGE_LENGTH)
         && isOptionalString(message.timestamp, 40)
+        && (message.editedAt === undefined || isTimestamp(message.editedAt))
         && (message.scope === undefined || ['discovery', 'social'].includes(message.scope))
         && (message.original === undefined || isValidOriginalMeta(message.original))
         && (message.snapExpiry === undefined || ['15m', '30m', '60m', 'off'].includes(message.snapExpiry))
@@ -67,6 +68,8 @@ function isValidChatOperation(operation) {
     if (!isOptionalString(operation.actorId, MAX_ID_LENGTH) || !isTimestamp(operation.createdAt)) return false;
     if (operation.type === 'MESSAGE_PUT') return isId(operation.messageId) && isValidMessage(operation.message);
     if (['MESSAGE_DELETE', 'MESSAGE_REACT', 'SNAP_CONSUMED', 'SNAP_SAVED'].includes(operation.type)) return isId(operation.messageId);
+    if (operation.type === 'MESSAGE_EDIT') return isId(operation.messageId) && typeof operation.text === 'string'
+        && operation.text.trim().length > 0 && operation.text.length <= MAX_TEXT_LENGTH;
     if (operation.type === 'STATUS_DELETE') return isId(operation.statusId);
     if (operation.type === 'STATUS_POST') return isId(operation.statusId) && ['text', 'photo'].includes(operation.kind)
         && isOptionalString(operation.text, 280) && isOptionalString(operation.color, 20)

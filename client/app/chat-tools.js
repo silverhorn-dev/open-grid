@@ -23,19 +23,92 @@ function startReply(messageId) {
     // Geloeschte Nachrichten kann man nicht beantworten (vorher per Wischen moeglich).
     const message = (state.chats[state.activeChatPeerId] || []).find(item => item.id === messageId);
     if (!message || message.deleted) return;
+    if (state.editingMessageId) cancelReply();
     state.replyToMessageId = messageId;
     renderReplyBar();
     document.getElementById('chat-input')?.focus();
 }
 
+// Schliesst die Leiste ueber der Eingabe: Antwort oder Bearbeitung abbrechen.
 function cancelReply() {
     state.replyToMessageId = null;
+    if (state.editingMessageId) {
+        state.editingMessageId = null;
+        const input = document.getElementById('chat-input');
+        if (input) {
+            input.value = '';
+            if (typeof fitChatInput === 'function') fitChatInput(input);
+        }
+        if (typeof updateComposeButtons === 'function') updateComposeButtons();
+    }
     renderReplyBar();
+}
+
+// ----- Nachricht bearbeiten -----
+// Eigene Textnachrichten (auch Bild-Unterschriften): der Text kommt ins Eingabefeld, Senden speichert die
+// Aenderung (MESSAGE_EDIT, verschluesselt wie alle Chat-Operationen); beim anderen steht "bearbeitet".
+function canEditMessage(message) {
+    return Boolean(message) && message.senderId === state.myProfile.id && !message.deleted && Boolean(message.text)
+        && !message.audioData && !message.secureSnap && !message.video;
+}
+
+function startEditMessage(messageId) {
+    const message = (state.chats[state.activeChatPeerId] || []).find(item => item.id === messageId);
+    if (!canEditMessage(message)) return;
+    state.replyToMessageId = null;
+    state.editingMessageId = messageId;
+    const input = document.getElementById('chat-input');
+    if (input) {
+        input.value = message.text;
+        if (typeof fitChatInput === 'function') fitChatInput(input);
+        input.focus();
+    }
+    if (typeof updateComposeButtons === 'function') updateComposeButtons();
+    renderReplyBar();
+}
+
+// Aus sendChatMessage: true = es war eine Bearbeitung (keine neue Nachricht).
+async function finishEditMessage(text) {
+    const peerId = state.activeChatPeerId;
+    const messageId = state.editingMessageId;
+    if (!messageId) return false;
+    const message = (state.chats[peerId] || []).find(item => item.id === messageId);
+    state.editingMessageId = null;
+    renderReplyBar();
+    const input = document.getElementById('chat-input');
+    if (input) {
+        input.value = '';
+        if (typeof fitChatInput === 'function') fitChatInput(input);
+    }
+    if (typeof updateComposeButtons === 'function') updateComposeButtons();
+    if (!canEditMessage(message) || !text || text === message.text) return true;
+    const operation = {
+        operationId: `edit:${messageId}:${window.crypto.randomUUID()}`,
+        peerId,
+        type: 'MESSAGE_EDIT',
+        messageId,
+        text,
+        actorId: state.myProfile.id,
+        createdAt: Date.now()
+    };
+    await applyChatOperation(peerId, operation);
+    const { peerId: _localPeerId, ...sharedOperation } = operation;
+    await sendSecurePayload(peerId, { type: 'CHAT_OPERATION', operation: sharedOperation });
+    return true;
 }
 
 function renderReplyBar() {
     const bar = document.getElementById('chat-reply-bar');
     if (!bar) return;
+    const editing = state.editingMessageId
+        ? (state.chats[state.activeChatPeerId] || []).find(item => item.id === state.editingMessageId)
+        : null;
+    if (editing) {
+        bar.classList.remove('hidden');
+        document.getElementById('chat-reply-author').textContent = t('chat.editMessage');
+        document.getElementById('chat-reply-preview').textContent = editing.text;
+        return;
+    }
     const reference = buildReplyReference(state.activeChatPeerId, state.replyToMessageId);
     bar.classList.toggle('hidden', !reference);
     if (!reference) return;
@@ -231,7 +304,8 @@ function runMessageMenuAction(action) {
     });
 }
 
-function messageMenuItem(icon, label, action, danger = false) {
+// immediate: laeuft sofort im Klick (vor dem Schliessen), z. B. fuer die Zwischenablage.
+function messageMenuItem(icon, label, action, danger = false, immediate = null) {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = `message-menu-item${danger ? ' is-danger' : ''}`;
@@ -241,6 +315,7 @@ function messageMenuItem(icon, label, action, danger = false) {
     button.appendChild(text);
     button.onclick = event => {
         event.stopPropagation();
+        if (immediate) immediate();
         runMessageMenuAction(action);
     };
     return button;
@@ -301,9 +376,13 @@ function renderMessageMenu() {
         reactions.appendChild(button);
     });
     const items = [messageMenuItem('fa-solid fa-reply', t('chat.reply'), () => startReply(message.id))];
-    if (message.text) items.push(messageMenuItem('fa-regular fa-copy', t('common.copy'), () => copyMessageText(message)));
+    // Kopieren direkt im Klick (nicht erst nach dem Schliessen): sonst ist die Nutzer-Geste weg und
+    // Browser (v. a. Safari) verweigern die Zwischenablage.
+    if (message.text) items.push(messageMenuItem('fa-regular fa-copy', t('common.copy'), () => {}, false, () => copyMessageText(message)));
+    if (canEditMessage(message)) items.push(messageMenuItem('fa-solid fa-pen', t('chat.edit'), () => startEditMessage(message.id)));
     items.push(messageMenuItem(message.starred ? 'fa-solid fa-star text-amber-400' : 'fa-regular fa-star',
         message.starred ? t('chat.removeStar') : t('chat.starForYourself'), () => toggleMessageStar(message.id)));
+    items.push(messageMenuItem('fa-regular fa-square-check', t('chat.select'), () => startMessageSelection(message.id)));
     if (isMine) items.push(messageMenuItem('fa-solid fa-trash', t('common.delete'), () => deleteChatMessage(message.id), true));
     const list = document.createElement('div');
     list.className = 'message-menu-items';
@@ -415,13 +494,33 @@ function renderMessageActions(message, isMine) {
     return actions;
 }
 
-async function copyMessageText(message) {
+// Zwischenablage: erst die moderne API, sonst der alte Weg ueber ein unsichtbares Textfeld (beides muss
+// direkt aus einem Klick kommen).
+async function copyTextToClipboard(text) {
     try {
-        await navigator.clipboard.writeText(message.text || '');
-        showToast(t('chat.textCopied'), 'success');
+        await navigator.clipboard.writeText(text);
+        return true;
     } catch {
-        showToast(t('common.copyingIsNotPossible'), 'error');
+        const field = document.createElement('textarea');
+        field.value = text;
+        field.setAttribute('readonly', '');
+        field.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none';
+        document.body.appendChild(field);
+        field.select();
+        let copied = false;
+        try {
+            copied = document.execCommand('copy');
+        } catch {
+            copied = false;
+        }
+        field.remove();
+        return copied;
     }
+}
+
+async function copyMessageText(message) {
+    if (await copyTextToClipboard(message.text || '')) showToast(t('chat.textCopied'), 'success');
+    else showToast(t('common.copyingIsNotPossible'), 'error');
 }
 
 function renderReactions(message, isMine) {
@@ -678,3 +777,123 @@ function initSnapLongPress() {
     snap.addEventListener('contextmenu', event => event.preventDefault());
 }
 
+
+// ----- Mehrere Nachrichten auswaehlen -----
+// Start ueber das Nachrichten-Menue ("Auswaehlen"). Danach schaltet jedes Antippen eine Nachricht um; die
+// Leiste oben kopiert die Texte (mit Namen, in Reihenfolge) oder loescht eigene Nachrichten. Zurueck oder ✕
+// beendet die Auswahl. Nur lokal, nichts wird gesendet ausser beim Loeschen.
+function startMessageSelection(messageId) {
+    const peerId = state.activeChatPeerId;
+    if (!peerId) return;
+    const already = Boolean(state.messageSelection);
+    state.messageSelection = { peerId, ids: new Set(already ? state.messageSelection.ids : []) };
+    if (messageId) state.messageSelection.ids.add(messageId);
+    const list = document.getElementById('chat-messages');
+    if (list && !list.dataset.selectionHandler) {
+        list.dataset.selectionHandler = 'true';
+        // Erfasst Klicks vor Bild-Betrachter, Antworten usw., solange ausgewaehlt wird.
+        list.addEventListener('click', event => {
+            if (!state.messageSelection) return;
+            const row = event.target.closest('[id^="chat-message-"]');
+            if (!row) return;
+            event.preventDefault();
+            event.stopPropagation();
+            toggleMessageSelection(row.id.slice('chat-message-'.length));
+        }, true);
+    }
+    if (!already) pushModalEntry('messageselection', hideMessageSelection);
+    renderMessageSelection();
+}
+
+function toggleMessageSelection(messageId) {
+    const selection = state.messageSelection;
+    if (!selection) return;
+    const message = (state.chats[selection.peerId] || []).find(item => item.id === messageId);
+    if (!message || message.deleted) return;
+    if (selection.ids.has(messageId)) selection.ids.delete(messageId);
+    else selection.ids.add(messageId);
+    if (!selection.ids.size) {
+        closeMessageSelection();
+        return;
+    }
+    renderMessageSelection();
+}
+
+function closeMessageSelection() {
+    if (!state.messageSelection) return;
+    dismissModalEntry('messageselection', hideMessageSelection);
+}
+
+function hideMessageSelection() {
+    state.messageSelection = null;
+    document.getElementById('message-selection-bar')?.remove();
+    document.querySelectorAll('#chat-messages .is-selected').forEach(row => row.classList.remove('is-selected'));
+}
+
+function selectedMessages() {
+    const selection = state.messageSelection;
+    if (!selection) return [];
+    return (state.chats[selection.peerId] || [])
+        .filter(message => selection.ids.has(message.id) && !message.deleted)
+        .sort((left, right) => (left.createdAt || 0) - (right.createdAt || 0));
+}
+
+function renderMessageSelection() {
+    const selection = state.messageSelection;
+    if (!selection) return;
+    document.querySelectorAll('#chat-messages [id^="chat-message-"]').forEach(row => {
+        row.classList.toggle('is-selected', selection.ids.has(row.id.slice('chat-message-'.length)));
+    });
+    const messages = selectedMessages();
+    let bar = document.getElementById('message-selection-bar');
+    if (!bar) {
+        bar = document.createElement('div');
+        bar.id = 'message-selection-bar';
+        bar.className = 'message-selection-bar';
+        bar.setAttribute('role', 'toolbar');
+        document.getElementById('chat-messages')?.before(bar);
+    }
+    const button = (icon, label, onClick, danger = false) => {
+        const element = document.createElement('button');
+        element.type = 'button';
+        element.className = `message-selection-action${danger ? ' is-danger' : ''}`;
+        element.innerHTML = `<i class="${icon}"></i>`;
+        element.title = label;
+        element.setAttribute('aria-label', label);
+        element.onclick = onClick;
+        return element;
+    };
+    const count = document.createElement('span');
+    count.className = 'message-selection-count';
+    count.textContent = t('chat.selectedCount', { count: messages.length });
+    const actions = [button('fa-solid fa-xmark', t('chat.endSelection'), () => closeMessageSelection())];
+    actions.push(count);
+    if (messages.some(message => message.text)) {
+        // Kopieren direkt im Klick (Zwischenablage braucht die Nutzer-Geste).
+        actions.push(button('fa-regular fa-copy', t('common.copy'), () => {
+            copySelectedMessages();
+            closeMessageSelection();
+        }));
+    }
+    if (messages.length && messages.every(message => message.senderId === state.myProfile.id)) {
+        actions.push(button('fa-solid fa-trash', t('common.delete'), () => deleteSelectedMessages(), true));
+    }
+    bar.replaceChildren(...actions);
+}
+
+// Texte mit Namen, je Nachricht eine Zeile (wie beim Weiterleiten aus anderen Messengern).
+async function copySelectedMessages() {
+    const lines = selectedMessages().filter(message => message.text).map(message => {
+        const author = message.senderId === state.myProfile.id ? t('chat.you') : getPeerPresentation(message.senderId).name || HIDDEN_PEER_NAME;
+        return `${author}: ${message.text}`;
+    });
+    if (await copyTextToClipboard(lines.join('\n'))) showToast(t('chat.messagesCopied', { count: lines.length }), 'success');
+    else showToast(t('common.copyingIsNotPossible'), 'error');
+}
+
+async function deleteSelectedMessages() {
+    const messages = selectedMessages().filter(message => message.senderId === state.myProfile.id);
+    if (!messages.length || !window.confirm(t('chat.deleteSelectedMessages', { count: messages.length }))) return;
+    closeMessageSelection();
+    for (const message of messages) await deleteChatMessage(message.id);
+}

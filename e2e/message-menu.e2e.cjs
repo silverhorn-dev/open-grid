@@ -79,7 +79,7 @@ async function main() {
             highlighted: document.getElementById('chat-message-m1').classList.contains('message-menu-target')
         }));
         assert.equal(content.reactions, 6);
-        assert.deepEqual(content.items, ['Antworten', 'Kopieren', 'Für dich markieren']);
+        assert.deepEqual(content.items, ['Antworten', 'Kopieren', 'Für dich markieren', 'Auswählen']);
         assert.equal(content.highlighted, true);
 
         // (1) Neuzeichnen und eine neue Nachricht: Menue bleibt, Markierung wandert mit.

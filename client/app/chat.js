@@ -257,6 +257,12 @@ async function openChatWithPeer(peerId) {
     }
     if (state.activeChatPeerId !== peerId) {
         resetChatTools();
+        // Auswahl und Bearbeitung gehoeren zum vorherigen Chat.
+        if (state.messageSelection && typeof hideMessageSelection === 'function') {
+            hideMessageSelection();
+            removeModalFromStack('messageselection');
+        }
+        if (state.editingMessageId && typeof cancelReply === 'function') cancelReply();
         // Menue des vorherigen Chats ohne eigenen Zurueck-Schritt schliessen.
         if (state.messageMenu && typeof hideMessageMenu === 'function') {
             hideMessageMenu();
@@ -472,6 +478,11 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
         return;
     }
     const text = hasAttachment ? String(caption || '').trim() : input.value.trim();
+    // Bearbeiten einer eigenen Nachricht (chat-tools.js): Senden speichert die Aenderung.
+    if (!hasAttachment && state.editingMessageId && typeof finishEditMessage === 'function') {
+        await finishEditMessage(text);
+        return;
+    }
     if ((!text && !hasAttachment) || !state.activeChatPeerId || isPeerBlocked(state.activeChatPeerId)) return;
 
     const peerId = state.activeChatPeerId;
@@ -766,7 +777,7 @@ function renderChatHistory() {
         const meta = document.createElement('div');
         meta.className = 'text-[9px] text-slate-500 mt-0.5 flex items-center gap-2';
         const status = document.createElement('span');
-        status.textContent = message.timestamp;
+        status.textContent = message.editedAt && !message.deleted ? `${message.timestamp} · ${t('chat.edited')}` : message.timestamp;
         const deliveryPath = document.createElement('span');
         deliveryPath.className = 'debug-only';
         deliveryPath.textContent = message.deliveredVia;
@@ -802,6 +813,8 @@ function renderChatHistory() {
     if (typeof syncMessageMenu === 'function') syncMessageMenu();
     updateChatJumpButton();
     renderChatAllowance();
+    // Mehrfachauswahl (chat-tools.js): Markierungen nach dem Neuaufbau wieder setzen.
+    if (state.messageSelection && typeof renderMessageSelection === 'function') renderMessageSelection();
 }
 
 // Path C haelt Nachrichten nur bis zur Queue-TTL. Danach liefert erst der naechste direkte Chat-Sync aus.

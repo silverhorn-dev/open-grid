@@ -1148,6 +1148,19 @@ Akzeptanzkriterien:
   Entdecken-Profil; Galeriebilder gibt es nur aus dem Profil, das man sieht.
 - Ausschalten: wieder ein Profil fuer alle, die Social-Werte bleiben gespeichert.
 
+## UC-68: Nachrichten bearbeiten, kopieren, mehrere auswaehlen
+
+**Als Nutzer** moechte ich eigene Nachrichten nachtraeglich korrigieren und
+Nachrichten kopieren oder gesammelt bearbeiten.
+
+Akzeptanzkriterien:
+
+- Eigene Textnachrichten lassen sich ueber das Menue bearbeiten; der andere sieht
+  den neuen Text mit "bearbeitet", auch nach einem spaeteren Sync.
+- "Kopieren" legt den Text wirklich in die Zwischenablage (auch auf dem iPhone).
+- "Auswaehlen" erlaubt mehrere Nachrichten: zusammen kopieren (mit Namen) oder,
+  wenn alle eigene sind, fuer beide loeschen.
+
 ## UC-65: Flammen nach dem Match, gestapelt
 
 **Als Nutzer** moechte ich einem Match weiter Flammen schicken und sehen, wie

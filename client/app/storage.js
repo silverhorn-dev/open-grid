@@ -640,6 +640,12 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
                 peerId,
                 deliveredVia
             };
+            // Bearbeitete Nachricht: ein spaeter (erneut) eintreffendes MESSAGE_PUT mit aelterem Text
+            // ueberschreibt die Bearbeitung nicht (MESSAGE_EDIT).
+            if (existingMessage?.editedAt && !((message.editedAt || 0) >= existingMessage.editedAt)) {
+                message.text = existingMessage.text;
+                message.editedAt = existingMessage.editedAt;
+            }
             // Chat-Berechtigungen: ohne Match ggf. zurueckhalten (wird beim Match freigegeben).
             if (await shouldHoldIncomingMessage(peerId, message)) message.held = true;
             // Original folgt nur ueber P2P: anfragen, sobald ein Kanal offen ist.
@@ -681,6 +687,21 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
         else state.chats[peerId].push(deletedMessage);
         // Offene Antwort auf diese Nachricht: abbrechen (geloeschte Nachrichten beantwortet man nicht).
         if (state.replyToMessageId === localOperation.messageId && typeof cancelReply === 'function') cancelReply();
+    } else if (localOperation.type === 'MESSAGE_EDIT') {
+        // Nur der Absender bearbeitet, nur Text, die neueste Bearbeitung gilt.
+        const existingMessage = await databaseRequest('messages', 'readonly', store => store.get(localOperation.messageId));
+        if (!existingMessage || existingMessage.deleted || existingMessage.peerId !== peerId) return false;
+        if (existingMessage.senderId !== localOperation.actorId || typeof localOperation.text !== 'string') return false;
+        if ((existingMessage.editedAt || 0) >= (localOperation.createdAt || 0)) return true;
+        const updated = { ...existingMessage, text: localOperation.text, editedAt: localOperation.createdAt };
+        await persistChatMessage(peerId, updated);
+        const current = (state.chats[peerId] || []).find(item => item.id === updated.id);
+        // Objekt mutieren statt ersetzen: offene Sende-Callbacks halten dieselbe Referenz.
+        if (current) Object.assign(current, { text: updated.text, editedAt: updated.editedAt });
+        // Das gespeicherte MESSAGE_PUT traegt ab jetzt den neuen Text (Chat-Sync mit spaeteren Geraeten).
+        const put = await databaseRequest('chatOperations', 'readonly', store => store.get(`put:${updated.id}`)).catch(() => null);
+        if (put?.message) await putDatabaseRecord('chatOperations', { ...put, message: { ...put.message, text: updated.text, editedAt: updated.editedAt } });
+        if (state.chatPreviews[peerId]?.id === updated.id) updateChatPreview(peerId, updated, true);
     } else if (localOperation.type === 'STATUS_POST' || localOperation.type === 'STATUS_DELETE') {
         // Status gehoeren nicht ins Chat-Log (wie Album-Schluessel).
         return handleStatusOperation(peerId, localOperation);
@@ -805,6 +826,7 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
     await persistChatOperation(localOperation);
     if (localOperation.type === 'MESSAGE_DELETE') await trimChatDeleteOperations(peerId);
     if (localOperation.type === 'MESSAGE_REACT') await trimReactionOperations(peerId, localOperation);
+    if (localOperation.type === 'MESSAGE_EDIT') await trimEditOperations(peerId, localOperation);
     if (!state.chats[peerId]) state.chats[peerId] = [];
     state.chats[peerId].sort((left, right) => left.createdAt - right.createdAt);
     rememberChatPeer(peerId);
@@ -818,6 +840,15 @@ async function trimReactionOperations(peerId, latest) {
     const outdated = (await getChatOperations(peerId)).filter(operation => operation.type === 'MESSAGE_REACT'
         && operation.messageId === latest.messageId
         && operation.actorId === latest.actorId
+        && operation.operationId !== latest.operationId
+        && (operation.createdAt || 0) <= (latest.createdAt || 0));
+    await Promise.all(outdated.map(operation => deleteDatabaseRecord('chatOperations', operation.operationId)));
+}
+
+// Aeltere Bearbeitungen derselben Nachricht braucht der Sync nicht mehr (die neueste traegt den Text).
+async function trimEditOperations(peerId, latest) {
+    const outdated = (await getChatOperations(peerId)).filter(operation => operation.type === 'MESSAGE_EDIT'
+        && operation.messageId === latest.messageId
         && operation.operationId !== latest.operationId
         && (operation.createdAt || 0) <= (latest.createdAt || 0));
     await Promise.all(outdated.map(operation => deleteDatabaseRecord('chatOperations', operation.operationId)));

@@ -198,6 +198,9 @@ const state = {
     inviteArea: 'social',
     // Rueckkehr vom OIDC-Altersnachweis ({ code, state, error }), safety.js.
     pendingAgeCallback: null,
+    // Nachricht, die gerade bearbeitet wird (chat-tools.js), und Mehrfachauswahl ({ peerId, ids }).
+    editingMessageId: null,
+    messageSelection: null,
     // Nach "Chat & Freunde" gewanderte Chats mit Verweis in "Grid & Event" ({ peerId: Zeit }), chat-list-menu.js.
     movedChats: {},
     chatListMenu: null,

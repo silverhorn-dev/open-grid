@@ -576,3 +576,10 @@
 - [x] einladung bei beiden bereichen (nutzer 2026-10-30: "chat invite in double mode doesnt work well"): wahl "Einladen in: Chat & Freunde | Entdecken" (std chat & freunde, nicht mehr der aktive modus); oeffnen wechselt den modus nicht mehr, chat oeffnet in der liste des bereichs; e2e `invite-modes`
 - [x] social-profil kann sich vom entdecken-profil unterscheiden (2026-10-30): schalter im profil, dann auswahl "Entdecken | Chat & Freunde"; getrennt: felder, profilbild (+gross), galerie; empfaenger nach liste des chats; signiertes `area`, damit ein listenwechsel das zwischengespeicherte profil ersetzt; tests `test/friends.test.js`, e2e `social-profile`, UC-67
 
+## T29 Profile, Grid, Privat-Modus, Nachrichten (nutzer 2026-10-30)
+- [x] nachrichten kopieren ging nicht (zwischenablage erst nach dem schliessen des menues -> geste weg); jetzt sofort im klick + rueckfall
+- [x] nachrichten bearbeiten (`MESSAGE_EDIT`), "bearbeitet"; mehrfachauswahl (kopieren mit namen, eigene loeschen); e2e `message-tools`, UC-68
+- [ ] profil-popup bei match + freund: duenne reiter "Dating | Freunde" (entdecken-modus waehlt dating vor); besitzer schickt matched friends beide profile; reine freunde nur social
+- [ ] privatsphaere: im grid verstecken vor 3-fach: aus | freunde | freunde + chat-partner; flag im signierten profil, gefiltert beim anderen (einseitig), matches sehen immer
+- [ ] "Privat"-modus (auge) fuer nur-social: versteckter schalter in den einstellungen, lasche in jedem freundes-chat ohne match; hinweis "lange druecken zum ausblenden" links neben der lasche
+

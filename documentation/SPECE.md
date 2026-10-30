@@ -895,6 +895,21 @@ Chats werden als idempotente Operationen synchronisiert:
   (`emoji` aus 👍 ❤️ 😂 😮 😢 🔥 oder `null` zum Entfernen). Pro Absender und
   Nachricht gilt die neueste Operation (`createdAt`); aeltere werden aus
   `chatOperations` geloescht. Reaktionen loesen keinen Web Push aus.
+- `MESSAGE_EDIT { messageId, text, actorId, createdAt }` (`edit:<id>:<uuid>`,
+  seit 2026-10-30): nur der Absender, nur Textnachrichten bzw. Bildunterschriften
+  (keine Sprach-, Video- oder Secure-Snap-Nachrichten), Text 1-10000 Zeichen.
+  Der Empfaenger setzt `text` und `editedAt`; die neueste Bearbeitung gilt,
+  aeltere Edit-Operationen werden geloescht. Das gespeicherte `put:<id>` bekommt
+  den neuen Text (Sync mit spaeteren Geraeten), und ein erneut eintreffendes
+  `MESSAGE_PUT` mit aelterem `editedAt` ueberschreibt die Bearbeitung nicht.
+  Anzeige "bearbeitet" neben der Uhrzeit. Der Service Worker uebernimmt nur
+  `MESSAGE_PUT`; Bearbeitungen holt die Seite wie Loeschungen und Reaktionen.
+- Nachrichten-Menue: "Kopieren" schreibt sofort im Klick in die Zwischenablage
+  (danach erst schliesst das Menue; sonst verweigern Browser den Zugriff), mit
+  Rueckfall auf ein verstecktes Textfeld. "Auswaehlen" startet die
+  Mehrfachauswahl: Antippen schaltet Nachrichten um, die Leiste oben kopiert die
+  Texte ("Name: Text" je Zeile, in Reihenfolge) oder loescht nur eigene;
+  Zurueck oder ✕ beendet sie, ein Chatwechsel ebenso.
 - Markierungen (`message.starred`) und die Chat-Suche sind rein lokal und
   werden nicht synchronisiert.
 - Normale Snaps tragen `snapMode: 'replay'`: der Empfaenger kann sie einmal

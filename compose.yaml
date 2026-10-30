@@ -50,6 +50,7 @@ services:
       # LAN_MODE: "true"
       # App-Modi, die Nutzer waehlen koennen (discovery, chat, friends, event).
       # APP_MODES: discovery,chat,friends,event
+      DEFAULT_APP_MODE: friends
       # Profil-Felder (JSON) fuer alle Modi; je Modus siehe PROFILE_SCHEMAS weiter unten. Leer = eingebautes.
       PROFILE_SCHEMA: ${PROFILE_SCHEMA:-}
       # DEFAULT_APP_MODE: discovery

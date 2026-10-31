@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 269 · 2026-10-30
+## Build 270 · 2026-10-31
+- Lasche ausblenden (lange druecken) zeigt keine Meldung mehr
+
+## Build 269 · 2026-10-30 · `cbd666a`
 - Behoben: das Menue eines Chats (langes Druecken in der Chatliste) ging auf dem Handy sofort wieder zu
 - Privat-Modus gibt es jetzt auch mit Entdecken & Freunde (Einstellungen > Chat), fuer Chats in "Chat & Freunde" ohne Match; das Chat-Menue sagt dann "Privat-Knopf zeigen"
 

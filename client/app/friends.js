@@ -598,7 +598,6 @@ function initFlirtControls() {
         hapticTick();
         restoreInputFocusAfterFlirtTab();
         setFlirtTabHidden(peerId, true).catch(logBackgroundError('initFlirtControls'));
-        showToast(t('friends.flirtTabHiddenHere'), 'info');
     });
     // Senden lange druecken: der Klick beim Loslassen sendet dann als Flirt.
     attachLongPress(document.getElementById('send-chat-btn'), () => {

@@ -1041,6 +1041,11 @@ aber weder gemeldet noch annehmbar). Wer nur "Entdecken" nutzt (kein Bereich
 aendert sich dadurch der Wert, speichert `setModeScope` still eine neue
 Profilversion (sonst behielten Matches das alte Profil mit "Adden").
 
+Aendert der andere die Freundschaft (`FRIEND_PING`/`FRIEND_RESET` mit fremdem
+`actorId`), schickt der Client danach sein jetzt passendes Profil von sich aus
+(`handleIncomingProfileRequest`): die Profil-Anfrage des anderen kam vor der
+Operation an und wurde noch mit dem alten Stand beantwortet.
+
 Eine Anfrage verschiebt keinen Chat; nur ganz neue Kontakte (kein Verlauf,
 kein Match) landen mit der Anfrage in `social`. Erst die Freundschaft
 verschiebt den Chat nach `social`. Stand er vorher in `discovery` (oder hatte
@@ -1087,8 +1092,8 @@ Schema des gewaehlten Bereichs (Auswahl nur, wenn beide Bereiche an sind).
 Match + Freund: das Profil fuer die Liste `social` traegt zusaetzlich
 `discoveryProfile = { fields, avatar, avatarFull, gallery }` (Felder des
 Entdecken-Schemas, signiert mit). Der Empfaenger zeigt im Profil-Popup duenne
-Reiter "Dating | Freunde" (`profileModalTab`, Entdecken-Modus waehlt "Dating"
-vor); Bilder beider Teile darf er anfragen (`canPeerAccessImage`, Pruefsumme aus
+Reiter "Dating | Freunde" (`profileModalTab`), nur im Entdecken-/Event-Modus
+("Dating" vorgewaehlt; in "Chat & Freunde" keine Reiter, das Freundes-Profil); Bilder beider Teile darf er anfragen (`canPeerAccessImage`, Pruefsumme aus
 dem jeweiligen Teil). Reine Freunde ohne Match bekommen kein `discoveryProfile`.
 
 **Profilbild in gross** (seit 2026-10-30): Das Profil traegt das Profilbild

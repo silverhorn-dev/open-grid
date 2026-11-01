@@ -99,11 +99,12 @@ function openProfileModal(peerId) {
 }
 
 // Match + Freund mit eigenem Social-Profil: zwei duenne Reiter "Dating | Freunde" (das Entdecken-Profil kommt
-// als `discoveryProfile` mit). Im Entdecken-Modus ist "Dating" vorgewaehlt, sonst "Freunde".
+// als `discoveryProfile` mit), nur im Entdecken-Modus ("Dating" vorgewaehlt); in "Chat & Freunde" keine Reiter.
 function profileModalTab(profile) {
     const peerId = state.activeModalPeerId;
     const both = Boolean(profile?.discoveryProfile) && isMatched(peerId) && typeof isFriend === 'function' && isFriend(peerId);
-    if (!both) return null;
+    // Nur beim Entdecken; in "Chat & Freunde" gilt das Freundes-Profil ohne Reiter.
+    if (!both || (typeof inExploringMode === 'function' && !inExploringMode())) return null;
     if (state.profileModalTab?.peerId !== peerId) {
         state.profileModalTab = { peerId, tab: typeof inExploringMode === 'function' && inExploringMode() ? 'dating' : 'friends' };
     }

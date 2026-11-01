@@ -120,6 +120,12 @@ async function applyFriendOperation(peerId, operation) {
         await forgetStatusesOf(peerId);
         sendSecurePayload(peerId, { type: 'PROFILE_REQUEST' }).catch(logBackgroundError('applyFriendOperation'));
     }
+    // Der andere hat die Freundschaft geaendert: das eigene, jetzt passende Profil (Entdecken oder
+    // "Chat & Freunde") schicken, nachdem die Liste umgestellt ist. Seine Profil-Anfrage kam schon vor der
+    // Operation an und wurde noch mit dem alten Stand beantwortet (danach blieb er im falschen Profil haengen).
+    if (wasFriend !== nowFriend && operation.actorId === peerId && typeof handleIncomingProfileRequest === 'function') {
+        handleIncomingProfileRequest(peerId).catch(logBackgroundError('applyFriendOperation'));
+    }
     renderFriendUi(peerId);
     return true;
 }

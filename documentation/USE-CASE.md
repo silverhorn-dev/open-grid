@@ -1157,8 +1157,11 @@ Akzeptanzkriterien:
   Name, Felder, Profilbild und Galerie sind getrennt.
 - Wer in "Chat & Freunde" steht, bekommt das Social-Profil, alle anderen das
   Entdecken-Profil; Galeriebilder gibt es nur aus dem Profil, das man sieht.
-- Wer Match und Freund ist, sieht im Profil-Popup beide Profile ueber Reiter
-  "Dating | Freunde" (im Entdecken-Modus zuerst "Dating"); reine Freunde nicht.
+- Wer Match und Freund ist, sieht beim Entdecken im Profil-Popup beide Profile
+  ueber Reiter "Dating | Freunde" (zuerst "Dating"); in "Chat & Freunde" ohne
+  Reiter das Freundes-Profil; reine Freunde nie.
+- Endet die Freundschaft (das Match bleibt), sieht man wieder das
+  Entdecken-Profil.
 
 ## UC-68: Nachrichten bearbeiten, kopieren, mehrere auswaehlen
 

@@ -88,6 +88,24 @@ async function main() {
         await waitFor(erin, () => document.getElementById('modal-profile-name').textContent === 'Alex');
         await erin.evaluate(() => closeProfileModal());
 
+        // In "Chat & Freunde" keine Reiter: das Freundes-Profil.
+        await erin.evaluate(() => setAppMode('chat'));
+        await erin.evaluate(id => openProfileModal(id), aliceId);
+        await waitFor(erin, () => document.getElementById('modal-profile-name').textContent === 'Alex');
+        assert.equal(await erin.isVisible('#modal-profile-tabs'), false, 'no tabs in Chat & Friends');
+        await erin.evaluate(() => closeProfileModal());
+
+        // Erin entfernt Alice als Freundin (im Reiter "Freunde"), das Match bleibt: danach Alices
+        // Entdecken-Profil ohne Reiter, nicht mehr das Freundes-Profil.
+        await erin.evaluate(() => setAppMode('discovery'));
+        await erin.evaluate(id => resetFriendship(id), aliceId);
+        await waitFor(alice, id => !isFriend(id), erinId);
+        await waitFor(erin, id => state.cachedProfiles[id]?.fields?.displayName === 'Hot Alex', aliceId, 15000);
+        await erin.evaluate(id => openProfileModal(id), aliceId);
+        await waitFor(erin, () => document.getElementById('modal-profile-name').textContent === 'Hot Alex');
+        assert.equal(await erin.isVisible('#modal-profile-tabs'), false, 'no tabs after unfriending');
+        await erin.evaluate(() => closeProfileModal());
+
         // Bob ist nur Freund (kein Match): kein Dating-Profil, keine Reiter.
         await bob.evaluate(id => addFriend(id), aliceId);
         await waitFor(alice, id => hasFriendRequest(id), bobId);

@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 273 · 2026-11-01
+## Build 274 · 2026-11-01
+- Behoben: nach dem Entfernen eines Freundes (Match bleibt) war weiter sein Freundes-Profil zu sehen statt seines Entdecken-Profils
+- Die Reiter "Dating | Freunde" gibt es nur noch beim Entdecken; in "Chat & Freunde" siehst du direkt das Freundes-Profil
+
+## Build 273 · 2026-11-01 · `cc289d1`
 - Behoben: Nachrichten mit Bild, Snap oder Link-Vorschau liessen sich nicht zum Antworten wischen, wenn der Finger auf dem Inhalt ansetzte
 
 ## Build 272 · 2026-11-01 · `2407439`

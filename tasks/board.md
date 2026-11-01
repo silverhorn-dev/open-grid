@@ -124,6 +124,13 @@
   - empfehlung (vorschlag, nutzer entscheidet): start mit NSFWJS MobileNetV2 (MIT/MIT, klein, erprobt), modell + TF.js vom eigenen router ausliefern (keine CDN, regel 1), nur laden wenn der filter an ist, im SW-cache halten, im web worker rechnen; unscharf ab porn+hentai >= 0.7 ("sexy" nicht); vorher eigene testsammlung (auch maennliche motive) zur abschaetzung von fehlalarmen/treffern; Bumble als zweiter kandidat, falls die erkennung nicht reicht (umwandlung noetig)
 
 ## T4 Wrapper-App: native API zum Senden/Empfangen (wunsch 2026-10-27, erst planen)
+- plan 2026-11-01: `documentation/ANDROID-APP.md` (wartet auf entscheidungen)
+  - plan: phase 1 huelle (eigene WebView, `FLAG_SECURE`, router per QR, APK vom router) + phase 2 bruecke (`addWebMessageListener`, nur router-ursprung)
+  - plan: phase 3 push ohne browser (UnifiedPush, gleiche RFC-8291-nachrichten wie heute; FCM optional)
+  - plan: phase 4 echtheit (Android Key Attestation, router prueft die kette offline mit google-wurzel + sperrliste; kein Play Integrity)
+  - plan: phase 5 bilder/videos nur an die echte app (router-ticket `appAttested`, per router-standard abschaltbar)
+  - plan: phase 6 senden/empfangen im hintergrund (siehe unten, variante A/B)
+  - offene entscheidungen: webview vs TWA, verteilung (router-APK/F-Droid), wer signiert, UnifiedPush/FCM, key attestation, screenshots immer/nur medien, umzug PWA -> app
 - [ ] die wrapper-app (siehe backlog "real application for android") stellt der PWA eine API bereit, um bilder zu senden und zu empfangen, auch offline bzw. wenn die app im hintergrund ist; grund: dauernd geladene PWA zieht viel akku
   - idee: PWA erkennt die bruecke (z. B. `window.OpenGridNative` bzw. `postMessage`-kanal der WebView) und gibt ihr ausgehende, schon verschluesselte nachrichten (pfad-C-ciphertext + empfaenger + msgId); die app liefert sie im hintergrund aus (router-cache/push, spaeter P2P) und meldet den status zurueck
   - empfangen: app nimmt web-push/FCM im hintergrund an, holt ciphertext aus `/api/cache`, legt ihn in einen eigenen speicher; beim oeffnen uebernimmt die PWA ihn (wie heute der SW, `MESSAGE_PUT`)

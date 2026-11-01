@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 272 · 2026-11-01
+## Build 273 · 2026-11-01
+- Behoben: Nachrichten mit Bild, Snap oder Link-Vorschau liessen sich nicht zum Antworten wischen, wenn der Finger auf dem Inhalt ansetzte
+
+## Build 272 · 2026-11-01 · `2407439`
 - Immer zwei Profile: eins fuer Entdecken, eins fuer "Chat & Freunde"; beim Einrichten stehen deine Angaben in beiden, danach pflegst du sie getrennt (der Schalter "Eigenes Profil" entfaellt)
 - Behoben: beim Entdecken war mitunter nicht das Entdecken-Profil zu sehen
 

@@ -37,7 +37,7 @@ Ideen ohne festen Termin. Neue Phasen werden von hier auf `tasks/board.md` gehol
 
 # bugs
 
-- [ ] messages sind nicht vollständig swipeable (bei content wie vorschau, bilder oder snaps)
+- [x] messages sind nicht vollständig swipeable (bei content wie vorschau, bilder oder snaps) -> 2026-11-01 behoben: wischen startet auch auf inhalten (siehe board T29)
 - [x] das profil bei exploring scheint nicht das exploring profil zu sein? Ah ich habs analysiert (2026-11-01: schalter entfernt, immer zwei profile, einrichten schreibt in beide; siehe board T28)
 	- es liegt daran dass man theoretisch 2 Profile pflegen kann das aber über die option eigenes profil ausschalten kann. nimm diese option samt schalter über dem profil raus, es sollte in jedem fall 2 Profile geben, das was man als erstes hatte bzw beim einrichten sollte in beide geschrieben werden, nicht beides aber ausfüllen müssen. ergo gibt es felder die in beiden existieren sollten beide gefüllt werden ansonsten bleibt das andere leer.
 

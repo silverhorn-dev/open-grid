@@ -215,7 +215,10 @@
   sofort), Esc, Zurueck, Chatwechsel; Aktionen laufen ueber `replaceModal`, erst
   nach dem Zurueck-Schritt des Menues.
 - Gesten (`client/app/gestures.js`, nur Touch): Nachricht wischen (fremde
-  nach rechts, eigene nach links, ab 56 px) = antworten; lange druecken
+  nach rechts, eigene nach links, ab 56 px) = antworten, auch wenn der Finger
+  auf Inhalten der Blase ansetzt (Bild, Snap, Link-Vorschau; der Klick danach
+  ist 400 ms unterdrueckt; dort kein langes Druecken und kein Doppeltippen,
+  Videos mit eigenen Bedienelementen ausgenommen); lange druecken
   (450 ms) = Kontextmenue; doppelt tippen = Reaktion ❤️; seitlich wischen
   (ab 80 px, nicht in den 24-px-Kantenzonen, nicht in horizontal scrollbaren
   Bereichen oder im offenen Chat) = Tab Grid/Chat/Profil wechseln; im Profil

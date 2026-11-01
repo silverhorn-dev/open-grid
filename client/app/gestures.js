@@ -180,9 +180,11 @@ function messageIdFromRow(row) {
 // ----- Nachrichten: wischen, lange druecken, doppelt tippen -----
 const messageGesture = { active: null, lastTap: null, frame: 0 };
 
-// Wischen startet in der ganzen Zeile, auch im Leerraum neben der Nachricht und auf dem kleinen
-// Aktionen-Pfeil (er sitzt genau dort, wo der Daumen beim Wischen nach rechts ansetzt). Andere
-// Knoepfe, Links und Medien bleiben ausgenommen.
+// Wischen startet in der ganzen Zeile, auch im Leerraum neben der Nachricht, auf dem kleinen
+// Aktionen-Pfeil und auf Inhalten (Bilder, Snaps, Link-Vorschauen, Knoepfe in der Blase): der Klick nach
+// einem Wischen wird unterdrueckt. Auf solchen Inhalten gibt es aber kein langes Druecken und kein
+// Doppeltippen (sie haben eigene Tipp-/Halte-Aktionen, z. B. Snap ansehen). Videos mit eigenen
+// Bedienelementen bleiben ausgenommen.
 // Schliessen per Wischen nach rechts (Hintergrund-Geste): im unsichtbaren Band in der Mitte immer, sonst
 // dort, wo keine Nachricht (Zeile) liegt, auf geloeschten Nachrichten und auf eigenen Nachrichten (die
 // werden nach links beantwortet).
@@ -203,9 +205,11 @@ function handleMessagePointerDown(event) {
         startChatCloseGesture(event);
         return;
     }
+    if (event.target.closest('video[controls]')) return;
     const control = event.target.closest('button, a, img, video, canvas');
-    if (control && !control.classList.contains('message-actions-toggle')) return;
+    const onContent = Boolean(control) && !control.classList.contains('message-actions-toggle');
     const gesture = {
+        onContent,
         pointerId: event.pointerId,
         row,
         wrap,
@@ -217,7 +221,7 @@ function handleMessagePointerDown(event) {
         offset: 0,
         longPressed: false
     };
-    gesture.longPressTimer = setTimeout(() => {
+    gesture.longPressTimer = onContent ? null : setTimeout(() => {
         if (messageGesture.active !== gesture || gesture.axis) return;
         gesture.longPressed = true;
         hapticTick(15);
@@ -343,7 +347,7 @@ function finishMessageGesture(event, cancelled) {
         gesture.row.querySelector('.reply-swipe-hint')?.remove();
         return;
     }
-    if (cancelled || gesture.axis || gesture.longPressed) return;
+    if (cancelled || gesture.axis || gesture.longPressed || gesture.onContent) return;
     // Doppelt tippen = Herz.
     const now = Date.now();
     const last = messageGesture.lastTap;

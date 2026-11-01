@@ -83,6 +83,31 @@ async function main() {
         assert.equal((await replyAfter(await point('#chat-message-m3', 'right'), 90)).reply, 'm3', 'swipe on the empty space next to an incoming message');
         assert.equal((await replyAfter(await point('#chat-message-m2', 'left'), -90)).reply, 'm2', 'swipe on the empty space next to an own message');
 
+        // Wischen auf Inhalten (Bild in der Blase): beantwortet die Nachricht, ein Tippen oeffnet weiter den Betrachter.
+        await page.evaluate(() => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 200;
+            canvas.height = 150;
+            const context = canvas.getContext('2d');
+            context.fillStyle = '#3366aa';
+            context.fillRect(0, 0, 200, 150);
+            state.chats.node_fake_gestures.push({ id: 'm4', senderId: 'node_fake_gestures', text: '', snapData: canvas.toDataURL('image/png'), snapMode: undefined, imageSize: { w: 200, h: 150 }, createdAt: Date.now(), timestamp: '12:01' });
+            renderChatHistory();
+        });
+        await page.waitForSelector('#chat-message-m4 canvas');
+        await page.waitForTimeout(300);
+        const onImage = await replyAfter(await point('#chat-message-m4 canvas', 'center'), 90);
+        assert.equal(onImage.reply, 'm4', 'swipe starting on an image replies');
+        assert.equal(await page.evaluate(() => isImageViewerOpen()), false, 'the swipe did not open the viewer');
+        // (Der Klick direkt nach einem Wischen ist 400 ms lang unterdrueckt.)
+        await page.waitForTimeout(500);
+        const imagePoint = await point('#chat-message-m4 canvas', 'center');
+        await page.touchscreen.tap(imagePoint.x, imagePoint.y);
+        await page.waitForTimeout(400);
+        assert.equal(await page.evaluate(() => isImageViewerOpen()), true, 'a tap still opens the viewer');
+        await page.evaluate(() => closeImageViewer());
+        await page.waitForTimeout(300);
+
         // Kontaktleiste: kurz ziehen tut nichts, weit nach unten oeffnet das Profil.
         const header = await point('#chat-header', 'center');
         await drag(header, 0, 30);

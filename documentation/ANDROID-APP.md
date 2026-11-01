@@ -1,8 +1,9 @@
 # Android-App fuer OpenGrid: Plan
 
 Stand: 2026-11-01. Plan fuer Board T4 und die Backlog-Ideen "real application for
-android". Noch kein Code; erst Entscheidungen (Abschnitt "Offene Entscheidungen"),
-dann Phase fuer Phase.
+android". Phase 1 + 2 sind als Code da (`android/`, `client/app/native.js`,
+`server/android-app.js`, Details in `SPECE.md` 9.0a), aber noch nicht gebaut
+und nicht auf einem Geraet geprueft.
 
 ## Ziel
 
@@ -165,3 +166,35 @@ dann 4 + 5 (Echtheit), zuletzt 6. Jede Phase einzeln nutzbar.
 
 Code liegt in einem eigenen Ordner `android/` im Repo (Kotlin, Gradle); Build
 im Docker-Container wie die Tests, damit niemand ein Android-SDK lokal braucht.
+Der Ordner bleibt eigenstaendig (keine Pfade ausserhalb), und die Bruecke
+traegt eine Protokollversion; so liesse sich die App spaeter in ein eigenes
+Repository verschieben. Jenkins baut das APK vorerst nicht (zu schwach).
+
+## Bauen
+
+- `sh android/build.sh` baut ein Debug-APK (Debug-Schluessel) in Docker
+  (`android/Dockerfile`: JDK 17, Gradle, Android-SDK 34; Gradle-Cache im
+  Volume `opengrid-android-gradle`). Ergebnis: `android/dist/opengrid.apk`
+  und `opengrid.apk.json` (Version), zum Ausliefern nach `ANDROID_APK_PATH`
+  kopieren.
+- `sh android/build.sh release` signiert mit `OPENGRID_KEYSTORE`
+  (+ `OPENGRID_KEYSTORE_PASSWORD`, `OPENGRID_KEY_ALIAS`, `OPENGRID_KEY_PASSWORD`).
+  Schluessel nie ins Repository.
+- Platzbedarf: Image etwa 1,5 GB plus Gradle-Cache.
+- Eigene Builds mit App-Links fuer die eigene Domain:
+  `gradle -Popengrid.appLinkHost=grid.example.org ...`; dazu den Fingerabdruck
+  des eigenen Schluessels in `ANDROID_APP_SIGNERS` eintragen.
+
+## Noch offen in Phase 1 + 2
+
+- Projekt-Release-Schluessel anlegen und seinen Fingerabdruck in
+  `PROJECT_APP_SIGNERS` (`server/android-app.js`) eintragen.
+- QR-Code `opengrid://connect?url=...` im Admin-Panel bzw. auf der Info-Seite
+  zeigen (die App nimmt den Link schon an).
+- Altersnachweis mit Weiterleitung (OIDC, Wallet): der Anbieter oeffnet im
+  Browser; zurueck in die App kommt `/age-callback` nur mit verifiziertem
+  App-Link (eigener Build mit `appLinkHost`). Loesung fuer die Projekt-App
+  offen (z. B. Custom Tab und Rueckweg ueber `opengrid://open`).
+- Benachrichtigungen gibt es in der App erst mit Phase 3 (UnifiedPush).
+- Erster Build und Pruefung auf einem Geraet (Kamera, WebRTC, Service Worker,
+  `FLAG_SECURE`, Teilen).

@@ -2,7 +2,12 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 274 · 2026-11-01
+## Build 278 · 2026-11-01
+- Neu (Vorschau, noch nicht gebaut): Android-App als eigene Huelle um die PWA des eigenen Routers, mit Bildschirmfoto-Sperre in Snaps, Alben, Bildern, Videos, Status, Profilen und Flirt-Chats
+- Teilen aus anderen Apps in die Android-App fuehrt zur gewohnten Chatauswahl
+- Router: APK-Download unter /app/opengrid.apk mit Update-Hinweis in der App; weitere Signatur-Schluessel der App im Admin-Panel einstellbar
+
+## Build 274 · 2026-11-01 · `4e28d4b`
 - Behoben: nach dem Entfernen eines Freundes (Match bleibt) war weiter sein Freundes-Profil zu sehen statt seines Entdecken-Profils
 - Die Reiter "Dating | Freunde" gibt es nur noch beim Entdecken; in "Chat & Freunde" siehst du direkt das Freundes-Profil
 

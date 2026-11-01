@@ -12,6 +12,7 @@ import { createSafety, createSafetyCrypto, loadSafetyKey, parseSafetyConfig, reg
 import { registerAdminRoutes } from './admin.js';
 import { createMetrics } from './metrics.js';
 import { createLiveConfig } from './live-config.js';
+import { createApkSource, effectiveAppSigners, parseAppSigners, registerAndroidAppRoutes } from './android-app.js';
 import { registerReportRoutes } from './reports.js';
 import { createEudiAgeProvider, parseEudiDoctypes, registerEudiTestRoutes } from './age-eudi.js';
 import { createOidcAgeProvider, describeOidcConfig, parseOidcConfig } from './age-oidc.js';
@@ -208,6 +209,7 @@ const clientAssetFiles = [
     'app/safety.js',
     'app/age-test.js',
     'app/share-target.js',
+    'app/native.js',
     'app/main.js'
 ];
 // Abschaltbare Teile (client/app/features.js): ist ein Teil aus, liefert der Router weder diese Dateien
@@ -530,6 +532,15 @@ export async function buildApp(options = {}) {
         cooldownMinutes: flameSettingFromEnv('cooldownMinutes', options.flameCooldownMinutes ?? process.env.FLAME_COOLDOWN_MINUTES, app.log)
     };
     const flameSettings = { ...flameEnv };
+    // Android-App (server/android-app.js): APK-Datei und zusaetzliche Signatur-Schluessel (live aenderbar).
+    const androidSignersEnv = options.androidAppSigners ?? process.env.ANDROID_APP_SIGNERS ?? '';
+    let androidAppSigners = [];
+    try {
+        androidAppSigners = parseAppSigners(androidSignersEnv);
+    } catch (error) {
+        app.log.warn(`${error.message}; ignoring ANDROID_APP_SIGNERS`);
+    }
+    const apkSource = createApkSource(options.androidApkPath ?? process.env.ANDROID_APK_PATH ?? join(projectDirectory, 'data', 'opengrid.apk'), { now: options.now || Date.now });
     const profileSchemas = options.profileSchemas
         || parseProfileSchemas(process.env.PROFILE_SCHEMAS, profileSchema, appModes);
     // Mindestwerte fuer "Nur zeigen fuer ..." (z. B. {"ranges":{"age":{"min":18}}}), je Grid-Bereich gegen
@@ -616,6 +627,9 @@ export async function buildApp(options = {}) {
         payload.on('error', done);
     });
     app.post('/share-target', async (_request, reply) => reply.redirect('/chat?share=unavailable', 303));
+
+    // APK-Download und App-Zuordnung (documentation/ANDROID-APP.md).
+    registerAndroidAppRoutes(app, { apkSource, signers: () => effectiveAppSigners(androidAppSigners) });
 
     app.get('/sw.js', async (_request, reply) => {
         return reply
@@ -845,6 +859,11 @@ export async function buildApp(options = {}) {
             FLAME_COOLDOWN_MINUTES: {
                 env: flameEnv.cooldownMinutes,
                 apply: value => { flameSettings.cooldownMinutes = parseFlameSetting('cooldownMinutes', value); }
+            },
+            ANDROID_APP_SIGNERS: {
+                env: androidAppSigners,
+                prepare: value => parseAppSigners(value),
+                apply: value => { androidAppSigners = parseAppSigners(value); }
             },
             CLIENT_DEFAULTS: {
                 env: clientDefaults,
@@ -1135,7 +1154,7 @@ export async function buildApp(options = {}) {
     });
     app.post('/api/unregister', unregister);
 
-    app.get('/api/config', async () => ({ features: [...enabledFeatures()], flames: { ...flameSettings }, modes: appModes, defaultMode: defaultAppMode, profileSchemas, lanMode: isLanMode, clientDefaults, infoUrl: infoSiteUrl(infoHost), safety: safety.publicConfig(), nudity: { ...nudityPublicConfig, required: nudityScanRequired },
+    app.get('/api/config', async () => ({ features: [...enabledFeatures()], android: { ...(await apkSource.publicInfo()), signers: effectiveAppSigners(androidAppSigners) }, flames: { ...flameSettings }, modes: appModes, defaultMode: defaultAppMode, profileSchemas, lanMode: isLanMode, clientDefaults, infoUrl: infoSiteUrl(infoHost), safety: safety.publicConfig(), nudity: { ...nudityPublicConfig, required: nudityScanRequired },
         // Fuer die Anzeige in den Einstellungen ("vom Server vorgegeben").
         audienceMinimum: audienceMinimumRule ? (typeof audienceMinimumRule === 'string' ? JSON.parse(audienceMinimumRule) : audienceMinimumRule) : null }));
 

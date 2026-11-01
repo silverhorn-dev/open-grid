@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="setup_title">Mit deinem Router verbinden</string>
+    <string name="setup_help">Gib die Adresse deines OpenGrid-Routers ein oder scanne den QR-Code aus seinem Admin-Panel mit der Kamera-App.</string>
+    <string name="setup_connect">Verbinden</string>
+    <string name="setup_invalid">Bitte eine https://-Adresse eingeben.</string>
+    <string name="setup_confirm_title">Diesen Router nutzen?</string>
+    <string name="setup_confirm_switch">Deine Daten beim bisherigen Router bleiben in der App, werden aber nicht angezeigt, solange du einen anderen Router nutzt.</string>
+    <string name="action_cancel">Abbrechen</string>
+    <string name="action_switch_router">Router wechseln</string>
+    <string name="update_title">Update verfügbar</string>
+    <string name="update_message">Version %1$s der OpenGrid-App liegt auf deinem Router bereit.</string>
+    <string name="update_download">Herunterladen</string>
+    <string name="update_later">Später</string>
+</resources>

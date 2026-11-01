@@ -124,8 +124,13 @@
   - empfehlung (vorschlag, nutzer entscheidet): start mit NSFWJS MobileNetV2 (MIT/MIT, klein, erprobt), modell + TF.js vom eigenen router ausliefern (keine CDN, regel 1), nur laden wenn der filter an ist, im SW-cache halten, im web worker rechnen; unscharf ab porn+hentai >= 0.7 ("sexy" nicht); vorher eigene testsammlung (auch maennliche motive) zur abschaetzung von fehlalarmen/treffern; Bumble als zweiter kandidat, falls die erkennung nicht reicht (umwandlung noetig)
 
 ## T4 Wrapper-App: native API zum Senden/Empfangen (wunsch 2026-10-27, erst planen)
-- plan 2026-11-01: `documentation/ANDROID-APP.md` (wartet auf entscheidungen)
-  - plan: phase 1 huelle (eigene WebView, `FLAG_SECURE`, router per QR, APK vom router) + phase 2 bruecke (`addWebMessageListener`, nur router-ursprung)
+- plan 2026-11-01: `documentation/ANDROID-APP.md`
+  - [x] phase 1 huelle + phase 2 bruecke als code (2026-11-01): `android/` (WebView, rechte nur fuer den router, `opengrid://connect`, teilen, update-hinweis), `client/app/native.js` (`secureScreen` per `data-secure-screen`, `takeShare`), router `/app/opengrid.apk`, `/.well-known/assetlinks.json`, `ANDROID_APP_SIGNERS` live
+  - [ ] erster build (`sh android/build.sh`, ~1,5 GB image; jenkins baut es vorerst nicht) + test auf einem geraet: kamera, WebRTC, SW, `FLAG_SECURE`, teilen
+  - [ ] projekt-release-schluessel anlegen, fingerabdruck in `PROJECT_APP_SIGNERS`
+  - [ ] QR `opengrid://connect?url=...` im admin-panel / auf der info-seite
+  - [ ] altersnachweis mit weiterleitung (OIDC/wallet) in der app: rueckweg ohne verifizierten app-link klaeren
+  - plan: phase "umzug PWA -> app per QR" (vor der bekanntmachung)
   - plan: phase 3 push ohne browser (UnifiedPush, gleiche RFC-8291-nachrichten wie heute; FCM optional)
   - plan: phase 4 echtheit (Android Key Attestation, router prueft die kette offline mit google-wurzel + sperrliste; kein Play Integrity)
   - plan: phase 5 bilder/videos nur an die echte app (router-ticket `appAttested`, per router-standard abschaltbar)

@@ -1778,6 +1778,52 @@ automatisch senden; Titel/Link, die schon im Text stehen, entfallen). Ohne
 aktiven Worker beantwortet der Server den POST ohne zu speichern mit `303` auf
 `/chat?share=unavailable`. Nur installierte PWA, nicht auf iOS.
 
+### 9.0a Android-App: Huelle und Bruecke (`android/`, `client/app/native.js`)
+
+Plan und Entscheidungen: `documentation/ANDROID-APP.md` (Phase 1 + 2).
+
+- Die App (`org.opengrid.app`, Kotlin, minSdk 26) zeigt die PWA genau eines
+  Routers in einer WebView. Router-Adresse beim ersten Start (nur `https://`;
+  `http://` nur im Debug-Build fuer `10.0.2.2`/`localhost`) oder per Link
+  `opengrid://connect?url=<router>` (z. B. aus einem QR-Code); ein anderer
+  Router nur nach Rueckfrage. Fremde Ursprunge oeffnen im Browser.
+- Rechte (Kamera, Mikrofon, Standort) und Dateiauswahl nur fuer den
+  Router-Ursprung; die WebView haengt `OpenGridApp/<version>` an den User-Agent.
+  Zurueck-Taste = `history.back` der WebView (Modals haengen an der History).
+- Keine Sicherung der App-Daten (`allowBackup=false`, Ausschluss in
+  `data_extraction_rules`); Umzug spaeter per QR (Entscheidung 7).
+- Bruecke: `WebViewCompat.addWebMessageListener` mit dem Objekt
+  `window.OpenGridNative`, nur fuer den Router-Ursprung und nur im Hauptframe.
+  JSON-Texte, Protokoll `v: 1`:
+  - Anfrage der Seite `{ v, id, type, data }`, Antwort `{ v, id, ok, result | error }`
+    (Zeitlimit in der Seite 10 s).
+  - Ereignis der App `{ v, event, data }`.
+  - `capabilities` -> `{ protocol, versionName, versionCode, secureScreen, share }`.
+  - `secureScreen { on }` setzt bzw. loescht `FLAG_SECURE` (keine
+    Bildschirmfotos/-aufnahmen, schwarzes Bild in "Letzte Apps").
+  - `takeShare` -> geteilter Inhalt oder `null` (einmalig): `{ title, text,
+    files: [{ type, data (base64) }], skipped }`; bis 20 Bilder, je 15 MB,
+    zusammen 40 MB. Ereignis `shareReady`, wenn die Seite schon laeuft. Die
+    Seite zeigt dieselbe Chatauswahl wie beim `share_target` (9.0).
+  - Die Listen der Typen stehen in `native.js` und `Bridge.kt`; ein Test
+    vergleicht sie.
+- Bildschirmfoto-Sperre: die Seite prueft (gebuendelt pro Bild nach
+  DOM-Aenderungen), ob ein Element mit `data-secure-screen` oder ein
+  `canvas.secure-image` sichtbar ist, und meldet nur Wechsel. Markiert:
+  Profil-Popup, Medien-Fenster (Alben), Bild- und Videobetrachter, Secure
+  Snaps, Status-Ansicht; `#chat-messages` im Flirt-/Privat-Modus; sichere
+  Bilder im Chat sind Canvas.
+- Router: `GET /app/opengrid.apk` liefert die Datei unter `ANDROID_APK_PATH`
+  (Standard `data/opengrid.apk`, 404 ohne Datei); `/api/config.android` =
+  `{ available, url, versionCode, versionName, sha256, size, signers }`
+  (Version aus `<apk>.json`, vom Build geschrieben; Metadaten 60 s
+  zwischengespeichert). Die App vergleicht `versionCode` beim Start und bietet
+  das neue APK an.
+- `GET /.well-known/assetlinks.json`: Digital Asset Links fuer
+  `org.opengrid.app` mit allen Signatur-Fingerabdruecken (Projekt +
+  `ANDROID_APP_SIGNERS`), 404 ohne Fingerabdruck. Relationen `handle_all_urls`
+  und `get_login_creds`.
+
 ### 9.1 Offline (App-Shell)
 
 Der Server setzt beim Ausliefern von `/sw.js` die Asset-Version und die

@@ -1216,3 +1216,23 @@ Akzeptanzkriterien:
 - Erhaltene Flammen stapeln sich: 2 = Doppelflamme, ab 3 = Flamme mit Zahl.
 - Flammen verschwinden nach der vom Router festgelegten Zeit (Standard 2 Tage);
   Match aufloesen loescht sie.
+
+## UC-72: OpenGrid als Android-App
+
+**Als Nutzer** moechte ich OpenGrid als App auf Android nutzen, damit
+Bildschirmfotos von Medien und Flirt-Chats gesperrt sind.
+
+Akzeptanzkriterien:
+
+- Das APK gibt es auf dem eigenen Router (`/app/opengrid.apk`); beim ersten
+  Start gibt man die Router-Adresse ein oder oeffnet einen
+  `opengrid://connect`-Link.
+- Die App zeigt nur diesen Router; fremde Links oeffnen im Browser.
+- Kamera, Mikrofon, Standort und Dateiauswahl funktionieren wie im Browser,
+  nur fuer den Router.
+- In Snaps, Alben, Bild- und Videobetrachter, Status, Profil-Popup und
+  Flirt-/Privat-Chats sind Bildschirmfotos und -aufnahmen gesperrt, sonst
+  nicht.
+- Teilen aus anderen Apps (Bilder, Text) fuehrt zur Chatauswahl.
+- Liegt auf dem Router eine neuere Version, bietet die App sie beim Start an.
+- Ohne App (Browser, PWA) aendert sich nichts.

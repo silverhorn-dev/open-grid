@@ -4,3 +4,11 @@ data/
 # Wird von `npm run build:css` erzeugt
 client/tailwind.css
 models/nudenet/
+# Android-Build (android/build.sh)
+android/.gradle/
+android/build/
+android/app/build/
+android/dist/
+android/local.properties
+*.keystore
+*.jks

@@ -47,6 +47,7 @@ window.onload = async () => {
     // kommt, sobald Datenbank und Chatliste bereit sind.
     if (initialRoute.peerId) showChatLoadingPlaceholder();
     window.addEventListener('popstate', handlePopState);
+    initNativeBridge();
     initImageViewer();
     initSettingsTabs();
     initVideoViewer();
@@ -153,6 +154,7 @@ window.onload = async () => {
         if (state.pendingAgeCallback) finishPendingAgeCallback().catch(error => logDebug(`Age check failed: ${error.message}`));
         if (state.pendingInvite) acceptPendingInvite().catch(error => logDebug(`Invite failed: ${error.message}`));
         handleIncomingShare().catch(error => logDebug(`Share target failed: ${error.message}`));
+        handleNativeShare().catch(error => logDebug(`Native share failed: ${error.message}`));
         const chatInput = document.getElementById('chat-input');
         chatInput.addEventListener('input', () => {
             fitChatInput(chatInput);

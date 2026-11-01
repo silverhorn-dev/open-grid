@@ -1082,7 +1082,7 @@
     </div>
     <!-- /feature:safety -->
 
-    <div id="profile-detail-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-start justify-center p-4 overflow-y-auto">
+    <div id="profile-detail-modal" data-secure-screen class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-start justify-center p-4 overflow-y-auto">
         <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full overflow-hidden shadow-2xl space-y-0 my-auto">
             <div class="relative h-64 bg-slate-950">
                 <img id="modal-profile-img" src="" data-i18n-attr="alt:profile.pictureOpen" alt="Profilbild gross ansehen" class="w-full h-full object-cover cursor-zoom-in" data-click="openProfileImageViewer" data-args='["$src"]'>
@@ -1127,7 +1127,7 @@
     </div>
 
     <!-- Medien: Alben, Medienuebersicht, Albumauswahl -->
-    <div id="media-modal" class="hidden fixed inset-0 z-65 bg-slate-950/90 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="media-modal-title">
+    <div id="media-modal" data-secure-screen class="hidden fixed inset-0 z-65 bg-slate-950/90 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="media-modal-title">
         <div class="bg-slate-900 border border-slate-800 w-full sm:max-w-2xl max-h-[90dvh] rounded-t-2xl sm:rounded-2xl flex flex-col overflow-hidden">
             <div class="flex items-center justify-between gap-3 p-4 border-b border-slate-800">
                 <h3 data-i18n="common.media" id="media-modal-title" class="font-bold text-sm text-slate-100 truncate">Medien</h3>
@@ -1140,7 +1140,7 @@
     </div>
 
     <!-- Bildbetrachter (Vollbild) -->
-    <div data-i18n-attr="aria-label:viewer.imageViewer" id="image-viewer" class="hidden fixed inset-0 z-80 bg-black flex flex-col select-none" data-no-context-menu role="dialog" aria-modal="true" aria-label="Bildbetrachter">
+    <div data-i18n-attr="aria-label:viewer.imageViewer" id="image-viewer" data-secure-screen class="hidden fixed inset-0 z-80 bg-black flex flex-col select-none" data-no-context-menu role="dialog" aria-modal="true" aria-label="Bildbetrachter">
         <div class="absolute top-0 inset-x-0 z-10 p-4 flex items-center justify-between bg-linear-to-b from-black/70 to-transparent" style="padding-top: max(1rem, env(safe-area-inset-top));">
             <span id="image-viewer-counter" class="mr-auto text-sm font-semibold text-white/90"></span>
             <button data-i18n-attr="aria-label:viewer.shareImage" id="image-viewer-share" data-click="shareViewerImage" class="hidden mr-2 h-11 px-4 rounded-full bg-black/50 text-white text-sm font-semibold flex items-center gap-2" aria-label="Bild teilen">
@@ -1169,7 +1169,7 @@
     </div>
 
     <!-- Video-Viewer (video.js): wie der Bildbetrachter; nach unten wischen schliesst -->
-    <div data-i18n-attr="aria-label:chat.video" id="video-viewer" class="hidden fixed inset-0 z-80 bg-black flex flex-col select-none" data-no-context-menu role="dialog" aria-modal="true" aria-label="Video">
+    <div data-i18n-attr="aria-label:chat.video" id="video-viewer" data-secure-screen class="hidden fixed inset-0 z-80 bg-black flex flex-col select-none" data-no-context-menu role="dialog" aria-modal="true" aria-label="Video">
         <div class="absolute top-0 inset-x-0 z-10 p-4 flex items-center justify-between gap-3 bg-linear-to-b from-black/70 to-transparent pointer-events-none" style="padding-top: max(1rem, env(safe-area-inset-top));">
             <div class="min-w-0">
                 <div id="video-viewer-title" class="text-sm font-semibold text-white/90 truncate"></div>
@@ -1191,7 +1191,7 @@
     </div>
 
     <!-- Status-Viewer (status.js): links/rechts tippen = zurueck/weiter -->
-    <div data-i18n-attr="aria-label:common.status" id="status-viewer" class="hidden fixed inset-0 z-82 bg-black select-none" data-no-context-menu role="dialog" aria-modal="true" aria-label="Status">
+    <div data-i18n-attr="aria-label:common.status" id="status-viewer" data-secure-screen class="hidden fixed inset-0 z-82 bg-black select-none" data-no-context-menu role="dialog" aria-modal="true" aria-label="Status">
         <div id="status-viewer-content" class="absolute inset-0 flex items-center justify-center">
             <canvas data-i18n-attr="aria-label:common.status" id="status-viewer-image" role="img" aria-label="Status" class="secure-image hidden max-w-full max-h-full object-contain"></canvas>
             <div id="status-viewer-text"></div>
@@ -1218,7 +1218,7 @@
     </div>
 
     <!-- Secure-Snap-Viewer -->
-    <div data-i18n-attr="aria-label:common.secureSnap" id="secure-snap-viewer" class="hidden fixed inset-0 z-85 bg-black flex items-center justify-center select-none touch-none overscroll-none" style="-webkit-touch-callout: none;" data-no-context-menu role="dialog" aria-modal="true" aria-label="Secure Snap">
+    <div data-i18n-attr="aria-label:common.secureSnap" id="secure-snap-viewer" data-secure-screen class="hidden fixed inset-0 z-85 bg-black flex items-center justify-center select-none touch-none overscroll-none" style="-webkit-touch-callout: none;" data-no-context-menu role="dialog" aria-modal="true" aria-label="Secure Snap">
         <video id="secure-snap-video" class="hidden w-full h-full object-contain pointer-events-none origin-center" playsinline muted disablepictureinpicture></video>
         <canvas data-i18n-attr="aria-label:common.snap" id="secure-snap-image" role="img" aria-label="Snap" class="secure-image hidden w-full h-full object-contain pointer-events-none origin-center"></canvas>
         <div id="secure-snap-status" class="absolute inset-x-8 top-1/2 -translate-y-1/2 text-center text-sm text-slate-200"></div>
@@ -1397,6 +1397,7 @@
     <script src="/client/app/age-test.js?v={{assetVersion}}"></script>
     <!-- /feature:agetest -->
     <script src="/client/app/share-target.js?v={{assetVersion}}"></script>
+    <script src="/client/app/native.js?v={{assetVersion}}"></script>
     <script src="/client/app/main.js?v={{assetVersion}}"></script>
 </body>
 </html>

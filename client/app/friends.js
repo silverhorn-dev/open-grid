@@ -419,6 +419,8 @@ function updateFlirtButton() {
     document.getElementById('chat-send-group')?.classList.toggle('is-flirt', flirting);
     document.getElementById('chat-input-bar')?.classList.toggle('is-flirt', flirting);
     document.getElementById('chat-compose-row')?.classList.toggle('is-flirt', flirting);
+    // Android-App: im Flirt-/Privat-Modus keine Bildschirmfotos (client/app/native.js).
+    document.getElementById('chat-messages')?.toggleAttribute('data-secure-screen', flirting);
     // Platz unten im Verlauf, damit die Lasche nie die letzte Nachricht verdeckt.
     document.getElementById('chat-messages')?.classList.toggle('has-flirt-tab', tabShown);
     const input = document.getElementById('chat-input');

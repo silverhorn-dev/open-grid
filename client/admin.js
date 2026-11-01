@@ -402,6 +402,7 @@ const LIVE_SETTINGS = {
     NUDITY_SCAN_REQUIRED: { type: 'select', label: () => t('admin.settingNudityScanRequired') },
     FLAME_VISIBLE_HOURS: { type: 'number', min: 1, max: 720, step: 1, label: () => t('admin.settingFlameVisible') },
     FLAME_COOLDOWN_MINUTES: { type: 'number', min: 1, max: 10080, step: 1, label: () => t('admin.settingFlameCooldown') },
+    ANDROID_APP_SIGNERS: { type: 'json', label: () => t('admin.settingAndroidSigners') },
     CLIENT_DEFAULTS: { type: 'json', label: () => t('admin.settingClientDefaults') },
     AUDIENCE_MINIMUM: { type: 'json', label: () => t('admin.settingAudienceMinimum') }
 };

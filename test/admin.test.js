@@ -427,3 +427,21 @@ test('flame visibility and cooldown come from the router, live editable', async 
     assert.equal((await app.inject({ method: 'DELETE', url: '/api/admin/config/FLAME_VISIBLE_HOURS', headers: H(cookie) })).statusCode, 200);
     assert.equal((await appConfig(app)).flames.visibleHours, 48);
 });
+
+test('android app signers are live editable and feed assetlinks.json', async () => {
+    const store = createStore(':memory:');
+    const app = await buildApp({ store, buildVersion: 'test', buildTimestamp: 'x', appUrl: ORIGIN, adminSetupToken: SETUP, androidApkPath: '/nonexistent/opengrid.apk' });
+    cleanup.push(async () => { await app.close(); store.close(); });
+    assert.equal((await app.inject({ method: 'GET', url: '/.well-known/assetlinks.json' })).statusCode, 404, 'no signers, no file');
+    const cookie = await setupPasskey(app, authenticator());
+    assert.equal((await put(app, 'ANDROID_APP_SIGNERS', '["not-a-fingerprint"]', cookie)).statusCode, 400);
+    const fingerprint = 'ab'.repeat(32);
+    assert.equal((await put(app, 'ANDROID_APP_SIGNERS', `["${fingerprint}"]`, cookie)).statusCode, 200);
+    const expected = Array(32).fill('AB').join(':');
+    assert.deepEqual((await appConfig(app)).android.signers, [expected]);
+    const links = (await app.inject({ method: 'GET', url: '/.well-known/assetlinks.json' })).json();
+    assert.deepEqual(links[0].target.sha256_cert_fingerprints, [expected]);
+    assert.equal(links[0].target.package_name, 'org.opengrid.app');
+    assert.equal((await app.inject({ method: 'DELETE', url: '/api/admin/config/ANDROID_APP_SIGNERS', headers: H(cookie) })).statusCode, 200);
+    assert.deepEqual((await appConfig(app)).android.signers, []);
+});

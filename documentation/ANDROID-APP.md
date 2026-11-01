@@ -38,8 +38,7 @@ nativ (siehe Phase 3).
 
 Wichtig: Die WebView speichert ihre Daten (IndexedDB, Schluessel) getrennt vom
 Browser. Wer von der PWA zur App wechselt, hat dort zunaechst eine neue
-Identitaet. Umzug: spaeter ueber den vorhandenen Export/Import bzw. einen
-QR-Uebertrag (eigene Phase, nicht im ersten Schritt).
+Identitaet. Einen Export/Import gibt es noch nicht; Umzug siehe Entscheidung 7.
 
 ## Phasen
 
@@ -126,19 +125,25 @@ QR-Uebertrag (eigene Phase, nicht im ersten Schritt).
   Worker, `MESSAGE_PUT`). Mit Variante B zeigt die App Name und Vorschau.
 - P2P im Hintergrund (natives WebRTC) erst, wenn noetig: doppelte Logik.
 
-## Offene Entscheidungen
+## Entscheidungen
 
-1. **Art der App**: eigene WebView-App (Empfehlung) oder TWA?
-2. **Verteilung**: APK vom eigenen Router, F-Droid oder beides? (Play Store
-   widerspricht Regel 4.)
-3. **Wer signiert das APK**: das Projekt (ein Schluessel, alle Router pinnen
-   ihn) oder jeder Betreiber selbst (eigener Build)?
-4. **Push**: nur UnifiedPush (Empfehlung) oder zusaetzlich FCM?
-5. **Echtheitsnachweis**: Android Key Attestation (Empfehlung) statt Play
-   Integrity?
-6. **Bildschirmfotos**: immer sperren oder nur in Medienansichten (Snaps, Alben,
-   Bilder)?
-7. **Umzug PWA -> App**: von Anfang an (Phase 1) oder spaeter?
+Entschieden 2026-11-01 (Nutzer):
+
+1. **Art der App**: eigene WebView-App.
+2. **Verteilung**: beides, APK vom eigenen Router und F-Droid.
+3. **Signatur**: das Projekt signiert seine APKs (Standard-Fingerabdruck im
+   Router); Betreiber koennen weitere Signatur-Schluessel eintragen (eigene
+   Builds), z. B. Router-Einstellung `ANDROID_APP_SIGNERS` (Liste von SHA-256),
+   live im Admin-Panel.
+6. **Bildschirmfotos**: nur in Medienansichten (Snaps, Alben, Bilder im
+   Betrachter und im Chat), in Profilen aus dem Grid und im Flirt-Modus; die
+   PWA schaltet `FLAG_SECURE` dort ueber die Bruecke ein und beim Verlassen aus.
+
+Noch offen:
+
+4. **Push**: nur UnifiedPush oder zusaetzlich FCM? (Besprechung, siehe Chat)
+5. **Echtheitsnachweis**: Android Key Attestation? (Erklaerung offen)
+7. **Umzug PWA -> App**: wann und wie? (Vorschlag offen)
 
 ## Reihenfolge (Vorschlag)
 

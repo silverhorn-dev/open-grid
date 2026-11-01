@@ -1071,6 +1071,18 @@ Akzeptanzkriterien:
   "Entdecken"/"Event", sondern sieht einen Hinweis; der eigene Einladungslink
   fuehrt dann in den Chat-Bereich. Einladungen aus "Chat & Freunde" gehen normal.
 
+## UC-71: Alter aktualisieren
+
+**Als Nutzer** mit Nachweis "unter 18" moechte ich nach meinem 18. Geburtstag
+in die Gruppe ab 18 wechseln, ohne ein neues Profil anzulegen.
+
+Akzeptanzkriterien:
+
+- Unter Privatsphaere > Nachweise steht die Gruppe laut Nachweis und der Knopf
+  "Alter aktualisieren" (nur mit Anbieter-Nachweis).
+- Ein neuer Nachweis ersetzt den alten; Entdecken zeigt danach die passende
+  Gruppe.
+
 ## UC-62: Chat per Wischen schliessen (Hintergrund-Geste)
 
 **Als Nutzer** moechte ich einen Chat mit einem Wisch nach rechts schliessen, ohne

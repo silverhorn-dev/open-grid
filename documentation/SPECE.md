@@ -1836,6 +1836,9 @@ Ein Klick auf die Benachrichtigung fokussiert die App und oeffnet den Chat
     `dev`: `over18: false`) -> minor statt Ablehnung. `/api/safety/status` liefert
     `age.group`, `age/finish` `{ ok, group }`. Ist ein Altersnachweis verlangt,
     filtert `/api/grid` (public und event) auf dieselbe Gruppe wie der Anfragende.
+  - "Alter aktualisieren" (seit 2026-11-01, Karte Nachweise, nur `AGE_CHECK=provider`
+    mit vorhandenem Nachweis): startet den Anbieter-Nachweis erneut; der neue ersetzt
+    den alten (`upsertVerification`), die Altersgruppe folgt ihm (z. B. inzwischen 18).
   - Pflicht-Scan `NUDITY_SCAN_REQUIRED` (live): `/api/config.nudity.required`. App:
     `nudityScanForced()` (minors/minor-chats: Gruppe minor; everyone: alle) erzwingt
     den Filter (Schalter gesperrt, Hinweis); bei `minor-chats` setzen Nachrichten

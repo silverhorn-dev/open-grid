@@ -227,3 +227,16 @@ test('age separation can be switched off by the operator (undocumented)', async 
     const people = await verifiedPeople(app, [['adult-a', true], ['minor-a', false]]);
     assert.deepEqual((await grid(app, 'adult-a', people['adult-a'])).json().peers.map(peer => peer.id).sort(), ['adult-a', 'minor-a']);
 });
+
+test('a new age proof replaces the old one: under 18 today, 18 later (update age)', async () => {
+    const { app } = await startApp({ ageCheck: 'provider', ageProvider: 'dev' });
+    const { headers } = await register(app, 'teen');
+    const finish = over18 => app.inject({ method: 'POST', url: '/api/safety/age/finish', headers, payload: { peerId: 'teen', payload: { over18, subject: 'person-teen' } } });
+    const group = async () => (await app.inject({ method: 'GET', url: '/api/safety/status?peerId=teen', headers })).json().age.group;
+    assert.equal((await finish(false)).json().group, 'minor');
+    assert.equal(await group(), 'minor');
+    // Spaeter: "Alter aktualisieren" startet den Nachweis erneut, auch mit gueltigem Nachweis.
+    assert.equal((await app.inject({ method: 'POST', url: '/api/safety/age/start', headers, payload: { peerId: 'teen' } })).statusCode, 200);
+    assert.equal((await finish(true)).json().group, 'adult');
+    assert.equal(await group(), 'adult', 'new proof wins');
+});

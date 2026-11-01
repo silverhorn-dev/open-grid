@@ -59,6 +59,21 @@ function renderSafetyCard() {
     const status = document.getElementById('safety-card-status');
     if (status) status.textContent = missing.length ? t('safety.verificationMissing') : t('safety.allVerified');
     document.getElementById('safety-card-btn')?.classList.toggle('hidden', !missing.length);
+    // "Alter aktualisieren": mit vorhandenem Anbieter-Nachweis einen neuen erbringen (z. B. inzwischen 18).
+    // Der neue ersetzt den alten, die Gruppe (unter 18 / ab 18) folgt dem neuen.
+    const update = document.getElementById('safety-age-update');
+    if (update) {
+        update.classList.toggle('hidden', !(safetyConfig().ageCheck === 'provider' && state.ageGroup && !missing.includes('age')));
+        const hint = document.getElementById('safety-age-group');
+        if (hint) {
+            hint.textContent = state.ageGroup === 'minor' ? t('safety.groupMinor') : state.ageGroup === 'adult' ? t('safety.groupAdult') : '';
+            hint.classList.toggle('hidden', !state.ageGroup || safetyConfig().ageCheck !== 'provider');
+        }
+    }
+}
+
+function updateAgeProof() {
+    return startAgeProviderCheck();
 }
 
 function openSafetyGate() {

@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 270 · 2026-10-31
+## Build 271 · 2026-11-01
+- Nachweise: "Alter aktualisieren" fuer einen neuen Altersnachweis (z. B. nach dem 18. Geburtstag), die Gruppe beim Entdecken wechselt mit
+
+## Build 270 · 2026-10-31 · `ba64ec9`
 - Lasche ausblenden (lange druecken) zeigt keine Meldung mehr
 
 ## Build 269 · 2026-10-30 · `cbd666a`

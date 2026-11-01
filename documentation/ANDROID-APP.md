@@ -139,11 +139,24 @@ Entschieden 2026-11-01 (Nutzer):
    Betrachter und im Chat), in Profilen aus dem Grid und im Flirt-Modus; die
    PWA schaltet `FLAG_SECURE` dort ueber die Bruecke ein und beim Verlassen aus.
 
-Noch offen:
-
-4. **Push**: nur UnifiedPush oder zusaetzlich FCM? (Besprechung, siehe Chat)
-5. **Echtheitsnachweis**: Android Key Attestation? (Erklaerung offen)
-7. **Umzug PWA -> App**: wann und wie? (Vorschlag offen)
+4. **Push**: UnifiedPush (Standard; ntfy als Verteiler in der Doku bzw. im
+   Compose-Beispiel empfehlen, ggf. ein einfacher Verteiler in der App). Kein
+   FCM, hoechstens spaeter, falls Nutzer ohne Verteiler nicht zurechtkommen.
+5. **Echtheitsnachweis**: Android Key Attestation (kein Play Integrity).
+7. **Umzug PWA -> App**: per QR-Code (eigene Phase direkt nach Phase 1 + 2, vor
+   der Bekanntmachung der App):
+   - PWA: "Auf App uebertragen" zeigt einen QR-Code mit Einmal-Schluessel.
+   - Die App scannt ihn, beide verbinden sich direkt (WebRTC wie Chats, der
+     Router vermittelt nur den Aufbau).
+   - Uebertragen werden Identitaet, Schluessel, Chats und Profile,
+     verschluesselt mit dem Einmal-Schluessel; danach fragt die PWA, ob sie
+     ihre Kopie loescht (eine Identitaet soll nicht doppelt laufen).
+   - Derselbe Weg dient als "Handy zu neuem Handy".
+   - Zukunft: geplant ist ein Mehrgeraete-Betrieb (z. B. PC und Handy oder zwei
+     Handys gleichzeitig, Backlog). Der Uebertrag soll dazu passen: das
+     Datenformat und die Kopplung per QR so bauen, dass sie spaeter auch fuer
+     ein zweites, gleichzeitig aktives Geraet taugen (nicht nur "umziehen und
+     loeschen").
 
 ## Reihenfolge (Vorschlag)
 

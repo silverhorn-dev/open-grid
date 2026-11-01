@@ -13,6 +13,9 @@ Ideen ohne festen Termin. Neue Phasen werden von hier auf `tasks/board.md` gehol
     - this whole setting/feature (i mean the checking if the other client is signed) can be disabled on the router per DEFAULT config
   - [ ] native API fuer die PWA zum senden/empfangen von bildern im hintergrund/offline (spart akku) -> plan auf dem board unter T4
 
+## Mehrgeraete-Betrieb (nutzer 2026-11-01, "music of the future")
+- [ ] dieselbe identitaet auf mehreren geraeten gleichzeitig (z. B. PC + handy oder zwei handys): chats, matches, freunde ueberall; kopplung per QR (wie der geplante umzug PWA -> app, `documentation/ANDROID-APP.md`), dazu sync zwischen den eigenen geraeten
+
 ## Hyperlocal Mesh (Festival/Club Mode)
 - [x] WebRTC over LAN: mDNS und lokale Host-Kandidaten aggressiv priorisieren
   - done P7: `LAN_MODE` (server) und "nur lokales netz" (geraet) -> keine STUN/TURN, nur host/mDNS; verbindungsart per `getStats()` ("im selben WLAN"); STUN standardmaessig ueber den eigenen coturn statt google (`STUN_SERVER`)

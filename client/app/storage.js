@@ -197,6 +197,8 @@ async function loadMyLocalProfile() {
     const cached = record ? await decryptStoredProfile(record).catch(() => null) : null;
     if (cached?.isMe) state.myProfile = cached;
     state.myProfile.id = state.nodeId;
+    // Zwei Profile (profile.js): bestehende Profile bekommen beim ersten Laden ihr Social-Profil als Kopie.
+    if (cached?.isMe && typeof ensureSocialProfile === 'function' && ensureSocialProfile()) await cacheOwnProfile();
     if (migratedLegacyProfile && cached?.isMe) {
         const persisted = await cacheOwnProfile();
         if (persisted) await deleteDatabaseRecord('profiles', state.nodeId);

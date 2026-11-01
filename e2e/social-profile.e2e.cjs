@@ -1,4 +1,4 @@
-// End-to-End: eigenes Profil fuer "Chat & Freunde". Alice schaltet es ein und nennt sich dort anders;
+// End-to-End: zwei Profile (Entdecken und "Chat & Freunde"). Alice nennt sich im Social-Profil anders;
 // Bob (Chat in "Chat & Freunde") sieht das Social-Profil, Carol (Chat in "Grid & Event") das Entdecken-Profil.
 const assert = require('node:assert/strict');
 const { chromium } = require('playwright');
@@ -42,7 +42,8 @@ async function main() {
         // Alice: im Profil das eigene Social-Profil einschalten, dort einen anderen Namen speichern.
         await alice.evaluate(() => switchTab('editprofile'));
         await alice.waitForSelector('#social-profile-controls', { state: 'visible' });
-        await alice.check('#social-profile-toggle');
+        // Kein Schalter mehr: beide Profile gibt es immer, oben die Auswahl.
+        assert.equal(await alice.locator('#social-profile-toggle').count(), 0);
         await alice.waitForSelector('#profile-area-chooser', { state: 'visible' });
         await alice.click('#profile-area-chooser [data-profile-area="social"]');
         const nameInput = alice.locator('#dynamic-profile-form input').first();

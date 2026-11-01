@@ -396,7 +396,7 @@ test('ending a friendship while still matched moves the chat back to the grid li
     assert.deepEqual(plainMoved, []);
 });
 
-test('a separate social profile goes to people in the social list, everyone else gets the exploring one', async () => {
+test('two profiles: people in the social list get the social one, everyone else the exploring one', async () => {
     const me = loadFriends({ appMode: 'discovery' });
     vm.runInNewContext(read('client/app/profile.js'), me);
     vm.runInNewContext(read('client/app/albums.js'), me);
@@ -408,10 +408,18 @@ test('a separate social profile goes to people in the social list, everyone else
     me.state.myProfile.fields = { displayName: 'Hot Alex', bio: 'dating' };
     await me.ensureChatScope('date', 'discovery');
     await me.ensureChatScope('buddy', 'social');
-    assert.equal(me.buildProfilePayloadFor('buddy').fields.displayName, 'Hot Alex', 'off: one profile for all');
 
-    await me.setSocialProfileEnabled(true);
+    // Bestehendes Profil ohne Social-Teil: beim Laden als Kopie angelegt (Angaben in beiden).
+    assert.equal(me.ensureSocialProfile(), true);
+    assert.equal(me.ensureSocialProfile(), false, 'only once');
     assert.equal(me.state.myProfile.social.fields.displayName, 'Hot Alex', 'starts as a copy');
+    assert.equal(me.buildProfilePayloadFor('buddy').fields.displayName, 'Hot Alex');
+    // Frueher per Schalter aus: dann galt ein Profil fuer alles -> neu als Kopie.
+    me.state.myProfile.social.enabled = false;
+    me.state.myProfile.social.fields.displayName = 'stale';
+    assert.equal(me.ensureSocialProfile(), true);
+    assert.equal(me.state.myProfile.social.fields.displayName, 'Hot Alex');
+
     me.state.myProfile.social.fields.displayName = 'Alex';
     me.state.myProfile.social.avatar = 'data:image/jpeg;base64,BBBB';
     me.state.myProfile.social.avatarFull = { id: 'avatar_social', version: 1 };
@@ -433,11 +441,6 @@ test('a separate social profile goes to people in the social list, everyone else
     assert.equal(me.getRegistrationIdentity().name, 'Hot Alex');
     me.state.appMode = 'chat';
     assert.equal(me.getRegistrationIdentity().name, 'Alex');
-
-    // Ausschalten: wieder ein Profil, die Social-Werte bleiben fuer spaeter.
-    await me.setSocialProfileEnabled(false);
-    assert.equal(me.buildProfilePayloadFor('buddy').fields.displayName, 'Hot Alex');
-    assert.equal(me.state.myProfile.social.fields.displayName, 'Alex');
 });
 
 test('hiding from friends in the exploring grid is one-way and never hides matches', async () => {

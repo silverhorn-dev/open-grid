@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 271 · 2026-11-01
+## Build 272 · 2026-11-01
+- Immer zwei Profile: eins fuer Entdecken, eins fuer "Chat & Freunde"; beim Einrichten stehen deine Angaben in beiden, danach pflegst du sie getrennt (der Schalter "Eigenes Profil" entfaellt)
+- Behoben: beim Entdecken war mitunter nicht das Entdecken-Profil zu sehen
+
+## Build 271 · 2026-11-01 · `3327b89`
 - Nachweise: "Alter aktualisieren" fuer einen neuen Altersnachweis (z. B. nach dem 18. Geburtstag), die Gruppe beim Entdecken wechselt mit
 
 ## Build 270 · 2026-10-31 · `ba64ec9`

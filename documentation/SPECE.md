@@ -1063,12 +1063,15 @@ dasselbe Menue: Oeffnen, Profil, Chat loeschen, Blockieren/Blockierung
 aufheben; bei einem Verweis: In "Chat & Freunde" oeffnen, Profil, Aus dieser
 Liste entfernen. Zurueck-Taste schliesst es (`pushModalEntry('chatlistmenu')`).
 
-**Eigenes Profil fuer "Chat & Freunde"** (seit 2026-10-30, `client/app/profile.js`):
-Standard ist ein Profil fuer alles. Mit `myProfile.social.enabled` hat der
-Bereich `social` eigene `fields`, `avatar`, `avatarFull` und `gallery`
-(`myProfile.social`, beim ersten Einschalten eine Kopie, Bilder geteilt; Medien
-werden nur geloescht, wenn kein Teil sie mehr nutzt). Ausschalten behaelt die
-Werte. Welcher Teil rausgeht: `profileAreaForPeer` = Liste des Chats mit dem
+**Zwei Profile: Entdecken und "Chat & Freunde"** (seit 2026-11-01, `client/app/profile.js`):
+Es gibt immer zwei Profile, ohne Schalter. `myProfile` ist das Entdecken-Profil,
+`myProfile.social` das fuer "Chat & Freunde" (eigene `fields`, `avatar`,
+`avatarFull`, `gallery`). Beim Einrichten gehen die Angaben in beide (Kopie,
+Felder, die nur ein Schema kennt, bleiben im anderen leer bzw. werden beim
+Senden ausgefiltert); bestehende Profile ohne Social-Teil oder mit frueher
+abgeschaltetem Social-Profil (`social.enabled === false`) bekommen beim Laden
+eine Kopie (`ensureSocialProfile`). Bilder teilen sich die Kopien; Medien werden
+nur geloescht, wenn kein Profil sie mehr nutzt. Werte. Welcher Teil rausgeht: `profileAreaForPeer` = Liste des Chats mit dem
 Peer (`chatScopeOf`), ohne Chat der aktive Modus; `buildProfilePayloadFor`,
 `activeSchemaFields`, `canPeerAccessImage` (nur Bilder des gesendeten Teils) und
 `getRegistrationIdentity` (Router: Name/Bild des aktiven Modus) folgen dem.
@@ -1077,7 +1080,7 @@ Empfaenger ersetzt sein zwischengespeichertes Profil auch bei gleicher Version,
 wenn sich `area` aendert (Chat wanderte in die andere Liste). Der Profil-Editor
 zeigt bei eingeschaltetem Social-Profil eine Auswahl "Entdecken | Chat &
 Freunde" (`state.profileEditArea`, Standard: Bereich des Modus) und nutzt das
-Schema des gewaehlten Bereichs.
+Schema des gewaehlten Bereichs (Auswahl nur, wenn beide Bereiche an sind).
 Match + Freund: das Profil fuer die Liste `social` traegt zusaetzlich
 `discoveryProfile = { fields, avatar, avatarFull, gallery }` (Felder des
 Entdecken-Schemas, signiert mit). Der Empfaenger zeigt im Profil-Popup duenne

@@ -574,6 +574,7 @@
 - [x] nacktfilter (nutzer 2026-10-30: "falsches blurring, debug-testseite meldet sichtbar"): doppelte pruefungen beim neuzeichnen zusammengelegt, kopie max 640 px, worker-neustart nach absturz/haengen (15 s frist nach dem laden), 1 wiederholung; debug zeigt grund + wert auf dem unscharfen bild
   - offen: nutzer prueft im debug, ob es "nicht geprueft" (fehler) oder ein wert knapp ueber der schwelle ist (testseite prueft das originalbild, der chat das empfangene, neu komprimierte mit wasserzeichen)
 - [x] einladung bei beiden bereichen (nutzer 2026-10-30: "chat invite in double mode doesnt work well"): wahl "Einladen in: Chat & Freunde | Entdecken" (std chat & freunde, nicht mehr der aktive modus); oeffnen wechselt den modus nicht mehr, chat oeffnet in der liste des bereichs; e2e `invite-modes`
+- [x] immer zwei profile (nutzer 2026-11-01, backlog-bug): schalter "eigenes profil" entfernt, einrichten schreibt in beide, bestehende profile bekommen beim laden eine kopie (`ensureSocialProfile`)
 - [x] social-profil kann sich vom entdecken-profil unterscheiden (2026-10-30): schalter im profil, dann auswahl "Entdecken | Chat & Freunde"; getrennt: felder, profilbild (+gross), galerie; empfaenger nach liste des chats; signiertes `area`, damit ein listenwechsel das zwischengespeicherte profil ersetzt; tests `test/friends.test.js`, e2e `social-profile`, UC-67
 
 ## T29 Profile, Grid, Privat-Modus, Nachrichten (nutzer 2026-10-30)

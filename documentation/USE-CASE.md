@@ -1146,19 +1146,17 @@ Akzeptanzkriterien:
   nur wenn man das Profilbild ohnehin sehen darf; danach lokal gespeichert.
 - Die grosse Fassung muss zur Pruefsumme im signierten Profil passen.
 
-## UC-67: Eigenes Profil fuer "Chat & Freunde"
+## UC-67: Zwei Profile: Entdecken und "Chat & Freunde"
 
 **Als Nutzer** moechte ich Freunden ein anderes Profil zeigen als beim Entdecken.
 
 Akzeptanzkriterien:
 
-- Im Profil laesst sich "Eigenes Profil fuer Chat & Freunde" einschalten
-  (nur wenn beide Bereiche an sind); zu Beginn eine Kopie des bisherigen.
-- Danach waehlt man oben, welches Profil man bearbeitet; Name, Felder,
-  Profilbild und Galerie sind getrennt.
+- Es gibt immer zwei Profile; beim Einrichten stehen die Angaben in beiden.
+- Mit beiden Bereichen waehlt man oben im Profil, welches man bearbeitet;
+  Name, Felder, Profilbild und Galerie sind getrennt.
 - Wer in "Chat & Freunde" steht, bekommt das Social-Profil, alle anderen das
   Entdecken-Profil; Galeriebilder gibt es nur aus dem Profil, das man sieht.
-- Ausschalten: wieder ein Profil fuer alle, die Social-Werte bleiben gespeichert.
 - Wer Match und Freund ist, sieht im Profil-Popup beide Profile ueber Reiter
   "Dating | Freunde" (im Entdecken-Modus zuerst "Dating"); reine Freunde nicht.
 

@@ -37,6 +37,8 @@ async function main() {
         const alice = await user('Alice', 'discovery');
         await alice.evaluate(() => {
             state.myProfile.fields = { ...state.myProfile.fields, age: 31, status: 'Bin da' };
+            // Zwei Profile: "status" (nur im Chat-Schema) gehoert ins Profil fuer "Chat & Freunde".
+            state.myProfile.social.fields = { ...state.myProfile.social.fields, status: 'Bin da' };
         });
         const bob = await user('Bob', 'chat');
         const [aliceId, bobId] = await Promise.all([alice, bob].map(page => page.evaluate(() => state.myProfile.id)));

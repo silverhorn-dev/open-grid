@@ -2,12 +2,29 @@
 // Kantenlaenge der grossen Profilbild-Fassung (Bildbetrachter), das Profil selbst traegt nur 200 px.
 const AVATAR_FULL_EDGE = 1280;
 
-// ----- Eigenes Profil fuer "Chat & Freunde" -----
-// Standard: ein Profil fuer alles. Eingeschaltet (`myProfile.social.enabled`) hat "Chat & Freunde" eigene
-// Felder, Profilbild und Galerie; Peers in dieser Liste bekommen sie (matching.js buildProfilePayloadFor),
-// alle anderen das Entdecken-Profil. Beim Einschalten wird das bisherige Profil als Start kopiert.
+// ----- Zwei Profile: "Entdecken" und "Chat & Freunde" -----
+// Es gibt immer zwei Profile (nutzer 2026-11-01: kein Schalter mehr). Das Hauptprofil (`myProfile`) ist
+// das fuer Entdecken, `myProfile.social` das fuer "Chat & Freunde" (eigene Felder, Profilbild, Galerie).
+// Beim Einrichten (und fuer bestehende Profile beim ersten Laden) wird das vorhandene Profil in beide
+// geschrieben; danach pflegt man sie getrennt. Peers in "Chat & Freunde" bekommen das Social-Profil
+// (matching.js buildProfilePayloadFor), alle anderen das Entdecken-Profil.
 function socialProfileEnabled() {
-    return state.myProfile?.social?.enabled === true;
+    return Boolean(state.myProfile?.social?.fields);
+}
+
+// Legt das Social-Profil als Kopie des Hauptprofils an, wenn es noch keins gibt (bzw. es frueher per
+// Schalter aus war: dann galt ein Profil fuer alles, die Kopie gibt genau diesen Stand wieder).
+// true = neu angelegt (muss gespeichert werden).
+function ensureSocialProfile() {
+    const social = state.myProfile?.social;
+    if (social?.fields && social.enabled !== false) return false;
+    state.myProfile.social = {
+        fields: JSON.parse(JSON.stringify(state.myProfile.fields || {})),
+        avatar: state.myProfile.avatar || null,
+        avatarFull: state.myProfile.avatarFull ? { ...state.myProfile.avatarFull } : null,
+        gallery: (state.myProfile.gallery || []).map(item => ({ ...item }))
+    };
+    return true;
 }
 
 // Teil des eigenen Profils fuer einen Bereich ('discovery' | 'social'): { fields, avatar, avatarFull, gallery }.
@@ -19,10 +36,14 @@ function currentModeArea() {
     return typeof isSocialMode === 'function' && isSocialMode() ? 'social' : 'discovery';
 }
 
-// Bereich, der im Profil-Editor gerade bearbeitet wird (Auswahl nur bei eigenem Social-Profil).
+// Bereich, der im Profil-Editor gerade bearbeitet wird (Auswahl, wenn beide Bereiche an sind).
 function editingProfileArea() {
-    if (!socialProfileEnabled()) return currentModeArea();
+    if (!socialProfileEnabled() || !bothProfileAreas()) return currentModeArea();
     return state.profileEditArea === 'social' || state.profileEditArea === 'discovery' ? state.profileEditArea : currentModeArea();
+}
+
+function bothProfileAreas() {
+    return typeof scopeIncludes !== 'function' || (scopeIncludes('social') && scopeIncludes('discovery'));
 }
 
 function editingProfilePart() {
@@ -37,34 +58,14 @@ function editingProfileSchema() {
     return (area === 'social' ? schemas.friends || schemas.chat : schemas.discovery) || PROFILE_SCHEMA;
 }
 
-// Medien-Ids, die ein anderer Profilteil noch nutzt (Kopie beim Einschalten teilt Bilder).
+// Medien-Ids, die das andere Profil noch nutzt (die Kopie beim Anlegen teilt Bilder).
 function profileMediaInUse(mediaId, exceptPart) {
     return [state.myProfile, state.myProfile.social].filter(part => part && part !== exceptPart)
         .some(part => part.avatarFull?.id === mediaId || (part.gallery || []).some(item => item.id === mediaId));
 }
 
-async function setSocialProfileEnabled(enabled) {
-    const social = state.myProfile.social;
-    if (enabled && !social?.fields) {
-        state.myProfile.social = {
-            enabled: true,
-            fields: JSON.parse(JSON.stringify(state.myProfile.fields || {})),
-            avatar: state.myProfile.avatar || null,
-            avatarFull: state.myProfile.avatarFull ? { ...state.myProfile.avatarFull } : null,
-            gallery: (state.myProfile.gallery || []).map(item => ({ ...item }))
-        };
-    } else if (social) {
-        // Aus: die Social-Werte bleiben gespeichert (wieder an = wie vorher).
-        state.myProfile.social = { ...social, enabled: Boolean(enabled) };
-    }
-    state.profileEditArea = null;
-    renderSocialProfileControls();
-    renderProfileForm();
-    await saveUserProfile();
-}
-
 function setProfileEditArea(area) {
-    if (!socialProfileEnabled() || !['discovery', 'social'].includes(area)) return;
+    if (!socialProfileEnabled() || !bothProfileAreas() || !['discovery', 'social'].includes(area)) return;
     if (state.profileDirty && !window.confirm(t('profile.discardUnsavedChanges'))) {
         renderSocialProfileControls();
         return;
@@ -75,16 +76,13 @@ function setProfileEditArea(area) {
     renderProfileForm();
 }
 
-// Schalter + Bereichsauswahl im Profil. Nur wenn beide Bereiche an sind (sonst gibt es nichts zu trennen).
+// Auswahl "Entdecken | Chat & Freunde" im Profil, nur wenn beide Bereiche an sind.
 function renderSocialProfileControls() {
     const card = document.getElementById('social-profile-controls');
     if (!card) return;
-    const bothAreas = typeof scopeIncludes !== 'function' || (scopeIncludes('social') && scopeIncludes('discovery'));
-    card.classList.toggle('hidden', !bothAreas);
-    const toggle = document.getElementById('social-profile-toggle');
-    if (toggle) toggle.checked = socialProfileEnabled();
+    card.classList.toggle('hidden', !bothProfileAreas() || !socialProfileEnabled());
     const chooser = document.getElementById('profile-area-chooser');
-    chooser?.classList.toggle('hidden', !socialProfileEnabled());
+    chooser?.classList.remove('hidden');
     const area = editingProfileArea();
     chooser?.querySelectorAll('[data-profile-area]').forEach(button => {
         const active = button.dataset.profileArea === area;
@@ -386,6 +384,9 @@ async function completeProfileOnboarding() {
     errorOutput.classList.add('hidden');
     state.myProfile.version = 1;
     state.myProfile.updatedAt = Date.now();
+    // Beim Einrichten gehen die Angaben in beide Profile (Entdecken und Chat & Freunde).
+    state.myProfile.social = null;
+    ensureSocialProfile();
     const persisted = await cacheOwnProfile();
     if (!persisted) {
         errorOutput.textContent = t('profile.couldNotBeStored');

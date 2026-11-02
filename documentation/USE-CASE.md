@@ -1236,3 +1236,19 @@ Akzeptanzkriterien:
 - Teilen aus anderen Apps (Bilder, Text) fuehrt zur Chatauswahl.
 - Liegt auf dem Router eine neuere Version, bietet die App sie beim Start an.
 - Ohne App (Browser, PWA) aendert sich nichts.
+
+## UC-73: Snap-Seite im Social-Modus
+
+**Als Nutzer** im Social-Modus moechte ich direkt einen Snap aufnehmen und erst
+danach entscheiden, wohin er geht.
+
+Akzeptanzkriterien:
+
+- Im Social-Modus (Nur Chat, Freunde in der Naehe) gibt es neben Grid, Chat und
+  Profil den Eintrag "Snap"; in den anderen Modi nicht.
+- Er oeffnet die Snap-Kamera; nach der Aufnahme bearbeitet man den Snap wie
+  gewohnt, der Knopf heisst "Ziel waehlen".
+- Die Auswahl zeigt den Modus (Snap, Secure, Bild) und als Ziele die Chats,
+  die eigenen Alben und die Galerie des eigenen Profils.
+- Ein Chat bekommt den Snap im gewaehlten Modus (mit Wasserzeichen, Nacktbild-
+  Warnung und Speicher-Schalter wie sonst); Album und Profil speichern ein Bild.

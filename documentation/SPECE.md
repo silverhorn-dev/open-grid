@@ -170,6 +170,13 @@
   eigenen Zeile unter dem Namen.
 - Nachrichtenfeld `#chat-input` ist ein `<textarea>`; `fitChatInput` (`chat.js`)
   setzt die Hoehe bis `CHAT_INPUT_MAX_LINES` (5), danach scrollt es.
+- Snap-Seite (`snap-studio.js`, UC-73): im Social-Modus (`isSocialMode()`) ein
+  Navigationseintrag `data-snap-nav` (kein eigener Tab), der
+  `openSnapCamera('pick')` oeffnet. Nach der Aufnahme haelt "Ziel waehlen" den
+  geflachten Entwurf fest und zeigt Modus (snap/secure/image, Start aus
+  Snap/Bild-Lasche und `secureSnaps`) sowie Ziele: Chats (wie aus dem Chat,
+  mit Wasserzeichen je Empfaenger), eigene Alben (`album.items`) und die
+  Galerie des gerade bearbeiteten eigenen Profils.
 - Snap-Kamera (`snaps.js`, `snap-camera.js`, `snap-editor.js`): Vollbild, alle
   Bedienelemente liegen ueber dem Bild. Licht per
   `applyConstraints({ advanced: [{ torch }] })` und Zoom per `zoom`, nur wenn

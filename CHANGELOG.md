@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 280 · 2026-11-02
+## Build 281 · 2026-11-02
+- Neu im Social-Modus: eigener Eintrag "Snap" neben Grid, Chat und Profil; nach der Aufnahme waehlst du, wohin der Snap geht (Chat als Snap, Secure Snap oder Bild, eines deiner Alben oder die Galerie deines Profils)
+
+## Build 280 · 2026-11-02 · `3575bb3`
 - Betreiber koennen den vorausgewaehlten Bereich beim Einrichten festlegen (Entdecken, Social oder beides); dieser Server startet mit Social
 - Bestehende Nutzer behalten ihren bisherigen Bereich
 

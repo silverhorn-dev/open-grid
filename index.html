@@ -60,6 +60,9 @@
                     <i class="fa-solid fa-comments"></i> <span data-i18n="common.chat">Chat</span>
                     <span data-unread-total class="unread-badge hidden">0</span>
                 </button>
+                <button data-snap-nav data-nav="top" data-click="openSnapStudio" class="nav-top-btn hidden">
+                    <i class="fa-solid fa-camera"></i> <span data-i18n="common.snap">Snap</span>
+                </button>
                 <button data-tab-btn="editprofile" data-nav="top" data-click="switchTab" data-args='["editprofile"]' class="nav-top-btn">
                     <i class="fa-solid fa-user"></i> <span data-i18n="common.profile">Profil</span>
                 </button>
@@ -85,6 +88,9 @@
         </button>
         <button data-tab-btn="chat" data-nav="bottom" data-click="switchTab" data-args='["chat"]' class="nav-bottom-btn">
             <span class="relative"><i class="fa-solid fa-comments text-lg"></i><span data-unread-total class="unread-badge unread-badge-nav hidden">0</span></span><span data-i18n="common.chat">Chat</span>
+        </button>
+        <button data-snap-nav data-nav="bottom" data-click="openSnapStudio" class="nav-bottom-btn hidden">
+            <i class="fa-solid fa-camera text-lg"></i><span data-i18n="common.snap">Snap</span>
         </button>
         <button data-tab-btn="editprofile" data-nav="bottom" data-click="switchTab" data-args='["editprofile"]' class="nav-bottom-btn">
             <i class="fa-solid fa-user text-lg"></i><span data-i18n="common.profile">Profil</span>
@@ -1365,6 +1371,7 @@
     <script src="/client/app/video.js?v={{assetVersion}}"></script>
     <script src="/client/app/snap-editor.js?v={{assetVersion}}"></script>
     <script src="/client/app/snap-camera.js?v={{assetVersion}}"></script>
+    <script src="/client/app/snap-studio.js?v={{assetVersion}}"></script>
     <script src="/client/app/secure-canvas.js?v={{assetVersion}}"></script>
     <!-- feature:nudity -->
     <script src="/client/app/nudity.js?v={{assetVersion}}"></script>

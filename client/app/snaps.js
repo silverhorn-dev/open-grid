@@ -433,7 +433,9 @@ function updateSnapReviewOptions() {
     if (send) {
         send.innerHTML = forStatus
             ? 'Als Status teilen <i class="fa-solid fa-circle-plus"></i>'
+            : state.snapTarget === 'pick' ? '<span></span> <i class="fa-solid fa-chevron-right"></i>'
             : asImage ? 'Bild senden <i class="fa-solid fa-paper-plane"></i>' : 'Senden <i class="fa-solid fa-paper-plane"></i>';
+        if (state.snapTarget === 'pick') send.querySelector('span').textContent = t('snapStudio.chooseTarget');
     }
 }
 
@@ -749,6 +751,11 @@ async function sendSnapDraft() {
         const item = pickedReview.items[pickedReview.editIndex];
         if (flat && item) item.base = flat;
         closeSnapModal();
+        return;
+    }
+    // Snap-Seite: Ziel (Chat, Album, eigenes Profil) erst nach der Aufnahme waehlen (snap-studio.js).
+    if (state.snapTarget === 'pick') {
+        await chooseSnapStudioTarget();
         return;
     }
     if (state.snapTarget === 'status') {

@@ -277,9 +277,14 @@ function applyAppModeUi() {
     updateChatAlbumButton();
     const gridAvailable = isGridAvailable();
     document.querySelectorAll('[data-tab-btn="grid"]').forEach(button => button.classList.toggle('hidden', !gridAvailable));
+    // Snap-Seite (snap-studio.js) nur im Social-Modus.
+    const snapNav = isSocialMode();
+    document.querySelectorAll('[data-snap-nav]').forEach(button => button.classList.toggle('hidden', !snapNav));
+    const columns = 2 + Number(gridAvailable) + Number(snapNav);
     document.querySelectorAll('nav.bottom-nav').forEach(nav => {
-        nav.classList.toggle('grid-cols-3', gridAvailable);
-        nav.classList.toggle('grid-cols-2', !gridAvailable);
+        nav.classList.toggle('grid-cols-2', columns === 2);
+        nav.classList.toggle('grid-cols-3', columns === 3);
+        nav.classList.toggle('grid-cols-4', columns === 4);
     });
     if (!gridAvailable && !document.getElementById('view-grid')?.classList.contains('hidden')) switchTab('chat');
     const title = document.getElementById('grid-title');

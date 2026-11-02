@@ -601,3 +601,9 @@
 - [x] privat-modus auch mit beiden bereichen (nutzer: einstellung war bei "alle modi" ausgeblendet), in sozialen chats ohne match; menue-texte "Privat-Knopf zeigen"
 - [x] "Privat"-modus (auge) fuer nur-social: versteckter schalter in den einstellungen, lasche in jedem freundes-chat ohne match; hinweis "lange druecken zum ausblenden" links neben der lasche
 
+## T30 Snap-Seite im Social-Modus (nutzer 2026-11-02, aus dem backlog)
+- [ ] eigene seite neben Chat, Profil und Grid zum Snap erstellen: direkt die Snap-Kamera; nach der aufnahme im editor ziel + modus (secure / bild / snap) waehlen; ziele: chats, alben, eigenes profil
+  - plan: (1) nav-eintrag "Snap" nur bei `isSocialMode()`, oeffnet `openSnapCamera('pick')`; senden-knopf "Ziel waehlen" -> auswahl (modus-chips snap/secure/bild, chats, eigene alben, galerie des eigenen profils)
+    - done (1) 2026-11-02: `client/app/snap-studio.js`, `data-snap-nav`, bottom-nav 2-4 spalten; UC-73
+  - plan: (2) e2e `snap-studio` (social-modus: aufnahme mit fake-kamera -> chat / album / profil)
+  - plan: (3) modus-wahl schon im editor (statt der snap/bild-lasche), mehrere ziele auf einmal, ggf. auch als profilbild; eigene route `/snap` statt nur vollbild-modal

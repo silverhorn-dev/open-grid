@@ -24,6 +24,14 @@ Ideen ohne festen Termin. Neue Phasen werden von hier auf `tasks/board.md` gehol
   - done P7: README "Club-/LAN-Betrieb": server im event-WLAN mit `LAN_MODE=true`; HTTPS pflicht (lokale CA oder DNS-01); mesh ganz ohne server in einer PWA nicht moeglich (keine lokale geraetesuche)
   - plan: naechste iteration: PWA hat keine lokale discovery API -> signaling server muss im LAN laufen (limitation)
 
+# social
+
+## Snap-Seite im Social-Modus (nutzer 2026-11-02)
+- [ ] neben Chat, Profil und Grid eine eigene Seite/Tab zum Snap erstellen (nur Social-Modus)
+  - [ ] direkt die Snap-Kamera-Ansicht
+  - [ ] nach der Aufnahme im Editor: Ziel waehlen zusammen mit dem Modus (secure / Bild / Snap)
+  - [ ] moegliche Ziele: Chats, Alben, eigenes Profil
+
 # general
 
 - (2026-10-26 auf das board verschoben: alter/e-mail pruefen)

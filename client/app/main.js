@@ -81,6 +81,7 @@ window.onload = async () => {
         await runStartupStep('Module', loadEnabledFeatures);
         const hasLocalProfile = await loadMyLocalProfile();
         if (!hasLocalProfile) await openProfileOnboarding();
+        else await runStartupStep('Bereich', () => pinModeScope('all'));
         if (!state.myProfile.updatedAt) {
             state.myProfile.version = 1;
             state.myProfile.updatedAt = Date.now();

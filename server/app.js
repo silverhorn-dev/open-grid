@@ -70,6 +70,8 @@ export function parseAppModes(value) {
 // erlaubten Werten; der Client nimmt sie, solange der Nutzer nichts Eigenes gespeichert hat.
 const CLIENT_DEFAULT_RULES = {
     language: ['auto', 'de', 'en'],
+    // Vorauswahl des Bereichs (Entdecken / Social / beides), solange der Nutzer keinen gewaehlt hat.
+    modeScope: ['discovery', 'social', 'all'],
     chatSwitchEnabled: 'boolean',
     chatSwitchStyle: ['bar', 'arrows', 'swipe'],
     pullUpAction: ['reload', 'next', 'switcher', 'snap', 'album'],

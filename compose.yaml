@@ -51,6 +51,9 @@ services:
       # App-Modi, die Nutzer waehlen koennen (discovery, chat, friends, event).
       # APP_MODES: discovery,chat,friends,event
       DEFAULT_APP_MODE: chat
+      # Standards fuer Client-Einstellungen (JSON, README "CLIENT_DEFAULTS"); im Admin-Panel live aenderbar.
+      # modeScope: Vorauswahl des Bereichs beim Onboarding (discovery, social, all).
+      CLIENT_DEFAULTS: '{"modeScope":"social"}'
       # Profil-Felder (JSON) fuer alle Modi; je Modus siehe PROFILE_SCHEMAS weiter unten. Leer = eingebautes.
       PROFILE_SCHEMA: ${PROFILE_SCHEMA:-}
       # DEFAULT_APP_MODE: discovery

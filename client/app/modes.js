@@ -10,7 +10,7 @@ const APP_MODE_INFO = {
     friends: { label: t('modes.friendsNearby'), icon: 'fa-user-group', description: t('modes.onlyYourContactsSeeYou') },
     event: { label: t('modes.event'), icon: 'fa-champagne-glasses', description: t('modes.onlyPeopleWithSameEvent') }
 };
-// Bereich, den der Nutzer beim Onboarding waehlt (keys/app-mode.scope). Fehlt er (bestehende Nutzer) = 'all'.
+// Bereich, den der Nutzer beim Onboarding waehlt (keys/app-mode.scope). Fehlt er = CLIENT_DEFAULTS.modeScope, sonst 'all'.
 //   discovery: Nur Entdecken (Grid + Event, Flamme/Match, kein Adden)
 //   social:    Social (Chat + Freunde, Freunde-Grid, nur Adden)
 //   all:       Entdecken & Freunde (alle Modi)
@@ -109,7 +109,10 @@ function effectiveModeScope() {
     const areas = availableModeAreas();
     if (areas.length === 1) return areas[0];
     const stored = state.appModeSettings?.scope;
-    return MODE_SCOPES.includes(stored) ? stored : 'all';
+    if (MODE_SCOPES.includes(stored)) return stored;
+    // Ohne eigene Wahl: Vorgabe des Betreibers (CLIENT_DEFAULTS.modeScope), sonst beides.
+    const routerDefault = clientDefault('modeScope', 'all');
+    return MODE_SCOPES.includes(routerDefault) ? routerDefault : 'all';
 }
 
 function modesForScope(scope, routerModes) {
@@ -188,6 +191,14 @@ function renderModeScopeSettings() {
     if (select) select.value = scope;
     const toggle = document.getElementById('all-modes-toggle');
     if (toggle) toggle.checked = scope === 'all';
+}
+
+// Bereich festhalten, damit eine spaetere Vorgabe des Betreibers (CLIENT_DEFAULTS.modeScope) ihn nicht
+// verschiebt: nach dem Onboarding der gewaehlte bzw. vorausgewaehlte, bei bestehenden Nutzern ohne Wahl 'all'.
+async function pinModeScope(scope = effectiveModeScope()) {
+    if (MODE_SCOPES.includes(state.appModeSettings?.scope)) return;
+    await saveAppModeSettings({ scope });
+    applyModeScope();
 }
 
 async function saveAppModeSettings(changes) {

@@ -395,6 +395,7 @@ async function completeProfileOnboarding() {
         return;
     }
 
+    await pinModeScope().catch(logBackgroundError('completeProfileOnboarding'));
     document.getElementById('profile-onboarding-modal').classList.add('hidden');
     renderProfileForm();
     const resolve = resolveProfileOnboarding;

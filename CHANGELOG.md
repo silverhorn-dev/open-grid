@@ -2,7 +2,14 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 278 · 2026-11-01
+## Build 280 · 2026-11-02
+- Betreiber koennen den vorausgewaehlten Bereich beim Einrichten festlegen (Entdecken, Social oder beides); dieser Server startet mit Social
+- Bestehende Nutzer behalten ihren bisherigen Bereich
+
+## Build 279 · 2026-11-02 · `1446fae`
+- Dieser Server startet im Modus "Nur Chat"
+
+## Build 278 · 2026-11-01 · `0a733d8`
 - Neu (Vorschau, noch nicht gebaut): Android-App als eigene Huelle um die PWA des eigenen Routers, mit Bildschirmfoto-Sperre in Snaps, Alben, Bildern, Videos, Status, Profilen und Flirt-Chats
 - Teilen aus anderen Apps in die Android-App fuehrt zur gewohnten Chatauswahl
 - Router: APK-Download unter /app/opengrid.apk mit Update-Hinweis in der App; weitere Signatur-Schluessel der App im Admin-Panel einstellbar

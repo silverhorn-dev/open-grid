@@ -346,8 +346,10 @@ Onboarding (falls mehrere erlaubt) und in den Einstellungen
 
 Bereich (`scope`, `client/app/modes.js`): beim Onboarding waehlt der Nutzer
 zuerst `discovery` (Nur Entdecken: `discovery` + `event`), `social` (Social:
-`chat` + `friends`) oder `all` (Entdecken & Freunde, alle Modi). Fehlt `scope`
-(bestehende Nutzer), gilt `all`. Wirksam sind nur Modi aus `APP_MODES` im
+`chat` + `friends`) oder `all` (Entdecken & Freunde, alle Modi). Vorausgewaehlt
+ist `CLIENT_DEFAULTS.modeScope` (sonst `all`); nach dem Onboarding wird der Bereich
+in `scope` festgehalten. Bestehende Nutzer ohne `scope` bekommen beim Start `all`
+(`pinModeScope()`), damit eine spaetere Vorgabe des Betreibers sie nicht verschiebt. Wirksam sind nur Modi aus `APP_MODES` im
 Bereich (`state.appConfig.routerModes` -> `state.appConfig.modes`); erlaubt
 der Betreiber nur Modi eines Bereichs, gilt dieser und die Frage entfaellt.
 

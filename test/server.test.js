@@ -1009,6 +1009,8 @@ test('client defaults from the operator are validated and delivered with the app
         { audience: { ranges: { age: { relative: 'same' } }, options: { role: 'same' } } });
     assert.deepEqual(parseClientDefaults('{"audience":{"ranges":{"age":{"min":999}}}}'), {}, 'out of range');
     assert.deepEqual(parseClientDefaults('{"audience":"everyone"}'), {});
+    assert.deepEqual(parseClientDefaults('{"modeScope":"social"}'), { modeScope: 'social' });
+    assert.deepEqual(parseClientDefaults('{"modeScope":"chat"}'), {}, 'only discovery, social or all');
     assert.deepEqual(parseClientDefaults('kaputt'), {});
     assert.deepEqual(parseClientDefaults('[1,2]'), {});
     const configured = await buildApp({ databasePath: ':memory:', clientDefaults: '{"listSwitchBehavior":"view","traceWatermark":false}' });

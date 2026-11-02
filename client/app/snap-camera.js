@@ -117,7 +117,7 @@ function handleSnapStageMove(event) {
     if (!swipe) return;
     swipe.deltaY = event.clientY - swipe.startY;
     swipe.deltaX = event.clientX - swipe.startX;
-    if (swipe.deltaY > 0 && Math.abs(swipe.deltaY) > Math.abs(swipe.deltaX)) {
+    if (!state.snapPage && swipe.deltaY > 0 && Math.abs(swipe.deltaY) > Math.abs(swipe.deltaX)) {
         document.getElementById('snap-camera-stage').style.transform = `translate3d(0, ${swipe.deltaY}px, 0)`;
     }
 }
@@ -134,7 +134,8 @@ function handleSnapStageUp(event) {
     stage.style.transform = '';
     setTimeout(() => { stage.style.transition = ''; }, 220);
     if (wasPinch || !swipe) return;
-    if (swipe.deltaY > SNAP_SWIPE_CLOSE && Math.abs(swipe.deltaY) > Math.abs(swipe.deltaX || 0)) {
+    // Als Seite (snap-studio.js) gibt es nichts zu schliessen; seitlich wischen wechselt dort den Tab.
+    if (!state.snapPage && swipe.deltaY > SNAP_SWIPE_CLOSE && Math.abs(swipe.deltaY) > Math.abs(swipe.deltaX || 0)) {
         closeSnapModal();
         return;
     }
@@ -144,7 +145,7 @@ function handleSnapStageUp(event) {
         return;
     }
     // Seitlich wischen: Snap <-> Bild.
-    if (Math.abs(swipe.deltaX || 0) > SNAP_SWIPE_MODE && Math.abs(swipe.deltaX) > Math.abs(swipe.deltaY) * 1.5) {
+    if (!state.snapPage && Math.abs(swipe.deltaX || 0) > SNAP_SWIPE_MODE && Math.abs(swipe.deltaX) > Math.abs(swipe.deltaY) * 1.5) {
         if (state.snapTarget !== 'status') toggleSnapSendMode();
         return;
     }

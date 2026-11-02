@@ -331,6 +331,12 @@ async function switchSnapCamera() {
 }
 
 function closeSnapModal() {
+    // Snap-Seite: kein Modal, zurueck zur Live-Kamera.
+    if (state.snapPage) {
+        resetSnapPreview();
+        startSnapCamera().catch(logBackgroundError('closeSnapModal'));
+        return;
+    }
     dismissModalEntry('snap', hideSnapModal);
 }
 
@@ -457,6 +463,11 @@ async function encodeSnapDraft(peerId) {
 async function pickSnapImage(input) {
     const files = Array.from(input.files || []);
     input.value = '';
+    // Snap-Seite: ein Bild nach dem anderen (das Ziel kommt erst danach); die Mehrfachauswahl gehoert zum Chat.
+    if (files.length > 1 && state.snapPage) {
+        showToast(t('snapStudio.oneImageOnly'), 'info');
+        files.length = 1;
+    }
     if (files.length > 1) {
         await sendPickedImages(files);
         return;

@@ -89,8 +89,8 @@ const TAB_SWIPE_EDGE = 24;
 // Ansichten, zwischen denen seitlich gewischt wird. Die Einstellungen ('keys') gehoeren zum Profil:
 // dort blaettert seitliches Wischen die Bereiche, verlassen geht nur nach unten (zurueck ins Profil).
 // Im Profil nach links wischen oeffnet das Menue.
-const TAB_ORDER = ['grid', 'chat', 'editprofile', 'keys'];
-const SWIPE_TABS = ['grid', 'chat', 'editprofile'];
+const TAB_ORDER = ['grid', 'chat', 'snap', 'editprofile', 'keys'];
+const SWIPE_TABS = ['grid', 'chat', 'snap', 'editprofile'];
 const SETTINGS_LEAVE_TRIGGER = 120;
 const GRID_REFRESH_TRIGGER = 70;
 const GRID_REFRESH_MAX = 90;
@@ -543,7 +543,7 @@ function handleTabTouchEnd() {
         openMenu();
         return;
     }
-    const order = SWIPE_TABS.filter(entry => entry !== 'grid' || isGridAvailable());
+    const order = SWIPE_TABS.filter(entry => (entry !== 'grid' || isGridAvailable()) && (entry !== 'snap' || snapPageAvailable()));
     const index = order.indexOf(tab) + (forward ? 1 : -1);
     if (index < 0 || index >= order.length) return;
     hapticTick();

@@ -171,12 +171,17 @@
 - Nachrichtenfeld `#chat-input` ist ein `<textarea>`; `fitChatInput` (`chat.js`)
   setzt die Hoehe bis `CHAT_INPUT_MAX_LINES` (5), danach scrollt es.
 - Snap-Seite (`snap-studio.js`, UC-73): im Social-Modus (`isSocialMode()`) ein
-  Navigationseintrag `data-snap-nav` (kein eigener Tab), der
-  `openSnapCamera('pick')` oeffnet. Nach der Aufnahme haelt "Ziel waehlen" den
-  geflachten Entwurf fest und zeigt Modus (snap/secure/image, Start aus
-  Snap/Bild-Lasche und `secureSnaps`) sowie Ziele: Chats (wie aus dem Chat,
-  mit Wasserzeichen je Empfaenger), eigene Alben (`album.items`) und die
-  Galerie des gerade bearbeiteten eigenen Profils.
+  eigener Tab `snap` (`/snap`, `#view-snap`) zwischen Chat und Profil, auch beim
+  seitlichen Wischen (Grid > Chat > Snap > Profil). Beim Oeffnen wird
+  `#snap-capture-modal` in `#snap-page-host` verschoben (`.snap-in-page`, kein
+  Vollbild, Navigation bleibt), `state.snapPage = true`, Ziel `'pick'`; beim
+  Verlassen Kamera aus, Entwurf verworfen, Modal zurueck an `body`. Auf der
+  Seite wechselt seitliches Wischen auf der Kamera den Tab (Snap/Bild nur per
+  Knopf), runter wischen schliesst nichts. Abschaltbar: `keys`/`snap-page =
+  { enabled }`, ohne Eintrag `CLIENT_DEFAULTS.snapPage` (Standard an). Nach der
+  Aufnahme haelt "Ziel waehlen" den geflachten Entwurf fest und zeigt Modus
+  (snap/secure/image) sowie Ziele: Chats (mit Wasserzeichen je Empfaenger),
+  eigene Alben (`album.items`) und die Galerie des eigenen Profils.
 - Snap-Kamera (`snaps.js`, `snap-camera.js`, `snap-editor.js`): Vollbild, alle
   Bedienelemente liegen ueber dem Bild. Licht per
   `applyConstraints({ advanced: [{ torch }] })` und Zoom per `zoom`, nur wenn

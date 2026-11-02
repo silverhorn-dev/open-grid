@@ -97,6 +97,7 @@ const CLIENT_DEFAULT_RULES = {
     nudityWarnBeforeSend: 'boolean',
     mediaDownload: ['friends', 'all'],
     snapSaveable: 'boolean',
+    snapPage: 'boolean',
     secureSnaps: 'boolean',
     snapNextGesture: ['doubletap', 'swipe', 'swipeup'],
     snapExpiry: ['15m', '30m', '60m', 'off'],
@@ -604,7 +605,7 @@ export async function buildApp(options = {}) {
     app.get('/admin', async (_request, reply) => reply.type('text/html; charset=utf-8').header('Cache-Control', 'no-cache').send(adminHtml));
 
     // Client-Routen (client/app/router.js) liefern dieselbe App-Shell.
-    for (const path of ['/', '/index.html', '/grid', '/chat', '/chat/:peerId', '/profile', '/settings', '/cloud', '/invite', '/age-callback']) {
+    for (const path of ['/', '/index.html', '/grid', '/chat', '/chat/:peerId', '/snap', '/profile', '/settings', '/cloud', '/invite', '/age-callback']) {
         app.get(path, serveAppShell);
     }
 

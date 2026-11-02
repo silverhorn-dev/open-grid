@@ -1,12 +1,62 @@
 // ================= SNAP-SEITE (Social-Modus) =================
-// Eigener Eintrag in der Navigation neben Grid, Chat und Profil: oeffnet direkt die Snap-Kamera.
-// Das Ziel waehlt man erst nach der Aufnahme im Editor: ein Chat (als Snap, Secure Snap oder Bild),
-// eines der eigenen Alben oder die Galerie des eigenen Profils.
+// Eigener Tab zwischen Chat und Profil (`/snap`): die Snap-Kamera als Seite, Navigation bleibt sichtbar,
+// seitlich wischen wechselt den Tab. Das Ziel waehlt man erst nach der Aufnahme im Editor: ein Chat
+// (als Snap, Secure Snap oder Bild), eines der eigenen Alben oder die Galerie des eigenen Profils.
+// Abschaltbar in den Einstellungen (`keys`/`snap-page`, Router-Standard `CLIENT_DEFAULTS.snapPage`, sonst an).
 const SNAP_STUDIO_GALLERY_EDGE = 800;
+const SNAP_PAGE_RECORD_ID = 'snap-page';
 
-async function openSnapStudio() {
-    if (!isSocialMode()) return;
-    await openSnapCamera('pick');
+function snapPageEnabled() {
+    return typeof state.snapPageEnabled === 'boolean' ? state.snapPageEnabled : clientDefault('snapPage', true) !== false;
+}
+
+function snapPageAvailable() {
+    return isSocialMode() && snapPageEnabled();
+}
+
+async function loadSnapPageSetting() {
+    const stored = await databaseRequest('keys', 'readonly', store => store.get(SNAP_PAGE_RECORD_ID)).catch(() => null);
+    if (typeof stored?.enabled === 'boolean') state.snapPageEnabled = stored.enabled;
+    const toggle = document.getElementById('snap-page-toggle');
+    if (toggle) toggle.checked = snapPageEnabled();
+    applyAppModeUi();
+}
+
+async function updateSnapPageSetting(enabled) {
+    state.snapPageEnabled = Boolean(enabled);
+    await putDatabaseRecord('keys', { id: SNAP_PAGE_RECORD_ID, enabled: state.snapPageEnabled })
+        .catch(error => logDebug(`Could not store snap page setting: ${error.message}`));
+    applyAppModeUi();
+}
+
+// Tab geoeffnet: Kamera-Modal in die Seite holen (statt Vollbild) und die Kamera starten.
+function enterSnapPage() {
+    const modal = document.getElementById('snap-capture-modal');
+    const host = document.getElementById('snap-page-host');
+    if (!modal || !host || state.snapPage) return;
+    state.snapPage = true;
+    state.snapTarget = 'pick';
+    if (typeof warmUpNudityModel === 'function') warmUpNudityModel();
+    state.snapFacingMode = state.snapFacingMode || 'user';
+    host.appendChild(modal);
+    modal.classList.add('snap-in-page');
+    modal.setAttribute('aria-modal', 'false');
+    resetSnapPreview();
+    setSnapSendMode(state.snapSendMode || 'snap');
+    modal.classList.remove('hidden');
+    startSnapCamera().catch(logBackgroundError('enterSnapPage'));
+}
+
+// Tab verlassen: Kamera aus, Entwurf verwerfen, Modal zurueck als Vollbild an das Ende von body.
+function leaveSnapPage() {
+    if (!state.snapPage) return;
+    state.snapPage = false;
+    const modal = document.getElementById('snap-capture-modal');
+    hideSnapModal();
+    if (!modal) return;
+    modal.classList.remove('snap-in-page');
+    modal.setAttribute('aria-modal', 'true');
+    document.body.appendChild(modal);
 }
 
 // Entwurf festhalten (flaches Bild + Optionen aus dem Editor), dann den Editor schliessen und das Ziel waehlen.
@@ -28,6 +78,16 @@ async function chooseSnapStudioTarget() {
         seconds: Number(document.getElementById('snap-review-seconds')?.value ?? state.snapSettings.seconds),
         saveOptions: snapSaveOptions()
     };
+    // Seite: Kamera aus, solange die Auswahl offen ist; danach (Abbrechen, Album, Profil) wieder an.
+    if (state.snapPage) {
+        stopSnapCamera();
+        resetSnapPreview();
+        renderSnapStudioPicker(draft);
+        state.mediaModalCleanup = () => {
+            if (state.snapPage) startSnapCamera().catch(logBackgroundError('chooseSnapStudioTarget'));
+        };
+        return;
+    }
     // Erst nach dem Schliessen der Kamera oeffnen, sonst blendet dessen popstate die Auswahl gleich wieder aus.
     replaceModal(closeSnapModal, () => renderSnapStudioPicker(draft));
 }

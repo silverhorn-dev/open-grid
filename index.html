@@ -60,7 +60,7 @@
                     <i class="fa-solid fa-comments"></i> <span data-i18n="common.chat">Chat</span>
                     <span data-unread-total class="unread-badge hidden">0</span>
                 </button>
-                <button data-snap-nav data-nav="top" data-click="openSnapStudio" class="nav-top-btn hidden">
+                <button data-tab-btn="snap" data-snap-nav data-nav="top" data-click="switchTab" data-args='["snap"]' class="nav-top-btn hidden">
                     <i class="fa-solid fa-camera"></i> <span data-i18n="common.snap">Snap</span>
                 </button>
                 <button data-tab-btn="editprofile" data-nav="top" data-click="switchTab" data-args='["editprofile"]' class="nav-top-btn">
@@ -89,7 +89,7 @@
         <button data-tab-btn="chat" data-nav="bottom" data-click="switchTab" data-args='["chat"]' class="nav-bottom-btn">
             <span class="relative"><i class="fa-solid fa-comments text-lg"></i><span data-unread-total class="unread-badge unread-badge-nav hidden">0</span></span><span data-i18n="common.chat">Chat</span>
         </button>
-        <button data-snap-nav data-nav="bottom" data-click="openSnapStudio" class="nav-bottom-btn hidden">
+        <button data-tab-btn="snap" data-snap-nav data-nav="bottom" data-click="switchTab" data-args='["snap"]' class="nav-bottom-btn hidden">
             <i class="fa-solid fa-camera text-lg"></i><span data-i18n="common.snap">Snap</span>
         </button>
         <button data-tab-btn="editprofile" data-nav="bottom" data-click="switchTab" data-args='["editprofile"]' class="nav-bottom-btn">
@@ -352,6 +352,12 @@
                     </div>
                 </div>
             </div>
+        </section>
+
+        <!-- ==================== SNAP-SEITE (Social-Modus, snap-studio.js) ==================== -->
+        <!-- Die Snap-Kamera (#snap-capture-modal) wird hierher verschoben, solange der Tab offen ist. -->
+        <section id="view-snap" class="hidden">
+            <div id="snap-page-host" class="snap-page-host"></div>
         </section>
 
         <!-- ==================== TAB 3: MY PROFILE & GALLERIES ==================== -->
@@ -838,6 +844,10 @@
                 <!-- ===== Medien ===== -->
                 <div class="settings-card" data-settings-tab="media">
                     <h3 class="settings-card-title"><i class="fa-solid fa-bolt text-amber-400"></i> <span data-i18n="settings.snaps">Snaps</span></h3>
+                    <label class="setting-row" data-scope="social">
+                        <span class="setting-text"><span data-i18n="snapStudio.settingTitle" class="setting-title">Snap-Seite</span><span data-i18n="snapStudio.settingDescription" class="setting-desc">Eigener Tab zwischen Chat und Profil mit der Snap-Kamera (nur Chat &amp; Freunde).</span></span>
+                        <input type="checkbox" role="switch" id="snap-page-toggle" checked data-change="updateSnapPageSetting" data-args='["$checked"]' class="switch">
+                    </label>
                     <label class="setting-row">
                         <span class="setting-text"><span data-i18n="settings.oneTimeSnapsExpireAfter" class="setting-title">Einmal-Snaps laufen ab nach</span><span data-i18n="settings.countedFromRecipientsFirstView" class="setting-desc">Gerechnet ab dem ersten Ansehen beim Empfänger.</span></span>
                         <select id="snap-expiry-select" data-change="updateSnapSetting" data-args='["expiry", "$value"]' class="setting-select">
@@ -1249,7 +1259,7 @@
             <div id="snap-zoom-label" class="hidden absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 px-3 py-1 rounded-full bg-black/60 text-white text-sm font-semibold"></div>
         </div>
         <!-- Editor nach der Aufnahme: Bild + Zeichnung + Text/Emoji-Ebenen (snap-editor.js) -->
-        <div id="snap-editor" class="hidden absolute inset-0 flex items-center justify-center bg-black">
+        <div id="snap-editor" data-no-tab-swipe class="hidden absolute inset-0 flex items-center justify-center bg-black">
             <div id="snap-editor-stage" class="relative touch-none" data-no-context-menu>
                 <canvas id="snap-edit-base" class="absolute inset-0 w-full h-full"></canvas>
                 <canvas id="snap-edit-draw" class="absolute inset-0 w-full h-full"></canvas>
@@ -1259,7 +1269,7 @@
         <div id="snap-camera-status" class="hidden absolute inset-x-6 top-1/2 -translate-y-1/2 text-center text-sm text-slate-200 bg-black/60 rounded-xl p-4"></div>
         <!-- Snap oder Bild (snap-camera.js): seitlich wischen oder diesen Knopf antippen -->
         <div data-i18n="common.snap" id="snap-mode-pill" class="pointer-events-none absolute top-4 left-1/2 -translate-x-1/2 z-10 px-3 py-1 rounded-full bg-black/50 text-white text-xs font-semibold" style="top: max(1.25rem, calc(env(safe-area-inset-top) + 0.5rem));">Snap</div>
-        <button data-i18n-attr="aria-label:snaps.switchBetweenSnapAndImage" id="snap-mode-switch" data-click="toggleSnapSendMode" class="absolute right-0 top-1/2 -translate-y-1/2 z-10 flex items-center gap-1 pl-3 pr-2 py-2 rounded-l-full bg-black/50 text-white text-xs font-semibold" aria-label="Zwischen Snap und Bild wechseln">
+        <button data-i18n-attr="aria-label:snaps.switchBetweenSnapAndImage" id="snap-mode-switch" data-no-tab-swipe data-click="toggleSnapSendMode" class="absolute right-0 top-1/2 -translate-y-1/2 z-10 flex items-center gap-1 pl-3 pr-2 py-2 rounded-l-full bg-black/50 text-white text-xs font-semibold" aria-label="Zwischen Snap und Bild wechseln">
             <span data-i18n="snaps.sendAsImage" id="snap-mode-switch-label">Als Bild senden</span><i class="fa-solid fa-chevron-right"></i>
         </button>
 
@@ -1275,7 +1285,7 @@
                     <i class="fa-solid fa-bolt"></i>
                 </button>
             </div>
-            <div id="snap-edit-tools" class="hidden flex flex-col items-end gap-2">
+            <div id="snap-edit-tools" data-no-tab-swipe class="hidden flex flex-col items-end gap-2">
                 <div class="flex gap-2">
                     <button data-i18n-attr="aria-label:snaps.draw" id="snap-tool-draw" data-click="setSnapEditTool" data-args='["draw"]' class="snap-tool w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" aria-label="Zeichnen" aria-pressed="false">
                         <i class="fa-solid fa-pen"></i>

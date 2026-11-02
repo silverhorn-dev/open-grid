@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 282 · 2026-11-02
+## Build 283 · 2026-11-02
+- Snap-Seite ist jetzt ein eigener Tab zwischen Chat und Profil: kein Vollbild mehr, die Navigation bleibt, seitlich wischen wechselt zu Chat und Profil
+- Snap-Seite in den Einstellungen (Medien > Snaps) abschaltbar
+
+## Build 282 · 2026-11-02 · `46d2534`
 - Behoben: die Zielauswahl der Snap-Seite konnte sich direkt nach dem Schliessen der Kamera wieder schliessen
 
 ## Build 281 · 2026-11-02 · `1ff2fc0`

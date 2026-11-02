@@ -1493,3 +1493,29 @@ html {
     font-size: 0.65rem; color: rgb(var(--slate-400)); white-space: nowrap; pointer-events: none;
 }
 .flirt-tab-hint.hidden { display: none; }
+
+/* Snap-Seite (snap-studio.js): die Snap-Kamera als Tab zwischen Kopfzeile und unterer Navigation. */
+.snap-page-host {
+    position: relative;
+    /* 3rem = Innenabstand von main oben/unten + Abstand aus space-y-4 */
+    height: calc(100dvh - var(--app-header-height, 4rem) - var(--bottom-nav-height, 0px) - 3rem);
+    min-height: 320px;
+    border-radius: 1rem;
+    overflow: hidden;
+    background: #000;
+}
+#snap-capture-modal.snap-in-page {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+}
+/* Kein Vollbild: Schliessen gibt es nicht, die Leisten brauchen keinen Abstand fuer Notch und Home-Leiste. */
+#snap-capture-modal.snap-in-page .snap-overlay > button[data-click="closeSnapModal"] { visibility: hidden; }
+#snap-capture-modal.snap-in-page .snap-overlay { padding-top: 1rem !important; padding-bottom: 1rem !important; }
+#snap-capture-modal.snap-in-page #snap-mode-pill { top: 1rem !important; }
+/* Auf dem Handy passt die Seite genau zwischen Kopfzeile und Navigation (sonst scrollte der Abstand unten). */
+@media (max-width: 767px) {
+    .app-main:has(> #view-snap:not(.hidden)) {
+        padding-bottom: calc(var(--bottom-nav-height, 0px) + 1rem) !important;
+    }
+}

@@ -1244,10 +1244,14 @@ danach entscheiden, wohin er geht.
 
 Akzeptanzkriterien:
 
-- Im Social-Modus (Nur Chat, Freunde in der Naehe) gibt es neben Grid, Chat und
-  Profil den Eintrag "Snap"; in den anderen Modi nicht.
-- Er oeffnet die Snap-Kamera; nach der Aufnahme bearbeitet man den Snap wie
-  gewohnt, der Knopf heisst "Ziel waehlen".
+- Im Social-Modus (Nur Chat, Freunde in der Naehe) gibt es zwischen Chat und
+  Profil den Tab "Snap"; in den anderen Modi nicht. Er laesst sich in den
+  Einstellungen (Medien > Snaps) abschalten.
+- Der Tab zeigt die Snap-Kamera als Seite, die Navigation bleibt sichtbar;
+  seitlich wischen wechselt wie sonst den Tab (Chat <- Snap -> Profil).
+  Verlaesst man den Tab, geht die Kamera aus.
+- Nach der Aufnahme bearbeitet man den Snap wie gewohnt, der Knopf heisst
+  "Ziel waehlen".
 - Die Auswahl zeigt den Modus (Snap, Secure, Bild) und als Ziele die Chats,
   die eigenen Alben und die Galerie des eigenen Profils.
 - Ein Chat bekommt den Snap im gewaehlten Modus (mit Wasserzeichen, Nacktbild-

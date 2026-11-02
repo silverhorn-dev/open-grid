@@ -188,6 +188,9 @@ const state = {
     snapSendMode: 'snap',
     // Ziel der Snap-Kamera: 'chat' oder 'status'.
     snapTarget: null,
+    // Snap-Seite (snap-studio.js): Tab offen bzw. Einstellung (null = Router-Standard).
+    snapPage: false,
+    snapPageEnabled: null,
     // App-Modus (P8): vom Server erlaubte Modi, gewaehlter Modus und Event-Daten.
     appConfig: { modes: ['discovery', 'chat', 'friends', 'event'], defaultMode: 'discovery' },
     appMode: 'discovery',

@@ -278,7 +278,7 @@ function applyAppModeUi() {
     const gridAvailable = isGridAvailable();
     document.querySelectorAll('[data-tab-btn="grid"]').forEach(button => button.classList.toggle('hidden', !gridAvailable));
     // Snap-Seite (snap-studio.js) nur im Social-Modus.
-    const snapNav = isSocialMode();
+    const snapNav = typeof snapPageAvailable === 'function' && snapPageAvailable();
     document.querySelectorAll('[data-snap-nav]').forEach(button => button.classList.toggle('hidden', !snapNav));
     const columns = 2 + Number(gridAvailable) + Number(snapNav);
     document.querySelectorAll('nav.bottom-nav').forEach(nav => {
@@ -287,6 +287,7 @@ function applyAppModeUi() {
         nav.classList.toggle('grid-cols-4', columns === 4);
     });
     if (!gridAvailable && !document.getElementById('view-grid')?.classList.contains('hidden')) switchTab('chat');
+    if (!snapNav && state.snapPage) switchTab('chat');
     const title = document.getElementById('grid-title');
     if (title) {
         title.textContent = state.appMode === 'friends'

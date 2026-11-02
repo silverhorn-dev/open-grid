@@ -4,6 +4,7 @@
 const TAB_PATHS = {
     grid: '/grid',
     chat: '/chat',
+    snap: '/snap',
     editprofile: '/profile',
     keys: '/settings',
     cloud: '/cloud'

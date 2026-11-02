@@ -294,7 +294,10 @@ function showDebugToast(msg, type = 'info') {
 }
 
 function switchTab(tabName) {
-    ['grid', 'chat', 'editprofile', 'cloud', 'keys'].forEach(t => {
+    // Snap-Seite (snap-studio.js): nur im Social-Modus und wenn eingeschaltet; Kamera beim Verlassen aus.
+    if (tabName === 'snap' && !(typeof snapPageAvailable === 'function' && snapPageAvailable())) tabName = 'chat';
+    if (tabName !== 'snap' && typeof leaveSnapPage === 'function') leaveSnapPage();
+    ['grid', 'chat', 'snap', 'editprofile', 'cloud', 'keys'].forEach(t => {
         const view = document.getElementById(`view-${t}`);
         if (view) view.classList.toggle('hidden', t !== tabName);
     });
@@ -309,6 +312,7 @@ function switchTab(tabName) {
     window.scrollTo(0, 0);
     syncRoute(tabName);
     syncChatFocus();
+    if (tabName === 'snap') enterSnapPage();
     measureAppChrome();
     if (tabName === 'chat') fitChatListPanel();
     // "Nur Liste ansehen" gilt bis zum Verlassen des Chat-Tabs.

@@ -28,8 +28,8 @@ async function chooseSnapStudioTarget() {
         seconds: Number(document.getElementById('snap-review-seconds')?.value ?? state.snapSettings.seconds),
         saveOptions: snapSaveOptions()
     };
-    closeSnapModal();
-    renderSnapStudioPicker(draft);
+    // Erst nach dem Schliessen der Kamera oeffnen, sonst blendet dessen popstate die Auswahl gleich wieder aus.
+    replaceModal(closeSnapModal, () => renderSnapStudioPicker(draft));
 }
 
 function copyCanvas(source) {

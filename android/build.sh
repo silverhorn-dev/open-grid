@@ -18,7 +18,9 @@ fi
 task="assemble$(echo "$variant" | cut -c1 | tr a-z A-Z)$(echo "$variant" | cut -c2-)"
 # Gradle-Cache im Volume, damit Folge-Builds schnell sind.
 # shellcheck disable=SC2086
-docker run --rm -v "$PWD":/src -v opengrid-android-gradle:/cache/gradle $keystore_args "$image" gradle --no-daemon -q "$task"
+ # Danach Besitz zurueck an den Aufrufer, sonst blockieren root-Dateien in .gradle/ den lokalen ./gradlew.
+docker run --rm -v "$PWD":/src -v opengrid-android-gradle:/cache/gradle $keystore_args "$image" \
+    sh -c "gradle --no-daemon -q $task; rc=\$?; chown -R $(id -u):$(id -g) .gradle app/build; exit \$rc"
 mkdir -p dist
 cp "app/build/outputs/apk/$variant/app-$variant.apk" dist/opengrid.apk
 version_code=$(sed -n 's/^ *versionCode = \([0-9]*\).*/\1/p' app/build.gradle.kts)

@@ -170,6 +170,21 @@
   eigenen Zeile unter dem Namen.
 - Nachrichtenfeld `#chat-input` ist ein `<textarea>`; `fitChatInput` (`chat.js`)
   setzt die Hoehe bis `CHAT_INPUT_MAX_LINES` (5), danach scrollt es.
+- Umzug (`transfer.js`, UC-75, Board T31): Buendel `{ format: 'opengrid-transfer',
+  version: 1, nodeId, publicKeys, stores, local }` aus den Stores `localProfile`,
+  `profiles`, `messages`, `chatOperations`, `keys`, `media`, `albums`,
+  `statusUpdates` (ohne `gridPeers`). Mit dem Speicherschluessel Versiegeltes
+  (ganzer Datensatz bzw. Feld `sealed`) wird als `__plain` entsiegelt und beim
+  Einspielen mit dem Schluessel des neuen Geraets neu versiegelt. Nicht dabei:
+  `identity-key`, `profile-cache`, `router-auth`, `app-config`, alle Datensaetze
+  mit CryptoKeys (non-extractable), `localStorage` nur `opengrid-*` ohne Node-ID
+  und Router-Token. Das neue Geraet behaelt seine Node-ID; die alte wird im
+  ganzen Buendel ersetzt, das eigene Profil bekommt eine neue Version (neu
+  signiert). `keys`/`transfer-imported = { from, publicKeys, at }` merkt die
+  Herkunft. Datei `.opengrid`: `{ format: 'opengrid-transfer-file', kdf:
+  { PBKDF2, SHA-256, 600000, salt }, gzip, iv, ciphertext }`, AES-256-GCM,
+  gzip per `CompressionStream`. Vorerst nur im Debug-Modus sichtbar, bis der
+  signierte Umzug (Phase 3) die Kontakte umzieht.
 - Installations-Anleitung (`install-guide.js`, UC-74): `installPlatform()`
   erkennt `ios-safari`, `ios-other` (Chrome/Firefox/Edge auf iOS, auch WebKit)
   und `mac-safari`; installiert = `display-mode: standalone` oder

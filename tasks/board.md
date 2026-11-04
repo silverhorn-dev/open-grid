@@ -618,5 +618,15 @@
 - [x] anleitung vor dem onboarding im safari-tab (iOS safari, iOS chrome/firefox/edge, macOS safari), "im browser weiter" erst nach warnung; hinweis-balken fuer schon eingerichtete tab-nutzer (7 tage wegklickbar)
   - done 2026-11-04: `client/app/install-guide.js`, `#install-guide-modal`, `#install-hint-bar`; e2e `install-guide` (mobil); UC-74
 - [ ] daten aus dem safari-tab in die installierte app mitnehmen (export/import oder QR-kopplung, wie geplanter umzug PWA -> android-app) -> sonst verlieren bestehende tab-nutzer beim installieren alles
+  - entschieden 2026-11-04 (nutzer): beide wege (router-relay mit code/QR + verschluesselte datei), alte kopie bleibt gesperrt (nur lesen, hinweis "umgezogen"), identitaet = neue ID + signierter umzug
+  - befund: identitaets- (ECDH/ECDSA) und speicher-schluessel sind non-extractable -> privater schluessel kann nicht mit; darum neue schluessel auf dem neuen geraet
+  - done (1)+(2b)+(3) 2026-11-04: `client/app/transfer.js` (buendel, datei mit PBKDF2, import beim einrichten), nur im debug-modus bis (4); tests `test/transfer.test.js`, e2e `transfer-file`; UC-75
+  - plan: (1) export: alte seite entschluesselt ihre daten (profile, chats, alben, medien, einstellungen, kontakte) zu einem buendel, AES-256-GCM mit zufaelligem schluessel K
+  - plan: (2a) relay: nur chiffrat an den router (`/api/transfer`, einmal abholbar, ~15 min TTL, groessen-limit, danach geloescht); code = transfer-ID + K (kopieren fuer dasselbe geraet, QR fuer ein anderes); K steht nie in einer anfrage (nur im code / URL-fragment)
+  - plan: (2b) datei: `.opengrid`-datei, schluessel aus passwort (PBKDF2), import per dateiauswahl; router sieht nichts
+  - plan: (3) import beim einrichten ("Daten uebernehmen") und in den einstellungen; neue schluessel + neue peer-ID, daten neu mit eigenem speicher-schluessel abgelegt
+  - plan: (4) umzug: alte kopie signiert "ich bin jetzt <neue ID, neuer schluessel>" mit dem alten ECDSA-schluessel, schickt es E2E an alle kontakte (wie chat-operationen, P2P/pfad C); kontakte pruefen die signatur gegen den bekannten alten schluessel und ziehen chat, freundschaft, match, album-zugriffe auf die neue ID um
+  - plan: (5) alte kopie gesperrt: kein senden/empfangen, hinweis-seite, alte zugangsdaten beim router abmelden
+  - router sieht: transfer-ID, groesse des chiffrats, zeitpunkt upload/abholung (und damit per timing evtl. "alt -> neu"); nie schluessel, inhalt, kontaktliste. umzugs-nachrichten = normales E2E-chiffrat mit routing-IDs
 - [ ] einladungslinks: wer im safari-tab per einladung kommt und installiert, startet in der app auf `start_url` (/grid), die einladung ist weg -> link in der anleitung zum kopieren anbieten oder einladung nach dem installieren erneut oeffnen lassen
 - [x] nebenbei: `npm run check` prueft jetzt alle server- und client-skripte (`scripts/check-syntax.mjs`); ein syntaxfehler in `main.js` war vorher durchgerutscht

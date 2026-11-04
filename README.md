@@ -450,8 +450,9 @@ sh scripts/e2e.sh   # oder: npm run test:e2e
   Installierte Web-Apps (Home-Bildschirm bzw. Dock) sind ausgenommen, haben aber
   einen eigenen, leeren Speicher. Darum zeigt OpenGrid im Safari-Tab vor dem
   Einrichten eine Installations-Anleitung; wer schon im Tab eingerichtet ist,
-  sieht einen Hinweis-Balken. Eine Uebernahme der Daten in die installierte App
-  gibt es noch nicht.
+  sieht einen Hinweis-Balken. Daten lassen sich per verschluesselter Datei
+  umziehen (Einstellungen > Medien, vorerst im Debug-Modus); dass Kontakte die
+  neue ID erfahren, folgt.
 - Chat-Loeschungen speichern einen Cutoff in `chat_controls`, damit alte
   Operationen den geloeschten Verlauf nicht wiederherstellen.
 - Blockierungen bleiben serverseitig bestehen, entfernen wartende Nachrichten

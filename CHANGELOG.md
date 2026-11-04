@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 286 · 2026-11-04
+## Build 287 · 2026-11-04
+- Vorschau (Debug-Modus): Umzug auf ein anderes Geraet per verschluesselter Datei (Profil, Chats, Kontakte, Alben, Einstellungen); dass Kontakte die neue ID erfahren, folgt
+
+## Build 286 · 2026-11-04 · `07e917e`
 - Safari (iPhone, iPad, Mac): vor dem Einrichten eine Anleitung zum Installieren, damit Safari deine Daten nicht loescht; wer OpenGrid schon im Safari-Tab nutzt, sieht oben einen Hinweis
 
 ## Build 285 · 2026-11-04 · `f7916d4`

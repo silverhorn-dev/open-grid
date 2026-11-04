@@ -1277,3 +1277,22 @@ Akzeptanzkriterien:
   ehrlich, dass die installierte App leer startet.
 - In der installierten App und in anderen Browsern (Android, Desktop-Chrome)
   erscheint nichts davon.
+
+## UC-75: Umzug auf ein anderes Geraet (Datei)
+
+**Als Nutzer** moechte ich meine Daten auf ein anderes Geraet mitnehmen, z. B.
+vom Safari-Tab in die installierte App.
+
+Akzeptanzkriterien:
+
+- Unter Einstellungen > Medien > "Umzug auf ein anderes Geraet" erstelle ich
+  eine Datei, verschluesselt mit einem Passwort (mindestens 8 Zeichen,
+  zweimal eingegeben). Ohne Passwort ist die Datei nicht lesbar.
+- Beim Einrichten auf dem neuen Geraet waehle ich "Daten von einem anderen
+  Geraet uebernehmen", die Datei und das Passwort. Ein falsches Passwort wird
+  abgelehnt; danach startet OpenGrid neu ohne erneutes Einrichten.
+- Profil, Chats, Kontakte, Alben, Medien, Status und Einstellungen sind da;
+  eigene Nachrichten bleiben meine. Das neue Geraet hat neue Schluessel und
+  eine eigene ID.
+- Vorerst nur im Debug-Modus, bis Kontakte die neue ID automatisch erfahren
+  (signierter Umzug).

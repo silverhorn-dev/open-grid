@@ -17,3 +17,6 @@ Aufgaben, die nicht (mehr) umgesetzt werden, mit Grund.
 - idee: im admin-panel einen debug-schalter, der bei neuen pfad-C-nachrichten die art (`notifyKind`: chat, flamme, profilbesuch, ohne push) speichert, um zu sehen, was liegen bleibt
 - grund (nutzer): die art ist normalerweise nicht sichtbar (verschluesselt); der router soll sie auch zum debuggen nicht speichern. die analyse nutzt nur metadaten, die der router ohnehin hat
 
+## Snap-Seite: Modus-Wahl schon im Editor (verworfen 2026-11-04)
+- idee (T30 plan 3): snap / secure / bild nicht mehr per lasche an der kamera, sondern erst im editor waehlen; ggf. auch "als profilbild"
+- grund (nutzer): "we could drop modus in edit", der aktuelle stand (lasche + zielauswahl mit mehreren zielen) ist gut; stattdessen den stand gemeinsam durchsprechen

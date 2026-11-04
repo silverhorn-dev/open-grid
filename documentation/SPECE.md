@@ -192,8 +192,9 @@
   Anmeldung (ID 128 Bit), genau einmal, danach geloescht; nach 15 Minuten weg,
   beim Neustart alles weg. Code = `<id>.<K base64url>`, Link
   `/transfer#<code>` (Fragment geht nie an den Server, `router.js` merkt ihn als
-  `state.pendingTransferCode` und oeffnet die Uebernahme). Vorerst nur im
-  Debug-Modus sichtbar.
+  `state.pendingTransferCode` und oeffnet die Uebernahme). Fuer alle sichtbar
+  (Einstellungen > Medien, beim Einrichten, in der Installations-Anleitung);
+  geht zwischen beliebigen Geraeten und Browsern, nicht nur Safari -> App.
 - Signierter Umzug (`move.js`): beim Export erzeugt die alte Kopie einen
   Delegations-Schluessel D (ECDSA P-256, extractable) und signiert mit ihrem
   Identitaets-Signaturschluessel `delegation = { type:
@@ -215,6 +216,27 @@
   laedt neu (nicht mitten im Tippen); war die alte ID gesperrt, wird die neue
   gesperrt. Alte Kopie (`from` = eigene ID): `keys`/`moved-away = { to, at }`,
   `state.movedAway`: kein Signaling, kein P2P, kein Senden, Hinweis + Balken.
+- Alte ID stilllegen (`server/move.js`): das Buendel enthaelt den alten
+  Router-Token (`routerToken`, nur verschluesselt), `transfer-imported` merkt
+  ihn. Ist die alte Kopie per P2P/Pfad C erreicht, sonst nach 30 s (bzw. sofort
+  beim naechsten Start), sendet das neue Geraet `POST /api/move { peerId: alte
+  ID, proof: { delegation, delegationSignature, announcement,
+  announcementSignature } }` mit dem alten Token. Der Router prueft die
+  Vollmacht gegen den Signaturschluessel aus der Registrierung der alten ID, die
+  Ansage gegen D, `from` = alte ID, `to` != alte ID, nicht abgelaufen; dann
+  loescht er Grid-Eintrag (Tombstone), Zugangsdaten, Push-Abo, Chat-Kontrollen
+  und wartende Nachrichten der alten ID, trennt ihre Verbindung und speichert
+  `moved_peers (peer_id, moved_to, proof, created_at, expires_at)` fuer
+  `CREDENTIAL_RETENTION_DAYS`. Danach: `POST /api/register` der alten ID ->
+  410 `{ movedTo, proof }`, die alte Kopie prueft den Nachweis
+  (`handleRouterMove`, die eigene Vollmacht auch nach Ablauf) und sperrt sich;
+  `POST /api/cache` an die alte ID -> 410 `{ movedTo, proof }`, der Absender
+  prueft wie bei `MOVE_ANNOUNCE` (Vollmacht nicht abgelaufen) und zieht den Chat
+  um, die Operation geht per Chat-Sync an die neue ID. Damit erfahren auch
+  Kontakte und die alte Kopie den Umzug, die laenger offline sind, als Pfad C
+  haelt (24 h). Danach gilt die alte ID in `pending` als erledigt; `401`/`400`
+  (anderer Router, schon stillgelegt) werden nicht wiederholt. Der Router lernt
+  dabei "alte ID -> neue ID" und die oeffentlichen Schluessel der neuen ID.
 - Installations-Anleitung (`install-guide.js`, UC-74): `installPlatform()`
   erkennt `ios-safari`, `ios-other` (Chrome/Firefox/Edge auf iOS, auch WebKit)
   und `mac-safari`; installiert = `display-mode: standalone` oder
@@ -1676,6 +1698,7 @@ clientseitig verschluesselte Payloads.
 | Methode | Route | Funktion |
 |---|---|---|
 | `POST` | `/api/cache` | Ciphertext mit einer TTL von 1 bis 72 Stunden ablegen |
+| `POST` | `/api/move` | Alte ID nach einem Umzug stilllegen (Token der alten ID, signierter Nachweis); danach 410 fuer `/api/register` der alten ID und `/api/cache` an sie |
 | `GET` | `/api/cache/:recipientId` | Gueltige Nachrichten eines Empfaengers lesen |
 | `DELETE` | `/api/cache/:msgId` | Verarbeitete Nachricht entfernen |
 

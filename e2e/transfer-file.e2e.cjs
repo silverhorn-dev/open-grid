@@ -1,7 +1,7 @@
 // End-to-End: Umzug per Datei (transfer.js, Board T31). Alte Kopie mit Profil, Chat und Album exportiert eine
 // verschluesselte .opengrid-Datei; ein frisches Geraet uebernimmt sie beim Einrichten (falsches Passwort wird
 // abgelehnt) und startet mit denselben Daten, aber eigener Node-ID. Danach signierter Umzug: Bob zieht den Chat
-// auf die neue ID um, die alte Kopie sperrt sich. Vorerst nur im Debug-Modus.
+// auf die neue ID um, die alte Kopie sperrt sich.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -26,8 +26,6 @@ async function main() {
     const pageErrors = [];
     const newPage = async () => {
         const context = await browser.newContext({ locale: 'de-DE', acceptDownloads: true });
-        // Umzug ist bis zum signierten Umzug (Phase 3) nur im Debug-Modus sichtbar.
-        await context.addInitScript(() => localStorage.setItem('opengrid-debug-mode', 'on'));
         const page = await context.newPage();
         page.on('pageerror', error => pageErrors.push(error.message));
         await page.goto(`${BASE_URL}/`);

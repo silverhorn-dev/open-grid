@@ -443,6 +443,11 @@ sh scripts/e2e.sh   # oder: npm run test:e2e
   bzw. 20 MB, pro Absender und Empfaenger 200 Nachrichten.
 - Logs enthalten weder Query-Strings (Geohash, Peer-IDs, Event-Hashes) noch
   IP-Adressen.
+- Nach einem Umzug legt das neue Geraet die alte ID beim Router still: der
+  Router loescht deren Zugangsdaten und wartende Nachrichten und haelt fuer
+  `CREDENTIAL_RETENTION_DAYS` nur den signierten Umzugs-Nachweis (alte ID,
+  neue ID, oeffentliche Schluessel). Damit erfahren die alte Kopie und
+  Kontakte den Umzug auch nach langer Offline-Zeit.
 - Peers, die sich `CREDENTIAL_RETENTION_DAYS` (Standard 180) Tage nicht
   registriert haben, werden mit Zugangsdaten, Push-Abo, eigenen
   Chat-Kontrollen und wartenden Nachrichten geloescht.
@@ -457,7 +462,8 @@ sh scripts/e2e.sh   # oder: npm run test:e2e
   sieht einen Hinweis-Balken. Daten lassen sich per verschluesselter Datei
   umziehen oder per Code/QR ueber den Router (nur Chiffrat, 15 Minuten, einmal);
   Kontakte erfahren die neue ID per signiertem Umzug, die alte Kopie sperrt
-  sich (Einstellungen > Medien, vorerst im Debug-Modus).
+  sich (Einstellungen > Medien, beim Einrichten und in der Anleitung). Das geht
+  zwischen allen Geraeten und Browsern, nicht nur vom Safari-Tab in die App.
 - Chat-Loeschungen speichern einen Cutoff in `chat_controls`, damit alte
   Operationen den geloeschten Verlauf nicht wiederherstellen.
 - Blockierungen bleiben serverseitig bestehen, entfernen wartende Nachrichten

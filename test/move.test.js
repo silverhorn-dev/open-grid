@@ -123,3 +123,28 @@ test('the old copy locks itself when it receives its own move', async () => {
     assert.equal(oldDevice.context.state.movedAway, true);
     assert.deepEqual(oldDevice.calls.renamed, []);
 });
+
+test('the router can hand out the move proof: contacts move, the old copy locks even after expiry', async () => {
+    const { old, fresh, payload, oldId, newId } = await makeAnnouncement();
+    const proof = { delegation: payload.delegation, delegationSignature: payload.delegationSignature, announcement: payload.announcement, announcementSignature: payload.announcementSignature };
+    const contact = loadMove({ myId: 'node_contact', myKeys: (await identity()).keys, identities: { [oldId]: { profileSigningKey: old.keys.jwkEcdsaPublic } } });
+    // Nachweis fuer eine andere alte ID oder mit falschem Ziel: nichts tun.
+    assert.equal(await contact.context.handleRouterMove('node_someone', { movedTo: newId, proof }), false);
+    assert.equal(await contact.context.handleRouterMove(oldId, { movedTo: 'node_elsewhere', proof }), false);
+    assert.equal(await contact.context.handleRouterMove(oldId, { movedTo: newId, proof }), true);
+    assert.deepEqual(contact.calls.renamed, [[oldId, newId]]);
+    // Das neue Geraet selbst bekommt den Nachweis (an die alte ID gesendet) und ignoriert ihn.
+    const self = loadMove({ myId: newId, myKeys: fresh.keys, identities: { [oldId]: { profileSigningKey: old.keys.jwkEcdsaPublic } } });
+    assert.equal(await self.context.handleRouterMove(oldId, { movedTo: newId, proof }), false);
+    assert.deepEqual(self.calls.renamed, []);
+
+    // Alte Kopie, Wochen spaeter: Vollmacht abgelaufen, sperrt sich trotzdem.
+    const late = await makeAnnouncement({ expires: Date.now() - 1000 });
+    const lateProof = { delegation: late.payload.delegation, delegationSignature: late.payload.delegationSignature, announcement: late.payload.announcement, announcementSignature: late.payload.announcementSignature };
+    const oldDevice = loadMove({ myId: late.oldId, myKeys: late.old.keys });
+    assert.equal(await oldDevice.context.handleRouterMove(late.oldId, { movedTo: late.newId, proof: lateProof }), true);
+    assert.equal(oldDevice.context.state.movedAway, true);
+    // Ein Kontakt nimmt die abgelaufene Vollmacht nicht mehr an.
+    const lateContact = loadMove({ myId: 'node_contact', myKeys: (await identity()).keys, identities: { [late.oldId]: { profileSigningKey: late.old.keys.jwkEcdsaPublic } } });
+    assert.equal(await lateContact.context.handleRouterMove(late.oldId, { movedTo: late.newId, proof: lateProof }), false);
+});

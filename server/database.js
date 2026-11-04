@@ -87,6 +87,16 @@ export function createStore(databasePath, { credentialRetentionDays = DEFAULT_CR
             updated_at INTEGER NOT NULL
         );
 
+        -- Umzug auf ein anderes Geraet (Board T31): alte ID ist stillgelegt, der signierte Nachweis
+        -- (Vollmacht + Ansage, nur IDs und oeffentliche Schluessel) geht an die alte Kopie und an Absender.
+        CREATE TABLE IF NOT EXISTS moved_peers (
+            peer_id TEXT PRIMARY KEY,
+            moved_to TEXT NOT NULL,
+            proof TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            expires_at INTEGER NOT NULL
+        );
+
         CREATE TABLE IF NOT EXISTS server_settings (
             key TEXT PRIMARY KEY,
             value TEXT NOT NULL
@@ -298,6 +308,17 @@ export function createStore(databasePath, { credentialRetentionDays = DEFAULT_CR
         setPushMutedKinds: database.prepare('UPDATE push_subscriptions SET muted_kinds = ? WHERE peer_id = ?'),
         findPushMutedKinds: database.prepare('SELECT muted_kinds AS mutedKinds FROM push_subscriptions WHERE peer_id = ?'),
         deletePushSubscriptionEndpoint: database.prepare('DELETE FROM push_subscriptions WHERE peer_id = ? AND endpoint = ?'),
+        upsertMovedPeer: database.prepare(`
+            INSERT INTO moved_peers (peer_id, moved_to, proof, created_at, expires_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(peer_id) DO UPDATE SET
+                moved_to = excluded.moved_to,
+                proof = excluded.proof,
+                created_at = excluded.created_at,
+                expires_at = excluded.expires_at
+        `),
+        findMovedPeer: database.prepare('SELECT moved_to AS movedTo, proof FROM moved_peers WHERE peer_id = ? AND expires_at > ?'),
+        deleteExpiredMoved: database.prepare('DELETE FROM moved_peers WHERE expires_at <= ?'),
         findSetting: database.prepare('SELECT value FROM server_settings WHERE key = ?'),
         insertSetting: database.prepare('INSERT OR IGNORE INTO server_settings (key, value) VALUES (?, ?)'),
         deleteEmptyChatControl: database.prepare(`
@@ -412,6 +433,7 @@ export function createStore(databasePath, { credentialRetentionDays = DEFAULT_CR
     const admin = createAdminStore(database);
 
     function removeStaleIdentities(now) {
+        statements.deleteExpiredMoved.run(now);
         const stale = statements.listStaleCredentials.all(now - retentionMs);
         if (!stale.length) return 0;
         transaction(() => {
@@ -446,6 +468,41 @@ export function createStore(databasePath, { credentialRetentionDays = DEFAULT_CR
                 statements.deleteRecipientMessages.run(peerId);
                 return true;
             });
+        },
+
+        // Umzug (Board T31): alte ID stilllegen wie beim Loeschen, dazu den Nachweis fuer die Aufbewahrungsfrist.
+        markPeerMoved(peerId, movedTo, proof, now = Date.now()) {
+            return transaction(() => {
+                const current = statements.findPeer.get(peerId);
+                if (current) statements.upsertRemoved.run(current.geohash, peerId, now, now + REMOVED_TTL_MS);
+                statements.deletePeer.run(peerId);
+                statements.deleteCredential.run(peerId);
+                statements.deletePushSubscription.run(peerId);
+                statements.deleteOwnerControls.run(peerId);
+                statements.deleteRecipientMessages.run(peerId);
+                statements.upsertMovedPeer.run(peerId, movedTo, proof, now, now + retentionMs);
+                return true;
+            });
+        },
+
+        getPeerMove(peerId, now = Date.now()) {
+            const row = statements.findMovedPeer.get(peerId, now);
+            if (!row) return null;
+            try {
+                return { movedTo: row.movedTo, proof: JSON.parse(row.proof) };
+            } catch {
+                return null;
+            }
+        },
+
+        // Signaturschluessel aus der Registrierung (fuer den Umzugs-Nachweis).
+        getPeerIdentityJwk(peerId) {
+            const jwk = statements.findPeerCredential.get(peerId)?.identityJwk;
+            try {
+                return jwk ? JSON.parse(jwk) : null;
+            } catch {
+                return null;
+            }
         },
 
         registerPeer(session, now = Date.now()) {

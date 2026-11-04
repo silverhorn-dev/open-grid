@@ -196,6 +196,8 @@ const state = {
     pendingTransferCode: null,
     movedAwayNoticeSeen: false,
     moveReloadScheduled: false,
+    // Umzugs-Nachweise vom Router (410), schon bearbeitet je alter ID (move.js).
+    routerMovesHandled: new Set(),
     snapPageEnabled: null,
     // App-Modus (P8): vom Server erlaubte Modi, gewaehlter Modus und Event-Daten.
     appConfig: { modes: ['discovery', 'chat', 'friends', 'event'], defaultMode: 'discovery' },

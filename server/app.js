@@ -1,4 +1,5 @@
 import { parseTransferMaxBytes, registerTransferRelay } from './transfer-relay.js';
+import { verifyMoveProof } from './move.js';
 import Fastify from 'fastify';
 import websocket from '@fastify/websocket';
 import { readFile, readdir } from 'node:fs/promises';
@@ -1097,6 +1098,10 @@ export async function buildApp(options = {}) {
             return reply.code(400).send({ error: 'Invalid eventHash' });
         }
 
+        // Umgezogene alte ID (server/move.js): nicht mehr anmelden, der Nachweis sperrt die alte Kopie.
+        const move = store.getPeerMove(peerId, now());
+        if (move) return reply.code(410).send({ error: 'Peer moved', movedTo: move.movedTo, proof: move.proof });
+
         const authToken = suppliedToken != null
             ? suppliedToken
             : randomBytes(32).toString('base64url');
@@ -1168,6 +1173,19 @@ export async function buildApp(options = {}) {
         return { status: 'deleted', peerId };
     });
     app.post('/api/unregister', unregister);
+
+    // Umzug (Board T31): das neue Geraet legt die alte ID mit deren Router-Token still (server/move.js).
+    app.post('/api/move', async (request, reply) => {
+        const { peerId, proof } = request.body || {};
+        if (!isString(peerId, 200)) return reply.code(400).send({ error: 'Invalid peerId' });
+        if (!allowRequest('register', request.ip, reply)) return;
+        if (!requirePeerAuth(request, reply, peerId)) return;
+        const verified = verifyMoveProof(proof, peerId, store.getPeerIdentityJwk(peerId), now());
+        if (!verified) return reply.code(400).send({ error: 'Invalid move proof' });
+        store.markPeerMoved(peerId, verified.movedTo, JSON.stringify(verified.proof), now());
+        signaling.disconnectPeer(peerId);
+        return { status: 'moved', peerId, movedTo: verified.movedTo };
+    });
 
     app.get('/api/config', async () => ({ features: [...enabledFeatures()], android: { ...(await apkSource.publicInfo()), signers: effectiveAppSigners(androidAppSigners) }, flames: { ...flameSettings }, modes: appModes, defaultMode: defaultAppMode, profileSchemas, lanMode: isLanMode, clientDefaults, infoUrl: infoSiteUrl(infoHost), safety: safety.publicConfig(), nudity: { ...nudityPublicConfig, required: nudityScanRequired },
         // Fuer die Anzeige in den Einstellungen ("vom Server vorgegeben").
@@ -1371,6 +1389,9 @@ export async function buildApp(options = {}) {
         if (ivHex != null && typeof ivHex !== 'string') {
             return reply.code(400).send({ error: 'Invalid ivHex' });
         }
+        // Empfaenger ist umgezogen: Nachweis an den Absender, der zieht den Chat selbst um (client/app/move.js).
+        const recipientMove = store.getPeerMove(recipientId, now());
+        if (recipientMove) return reply.code(410).send({ error: 'Recipient moved', movedTo: recipientMove.movedTo, proof: recipientMove.proof });
         if (store.isBlocked(recipientId, senderId)) {
             return reply.code(403).send({ error: 'Recipient does not accept messages from this sender' });
         }

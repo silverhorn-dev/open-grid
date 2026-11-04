@@ -235,7 +235,8 @@ function cacheNotifyKind(item) {
 }
 
 async function queuePayloadInCache(peerId, item) {
-    if (item.cacheQueued || item.payload?.type !== 'CHAT_OPERATION') return false;
+    // Umzugs-Ansagen (move.js) gehen auch ueber Pfad C: Kontakte koennen gerade offline sein.
+    if (item.cacheQueued || !['CHAT_OPERATION', 'MOVE_ANNOUNCE'].includes(item.payload?.type)) return false;
     if (!state.gridSettings.cacheEnabled) {
         logDebug(`Path C skipped for ${peerId}: message cache is disabled locally.`);
         return false;
@@ -276,6 +277,15 @@ async function queuePayloadInCache(peerId, item) {
         item.discarded = true;
         if (item.onSent) item.onSent('rejected');
         logDebug(`Path C delivery to ${peerId} was rejected by the recipient.`);
+        return false;
+    }
+    if (response.status === 410) {
+        // Empfaenger ist umgezogen (server/move.js): Chat auf die neue ID umziehen; die Operation bleibt im
+        // Log und geht beim naechsten Chat-Sync an die neue ID.
+        item.discarded = true;
+        const moved = await response.json().catch(() => null);
+        if (item.onSent) item.onSent(item.payload?.type === 'MOVE_ANNOUNCE' ? 'moved' : 'pending');
+        if (typeof handleRouterMove === 'function') await handleRouterMove(peerId, moved).catch(logBackgroundError('queuePayloadInCache'));
         return false;
     }
     if (!response.ok) throw new Error(`Cache API returned ${response.status}.`);

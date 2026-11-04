@@ -12,6 +12,8 @@
 // Der Router sieht dabei nur normales E2E-Chiffrat mit Routing-IDs.
 const MOVE_DELEGATION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const MOVED_AWAY_RECORD_ID = 'moved-away';
+// Wartezeit, bevor die alte ID beim Router stillgelegt wird, falls die alte Kopie nicht direkt erreicht wurde.
+const MOVE_RETIRE_DELAY_MS = 30000;
 const TRANSFER_IMPORTED_RECORD_ID = 'transfer-imported';
 const MOVE_KEY_PATHS = {
     localProfile: 'slot', profiles: 'id', gridPeers: 'cacheKey', messages: 'id', chatOperations: 'operationId',
@@ -74,7 +76,7 @@ async function moveContacts(oldId) {
 
 async function finishTransferMove() {
     const record = await databaseRequest('keys', 'readonly', store => store.get(TRANSFER_IMPORTED_RECORD_ID)).catch(() => null);
-    if (!record?.move || record.done) return;
+    if (!record?.move || (record.done && (record.retired || !record.routerToken))) return;
     if (!record.blocksApplied) {
         for (const peerId of record.blocked || []) await storeChatControl(peerId, 'block').catch(logBackgroundError('finishTransferMove'));
         record.blocksApplied = true;
@@ -91,6 +93,10 @@ async function finishTransferMove() {
         record.announcementSignature = await signMoveText(record.announcement, delegateKey);
         record.pending = await moveContacts(record.from);
     }
+    // Die alte Kopie zuerst direkt erreichen lassen (P2P/Pfad C), dann beim Router stilllegen; das trennt
+    // ihre Verbindung. Ist sie schon erreicht oder ist das nicht der erste Lauf, sofort.
+    const retireDelay = record.retryRun || !record.pending.includes(record.from) ? 0 : MOVE_RETIRE_DELAY_MS;
+    record.retryRun = true;
     await putDatabaseRecord('keys', record);
     const payload = {
         type: 'MOVE_ANNOUNCE',
@@ -101,22 +107,103 @@ async function finishTransferMove() {
     };
     for (const peerId of [...record.pending]) {
         sendSecurePayload(peerId, payload, via => {
-            if (!['p2p', 'cache', 'rejected'].includes(via)) return;
+            if (!['p2p', 'cache', 'rejected', 'moved'].includes(via)) return;
             markMoveDelivered(peerId).catch(logBackgroundError('finishTransferMove'));
         }).catch(logBackgroundError('finishTransferMove'));
     }
+    if (record.routerToken && !record.retired) {
+        setTimeout(() => retireStoredOldIdentity().catch(logBackgroundError('finishTransferMove')), retireDelay);
+    }
 }
 
-async function markMoveDelivered(peerId) {
+function retireStoredOldIdentity() {
+    moveRecordChain = moveRecordChain.catch(() => {}).then(retireStoredOldIdentityNow);
+    return moveRecordChain;
+}
+
+async function retireStoredOldIdentityNow() {
+    const record = await databaseRequest('keys', 'readonly', store => store.get(TRANSFER_IMPORTED_RECORD_ID)).catch(() => null);
+    if (!record?.announcement || record.retired || !record.routerToken) return;
+    await retireOldIdentity(record);
+    await putDatabaseRecord('keys', record);
+}
+
+function moveProofOf(record) {
+    return {
+        delegation: record.move.delegation,
+        delegationSignature: record.move.delegationSignature,
+        announcement: record.announcement,
+        announcementSignature: record.announcementSignature
+    };
+}
+
+// Alte ID beim Router stilllegen (server/move.js), mit dem alten Router-Token aus dem Buendel. Danach
+// meldet der Router der alten Kopie bei jeder Anmeldung den Umzug und Absendern an die alte ID ebenso;
+// das hilft, wenn die alte Kopie oder ein Kontakt laenger offline ist, als Pfad C Nachrichten haelt.
+async function retireOldIdentity(record) {
+    if (record.retired || !record.routerToken) return;
+    try {
+        const response = await fetch(`${API_BASE}/api/move`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${record.routerToken}` },
+            body: JSON.stringify({ peerId: record.from, proof: moveProofOf(record) })
+        });
+        // 401/400: Token gilt hier nicht (anderer Router) oder Nachweis abgelehnt -> nicht endlos wiederholen.
+        if (response.ok || response.status === 401 || response.status === 400) {
+            record.retired = response.ok ? Date.now() : `failed-${response.status}`;
+            delete record.routerToken;
+        }
+        if (response.ok) {
+            // Die alte Kopie erfaehrt es jetzt vom Router: nicht weiter direkt versuchen.
+            if (state.secureMessageQueues) delete state.secureMessageQueues[record.from];
+            finishMoveRecipient(record, record.from);
+        }
+    } catch (error) {
+        logDebug(`Could not retire the old identity: ${error.message}`);
+    }
+}
+
+// Router meldet "umgezogen" (410 aus /api/register fuer die eigene alte Kopie, aus /api/cache fuer
+// Absender). Der Nachweis wird genauso geprueft wie eine Ansage von Peer zu Peer.
+async function handleRouterMove(oldId, move) {
+    if (!move?.proof || typeof move.movedTo !== 'string' || move.movedTo === state.myProfile?.id) return false;
+    let announcement;
+    try {
+        announcement = JSON.parse(move.proof.announcement);
+    } catch {
+        return false;
+    }
+    if (announcement?.from !== oldId || announcement?.to !== move.movedTo) return false;
+    if (!state.routerMovesHandled) state.routerMovesHandled = new Set();
+    if (state.routerMovesHandled.has(oldId)) return true;
+    state.routerMovesHandled.add(oldId);
+    const handled = await handleMoveAnnouncement(move.movedTo, { type: 'MOVE_ANNOUNCE', ...move.proof }, announcement.keys?.jwkPublic || null);
+    if (!handled) state.routerMovesHandled.delete(oldId);
+    return handled;
+}
+
+// Nacheinander: sonst ueberschreiben sich parallele Zustellungen (dazwischen liegt ein Router-Aufruf).
+let moveRecordChain = Promise.resolve();
+function markMoveDelivered(peerId) {
+    moveRecordChain = moveRecordChain.catch(() => {}).then(() => markMoveDeliveredNow(peerId));
+    return moveRecordChain;
+}
+
+async function markMoveDeliveredNow(peerId) {
     const record = await databaseRequest('keys', 'readonly', store => store.get(TRANSFER_IMPORTED_RECORD_ID)).catch(() => null);
     if (!record?.pending) return;
-    record.pending = record.pending.filter(id => id !== peerId);
+    finishMoveRecipient(record, peerId);
+    if (peerId === record.from && record.routerToken && !record.retired) await retireOldIdentity(record);
+    await putDatabaseRecord('keys', record);
+}
+
+function finishMoveRecipient(record, peerId) {
+    record.pending = (record.pending || []).filter(id => id !== peerId);
     if (!record.pending.length) {
         record.done = true;
         // Der Delegations-Schluessel wird nicht mehr gebraucht.
         delete record.move.delegatePrivate;
     }
-    await putDatabaseRecord('keys', record);
 }
 
 // ----- 3. Kontakt (oder alte Kopie): Ansage pruefen und umziehen -----
@@ -131,14 +218,15 @@ async function handleMoveAnnouncement(senderId, payload, senderPublicKey = null)
     }
     if (delegation?.type !== 'opengrid-move-delegation' || announcement?.type !== 'opengrid-move') return false;
     if (announcement.to !== senderId || announcement.from !== delegation.from || announcement.from === senderId) return false;
-    if (!(Number(delegation.expiresAt) > Date.now())) return false;
+    const fromIsMe = announcement.from === state.myProfile.id;
+    // Die eigene Vollmacht gilt fuer die alte Kopie auch nach Ablauf (sie kann Wochen zu gewesen sein).
+    if (!fromIsMe && !(Number(delegation.expiresAt) > Date.now())) return false;
     const keys = announcement.keys || {};
     // Die angesagten Schluessel muessen die sein, mit denen der Absender wirklich spricht.
     const senderKey = senderPublicKey || (await getPeerIdentity(senderId))?.jwkPublic;
     if (!senderKey || !keys.jwkPublic || !publicKeysMatch(senderKey, keys.jwkPublic)) return false;
     const pinnedSigning = (await getPeerIdentity(senderId))?.profileSigningKey;
     if (pinnedSigning && !publicJwksMatch(pinnedSigning, keys.jwkEcdsaPublic)) return false;
-    const fromIsMe = announcement.from === state.myProfile.id;
     const oldSigningKey = fromIsMe ? state.myKeys?.jwkEcdsaPublic : (await getPeerIdentity(announcement.from))?.profileSigningKey;
     // Unbekannte alte ID: nichts umzuziehen (und keine Vollmacht pruefbar).
     if (!oldSigningKey) return false;

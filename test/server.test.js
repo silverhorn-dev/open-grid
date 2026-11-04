@@ -1148,3 +1148,50 @@ test('transfer relay keeps only ciphertext, hands it out once and enforces auth 
         await relay.close();
     }
 });
+
+// Umzug (Board T31, server/move.js): Nachweis wie in client/app/move.js, hier mit node:crypto signiert.
+function signedMoveProof(peerId, movedTo, { signer = peerSigningKeys.get(peerId).privateKey, expiresAt = Date.now() + 60000 } = {}) {
+    const delegate = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+    const delegation = JSON.stringify({ type: 'opengrid-move-delegation', from: peerId, delegate: delegate.publicKey.export({ format: 'jwk' }), createdAt: Date.now(), expiresAt });
+    const announcement = JSON.stringify({ type: 'opengrid-move', from: peerId, to: movedTo, keys: {}, at: Date.now() });
+    const signText = (text, key) => sign('sha256', Buffer.from(text), { key, dsaEncoding: 'ieee-p1363' }).toString('base64');
+    return { delegation, delegationSignature: signText(delegation, signer), announcement, announcementSignature: signText(announcement, delegate.privateKey) };
+}
+
+test('a moved peer id is retired: register and cache answer 410 with the signed proof', async () => {
+    await registerPeer('peer-old');
+    await registerPeer('peer-contact');
+    const proof = signedMoveProof('peer-old', 'peer-new');
+    const anonymous = await app.inject({ method: 'POST', url: '/api/move', payload: { peerId: 'peer-old', proof } });
+    assert.equal(anonymous.statusCode, 401, 'needs the old router token');
+    const stranger = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+    for (const bad of [
+        signedMoveProof('peer-old', 'peer-new', { signer: stranger.privateKey }),
+        signedMoveProof('peer-old', 'peer-new', { expiresAt: Date.now() - 1 }),
+        signedMoveProof('peer-old', 'peer-old'),
+        { ...proof, announcement: proof.announcement.replace('peer-new', 'peer-evil') }
+    ]) {
+        const rejected = await app.inject({ method: 'POST', url: '/api/move', headers: authHeaders('peer-old'), payload: { peerId: 'peer-old', proof: bad } });
+        assert.equal(rejected.statusCode, 400);
+    }
+    const moved = await app.inject({ method: 'POST', url: '/api/move', headers: authHeaders('peer-old'), payload: { peerId: 'peer-old', proof } });
+    assert.equal(moved.statusCode, 200);
+    assert.equal(moved.json().movedTo, 'peer-new');
+
+    // Alte Kopie meldet sich wieder an (auch mit gueltigem Signaturnachweis): 410 mit Nachweis.
+    const again = await app.inject({ method: 'POST', url: '/api/register', payload: registrationPayload('peer-old', 'registration-peer-old') });
+    assert.equal(again.statusCode, 410);
+    assert.equal(again.json().movedTo, 'peer-new');
+    assert.deepEqual(again.json().proof, proof);
+    // Der alte Token gilt nicht mehr.
+    const oldToken = await app.inject({ method: 'GET', url: '/api/cache/peer-old', headers: authHeaders('peer-old') });
+    assert.equal(oldToken.statusCode, 401);
+    // Ein Kontakt schreibt noch an die alte ID: 410, die Nachricht wird nicht gespeichert.
+    const cached = await app.inject({
+        method: 'POST', url: '/api/cache', headers: authHeaders('peer-contact'),
+        payload: { recipientId: 'peer-old', senderId: 'peer-contact', ciphertextPayload: 'opaque', ivHex: 'iv' }
+    });
+    assert.equal(cached.statusCode, 410);
+    assert.equal(cached.json().movedTo, 'peer-new');
+    assert.equal(store.getMessages('peer-old').length, 0);
+});

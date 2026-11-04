@@ -2,7 +2,12 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 291 · 2026-11-04
+## Build 293 · 2026-11-04
+- Umzug auf ein anderes Geraet ist jetzt fuer alle da (Einstellungen > Medien, beim Einrichten): neues Handy, anderer Browser oder vom Safari-Tab in die App
+- Umzug: auch Kontakte, die laenger offline sind, und das alte Geraet erfahren den Umzug noch nach Wochen (dein Router legt die alte ID still)
+- Safari-Anleitung: Knopf "Daten mitnehmen" fuer alle, die OpenGrid schon im Tab nutzen
+
+## Build 291 · 2026-11-04 · `01cf522`
 - Admin-Panel: Arbeitsspeicher aufgeteilt (eigen, Dateien, JS-Heap, Puffer) mit Hinweis, wenn der eigene Speicher ueber Stunden stetig waechst
 
 ## Build 290 · 2026-11-04 · `26577c8`

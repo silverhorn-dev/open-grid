@@ -1285,7 +1285,8 @@ Akzeptanzkriterien:
 ## UC-75: Umzug auf ein anderes Geraet (Datei)
 
 **Als Nutzer** moechte ich meine Daten auf ein anderes Geraet mitnehmen, z. B.
-vom Safari-Tab in die installierte App.
+auf ein neues Handy, in einen anderen Browser oder vom Safari-Tab in die
+installierte App.
 
 Akzeptanzkriterien:
 
@@ -1306,4 +1307,7 @@ Akzeptanzkriterien:
 - Statt der Datei geht auch ein Code (15 Minuten, einmal): auf demselben
   Geraet kopieren und einfuegen, auf einem anderen den QR-Code scannen. Der
   Router speichert dafuer nur Chiffrat; den Schluessel sieht er nie.
-- Vorerst nur im Debug-Modus.
+- Auch wer beim Umzug offline ist, erfaehrt ihn: Kontakte ueber Pfad C oder,
+  wenn das zu lange her ist, beim naechsten Schreiben an die alte ID vom
+  Router; die alte Kopie beim naechsten Oeffnen, auch nach Wochen.
+- Im Safari-Tab bietet die Installations-Anleitung "Daten mitnehmen" an.

@@ -57,6 +57,12 @@ async function main() {
         // Balken: Anleitung mit Hinweis auf den leeren Speicher der App, wegklickbar fuer 7 Tage.
         await page.click('#install-hint-bar [data-click="openInstallGuide"]');
         assert.ok(await page.locator('#install-guide-existing').isVisible());
+        // "Daten mitnehmen" oeffnet den Umzug (transfer.js), die Anleitung geht zu.
+        await page.click('#install-guide-transfer');
+        await page.waitForSelector('#transfer-code-btn', { state: 'visible', timeout: 10000 });
+        assert.equal(await page.locator('#install-guide-modal').isVisible(), false);
+        await page.evaluate(() => closeMediaModal());
+        await page.click('#install-hint-bar [data-click="openInstallGuide"]');
         await page.click('#install-guide-skip-btn');
         await page.click('#install-guide-skip-btn');
         assert.equal(await page.locator('#install-guide-modal').isVisible(), false);

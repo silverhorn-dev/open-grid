@@ -602,7 +602,7 @@
 - [x] "Privat"-modus (auge) fuer nur-social: versteckter schalter in den einstellungen, lasche in jedem freundes-chat ohne match; hinweis "lange druecken zum ausblenden" links neben der lasche
 
 ## T30 Snap-Seite im Social-Modus (nutzer 2026-11-02, aus dem backlog)
-- [ ] eigene seite neben Chat, Profil und Grid zum Snap erstellen: direkt die Snap-Kamera; nach der aufnahme im editor ziel + modus (secure / bild / snap) waehlen; ziele: chats, alben, eigenes profil
+- [x] eigene seite neben Chat, Profil und Grid zum Snap erstellen: direkt die Snap-Kamera; nach der aufnahme im editor ziel + modus (secure / bild / snap) waehlen; ziele: chats, alben, eigenes profil
   - plan: (1) nav-eintrag "Snap" nur bei `isSocialMode()`, oeffnet `openSnapCamera('pick')`; senden-knopf "Ziel waehlen" -> auswahl (modus-chips snap/secure/bild, chats, eigene alben, galerie des eigenen profils)
     - done (1) 2026-11-02: `client/app/snap-studio.js`, `data-snap-nav`, bottom-nav 2-4 spalten; UC-73
   - nutzer 2026-11-02: abschaltbar, kein vollbild (navbar bleibt), seitlich wischen, zwischen Chat und Profil auch beim wischen
@@ -611,13 +611,13 @@
     - done 2026-11-04: `CLIENT_DEFAULTS.snapPage` std `false`; auswahl mit haken + "An n senden" (`deliverSnapStudio`), chats ohne oeffnen per `sendChatMessage(..., { peerId })`; kamera randlos bis zur navbar; e2e `snap-page` mit chat + album + profil
   - [x] status als weiteres ziel (nutzer 2026-11-04): foto-status fuer freunde wie `openSnapCamera('status')` -> `postPhotoStatus` (status.js), mit den anderen zielen kombinierbar
     - done 2026-11-04: `postSnapStudioStatus`; e2e `snap-page` waehlt chat + album + status + profil
-  - plan: (3) modus-wahl schon im editor (statt der snap/bild-lasche), mehrere ziele auf einmal, ggf. auch als profilbild; eigene route `/snap` statt nur vollbild-modal
+  - (3) mehrere ziele + eigene route `/snap`: erledigt (s. o.); modus-wahl im editor verworfen -> `tasks/rejected.md`; aktueller stand gemeinsam durchsprechen
 
 ## T31 Safari: gefuehrte Installation (nutzer 2026-11-04: "we lost our data on safari")
 - [x] ursache: Safari-ITP loescht allen script-speicher (IndexedDB, SW, localStorage) nach 7 tagen ohne besuch; installierte web-apps (home-bildschirm/dock) sind ausgenommen, haben aber eigenen, leeren speicher
 - [x] anleitung vor dem onboarding im safari-tab (iOS safari, iOS chrome/firefox/edge, macOS safari), "im browser weiter" erst nach warnung; hinweis-balken fuer schon eingerichtete tab-nutzer (7 tage wegklickbar)
   - done 2026-11-04: `client/app/install-guide.js`, `#install-guide-modal`, `#install-hint-bar`; e2e `install-guide` (mobil); UC-74
-- [ ] daten aus dem safari-tab in die installierte app mitnehmen (export/import oder QR-kopplung, wie geplanter umzug PWA -> android-app) -> sonst verlieren bestehende tab-nutzer beim installieren alles
+- [x] daten aus dem safari-tab in die installierte app mitnehmen (export/import oder QR-kopplung, wie geplanter umzug PWA -> android-app) -> sonst verlieren bestehende tab-nutzer beim installieren alles
   - entschieden 2026-11-04 (nutzer): beide wege (router-relay mit code/QR + verschluesselte datei), alte kopie bleibt gesperrt (nur lesen, hinweis "umgezogen"), identitaet = neue ID + signierter umzug
   - befund: identitaets- (ECDH/ECDSA) und speicher-schluessel sind non-extractable -> privater schluessel kann nicht mit; darum neue schluessel auf dem neuen geraet
   - done (1)+(2b)+(3) 2026-11-04: `client/app/transfer.js` (buendel, datei mit PBKDF2, import beim einrichten), nur im debug-modus bis (4); tests `test/transfer.test.js`, e2e `transfer-file`; UC-75
@@ -627,8 +627,10 @@
   - plan: (2b) datei: `.opengrid`-datei, schluessel aus passwort (PBKDF2), import per dateiauswahl; router sieht nichts
   - plan: (3) import beim einrichten ("Daten uebernehmen") und in den einstellungen; neue schluessel + neue peer-ID, daten neu mit eigenem speicher-schluessel abgelegt
   - done (4)+(5) 2026-11-04: `client/app/move.js` (vollmacht beim export, `MOVE_ANNOUNCE`, `renamePeerLocally`, alte kopie gesperrt), pfad c nimmt von unbekannten nur die umzugs-ansage; tests `test/move.test.js` (faelschungen, ablauf, sperre), e2e `transfer-file` (bob zieht mit, alte kopie gesperrt)
-  - offen: pfad c haelt nur 24 h -> ist die alte kopie (safari-tab) laenger zu, kommt die sperre nie an; idee: router-endpunkt "alte ID stilllegen" (mit altem router-token im buendel), anmeldung der alten ID meldet dann "umgezogen"
-  - offen: offline-kontakt (nur pfad c) per e2e pruefen; dann debug-schranke weg
+  - [x] pfad c haelt nur 24 h -> alte ID stilllegen: altes router-token reist im buendel, neues geraet ruft `POST /api/move` (signierter nachweis, `server/move.js`, tabelle `moved_peers`); danach 410 + nachweis fuer `/api/register` der alten ID (alte kopie sperrt sich, auch nach wochen) und `/api/cache` an die alte ID (absender zieht selbst um)
+  - [x] offline-kontakt per e2e (`transfer-offline`: carol per pfad c, dave nach verfallenem pfad c per 410, alte kopie per 410); debug-schranke weg, "Daten mitnehmen" in der installations-anleitung
+    - done 2026-11-04: nebenbei `MOVE_ANNOUNCE` ging gar nicht ueber pfad c (nur `CHAT_OPERATION` erlaubt) -> behoben; parallele zustellungen ueberschrieben `pending` -> serialisiert
+  - nutzer 2026-11-04: nicht nur safari -> geht zwischen allen geraeten/browsern, texte allgemein
   - plan: (4) umzug: alte kopie signiert "ich bin jetzt <neue ID, neuer schluessel>" mit dem alten ECDSA-schluessel, schickt es E2E an alle kontakte (wie chat-operationen, P2P/pfad C); kontakte pruefen die signatur gegen den bekannten alten schluessel und ziehen chat, freundschaft, match, album-zugriffe auf die neue ID um
   - plan: (5) alte kopie gesperrt: kein senden/empfangen, hinweis-seite, alte zugangsdaten beim router abmelden
   - router sieht: transfer-ID, groesse des chiffrats, zeitpunkt upload/abholung (und damit per timing evtl. "alt -> neu"); nie schluessel, inhalt, kontaktliste. umzugs-nachrichten = normales E2E-chiffrat mit routing-IDs

@@ -158,3 +158,9 @@ function onboardingInviteFragment(value) {
     const fragment = text.includes('#') ? text.slice(text.indexOf('#')) : `#${text}`;
     return parseInvite(fragment) ? fragment : null;
 }
+
+// Bestehende Tab-Nutzer: Daten per Umzug (transfer.js) in die installierte App mitnehmen.
+function openTransferFromInstallGuide() {
+    closeInstallGuide();
+    openTransferExport();
+}

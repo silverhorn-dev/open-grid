@@ -100,7 +100,9 @@ async function collectTransferBundle() {
         local,
         // Vollmacht fuer den signierten Umzug (move.js) und eigene Sperren (beim Router unter der alten ID).
         move: typeof createMoveDelegation === 'function' ? await createMoveDelegation() : null,
-        blocked: typeof blockedPeerIds === 'function' ? blockedPeerIds() : []
+        blocked: typeof blockedPeerIds === 'function' ? blockedPeerIds() : [],
+        // Zum Stilllegen der alten ID beim Router nach dem Umzug (move.js); reist nur verschluesselt.
+        routerToken: state.routerAuthToken || window.localStorage.getItem('opengrid-router-auth-token') || null
     };
 }
 
@@ -279,6 +281,7 @@ async function applyTransferBundle(bundle) {
         publicKeys: bundle.publicKeys || null,
         move: bundle.move || null,
         blocked: Array.isArray(bundle.blocked) ? bundle.blocked.filter(id => typeof id === 'string') : [],
+        routerToken: typeof bundle.routerToken === 'string' && bundle.routerToken.length <= 200 ? bundle.routerToken : null,
         at: Date.now()
     });
     return { oldId, newId };

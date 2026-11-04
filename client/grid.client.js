@@ -507,6 +507,11 @@ async function registerWithWorkerGrid() {
                 }
             })
         });
+        if (response.status === 410) {
+            // Diese Kopie ist umgezogen (move.js, server/move.js): Nachweis pruefen und sperren.
+            const moved = await response.json().catch(() => null);
+            if (typeof handleRouterMove === 'function' && await handleRouterMove(state.myProfile.id, moved)) return false;
+        }
         if (!response.ok) {
             const problem = await response.json().catch(() => null);
             throw new Error(`Registration failed with status ${response.status}: ${problem?.error || 'Unknown error'}`);

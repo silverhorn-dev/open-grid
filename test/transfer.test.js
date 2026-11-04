@@ -109,3 +109,14 @@ test('collects, unseals and re-applies data under the new node id', async () => 
     assert.equal(fresh.storage.has('opengrid-router-auth-token'), false);
     await assert.rejects(fresh.context.applyTransferBundle({ format: 'nope' }), /format/);
 });
+
+test('transfer codes round-trip through base64url and are found inside links', () => {
+    const { context } = loadTransfer();
+    const key = globalThis.crypto.getRandomValues(new Uint8Array(32));
+    const code = `AAAAAAAAAAAAAAAAAAAAAA.${context.toBase64Url(key)}`;
+    assert.match(code, /^[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{43}$/);
+    const parsed = context.parseTransferCode(`https://grid.example/transfer#${code}`);
+    assert.equal(parsed.id, 'AAAAAAAAAAAAAAAAAAAAAA');
+    assert.deepEqual([...parsed.key], [...key]);
+    assert.equal(context.parseTransferCode('kein code'), null);
+});

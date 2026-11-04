@@ -85,6 +85,8 @@ window.onload = async () => {
         if (!hasLocalProfile) {
             // Safari/iOS im Browser-Tab: erst installieren, sonst loescht Safari die Daten (install-guide.js).
             await runStartupStep('Installation', maybeShowInstallGuide);
+            // Umzugs-Link (QR): Uebernahme gleich mit dem Code oeffnen, Einrichten bleibt darunter.
+            if (state.pendingTransferCode) setTimeout(() => openTransferImport(state.pendingTransferCode), 0);
             await openProfileOnboarding();
         } else {
             await runStartupStep('Bereich', () => pinModeScope('all'));

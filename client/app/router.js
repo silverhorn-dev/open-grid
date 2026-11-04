@@ -128,6 +128,13 @@ function resolveInitialRoute() {
         state.routePath = TAB_PATHS.chat;
         return { tab: 'chat', peerId: null };
     }
+    // Umzugs-Link aus dem QR (transfer.js): Code steht im Fragment, geht nie an den Server.
+    if (window.location.pathname === '/transfer') {
+        state.pendingTransferCode = window.location.hash.replace(/^#/, '');
+        window.history.replaceState({ route: TAB_PATHS.grid, from: null }, '', TAB_PATHS.grid);
+        state.routePath = TAB_PATHS.grid;
+        return { tab: 'grid', peerId: null };
+    }
     // Rueckkehr vom Altersnachweis-Dienst (OIDC): code + state merken, nach dem Start an den Router.
     if (window.location.pathname === '/age-callback') {
         const params = new URLSearchParams(window.location.search);

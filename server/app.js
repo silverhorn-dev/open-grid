@@ -1,3 +1,4 @@
+import { parseTransferMaxBytes, registerTransferRelay } from './transfer-relay.js';
 import Fastify from 'fastify';
 import websocket from '@fastify/websocket';
 import { readFile, readdir } from 'node:fs/promises';
@@ -608,7 +609,7 @@ export async function buildApp(options = {}) {
     app.get('/admin', async (_request, reply) => reply.type('text/html; charset=utf-8').header('Cache-Control', 'no-cache').send(adminHtml));
 
     // Client-Routen (client/app/router.js) liefern dieselbe App-Shell.
-    for (const path of ['/', '/index.html', '/grid', '/chat', '/chat/:peerId', '/snap', '/profile', '/settings', '/cloud', '/invite', '/age-callback']) {
+    for (const path of ['/', '/index.html', '/grid', '/chat', '/chat/:peerId', '/snap', '/profile', '/transfer', '/settings', '/cloud', '/invite', '/age-callback']) {
         app.get(path, serveAppShell);
     }
 
@@ -1029,6 +1030,13 @@ export async function buildApp(options = {}) {
         });
     }
     registerSafetyRoutes(app, { safety, allowRequest, requirePeerAuth, isString });
+    // Umzug per Code/QR: nur Chiffrat, einmal abholbar, 15 Minuten (server/transfer-relay.js).
+    await registerTransferRelay(app, {
+        dataDirectory: options.transferDirectory ?? (databasePath === ':memory:' ? join(projectDirectory, 'data') : dirname(databasePath)),
+        allowRequest, requirePeerAuth, isString,
+        maxBytes: parseTransferMaxBytes(options.transferMaxMb ?? process.env.TRANSFER_MAX_MB),
+        now, log: app.log
+    });
 
     function verifyRegistrationProof(peerId, registrationId, authToken, proof) {
         if (!proof?.publicKey || !isString(proof.signature, 512)) return false;

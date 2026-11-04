@@ -1299,4 +1299,7 @@ Akzeptanzkriterien:
   Verlauf; wer die alte ID gesperrt hatte, sperrt auch die neue.
 - Die alte Kopie sperrt sich, sobald sie den Umzug mitbekommt: Hinweis,
   danach nur noch lesen.
+- Statt der Datei geht auch ein Code (15 Minuten, einmal): auf demselben
+  Geraet kopieren und einfuegen, auf einem anderen den QR-Code scannen. Der
+  Router speichert dafuer nur Chiffrat; den Schluessel sieht er nie.
 - Vorerst nur im Debug-Modus.

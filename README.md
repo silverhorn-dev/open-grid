@@ -156,6 +156,7 @@ laufen durch dieselben Tests und bauen das echte Image zur Probe
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | generiert | Optional feste VAPID-Schluessel (base64url); sonst einmalig erzeugt und in SQLite gespeichert |
 | `APP_MODES` | alle | Erlaubte App-Modi, kommagetrennt: `discovery`, `chat`, `friends`, `event`. Z. B. `chat` fuer einen reinen Chat-Server. Sind nur Modi eines Bereichs erlaubt (Entdecken: `discovery`/`event`, Social: `chat`/`friends`), entfaellt die Bereichswahl beim Onboarding |
 | `DEFAULT_APP_MODE` | erster erlaubter | Vorauswahl fuer neue Nutzer |
+| `TRANSFER_MAX_MB` | 50 | Hoechstgroesse eines Umzugs per Code (Router-Relay, nur Chiffrat, 15 Minuten, einmal abholbar, auf der Platte unter `transfers/` im Datenordner). Groessere Umzuege gehen per Datei |
 | `FLAME_VISIBLE_HOURS` | `48` | Wie lange eine erhaltene Flamme sichtbar ist (1-720 Stunden); Flammen stapeln sich in dieser Zeit. Im Admin-Panel live aenderbar |
 | `FLAME_COOLDOWN_MINUTES` | `60` | Abstand, bevor man derselben Person wieder eine Flamme schicken kann (1-10080 Minuten), auch nach einem Match. Im Admin-Panel live aenderbar |
 | `ANDROID_APK_PATH` | `data/opengrid.apk` | APK der Android-App (`sh android/build.sh`, legt `android/dist/opengrid.apk` + `.json` an); der Router liefert es unter `/app/opengrid.apk` aus, fehlt es, gibt es 404 |
@@ -451,8 +452,9 @@ sh scripts/e2e.sh   # oder: npm run test:e2e
   einen eigenen, leeren Speicher. Darum zeigt OpenGrid im Safari-Tab vor dem
   Einrichten eine Installations-Anleitung; wer schon im Tab eingerichtet ist,
   sieht einen Hinweis-Balken. Daten lassen sich per verschluesselter Datei
-  umziehen (Einstellungen > Medien, vorerst im Debug-Modus); dass Kontakte die
-  neue ID erfahren, folgt.
+  umziehen oder per Code/QR ueber den Router (nur Chiffrat, 15 Minuten, einmal);
+  Kontakte erfahren die neue ID per signiertem Umzug, die alte Kopie sperrt
+  sich (Einstellungen > Medien, vorerst im Debug-Modus).
 - Chat-Loeschungen speichern einen Cutoff in `chat_controls`, damit alte
   Operationen den geloeschten Verlauf nicht wiederherstellen.
 - Blockierungen bleiben serverseitig bestehen, entfernen wartende Nachrichten

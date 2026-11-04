@@ -1106,3 +1106,45 @@ test('deleting an account removes the peer, its access and messages to it', asyn
     assert.ok(again.statusCode >= 400, 'access token no longer valid');
 });
 
+test('transfer relay keeps only ciphertext, hands it out once and enforces auth and size', async () => {
+    const { mkdtemp, readdir } = await import('node:fs/promises');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const directory = await mkdtemp(join(tmpdir(), 'og-transfer-'));
+    let clock = Date.now();
+    const relayStore = createStore(':memory:');
+    const relay = await buildApp({ store: relayStore, transferDirectory: directory, transferMaxMb: 0.01, now: () => clock });
+    try {
+        const registration = await relay.inject({ method: 'POST', url: '/api/register', payload: registrationPayload('peer-move', 'registration-peer-move') });
+        assert.equal(registration.statusCode, 200);
+        const token = registration.json().authToken;
+        const headers = { 'content-type': 'application/octet-stream', 'x-peer-id': 'peer-move' };
+        const payload = Buffer.from('{"iv":"x","ciphertext":"opaque"}');
+
+        const anonymous = await relay.inject({ method: 'POST', url: '/api/transfer', headers, payload });
+        assert.equal(anonymous.statusCode, 401, 'upload needs the peer token');
+        const tooBig = await relay.inject({ method: 'POST', url: '/api/transfer', headers: { ...headers, authorization: `Bearer ${token}` }, payload: Buffer.alloc(20 * 1024, 1) });
+        assert.equal(tooBig.statusCode, 413);
+
+        const upload = await relay.inject({ method: 'POST', url: '/api/transfer', headers: { ...headers, authorization: `Bearer ${token}` }, payload });
+        assert.equal(upload.statusCode, 201);
+        const { id } = upload.json();
+        assert.match(id, /^[A-Za-z0-9_-]{22}$/);
+        assert.deepEqual(await readdir(join(directory, 'transfers')), [id], 'stored on disk, not in memory');
+
+        const first = await relay.inject({ method: 'GET', url: `/api/transfer/${id}` });
+        assert.equal(first.statusCode, 200);
+        assert.equal(first.body, payload.toString());
+        assert.equal(first.headers['cache-control'], 'no-store');
+        const second = await relay.inject({ method: 'GET', url: `/api/transfer/${id}` });
+        assert.equal(second.statusCode, 404, 'only once');
+
+        const again = await relay.inject({ method: 'POST', url: '/api/transfer', headers: { ...headers, authorization: `Bearer ${token}` }, payload });
+        clock += 16 * 60 * 1000;
+        const expired = await relay.inject({ method: 'GET', url: `/api/transfer/${again.json().id}` });
+        assert.equal(expired.statusCode, 404, 'expires after 15 minutes');
+        assert.equal((await relay.inject({ method: 'GET', url: '/api/transfer/not-an-id' })).statusCode, 404);
+    } finally {
+        await relay.close();
+    }
+});

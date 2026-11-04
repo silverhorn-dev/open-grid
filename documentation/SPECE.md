@@ -183,7 +183,17 @@
   signiert). `keys`/`transfer-imported = { from, publicKeys, at }` merkt die
   Herkunft. Datei `.opengrid`: `{ format: 'opengrid-transfer-file', kdf:
   { PBKDF2, SHA-256, 600000, salt }, gzip, iv, ciphertext }`, AES-256-GCM,
-  gzip per `CompressionStream`. Vorerst nur im Debug-Modus sichtbar.
+  gzip per `CompressionStream`. Relay (`server/transfer-relay.js`): `POST
+  /api/transfer` (Peer-Token, `X-Peer-Id`, Rohkoerper `application/octet-stream`
+  = versiegeltes Buendel mit zufaelligem AES-256-Schluessel K, hoechstens
+  `TRANSFER_MAX_MB`, je Peer ein offener Transfer, alle zusammen hoechstens das
+  Vierfache) -> `{ id, expiresAt }`; liegt als Datei unter
+  `<Datenordner>/transfers/`, nicht im RAM. `GET /api/transfer/:id` ohne
+  Anmeldung (ID 128 Bit), genau einmal, danach geloescht; nach 15 Minuten weg,
+  beim Neustart alles weg. Code = `<id>.<K base64url>`, Link
+  `/transfer#<code>` (Fragment geht nie an den Server, `router.js` merkt ihn als
+  `state.pendingTransferCode` und oeffnet die Uebernahme). Vorerst nur im
+  Debug-Modus sichtbar.
 - Signierter Umzug (`move.js`): beim Export erzeugt die alte Kopie einen
   Delegations-Schluessel D (ECDSA P-256, extractable) und signiert mit ihrem
   Identitaets-Signaturschluessel `delegation = { type:

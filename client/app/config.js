@@ -192,6 +192,8 @@ const state = {
     snapPage: false,
     // Signierter Umzug (move.js): alte Kopie gesperrt, Hinweis gesehen, Neuladen geplant.
     movedAway: false,
+    // Umzugs-Code aus einem /transfer#...-Link (router.js, transfer.js).
+    pendingTransferCode: null,
     movedAwayNoticeSeen: false,
     moveReloadScheduled: false,
     snapPageEnabled: null,

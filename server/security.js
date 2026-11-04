@@ -35,6 +35,8 @@ export const DEFAULT_RATE_LIMITS = {
     push: { windowMs: 60_000, max: 10 },
     safety: { windowMs: 60_000, max: 20 },
     nudge: { windowMs: 60_000, max: 30 },
+    // Umzugs-Relay (transfer-relay.js): selten gebraucht, grosse Koerper.
+    transfer: { windowMs: 60_000, max: 20 },
     websocket: { windowMs: 10_000, max: 300 }
 };
 

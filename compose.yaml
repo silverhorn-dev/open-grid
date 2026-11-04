@@ -43,6 +43,8 @@ services:
       NUDITY_CLASSES: ${NUDITY_CLASSES:-}
       SAFETY_KEY: ${SAFETY_KEY:-}
       ABUSE_LOG_DAYS: ${ABUSE_LOG_DAYS:-0}
+      # Umzug per Code (Router-Relay, nur Chiffrat): Hoechstgroesse in MB.
+      TRANSFER_MAX_MB: ${TRANSFER_MAX_MB:-50}
       PORT: 3000
       # STUN: ohne Angabe dient der eigene TURN-Server als STUN. "none" = kein STUN.
       # STUN_SERVER: none

@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 288 · 2026-11-04
+## Build 289 · 2026-11-04
+- Vorschau (Debug-Modus): Umzug auch per Code oder QR-Code ueber deinen Router; der Router sieht nur verschluesselte Daten, der Code gilt 15 Minuten und nur einmal
+
+## Build 288 · 2026-11-04 · `1e47278`
 - Vorschau (Debug-Modus): nach dem Umzug erfahren deine Kontakte automatisch die neue ID (signiert) und schreiben dir dort weiter; das alte Geraet sperrt sich und zeigt nur noch an
 
 ## Build 287 · 2026-11-04 · `8ab4849`

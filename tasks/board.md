@@ -622,6 +622,7 @@
   - befund: identitaets- (ECDH/ECDSA) und speicher-schluessel sind non-extractable -> privater schluessel kann nicht mit; darum neue schluessel auf dem neuen geraet
   - done (1)+(2b)+(3) 2026-11-04: `client/app/transfer.js` (buendel, datei mit PBKDF2, import beim einrichten), nur im debug-modus bis (4); tests `test/transfer.test.js`, e2e `transfer-file`; UC-75
   - plan: (1) export: alte seite entschluesselt ihre daten (profile, chats, alben, medien, einstellungen, kontakte) zu einem buendel, AES-256-GCM mit zufaelligem schluessel K
+  - done (2a) 2026-11-04: `server/transfer-relay.js` (platte statt RAM, einmal, 15 min, `TRANSFER_MAX_MB`), code + QR + link `/transfer#code`; server-test, e2e `transfer-code`
   - plan: (2a) relay: nur chiffrat an den router (`/api/transfer`, einmal abholbar, ~15 min TTL, groessen-limit, danach geloescht); code = transfer-ID + K (kopieren fuer dasselbe geraet, QR fuer ein anderes); K steht nie in einer anfrage (nur im code / URL-fragment)
   - plan: (2b) datei: `.opengrid`-datei, schluessel aus passwort (PBKDF2), import per dateiauswahl; router sieht nichts
   - plan: (3) import beim einrichten ("Daten uebernehmen") und in den einstellungen; neue schluessel + neue peer-ID, daten neu mit eigenem speicher-schluessel abgelegt

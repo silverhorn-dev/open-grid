@@ -176,6 +176,62 @@ async function readTransferFile(file, password) {
     return bundle;
 }
 
+// ----- Relay ueber den Router (Code/QR) -----
+// Code = <Transfer-ID>.<Schluessel>, beide base64url. Der Schluessel geht nie an den Router: er steht nur im
+// Code bzw. im Fragment der Link-Adresse (/transfer#<code>), das Browser nicht mitschicken.
+const TRANSFER_CODE_PATTERN = /([A-Za-z0-9_-]{22})\.([A-Za-z0-9_-]{43})/;
+
+function toBase64Url(bytes) {
+    return bytesToBase64(bytes).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function fromBase64Url(text) {
+    const padded = text.replace(/-/g, '+').replace(/_/g, '/');
+    return base64ToBytes(padded + '='.repeat((4 - (padded.length % 4)) % 4));
+}
+
+function parseTransferCode(input) {
+    const match = String(input || '').match(TRANSFER_CODE_PATTERN);
+    return match ? { id: match[1], key: fromBase64Url(match[2]) } : null;
+}
+
+function transferLink(code) {
+    return `${window.location.origin}/transfer#${code}`;
+}
+
+async function createTransferRelay() {
+    const raw = window.crypto.getRandomValues(new Uint8Array(32));
+    const key = await window.crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt']);
+    const bundle = await collectTransferBundle();
+    const sealed = await sealTransferBundle(bundle, key);
+    const response = await fetch(`${API_BASE}/api/transfer`, {
+        method: 'POST',
+        headers: peerAuthHeaders({ 'Content-Type': 'application/octet-stream', 'X-Peer-Id': state.myProfile.id }),
+        body: JSON.stringify(sealed)
+    });
+    if (response.status === 413) throw new Error('too-large');
+    if (!response.ok) throw new Error(`relay ${response.status}`);
+    const { id, expiresAt } = await response.json();
+    return { code: `${id}.${toBase64Url(raw)}`, expiresAt };
+}
+
+async function readTransferCode(input) {
+    const parsed = parseTransferCode(input);
+    if (!parsed) throw new Error('code');
+    const response = await fetch(`${API_BASE}/api/transfer/${parsed.id}`, { cache: 'no-store' });
+    if (response.status === 404) throw new Error('gone');
+    if (!response.ok) throw new Error(`relay ${response.status}`);
+    const key = await window.crypto.subtle.importKey('raw', parsed.key, 'AES-GCM', false, ['decrypt']);
+    let bundle;
+    try {
+        bundle = await openTransferBundle(JSON.parse(await response.text()), key);
+    } catch {
+        throw new Error('code');
+    }
+    if (!validTransferBundle(bundle)) throw new Error('format');
+    return bundle;
+}
+
 // ----- Einspielen (neues Geraet) -----
 async function resealTransferRecord(storeName, record) {
     if (!record || !Object.prototype.hasOwnProperty.call(record, '__plain')) return record;
@@ -270,19 +326,57 @@ function transferError(output, text) {
 function openTransferExport() {
     const content = openMediaModal(t('transfer.exportTitle'));
     const box = document.createElement('div');
-    box.className = 'space-y-3';
+    box.className = 'space-y-4';
+    box.append(transferNote(t('transfer.exportIntro')));
+
+    // Weg 1: Code/QR ueber den Router (Standard).
+    const relay = document.createElement('div');
+    relay.className = 'space-y-2 rounded-xl border border-slate-800 p-3';
+    const relayTitle = document.createElement('h4');
+    relayTitle.className = 'text-sm font-semibold text-slate-200';
+    relayTitle.textContent = t('transfer.viaCode');
+    const relayError = document.createElement('p');
+    relayError.className = 'hidden text-xs text-red-300';
+    const relayButton = transferButton('transfer-code-btn', t('transfer.createCode'));
+    const result = document.createElement('div');
+    result.id = 'transfer-code-result';
+    result.className = 'hidden space-y-2';
+    relay.append(relayTitle, transferNote(t('transfer.codeIntro')), relayError, relayButton, result);
+    relayButton.onclick = async () => {
+        transferError(relayError, '');
+        relayButton.disabled = true;
+        relayButton.textContent = t('transfer.working');
+        try {
+            const { code, expiresAt } = await createTransferRelay();
+            renderTransferCode(result, code, expiresAt);
+            relayButton.classList.add('hidden');
+        } catch (failure) {
+            logDebug(`Transfer relay failed: ${failure.message}`);
+            transferError(relayError, failure.message === 'too-large' ? t('transfer.tooLargeForCode') : t('transfer.exportFailed'));
+            relayButton.disabled = false;
+            relayButton.textContent = t('transfer.createCode');
+        }
+    };
+
+    // Weg 2: Datei mit Passwort (ohne Router).
+    const fileBox = document.createElement('div');
+    fileBox.className = 'space-y-2 rounded-xl border border-slate-800 p-3';
+    const fileTitle = document.createElement('h4');
+    fileTitle.className = 'text-sm font-semibold text-slate-200';
+    fileTitle.textContent = t('transfer.viaFile');
     const error = document.createElement('p');
     error.id = 'transfer-export-error';
     error.className = 'hidden text-xs text-red-300';
     const button = transferButton('transfer-export-btn', t('transfer.createFile'));
-    box.append(
-        transferNote(t('transfer.exportIntro')),
+    fileBox.append(
+        fileTitle,
         transferPasswordField('transfer-export-password', t('transfer.password')),
         transferPasswordField('transfer-export-password-repeat', t('transfer.passwordRepeat')),
         transferNote(t('transfer.exportWarning'), 'amber'),
         error,
         button
     );
+    box.append(relay, fileBox);
     content.append(box);
     button.onclick = async () => {
         const password = document.getElementById('transfer-export-password').value;
@@ -312,7 +406,40 @@ function openTransferExport() {
     };
 }
 
-function openTransferImport() {
+// Code zum Kopieren (gleiches Geraet, z. B. Safari-Tab -> App) und QR mit Link (anderes Geraet).
+function renderTransferCode(container, code, expiresAt) {
+    const input = document.createElement('input');
+    input.id = 'transfer-code-output';
+    input.readOnly = true;
+    input.value = code;
+    input.className = 'w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-slate-100';
+    const copy = transferButton('transfer-code-copy', t('transfer.copyCode'));
+    copy.onclick = async () => {
+        try {
+            await navigator.clipboard.writeText(code);
+            showToast(t('transfer.codeCopied'), 'success');
+        } catch {
+            input.select();
+            showToast(t('common.copyingIsNotPossible'), 'error');
+        }
+    };
+    const valid = transferNote(t('transfer.codeValid', { time: new Date(expiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }));
+    container.replaceChildren(input, copy, valid);
+    if (typeof qrcode === 'function') {
+        const qr = qrcode(0, 'M');
+        qr.addData(transferLink(code));
+        qr.make();
+        const image = document.createElement('img');
+        image.id = 'transfer-code-qr';
+        image.alt = t('transfer.qrAlt');
+        image.src = qr.createDataURL(4, 2);
+        image.className = 'mx-auto rounded-lg bg-white p-2';
+        container.append(image, transferNote(t('transfer.qrHint')));
+    }
+    container.classList.remove('hidden');
+}
+
+function openTransferImport(prefilledCode = '') {
     const content = openMediaModal(t('transfer.importTitle'));
     const box = document.createElement('div');
     box.className = 'space-y-3';
@@ -332,16 +459,34 @@ function openTransferImport() {
     error.id = 'transfer-import-error';
     error.className = 'hidden text-xs text-red-300';
     const button = transferButton('transfer-import-btn', t('transfer.importNow'));
-    box.append(transferNote(t('transfer.importIntro')), fileLabel, password, error, button);
+    const codeLabel = document.createElement('label');
+    codeLabel.className = 'block space-y-1';
+    const codeText = document.createElement('span');
+    codeText.className = 'text-xs font-semibold text-slate-400';
+    codeText.textContent = t('transfer.code');
+    const code = document.createElement('input');
+    code.id = 'transfer-import-code';
+    code.autocomplete = 'off';
+    code.placeholder = t('transfer.codePlaceholder');
+    code.value = prefilledCode || '';
+    code.className = 'w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-base font-mono text-slate-100 focus:outline-hidden focus:border-brand-500';
+    codeLabel.append(codeText, code);
+    const or = document.createElement('p');
+    or.className = 'text-center text-xs text-slate-500';
+    or.textContent = t('transfer.orFile');
+    box.append(transferNote(t('transfer.importIntro')), codeLabel, or, fileLabel, password, error, button);
     content.append(box);
     button.onclick = async () => {
         const chosen = file.files?.[0];
-        if (!chosen) return transferError(error, t('transfer.chooseFile'));
+        const codeValue = code.value.trim();
+        if (!codeValue && !chosen) return transferError(error, t('transfer.chooseFile'));
         transferError(error, '');
         button.disabled = true;
         button.textContent = t('transfer.working');
         try {
-            const bundle = await readTransferFile(chosen, document.getElementById('transfer-import-password').value);
+            const bundle = codeValue
+                ? await readTransferCode(codeValue)
+                : await readTransferFile(chosen, document.getElementById('transfer-import-password').value);
             if (bundle.nodeId === state.nodeId) throw new Error('same');
             await applyTransferBundle(bundle);
             showToast(t('transfer.imported'), 'success');
@@ -349,9 +494,14 @@ function openTransferImport() {
             setTimeout(() => window.location.reload(), 600);
         } catch (failure) {
             logDebug(`Transfer import failed: ${failure.message}`);
-            transferError(error, failure.message === 'password' ? t('transfer.wrongPassword')
-                : failure.message === 'format' ? t('transfer.notATransferFile')
-                    : failure.message === 'same' ? t('transfer.sameDevice') : t('transfer.importFailed'));
+            const messages = {
+                password: t('transfer.wrongPassword'),
+                format: t('transfer.notATransferFile'),
+                code: t('transfer.invalidCode'),
+                gone: t('transfer.codeGone'),
+                same: t('transfer.sameDevice')
+            };
+            transferError(error, messages[failure.message] || t('transfer.importFailed'));
             button.disabled = false;
             button.textContent = t('transfer.importNow');
         }

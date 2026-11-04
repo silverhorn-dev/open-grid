@@ -625,6 +625,9 @@
   - plan: (2a) relay: nur chiffrat an den router (`/api/transfer`, einmal abholbar, ~15 min TTL, groessen-limit, danach geloescht); code = transfer-ID + K (kopieren fuer dasselbe geraet, QR fuer ein anderes); K steht nie in einer anfrage (nur im code / URL-fragment)
   - plan: (2b) datei: `.opengrid`-datei, schluessel aus passwort (PBKDF2), import per dateiauswahl; router sieht nichts
   - plan: (3) import beim einrichten ("Daten uebernehmen") und in den einstellungen; neue schluessel + neue peer-ID, daten neu mit eigenem speicher-schluessel abgelegt
+  - done (4)+(5) 2026-11-04: `client/app/move.js` (vollmacht beim export, `MOVE_ANNOUNCE`, `renamePeerLocally`, alte kopie gesperrt), pfad c nimmt von unbekannten nur die umzugs-ansage; tests `test/move.test.js` (faelschungen, ablauf, sperre), e2e `transfer-file` (bob zieht mit, alte kopie gesperrt)
+  - offen: pfad c haelt nur 24 h -> ist die alte kopie (safari-tab) laenger zu, kommt die sperre nie an; idee: router-endpunkt "alte ID stilllegen" (mit altem router-token im buendel), anmeldung der alten ID meldet dann "umgezogen"
+  - offen: offline-kontakt (nur pfad c) per e2e pruefen; dann debug-schranke weg
   - plan: (4) umzug: alte kopie signiert "ich bin jetzt <neue ID, neuer schluessel>" mit dem alten ECDSA-schluessel, schickt es E2E an alle kontakte (wie chat-operationen, P2P/pfad C); kontakte pruefen die signatur gegen den bekannten alten schluessel und ziehen chat, freundschaft, match, album-zugriffe auf die neue ID um
   - plan: (5) alte kopie gesperrt: kein senden/empfangen, hinweis-seite, alte zugangsdaten beim router abmelden
   - router sieht: transfer-ID, groesse des chiffrats, zeitpunkt upload/abholung (und damit per timing evtl. "alt -> neu"); nie schluessel, inhalt, kontaktliste. umzugs-nachrichten = normales E2E-chiffrat mit routing-IDs

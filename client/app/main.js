@@ -77,6 +77,8 @@ window.onload = async () => {
         // damit ein einzelner Fehler nicht die ganze App stoppt.
         await initDatabase();
         await initializeStorageEncryption();
+        // Umgezogene alte Kopie: gesperrt, bevor irgendetwas verbindet (move.js).
+        await runStartupStep('Umzug', loadMovedAway);
         await runStartupStep('App-Modus', loadAppMode);
         await runStartupStep('Module', loadEnabledFeatures);
         const hasLocalProfile = await loadMyLocalProfile();
@@ -160,6 +162,7 @@ window.onload = async () => {
         reportStartupProblems();
         renderInviteCard().catch(error => logDebug(`Invite card failed: ${error.message}`));
         if (state.pendingAgeCallback) finishPendingAgeCallback().catch(error => logDebug(`Age check failed: ${error.message}`));
+        finishTransferMoveWhenOnline().catch(error => logDebug(`Move announce failed: ${error.message}`));
         if (state.pendingInvite) acceptPendingInvite().catch(error => logDebug(`Invite failed: ${error.message}`));
         handleIncomingShare().catch(error => logDebug(`Share target failed: ${error.message}`));
         handleNativeShare().catch(error => logDebug(`Native share failed: ${error.message}`));

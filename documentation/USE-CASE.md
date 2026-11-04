@@ -1294,5 +1294,9 @@ Akzeptanzkriterien:
 - Profil, Chats, Kontakte, Alben, Medien, Status und Einstellungen sind da;
   eigene Nachrichten bleiben meine. Das neue Geraet hat neue Schluessel und
   eine eigene ID.
-- Vorerst nur im Debug-Modus, bis Kontakte die neue ID automatisch erfahren
-  (signierter Umzug).
+- Meine Kontakte erfahren den Umzug automatisch (signiert mit meinem alten
+  Schluessel) und schreiben mir danach an die neue ID, mit dem bisherigen
+  Verlauf; wer die alte ID gesperrt hatte, sperrt auch die neue.
+- Die alte Kopie sperrt sich, sobald sie den Umzug mitbekommt: Hinweis,
+  danach nur noch lesen.
+- Vorerst nur im Debug-Modus.

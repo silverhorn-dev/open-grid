@@ -507,6 +507,10 @@ function isCoarsePointer() {
 async function sendChatMessage(snapData = null, caption = '', album = null, secureSnap = null, options = {}) {
     const input = document.getElementById('chat-input');
     const hasAttachment = Boolean(snapData || album || secureSnap || options.audio);
+    if (state.movedAway) {
+        showToast(t('move.readOnly'), 'info');
+        return false;
+    }
     // options.peerId: Anhang an einen Chat, der nicht offen ist (Snap-Seite, snap-studio.js).
     const peerId = (hasAttachment && options.peerId) || state.activeChatPeerId;
     const isOpenChat = peerId === state.activeChatPeerId;

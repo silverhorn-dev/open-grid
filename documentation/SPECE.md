@@ -183,8 +183,28 @@
   signiert). `keys`/`transfer-imported = { from, publicKeys, at }` merkt die
   Herkunft. Datei `.opengrid`: `{ format: 'opengrid-transfer-file', kdf:
   { PBKDF2, SHA-256, 600000, salt }, gzip, iv, ciphertext }`, AES-256-GCM,
-  gzip per `CompressionStream`. Vorerst nur im Debug-Modus sichtbar, bis der
-  signierte Umzug (Phase 3) die Kontakte umzieht.
+  gzip per `CompressionStream`. Vorerst nur im Debug-Modus sichtbar.
+- Signierter Umzug (`move.js`): beim Export erzeugt die alte Kopie einen
+  Delegations-Schluessel D (ECDSA P-256, extractable) und signiert mit ihrem
+  Identitaets-Signaturschluessel `delegation = { type:
+  'opengrid-move-delegation', from, delegate: D.pub, createdAt, expiresAt
+  (+30 Tage) }`; D privat reist im Buendel (`move`), dazu die eigenen Sperren
+  (`blocked`). Signiert wird der exakte JSON-Text. Das neue Geraet setzt nach
+  dem Start die Sperren unter der neuen ID neu und sendet `MOVE_ANNOUNCE {
+  delegation, delegationSignature, announcement, announcementSignature }` mit
+  `announcement = { type: 'opengrid-move', from, to, keys: { jwkPublic,
+  jwkEcdsaPublic }, at }` (signiert mit D) an alle bekannten Kontakte
+  (`peer-identity:*`, Chatliste, Freunde) und an die alte ID; `pending` in
+  `keys`/`transfer-imported` bis zugestellt (P2P oder Pfad C), danach wird D
+  geloescht. Empfaenger pruefen: `to` = Absender, angesagte Schluessel = die
+  des Absenders (Pfad C: `senderPublicKey`, sonst gepinnt), Vollmacht gegen
+  den gepinnten `profileSigningKey` der alten ID, Ansage gegen D, nicht
+  abgelaufen. Pfad C nimmt von unbekannten Absendern nur `MOVE_ANNOUNCE` an.
+  Kontakt: `renamePeerLocally` schreibt alle Stores (versiegelte entsiegelt)
+  und `localStorage` von alter auf neue ID um, pinnt die neuen Schluessel und
+  laedt neu (nicht mitten im Tippen); war die alte ID gesperrt, wird die neue
+  gesperrt. Alte Kopie (`from` = eigene ID): `keys`/`moved-away = { to, at }`,
+  `state.movedAway`: kein Signaling, kein P2P, kein Senden, Hinweis + Balken.
 - Installations-Anleitung (`install-guide.js`, UC-74): `installPlatform()`
   erkennt `ios-safari`, `ios-other` (Chrome/Firefox/Edge auf iOS, auch WebKit)
   und `mac-safari`; installiert = `display-mode: standalone` oder

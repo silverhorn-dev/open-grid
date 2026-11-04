@@ -421,6 +421,7 @@ function reconnectSignaling(reason) {
 }
 
 function connectWorkerWebSocket() {
+    if (state.movedAway) return;
     try {
         state.ws = new WebSocket(WS_URL);
         state.ws.onopen = async () => {
@@ -463,6 +464,8 @@ function connectWorkerWebSocket() {
 }
 
 async function registerWithWorkerGrid() {
+    // Umgezogene alte Kopie (move.js): nicht mehr anmelden.
+    if (state.movedAway) return false;
     try {
         if (!state.myKeys) throw new Error('Identity keys are not ready');
         const sharedToken = window.localStorage.getItem('opengrid-router-auth-token');

@@ -97,7 +97,10 @@ async function collectTransferBundle() {
         publicKeys: { jwkPublic: state.myKeys?.jwkPublic || null, jwkEcdsaPublic: state.myKeys?.jwkEcdsaPublic || null },
         skipped,
         stores,
-        local
+        local,
+        // Vollmacht fuer den signierten Umzug (move.js) und eigene Sperren (beim Router unter der alten ID).
+        move: typeof createMoveDelegation === 'function' ? await createMoveDelegation() : null,
+        blocked: typeof blockedPeerIds === 'function' ? blockedPeerIds() : []
     };
 }
 
@@ -214,7 +217,14 @@ async function applyTransferBundle(bundle) {
         if (transferKeepsLocalKey(key) && typeof value === 'string') window.localStorage.setItem(key, value);
     }
     // Fuer den signierten Umzug (Phase 3): woher die Daten kamen.
-    await putDatabaseRecord('keys', { id: 'transfer-imported', from: oldId, publicKeys: bundle.publicKeys || null, at: Date.now() });
+    await putDatabaseRecord('keys', {
+        id: 'transfer-imported',
+        from: oldId,
+        publicKeys: bundle.publicKeys || null,
+        move: bundle.move || null,
+        blocked: Array.isArray(bundle.blocked) ? bundle.blocked.filter(id => typeof id === 'string') : [],
+        at: Date.now()
+    });
     return { oldId, newId };
 }
 

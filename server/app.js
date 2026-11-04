@@ -189,6 +189,7 @@ const clientAssetFiles = [
     'app/snap-studio.js',
     'app/install-guide.js',
     'app/transfer.js',
+    'app/move.js',
     'app/viewer.js',
     'app/watermark.js',
     'app/secure-canvas.js',

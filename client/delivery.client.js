@@ -81,6 +81,8 @@ async function sendRequestedChatOperations(peerId, operationIds) {
 // options.notifyKind: Art fuer den Push beim Empfaenger, falls es ueber Pfad C geht (push.js).
 async function sendSecurePayload(peerId, payload, onSent = null, options = {}) {
     if (isPeerBlocked(peerId)) return false;
+    // Umgezogene alte Kopie (move.js): nur noch lesen.
+    if (state.movedAway) return false;
     const channel = state.dataChannels[peerId];
 
     // Wenn der P2P/TURN-Kanal offen und sicher ist -> Direkt senden
@@ -331,7 +333,9 @@ async function fetchQueuedCacheMessages() {
                 if (isPeerBlocked(cachedMessage.senderId)) throw new Error('Sender is blocked.');
                 const envelope = JSON.parse(cachedMessage.ciphertextPayload);
                 const trustedSenderKey = await getPeerIdentityKey(cachedMessage.senderId);
-                if (!trustedSenderKey || !publicKeysMatch(trustedSenderKey, envelope.senderPublicKey)) {
+                const trusted = Boolean(trustedSenderKey) && publicKeysMatch(trustedSenderKey, envelope.senderPublicKey);
+                // Unbekannter Absender: nur eine signierte Umzugs-Ansage (move.js), die sich selbst belegt.
+                if (!trusted && trustedSenderKey) {
                     throw new Error('Sender identity key does not match the trusted P2P key.');
                 }
                 const decryptionKey = await deriveCacheEncryptionKey(envelope.senderPublicKey);
@@ -341,8 +345,13 @@ async function fetchQueuedCacheMessages() {
                     base64ToBytes(envelope.ciphertext)
                 );
                 const payload = JSON.parse(new TextDecoder().decode(plaintext));
-                if (payload.type !== 'CHAT_OPERATION') throw new Error('Unsupported cached payload type.');
-                await handleSecurePayload(cachedMessage.senderId, payload, 'Encrypted Path C');
+                if (!trusted) {
+                    if (payload.type !== 'MOVE_ANNOUNCE' || !isValidSecurePayload(payload)) throw new Error('Sender identity key is unknown.');
+                    await handleMoveAnnouncement(cachedMessage.senderId, payload, envelope.senderPublicKey);
+                } else {
+                    if (payload.type !== 'CHAT_OPERATION' && payload.type !== 'MOVE_ANNOUNCE') throw new Error('Unsupported cached payload type.');
+                    await handleSecurePayload(cachedMessage.senderId, payload, 'Encrypted Path C');
+                }
                 const deleteResponse = await fetch(
                     `${API_BASE}/api/cache/${encodeURIComponent(cachedMessage.msgId)}`,
                     {method: 'DELETE', headers: peerAuthHeaders()}

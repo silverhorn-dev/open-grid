@@ -604,7 +604,7 @@ function retryConnectionAfterStall(peerId) {
 }
 
 async function initiateP2PConnection(peerId) {
-    if (isPeerBlocked(peerId)) return;
+    if (isPeerBlocked(peerId) || state.movedAway) return;
     if (state.dataChannels[peerId]?.readyState === 'open') return;
     if (state.dataChannels[peerId]?.readyState === 'connecting') return;
     if (state.connectionAttempts[peerId]) return state.connectionAttempts[peerId];
@@ -849,6 +849,10 @@ async function handleSecurePayload(peerId, payload, deliveredVia = 'E2EE P2P') {
     // Gilt fuer P2P und Pfad C: nur bekannte Typen mit plausiblen Feldern (payload-validation.js).
     if (!isValidSecurePayload(payload)) {
         logDebug(`Rejected invalid ${typeof payload?.type === 'string' ? payload.type.substring(0, 40) : 'unknown'} payload from ${peerId}.`);
+        return;
+    }
+    if (payload.type === 'MOVE_ANNOUNCE') {
+        await handleMoveAnnouncement(peerId, payload);
         return;
     }
     if (payload.type === 'CHAT_OPERATION') {

@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 287 · 2026-11-04
+## Build 288 · 2026-11-04
+- Vorschau (Debug-Modus): nach dem Umzug erfahren deine Kontakte automatisch die neue ID (signiert) und schreiben dir dort weiter; das alte Geraet sperrt sich und zeigt nur noch an
+
+## Build 287 · 2026-11-04 · `8ab4849`
 - Vorschau (Debug-Modus): Umzug auf ein anderes Geraet per verschluesselter Datei (Profil, Chats, Kontakte, Alben, Einstellungen); dass Kontakte die neue ID erfahren, folgt
 
 ## Build 286 · 2026-11-04 · `07e917e`

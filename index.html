@@ -36,6 +36,22 @@
     <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full px-4"></div>
 
     <!-- Top Global Header -->
+    <!-- Alte Kopie nach dem Umzug (move.js): gesperrt, nur lesen -->
+    <div id="moved-away-bar" class="hidden sticky top-0 z-39 bg-sky-500/15 border-b border-sky-500/30 px-4 py-2 text-xs text-sky-200">
+        <div class="max-w-7xl mx-auto flex items-center gap-2">
+            <i class="fa-solid fa-truck-arrow-right shrink-0"></i>
+            <span data-i18n="move.barText" class="flex-1 min-w-0">Umgezogen: hier kannst du nur noch lesen.</span>
+        </div>
+    </div>
+    <div id="moved-away-modal" class="hidden fixed inset-0 bg-slate-950/95 backdrop-blur-md z-75 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="moved-away-title">
+        <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-2xl text-center">
+            <div class="w-12 h-12 mx-auto rounded-xl bg-sky-500/15 text-sky-400 flex items-center justify-center text-xl"><i class="fa-solid fa-truck-arrow-right"></i></div>
+            <h2 id="moved-away-title" data-i18n="move.lockedTitle" class="text-lg font-bold text-slate-100">Dein Profil ist umgezogen</h2>
+            <p data-i18n="move.lockedText" class="text-sm text-slate-400">Es läuft jetzt auf deinem neuen Gerät, deine Kontakte wissen Bescheid. Hier kannst du alte Chats noch ansehen, aber nichts mehr senden oder empfangen.</p>
+            <button type="button" id="moved-away-view-btn" data-click="dismissMovedAwayNotice" class="w-full rounded-full bg-brand-600 hover:bg-brand-500 px-4 py-3 text-sm font-semibold text-white"><span data-i18n="move.view">Nur ansehen</span></button>
+        </div>
+    </div>
+
     <!-- Hinweis fuer Safari im Browser-Tab (install-guide.js) -->
     <div id="install-hint-bar" class="hidden sticky top-0 z-39 bg-amber-500/15 border-b border-amber-500/30 px-4 py-2 text-xs text-amber-200">
         <div class="max-w-7xl mx-auto flex items-center gap-2">
@@ -1426,6 +1442,7 @@
     <script src="/client/app/snap-studio.js?v={{assetVersion}}"></script>
     <script src="/client/app/install-guide.js?v={{assetVersion}}"></script>
     <script src="/client/app/transfer.js?v={{assetVersion}}"></script>
+    <script src="/client/app/move.js?v={{assetVersion}}"></script>
     <script src="/client/app/secure-canvas.js?v={{assetVersion}}"></script>
     <!-- feature:nudity -->
     <script src="/client/app/nudity.js?v={{assetVersion}}"></script>

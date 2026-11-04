@@ -143,6 +143,8 @@ const PAYLOAD_VALIDATORS = {
     PRESENCE_PING: payload => isId(payload.nonce),
     PRESENCE_PONG: payload => isId(payload.nonce),
     PROFILE_REQUEST: () => true,
+    MOVE_ANNOUNCE: payload => ['delegation', 'announcement'].every(field => typeof payload[field] === 'string' && payload[field].length <= 4000)
+        && ['delegationSignature', 'announcementSignature'].every(field => typeof payload[field] === 'string' && payload[field].length <= 200),
     PROFILE_RESPONSE: payload => isValidProfileEnvelope(payload.signedEnvelope || payload.profile),
     SWARM_PROFILE_REQUEST: payload => isId(payload.targetNodeId),
     SWARM_PROFILE_RESPONSE: payload => isId(payload.targetNodeId) && isValidProfileEnvelope(payload.signedEnvelope),

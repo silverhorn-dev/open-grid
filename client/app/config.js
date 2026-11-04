@@ -190,6 +190,10 @@ const state = {
     snapTarget: null,
     // Snap-Seite (snap-studio.js): Tab offen bzw. Einstellung (null = Router-Standard).
     snapPage: false,
+    // Signierter Umzug (move.js): alte Kopie gesperrt, Hinweis gesehen, Neuladen geplant.
+    movedAway: false,
+    movedAwayNoticeSeen: false,
+    moveReloadScheduled: false,
     snapPageEnabled: null,
     // App-Modus (P8): vom Server erlaubte Modi, gewaehlter Modus und Event-Daten.
     appConfig: { modes: ['discovery', 'chat', 'friends', 'event'], defaultMode: 'discovery' },

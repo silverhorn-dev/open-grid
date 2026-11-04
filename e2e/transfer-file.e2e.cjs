@@ -1,6 +1,7 @@
 // End-to-End: Umzug per Datei (transfer.js, Board T31). Alte Kopie mit Profil, Chat und Album exportiert eine
 // verschluesselte .opengrid-Datei; ein frisches Geraet uebernimmt sie beim Einrichten (falsches Passwort wird
-// abgelehnt) und startet mit denselben Daten, aber eigener Node-ID. Vorerst nur im Debug-Modus.
+// abgelehnt) und startet mit denselben Daten, aber eigener Node-ID. Danach signierter Umzug: Bob zieht den Chat
+// auf die neue ID um, die alte Kopie sperrt sich. Vorerst nur im Debug-Modus.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -109,6 +110,34 @@ async function main() {
         assert.deepEqual(after.albums, ['Umzugsalbum']);
         assert.equal(after.theme, 'light');
         assert.equal(after.imported.from, aliceId);
+
+        // Signierter Umzug: Bob zieht den Chat auf die neue ID um, die alte Kopie sperrt sich.
+        await waitFor(bob, ([oldId, newId]) => !(state.chatPeerIds || []).includes(oldId) && (state.chatPeerIds || []).includes(newId), [aliceId, freshId], 60000);
+        const pinned = await bob.evaluate(async ([oldId, newId]) => ({
+            fresh: Boolean((await getPeerIdentity(newId))?.profileSigningKey),
+            old: Boolean(await databaseRequest('keys', 'readonly', store => store.get(`peer-identity:${oldId}`)))
+        }), [aliceId, freshId]);
+        assert.deepEqual(pinned, { fresh: true, old: false }, 'bob pins the new keys and forgets the old identity');
+        const bobView = await bob.evaluate(async peer => {
+            await loadChatHistory(peer);
+            return (state.chats[peer] || []).map(message => message.text).sort();
+        }, freshId);
+        assert.deepEqual(bobView, ['hallo alice', 'hallo bob'], 'bob keeps the history under the new id');
+        await waitFor(alice, () => state.movedAway === true, null, 60000);
+        assert.ok(await alice.locator('#moved-away-modal').isVisible(), 'old copy shows the lock notice');
+        await alice.click('#moved-away-view-btn');
+        assert.ok(await alice.locator('#moved-away-bar').isVisible());
+        assert.equal(await alice.evaluate(id => sendChatMessage('x', 'nope', null, null, { peerId: id }), bobId), false, 'old copy cannot send');
+        // Bob schreibt an die neue ID, das neue Geraet bekommt es.
+        await bob.evaluate(async id => {
+            await openChatWithPeer(id);
+            document.getElementById('chat-input').value = 'willkommen zurueck';
+            await sendChatMessage();
+        }, freshId);
+        await waitFor(fresh, id => (state.chats[id] || []).some(message => message.text === 'willkommen zurueck'), bobId, 60000);
+        const done = await fresh.evaluate(() => databaseRequest('keys', 'readonly', store => store.get('transfer-imported')));
+        assert.equal(done.done, true, 'all contacts reached');
+        assert.equal(done.move.delegatePrivate, undefined, 'delegate key dropped after the move');
         assert.deepEqual(pageErrors, []);
         console.log('E2E OK (transfer file)');
     } finally {

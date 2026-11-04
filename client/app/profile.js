@@ -379,6 +379,16 @@ async function completeProfileOnboarding() {
         errorOutput.classList.remove('hidden');
         return;
     }
+    // Eingefuegte Einladung (install-guide.js): nach dem Start annehmen wie ein geoeffneter Link.
+    const inviteFragment = typeof onboardingInviteFragment === 'function'
+        ? onboardingInviteFragment(document.getElementById('onboarding-invite-input')?.value)
+        : '';
+    if (inviteFragment === null) {
+        errorOutput.textContent = t('modes.inviteLinkIsInvalid');
+        errorOutput.classList.remove('hidden');
+        return;
+    }
+    if (inviteFragment) state.pendingInvite = inviteFragment;
 
     button.disabled = true;
     errorOutput.classList.add('hidden');

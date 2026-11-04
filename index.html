@@ -1071,6 +1071,10 @@
                 </div>
             </div>
             <p id="install-guide-existing" data-i18n="install.existingNote" class="hidden text-xs text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">Die installierte App startet mit eigenem, leerem Speicher. Deine Daten aus diesem Browser lassen sich noch nicht mitnehmen.</p>
+            <div id="install-guide-invite" class="hidden space-y-2 text-sm text-sky-200 bg-sky-500/10 border border-sky-500/30 rounded-lg p-3">
+                <p class="flex gap-2"><i class="fa-solid fa-link mt-0.5"></i><span data-i18n="install.inviteNote">Du hast eine Einladung. Sie geht beim Installieren nicht mit: kopiere sie und füge sie in der App beim Einrichten ein.</span></p>
+                <button type="button" id="install-guide-invite-copy" data-click="copyPendingInviteLink" class="w-full rounded-full border border-sky-500/40 px-4 py-2 text-xs font-semibold text-sky-100 hover:bg-sky-500/20"><span data-i18n="install.copyInvite">Einladung kopieren</span></button>
+            </div>
             <ol id="install-guide-steps" class="space-y-3"></ol>
             <div id="install-guide-done" class="hidden text-sm text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3 flex gap-2">
                 <i class="fa-solid fa-circle-check mt-0.5"></i><span data-i18n="install.openFromHome">Öffne OpenGrid jetzt über das neue Symbol. Diesen Tab kannst du schließen.</span>
@@ -1108,6 +1112,11 @@
                     <p data-i18n="onboarding.youCanChangeThisAt" class="text-[11px] text-slate-500">Das kannst du jederzeit in den Einstellungen ändern.</p>
                 </div>
                 <div id="onboarding-profile-form" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                <!-- Einladung, die im Safari-Tab ankam (install-guide.js): nach dem Installieren hier einfuegen -->
+                <div class="space-y-1">
+                    <button type="button" id="onboarding-invite-toggle" data-click="toggleOnboardingInvite" class="flex items-center gap-1.5 text-xs font-semibold text-brand-400 hover:text-brand-300"><i class="fa-solid fa-link"></i> <span data-i18n="install.pasteInvite">Einladung einfügen</span></button>
+                    <input id="onboarding-invite-input" type="text" autocomplete="off" data-i18n-attr="placeholder:install.invitePlaceholder" placeholder="Einladungslink einfügen" class="hidden w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-base font-mono text-slate-100 focus:outline-hidden focus:border-brand-500">
+                </div>
                 <div id="onboarding-profile-error" class="hidden text-xs text-red-300 bg-red-950/50 border border-red-800 rounded-lg p-3"></div>
                 <button id="complete-onboarding-btn" data-click="completeProfileOnboarding" class="w-full bg-brand-600 hover:bg-brand-500 disabled:opacity-60 text-white font-semibold py-3 px-4 rounded-xl transition flex items-center justify-center gap-2 shadow-lg pulse-glow">
                     <i class="fa-solid fa-shield-halved"></i> <span data-i18n="onboarding.saveProfileEncrypted">Profil verschlüsselt speichern</span>

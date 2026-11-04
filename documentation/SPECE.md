@@ -225,6 +225,12 @@
   `#install-hint-bar`, wegklickbar fuer 7 Tage (`localStorage`
   `opengrid-install-hint-dismissed`). Grund: Safari-ITP loescht Speicher nach
   7 Tagen ohne Besuch; installierte Web-Apps haben eigenen Speicher.
+  Einladung im Safari-Tab (`state.pendingInvite`): die Anleitung zeigt sie,
+  "Ist installiert" kopiert den ganzen Link (Nutzer-Geste), weil die App auf
+  `start_url` startet; beim Einrichten nimmt das Feld "Einladung einfuegen"
+  den Link (oder nur den Teil nach `#`), prueft ihn mit `parseInvite` und
+  setzt `state.pendingInvite`, das nach dem Start wie ein geoeffneter Link
+  angenommen wird (inkl. Fingerprint-Pruefung).
 - Snap-Seite (`snap-studio.js`, UC-73): im Social-Modus (`isSocialMode()`) ein
   eigener Tab `snap` (`/snap`, `#view-snap`) zwischen Chat und Profil, auch beim
   seitlichen Wischen (Grid > Chat > Snap > Profil). Beim Oeffnen wird

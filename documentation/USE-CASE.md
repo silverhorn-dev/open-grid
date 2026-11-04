@@ -1275,6 +1275,10 @@ Akzeptanzkriterien:
 - Nutze ich OpenGrid schon im Safari-Tab, sehe ich oben einen Hinweis mit
   Anleitung; er laesst sich fuer 7 Tage ausblenden. Die Anleitung sagt
   ehrlich, dass die installierte App leer startet.
+- Kam ich ueber einen Einladungslink, zeigt die Anleitung das an und kopiert
+  die Einladung, wenn ich "Ist installiert" tippe. In der App fuege ich sie
+  beim Einrichten unter "Einladung einfuegen" ein; danach ist der Kontakt da
+  und wird wie bei einem geoeffneten Link geprueft.
 - In der installierten App und in anderen Browsern (Android, Desktop-Chrome)
   erscheint nichts davon.
 

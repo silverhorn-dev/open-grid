@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 289 · 2026-11-04
+## Build 290 · 2026-11-04
+- Safari: kommst du ueber eine Einladung, nimmt die Installations-Anleitung sie mit (wird kopiert); in der App fuegst du sie beim Einrichten unter "Einladung einfuegen" ein
+
+## Build 289 · 2026-11-04 · `bb213a2`
 - Vorschau (Debug-Modus): Umzug auch per Code oder QR-Code ueber deinen Router; der Router sieht nur verschluesselte Daten, der Code gilt 15 Minuten und nur einmal
 
 ## Build 288 · 2026-11-04 · `1e47278`

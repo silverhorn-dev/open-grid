@@ -632,5 +632,6 @@
   - plan: (4) umzug: alte kopie signiert "ich bin jetzt <neue ID, neuer schluessel>" mit dem alten ECDSA-schluessel, schickt es E2E an alle kontakte (wie chat-operationen, P2P/pfad C); kontakte pruefen die signatur gegen den bekannten alten schluessel und ziehen chat, freundschaft, match, album-zugriffe auf die neue ID um
   - plan: (5) alte kopie gesperrt: kein senden/empfangen, hinweis-seite, alte zugangsdaten beim router abmelden
   - router sieht: transfer-ID, groesse des chiffrats, zeitpunkt upload/abholung (und damit per timing evtl. "alt -> neu"); nie schluessel, inhalt, kontaktliste. umzugs-nachrichten = normales E2E-chiffrat mit routing-IDs
-- [ ] einladungslinks: wer im safari-tab per einladung kommt und installiert, startet in der app auf `start_url` (/grid), die einladung ist weg -> link in der anleitung zum kopieren anbieten oder einladung nach dem installieren erneut oeffnen lassen
+- [x] einladungslinks: wer im safari-tab per einladung kommt und installiert, startet in der app auf `start_url` (/grid), die einladung ist weg -> link in der anleitung zum kopieren anbieten oder einladung nach dem installieren erneut oeffnen lassen
+  - done 2026-11-04: kasten in der anleitung, "ist installiert" kopiert den link, feld "Einladung einfuegen" beim einrichten (`onboardingInviteFragment`); e2e `install-guide`
 - [x] nebenbei: `npm run check` prueft jetzt alle server- und client-skripte (`scripts/check-syntax.mjs`); ein syntaxfehler in `main.js` war vorher durchgerutscht

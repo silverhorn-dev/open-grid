@@ -56,6 +56,8 @@ function renderInstallGuide({ existing = false } = {}) {
         return item;
     }));
     document.getElementById('install-guide-existing')?.classList.toggle('hidden', !existing);
+    // Einladungslink aus dem Safari-Tab: geht beim Installieren verloren (die App startet auf /grid).
+    document.getElementById('install-guide-invite')?.classList.toggle('hidden', !state.pendingInvite);
     document.getElementById('install-guide-done')?.classList.add('hidden');
     document.getElementById('install-guide-done-btn')?.classList.remove('hidden');
     document.getElementById('install-guide-skip-warning')?.classList.add('hidden');
@@ -87,6 +89,8 @@ function closeInstallGuide() {
 }
 
 function finishInstallGuide() {
+    // Einladung gleich mitnehmen: der Tipp zaehlt als Nutzer-Geste, Kopieren ist erlaubt.
+    if (state.pendingInvite) copyPendingInviteLink().catch(() => {});
     // Installieren laesst sich von hier nicht pruefen: nur noch sagen, wo es weitergeht.
     document.getElementById('install-guide-done')?.classList.remove('hidden');
     document.getElementById('install-guide-done-btn')?.classList.add('hidden');
@@ -122,4 +126,35 @@ function dismissInstallHint() {
         // Ohne localStorage kommt der Balken beim naechsten Start wieder.
     }
     document.getElementById('install-hint-bar')?.classList.add('hidden');
+}
+
+// ----- Einladung ueber die Installation hinweg -----
+function pendingInviteLink() {
+    return state.pendingInvite ? `${window.location.origin}/invite${state.pendingInvite.startsWith('#') ? '' : '#'}${state.pendingInvite}` : '';
+}
+
+async function copyPendingInviteLink() {
+    const link = pendingInviteLink();
+    if (!link) return;
+    try {
+        await navigator.clipboard.writeText(link);
+        showToast(t('install.inviteCopied'), 'success');
+    } catch {
+        showToast(t('common.copyingIsNotPossible'), 'error');
+    }
+}
+
+function toggleOnboardingInvite() {
+    const input = document.getElementById('onboarding-invite-input');
+    if (!input) return;
+    input.classList.toggle('hidden');
+    if (!input.classList.contains('hidden')) input.focus();
+}
+
+// Eingefuegter Link (ganz oder nur der Teil nach #) -> Fragment fuer acceptPendingInvite; null = ungueltig.
+function onboardingInviteFragment(value) {
+    const text = String(value || '').trim();
+    if (!text) return '';
+    const fragment = text.includes('#') ? text.slice(text.indexOf('#')) : `#${text}`;
+    return parseInvite(fragment) ? fragment : null;
 }

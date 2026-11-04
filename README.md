@@ -445,6 +445,13 @@ sh scripts/e2e.sh   # oder: npm run test:e2e
 - Im Browser liegen Profile, Medien und Alben (inkl. Albumgeheimnis)
   verschluesselt; die App bittet um dauerhaften Speicher und zeigt die Belegung
   in den Einstellungen.
+- Safari (iOS, iPadOS, macOS) loescht den Speicher einer Webseite, die einige
+  Tage nicht geoeffnet wurde (ITP, 7 Tage), also Schluessel, Chats und Freunde.
+  Installierte Web-Apps (Home-Bildschirm bzw. Dock) sind ausgenommen, haben aber
+  einen eigenen, leeren Speicher. Darum zeigt OpenGrid im Safari-Tab vor dem
+  Einrichten eine Installations-Anleitung; wer schon im Tab eingerichtet ist,
+  sieht einen Hinweis-Balken. Eine Uebernahme der Daten in die installierte App
+  gibt es noch nicht.
 - Chat-Loeschungen speichern einen Cutoff in `chat_controls`, damit alte
   Operationen den geloeschten Verlauf nicht wiederherstellen.
 - Blockierungen bleiben serverseitig bestehen, entfernen wartende Nachrichten

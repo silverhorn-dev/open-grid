@@ -170,6 +170,16 @@
   eigenen Zeile unter dem Namen.
 - Nachrichtenfeld `#chat-input` ist ein `<textarea>`; `fitChatInput` (`chat.js`)
   setzt die Hoehe bis `CHAT_INPUT_MAX_LINES` (5), danach scrollt es.
+- Installations-Anleitung (`install-guide.js`, UC-74): `installPlatform()`
+  erkennt `ios-safari`, `ios-other` (Chrome/Firefox/Edge auf iOS, auch WebKit)
+  und `mac-safari`; installiert = `display-mode: standalone` oder
+  `navigator.standalone`. Ohne eigenes Profil wartet der Start vor dem
+  Onboarding auf `maybeShowInstallGuide()` (Schritte je Plattform, "Ist
+  installiert" zeigt nur noch "vom Symbol oeffnen", "Im Browser weiter" erst
+  nach einer Warnung beim zweiten Tippen). Mit Profil im Tab: Balken
+  `#install-hint-bar`, wegklickbar fuer 7 Tage (`localStorage`
+  `opengrid-install-hint-dismissed`). Grund: Safari-ITP loescht Speicher nach
+  7 Tagen ohne Besuch; installierte Web-Apps haben eigenen Speicher.
 - Snap-Seite (`snap-studio.js`, UC-73): im Social-Modus (`isSocialMode()`) ein
   eigener Tab `snap` (`/snap`, `#view-snap`) zwischen Chat und Profil, auch beim
   seitlichen Wischen (Grid > Chat > Snap > Profil). Beim Oeffnen wird

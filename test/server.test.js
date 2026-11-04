@@ -229,7 +229,7 @@ test('serves the app shell and all client modules', async () => {
     assert.match(appSource, /createObjectStore\('localProfile'/);
     assert.match(appSource, /createObjectStore\('chatOperations'/);
     assert.match(appSource, /putDatabaseRecord\('localProfile'/);
-    assert.match(appSource, /if \(!hasLocalProfile\) await openProfileOnboarding\(\)/);
+    assert.match(appSource, /if \(!hasLocalProfile\) \{[^}]*await openProfileOnboarding\(\)/);
     assert.match(appSource, /id: 'identity-key'/);
     assert.match(appSource, /async function refreshChatControls\(\)/);
     assert.match(appSource, /function rememberChatPeer\(peerId\)/);

@@ -612,3 +612,11 @@
   - [x] status als weiteres ziel (nutzer 2026-11-04): foto-status fuer freunde wie `openSnapCamera('status')` -> `postPhotoStatus` (status.js), mit den anderen zielen kombinierbar
     - done 2026-11-04: `postSnapStudioStatus`; e2e `snap-page` waehlt chat + album + status + profil
   - plan: (3) modus-wahl schon im editor (statt der snap/bild-lasche), mehrere ziele auf einmal, ggf. auch als profilbild; eigene route `/snap` statt nur vollbild-modal
+
+## T31 Safari: gefuehrte Installation (nutzer 2026-11-04: "we lost our data on safari")
+- [x] ursache: Safari-ITP loescht allen script-speicher (IndexedDB, SW, localStorage) nach 7 tagen ohne besuch; installierte web-apps (home-bildschirm/dock) sind ausgenommen, haben aber eigenen, leeren speicher
+- [x] anleitung vor dem onboarding im safari-tab (iOS safari, iOS chrome/firefox/edge, macOS safari), "im browser weiter" erst nach warnung; hinweis-balken fuer schon eingerichtete tab-nutzer (7 tage wegklickbar)
+  - done 2026-11-04: `client/app/install-guide.js`, `#install-guide-modal`, `#install-hint-bar`; e2e `install-guide` (mobil); UC-74
+- [ ] daten aus dem safari-tab in die installierte app mitnehmen (export/import oder QR-kopplung, wie geplanter umzug PWA -> android-app) -> sonst verlieren bestehende tab-nutzer beim installieren alles
+- [ ] einladungslinks: wer im safari-tab per einladung kommt und installiert, startet in der app auf `start_url` (/grid), die einladung ist weg -> link in der anleitung zum kopieren anbieten oder einladung nach dem installieren erneut oeffnen lassen
+- [x] nebenbei: `npm run check` prueft jetzt alle server- und client-skripte (`scripts/check-syntax.mjs`); ein syntaxfehler in `main.js` war vorher durchgerutscht

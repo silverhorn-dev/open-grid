@@ -1257,3 +1257,23 @@ Akzeptanzkriterien:
   mehrere Ziele lassen sich zusammen waehlen ("An n senden").
 - Ein Chat bekommt den Snap im gewaehlten Modus (mit Wasserzeichen, Nacktbild-
   Warnung und Speicher-Schalter wie sonst); Album und Profil speichern ein Bild.
+
+## UC-74: Installation unter Safari
+
+**Als Nutzer** von Safari (iPhone, iPad, Mac) moechte ich OpenGrid so
+einrichten, dass meine Daten nicht verloren gehen.
+
+Akzeptanzkriterien:
+
+- Oeffne ich OpenGrid zum ersten Mal in Safari (oder einem anderen Browser auf
+  iOS), erklaert eine Anleitung vor dem Einrichten, warum ich installieren soll
+  und wie: iOS ueber "Teilen" > "Zum Home-Bildschirm", Mac ueber "Ablage" >
+  "Zum Dock hinzufuegen".
+- "Ist installiert" sagt mir, dass ich OpenGrid jetzt ueber das neue Symbol
+  oeffne. "Trotzdem im Browser weiter" warnt erst und fuehrt beim zweiten
+  Tippen zum Einrichten.
+- Nutze ich OpenGrid schon im Safari-Tab, sehe ich oben einen Hinweis mit
+  Anleitung; er laesst sich fuer 7 Tage ausblenden. Die Anleitung sagt
+  ehrlich, dass die installierte App leer startet.
+- In der installierten App und in anderen Browsern (Android, Desktop-Chrome)
+  erscheint nichts davon.

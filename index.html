@@ -36,6 +36,16 @@
     <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full px-4"></div>
 
     <!-- Top Global Header -->
+    <!-- Hinweis fuer Safari im Browser-Tab (install-guide.js) -->
+    <div id="install-hint-bar" class="hidden sticky top-0 z-39 bg-amber-500/15 border-b border-amber-500/30 px-4 py-2 text-xs text-amber-200">
+        <div class="max-w-7xl mx-auto flex items-center gap-2">
+            <i class="fa-solid fa-triangle-exclamation shrink-0"></i>
+            <span data-i18n="install.hintBar" class="flex-1 min-w-0">Safari kann deine Daten löschen. Installiere OpenGrid als App.</span>
+            <button type="button" data-click="openInstallGuide" class="shrink-0 rounded-full bg-amber-500/25 px-3 py-1 font-semibold text-amber-100"><span data-i18n="install.howTo">Anleitung</span></button>
+            <button type="button" data-click="dismissInstallHint" data-i18n-attr="aria-label:profileModal.close" aria-label="Schließen" class="shrink-0 w-7 h-7 rounded-full text-amber-200 hover:bg-amber-500/20"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+    </div>
+
     <header class="app-header bg-slate-900/90 backdrop-blur-sm border-b border-slate-800 sticky top-0 z-40 px-4 py-3">
         <div class="max-w-7xl mx-auto flex items-center justify-between gap-3">
             <div class="flex items-center gap-3 min-w-0">
@@ -1026,6 +1036,29 @@
 
     </main>
 
+    <!-- Installations-Anleitung fuer Safari/iOS (install-guide.js): vor dem Einrichten, sonst loescht Safari die Daten -->
+    <div id="install-guide-modal" class="hidden fixed inset-0 bg-slate-950/95 backdrop-blur-md z-65 flex items-start justify-center p-4 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="install-guide-title">
+        <div class="w-full max-w-md my-auto bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-2xl">
+            <div class="flex items-start gap-3">
+                <div class="w-11 h-11 shrink-0 rounded-xl bg-amber-500/15 text-amber-400 flex items-center justify-center text-xl"><i class="fa-solid fa-mobile-screen-button"></i></div>
+                <div>
+                    <h2 id="install-guide-title" data-i18n="install.title" class="text-lg font-bold text-slate-100">Erst installieren, dann loslegen</h2>
+                    <p id="install-guide-why" data-i18n="install.why" class="text-sm text-slate-400 mt-1">Safari löscht die Daten von Webseiten, die du ein paar Tage nicht öffnest. Bei OpenGrid wären das deine Schlüssel, Chats und Freunde. Als App auf dem Home-Bildschirm passiert das nicht.</p>
+                </div>
+            </div>
+            <p id="install-guide-existing" data-i18n="install.existingNote" class="hidden text-xs text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">Die installierte App startet mit eigenem, leerem Speicher. Deine Daten aus diesem Browser lassen sich noch nicht mitnehmen.</p>
+            <ol id="install-guide-steps" class="space-y-3"></ol>
+            <div id="install-guide-done" class="hidden text-sm text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3 flex gap-2">
+                <i class="fa-solid fa-circle-check mt-0.5"></i><span data-i18n="install.openFromHome">Öffne OpenGrid jetzt über das neue Symbol. Diesen Tab kannst du schließen.</span>
+            </div>
+            <div class="flex flex-col gap-2 pt-1">
+                <button id="install-guide-done-btn" type="button" data-click="finishInstallGuide" class="w-full rounded-full bg-brand-600 hover:bg-brand-500 px-4 py-3 text-sm font-semibold text-white"><span data-i18n="install.installed">Ist installiert</span></button>
+                <button id="install-guide-skip-btn" type="button" data-click="skipInstallGuide" class="w-full rounded-full border border-slate-700 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-800"><span data-i18n="install.continueInBrowser">Trotzdem im Browser weiter</span></button>
+                <p id="install-guide-skip-warning" data-i18n="install.skipWarning" class="hidden text-xs text-amber-300 text-center">Sicher? Ohne Installation kann Safari alles löschen. Tippe nochmal, um im Browser weiterzumachen.</p>
+            </div>
+        </div>
+    </div>
+
     <!-- First-run profile onboarding -->
     <div id="profile-onboarding-modal" class="hidden fixed inset-0 bg-slate-950/90 backdrop-blur-md z-60 flex items-start justify-center p-4 overflow-y-auto">
         <div class="bg-slate-900 border border-brand-500/40 rounded-2xl max-w-2xl w-full shadow-2xl my-auto">
@@ -1382,6 +1415,7 @@
     <script src="/client/app/snap-editor.js?v={{assetVersion}}"></script>
     <script src="/client/app/snap-camera.js?v={{assetVersion}}"></script>
     <script src="/client/app/snap-studio.js?v={{assetVersion}}"></script>
+    <script src="/client/app/install-guide.js?v={{assetVersion}}"></script>
     <script src="/client/app/secure-canvas.js?v={{assetVersion}}"></script>
     <!-- feature:nudity -->
     <script src="/client/app/nudity.js?v={{assetVersion}}"></script>

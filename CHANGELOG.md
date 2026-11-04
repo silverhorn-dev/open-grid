@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 285 · 2026-11-04
+## Build 286 · 2026-11-04
+- Safari (iPhone, iPad, Mac): vor dem Einrichten eine Anleitung zum Installieren, damit Safari deine Daten nicht loescht; wer OpenGrid schon im Safari-Tab nutzt, sieht oben einen Hinweis
+
+## Build 285 · 2026-11-04 · `f7916d4`
 - Snap-Seite: auch als Foto-Status fuer Freunde teilen, zusammen mit den anderen Zielen
 
 ## Build 284 · 2026-11-04 · `29aefc8`

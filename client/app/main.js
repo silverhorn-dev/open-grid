@@ -80,8 +80,14 @@ window.onload = async () => {
         await runStartupStep('App-Modus', loadAppMode);
         await runStartupStep('Module', loadEnabledFeatures);
         const hasLocalProfile = await loadMyLocalProfile();
-        if (!hasLocalProfile) await openProfileOnboarding();
-        else await runStartupStep('Bereich', () => pinModeScope('all'));
+        if (!hasLocalProfile) {
+            // Safari/iOS im Browser-Tab: erst installieren, sonst loescht Safari die Daten (install-guide.js).
+            await runStartupStep('Installation', maybeShowInstallGuide);
+            await openProfileOnboarding();
+        } else {
+            await runStartupStep('Bereich', () => pinModeScope('all'));
+        }
+        renderInstallHintBar();
         if (!state.myProfile.updatedAt) {
             state.myProfile.version = 1;
             state.myProfile.updatedAt = Date.now();

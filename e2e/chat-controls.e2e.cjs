@@ -5,6 +5,14 @@
 const assert = require('node:assert/strict');
 const { chromium, devices } = require('playwright');
 
+// iPhone-Emulation = installierte Web-App; im Safari-Tab kaeme sonst erst die Installations-Anleitung
+// (install-guide.js, eigener Test install-guide.e2e.cjs).
+async function newAppContext(browser, options) {
+    const context = await browser.newContext(options);
+    await context.addInitScript(() => Object.defineProperty(navigator, 'standalone', { get: () => true }));
+    return context;
+}
+
 const BASE_URL = process.env.BASE_URL || 'http://127.0.0.1:3000';
 const MOBILE = Boolean(process.env.MOBILE);
 const OFFLINE = Boolean(process.env.OFFLINE);
@@ -35,7 +43,7 @@ async function main() {
     const pageErrors = [];
 
     async function user(name) {
-        const context = await browser.newContext({ locale: 'de-DE', ...(MOBILE ? devices['iPhone 13'] : {}) });
+        const context = await newAppContext(browser, { locale: 'de-DE', ...(MOBILE ? devices['iPhone 13'] : {}) });
         const page = await context.newPage();
         page.on('pageerror', error => pageErrors.push(`[${name}] ${error.message}`));
         page.on('dialog', dialog => dialog.accept());

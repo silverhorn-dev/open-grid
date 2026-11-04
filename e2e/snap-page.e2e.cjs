@@ -112,7 +112,7 @@ async function main() {
         assert.ok(await page.evaluate(() => !document.body.contains(document.querySelector('#view-snap #snap-capture-modal'))
             && document.getElementById('snap-capture-modal').classList.contains('hidden')), 'camera back as hidden modal');
 
-        // Aufnahme -> Ziel waehlen -> mehrere Ziele: Chat, Album und Galerie des eigenen Profils.
+        // Aufnahme -> Ziel waehlen -> mehrere Ziele: Chat, Album, Foto-Status und Galerie des eigenen Profils.
         const albumId = await page.evaluate(async () => {
             document.getElementById('new-album-name').value = 'E2E-Album';
             await createAlbum();
@@ -128,11 +128,13 @@ async function main() {
         await page.locator(`#media-modal-content [data-peer-id="${friendId}"]`).click();
         await page.locator(`#media-modal-content [data-album-id="${albumId}"]`).click();
         await page.locator('#media-modal-content [data-target="profile"]').click();
-        assert.equal(await page.locator('#media-modal-content [aria-pressed="true"]').count(), 3);
-        assert.match(await page.locator('#snap-studio-send').textContent(), /3/);
+        await page.locator('#media-modal-content [data-target="status"]').click();
+        assert.equal(await page.locator('#media-modal-content [aria-pressed="true"]').count(), 4);
+        assert.match(await page.locator('#snap-studio-send').textContent(), /4/);
         await page.locator('#snap-studio-send').click();
         await waitFor(page, before => (editingProfilePart().gallery || []).length === before + 1, galleryBefore, 10000);
         await waitFor(page, id => state.albums[id].items.length === 1, albumId, 10000);
+        await waitFor(page, () => activeStatusesOf(state.myProfile.id).some(status => status.kind === 'photo'), null, 10000);
         await waitFor(friend, id => (state.chats[id] || []).some(message => message.senderId === id && message.snapData), pageId);
         // Mehrere Ziele: man bleibt auf der Snap-Seite, wieder mit Live-Kamera.
         await waitFor(page, () => document.getElementById('media-modal').classList.contains('hidden')

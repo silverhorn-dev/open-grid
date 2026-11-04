@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 284 · 2026-11-04
+## Build 285 · 2026-11-04
+- Snap-Seite: auch als Foto-Status fuer Freunde teilen, zusammen mit den anderen Zielen
+
+## Build 284 · 2026-11-04 · `29aefc8`
 - Snap-Seite: mehrere Ziele auf einmal (Chats, Alben und Profil-Galerie frei kombinierbar)
 - Snap-Seite: Kamera randlos und groesser, genau bis zur Navigation
 - Snap-Seite ist jetzt standardmaessig aus (Einstellungen > Medien > Snaps)

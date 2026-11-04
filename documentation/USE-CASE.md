@@ -1253,6 +1253,7 @@ Akzeptanzkriterien:
 - Nach der Aufnahme bearbeitet man den Snap wie gewohnt, der Knopf heisst
   "Ziel waehlen".
 - Die Auswahl zeigt den Modus (Snap, Secure, Bild) und als Ziele die Chats,
-  die eigenen Alben und die Galerie des eigenen Profils.
+  die eigenen Alben, den Foto-Status und die Galerie des eigenen Profils;
+  mehrere Ziele lassen sich zusammen waehlen ("An n senden").
 - Ein Chat bekommt den Snap im gewaehlten Modus (mit Wasserzeichen, Nacktbild-
   Warnung und Speicher-Schalter wie sonst); Album und Profil speichern ein Bild.

@@ -180,8 +180,11 @@
   Knopf), runter wischen schliesst nichts. Abschaltbar: `keys`/`snap-page =
   { enabled }`, ohne Eintrag `CLIENT_DEFAULTS.snapPage` (Standard aus). Nach der
   Aufnahme haelt "Ziel waehlen" den geflachten Entwurf fest und zeigt Modus
-  (snap/secure/image) sowie Ziele: Chats (mit Wasserzeichen je Empfaenger),
-  eigene Alben (`album.items`) und die Galerie des eigenen Profils.
+  (snap/secure/image) sowie Ziele, mehrere auf einmal (`deliverSnapStudio`):
+  Chats (mit Wasserzeichen je Empfaenger, ohne den Chat zu oeffnen:
+  `sendChatMessage(..., { peerId })`), eigene Alben (`album.items`),
+  Foto-Status (`postPhotoStatus`) und die Galerie des eigenen Profils. Nur ein
+  einzelner Chat wird danach geoeffnet, sonst bleibt man auf der Seite.
 - Snap-Kamera (`snaps.js`, `snap-camera.js`, `snap-editor.js`): Vollbild, alle
   Bedienelemente liegen ueber dem Bild. Licht per
   `applyConstraints({ advanced: [{ torch }] })` und Zoom per `zoom`, nur wenn

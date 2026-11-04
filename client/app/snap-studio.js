@@ -1,7 +1,7 @@
 // ================= SNAP-SEITE (Social-Modus) =================
 // Eigener Tab zwischen Chat und Profil (`/snap`): die Snap-Kamera als Seite, Navigation bleibt sichtbar,
 // seitlich wischen wechselt den Tab. Das Ziel waehlt man erst nach der Aufnahme im Editor: ein Chat
-// (als Snap, Secure Snap oder Bild), eines der eigenen Alben oder die Galerie des eigenen Profils.
+// (als Snap, Secure Snap oder Bild), eigene Alben, Foto-Status oder die Galerie des eigenen Profils; mehrere auf einmal.
 // Abschaltbar in den Einstellungen (`keys`/`snap-page`, Router-Standard `CLIENT_DEFAULTS.snapPage`, sonst aus).
 const SNAP_STUDIO_GALLERY_EDGE = 800;
 const SNAP_PAGE_RECORD_ID = 'snap-page';
@@ -103,8 +103,8 @@ function copyCanvas(source) {
 // Mehrere Ziele auf einmal: Eintraege an- und abwaehlen, unten "Senden (n)".
 function renderSnapStudioPicker(draft) {
     const content = openMediaModal(t('snapStudio.sendTo'));
-    const selection = { chats: new Set(), albums: new Set(), profile: false };
-    const count = () => selection.chats.size + selection.albums.size + Number(selection.profile);
+    const selection = { chats: new Set(), albums: new Set(), profile: false, status: false };
+    const count = () => selection.chats.size + selection.albums.size + Number(selection.profile) + Number(selection.status);
     const send = document.createElement('button');
     send.type = 'button';
     send.id = 'snap-studio-send';
@@ -163,6 +163,19 @@ function renderSnapStudioPicker(draft) {
         content.append(snapStudioNote(t('snapStudio.noAlbums')));
     }
 
+    // Foto-Status fuer Freunde (status.js), 24 h sichtbar.
+    if (typeof postPhotoStatus === 'function') {
+        content.append(snapStudioHeading(t('snapStudio.status'), 'fa-circle-notch'));
+        const statusButton = snapStudioOption(t('snapStudio.asPhotoStatus'), 'fa-circle-plus', () => {
+            selection.status = !selection.status;
+            markSelected(statusButton, selection.status);
+            renderSend();
+        });
+        statusButton.dataset.target = 'status';
+        markSelected(statusButton, false);
+        content.append(statusButton);
+    }
+
     content.append(snapStudioHeading(t('common.profile'), 'fa-user'));
     const profileButton = snapStudioOption(t('snapStudio.profileGallery'), 'fa-user-plus', () => {
         selection.profile = !selection.profile;
@@ -175,7 +188,7 @@ function renderSnapStudioPicker(draft) {
 
     send.onclick = () => {
         if (!count()) return;
-        const chosen = { chats: [...selection.chats], albums: [...selection.albums], profile: selection.profile };
+        const chosen = { chats: [...selection.chats], albums: [...selection.albums], profile: selection.profile, status: selection.status };
         replaceModal(closeMediaModal, () => deliverSnapStudio(chosen, draft));
     };
     renderSend();
@@ -196,6 +209,7 @@ async function deliverSnapStudio(chosen, draft) {
         return false;
     }));
     for (const albumId of chosen.albums) tally(await addSnapStudioToAlbum(albumId, draft));
+    if (chosen.status) tally(await postSnapStudioStatus(draft));
     if (chosen.profile) tally(await addSnapStudioToProfile(draft));
     const total = done + failed;
     if (chosen.chats.length === 1 && total === 1 && done) {
@@ -289,6 +303,19 @@ async function sendSnapStudioToChat(peerId, draft) {
     const seconds = Number.isFinite(draft.seconds) ? draft.seconds : 10;
     const secureSnap = await createSecureSnap(snapData, peerId, draft.views, seconds);
     return sendChatMessage(null, draft.caption, null, secureSnap, { peerId });
+}
+
+// Foto-Status: ohne Wasserzeichen hier (das setzt status.js je Freund), Bildunterschrift als Text.
+async function postSnapStudioStatus(draft) {
+    try {
+        const image = encodeSnap(draft.flat, draft.flat.width, draft.flat.height, false, null);
+        if (!image) return false;
+        await postPhotoStatus(image, draft.caption);
+        return true;
+    } catch (error) {
+        logDebug(`Snap studio status failed: ${error.message}`);
+        return false;
+    }
 }
 
 async function addSnapStudioToAlbum(albumId, draft) {

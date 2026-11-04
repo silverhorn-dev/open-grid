@@ -607,5 +607,7 @@
     - done (1) 2026-11-02: `client/app/snap-studio.js`, `data-snap-nav`, bottom-nav 2-4 spalten; UC-73
   - nutzer 2026-11-02: abschaltbar, kein vollbild (navbar bleibt), seitlich wischen, zwischen Chat und Profil auch beim wischen
     - done 2026-11-02: echter tab `snap` (`/snap`, `#view-snap`), kamera-modal wird hineinverschoben (`.snap-in-page`), wischen grid > chat > snap > profil (seitlich wischen auf der kamera = tab statt snap/bild), kamera aus beim verlassen; schalter Einstellungen > Medien > Snaps (`keys`/`snap-page`, `CLIENT_DEFAULTS.snapPage`); e2e `snap-page` (mobil)
-  - plan: (2) e2e auch fuer chat- und album-ziel
+  - nutzer 2026-11-04: standard aus, mehrere ziele, vorschau groesser (nicht ueber die navbar)
+    - done 2026-11-04: `CLIENT_DEFAULTS.snapPage` std `false`; auswahl mit haken + "An n senden" (`deliverSnapStudio`), chats ohne oeffnen per `sendChatMessage(..., { peerId })`; kamera randlos bis zur navbar; e2e `snap-page` mit chat + album + profil
+  - plan: status als weiteres ziel (nutzer 2026-11-04): foto-status fuer freunde wie `openSnapCamera('status')` -> `postPhotoStatus` (status.js), mit den anderen zielen kombinierbar
   - plan: (3) modus-wahl schon im editor (statt der snap/bild-lasche), mehrere ziele auf einmal, ggf. auch als profilbild; eigene route `/snap` statt nur vollbild-modal

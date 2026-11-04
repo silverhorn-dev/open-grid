@@ -1245,8 +1245,8 @@ danach entscheiden, wohin er geht.
 Akzeptanzkriterien:
 
 - Im Social-Modus (Nur Chat, Freunde in der Naehe) gibt es zwischen Chat und
-  Profil den Tab "Snap"; in den anderen Modi nicht. Er laesst sich in den
-  Einstellungen (Medien > Snaps) abschalten.
+  Profil den Tab "Snap"; in den anderen Modi nicht. Er ist standardmaessig aus
+  und wird in den Einstellungen (Medien > Snaps) eingeschaltet.
 - Der Tab zeigt die Snap-Kamera als Seite, die Navigation bleibt sichtbar;
   seitlich wischen wechselt wie sonst den Tab (Chat <- Snap -> Profil).
   Verlaesst man den Tab, geht die Kamera aus.

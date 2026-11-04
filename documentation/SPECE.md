@@ -178,7 +178,7 @@
   Verlassen Kamera aus, Entwurf verworfen, Modal zurueck an `body`. Auf der
   Seite wechselt seitliches Wischen auf der Kamera den Tab (Snap/Bild nur per
   Knopf), runter wischen schliesst nichts. Abschaltbar: `keys`/`snap-page =
-  { enabled }`, ohne Eintrag `CLIENT_DEFAULTS.snapPage` (Standard an). Nach der
+  { enabled }`, ohne Eintrag `CLIENT_DEFAULTS.snapPage` (Standard aus). Nach der
   Aufnahme haelt "Ziel waehlen" den geflachten Entwurf fest und zeigt Modus
   (snap/secure/image) sowie Ziele: Chats (mit Wasserzeichen je Empfaenger),
   eigene Alben (`album.items`) und die Galerie des eigenen Profils.

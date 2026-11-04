@@ -2,12 +2,12 @@
 // Eigener Tab zwischen Chat und Profil (`/snap`): die Snap-Kamera als Seite, Navigation bleibt sichtbar,
 // seitlich wischen wechselt den Tab. Das Ziel waehlt man erst nach der Aufnahme im Editor: ein Chat
 // (als Snap, Secure Snap oder Bild), eines der eigenen Alben oder die Galerie des eigenen Profils.
-// Abschaltbar in den Einstellungen (`keys`/`snap-page`, Router-Standard `CLIENT_DEFAULTS.snapPage`, sonst an).
+// Abschaltbar in den Einstellungen (`keys`/`snap-page`, Router-Standard `CLIENT_DEFAULTS.snapPage`, sonst aus).
 const SNAP_STUDIO_GALLERY_EDGE = 800;
 const SNAP_PAGE_RECORD_ID = 'snap-page';
 
 function snapPageEnabled() {
-    return typeof state.snapPageEnabled === 'boolean' ? state.snapPageEnabled : clientDefault('snapPage', true) !== false;
+    return typeof state.snapPageEnabled === 'boolean' ? state.snapPageEnabled : clientDefault('snapPage', false) === true;
 }
 
 function snapPageAvailable() {
@@ -100,14 +100,49 @@ function copyCanvas(source) {
     return canvas;
 }
 
+// Mehrere Ziele auf einmal: Eintraege an- und abwaehlen, unten "Senden (n)".
 function renderSnapStudioPicker(draft) {
     const content = openMediaModal(t('snapStudio.sendTo'));
+    const selection = { chats: new Set(), albums: new Set(), profile: false };
+    const count = () => selection.chats.size + selection.albums.size + Number(selection.profile);
+    const send = document.createElement('button');
+    send.type = 'button';
+    send.id = 'snap-studio-send';
+    send.className = 'sticky bottom-0 mt-4 w-full rounded-full bg-brand-600 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50';
+    const renderSend = () => {
+        send.disabled = count() === 0;
+        send.textContent = count() ? t('snapStudio.sendCount', { count: count() }) : t('snapStudio.pickTargets');
+    };
+    // Auswahl sichtbar machen: Rahmen + Haken, aria-pressed.
+    const markSelected = (button, selected) => {
+        button.setAttribute('aria-pressed', String(selected));
+        button.classList.toggle('border-brand-500', selected);
+        button.classList.toggle('bg-brand-500/10', selected);
+        let check = button.querySelector('.snap-studio-check');
+        if (!check) {
+            check = document.createElement('i');
+            check.className = 'snap-studio-check fa-solid fa-circle-check ml-auto shrink-0 text-brand-400';
+            button.append(check);
+        }
+        check.classList.toggle('invisible', !selected);
+    };
+    const toggleIn = (set, id, button) => {
+        if (set.has(id)) set.delete(id);
+        else set.add(id);
+        markSelected(button, set.has(id));
+        renderSend();
+    };
+
     content.append(renderSnapStudioModes(draft));
 
     content.append(snapStudioHeading(t('common.chat'), 'fa-comments'));
     const peerIds = (state.chatPeerIds || []).filter(peerId => !isPeerBlocked(peerId));
     if (peerIds.length) {
-        content.append(createChatPickerList(peerIds, peerId => replaceModal(closeMediaModal, () => sendSnapStudioToChat(peerId, draft))));
+        const list = createChatPickerList(peerIds, peerId => {
+            toggleIn(selection.chats, peerId, list.querySelector(`[data-peer-id="${CSS.escape(peerId)}"]`));
+        });
+        list.querySelectorAll('button').forEach(button => markSelected(button, false));
+        content.append(list);
     } else {
         content.append(snapStudioNote(t('share.noChatsYet')));
     }
@@ -117,16 +152,59 @@ function renderSnapStudioPicker(draft) {
     if (albums.length) {
         const list = document.createElement('div');
         list.className = 'space-y-1.5';
-        albums.forEach(album => list.append(snapStudioOption(album.name || t('snapStudio.album'), 'fa-images',
-            () => replaceModal(closeMediaModal, () => addSnapStudioToAlbum(album.id, draft)))));
+        albums.forEach(album => {
+            const button = snapStudioOption(album.name || t('snapStudio.album'), 'fa-images', () => toggleIn(selection.albums, album.id, button));
+            button.dataset.albumId = album.id;
+            markSelected(button, false);
+            list.append(button);
+        });
         content.append(list);
     } else {
         content.append(snapStudioNote(t('snapStudio.noAlbums')));
     }
 
     content.append(snapStudioHeading(t('common.profile'), 'fa-user'));
-    content.append(snapStudioOption(t('snapStudio.profileGallery'), 'fa-user-plus',
-        () => replaceModal(closeMediaModal, () => addSnapStudioToProfile(draft))));
+    const profileButton = snapStudioOption(t('snapStudio.profileGallery'), 'fa-user-plus', () => {
+        selection.profile = !selection.profile;
+        markSelected(profileButton, selection.profile);
+        renderSend();
+    });
+    profileButton.dataset.target = 'profile';
+    markSelected(profileButton, false);
+    content.append(profileButton);
+
+    send.onclick = () => {
+        if (!count()) return;
+        const chosen = { chats: [...selection.chats], albums: [...selection.albums], profile: selection.profile };
+        replaceModal(closeMediaModal, () => deliverSnapStudio(chosen, draft));
+    };
+    renderSend();
+    content.append(send);
+}
+
+// An alle gewaehlten Ziele. Nur ein einzelner Chat wird danach geoeffnet (wie vorher), sonst bleibt man
+// auf der Snap-Seite und bekommt eine Zusammenfassung.
+async function deliverSnapStudio(chosen, draft) {
+    let done = 0;
+    let failed = 0;
+    const tally = ok => {
+        if (ok) done += 1;
+        else failed += 1;
+    };
+    for (const peerId of chosen.chats) tally(await sendSnapStudioToChat(peerId, draft).catch(error => {
+        logDebug(`Snap studio chat send failed: ${error.message}`);
+        return false;
+    }));
+    for (const albumId of chosen.albums) tally(await addSnapStudioToAlbum(albumId, draft));
+    if (chosen.profile) tally(await addSnapStudioToProfile(draft));
+    const total = done + failed;
+    if (chosen.chats.length === 1 && total === 1 && done) {
+        await openChatWithPeer(chosen.chats[0]);
+        replaceRoute(routeForTab('chat'));
+        return;
+    }
+    if (failed) showToast(t('snapStudio.sentPartly', { done, total }), done ? 'warning' : 'error');
+    else showToast(t('snapStudio.sentTo', { count: done }), 'success');
 }
 
 // Modus fuer Chats: Snap, Secure Snap oder Bild. Alben und Profil speichern immer ein Bild.
@@ -198,44 +276,34 @@ function snapStudioJpeg(canvas, maxEdge, quality) {
     return target.toDataURL('image/jpeg', quality);
 }
 
+// Ohne den Chat zu oeffnen (sendChatMessage mit options.peerId); true, wenn die Nachricht raus ist.
 async function sendSnapStudioToChat(peerId, draft) {
-    switchTab('chat');
-    await openChatWithPeer(peerId);
-    replaceRoute(routeForTab('chat'));
     const bits = isTraceWatermarkEnabled() ? await watermarkTag(peerId) : null;
     const snapData = encodeSnap(draft.flat, draft.flat.width, draft.flat.height, false, bits);
-    if (!snapData) {
-        showToast(t('snaps.couldNotBeCreated'), 'error');
-        return;
-    }
+    if (!snapData) return false;
     if (draft.mode === 'image') {
         const original = draft.wantsOriginal ? await createOriginalImage(draft.flat, peerId) : null;
-        if (draft.wantsOriginal && !original) showToast(t('snaps.originalIsTooLargeOnly'), 'warning');
-        await sendChatMessage(snapData, draft.caption, null, null, { asImage: true, original, ...draft.saveOptions });
-        return;
+        return sendChatMessage(snapData, draft.caption, null, null, { asImage: true, original, ...draft.saveOptions, peerId });
     }
-    if (draft.mode === 'snap') {
-        await sendChatMessage(snapData, draft.caption, null, null, draft.saveOptions);
-        return;
-    }
+    if (draft.mode === 'snap') return sendChatMessage(snapData, draft.caption, null, null, { ...draft.saveOptions, peerId });
     const seconds = Number.isFinite(draft.seconds) ? draft.seconds : 10;
     const secureSnap = await createSecureSnap(snapData, peerId, draft.views, seconds);
-    await sendChatMessage(null, draft.caption, null, secureSnap);
+    return sendChatMessage(null, draft.caption, null, secureSnap, { peerId });
 }
 
 async function addSnapStudioToAlbum(albumId, draft) {
     const album = state.albums[albumId];
-    if (!album) return;
+    if (!album) return false;
     try {
         const data = snapStudioJpeg(draft.flat, ALBUM_IMAGE_MAX_EDGE, ALBUM_IMAGE_QUALITY);
         const imageId = `albimg_${window.crypto.randomUUID()}`;
         await cacheMedia(imageId, data, 1);
         album.items.push({ id: imageId, version: 1 });
         await saveAlbum(album);
-        showToast(t('snapStudio.addedToAlbum', { name: album.name || t('snapStudio.album') }), 'success');
+        return true;
     } catch (error) {
         logDebug(`Snap studio album image failed: ${error.message}`);
-        showToast(t('albums.imageCouldNotBeAdded'), 'error');
+        return false;
     }
 }
 
@@ -249,9 +317,9 @@ async function addSnapStudioToProfile(draft) {
         part.gallery.push({ id: imageId, version: 1, sha256: await sha256Base64(data) });
         renderEditGallery();
         await saveUserProfile();
-        showToast(t('profile.imageAddedToGallery'), 'success');
+        return true;
     } catch (error) {
         logDebug(`Snap studio gallery image failed: ${error.message}`);
-        showToast(t('profile.uploadFailed'), 'error');
+        return false;
     }
 }

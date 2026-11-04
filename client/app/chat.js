@@ -507,11 +507,14 @@ function isCoarsePointer() {
 async function sendChatMessage(snapData = null, caption = '', album = null, secureSnap = null, options = {}) {
     const input = document.getElementById('chat-input');
     const hasAttachment = Boolean(snapData || album || secureSnap || options.audio);
+    // options.peerId: Anhang an einen Chat, der nicht offen ist (Snap-Seite, snap-studio.js).
+    const peerId = (hasAttachment && options.peerId) || state.activeChatPeerId;
+    const isOpenChat = peerId === state.activeChatPeerId;
     // Chat-Berechtigungen des anderen (nur Anzeige; der Empfaenger setzt sie selbst durch).
-    const allowance = state.activeChatPeerId ? getPeerChatAllowance(state.activeChatPeerId) : null;
+    const allowance = peerId ? getPeerChatAllowance(peerId) : null;
     if (allowance && (!allowance.allowed || (hasAttachment && !allowance.images))) {
         showToast(allowance.reason || t('chat.imagesAreOnlyAllowedAfter'), 'info');
-        return;
+        return false;
     }
     const text = hasAttachment ? String(caption || '').trim() : input.value.trim();
     // Bearbeiten einer eigenen Nachricht (chat-tools.js): Senden speichert die Aenderung.
@@ -519,12 +522,11 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
         await finishEditMessage(text);
         return;
     }
-    if ((!text && !hasAttachment) || !state.activeChatPeerId || isPeerBlocked(state.activeChatPeerId)) return;
+    if ((!text && !hasAttachment) || !peerId || isPeerBlocked(peerId)) return false;
 
-    const peerId = state.activeChatPeerId;
     // Senden fuehrt nach unten, ausser man liest gerade weit oben im Verlauf.
     const history = document.getElementById('chat-messages');
-    if (history && !isChatFarUp(history)) state.chatPinned = true;
+    if (isOpenChat && history && !isChatFarUp(history)) state.chatPinned = true;
     const message = {
         id: window.crypto.randomUUID(),
         senderId: state.myProfile.id,
@@ -536,7 +538,7 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
         snapExpiry: snapData && !options.asImage ? state.snapSettings.expiry : undefined,
         album: album || undefined,
         secureSnap: secureSnap || undefined,
-        replyTo: buildReplyReference(peerId, state.replyToMessageId),
+        replyTo: isOpenChat ? buildReplyReference(peerId, state.replyToMessageId) : undefined,
         original: options.original?.meta,
         imageSize: snapData ? await measureImage(snapData) : undefined,
         // Sprachnachricht (voice.js) bzw. Video-Infos (video.js, das Video selbst kommt als Original).
@@ -573,9 +575,11 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
         fitChatInput(input);
         updateComposeButtons();
     }
-    state.replyToMessageId = null;
-    renderReplyBar();
-    renderChatHistory();
+    if (isOpenChat) {
+        state.replyToMessageId = null;
+        renderReplyBar();
+        renderChatHistory();
+    }
 
     if (state.sessionKeys[peerId]) await beginChatSync(peerId);
     await sendSecurePayload(peerId, {
@@ -591,8 +595,9 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
         // Path C haelt die Nachricht nur bis zum Ablauf der Queue-TTL.
         if (deliveryPath === 'cache' && details.expiresAt) message.cacheExpiresAt = details.expiresAt;
         persistChatMessage(peerId, message).catch(error => logDebug(`Could not update chat message: ${error.message}`));
-        renderChatHistory();
+        if (peerId === state.activeChatPeerId) renderChatHistory();
     });
+    return true;
 }
 
 async function receiveChatMessage(peerId, payload) {

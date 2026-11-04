@@ -2,7 +2,12 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 283 · 2026-11-02
+## Build 284 · 2026-11-04
+- Snap-Seite: mehrere Ziele auf einmal (Chats, Alben und Profil-Galerie frei kombinierbar)
+- Snap-Seite: Kamera randlos und groesser, genau bis zur Navigation
+- Snap-Seite ist jetzt standardmaessig aus (Einstellungen > Medien > Snaps)
+
+## Build 283 · 2026-11-02 · `23be8be`
 - Snap-Seite ist jetzt ein eigener Tab zwischen Chat und Profil: kein Vollbild mehr, die Navigation bleibt, seitlich wischen wechselt zu Chat und Profil
 - Snap-Seite in den Einstellungen (Medien > Snaps) abschaltbar
 

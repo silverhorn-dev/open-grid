@@ -40,25 +40,42 @@ async function main() {
     const browser = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
     const pageErrors = [];
     try {
-        const context = await browser.newContext({
-            locale: 'de-DE', viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, permissions: ['camera']
-        });
-        const page = await context.newPage();
-        page.on('pageerror', error => pageErrors.push(error.message));
-        await page.goto(`${BASE_URL}/`);
-        await page.waitForSelector('#complete-onboarding-btn', { state: 'visible', timeout: 20000 });
-        const input = page.locator('#onboarding-profile-form input').first();
-        await input.fill('Snapper');
-        await input.dispatchEvent('change');
-        await page.click('#complete-onboarding-btn');
-        await waitFor(page, () => Boolean(state.myProfile.id && state.appConfig));
+        async function user(name) {
+            const context = await browser.newContext({
+                locale: 'de-DE', viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, permissions: ['camera']
+            });
+            const page = await context.newPage();
+            page.on('pageerror', error => pageErrors.push(`[${name}] ${error.message}`));
+            await page.goto(`${BASE_URL}/`);
+            await page.waitForSelector('#complete-onboarding-btn', { state: 'visible', timeout: 20000 });
+            const input = page.locator('#onboarding-profile-form input').first();
+            await input.fill(name);
+            await input.dispatchEvent('change');
+            await page.click('#complete-onboarding-btn');
+            await waitFor(page, () => Boolean(state.ws && state.ws.readyState === 1 && state.myProfile.id && state.appConfig));
+            return page;
+        }
+        const page = await user('Snapper');
+        const friend = await user('Freund');
+        const pageId = await page.evaluate(() => state.myProfile.id);
+        const friendId = await friend.evaluate(() => state.myProfile.id);
+        // Der Freund schreibt zuerst (dann darf man ihm Bilder schicken) und steht in der Chatliste.
+        await friend.evaluate(async id => {
+            await openChatWithPeer(id);
+            document.getElementById('chat-input').value = 'hi';
+            await sendChatMessage();
+        }, pageId);
+        await waitFor(page, id => (state.chats[id] || []).some(message => message.senderId === id), friendId);
 
         // Entdecken: kein Snap-Tab.
         await page.evaluate(() => setAppMode('discovery'));
         assert.equal(await page.locator('nav.bottom-nav [data-tab-btn="snap"]').isVisible(), false, 'no snap tab while discovering');
 
-        // Social-Modus: Tab zwischen Chat und Profil.
+        // Social-Modus: standardmaessig aus, in den Einstellungen einschalten.
         await page.evaluate(() => setAppMode('chat'));
+        assert.equal(await page.locator('nav.bottom-nav [data-tab-btn="snap"]').isVisible(), false, 'snap page is off by default');
+        assert.equal(await page.evaluate(() => document.getElementById('snap-page-toggle').checked), false);
+        await page.evaluate(() => updateSnapPageSetting(true));
         const order = await page.evaluate(() => [...document.querySelectorAll('nav.bottom-nav [data-tab-btn]')]
             .filter(button => !button.classList.contains('hidden')).map(button => button.dataset.tabBtn));
         assert.deepEqual(order.slice(-3), ['chat', 'snap', 'editprofile']);
@@ -73,6 +90,8 @@ async function main() {
         const camera = await page.locator('#snap-capture-modal').boundingBox();
         assert.ok(await page.locator('nav.bottom-nav').isVisible(), 'bottom nav visible');
         assert.ok(camera.y + camera.height <= nav.y + 1, `camera ends above the nav (${camera.y + camera.height} > ${nav.y})`);
+        // Randlos: volle Breite und bis an die Navigation.
+        assert.ok(camera.width >= 389 && nav.y - (camera.y + camera.height) <= 1, `camera fills the page ${JSON.stringify(camera)}`);
         const sizes = await page.evaluate(() => ({ scroll: document.scrollingElement.scrollHeight, inner: window.innerHeight,
             main: document.querySelector('main').getBoundingClientRect().bottom, mainPad: getComputedStyle(document.querySelector('main')).paddingBottom,
             host: document.getElementById('snap-page-host').getBoundingClientRect().bottom, header: getComputedStyle(document.documentElement).getPropertyValue('--app-header-height'),
@@ -93,16 +112,29 @@ async function main() {
         assert.ok(await page.evaluate(() => !document.body.contains(document.querySelector('#view-snap #snap-capture-modal'))
             && document.getElementById('snap-capture-modal').classList.contains('hidden')), 'camera back as hidden modal');
 
-        // Aufnahme -> Ziel waehlen -> Galerie des eigenen Profils.
+        // Aufnahme -> Ziel waehlen -> mehrere Ziele: Chat, Album und Galerie des eigenen Profils.
+        const albumId = await page.evaluate(async () => {
+            document.getElementById('new-album-name').value = 'E2E-Album';
+            await createAlbum();
+            return getOwnAlbums()[0].id;
+        });
         await page.click('nav.bottom-nav [data-tab-btn="snap"]');
         await waitFor(page, () => document.getElementById('snap-video-preview').videoWidth > 0);
         const galleryBefore = await page.evaluate(() => (editingProfilePart().gallery || []).length);
         await page.evaluate(() => captureSnap());
         await page.locator('#snap-send-btn').click();
         await page.waitForSelector('#media-modal:not(.hidden)', { timeout: 5000 });
-        await page.locator('#media-modal-content button', { hasText: 'Zur Galerie' }).click();
+        assert.ok(await page.locator('#snap-studio-send').isDisabled(), 'send needs a target');
+        await page.locator(`#media-modal-content [data-peer-id="${friendId}"]`).click();
+        await page.locator(`#media-modal-content [data-album-id="${albumId}"]`).click();
+        await page.locator('#media-modal-content [data-target="profile"]').click();
+        assert.equal(await page.locator('#media-modal-content [aria-pressed="true"]').count(), 3);
+        assert.match(await page.locator('#snap-studio-send').textContent(), /3/);
+        await page.locator('#snap-studio-send').click();
         await waitFor(page, before => (editingProfilePart().gallery || []).length === before + 1, galleryBefore, 10000);
-        // Danach wieder Live-Kamera auf der Seite.
+        await waitFor(page, id => state.albums[id].items.length === 1, albumId, 10000);
+        await waitFor(friend, id => (state.chats[id] || []).some(message => message.senderId === id && message.snapData), pageId);
+        // Mehrere Ziele: man bleibt auf der Snap-Seite, wieder mit Live-Kamera.
         await waitFor(page, () => document.getElementById('media-modal').classList.contains('hidden')
             && document.getElementById('snap-video-preview').videoWidth > 0 && state.snapPage, null, 10000);
 

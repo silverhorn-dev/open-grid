@@ -35,21 +35,21 @@ async function main() {
         await page.click('#admin-login-btn');
         await page.waitForSelector('#admin-panel:not(.hidden)', { timeout: 15000 });
 
-        // Auslastung: zwoelf Diagramme, Fadenkreuz + Tooltip beim Zeigen, Tabelle.
+        // Auslastung: sechzehn Diagramme (vier davon Speicher-Aufteilung), Fadenkreuz + Tooltip beim Zeigen, Tabelle.
         // Fuer einen Blick auf echte Linien: ADMIN_SCREENSHOT_WAIT_MS (eine Messung alle 10 s).
         if (process.env.ADMIN_SCREENSHOT_WAIT_MS) {
             await page.waitForTimeout(Number(process.env.ADMIN_SCREENSHOT_WAIT_MS));
             await page.click('[data-admin-range="1h"]');
             await page.waitForTimeout(800);
         }
-        for (let attempt = 0; attempt < 30 && await page.locator('#admin-charts .admin-chart svg').count() < 12; attempt += 1) await page.waitForTimeout(500);
-        assert.equal(await page.locator('#admin-charts .admin-chart').count(), 12);
+        for (let attempt = 0; attempt < 30 && await page.locator('#admin-charts .admin-chart svg').count() < 16; attempt += 1) await page.waitForTimeout(500);
+        assert.equal(await page.locator('#admin-charts .admin-chart').count(), 16);
         const hit = page.locator('#admin-charts .admin-chart .admin-hit').first();
         const box = await hit.boundingBox();
         await page.mouse.move(box.x + box.width - 4, box.y + box.height / 2);
         assert.equal(await page.isVisible('#admin-tooltip'), true, 'tooltip on hover');
         assert.match(await page.textContent('#admin-tooltip'), /CPU/);
-        assert.equal(await page.locator('#admin-load-table tr').count(), 12);
+        assert.equal(await page.locator('#admin-load-table tr').count(), 16);
         await page.mouse.move(0, 0);
         await page.screenshot({ path: process.env.SCREENSHOT_DIR ? `${process.env.SCREENSHOT_DIR}/admin-load.png` : '/tmp/admin-load.png', fullPage: true });
 

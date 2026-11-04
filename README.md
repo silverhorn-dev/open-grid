@@ -333,10 +333,13 @@ Sicherheitsschluessel), kein Passwort.
 - `APP_URL` setzen: Passkeys sind an die Domain gebunden.
 - Weitere Passkeys (z. B. Handy und Laptop) im Panel unter "Passkeys"; der
   letzte laesst sich nicht entfernen.
-- Auslastung: alle 10 Sekunden CPU, Arbeitsspeicher, Event-Loop-Verzoegerung,
+- Auslastung: alle 10 Sekunden CPU, Arbeitsspeicher (aufgeteilt in "eigen",
+  "Dateien", JS-Heap und Puffer; rund 100 MB gesamt sind normal, davon gut
+  40 MB das Node-Programm selbst), Event-Loop-Verzoegerung,
   Peers online, WebSocket-Verbindungen, Anfragen, Serverfehler, Antwortzeit,
   Zwischenspeicher, freier Platz und Datenbankgroesse; letzte Stunde bzw. 24
-  Stunden, mit Warnungen (z. B. wenig Platz). Der Verlauf liegt in der
+  Stunden, mit Warnungen (z. B. wenig Platz, eigener Speicher waechst ueber
+  mindestens 6 Stunden stetig um mehr als 2 MB/h = moegliches Leck). Der Verlauf liegt in der
   Datenbank und uebersteht Neustart und Deployment; eine Anmeldung gilt 12
   Stunden, auch ueber einen Neustart hinweg.
 - Status: Version, Laufzeit, Peers, Push-Abos, Nacktbild-Modell, Nachweise,

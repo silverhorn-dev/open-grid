@@ -176,6 +176,11 @@ const ADMIN_METRICS = [
     { key: 'cpu', label: () => t('admin.metricCpu'), format: value => `${formatNumber(value, 1)} %`, status: value => value >= 85 ? 'critical' : value >= 60 ? 'warning' : null, max: 100 },
     { key: 'systemMemory', label: () => t('admin.metricSystemMemory'), format: value => `${formatNumber(value, 1)} %`, status: value => value >= 92 ? 'critical' : value >= 80 ? 'warning' : null, max: 100 },
     { key: 'memory', bytes: true, label: () => t('admin.metricMemory'), format: formatBytes },
+    // Aufteilung (server/metrics.js): "eigen" zaehlt, "Dateien" gibt das System bei Bedarf frei.
+    { key: 'memoryAnon', bytes: true, label: () => t('admin.metricMemoryAnon'), format: formatBytes },
+    { key: 'memoryFile', bytes: true, label: () => t('admin.metricMemoryFile'), format: formatBytes },
+    { key: 'heapUsed', bytes: true, label: () => t('admin.metricHeap'), format: formatBytes },
+    { key: 'memoryExternal', bytes: true, label: () => t('admin.metricExternal'), format: formatBytes },
     { key: 'eventLoopMs', label: () => t('admin.metricEventLoop'), format: value => `${formatNumber(value, 1)} ms`, status: value => value >= 500 ? 'critical' : value >= 100 ? 'warning' : null },
     { key: 'peersOnline', integer: true, label: () => t('admin.metricPeersOnline'), format: value => formatNumber(value) },
     { key: 'sockets', integer: true, label: () => t('admin.metricSockets'), format: value => formatNumber(value) },
@@ -187,6 +192,37 @@ const ADMIN_METRICS = [
     { key: 'databaseBytes', bytes: true, label: () => t('admin.metricDatabase'), format: formatBytes }
 ];
 const STATUS_ICONS = { warning: 'fa-triangle-exclamation', critical: 'fa-circle-exclamation' };
+
+// Waechst der eigene Speicher ueber Stunden stetig, ist das ein Hinweis auf ein Leck. Lineare Regression
+// ueber die Minutenwerte (24 h); erst ab 6 h Daten und mehr als MEMORY_TREND_WARN_MB pro Stunde.
+const MEMORY_TREND_MIN_HOURS = 6;
+const MEMORY_TREND_WARN_MB = 2;
+function memoryTrend(points, key = 'memoryAnon') {
+    const samples = points.filter(point => typeof point[key] === 'number' && typeof point.at === 'number');
+    if (samples.length < 10) return null;
+    const hours = (samples.at(-1).at - samples[0].at) / 3_600_000;
+    if (hours < MEMORY_TREND_MIN_HOURS) return null;
+    const xs = samples.map(point => (point.at - samples[0].at) / 3_600_000);
+    const ys = samples.map(point => point[key] / MB);
+    const meanX = xs.reduce((sum, x) => sum + x, 0) / xs.length;
+    const meanY = ys.reduce((sum, y) => sum + y, 0) / ys.length;
+    const numerator = xs.reduce((sum, x, index) => sum + (x - meanX) * (ys[index] - meanY), 0);
+    const denominator = xs.reduce((sum, x) => sum + (x - meanX) ** 2, 0);
+    if (!denominator) return null;
+    return { mbPerHour: numerator / denominator, hours };
+}
+
+function memoryTrendAlert(points) {
+    const trend = memoryTrend(points);
+    if (!trend || trend.mbPerHour <= MEMORY_TREND_WARN_MB) return null;
+    const item = document.createElement('p');
+    item.className = 'admin-alert is-warning';
+    const icon = document.createElement('i');
+    icon.className = `fa-solid ${STATUS_ICONS.warning}`;
+    icon.setAttribute('aria-hidden', 'true');
+    item.append(icon, ` ${t('admin.memoryGrowing', { rate: formatNumber(trend.mbPerHour, 1), hours: formatNumber(trend.hours) })}`);
+    return item;
+}
 
 async function refreshLoad() {
     adminState.series = await adminApi(`metrics?range=${adminState.range}`);
@@ -215,6 +251,9 @@ function renderLoad() {
             item.append(icon, ` ${level === 'critical' ? t('admin.critical') : t('admin.warning')}: ${metric.label()} ${metric.format(latest[metric.key])}`);
             return item;
         }));
+    // Trend nur ueber 24 h aussagekraeftig.
+    const trendAlert = adminState.range === '24h' ? memoryTrendAlert(points) : null;
+    if (trendAlert) alerts.append(trendAlert);
 
     const cards = ADMIN_METRICS.map(metric => chartCard(metric, points));
     charts.replaceChildren(...cards);

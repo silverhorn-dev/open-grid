@@ -635,3 +635,7 @@
 - [x] einladungslinks: wer im safari-tab per einladung kommt und installiert, startet in der app auf `start_url` (/grid), die einladung ist weg -> link in der anleitung zum kopieren anbieten oder einladung nach dem installieren erneut oeffnen lassen
   - done 2026-11-04: kasten in der anleitung, "ist installiert" kopiert den link, feld "Einladung einfuegen" beim einrichten (`onboardingInviteFragment`); e2e `install-guide`
 - [x] nebenbei: `npm run check` prueft jetzt alle server- und client-skripte (`scripts/check-syntax.mjs`); ein syntaxfehler in `main.js` war vorher durchgerutscht
+
+## T32 RAM des Routers (nutzer 2026-11-04: "is it possible to analyse the ram used by the router? its current on 100MB")
+- [x] analyse: nackter node 47 MB RSS (40 MB davon das eingeblendete node-programm); router leer 104 MB = 57 MB dateien (node, sqlite) + 33-47 MB eigen (fastify, routen, ~1 MB asset-cache); tfjs/nsfwjs/modelle werden nur ausgeliefert, nicht geladen -> normal
+- [x] admin-panel: speicher aufgeteilt (eigen, dateien, JS-heap, puffer) + hinweis, wenn "eigen" ueber >= 6 h stetig > 2 MB/h waechst (`memoryTrend`); tests `test/metrics.test.js`, `test/admin.test.js`, e2e `admin`

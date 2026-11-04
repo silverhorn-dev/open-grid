@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 290 · 2026-11-04
+## Build 291 · 2026-11-04
+- Admin-Panel: Arbeitsspeicher aufgeteilt (eigen, Dateien, JS-Heap, Puffer) mit Hinweis, wenn der eigene Speicher ueber Stunden stetig waechst
+
+## Build 290 · 2026-11-04 · `26577c8`
 - Safari: kommst du ueber eine Einladung, nimmt die Installations-Anleitung sie mit (wird kopiert); in der App fuegst du sie beim Einrichten unter "Einladung einfuegen" ein
 
 ## Build 289 · 2026-11-04 · `bb213a2`

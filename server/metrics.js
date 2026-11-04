@@ -1,4 +1,4 @@
-import { statfsSync, statSync } from 'node:fs';
+import { readFileSync, statfsSync, statSync } from 'node:fs';
 import { cpus, freemem, loadavg, totalmem } from 'node:os';
 import { monitorEventLoopDelay } from 'node:perf_hooks';
 
@@ -9,12 +9,31 @@ import { monitorEventLoopDelay } from 'node:perf_hooks';
 // Gemessen wird nur Technisches: Prozess (CPU, Speicher, Event Loop), System (Last, Speicher, Platte),
 // Verbindungen, Anfragen, Warteschlange. Keine Inhalte, keine IDs.
 export const METRIC_KEYS = [
-    'cpu', 'memory', 'systemMemory', 'load', 'eventLoopMs', 'sockets', 'peersOnline',
+    'cpu', 'memory', 'memoryAnon', 'memoryFile', 'heapUsed', 'memoryExternal', 'systemMemory', 'load', 'eventLoopMs', 'sockets', 'peersOnline',
     'requestsPerSecond', 'errorsPerSecond', 'responseMs', 'queueMessages', 'queueBytes', 'diskFreeBytes', 'databaseBytes'
 ];
 // Hoechstwert statt Mittel bei der Minuten-Verdichtung (Spitzen sollen sichtbar bleiben).
 const PEAK_KEYS = new Set(['eventLoopMs', 'responseMs', 'errorsPerSecond']);
 const SAMPLE_MS = 10_000;
+
+// Aufteilung des RSS (nur Linux): RssAnon = eigener Speicher (JS-Heap, Puffer, SQLite-Cache), RssFile =
+// eingeblendete Dateien (Node-Programm, Bibliotheken; das System kann sie bei Bedarf wieder freigeben).
+// Ohne /proc (macOS, Windows) null.
+export function parseProcStatus(text) {
+    const value = name => {
+        const match = String(text || '').match(new RegExp(`^${name}:\\s+(\\d+)\\s+kB`, 'm'));
+        return match ? Number(match[1]) * 1024 : null;
+    };
+    return { anon: value('RssAnon'), file: value('RssFile') };
+}
+
+function readProcStatus() {
+    try {
+        return parseProcStatus(readFileSync('/proc/self/status', 'utf8'));
+    } catch {
+        return { anon: null, file: null };
+    }
+}
 const LIVE_SAMPLES = 360;
 const DAY_SAMPLES = 1440;
 
@@ -55,11 +74,16 @@ export function createMetrics({ store, signaling, databasePath, dataDirectory, i
         }
         const queue = store.admin.queueTotals(at);
         const memory = process.memoryUsage();
+        const split = readProcStatus();
         const point = {
             at,
             // Anteil an der ganzen Maschine (alle Kerne = 100 %).
             cpu: Math.round(((cpu.user + cpu.system) / 1000 / elapsedMs / cores) * 1000) / 10,
             memory: memory.rss,
+            memoryAnon: split.anon,
+            memoryFile: split.file,
+            heapUsed: memory.heapUsed,
+            memoryExternal: memory.external + (memory.arrayBuffers || 0),
             systemMemory: Math.round((1 - freemem() / totalmem()) * 1000) / 10,
             load: Math.round(loadavg()[0] * 100) / 100,
             eventLoopMs: Math.round(delay.percentile(99) / 1e4) / 100,

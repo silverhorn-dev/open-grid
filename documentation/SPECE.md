@@ -1656,11 +1656,13 @@ der dafuer immer vorbereitet wird), `EMAIL_CHECK` (`required` nur mit Versand),
 Werte; Apps uebernehmen sie beim naechsten Laden.
 
 Auslastung (`server/metrics.js`): alle 10 s `cpu` (Prozess, Anteil aller Kerne),
-`memory` (RSS), `systemMemory` (%), `load`, `eventLoopMs` (p99), `sockets`,
+`memory` (RSS), `memoryAnon`/`memoryFile` (RssAnon/RssFile aus `/proc/self/status`,
+ohne /proc `null`), `heapUsed`, `memoryExternal` (external + arrayBuffers), `systemMemory` (%), `load`, `eventLoopMs` (p99), `sockets`,
 `peersOnline`, `requestsPerSecond`, `errorsPerSecond` (5xx), `responseMs`,
 `queueMessages`, `queueBytes`, `diskFreeBytes` (Datenordner), `databaseBytes`
 (SQLite + WAL). 1 h als 10-s-Werte, 24 h als Minutenwerte (Mittel; Spitzen bei
-Event Loop, Antwortzeit, Fehlern). Tabelle `admin_metrics` (`series` live/day,
+Event Loop, Antwortzeit, Fehlern). Leck-Hinweis im Panel (`memoryTrend`, nur
+24 h): lineare Regression ueber `memoryAnon`, ab 6 h Daten und > 2 MB/h. Tabelle `admin_metrics` (`series` live/day,
 `at`, `data` JSON): jede Messung bzw. jeder Minutenwert wird gespeichert, aeltere
 als 1 h bzw. 24 h geloescht; beim Start wird der Verlauf geladen. Panel: ein Liniendiagramm je
 Wert (keine zweite Achse), aktueller Wert gross, Fadenkreuz + Tooltip,

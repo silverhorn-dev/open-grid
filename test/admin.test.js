@@ -116,8 +116,13 @@ test('admin: status, load series, passkey management with the admin header', asy
     const series = (await app.inject({ method: 'GET', url: '/api/admin/metrics?range=1h', headers: { cookie } })).json();
     assert.equal(series.intervalMs, 10000);
     assert.ok(series.points.length >= 1, 'first sample at start');
-    for (const key of ['cpu', 'memory', 'eventLoopMs', 'sockets', 'peersOnline', 'requestsPerSecond', 'errorsPerSecond', 'queueMessages', 'diskFreeBytes']) {
+    for (const key of ['cpu', 'memory', 'memoryAnon', 'memoryFile', 'heapUsed', 'memoryExternal', 'eventLoopMs', 'sockets', 'peersOnline', 'requestsPerSecond', 'errorsPerSecond', 'queueMessages', 'diskFreeBytes']) {
         assert.ok(key in series.points[0], key);
+    }
+    if (process.platform === 'linux') {
+        const [point] = series.points;
+        assert.ok(point.memoryAnon > 0 && point.memoryFile > 0, 'RSS split from /proc on Linux');
+        assert.ok(point.heapUsed > 0 && point.memoryAnon + point.memoryFile <= point.memory * 1.05);
     }
     assert.equal((await app.inject({ method: 'GET', url: '/api/admin/metrics?range=24h', headers: { cookie } })).json().intervalMs, 60000);
 

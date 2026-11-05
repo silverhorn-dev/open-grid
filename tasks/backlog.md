@@ -37,6 +37,17 @@ Ideen ohne festen Termin. Neue Phasen werden von hier auf `tasks/board.md` gehol
 - (2026-10-26 auf das board verschoben: bereich beim onboarding waehlen)
 
 ## chat improvements
+- [ ] GIFs im chat (nutzer 2026-11-05: "giphy integration or smth like that"; "git integration" vermutlich auch gemeint = GIF)
+  - notizen 2026-11-05 (noch nicht besprochen):
+    - giphy ist ein externer dienst -> wie nominatim (entscheidung 2026-10-23) nur opt-in, suche direkt aus dem browser auf klick; die suchbegriffe + IP gehen an giphy, nie chats/profile
+    - variante A "router-proxy": suche + download laufen ueber den router (`/api/gif/search?q=`), giphy sieht nur den router, nicht den nutzer; api-key liegt beim betreiber (`GIPHY_API_KEY`), ohne key ist die funktion aus; nachteil: router sieht suchbegriffe, mehr last + traffic
+    - variante B "direkt": browser fragt giphy selbst (key von `/api/config`); einfacher, aber IP + suchbegriffe bei giphy; braucht eintrag in der CSP (`connect-src`/`img-src`)
+    - wichtig fuer beide: das GIF NICHT als giphy-link senden, sondern als datei (wie bilder, P2P/pfad C, AES-GCM) -> der empfaenger laedt nie etwas von giphy, keine tracking-pixel, geht auch offline
+    - format: giphy liefert auch MP4/WebP (kleiner als .gif) -> als kurzes stummes video in endlosschleife zeigen; groessen-limit wie bilder (pfad C max. 256 KB chiffrat -> kleine rendition waehlen)
+    - giphy-auflagen pruefen: "Powered by GIPHY"-hinweis, api-key (rate limits), nutzungsbedingungen fuer self-hosted apps; alternativen ansehen (z. B. Tenor; was davon noch angeboten wird, vorher pruefen)
+    - privacy-variante C "eigene sammlung": betreiber legt ein GIF/sticker-paket auf den router (`data/gifs/`), kein externer dienst; plus "eigene GIFs": aus einem kurzen video im snap-editor ein GIF/loop machen und als favorit lokal (IndexedDB) speichern
+    - UI: knopf neben dem emoji/anhang im chat-eingabefeld, suche mit raster, zuletzt benutzt + favoriten lokal; NSFW-filter (`nudity`) und die alters-einstellungen beachten (giphy `rating=g/pg` je nach bereich)
+    - vorschlag: erst C (eigene sammlung + eigene loops, kein fremder dienst), dann A als betreiber-option; B nur, wenn der betreiber es ausdruecklich will
 
 # bugs
 
@@ -47,6 +58,8 @@ Ideen ohne festen Termin. Neue Phasen werden von hier auf `tasks/board.md` gehol
 # SNAPPING
 
 ## improvements
+- [ ] snap-editor: mehr filter und sticker (nutzer 2026-11-05: "could be more filter or more sticker but its okay")
+  - notizen: filter per canvas/CSS-filter (s/w, vintage, waerme, kontrast, unschaerfe), live in der kamera-vorschau; mehr sticker-packs (emoji-sets, ort/uhrzeit/datum-sticker, umfrage-sticker?); alles lokal, keine externen assets; ggf. mit dem GIF-paket aus "chat improvements" teilen
 - (2026-10-27 auf das board verschoben: video-flackern, secure-snap-bugs, speicherbar-schalter)
 - (2026-10-27 auf das board verschoben: kontaktleiste z-achse, wischen in snap-vorschau, editing improvement)
 - [x] einladung im dating-modus (entdecken): unter 18 kann die einladung nicht oeffnen; im chat-modus normal (nutzer 2026-10-27, haengt an T2 alter) -> umgesetzt 2026-10-30, siehe board T2

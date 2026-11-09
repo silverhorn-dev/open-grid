@@ -3,6 +3,7 @@
 # Der Browser laeuft im Netz des Server-Containers, damit die App auf 127.0.0.1 (sicherer Kontext) laeuft.
 # Dateien kommen per `docker cp` statt Bind-Mount in die Container: so laeuft das Skript auch gegen einen
 # Docker-Daemon des Hosts aus einem Container heraus (Jenkins-Agent mit eingehaengtem Socket).
+# Nur einzelne Tests: E2E_TESTS="chat-gestures snap-page" sh scripts/e2e.sh (Namen ohne .e2e.cjs).
 set -eu
 cd "$(dirname "$0")/.."
 NAME="opengrid-e2e-$$"
@@ -22,8 +23,8 @@ until docker exec "$NAME" wget -qO- http://127.0.0.1:3000/health >/dev/null 2>&1
 done
 
 for variant in DESKTOP MOBILE OFFLINE; do
-    docker create --name "$NAME-browser" --network "container:$NAME" -e "$variant=1" -e "E2E_DEBUG=${E2E_DEBUG:-}" "$PLAYWRIGHT_IMAGE" sh -c \
-        'mkdir -p /run-e2e && cd /run-e2e && npm init -y >/dev/null && npm i playwright@1.48.2 --silent >/dev/null && cp /e2e/*.cjs . && for f in *.e2e.cjs; do node "$f" || exit 1; done' >/dev/null
+    docker create --name "$NAME-browser" --network "container:$NAME" -e "$variant=1" -e "E2E_DEBUG=${E2E_DEBUG:-}" -e "E2E_TESTS=${E2E_TESTS:-}" "$PLAYWRIGHT_IMAGE" sh -c \
+        'mkdir -p /run-e2e && cd /run-e2e && npm init -y >/dev/null && npm i playwright@1.48.2 --silent >/dev/null && cp /e2e/*.cjs . && if [ -n "$E2E_TESTS" ]; then set --; for t in $E2E_TESTS; do set -- "$@" "${t%.e2e.cjs}.e2e.cjs"; done; else set -- *.e2e.cjs; fi && for f in "$@"; do node "$f" || exit 1; done' >/dev/null
     docker cp -q e2e "$NAME-browser:/e2e"
     docker start -a "$NAME-browser"
     docker rm "$NAME-browser" >/dev/null

@@ -92,14 +92,16 @@ Englisch, mit Umschalter "Einfach erklaert" / "Mit Fachbegriffen".
 ### Automatisches Deployment (Jenkins)
 
 Das `Jenkinsfile` baut bei jedem Push auf `main`: Syntax-Check und Unit-Tests
-(`Dockerfile.test`), E2E-Tests (`scripts/e2e.sh`), danach
-`docker compose up -d --build` und Warten auf den Healthcheck. Die angezeigte
+(`Dockerfile.test`), danach `docker compose up -d --build` und Warten auf den
+Healthcheck. Die E2E-Tests (`scripts/e2e.sh`) laufen getrennt: "Build with
+Parameters" mit `E2E_ONLY` fuehrt nur Unit- und E2E-Tests aus, ohne Deploy.
+Einzelne E2E-Tests lokal: `E2E_TESTS="chat-gestures snap-page" sh scripts/e2e.sh`. Die angezeigte
 Version ist `Build <Commit-Anzahl> (<Hash>)`. Andere Branches (Multibranch)
 laufen durch dieselben Tests und bauen das echte Image zur Probe
 (`open-grid-branch-check:<Build>`, danach geloescht), deployen aber nie.
 
 - Zwei Agents, getrennt per Label, damit Tests den Produktiv-Host nicht
-  ausbremsen: `ci` (eigener Rechner) macht Tests, E2E und Probe-Builds,
+  ausbremsen: `ci` (eigener Rechner) macht Unit-Tests, E2E und Probe-Builds,
   `deploy` (Agent auf dem Host, auf dem OpenGrid laeuft) nur die Stage
   "Deploy" mit eigenem Checkout und `docker compose up -d --build`. Labels
   setzen unter Nodes -> Agent -> Configure -> Labels; fehlt ein Label, wartet
@@ -125,7 +127,7 @@ laufen durch dieselben Tests und bauen das echte Image zur Probe
 - `COMPOSE_PROJECT_NAME` ist `open-grid`, damit das bestehende Projekt samt
   Volume weiterverwendet wird (pruefen mit `docker compose ls`).
 - Ausloeser: GitHub-Webhook (`/github-webhook/`), sonst Abfrage alle 5 Minuten.
-  Parameter `SKIP_E2E` nur fuer Notfaelle.
+  Parameter `E2E_ONLY`: nur Unit- und E2E-Tests, kein Deploy (manuell starten).
 - Sicherheit: wer den Docker-Socket hat, hat Root auf dem Host. Der Agent
   sollte nur vertrauenswuerdige Jobs (eigene Repos, keine fremden Pull Requests)
   bauen.

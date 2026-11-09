@@ -95,6 +95,8 @@ Das `Jenkinsfile` baut bei jedem Push auf `main`: Syntax-Check und Unit-Tests
 (`Dockerfile.test`), danach `docker compose up -d --build` und Warten auf den
 Healthcheck. Die E2E-Tests (`scripts/e2e.sh`) laufen getrennt: "Build with
 Parameters" mit `E2E_ONLY` fuehrt nur Unit- und E2E-Tests aus, ohne Deploy.
+Dazu startet ein Cron auf `main` viermal am Tag (alle 6 Stunden) denselben
+Testlauf automatisch, ebenfalls ohne Deploy.
 Einzelne E2E-Tests lokal: `E2E_TESTS="chat-gestures snap-page" sh scripts/e2e.sh`. Die angezeigte
 Version ist `Build <Commit-Anzahl> (<Hash>)`. Andere Branches (Multibranch)
 laufen durch dieselben Tests und bauen das echte Image zur Probe
@@ -128,6 +130,7 @@ laufen durch dieselben Tests und bauen das echte Image zur Probe
   Volume weiterverwendet wird (pruefen mit `docker compose ls`).
 - Ausloeser: GitHub-Webhook (`/github-webhook/`), sonst Abfrage alle 5 Minuten.
   Parameter `E2E_ONLY`: nur Unit- und E2E-Tests, kein Deploy (manuell starten).
+  Cron `H H/6 * * *` (nur `main`): Builds vom Timer laufen wie `E2E_ONLY`.
 - Sicherheit: wer den Docker-Socket hat, hat Root auf dem Host. Der Agent
   sollte nur vertrauenswuerdige Jobs (eigene Repos, keine fremden Pull Requests)
   bauen.

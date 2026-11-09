@@ -1,8 +1,8 @@
 // Automatisches Deployment von OpenGrid.
 // Bei jedem Push auf main: Syntax-Check + Unit-Tests, danach `docker compose up -d --build` auf dem
 // Produktiv-Host. Andere Branches: dieselben Tests und ein Image-Build zur Probe, aber nie ein Deploy.
-// E2E-Tests (Playwright) laufen getrennt davon: manuell "Build with Parameters" mit E2E_ONLY, dann
-// nur Unit- und E2E-Tests, kein Probe-Build und kein Deploy.
+// E2E-Tests (Playwright) laufen getrennt davon: manuell "Build with Parameters" mit E2E_ONLY oder
+// automatisch 4x am Tag per Cron (nur main), dann nur Unit- und E2E-Tests, kein Probe-Build und kein Deploy.
 //
 // Zwei Agents, per Label getrennt, damit Tests den Produktiv-Host nicht ausbremsen:
 // - Label `ci`: Tests, E2E und Probe-Builds (eigener Rechner, z. B. Agent "zaph")
@@ -37,6 +37,8 @@ pipeline {
     triggers {
         githubPush()
         pollSCM('H/5 * * * *')
+        // 4x am Tag volle Tests (alle 6 Stunden, Minute per Hash verteilt), nur auf main; zaehlt als E2E_ONLY.
+        cron((env.BRANCH_NAME ?: 'main') == 'main' ? 'H H/6 * * *' : '')
     }
 
     parameters {
@@ -56,7 +58,10 @@ pipeline {
                     def hash = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
                     env.BUILD_VERSION = "Build ${count} (${hash})"
                     env.BUILD_TIMESTAMP = sh(script: 'date -u +%Y-%m-%dT%H:%M:%SZ', returnStdout: true).trim()
-                    currentBuild.displayName = "#${env.BUILD_NUMBER} ${env.BUILD_VERSION}"
+                    // Vom Cron gestartet = wie E2E_ONLY: nur testen, nie deployen.
+                    boolean timer = !currentBuild.getBuildCauses('hudson.triggers.TimerTrigger$TimerTriggerCause').isEmpty()
+                    env.E2E_RUN = (params.E2E_ONLY == true || timer) ? 'true' : 'false'
+                    currentBuild.displayName = "#${env.BUILD_NUMBER} ${env.BUILD_VERSION}${timer ? ' (Cron-Tests)' : ''}"
                 }
                 sh '. scripts/ci-env.sh && docker version --format "Docker {{.Server.Version}}" && docker compose version'
             }
@@ -75,7 +80,7 @@ pipeline {
 
         stage('E2E-Tests') {
             when {
-                expression { params.E2E_ONLY == true }
+                expression { env.E2E_RUN == 'true' }
             }
             steps {
                 sh '. scripts/ci-env.sh && sh scripts/e2e.sh'
@@ -86,7 +91,7 @@ pipeline {
         // Eigener Image-Name, damit das laufende Image von main unberuehrt bleibt.
         stage('Image bauen (ohne Deploy)') {
             when {
-                expression { params.E2E_ONLY != true }
+                expression { env.E2E_RUN != 'true' }
                 expression { (env.BRANCH_NAME ?: env.GIT_BRANCH ?: '').replaceFirst('^origin/', '') != 'main' }
             }
             steps {
@@ -104,7 +109,7 @@ pipeline {
             agent { label 'deploy' }
             when {
                 beforeAgent true
-                expression { params.E2E_ONLY != true }
+                expression { env.E2E_RUN != 'true' }
                 expression { (env.BRANCH_NAME ?: env.GIT_BRANCH ?: '').replaceFirst('^origin/', '') == 'main' }
             }
             steps {

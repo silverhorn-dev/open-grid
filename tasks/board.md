@@ -659,14 +659,20 @@
     - gefahr bei fremden URLs (tracking, IP, riesige dateien, kein bild) -> GIF-abruf ueber den router proxen und/oder URLs vor dem abruf pruefen
   - plan (vorschlag, noch nicht bestaetigt):
     - router-config `GIF_SOURCES` = `off` (std) | liste aus `collection`, `provider`, `url` | `any`; `GIF_PROVIDER` (`giphy`) + `GIF_PROVIDER_KEY`; `CLIENT_DEFAULTS.gifs` (std aus); `/api/config` meldet die erlaubten quellen
-    - proxy `GET /api/gif?url=` (peer-token, rate-limit): nur https, nur standard-ports, DNS aufloesen und private/loopback/link-local/IPv6-ULA-adressen sperren (SSRF), redirects hoechstens 3 und jeden neu pruefen, content-type nur `image/gif|webp|png` und `video/mp4`, groesse <= `GIF_MAX_MB` (std 8), timeout, kurzer platten-cache; keine cookies/referer weitergeben
-    - client: alle GIFs (anbieter, sammlung, URL) laufen ueber den proxy -> nur der router sieht den abruf, der fremde server nur den router; der empfaenger laedt nichts direkt
+    - proxy (nur wenn `GIF_PROXY=on`) `GET /api/gif?url=` (peer-token, rate-limit): nur https, nur standard-ports, DNS aufloesen und private/loopback/link-local/IPv6-ULA-adressen sperren (SSRF), redirects hoechstens 3 und jeden neu pruefen, content-type nur `image/gif|webp|png` und `video/mp4`, groesse <= `GIF_MAX_MB` (std 8), timeout, kurzer platten-cache; keine cookies/referer weitergeben
+    - client: mit proxy laufen alle GIF-abrufe darueber; ohne proxy direkt (CSP `img-src`/`media-src`/`connect-src` dann fuer https erweitern, nur fuer GIFs) -> dann pruefen die clients die URL vorher selbst (nur https, keine IP-adressen/localhost, endung/content-type, groesse per `Content-Length`)
     - sammlung: dateien unter `data/gifs/` (betreiber), liste per `/api/gifs`, ausgeliefert wie statische assets
     - anbieter-suche: `/api/gif/search?q=` ueber den router (key bleibt beim betreiber); rating je bereich (social `pg`, entdecken nach alterseinstellung)
     - nachricht: neuer operations-typ bzw. `message.gif = { url, source, width, height }`; empfaenger prueft die URL gegen die eigene einstellung + quellen des routers; anzeige als stummes video/bild in schleife, `nudity`-filter wie bei bildern
-    - UI: GIF-knopf im eingabefeld (suche + sammlung + "URL einfuegen"), zuletzt benutzt/favoriten lokal (IndexedDB); eingefuegte GIF-URL im textfeld wird erkannt
+    - UI: eintrag "GIF" im medien-menue (suche + sammlung + favoriten + "URL einfuegen"); eingefuegte GIF-URL im textfeld wird erkannt
     - einstellungen > chat: "GIF-Integration" (an/aus), "externe GIF-URLs zeigen" (an/aus)
-  - entschieden (nutzer 2026-11-09): betreiber kann den proxy abschalten (`GIF_PROXY=off`); dann laedt der client direkt und der bestaetigungs-dialog sagt, dass der fremde server die IP sieht
+  - entschieden (nutzer 2026-11-09): betreiber kann den proxy abschalten; standard AUS (`GIF_PROXY=off`, "wir sind kein medienserver"); dann laedt der client direkt und der bestaetigungs-dialog sagt, dass der fremde server die IP sieht
+  - entschieden (nutzer 2026-11-09): lokaler GIF-cache im browser (IndexedDB, nicht auf dem router): gesendete, empfangene und favorisierte GIFs (auch externe URLs) werden als datei gespeichert
+    - favoriten: so lange wie moeglich (kein automatisches loeschen, zaehlen zum "dauerhaften speicher")
+    - empfangene/gesendete: standard auch so lange wie moeglich, in den eigenen einstellungen runterdrehbar (z. B. immer / 90 / 30 / 7 tage); aufraeumen wie `cleanupUnusedMedia`
+    - einmal geladen -> nie wieder von aussen holen (weniger tracking, geht offline)
+  - entschieden (nutzer 2026-11-09): GIF-knopf kommt ins medien-menue des chats (`#chat-media-menu`, neben album/video), kein eigener knopf im eingabefeld
+  - anbieter (recherche 2026-11-09): Tenor faellt weg (oeffentliche API seit 30.06.2026 abgeschaltet, keine neuen keys seit 13.01.2026); kandidaten Giphy (etabliert, key + "Powered by GIPHY", kosten pruefen) und Klipy (aehnliche endpunkte wie Tenor, frei mit werbe-modell -> bedingungen pruefen) -> anbieter als adapter (`GIF_PROVIDER=giphy|klipy`), key beim betreiber
   - last-schaetzung 2026-11-09 (nur GIFs im chat, 1 GIF/min je aktiv chattendem nutzer, kleine renditions ~300 KB, suche ~250 KB mit lazy-load der vorschaubilder): ~0,55 MB ausgehend je GIF -> 100 gleichzeitig ~7 Mbit/s, 1000 ~75 Mbit/s, 10000 ~750 Mbit/s; eingehend je nach cache-trefferquote ~halb so viel; CPU/RAM klein (streamen, nicht puffern); platte: LRU-cache z. B. 1 GB
     - bremsen: nur kleine renditions (mp4/webp, nie original-.gif mit 1-5 MB), vorschaubilder der suche lazy (nur sichtbare), platten-cache, limit je peer/minute, `GIF_MAX_MB`
     - idee: ist P2P offen, schickt der sender die schon geladenen bytes direkt mit; der proxy nur fuer offline-empfaenger und die suche -> spart den groessten teil

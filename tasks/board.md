@@ -666,4 +666,8 @@
     - nachricht: neuer operations-typ bzw. `message.gif = { url, source, width, height }`; empfaenger prueft die URL gegen die eigene einstellung + quellen des routers; anzeige als stummes video/bild in schleife, `nudity`-filter wie bei bildern
     - UI: GIF-knopf im eingabefeld (suche + sammlung + "URL einfuegen"), zuletzt benutzt/favoriten lokal (IndexedDB); eingefuegte GIF-URL im textfeld wird erkannt
     - einstellungen > chat: "GIF-Integration" (an/aus), "externe GIF-URLs zeigen" (an/aus)
-  - offen: welcher anbieter (giphy-bedingungen, "Powered by GIPHY", api-key; alternativen pruefen); proxy immer an oder abschaltbar; harte regel 1 -> eintrag im decisions-log (wie nominatim)
+  - entschieden (nutzer 2026-11-09): betreiber kann den proxy abschalten (`GIF_PROXY=off`); dann laedt der client direkt und der bestaetigungs-dialog sagt, dass der fremde server die IP sieht
+  - last-schaetzung 2026-11-09 (nur GIFs im chat, 1 GIF/min je aktiv chattendem nutzer, kleine renditions ~300 KB, suche ~250 KB mit lazy-load der vorschaubilder): ~0,55 MB ausgehend je GIF -> 100 gleichzeitig ~7 Mbit/s, 1000 ~75 Mbit/s, 10000 ~750 Mbit/s; eingehend je nach cache-trefferquote ~halb so viel; CPU/RAM klein (streamen, nicht puffern); platte: LRU-cache z. B. 1 GB
+    - bremsen: nur kleine renditions (mp4/webp, nie original-.gif mit 1-5 MB), vorschaubilder der suche lazy (nur sichtbare), platten-cache, limit je peer/minute, `GIF_MAX_MB`
+    - idee: ist P2P offen, schickt der sender die schon geladenen bytes direkt mit; der proxy nur fuer offline-empfaenger und die suche -> spart den groessten teil
+  - offen: welcher anbieter (giphy-bedingungen, "Powered by GIPHY", api-key; alternativen pruefen)

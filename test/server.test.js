@@ -1195,3 +1195,53 @@ test('a moved peer id is retired: register and cache answer 410 with the signed 
     assert.equal(cached.json().movedTo, 'peer-new');
     assert.equal(store.getMessages('peer-old').length, 0);
 });
+
+// GIFs (Board T34, server/gifs.js): nur URLs, Quellen und Freigabe per Router.
+test('gif sources, url checks and the library with review', async () => {
+    const { checkGifUrl, parseGifSources } = await import('../server/gifs.js');
+    assert.deepEqual(parseGifSources('off'), []);
+    assert.deepEqual(parseGifSources(undefined), []);
+    assert.deepEqual(parseGifSources('any'), ['library', 'url']);
+    assert.deepEqual(parseGifSources('url, library'), ['library', 'url']);
+    assert.throws(() => parseGifSources('giphy'));
+    assert.equal(checkGifUrl('https://media.example.org/cat.gif#x'), 'https://media.example.org/cat.gif');
+    for (const bad of ['http://media.example.org/a.gif', 'https://127.0.0.1/a.gif', 'https://[::1]/a.gif', 'https://localhost/a.gif',
+        'https://router.local/a.gif', 'https://user:pw@media.example.org/a.gif', 'https://media.example.org:8443/a.gif', 'javascript:alert(1)', 'https://intranet/a.gif']) {
+        assert.equal(checkGifUrl(bad), null, bad);
+    }
+
+    // Standard: aus -> keine Bibliothek, CSP ohne fremde Bilder, Config meldet keine Quellen.
+    await registerPeer('peer-gif');
+    const headers = { ...authHeaders('peer-gif'), 'x-peer-id': 'peer-gif' };
+    assert.equal((await app.inject({ method: 'GET', url: '/api/gifs', headers })).statusCode, 404);
+    const offConfig = await app.inject({ method: 'GET', url: '/api/config' });
+    assert.deepEqual(offConfig.json().gifs.sources, []);
+    assert.ok(!/img-src[^;]*https:/.test(offConfig.headers['content-security-policy']));
+
+    const gifStoreRoot = createStore(':memory:');
+    const gifApp = await buildApp({ store: gifStoreRoot, gifSources: 'library,url', metrics: false });
+    try {
+        const registration = await gifApp.inject({ method: 'POST', url: '/api/register', payload: registrationPayload('peer-gif2', 'registration-peer-gif2') });
+        const gifHeaders = { authorization: `Bearer ${registration.json().authToken}`, 'x-peer-id': 'peer-gif2' };
+        const config = await gifApp.inject({ method: 'GET', url: '/api/config' });
+        assert.deepEqual(config.json().gifs, { sources: ['library', 'url'], review: true });
+        assert.match(config.headers['content-security-policy'], /img-src[^;]*https:/);
+        assert.equal((await gifApp.inject({ method: 'GET', url: '/api/gifs', headers: { 'x-peer-id': 'peer-gif2' } })).statusCode, 401);
+        const bad = await gifApp.inject({ method: 'POST', url: '/api/gifs', headers: gifHeaders, payload: { peerId: 'peer-gif2', url: 'https://10.0.0.1/x.gif' } });
+        assert.equal(bad.statusCode, 400);
+        const suggested = await gifApp.inject({ method: 'POST', url: '/api/gifs', headers: gifHeaders, payload: { peerId: 'peer-gif2', url: 'https://media.example.org/cat.gif', title: '  Katze   tanzt ', width: 320, height: 240 } });
+        assert.equal(suggested.statusCode, 201);
+        assert.equal(suggested.json().status, 'pending', 'review is on by default');
+        assert.deepEqual((await gifApp.inject({ method: 'GET', url: '/api/gifs', headers: gifHeaders })).json().gifs, [], 'pending gifs are not listed');
+        const again = await gifApp.inject({ method: 'POST', url: '/api/gifs', headers: gifHeaders, payload: { peerId: 'peer-gif2', url: 'https://media.example.org/cat.gif' } });
+        assert.equal(again.json().status, 'pending', 'same url is not added twice');
+        // Freigabe (wie im Admin-Panel), danach gelistet und per Titel suchbar.
+        assert.ok(gifStoreRoot.gifs.approve(suggested.json().gif.id, null, Date.now()));
+        const listed = (await gifApp.inject({ method: 'GET', url: '/api/gifs?q=katze', headers: gifHeaders })).json();
+        assert.deepEqual(listed.gifs.map(gif => [gif.title, gif.width, gif.height]), [['Katze tanzt', 320, 240]]);
+        assert.deepEqual((await gifApp.inject({ method: 'GET', url: '/api/gifs?q=hund', headers: gifHeaders })).json().gifs, []);
+        assert.deepEqual((await gifApp.inject({ method: 'GET', url: '/api/gifs?q=%25', headers: gifHeaders })).json().gifs, [], 'like wildcards are escaped');
+    } finally {
+        await gifApp.close();
+    }
+});

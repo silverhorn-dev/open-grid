@@ -3,7 +3,7 @@
 // Setup-Link aus dem Server-Log (#setup=<token>). Auslastung als kleine Liniendiagramme, eins je Wert
 // (keine zweite Achse), mit Fadenkreuz beim Zeigen, Warnungen mit Symbol + Text und einer Tabellenansicht.
 const ADMIN_REFRESH_MS = 10000;
-const adminState = { tab: 'load', range: '1h', series: null, timer: null, setupToken: null, reportStatus: 'open' };
+const adminState = { tab: 'load', range: '1h', series: null, timer: null, setupToken: null, reportStatus: 'open', gifStatus: 'pending' };
 
 // ----- Hilfen -----
 async function adminApi(path, { method = 'GET', body } = {}) {
@@ -162,6 +162,7 @@ async function refreshTab() {
     if (adminState.tab === 'settings') return refreshSettings();
     if (adminState.tab === 'bans') return refreshBans();
     if (adminState.tab === 'reports') return refreshReports();
+    if (adminState.tab === 'gifs') return refreshGifs();
     if (adminState.tab === 'queue') return refreshQueue();
 }
 
@@ -732,6 +733,67 @@ async function resolveReport(id, action) {
     await refreshReports();
 }
 
+// ----- GIF-Bibliothek (server/gifs.js): Vorschlaege freigeben, Eintraege entfernen -----
+async function refreshGifs() {
+    const { gifs, pending } = await adminApi(`gifs?status=${adminState.gifStatus}`);
+    const badge = document.getElementById('admin-gif-badge');
+    if (badge) {
+        badge.textContent = pending > 99 ? '99+' : String(pending);
+        badge.classList.toggle('hidden', !pending);
+    }
+    const list = document.getElementById('admin-gif-list');
+    if (!list) return;
+    if (!gifs.length) {
+        const empty = document.createElement('li');
+        empty.className = 'admin-list-item text-slate-500';
+        empty.textContent = t('admin.gifsEmpty');
+        list.replaceChildren(empty);
+        return;
+    }
+    list.replaceChildren(...gifs.map(gif => {
+        const item = document.createElement('li');
+        item.className = 'admin-list-item admin-gif';
+        item.dataset.gifId = gif.id;
+        const media = document.createElement(/\.(mp4|webm)$/i.test(new URL(gif.url).pathname) ? 'video' : 'img');
+        media.className = 'admin-gif-preview';
+        media.referrerPolicy = 'no-referrer';
+        if (media.tagName === 'VIDEO') Object.assign(media, { muted: true, loop: true, autoplay: true, playsInline: true });
+        else media.loading = 'lazy';
+        media.src = gif.url;
+        const text = document.createElement('div');
+        text.className = 'min-w-0 flex-1';
+        const title = document.createElement('p');
+        title.className = 'font-semibold break-words';
+        title.textContent = gif.title || t('admin.gifsNoTitle');
+        const meta = document.createElement('p');
+        meta.className = 'setting-desc break-all';
+        meta.textContent = [gif.url, gif.width && gif.height ? `${gif.width}×${gif.height}` : null,
+            new Date(gif.createdAt).toLocaleString(i18nLocale()), gif.suggestedBy ? t('admin.reportBy', { reporter: gif.suggestedBy }) : null].filter(Boolean).join(' · ');
+        text.append(title, meta);
+        const actions = document.createElement('div');
+        actions.className = 'flex gap-2 shrink-0';
+        const buttons = gif.status === 'pending'
+            ? [['approve', t('admin.gifsApprove'), 'btn-primary'], ['remove', t('admin.gifsReject'), 'btn-secondary']]
+            : [['remove', t('admin.gifsRemove'), 'btn-secondary']];
+        for (const [action, label, style] of buttons) {
+            const button = document.createElement('button');
+            button.className = style;
+            button.textContent = label;
+            button.dataset.adminAction = 'gif';
+            button.dataset.gifId = gif.id;
+            button.dataset.gifAction = action;
+            actions.append(button);
+        }
+        item.append(media, text, actions);
+        return item;
+    }));
+}
+
+async function updateGif(id, action) {
+    await adminApi(`gifs/${encodeURIComponent(id)}`, { method: 'POST', body: { action } }).catch(error => window.alert(error.message));
+    await refreshGifs();
+}
+
 // ----- Sperren -----
 async function refreshBans() {
     const { bans } = await adminApi('bans');
@@ -828,8 +890,13 @@ async function removePasskey(id) {
 
 // ----- Ereignisse (keine Inline-Handler, CSP) -----
 document.addEventListener('click', event => {
-    const target = event.target.closest('[data-admin-action], [data-admin-tab], [data-admin-range], [data-admin-report-status]');
+    const target = event.target.closest('[data-admin-action], [data-admin-tab], [data-admin-range], [data-admin-report-status], [data-admin-gif-status]');
     if (!target) return;
+    if (target.dataset.adminGifStatus) {
+        adminState.gifStatus = target.dataset.adminGifStatus;
+        document.querySelectorAll('[data-admin-gif-status]').forEach(button => button.classList.toggle('is-active', button === target));
+        return refreshGifs().catch(handlePanelError);
+    }
     if (target.dataset.adminReportStatus) {
         adminState.reportStatus = target.dataset.adminReportStatus;
         document.querySelectorAll('[data-admin-report-status]').forEach(button => button.classList.toggle('is-active', button === target));
@@ -852,6 +919,7 @@ document.addEventListener('click', event => {
     else if (action === 'queue-clear-recipient') clearQueue('recipient', target.dataset.recipientId);
     else if (action === 'resolve-report') resolveReport(target.dataset.reportId, target.dataset.reportAction);
     else if (action === 'lift-ban') liftBan(target.dataset.banKind, target.dataset.banValue);
+    else if (action === 'gif') updateGif(target.dataset.gifId, target.dataset.gifAction);
 });
 window.addEventListener('resize', () => adminState.tab === 'load' && renderLoad());
 document.addEventListener('DOMContentLoaded', adminStart);

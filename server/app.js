@@ -1,5 +1,6 @@
 import { parseTransferMaxBytes, registerTransferRelay } from './transfer-relay.js';
 import { verifyMoveProof } from './move.js';
+import { parseGifReview, parseGifSources, registerGifRoutes } from './gifs.js';
 import Fastify from 'fastify';
 import websocket from '@fastify/websocket';
 import { readFile, readdir } from 'node:fs/promises';
@@ -105,7 +106,12 @@ const CLIENT_DEFAULT_RULES = {
     snapExpiry: ['15m', '30m', '60m', 'off'],
     ownSnapKeep: ['now', '15m', '1h', '24h'],
     albumKeyEpochMinutes: [0, 15, 60, 180, 1440, 10080],
-    albumKeyEpochsAhead: [1, 2, 3]
+    albumKeyEpochsAhead: [1, 2, 3],
+    // GIFs (server/gifs.js): Integration an (Bibliothek) und externe GIF-URLs anzeigen; Standard aus.
+    gifs: 'boolean',
+    gifsExternal: 'boolean',
+    // Wie lange empfangene/gesendete GIFs lokal bleiben (Tage, 0 = so lange wie moeglich); Favoriten immer.
+    gifKeepDays: [0, 90, 30, 7]
 };
 
 export function parseClientDefaults(value) {
@@ -189,6 +195,7 @@ const clientAssetFiles = [
     'app/snap-editor.js',
     'app/snap-camera.js',
     'app/snap-studio.js',
+    'app/gifs.js',
     'app/install-guide.js',
     'app/transfer.js',
     'app/move.js',
@@ -484,6 +491,15 @@ export async function buildApp(options = {}) {
             maxPayload: 128 * 1024
         }
     });
+    // GIFs (server/gifs.js): erlaubte Quellen und Freigabe der Bibliothek; live aenderbar im Admin-Panel.
+    const gifEnv = { sources: options.gifSources ?? process.env.GIF_SOURCES ?? 'off', review: options.gifLibraryReview ?? process.env.GIF_LIBRARY_REVIEW ?? 'true' };
+    let startGifSources = [];
+    try {
+        startGifSources = parseGifSources(gifEnv.sources);
+    } catch (error) {
+        app.log.warn(`${error.message}; GIFs stay off.`);
+    }
+    const gifSettings = { sources: startGifSources, review: parseGifReview(gifEnv.review) };
     const limits = scaleRateLimits({ ...DEFAULT_RATE_LIMITS, ...(options.rateLimits || {}) }, options.rateLimitScale ?? process.env.RATE_LIMIT_SCALE);
     const signaling = registerSignalingRoute(app, store, { messageLimiter: () => createRateLimiter(limits.websocket), heartbeatMs: options.heartbeatMs });
 
@@ -506,7 +522,8 @@ export async function buildApp(options = {}) {
     // Die App laeuft komplett same-origin: keine CORS-Header, dafuer Sicherheits-Header.
     app.addHook('onRequest', async (request, reply) => {
         // Der Nacktbild-Worker darf WebAssembly kompilieren (NudeNet/onnxruntime-web, TF.js); die Seite nicht.
-        reply.headers(securityHeaders(request.headers.host, { wasm: request.url.startsWith('/client/app/nudity-worker.js') }));
+        // GIFs liegen auf fremden https-Servern: Bilder/Videos von dort nur, wenn eine GIF-Quelle an ist.
+        reply.headers(securityHeaders(request.headers.host, { wasm: request.url.startsWith('/client/app/nudity-worker.js'), externalMedia: gifSettings.sources.length > 0 }));
     });
 
     // Info-Seite fuer alle (info-site/, server/info-site.js), auf eigener Domain oder unter /info.
@@ -869,6 +886,16 @@ export async function buildApp(options = {}) {
                 env: flameEnv.cooldownMinutes,
                 apply: value => { flameSettings.cooldownMinutes = parseFlameSetting('cooldownMinutes', value); }
             },
+            GIF_SOURCES: {
+                env: gifEnv.sources,
+                apply: value => { gifSettings.sources = parseGifSources(value ?? 'off'); },
+                options: () => ['off', 'library', 'url', 'library,url', 'any']
+            },
+            GIF_LIBRARY_REVIEW: {
+                env: gifEnv.review,
+                apply: value => { gifSettings.review = parseGifReview(value ?? 'true'); },
+                options: () => ['true', 'false']
+            },
             ANDROID_APP_SIGNERS: {
                 env: androidAppSigners,
                 prepare: value => parseAppSigners(value),
@@ -983,6 +1010,9 @@ export async function buildApp(options = {}) {
         ...RESTART_ONLY.map(key => ({ key, value: process.env[key] ?? null })),
         ...RESTART_ONLY_SECRETS.map(key => ({ key, secret: true, set: Boolean(process.env[key]) }))
     ];
+
+    // GIF-Bibliothek (server/gifs.js): nur URLs, keine Dateien.
+    registerGifRoutes(app, { gifs: store.gifs, settings: () => gifSettings, allowRequest, requirePeerAuth, isString, now, log: app.log });
 
     // Meldungen aus der App (server/reports.js), bearbeitet im Admin-Panel.
     registerReportRoutes(app, { store, allowRequest, requirePeerAuth, isString, log: app.log });
@@ -1187,7 +1217,7 @@ export async function buildApp(options = {}) {
         return { status: 'moved', peerId, movedTo: verified.movedTo };
     });
 
-    app.get('/api/config', async () => ({ features: [...enabledFeatures()], android: { ...(await apkSource.publicInfo()), signers: effectiveAppSigners(androidAppSigners) }, flames: { ...flameSettings }, modes: appModes, defaultMode: defaultAppMode, profileSchemas, lanMode: isLanMode, clientDefaults, infoUrl: infoSiteUrl(infoHost), safety: safety.publicConfig(), nudity: { ...nudityPublicConfig, required: nudityScanRequired },
+    app.get('/api/config', async () => ({ features: [...enabledFeatures()], android: { ...(await apkSource.publicInfo()), signers: effectiveAppSigners(androidAppSigners) }, flames: { ...flameSettings }, gifs: { sources: [...gifSettings.sources], review: gifSettings.review }, modes: appModes, defaultMode: defaultAppMode, profileSchemas, lanMode: isLanMode, clientDefaults, infoUrl: infoSiteUrl(infoHost), safety: safety.publicConfig(), nudity: { ...nudityPublicConfig, required: nudityScanRequired },
         // Fuer die Anzeige in den Einstellungen ("vom Server vorgegeben").
         audienceMinimum: audienceMinimumRule ? (typeof audienceMinimumRule === 'string' ? JSON.parse(audienceMinimumRule) : audienceMinimumRule) : null }));
 

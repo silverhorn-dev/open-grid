@@ -55,7 +55,12 @@ async function loadAppMode() {
         // Eingeschaltete Feature-Module (features.js); fehlt die Liste, gilt, was die Seite mitbrachte.
         features: Array.isArray(config?.features) ? config.features.filter(name => typeof name === 'string') : [],
         // Mindestwerte des Betreibers fuer "Nur zeigen fuer ..." (der Router mischt sie selbst in die Karte).
-        audienceMinimum: config?.audienceMinimum && typeof config.audienceMinimum === 'object' ? config.audienceMinimum : null
+        audienceMinimum: config?.audienceMinimum && typeof config.audienceMinimum === 'object' ? config.audienceMinimum : null,
+        // GIF-Quellen des Routers (gifs.js): 'library' und/oder 'url'; leer = GIFs aus.
+        gifs: {
+            sources: Array.isArray(config?.gifs?.sources) ? config.gifs.sources.filter(kind => ['library', 'url'].includes(kind)) : [],
+            review: config?.gifs?.review !== false
+        }
     };
     document.querySelectorAll('[data-info-link]').forEach(link => { link.href = state.appConfig.infoUrl; });
     // Sprache: Standard des Betreibers gilt ab dem naechsten Start (oder sofort, wenn noch nichts gewaehlt).

@@ -363,6 +363,7 @@
                             <div id="chat-media-menu" class="compose-media-menu hidden" role="menu">
                                 <button type="button" data-chat-image-action data-click="composeMediaAlbum" class="chat-menu-item" role="menuitem"><i class="fa-solid fa-images"></i> <span data-i18n="common.shareAlbum">Album teilen</span></button>
                                 <button type="button" data-chat-image-action data-click="composeMediaVideo" class="chat-menu-item" role="menuitem"><i class="fa-solid fa-film"></i> <span data-i18n="chat.sendVideo">Video senden</span></button>
+                                <button type="button" id="chat-media-gif" data-chat-image-action data-click="composeMediaGif" class="chat-menu-item hidden" role="menuitem"><i class="fa-solid fa-film"></i> <span data-i18n="gifs.menu">GIF</span></button>
                             </div>
                         </div>
                         <textarea data-i18n-attr="placeholder:chat.writeMessage" id="chat-input" rows="1" placeholder="Nachricht schreiben..." class="chat-input flex-1 min-w-0 text-base md:text-sm"></textarea>
@@ -966,6 +967,28 @@
                         <button data-i18n="settings.removeMediaThatIsNo" id="storage-cleanup-btn" data-click="cleanupUnusedMedia" class="btn-secondary">Nicht mehr benötigte Medien entfernen</button>
                     </div>
                 </div>
+                <!-- GIFs (gifs.js): nur sichtbar, wenn der Router eine GIF-Quelle erlaubt -->
+                <div id="gif-settings-card" class="settings-card hidden" data-settings-tab="media">
+                    <h3 class="settings-card-title"><i class="fa-solid fa-film text-pink-400"></i> <span data-i18n="gifs.settingsTitle">GIFs</span></h3>
+                    <label class="setting-row">
+                        <span class="setting-text"><span data-i18n="gifs.settingEnabled" class="setting-title">GIF-Integration</span><span data-i18n="gifs.settingEnabledDescription" class="setting-desc">GIFs aus der Bibliothek deines Routers anzeigen und senden. Sie liegen auf fremden Servern, die beim Laden deine IP-Adresse sehen.</span></span>
+                        <input type="checkbox" role="switch" id="gif-enabled-toggle" data-change="updateGifSetting" data-args='["enabled", "$checked"]' class="switch">
+                    </label>
+                    <label class="setting-row">
+                        <span class="setting-text"><span data-i18n="gifs.settingExternal" class="setting-title">Externe GIF-Links</span><span data-i18n="gifs.settingExternalDescription" class="setting-desc">Auch GIFs von beliebigen Links anzeigen, die dir jemand schickt.</span></span>
+                        <input type="checkbox" role="switch" id="gif-external-toggle" data-change="updateGifSetting" data-args='["external", "$checked"]' class="switch">
+                    </label>
+                    <label class="setting-row">
+                        <span class="setting-text"><span data-i18n="gifs.settingKeep" class="setting-title">Empfangene GIFs behalten</span><span data-i18n="gifs.settingKeepDescription" class="setting-desc">Geladene GIFs bleiben auf diesem Gerät und werden nicht neu geladen. Favoriten bleiben immer.</span></span>
+                        <select id="gif-keep-select" data-change="updateGifSetting" data-args='["keepDays", "$value"]' class="setting-select">
+                            <option data-i18n="gifs.keepForever" value="0">So lange wie möglich</option>
+                            <option data-i18n="gifs.keep90" value="90">90 Tage</option>
+                            <option data-i18n="gifs.keep30" value="30">30 Tage</option>
+                            <option data-i18n="gifs.keep7" value="7">7 Tage</option>
+                        </select>
+                    </label>
+                </div>
+
                 <!-- Umzug (transfer.js, move.js): Daten auf ein anderes Geraet oder vom Browser-Tab in die installierte App -->
                 <div class="settings-card" data-settings-tab="media">
                     <h3 class="settings-card-title"><i class="fa-solid fa-truck-arrow-right text-emerald-400"></i> <span data-i18n="transfer.cardTitle">Umzug auf ein anderes Gerät</span></h3>
@@ -1452,6 +1475,7 @@
     <script src="/client/app/snap-editor.js?v={{assetVersion}}"></script>
     <script src="/client/app/snap-camera.js?v={{assetVersion}}"></script>
     <script src="/client/app/snap-studio.js?v={{assetVersion}}"></script>
+    <script src="/client/app/gifs.js?v={{assetVersion}}"></script>
     <script src="/client/app/install-guide.js?v={{assetVersion}}"></script>
     <script src="/client/app/transfer.js?v={{assetVersion}}"></script>
     <script src="/client/app/move.js?v={{assetVersion}}"></script>

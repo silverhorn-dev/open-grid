@@ -288,6 +288,7 @@ function previewText(message) {
     if (message.album) return 'Album';
     if (message.audioData) return swText('sw.voiceMessage');
     if (message.video) return 'Video';
+    if (message.gif) return 'GIF';
     if (message.snapData) return 'Snap';
     const text = String(message.text || '');
     return text.length > PREVIEW_LENGTH ? `${text.slice(0, PREVIEW_LENGTH)}...` : text;
@@ -467,6 +468,18 @@ async function handleShareTarget(request) {
     }
 }
 
+const GIF_CACHE_NAME = 'opengrid-gifs';
+
+async function handleGifImage(request) {
+    const cache = await caches.open(GIF_CACHE_NAME).catch(() => null);
+    const cached = cache ? await cache.match(request.url).catch(() => null) : null;
+    if (cached) return cached;
+    const response = await fetch(request);
+    // Auch undurchsichtige Antworten (ohne CORS) lassen sich cachen und als Bild ausliefern.
+    if (cache && (response.ok || response.type === 'opaque')) cache.put(request.url, response.clone()).catch(() => {});
+    return response;
+}
+
 self.addEventListener('fetch', event => {
     const { request } = event;
     if (request.method === 'POST' && new URL(request.url).pathname === '/share-target') {
@@ -475,6 +488,12 @@ self.addEventListener('fetch', event => {
     }
     if (request.method !== 'GET') return;
     const url = new URL(request.url);
+    // GIFs (client/app/gifs.js) von fremden https-Servern: einmal geladen, danach aus dem lokalen Cache;
+    // aufgeraeumt wird von der Seite (cleanupGifCache). Videos nicht (Range-Anfragen).
+    if (url.origin !== self.location.origin && url.protocol === 'https:' && request.destination === 'image') {
+        event.respondWith(handleGifImage(request));
+        return;
+    }
     // Nur eigene Seiten und Dateien; API, WebSocket und Fremd-URLs laufen ungecacht durch.
     // Admin-Panel (admin.html) nie aus dem Cache: immer frisch vom Router.
     if (url.origin !== self.location.origin || url.pathname.startsWith('/api/') || url.pathname === '/ws' || url.pathname === '/admin' || url.pathname === '/client/admin.js') return;

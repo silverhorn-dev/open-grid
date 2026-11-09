@@ -118,6 +118,7 @@ window.onload = async () => {
             await loadPullUpSetting();
             await loadChatSwipeCloseSetting();
             await loadSnapPageSetting();
+            await loadGifState();
             await loadReloadMode();
             await loadNotificationSettings();
             await loadChatViewSetting();

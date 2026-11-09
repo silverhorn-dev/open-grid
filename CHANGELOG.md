@@ -2,7 +2,13 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 297 · 2026-11-09
+## Build 302 · 2026-11-09
+- GIFs im Chat (wenn dein Router sie erlaubt): im Medien-Menue suchen, Favoriten, Zuletzt oder einen Link einfuegen; gesendet wird nur der Link, verschluesselt
+- GIFs sind erst nach deiner Zustimmung zu sehen: bis dahin nur eine verschwommene Flaeche mit "GIF-Integration aktivieren?", fuer fremde Links extra
+- Geladene GIFs und Favoriten bleiben auf deinem Geraet; wie lange, stellst du unter Einstellungen > Medien > GIFs ein
+- Admin-Panel: neuer Reiter "GIFs" zum Freigeben von Vorschlaegen fuer die Bibliothek
+
+## Build 297 · 2026-11-09 · `b0f9764`
 - Snap-Editor: sechs neue Filter (Warm, Kuehl, Vintage, Matt, Traum, Noir), jeder mit kleinem Vorschaubild; die Filterleiste laesst sich seitlich wischen
 
 ## Build 293 · 2026-11-04 · `47c4d2c`

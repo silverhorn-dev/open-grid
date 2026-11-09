@@ -649,7 +649,13 @@
 - [ ] mehr sticker (emoji-sets, ort/datum, ggf. aus dem GIF-paket von T34) -> erst nach T34 besprechen
 
 ## T34 GIFs im Chat (nutzer 2026-11-09, aus dem backlog)
-- [ ] GIFs senden und empfangen wie bei discord; erst planen, dann bauen
+- [x] GIFs senden und empfangen wie bei discord: phase 1 (bibliothek + externe links + lokaler cache + medien-menue + admin-freigabe)
+  - done 2026-11-09: `server/gifs.js` (`GIF_SOURCES`, `GIF_LIBRARY_REVIEW`, `/api/gifs`, admin-reiter GIFs), `client/app/gifs.js` (auswahl, verschwommene flaeche + systemdialog, favoriten, zuletzt, cache-index + aufraeumen), sw.js cache `opengrid-gifs`, einstellungen > medien > GIFs; tests `test/gifs.test.js`, `test/server.test.js`, e2e `gifs`; UC-76
+  - nutzer 2026-11-09: vorschlaege -> admin gibt frei (`GIF_LIBRARY_REVIEW`, std an), betreiber kann auf "sofort" umstellen
+- [ ] phase 2: anbieter-suche (Klipy, nur wenn kostenlos; bedingungen pruefen) als adapter `GIF_PROVIDER`
+- [ ] phase 3 (optional, std aus): proxy `GIF_PROXY` fuer betreiber, die IPs schuetzen wollen
+- [ ] offen: melden von bibliotheks-GIFs aus der app, nacktfilter fuer GIFs (fremde bilder sind ohne CORS nicht scanbar), videos (mp4) im cache (range-anfragen), sticker aus der bibliothek (T33)
+- erste ideen (vor phase 1):
   - entschieden (nutzer 2026-11-09):
     - quellen: B (anbieter-suche, z. B. giphy) und C (eigene sammlung auf dem router); dazu beliebige GIF-URL einfuegen, die aufgeloest wird, auch wenn nicht von giphy
     - router schraenkt die quellen ein (anbieter, sammlung, beliebige URLs); im offensten modus keine einschraenkung

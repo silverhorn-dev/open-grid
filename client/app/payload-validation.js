@@ -43,9 +43,17 @@ function isValidMessage(message) {
         && isOptionalString(message.transcript, 2000)
         // Video (video.js): nur Infos, das Video kommt als Original ueber P2P.
         && (message.video === undefined || (isPlainVideoInfo(message.video) && message.original !== undefined))
+        // GIF (gifs.js): nur https-URL, Quelle und Masse.
+        && (message.gif === undefined || isPlainGifInfo(message.gif))
         && (message.imageSize === undefined || (Number.isInteger(message.imageSize?.w) && Number.isInteger(message.imageSize?.h)
             && message.imageSize.w > 0 && message.imageSize.h > 0 && message.imageSize.w <= 10000 && message.imageSize.h <= 10000))
         && isTimestamp(message.createdAt);
+}
+
+function isPlainGifInfo(gif) {
+    const size = value => value === undefined || (Number.isInteger(value) && value > 0 && value <= 4096);
+    return Boolean(gif) && typeof gif === 'object' && typeof gif.url === 'string' && gif.url.length <= 1000
+        && gif.url.startsWith('https://') && ['library', 'url'].includes(gif.source) && size(gif.w) && size(gif.h);
 }
 
 function isPlainVideoInfo(video) {

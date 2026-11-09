@@ -237,6 +237,33 @@
   haelt (24 h). Danach gilt die alte ID in `pending` als erledigt; `401`/`400`
   (anderer Router, schon stillgelegt) werden nicht wiederholt. Der Router lernt
   dabei "alte ID -> neue ID" und die oeffentlichen Schluessel der neuen ID.
+- GIFs (`client/app/gifs.js`, `server/gifs.js`, UC-76, Board T34): der Router
+  meldet in `/api/config` `gifs: { sources, review }` (`GIF_SOURCES`,
+  `GIF_LIBRARY_REVIEW`, live im Admin-Panel). Eine GIF-Nachricht ist
+  `message.gif = { url, source: 'library'|'url', w?, h? }` (nur https mit
+  Hostnamen, keine IPs/LAN-Namen/Zugangsdaten/Fremd-Ports; gleiche Regel
+  `checkGifUrl`/`gifUrlAllowed`), geht wie jede Nachricht E2E; Vorschau
+  "GIF". Anzeige (`gifDisplayState`): eigene immer; fremde nur mit
+  `keys`/`gif-settings.enabled` (Router-Standard `CLIENT_DEFAULTS.gifs`, sonst
+  aus), Quelle `url` zusaetzlich mit `external` (`gifsExternal`); sonst eine
+  verschwommene Flaeche in der GIF-Groesse mit "GIF-Integration aktivieren?"
+  bzw. "Externe GIFs aktivieren?" -> `window.confirm` -> Einstellung an.
+  Vorher wird nichts geladen. Ist die Quelle beim Router aus: nur Hinweis.
+  Auswahl im Medien-Menue (`#chat-media-gif`; mit GIFs ist der Medien-Knopf
+  auch im Freundes-Chat da): Bibliothek (`GET /api/gifs?q=&offset=`, Peer-Token
+  + `X-Peer-Id`, 40 je Seite, Suche im Titel), Favoriten, Zuletzt, Link
+  (Vorschau, Masse, optional `POST /api/gifs { peerId, url, title, width,
+  height }` = Vorschlag, je Peer 30 am Tag, `pending` bis Freigabe bzw.
+  `approved` ohne Review). Router-Tabelle `gif_library (id, url UNIQUE, title,
+  width, height, status, suggested_by, created_at, approved_at)`; Admin:
+  `GET /api/admin/gifs?status=pending|approved`, `POST /api/admin/gifs/:id
+  { action: 'approve'|'remove' }`. Lokal: `keys`/`gif-favorites`,
+  `gif-recent` (40), `gif-cache` (Index URL -> { at, kind }); der Service
+  Worker legt fremde https-Bilder in Cache Storage `opengrid-gifs` (auch
+  undurchsichtige Antworten ohne CORS) und liefert sie danach von dort,
+  Videos nicht. `cleanupGifCache` loescht beim Start und bei Aenderung alles,
+  was weder Favorit noch innerhalb `gifKeepDays` gesendet/empfangen ist.
+  Kein Proxy: der Server des GIFs sieht die IP dessen, der es laedt.
 - Installations-Anleitung (`install-guide.js`, UC-74): `installPlatform()`
   erkennt `ios-safari`, `ios-other` (Chrome/Firefox/Edge auf iOS, auch WebKit)
   und `mac-safari`; installiert = `display-mode: standalone` oder
@@ -1698,6 +1725,8 @@ clientseitig verschluesselte Payloads.
 | Methode | Route | Funktion |
 |---|---|---|
 | `POST` | `/api/cache` | Ciphertext mit einer TTL von 1 bis 72 Stunden ablegen |
+| `GET` | `/api/gifs` | Freigegebene GIF-Links der Bibliothek (nur mit `GIF_SOURCES` library) |
+| `POST` | `/api/gifs` | GIF-Link vorschlagen bzw. aufnehmen |
 | `POST` | `/api/move` | Alte ID nach einem Umzug stilllegen (Token der alten ID, signierter Nachweis); danach 410 fuer `/api/register` der alten ID und `/api/cache` an sie |
 | `GET` | `/api/cache/:recipientId` | Gueltige Nachrichten eines Empfaengers lesen |
 | `DELETE` | `/api/cache/:msgId` | Verarbeitete Nachricht entfernen |

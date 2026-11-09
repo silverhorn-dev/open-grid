@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { analyzeQueue } from './queue-analysis.js';
+import { registerGifAdminRoutes } from './gifs.js';
 import {
     generateAuthenticationOptions,
     generateRegistrationOptions,
@@ -286,6 +287,9 @@ export function registerAdminRoutes(app, {
         log.info(`Admin panel: ${removed} queued message(s) removed (${scope}).`);
         return { ok: true, removed };
     });
+
+    // ----- GIF-Bibliothek (server/gifs.js): Vorschlaege freigeben, Eintraege entfernen -----
+    if (store.gifs) registerGifAdminRoutes(app, { gifs: store.gifs, requireAdmin, now, log });
 
     // ----- Sperren (wie scripts/safety-admin.mjs) -----
     // Peer-IDs im Klartext; E-Mail und Wallet nur als HMAC (gekuerzt angezeigt).

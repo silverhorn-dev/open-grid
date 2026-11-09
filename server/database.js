@@ -4,6 +4,7 @@ import { mkdirSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { createSafetyStore } from './safety-store.js';
 import { createAdminStore } from './admin-store.js';
+import { createGifStore } from './gifs.js';
 
 const GRID_TTL_MS = 10 * 60 * 1000;
 const MIN_GRID_TTL_MS = 1 * 60 * 1000;
@@ -431,6 +432,7 @@ export function createStore(databasePath, { credentialRetentionDays = DEFAULT_CR
     // Client mit seinem Signaturschluessel neu.
     const safety = createSafetyStore(database);
     const admin = createAdminStore(database);
+    const gifs = createGifStore(database);
 
     function removeStaleIdentities(now) {
         statements.deleteExpiredMoved.run(now);
@@ -454,6 +456,8 @@ export function createStore(databasePath, { credentialRetentionDays = DEFAULT_CR
         safety,
         // Admin-Panel: Passkeys, Kennzahlen (admin-store.js).
         admin,
+        // GIF-Bibliothek: nur URLs (gifs.js).
+        gifs,
         // Profil loeschen (auf Wunsch des Nutzers): Grid-Eintrag (mit Tombstone, damit Karten verschwinden),
         // Zugangsdaten, Push-Abo, eigene Chat-Kontrollen und Nachrichten an ihn. Nachrichten von ihm bleiben
         // bis zur Abholung bzw. zum Ablauf: darunter die Loesch-Hinweise an seine Kontakte.

@@ -1523,3 +1523,33 @@ html {
 /* Filterleiste im Snap-Editor: seitlich wischen, ohne sichtbaren Scrollbalken. */
 #snap-filter-row { scrollbar-width: none; }
 #snap-filter-row::-webkit-scrollbar { display: none; }
+
+/* GIFs (gifs.js): Platz in der Groesse des GIFs; ohne Freigabe nur eine verschwommene Flaeche. */
+.gif-bubble { padding: 0.25rem !important; }
+.gif-box { position: relative; width: 14rem; max-width: 100%; border-radius: 0.75rem; overflow: hidden; background: rgb(var(--slate-950) / 0.5); }
+.gif-media { display: block; width: 100%; height: 100%; object-fit: cover; }
+.gif-box.gif-broken::after { content: 'GIF'; position: absolute; inset: 0; display: grid; place-items: center; font-size: 0.75rem; opacity: 0.6; }
+.gif-blocked {
+    background:
+        radial-gradient(circle at 30% 30%, rgb(var(--brand-500) / 0.55), transparent 60%),
+        radial-gradient(circle at 70% 70%, rgb(236 72 153 / 0.45), transparent 60%),
+        rgb(var(--slate-800));
+    filter: saturate(1.1);
+}
+.gif-blocked::before { content: ''; position: absolute; inset: 0; backdrop-filter: blur(14px); background: rgb(var(--slate-950) / 0.25); }
+.gif-enable {
+    position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 0.375rem; padding: 0.75rem; text-align: center; font-size: 0.8125rem; font-weight: 600; color: #fff;
+}
+.gif-favorite {
+    position: absolute; top: 0.375rem; right: 0.375rem; z-index: 1; width: 1.75rem; height: 1.75rem; border-radius: 9999px;
+    background: rgb(0 0 0 / 0.45); color: #fff; font-size: 0.75rem;
+}
+.gif-favorite[aria-pressed="true"] { color: rgb(250 204 21); }
+.gif-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr)); gap: 0.5rem; }
+.gif-tile { position: relative; aspect-ratio: 1; border-radius: 0.75rem; overflow: hidden; background: rgb(var(--slate-800)); }
+.gif-tile > button:first-child { display: block; width: 100%; height: 100%; }
+
+/* GIF-Bibliothek im Admin-Panel */
+.admin-gif { display: flex; align-items: center; gap: 0.75rem; }
+.admin-gif-preview { width: 4.5rem; height: 4.5rem; object-fit: cover; border-radius: 0.5rem; flex-shrink: 0; background: rgb(var(--slate-800)); }

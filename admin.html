@@ -43,6 +43,7 @@
             <button data-admin-tab="queue" role="tab" class="admin-tab" data-i18n="admin.tabQueue">Zwischenspeicher</button>
             <button data-admin-tab="settings" role="tab" class="admin-tab" data-i18n="admin.tabSettings">Einstellungen</button>
             <button data-admin-tab="reports" role="tab" class="admin-tab"><span data-i18n="admin.tabReports">Meldungen</span> <span id="admin-report-badge" class="admin-badge hidden"></span></button>
+            <button data-admin-tab="gifs" role="tab" class="admin-tab"><span data-i18n="admin.tabGifs">GIFs</span> <span id="admin-gif-badge" class="admin-badge hidden"></span></button>
             <button data-admin-tab="bans" role="tab" class="admin-tab" data-i18n="admin.tabBans">Sperren</button>
             <button data-admin-tab="passkeys" role="tab" class="admin-tab" data-i18n="admin.tabPasskeys">Passkeys</button>
         </nav>
@@ -113,6 +114,18 @@
                     <button data-admin-report-status="all" class="admin-range-btn" data-i18n="admin.reportsAll">Alle</button>
                 </div>
                 <ul id="admin-report-list" class="admin-list"></ul>
+            </section>
+        </section>
+
+        <section data-admin-view="gifs" class="admin-view hidden">
+            <section class="settings-card">
+                <h2 data-i18n="admin.gifsTitle" class="settings-card-title">GIF-Bibliothek</h2>
+                <p data-i18n="admin.gifsText" class="setting-desc px-4 pb-2">Nutzer schlagen externe GIFs vor; gespeichert wird nur der Link. Freigegebene GIFs sehen alle in der Bibliothek. An und aus unter Einstellungen: GIF_SOURCES (library) und GIF_LIBRARY_REVIEW.</p>
+                <div class="admin-range mx-4 mb-2" role="group" data-i18n-attr="aria-label:admin.reportFilter" aria-label="Filter">
+                    <button data-admin-gif-status="pending" class="admin-range-btn is-active" data-i18n="admin.gifsPending">Vorschläge</button>
+                    <button data-admin-gif-status="approved" class="admin-range-btn" data-i18n="admin.gifsApproved">Freigegeben</button>
+                </div>
+                <ul id="admin-gif-list" class="admin-list"></ul>
             </section>
         </section>
 

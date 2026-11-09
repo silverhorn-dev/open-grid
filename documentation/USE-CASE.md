@@ -1311,3 +1311,31 @@ Akzeptanzkriterien:
   wenn das zu lange her ist, beim naechsten Schreiben an die alte ID vom
   Router; die alte Kopie beim naechsten Oeffnen, auch nach Wochen.
 - Im Safari-Tab bietet die Installations-Anleitung "Daten mitnehmen" an.
+
+## UC-76: GIFs im Chat
+
+**Als Nutzer** moechte ich GIFs senden und empfangen, ohne dass fremde Server
+ungefragt erfahren, dass ich OpenGrid nutze.
+
+Akzeptanzkriterien:
+
+- Der Betreiber erlaubt GIFs (Bibliothek des Routers und/oder beliebige
+  Links), standardmaessig ist alles aus. Ist es aus, gibt es keinen GIF-Knopf.
+- Im Chat steht "GIF" im Medien-Menue neben Album und Video. Beim ersten Mal
+  fragt die App, ob ich die GIF-Integration einschalten will.
+- Ich suche in der Bibliothek, nehme einen Favoriten, ein zuletzt gesendetes
+  GIF oder fuege einen Link ein (nur https mit Domain). Gesendet wird nur der
+  Link, verschluesselt.
+- Einen eingefuegten Link kann ich fuer die Bibliothek vorschlagen; sichtbar
+  wird er fuer alle erst, wenn der Betreiber ihn freigibt (oder sofort, wenn
+  er das so eingestellt hat).
+- Habe ich GIFs nicht eingeschaltet, sehe ich bei einem empfangenen GIF nur
+  eine verschwommene Flaeche mit "GIF-Integration aktivieren?". Erst nach
+  Tippen und Bestaetigen wird es geladen. Fuer GIFs von beliebigen Links gilt
+  dasselbe mit "Externe GIFs aktivieren?".
+- GIFs markiere ich mit dem Stern als Favorit (auch externe). Geladene GIFs
+  bleiben auf dem Geraet; wie lange, stelle ich unter Einstellungen > Medien
+  ein (Favoriten bleiben immer).
+- Der Betreiber gibt Vorschlaege im Admin-Panel unter "GIFs" frei oder
+  entfernt sie.
+

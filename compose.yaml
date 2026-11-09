@@ -45,6 +45,9 @@ services:
       ABUSE_LOG_DAYS: ${ABUSE_LOG_DAYS:-0}
       # Umzug per Code (Router-Relay, nur Chiffrat): Hoechstgroesse in MB.
       TRANSFER_MAX_MB: ${TRANSFER_MAX_MB:-50}
+      # GIFs: off | library | url | library,url | any (nur Links, keine Dateien); im Admin-Panel live aenderbar.
+      GIF_SOURCES: ${GIF_SOURCES:-off}
+      GIF_LIBRARY_REVIEW: ${GIF_LIBRARY_REVIEW:-true}
       PORT: 3000
       # STUN: ohne Angabe dient der eigene TURN-Server als STUN. "none" = kein STUN.
       # STUN_SERVER: none

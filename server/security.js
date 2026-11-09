@@ -37,6 +37,8 @@ export const DEFAULT_RATE_LIMITS = {
     nudge: { windowMs: 60_000, max: 30 },
     // Umzugs-Relay (transfer-relay.js): selten gebraucht, grosse Koerper.
     transfer: { windowMs: 60_000, max: 20 },
+    // GIF-Bibliothek (gifs.js): stoebern und vorschlagen.
+    gifs: { windowMs: 60_000, max: 60 },
     websocket: { windowMs: 10_000, max: 300 }
 };
 
@@ -101,7 +103,7 @@ export function buildLoggerOptions(logger) {
 // ================= Header =================
 const NOMINATIM_ORIGIN = 'https://nominatim.openstreetmap.org';
 
-export function securityHeaders(host, { wasm = false } = {}) {
+export function securityHeaders(host, { wasm = false, externalMedia = false } = {}) {
     // Skripte nur von der eigenen Origin, keine Inline-Handler (siehe client/app/actions.js).
     // Inline-Styles (style-Attribute) bleiben erlaubt.
     const socketOrigins = host ? ` ws://${host} wss://${host}` : '';
@@ -111,8 +113,9 @@ export function securityHeaders(host, { wasm = false } = {}) {
             // 'wasm-unsafe-eval' nur fuer den Nacktbild-Worker (eigene CSP je Worker-Skript).
             wasm ? "script-src 'self' 'wasm-unsafe-eval'" : "script-src 'self'",
             "style-src 'self' 'unsafe-inline'",
-            "img-src 'self' data: blob:",
-            "media-src 'self' blob:",
+            // GIFs (server/gifs.js) liegen auf fremden https-Servern; nur wenn eine GIF-Quelle an ist.
+            `img-src 'self' data: blob:${externalMedia ? ' https:' : ''}`,
+            `media-src 'self' blob:${externalMedia ? ' https:' : ''}`,
             "font-src 'self'",
             `connect-src 'self'${socketOrigins} ${NOMINATIM_ORIGIN}`,
             "worker-src 'self'",

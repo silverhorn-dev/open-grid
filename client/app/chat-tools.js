@@ -6,6 +6,7 @@ function messagePreview(message) {
     if (message.album) return t('chat.album', { name: message.album.name });
     if (message.audioData) return t('chat.voiceMessage', { duration: formatVoiceDuration(message.audioDuration) });
     if (message.video) return message.text ? t('chat.video2', { text: message.text }) : t('chat.video');
+    if (message.gif) return t('gifs.preview');
     // Ohne snapMode ist es ein normales Bild ("Als Bild senden") oder ein gespeicherter alter Snap.
     if (message.snapData && !message.snapMode) return message.text ? t('chat.image', { text: message.text }) : t('common.image');
     if (message.snapData || message.snapMode) return message.text ? t('chat.snap', { text: message.text }) : t('common.snap');
@@ -740,8 +741,12 @@ function updateChatAlbumButton() {
     // Entdecken/Event (und Flirt): Album und Video hinter einem Medien-Knopf (friends.js); im reinen
     // Freundes-Chat bleibt das Video einzeln (Album meist versteckt, s. o.).
     const row = document.getElementById('chat-compose-row');
-    row?.classList.toggle('media-combined', !social);
-    if (social) closeComposeMediaMenu();
+    // Mit GIFs (gifs.js) immer der Medien-Knopf: GIF steht dort neben Album und Video.
+    const gifs = typeof gifComposeAvailable === 'function' && gifComposeAvailable();
+    row?.classList.toggle('media-combined', !social || gifs);
+    document.querySelector('#chat-media-menu [data-click="composeMediaAlbum"]')?.classList.toggle('hidden', social && hidden);
+    document.getElementById('chat-media-gif')?.classList.toggle('hidden', !gifs);
+    if (social && !gifs) closeComposeMediaMenu();
 }
 
 function initSnapLongPress() {

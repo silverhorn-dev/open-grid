@@ -506,7 +506,7 @@ function isCoarsePointer() {
 // options.asImage: Bild statt Einmal-Snap (dauerhaft im Chat).
 async function sendChatMessage(snapData = null, caption = '', album = null, secureSnap = null, options = {}) {
     const input = document.getElementById('chat-input');
-    const hasAttachment = Boolean(snapData || album || secureSnap || options.audio);
+    const hasAttachment = Boolean(snapData || album || secureSnap || options.audio || options.gif);
     if (state.movedAway) {
         showToast(t('move.readOnly'), 'info');
         return false;
@@ -551,6 +551,8 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
         audioSplitAt: options.audio?.splitAt,
         transcript: options.audio?.transcript,
         video: options.video,
+        // GIF (gifs.js): nur die URL, jeder Client laedt es selbst.
+        gif: options.gif || undefined,
         // Wer das Bild bzw. Video speichern/teilen darf (Einstellung des Absenders, media-rights.js).
         // 'none': im Snap-Editor als "nicht speicherbar" markiert (snaps.js).
         downloadable: options.downloadable === 'none' ? 'none'
@@ -788,6 +790,8 @@ function renderChatHistory() {
             renderVoiceMessage(bubble, message, isMine);
         } else if (message.video) {
             renderVideoMessage(bubble, message, isMine);
+        } else if (message.gif) {
+            renderGifMessage(bubble, message, isMine);
         } else if (message.snapData) {
             if (isSafeInlineImage(message.snapData)) {
                 if (message.nudityScan && message.senderId !== state.myProfile.id && typeof markForcedNudityScan === 'function') markForcedNudityScan(message.snapData);

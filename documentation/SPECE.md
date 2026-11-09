@@ -275,6 +275,14 @@
   `enabled`). Klipy-Medien (`*.klipy.com`) nie ueber den Proxy, nie in Cache
   Storage (sw.js) oder `gif-cache`, nie in die Bibliothek (400); Favoriten
   merken nur die URL.
+  Eingefuegter Link: besteht die Nachricht nur aus einer GIF-artigen URL
+  (`looksLikeGifUrl`: Endung gif/gifv/webp/mp4/webm oder giphy/tenor/klipy),
+  misst der Client das GIF (8 s) und sendet es als `gif` (Quelle `url` bzw.
+  `provider`); laedt es nicht, geht es als Text. Tippen auf ein GIF oeffnet
+  die grosse Ansicht (Link kopieren, Favorit, Melden); im Nachrichten-Menue
+  "Link kopieren"; Medien-Uebersicht des Chats mit Schalter "GIFs" (gemerkt in
+  `localStorage` `opengrid-media-gifs`, ohne Freigabe nur verschwommene
+  Kacheln). Stern unten (eigene Nachrichten links), Fahne unten links.
   Melden: `POST /api/gifs/report { peerId, url }` (je Peer einmal je GIF,
   hoechstens 20 am Tag), Tabelle `gif_reports (gif_id, peer_id, created_at)`;
   ab `GIF_REPORT_HIDE` (3) Peers `status = 'hidden'` (nicht mehr gelistet).
@@ -1142,8 +1150,9 @@ Verbindung abgebaut und die Operation ueber Pfad C eingestellt (sonst
 `Pending` und erneuter Versand beim naechsten Kanal). Meldet der Server den
 Partner offline (`PRESENCE`/`PEER_OFFLINE`), geht Unbestaetigtes und
 Wartendes sofort ueber Pfad C. Doppelt ankommende Operationen erkennt der
-Empfaenger an der `operationId`. Gilt nur fuer Operationen mit
-Pfad-C-Fallback (nicht fuer "Status nur direkt").
+Empfaenger an der `operationId`. Gilt fuer jede `CHAT_OPERATION`, auch
+Loeschen, Bearbeiten, Reaktionen und Snap-Status ohne eigenen Rueckruf
+(`sendSecurePayload` ergaenzt ihn), nicht fuer "Status nur direkt".
 
 Pro Chat bleiben maximal 100 `MESSAGE_DELETE`-Operationen erhalten. Eine
 geloeschte Nachricht bleibt lokal als Platzhalter sichtbar und wird nicht

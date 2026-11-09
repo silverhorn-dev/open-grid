@@ -2,7 +2,13 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 303 · 2026-11-09
+## Build 304 · 2026-11-09 · `5fd86f5`
+- Behoben: Loeschen (auch Bearbeiten und Reaktionen) kam beim anderen Geraet manchmal erst spaeter an; jetzt geht es wie Nachrichten notfalls ueber den Zwischenspeicher
+- GIF-Link einfach ins Eingabefeld einfuegen (z. B. von Discord), er wird als GIF gesendet
+- GIFs lassen sich gross oeffnen, der Link kopieren (auch im Nachrichten-Menue), und in der Medien-Uebersicht einblenden
+- Behoben: der Favoriten-Stern lag unter dem Menue-Pfeil; er sitzt jetzt unten (bei eigenen Nachrichten links)
+
+## Build 303 · 2026-11-09 · `522b44e`
 - GIFs sind auf neuen Routern standardmaessig erlaubt (du stimmst in der App trotzdem erst zu)
 - GIF-Suche mit KLIPY, wenn dein Router sie eingerichtet hat: eigener Reiter mit Suche und Trends, direkt vom Geraet und ohne dass KLIPY dich wiedererkennt
 - GIFs aus der Bibliothek lassen sich melden; nach mehreren Meldungen sind sie weg, bis der Betreiber entscheidet

@@ -1343,6 +1343,10 @@ Akzeptanzkriterien:
   Klipy mich wiedererkennt. Klipy-GIFs werden nicht auf dem Geraet behalten.
 - Ein GIF aus der Bibliothek kann ich mit der Fahne melden; nach mehreren
   Meldungen ist es fuer alle weg, bis der Betreiber entscheidet.
+- Fuege ich nur einen GIF-Link ins Eingabefeld ein (z. B. einen
+  Discord-Anhang), wird er als GIF gesendet.
+- Tippen auf ein GIF oeffnet es gross; dort und im Nachrichten-Menue kann ich
+  den Link kopieren. In der Medien-Uebersicht des Chats blende ich GIFs ein.
 - Schaltet der Betreiber den Proxy an, laden Bibliotheks- und Link-GIFs ueber
   den Router; die fremden Server sehen dann nur den Router.
 

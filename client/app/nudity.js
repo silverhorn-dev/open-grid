@@ -59,6 +59,16 @@ function markForcedNudityScan(source) {
     forcedNudityScanSources.add(source);
 }
 
+// Fuer Bilder, die nicht als Canvas gezeichnet werden (GIFs, gifs.js): pruefen noetig? Aufgedeckt merken.
+function nudityCheckNeeded(source) {
+    if (!source || revealedNudityImages.has(source)) return false;
+    return isNudityFilterActive() || (forcedNudityScanSources.has(source) && hasNudityClassifier());
+}
+
+function markNudityRevealed(source) {
+    if (source) revealedNudityImages.add(source);
+}
+
 function isNudityFilterActive() {
     return (state.nudityFilter === true || nudityScanForced()) && hasNudityClassifier();
 }

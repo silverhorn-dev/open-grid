@@ -169,8 +169,30 @@ async function main() {
         const viewerBox = await bob.locator('#gif-viewer-stage img').boundingBox();
         const viewport = bob.viewportSize();
         assert.ok(viewerBox.width >= viewport.width - 2 || viewerBox.height >= viewport.height - 2, 'gif fills the screen like images');
+        // Zoom: Mausrad und Doppeltipp, verkleinert schliesst ein Tipp daneben.
+        const centerBox = await bob.locator('#gif-viewer-stage').boundingBox();
+        await bob.mouse.move(centerBox.x + centerBox.width / 2, centerBox.y + centerBox.height / 2);
+        await bob.mouse.wheel(0, -400);
+        await waitFor(bob, () => gifZoom.scale > 1.5);
+        assert.match(await bob.getAttribute('#gif-viewer-stage img', 'style'), /scale\((1\.[6-9]|[2-5])/);
+        await bob.mouse.dblclick(centerBox.x + centerBox.width / 2, centerBox.y + centerBox.height / 2);
+        await waitFor(bob, () => gifZoom.scale === 1, null, 5000);
         await bob.keyboard.press('Escape');
         await bob.waitForSelector('#gif-viewer', { state: 'hidden', timeout: 5000 });
+        assert.equal(await bob.evaluate(() => gifZoom.scale), 1, 'zoom reset on close');
+
+        // Nacktfilter an (Test-Modell meldet 95 %): GIFs von anderen unscharf mit Hinweis, Tippen zeigt.
+        await bob.evaluate(() => {
+            registerNudityClassifier({ id: 'e2e', classify: async () => 0.95 });
+            state.nudityFilter = true;
+            renderChatHistory();
+        });
+        await bob.waitForSelector('.gif-box [data-gif-nsfw="nude"]', { timeout: 15000 });
+        const covers = await bob.locator('.gif-box [data-gif-nsfw]').count();
+        assert.ok(covers >= 1, 'blurred with a notice');
+        await bob.locator('.gif-box [data-gif-nsfw="nude"]').first().click();
+        await waitFor(bob, count => document.querySelectorAll('.gif-box [data-gif-nsfw]').length === count - 1, covers);
+        await bob.evaluate(() => { state.nudityFilter = false; renderChatHistory(); });
         await bob.context().grantPermissions(['clipboard-read', 'clipboard-write']);
         const messageId = await bob.evaluate(([id, url]) => state.chats[id].find(message => message.gif?.url === url).id, [aliceId, PASTED]);
         await bob.evaluate(id => openMessageMenu(id), messageId);

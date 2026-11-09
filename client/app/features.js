@@ -23,6 +23,8 @@ function revealBlurredImage() { return false; }
 async function confirmNudeSend() { return true; }
 function initNudityModel() {}
 function warmUpNudityModel() {}
+function nudityCheckNeeded() { return false; }
+function markNudityRevealed() {}
 
 // ----- Platzhalter: keine Nachweise verlangt -----
 function isSafetyGateActive() { return false; }

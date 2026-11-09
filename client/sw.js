@@ -482,6 +482,45 @@ async function handleGifImage(request, key) {
     return response;
 }
 
+// Video-GIF: ganz laden (CORS bzw. Proxy), cachen, Range-Anfragen aus dem Cache als 206 beantworten.
+const GIF_VIDEO_MAX_BYTES = 20 * 1024 * 1024;
+
+async function rangeResponse(response, rangeHeader) {
+    const blob = await response.blob();
+    const match = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader || '');
+    const type = response.headers.get('content-type') || blob.type || 'video/mp4';
+    if (!match) return new Response(blob, { status: 200, headers: { 'Content-Type': type, 'Content-Length': String(blob.size), 'Accept-Ranges': 'bytes' } });
+    let start = match[1] === '' ? blob.size - Number(match[2]) : Number(match[1]);
+    let end = match[1] === '' || match[2] === '' ? blob.size - 1 : Number(match[2]);
+    start = Math.max(0, start);
+    end = Math.min(blob.size - 1, end);
+    if (start > end) return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${blob.size}` } });
+    return new Response(blob.slice(start, end + 1), {
+        status: 206,
+        headers: { 'Content-Type': type, 'Content-Length': String(end - start + 1), 'Content-Range': `bytes ${start}-${end}/${blob.size}`, 'Accept-Ranges': 'bytes' }
+    });
+}
+
+async function handleGifVideo(request, key) {
+    const range = request.headers.get('range');
+    const cache = await caches.open(GIF_CACHE_NAME).catch(() => null);
+    const cached = cache ? await cache.match(key).catch(() => null) : null;
+    if (cached && cached.type !== 'opaque') return rangeResponse(cached, range);
+    try {
+        // Ganz holen (ohne Range): ueber den Proxy same-origin, sonst mit CORS.
+        const proxied = new URL(request.url).pathname === '/api/gif-proxy';
+        const response = await fetch(proxied ? request.url : key, proxied ? { credentials: 'same-origin' } : { mode: 'cors', credentials: 'omit', referrerPolicy: 'no-referrer' });
+        const length = Number(response.headers.get('content-length'));
+        if (response.ok && response.type !== 'opaque' && !(length > GIF_VIDEO_MAX_BYTES)) {
+            if (cache) await cache.put(key, response.clone()).catch(() => {});
+            return rangeResponse(response, range);
+        }
+    } catch {
+        // Ohne CORS: unten normal laden, ohne Cache.
+    }
+    return fetch(request);
+}
+
 self.addEventListener('fetch', event => {
     const { request } = event;
     if (request.method === 'POST' && new URL(request.url).pathname === '/share-target') {
@@ -491,14 +530,17 @@ self.addEventListener('fetch', event => {
     if (request.method !== 'GET') return;
     const url = new URL(request.url);
     // GIFs (client/app/gifs.js) von fremden https-Servern: einmal geladen, danach aus dem lokalen Cache;
-    // aufgeraeumt wird von der Seite (cleanupGifCache). Videos nicht (Range-Anfragen). Anbieter-Medien (Klipy)
-    // nie (dessen Regeln). Ueber den Proxy des Routers geladene GIFs unter ihrer Original-URL.
-    if (url.origin !== self.location.origin && url.protocol === 'https:' && request.destination === 'image' && !/(^|\.)klipy\.com$/i.test(url.hostname)) {
-        event.respondWith(handleGifImage(request, request.url));
+    // aufgeraeumt wird von der Seite (cleanupGifCache). Anbieter-Medien (Klipy) nie (dessen Regeln). Ueber den
+    // Proxy des Routers geladene GIFs unter ihrer Original-URL. Video-GIFs (mp4/webm) nur mit CORS oder ueber
+    // den Proxy (der Inhalt muss lesbar sein, um Range-Anfragen aus dem Cache zu beantworten).
+    const gifKey = url.origin === self.location.origin && url.pathname === '/api/gif-proxy' ? url.searchParams.get('url')
+        : url.origin !== self.location.origin && url.protocol === 'https:' && !/(^|\.)klipy\.com$/i.test(url.hostname) ? request.url : null;
+    if (gifKey && request.destination === 'image') {
+        event.respondWith(handleGifImage(request, gifKey));
         return;
     }
-    if (url.origin === self.location.origin && url.pathname === '/api/gif-proxy' && request.destination === 'image' && url.searchParams.get('url')) {
-        event.respondWith(handleGifImage(request, url.searchParams.get('url')));
+    if (gifKey && request.destination === 'video' && /\.(mp4|webm)$/i.test(new URL(gifKey).pathname)) {
+        event.respondWith(handleGifVideo(request, gifKey));
         return;
     }
     // Nur eigene Seiten und Dateien; API, WebSocket und Fremd-URLs laufen ungecacht durch.

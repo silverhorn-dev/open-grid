@@ -260,8 +260,10 @@
   { action: 'approve'|'remove' }`. Lokal: `keys`/`gif-favorites`,
   `gif-recent` (40), `gif-cache` (Index URL -> { at, kind }); der Service
   Worker legt fremde https-Bilder in Cache Storage `opengrid-gifs` (auch
-  undurchsichtige Antworten ohne CORS) und liefert sie danach von dort,
-  Videos nicht. Dafuer erlaubt nur die CSP von `/sw.js` `connect-src https:`
+  undurchsichtige Antworten ohne CORS) und liefert sie danach von dort.
+  Video-GIFs (mp4/webm): der SW holt sie ganz mit CORS (bzw. ueber den Proxy),
+  cacht sie (hoechstens 20 MB) und beantwortet Range-Anfragen aus dem Cache als
+  206 (`rangeResponse`); ohne CORS laufen sie ungecacht durch. Dafuer erlaubt nur die CSP von `/sw.js` `connect-src https:`
   (fetch im Worker), sobald eine GIF-Quelle an ist; die Seite bleibt strikt. `cleanupGifCache` loescht beim Start und bei Aenderung alles,
   was weder Favorit noch innerhalb `gifKeepDays` gesendet/empfangen ist.
   Anbieter (`GIF_PROVIDER=klipy`, Quelle `provider`): `/api/config` gibt
@@ -281,7 +283,13 @@
   misst der Client das GIF (8 s) und sendet es als `gif` (Quelle `url` bzw.
   `provider`); laedt es nicht, geht es als Text. Tippen auf ein GIF oeffnet
   den Vollbild-Betrachter `#gif-viewer` (wie Bilder; Link kopieren, Favorit,
-  Melden; Tippen daneben, Escape oder Zurueck schliesst); im Nachrichten-Menue
+  Melden; Zoom per zwei Finger, Doppeltipp oder Mausrad bis 5x, vergroessert
+  verschieben; ungezoomt nach unten wischen, Tippen daneben, Escape oder
+  Zurueck schliesst); Nacktbild-Filter (`nudity.js`, an oder Pflicht-Scan,
+  `message.nudityScan` auch fuer GIFs): empfangene GIFs bleiben unscharf, bis
+  das erste Bild lokal geprueft ist (`loadGifCorsFrame` mit CORS bzw. Proxy,
+  `shouldBlurImage`); Treffer oder nicht pruefbar (Server ohne CORS) -> unscharf
+  mit Hinweis, Tippen zeigt (`markNudityRevealed`); im Nachrichten-Menue
   "Link kopieren"; Medien-Uebersicht des Chats mit Schalter "GIFs" (gemerkt in
   `localStorage` `opengrid-media-gifs`, ohne Freigabe nur verschwommene
   Kacheln). Stern unten (eigene Nachrichten links), Fahne unten links.

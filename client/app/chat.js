@@ -575,7 +575,7 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
         // Liste dieses Chats (Grid & Event oder Chat & Freunde), der Empfaenger uebernimmt sie fuer neue Chats.
         scope: messageScopeFor(peerId),
         // Pflicht-Scan 'minor-chats': Bilder von unter 18 prueft jeder Empfaenger (nudity.js).
-        nudityScan: (snapData || secureSnap || options.video) && typeof outgoingNudityScanFlag === 'function' && outgoingNudityScanFlag() ? true : undefined,
+        nudityScan: (snapData || secureSnap || options.video || options.gif) && typeof outgoingNudityScanFlag === 'function' && outgoingNudityScanFlag() ? true : undefined,
         timestamp: formatClockTime(Date.now()),
         createdAt: Date.now(),
         deliveredVia: 'Establishing secure channel...'

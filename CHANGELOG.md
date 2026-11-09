@@ -2,7 +2,12 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 308 · 2026-11-09
+## Build 309 · 2026-11-09
+- GIF-Vollbild: mit zwei Fingern, Doppeltipp oder Mausrad zoomen, nach unten wischen schliesst
+- Video-GIFs (mp4) bleiben jetzt auch auf dem Geraet und laden nicht jedes Mal neu
+- Nacktbild-Filter gilt jetzt auch fuer GIFs: bis zur Pruefung unscharf, Tippen zeigt sie
+
+## Build 308 · 2026-11-09 · `800b594`
 - Snap-Editor: Sticker mit Reitern - Info (Uhrzeit, Datum, Wochentag), zuletzt benutzt und viele neue Emojis (Gesichter, Herzen, Tiere, Essen, Party, Natur, Haende)
 - Snap-Editor: GIF-Favoriten als Sticker aufs Foto legen (das erste Bild wird eingebrannt)
 

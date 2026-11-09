@@ -463,15 +463,7 @@ function renderSnapEmojiRow(tab = snapEditor.stickerTab || 'faces') {
 
 // GIF als Bild-Sticker: mit CORS laden (bzw. ueber den Proxy, same-origin), sonst nicht nutzbar.
 function loadSnapStickerImage(gif) {
-    return new Promise((resolve, reject) => {
-        const image = new Image();
-        image.crossOrigin = 'anonymous';
-        image.referrerPolicy = 'no-referrer';
-        image.decoding = 'async';
-        image.onload = () => resolve(image);
-        image.onerror = () => reject(new Error('sticker image not loadable'));
-        image.src = gifMediaSrc(gif.url);
-    });
+    return loadGifCorsFrame(gif);
 }
 
 async function addSnapImageSticker(gif) {

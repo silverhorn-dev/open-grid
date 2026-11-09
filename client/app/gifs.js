@@ -355,6 +355,9 @@ function renderGifMessage(bubble, message, isMine) {
         };
         box.append(media, star);
         if (gif.source === 'library' && !isMine) box.appendChild(gifReportButton(gif));
+        // Pflicht-Scan 'minor-chats' (nudity.js) gilt auch fuer GIFs.
+        if (message.nudityScan && !isMine && typeof markForcedNudityScan === 'function') markForcedNudityScan(gif.url);
+        if (!isMine) guardGifNudity(box, gif);
     } else {
         // Nichts laden: nur eine verschwommene Flaeche, der Server des GIFs erfaehrt nichts.
         box.classList.add('gif-blocked');
@@ -381,6 +384,80 @@ function renderGifMessage(bubble, message, isMine) {
     }
 }
 
+// ----- Nacktbild-Filter fuer GIFs (nudity.js) -----
+// Fremde GIF-Bilder lassen sich nur pruefen, wenn ihr Server CORS erlaubt (oder ueber den Proxy, dann
+// same-origin). Bis das Ergebnis da ist, bleibt das GIF unscharf; laesst es sich nicht pruefen, bleibt es
+// unscharf mit "nicht geprueft" (wie bei Bildern: lieber unscharf als ungeprueft). Tippen zeigt es.
+function loadGifCorsFrame(gif) {
+    return new Promise((resolve, reject) => {
+        const video = isGifVideoUrl(gif.url);
+        const media = document.createElement(video ? 'video' : 'img');
+        media.crossOrigin = 'anonymous';
+        media.referrerPolicy = 'no-referrer';
+        const timer = setTimeout(() => reject(new Error('timeout')), 15000);
+        media.addEventListener(video ? 'loadeddata' : 'load', () => {
+            clearTimeout(timer);
+            resolve(media);
+        }, { once: true });
+        media.addEventListener('error', () => {
+            clearTimeout(timer);
+            reject(new Error('not loadable with CORS'));
+        }, { once: true });
+        if (video) {
+            media.muted = true;
+            media.preload = 'auto';
+        }
+        media.src = gifMediaSrc(gif.url);
+    });
+}
+
+function gifNudityGuardNeeded(gif) {
+    return typeof nudityCheckNeeded === 'function' && nudityCheckNeeded(gif.url);
+}
+
+// false = scharf, 'nude' oder 'unchecked' = unscharf.
+async function checkGifNudity(gif) {
+    let bitmap;
+    try {
+        bitmap = await createImageBitmap(await loadGifCorsFrame(gif));
+    } catch {
+        return 'unchecked';
+    }
+    try {
+        return await shouldBlurImage(bitmap, gif.url);
+    } finally {
+        bitmap.close?.();
+    }
+}
+
+function guardGifNudity(container, gif) {
+    if (!gifNudityGuardNeeded(gif)) return;
+    container.classList.add('gif-nsfw-pending');
+    checkGifNudity(gif).then(result => {
+        container.classList.remove('gif-nsfw-pending');
+        if (!result) return;
+        container.classList.add('gif-nsfw');
+        const cover = document.createElement('button');
+        cover.type = 'button';
+        cover.className = 'gif-nsfw-cover';
+        cover.dataset.gifNsfw = result;
+        const label = document.createElement('span');
+        label.className = 'font-semibold';
+        label.textContent = result === 'unchecked' ? t('nudity.notChecked') : t('nudity.mightBeNude');
+        const hint = document.createElement('span');
+        hint.className = 'text-[11px] opacity-80';
+        hint.textContent = t('nudity.tapToView');
+        cover.append(label, hint);
+        cover.onclick = event => {
+            event.stopPropagation();
+            markNudityRevealed(gif.url);
+            container.classList.remove('gif-nsfw');
+            cover.remove();
+        };
+        container.appendChild(cover);
+    }).catch(logBackgroundError('guardGifNudity'));
+}
+
 // ----- Grosse Ansicht, Kontextmenue, Medien-Uebersicht -----
 // Vollbild wie der Bildbetrachter: Tippen daneben, Escape oder Zurueck schliesst.
 function openGifViewer(gif, { mine = false } = {}) {
@@ -390,21 +467,154 @@ function openGifViewer(gif, { mine = false } = {}) {
     gifState.viewer = { gif, mine };
     const media = createGifMedia(gif, 'gif-viewer-media');
     media.classList.remove('cursor-zoom-in');
-    media.onclick = event => event.stopPropagation();
+    media.draggable = false;
     stage.replaceChildren(media);
-    stage.onclick = () => closeGifViewer();
+    resetGifZoom();
     document.getElementById('gif-viewer-report')?.classList.toggle('hidden', !(gif.source === 'library' && !mine));
     paintViewerGifFavorite();
+    initGifViewerGestures();
     if (element.classList.contains('hidden')) {
         element.classList.remove('hidden');
         pushModalEntry('gif-viewer', hideGifViewer);
     }
 }
 
+// Zoom wie im Bildbetrachter: zwei Finger, Doppeltipp, Mausrad; vergroessert verschieben; ungezoomt nach
+// unten wischen oder neben das GIF tippen schliesst.
+const GIF_ZOOM_MAX = 5;
+const GIF_ZOOM_DOUBLE_TAP = 2.5;
+const GIF_CLOSE_DRAG = 110;
+const gifZoom = { scale: 1, x: 0, y: 0, closeOffset: 0, pointers: new Map(), gesture: null, lastTap: 0 };
+
+function resetGifZoom() {
+    Object.assign(gifZoom, { scale: 1, x: 0, y: 0, closeOffset: 0, gesture: null });
+    gifZoom.pointers.clear();
+    applyGifZoom();
+}
+
+function clampGifZoom() {
+    const stage = document.getElementById('gif-viewer-stage');
+    const media = stage?.querySelector('.gif-viewer-media');
+    if (!media) return;
+    gifZoom.scale = Math.min(GIF_ZOOM_MAX, Math.max(1, gifZoom.scale));
+    // Nicht weiter verschieben, als das vergroesserte GIF ueber den Rand ragt.
+    const maxX = Math.max(0, (media.clientWidth * gifZoom.scale - stage.clientWidth) / 2);
+    const maxY = Math.max(0, (media.clientHeight * gifZoom.scale - stage.clientHeight) / 2);
+    gifZoom.x = Math.min(maxX, Math.max(-maxX, gifZoom.x));
+    gifZoom.y = Math.min(maxY, Math.max(-maxY, gifZoom.y));
+    if (gifZoom.scale === 1) {
+        gifZoom.x = 0;
+        gifZoom.y = 0;
+    }
+}
+
+function applyGifZoom() {
+    const media = document.querySelector('#gif-viewer-stage .gif-viewer-media');
+    if (!media) return;
+    media.style.transform = `translate(${gifZoom.x}px, ${gifZoom.y + gifZoom.closeOffset}px) scale(${gifZoom.scale})`;
+    const viewer = document.getElementById('gif-viewer');
+    if (viewer) viewer.style.backgroundColor = `rgba(0, 0, 0, ${Math.max(0.3, 1 - Math.abs(gifZoom.closeOffset) / 400)})`;
+}
+
+function zoomGifAt(scale, clientX, clientY) {
+    const stage = document.getElementById('gif-viewer-stage');
+    const rect = stage.getBoundingClientRect();
+    const next = Math.min(GIF_ZOOM_MAX, Math.max(1, scale));
+    // Der Punkt unter dem Finger/der Maus bleibt stehen.
+    const offsetX = clientX - rect.left - rect.width / 2;
+    const offsetY = clientY - rect.top - rect.height / 2;
+    const ratio = next / gifZoom.scale;
+    gifZoom.x = offsetX - (offsetX - gifZoom.x) * ratio;
+    gifZoom.y = offsetY - (offsetY - gifZoom.y) * ratio;
+    gifZoom.scale = next;
+    clampGifZoom();
+    applyGifZoom();
+}
+
+function initGifViewerGestures() {
+    const stage = document.getElementById('gif-viewer-stage');
+    if (!stage || stage.dataset.gestures) return;
+    stage.dataset.gestures = 'true';
+    const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+    stage.addEventListener('pointerdown', event => {
+        stage.setPointerCapture?.(event.pointerId);
+        gifZoom.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+        const points = [...gifZoom.pointers.values()];
+        if (points.length === 2) {
+            gifZoom.gesture = { type: 'pinch', distance: distance(points[0], points[1]), scale: gifZoom.scale, mid: { x: (points[0].x + points[1].x) / 2, y: (points[0].y + points[1].y) / 2 } };
+        } else if (points.length === 1) {
+            gifZoom.gesture = { type: 'drag', start: { x: event.clientX, y: event.clientY }, origin: { x: gifZoom.x, y: gifZoom.y }, at: Date.now(), moved: false, onMedia: event.target.classList?.contains('gif-viewer-media') };
+        }
+    });
+    stage.addEventListener('pointermove', event => {
+        if (!gifZoom.pointers.has(event.pointerId)) return;
+        gifZoom.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+        const gesture = gifZoom.gesture;
+        const points = [...gifZoom.pointers.values()];
+        if (gesture?.type === 'pinch' && points.length >= 2) {
+            const mid = { x: (points[0].x + points[1].x) / 2, y: (points[0].y + points[1].y) / 2 };
+            zoomGifAt(gesture.scale * distance(points[0], points[1]) / (gesture.distance || 1), mid.x, mid.y);
+            gifZoom.x += mid.x - gesture.mid.x;
+            gifZoom.y += mid.y - gesture.mid.y;
+            gesture.mid = mid;
+            clampGifZoom();
+            applyGifZoom();
+        } else if (gesture?.type === 'drag') {
+            const dx = event.clientX - gesture.start.x;
+            const dy = event.clientY - gesture.start.y;
+            if (Math.hypot(dx, dy) > 6) gesture.moved = true;
+            if (gifZoom.scale > 1) {
+                gifZoom.x = gesture.origin.x + dx;
+                gifZoom.y = gesture.origin.y + dy;
+                clampGifZoom();
+            } else {
+                gifZoom.closeOffset = dy;
+            }
+            applyGifZoom();
+        }
+    });
+    const end = event => {
+        if (!gifZoom.pointers.has(event.pointerId)) return;
+        gifZoom.pointers.delete(event.pointerId);
+        const gesture = gifZoom.gesture;
+        if (gifZoom.pointers.size) {
+            // Von zwei auf einen Finger: ab hier weiter verschieben.
+            const [point] = gifZoom.pointers.values();
+            gifZoom.gesture = { type: 'drag', start: point, origin: { x: gifZoom.x, y: gifZoom.y }, at: Date.now(), moved: true };
+            return;
+        }
+        gifZoom.gesture = null;
+        if (gesture?.type !== 'drag') return;
+        if (Math.abs(gifZoom.closeOffset) > GIF_CLOSE_DRAG) {
+            closeGifViewer();
+            return;
+        }
+        gifZoom.closeOffset = 0;
+        applyGifZoom();
+        if (gesture.moved || event.type === 'pointercancel') return;
+        const now = Date.now();
+        if (now - gifZoom.lastTap < 300) {
+            gifZoom.lastTap = 0;
+            zoomGifAt(gifZoom.scale > 1 ? 1 : GIF_ZOOM_DOUBLE_TAP, event.clientX, event.clientY);
+            return;
+        }
+        gifZoom.lastTap = now;
+        // Ein Tipp neben das GIF (ungezoomt) schliesst; auf dem GIF wartet er auf einen moeglichen Doppeltipp.
+        if (!gesture.onMedia && gifZoom.scale === 1) closeGifViewer();
+    };
+    stage.addEventListener('pointerup', end);
+    stage.addEventListener('pointercancel', end);
+    stage.addEventListener('wheel', event => {
+        event.preventDefault();
+        zoomGifAt(gifZoom.scale * Math.exp(-event.deltaY * 0.002), event.clientX, event.clientY);
+    }, { passive: false });
+}
+
 function hideGifViewer() {
     document.getElementById('gif-viewer')?.classList.add('hidden');
     document.getElementById('gif-viewer-stage')?.replaceChildren();
     gifState.viewer = null;
+    resetGifZoom();
 }
 
 function closeGifViewer() {
@@ -457,6 +667,7 @@ function gifOverviewTile(message) {
     if (display === 'show') {
         tile.appendChild(createGifMedia(gif, 'gif-media'));
         tile.onclick = () => openGifViewer(gif, { mine });
+        if (!mine) guardGifNudity(tile, gif);
     } else {
         tile.classList.add('gif-blocked');
         tile.innerHTML = '<span class="gif-enable"><i class="fa-solid fa-film"></i></span>';

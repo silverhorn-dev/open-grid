@@ -98,8 +98,14 @@ Version ist `Build <Commit-Anzahl> (<Hash>)`. Andere Branches (Multibranch)
 laufen durch dieselben Tests und bauen das echte Image zur Probe
 (`open-grid-branch-check:<Build>`, danach geloescht), deployen aber nie.
 
-- Der Jenkins-Agent laeuft als Container auf demselben Host und nutzt den
-  Docker-Daemon des Hosts ueber den eingehaengten Socket
+- Zwei Agents, getrennt per Label, damit Tests den Produktiv-Host nicht
+  ausbremsen: `ci` (eigener Rechner) macht Tests, E2E und Probe-Builds,
+  `deploy` (Agent auf dem Host, auf dem OpenGrid laeuft) nur die Stage
+  "Deploy" mit eigenem Checkout und `docker compose up -d --build`. Labels
+  setzen unter Nodes -> Agent -> Configure -> Labels; fehlt ein Label, wartet
+  der Build auf einen passenden Agent.
+- Jeder Agent laeuft als Container auf seinem Host und nutzt dessen
+  Docker-Daemon ueber den eingehaengten Socket
   (`-v /var/run/docker.sock:/var/run/docker.sock`). Workspace-Pfade gibt es auf
   dem Host nicht, deshalb keine Bind-Mounts: Tests und E2E kopieren die Dateien
   in die Container. Der Agent-Nutzer braucht Zugriff auf den Socket

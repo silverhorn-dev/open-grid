@@ -3,11 +3,15 @@
 // `docker compose up -d --build` auf dem Host. Andere Branches: dieselben Tests und ein Image-Build
 // zur Probe, aber nie ein Deploy.
 //
-// Der Jenkins-Agent laeuft als Container auf demselben Host und nutzt den Docker-Daemon des Hosts ueber
+// Zwei Agents, per Label getrennt, damit Tests den Produktiv-Host nicht ausbremsen:
+// - Label `ci`: Tests, E2E und Probe-Builds (eigener Rechner, z. B. Agent "zaph")
+// - Label `deploy`: nur die Stage "Deploy", Agent auf dem Host, auf dem OpenGrid laeuft
+// Jeder Agent laeuft als Container auf seinem Host und nutzt dessen Docker-Daemon ueber
 // den eingehaengten Socket (/var/run/docker.sock). Pfade im Workspace existieren auf dem Host nicht, deshalb gibt es keine
 // Bind-Mounts: Unit-Tests laufen als Image-Build (`Dockerfile.test`), E2E kopiert per `docker cp`.
 //
 // Voraussetzungen in Jenkins:
+// - Labels: Test-Agent `ci`, Agent auf dem Produktiv-Host `deploy` (Nodes -> Agent -> Configure -> Labels)
 // - Agent-Container mit `-v /var/run/docker.sock:/var/run/docker.sock`; der Agent-Nutzer braucht Zugriff
 //   auf den Socket (z. B. `--group-add <GID der docker-Gruppe des Hosts>`)
 // - Docker-CLI: fehlt sie auf dem Agent, laedt `scripts/ci-env.sh` sie (plus Compose/Buildx) einmalig
@@ -20,7 +24,8 @@
 //   * Uebergang: gibt es noch das Credential "open-grid-env" (Secret file, die alte .env), wird es genutzt.
 // - GitHub-Webhook auf <jenkins>/github-webhook/ (GitHub-Plugin), sonst greift die Abfrage alle 5 Minuten
 pipeline {
-    agent any
+    // Schwere Arbeit (Tests, E2E, Image-Probe) nie auf dem Produktiv-Host.
+    agent { label 'ci' }
 
     options {
         disableConcurrentBuilds()
@@ -92,8 +97,11 @@ pipeline {
             }
         }
 
+        // Laeuft auf dem Produktiv-Host (eigener Checkout dort), damit `docker compose up` dessen Daemon trifft.
         stage('Deploy') {
+            agent { label 'deploy' }
             when {
+                beforeAgent true
                 expression { (env.BRANCH_NAME ?: env.GIT_BRANCH ?: '').replaceFirst('^origin/', '') == 'main' }
             }
             steps {
@@ -146,6 +154,11 @@ pipeline {
                     done
                     echo "open-grid healthy: $BUILD_VERSION"
                 '''
+            }
+            post {
+                success {
+                    sh '. scripts/ci-env.sh && docker image prune -f >/dev/null || true'
+                }
             }
         }
     }

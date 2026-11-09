@@ -1,6 +1,7 @@
 import { parseTransferMaxBytes, registerTransferRelay } from './transfer-relay.js';
 import { verifyMoveProof } from './move.js';
-import { parseGifReview, parseGifSources, registerGifRoutes } from './gifs.js';
+import { parseGifProvider, parseGifReview, parseGifSources, registerGifRoutes } from './gifs.js';
+import { parseGifMaxBytes, parseGifProxy, registerGifProxyRoutes } from './gif-proxy.js';
 import Fastify from 'fastify';
 import websocket from '@fastify/websocket';
 import { readFile, readdir } from 'node:fs/promises';
@@ -492,14 +493,49 @@ export async function buildApp(options = {}) {
         }
     });
     // GIFs (server/gifs.js): erlaubte Quellen und Freigabe der Bibliothek; live aenderbar im Admin-Panel.
-    const gifEnv = { sources: options.gifSources ?? process.env.GIF_SOURCES ?? 'off', review: options.gifLibraryReview ?? process.env.GIF_LIBRARY_REVIEW ?? 'true' };
-    let startGifSources = [];
-    try {
-        startGifSources = parseGifSources(gifEnv.sources);
-    } catch (error) {
-        app.log.warn(`${error.message}; GIFs stay off.`);
-    }
-    const gifSettings = { sources: startGifSources, review: parseGifReview(gifEnv.review) };
+    const gifEnv = {
+        sources: options.gifSources ?? process.env.GIF_SOURCES ?? 'any',
+        review: options.gifLibraryReview ?? process.env.GIF_LIBRARY_REVIEW ?? 'true',
+        provider: options.gifProvider ?? process.env.GIF_PROVIDER ?? 'off',
+        providerKey: options.gifProviderKey ?? process.env.GIF_PROVIDER_KEY ?? '',
+        providerFilter: options.gifProviderFilter ?? process.env.GIF_PROVIDER_FILTER ?? 'high',
+        reportsToHide: options.gifReportHide ?? process.env.GIF_REPORT_HIDE ?? 3,
+        proxy: options.gifProxy ?? process.env.GIF_PROXY ?? 'off',
+        maxMb: options.gifMaxMb ?? process.env.GIF_MAX_MB ?? 8
+    };
+    const parseReportsToHide = value => {
+        const count = Math.floor(Number(value));
+        if (!Number.isFinite(count) || count < 1 || count > 100) throw new Error('GIF_REPORT_HIDE must be 1-100');
+        return count;
+    };
+    const tryGif = (parse, fallback, what) => {
+        try {
+            return parse();
+        } catch (error) {
+            app.log.warn(`${error.message}; ${what}.`);
+            return fallback;
+        }
+    };
+    const gifProviderInput = { name: gifEnv.provider, key: gifEnv.providerKey, contentFilter: gifEnv.providerFilter };
+    // Wirft bei ungueltigen Werten (Admin-Panel bekommt den Grund), dann bleibt alles wie es war.
+    const updateGifProvider = change => {
+        const next = { ...gifProviderInput, ...change };
+        gifSettings.provider = parseGifProvider(next);
+        Object.assign(gifProviderInput, next);
+    };
+    // configured: was GIF_SOURCES erlaubt; sources: davon wirksam ('provider' nur mit Anbieter + Schluessel).
+    const gifSettings = {
+        configured: tryGif(() => parseGifSources(gifEnv.sources), [], 'GIFs stay off'),
+        review: parseGifReview(gifEnv.review),
+        provider: tryGif(() => parseGifProvider({ name: gifEnv.provider, key: gifEnv.providerKey, contentFilter: gifEnv.providerFilter }), null, 'no GIF provider'),
+        reportsToHide: tryGif(() => parseReportsToHide(gifEnv.reportsToHide), 3, 'hiding after 3 reports'),
+        // Proxy (gif-proxy.js): standardmaessig aus, wir sind kein Medienserver.
+        proxy: parseGifProxy(gifEnv.proxy),
+        maxBytes: parseGifMaxBytes(gifEnv.maxMb),
+        get sources() {
+            return this.configured.filter(kind => kind !== 'provider' || this.provider);
+        }
+    };
     const limits = scaleRateLimits({ ...DEFAULT_RATE_LIMITS, ...(options.rateLimits || {}) }, options.rateLimitScale ?? process.env.RATE_LIMIT_SCALE);
     const signaling = registerSignalingRoute(app, store, { messageLimiter: () => createRateLimiter(limits.websocket), heartbeatMs: options.heartbeatMs });
 
@@ -523,7 +559,12 @@ export async function buildApp(options = {}) {
     app.addHook('onRequest', async (request, reply) => {
         // Der Nacktbild-Worker darf WebAssembly kompilieren (NudeNet/onnxruntime-web, TF.js); die Seite nicht.
         // GIFs liegen auf fremden https-Servern: Bilder/Videos von dort nur, wenn eine GIF-Quelle an ist.
-        reply.headers(securityHeaders(request.headers.host, { wasm: request.url.startsWith('/client/app/nudity-worker.js'), externalMedia: gifSettings.sources.length > 0 }));
+        reply.headers(securityHeaders(request.headers.host, {
+            wasm: request.url.startsWith('/client/app/nudity-worker.js'),
+            externalMedia: gifSettings.sources.length > 0,
+            // Anbieter-Suche laeuft vom Client direkt zum Anbieter (dessen Regeln).
+            connectOrigins: gifSettings.sources.includes('provider') ? ['https://api.klipy.com'] : []
+        }));
     });
 
     // Info-Seite fuer alle (info-site/, server/info-site.js), auf eigener Domain oder unter /info.
@@ -888,8 +929,36 @@ export async function buildApp(options = {}) {
             },
             GIF_SOURCES: {
                 env: gifEnv.sources,
-                apply: value => { gifSettings.sources = parseGifSources(value ?? 'off'); },
-                options: () => ['off', 'library', 'url', 'library,url', 'any']
+                apply: value => { gifSettings.configured = parseGifSources(value ?? 'any'); },
+                options: () => ['any', 'off', 'library', 'url', 'provider', 'library,url', 'library,provider', 'provider,url']
+            },
+            // Anbieter: Name, App-Schluessel (die Clients brauchen ihn, Anfragen laufen direkt vom Client), Filter.
+            GIF_PROVIDER: {
+                env: gifEnv.provider,
+                apply: value => updateGifProvider({ name: value ?? 'off' }),
+                options: () => ['off', 'klipy']
+            },
+            GIF_PROVIDER_KEY: {
+                env: gifEnv.providerKey,
+                apply: value => updateGifProvider({ key: value ?? '' })
+            },
+            GIF_PROVIDER_FILTER: {
+                env: gifEnv.providerFilter,
+                apply: value => updateGifProvider({ contentFilter: value ?? 'high' }),
+                options: () => ['high', 'medium', 'low', 'off']
+            },
+            GIF_PROXY: {
+                env: gifEnv.proxy,
+                apply: value => { gifSettings.proxy = parseGifProxy(value ?? 'off'); },
+                options: () => ['off', 'on']
+            },
+            GIF_MAX_MB: {
+                env: gifEnv.maxMb,
+                apply: value => { gifSettings.maxBytes = parseGifMaxBytes(value ?? 8); }
+            },
+            GIF_REPORT_HIDE: {
+                env: gifEnv.reportsToHide,
+                apply: value => { gifSettings.reportsToHide = parseReportsToHide(value ?? 3); }
             },
             GIF_LIBRARY_REVIEW: {
                 env: gifEnv.review,
@@ -1013,6 +1082,7 @@ export async function buildApp(options = {}) {
 
     // GIF-Bibliothek (server/gifs.js): nur URLs, keine Dateien.
     registerGifRoutes(app, { gifs: store.gifs, settings: () => gifSettings, allowRequest, requirePeerAuth, isString, now, log: app.log });
+    registerGifProxyRoutes(app, { settings: () => gifSettings, allowRequest, requirePeerAuth, isString, now, log: app.log, lookup: options.gifProxyLookup, fetch: options.gifProxyFetch });
 
     // Meldungen aus der App (server/reports.js), bearbeitet im Admin-Panel.
     registerReportRoutes(app, { store, allowRequest, requirePeerAuth, isString, log: app.log });
@@ -1217,7 +1287,7 @@ export async function buildApp(options = {}) {
         return { status: 'moved', peerId, movedTo: verified.movedTo };
     });
 
-    app.get('/api/config', async () => ({ features: [...enabledFeatures()], android: { ...(await apkSource.publicInfo()), signers: effectiveAppSigners(androidAppSigners) }, flames: { ...flameSettings }, gifs: { sources: [...gifSettings.sources], review: gifSettings.review }, modes: appModes, defaultMode: defaultAppMode, profileSchemas, lanMode: isLanMode, clientDefaults, infoUrl: infoSiteUrl(infoHost), safety: safety.publicConfig(), nudity: { ...nudityPublicConfig, required: nudityScanRequired },
+    app.get('/api/config', async () => ({ features: [...enabledFeatures()], android: { ...(await apkSource.publicInfo()), signers: effectiveAppSigners(androidAppSigners) }, flames: { ...flameSettings }, gifs: { sources: [...gifSettings.sources], review: gifSettings.review, proxy: gifSettings.proxy && gifSettings.sources.some(kind => kind !== 'provider'), ...(gifSettings.sources.includes('provider') ? { provider: { ...gifSettings.provider } } : {}) }, modes: appModes, defaultMode: defaultAppMode, profileSchemas, lanMode: isLanMode, clientDefaults, infoUrl: infoSiteUrl(infoHost), safety: safety.publicConfig(), nudity: { ...nudityPublicConfig, required: nudityScanRequired },
         // Fuer die Anzeige in den Einstellungen ("vom Server vorgegeben").
         audienceMinimum: audienceMinimumRule ? (typeof audienceMinimumRule === 'string' ? JSON.parse(audienceMinimumRule) : audienceMinimumRule) : null }));
 

@@ -652,9 +652,13 @@
 - [x] GIFs senden und empfangen wie bei discord: phase 1 (bibliothek + externe links + lokaler cache + medien-menue + admin-freigabe)
   - done 2026-11-09: `server/gifs.js` (`GIF_SOURCES`, `GIF_LIBRARY_REVIEW`, `/api/gifs`, admin-reiter GIFs), `client/app/gifs.js` (auswahl, verschwommene flaeche + systemdialog, favoriten, zuletzt, cache-index + aufraeumen), sw.js cache `opengrid-gifs`, einstellungen > medien > GIFs; tests `test/gifs.test.js`, `test/server.test.js`, e2e `gifs`; UC-76
   - nutzer 2026-11-09: vorschlaege -> admin gibt frei (`GIF_LIBRARY_REVIEW`, std an), betreiber kann auf "sofort" umstellen
-- [ ] phase 2: anbieter-suche (Klipy, nur wenn kostenlos; bedingungen pruefen) als adapter `GIF_PROVIDER`
-- [ ] phase 3 (optional, std aus): proxy `GIF_PROXY` fuer betreiber, die IPs schuetzen wollen
-- [ ] offen: melden von bibliotheks-GIFs aus der app, nacktfilter fuer GIFs (fremde bilder sind ohne CORS nicht scanbar), videos (mp4) im cache (range-anfragen), sticker aus der bibliothek (T33)
+- [x] nutzer 2026-11-09: router-standard `GIF_SOURCES=any` (zustimmung beim nutzer bleibt std aus)
+- [x] phase 2: anbieter-suche Klipy (`GIF_PROVIDER=klipy`, `GIF_PROVIDER_KEY`, `GIF_PROVIDER_FILTER`)
+  - recherche 2026-11-09 (docs.klipy.com/llms-full.txt): kostenlos (werbefinanziert, werbung optional im partner-panel), testschluessel 100 anfragen/h, "production" fuer unbegrenzt beantragen; pflicht: suchfeld "Search KLIPY"; regeln: anfragen + medien direkt vom client, kein proxy, kein cache, kein mischen mit anderen quellen, reihenfolge nicht aendern -> eigener reiter, kein cache, nie proxy, nicht in die bibliothek; `customer_id`/share-trigger optional -> weggelassen (kein wiedererkennen)
+  - done 2026-11-09: tests `test/gifs.test.js`, `test/server.test.js`, e2e `gifs` (klipy gemockt)
+- [x] phase 3: proxy `GIF_PROXY` (std aus), `server/gif-proxy.js`: tages-token, DNS-pruefung + feste adresse (kein rebinding), redirects, typ/groesse (`GIF_MAX_MB`); SW cacht proxy-bilder unter der original-URL
+- [x] melden von bibliotheks-GIFs (fahne im chat und in der auswahl), ab `GIF_REPORT_HIDE` (3) ausgeblendet, admin-filter gemeldet/ausgeblendet, "behalten"
+- [ ] offen: nacktfilter fuer GIFs (mit proxy same-origin und damit scanbar; ohne proxy fremde bilder ohne CORS nicht), videos (mp4) im cache (range-anfragen), sticker aus der bibliothek/Klipy-Sticker-API (T33)
 - erste ideen (vor phase 1):
   - entschieden (nutzer 2026-11-09):
     - quellen: B (anbieter-suche, z. B. giphy) und C (eigene sammlung auf dem router); dazu beliebige GIF-URL einfuegen, die aufgeloest wird, auch wenn nicht von giphy

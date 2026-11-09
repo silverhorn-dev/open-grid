@@ -58,8 +58,14 @@ async function loadAppMode() {
         audienceMinimum: config?.audienceMinimum && typeof config.audienceMinimum === 'object' ? config.audienceMinimum : null,
         // GIF-Quellen des Routers (gifs.js): 'library' und/oder 'url'; leer = GIFs aus.
         gifs: {
-            sources: Array.isArray(config?.gifs?.sources) ? config.gifs.sources.filter(kind => ['library', 'url'].includes(kind)) : [],
-            review: config?.gifs?.review !== false
+            sources: Array.isArray(config?.gifs?.sources) ? config.gifs.sources.filter(kind => ['library', 'url', 'provider'].includes(kind)) : [],
+            review: config?.gifs?.review !== false,
+            // Proxy des Routers (gif-proxy.js), nur wenn der Betreiber ihn anschaltet.
+            proxy: config?.gifs?.proxy === true,
+            // Anbieter-Suche (Klipy): App-Schluessel und Filter; Anfragen gehen direkt vom Client.
+            provider: config?.gifs?.provider?.name === 'klipy' && /^[A-Za-z0-9_-]{8,200}$/.test(config.gifs.provider.key || '')
+                ? { name: 'klipy', key: config.gifs.provider.key, contentFilter: ['off', 'low', 'medium', 'high'].includes(config.gifs.provider.contentFilter) ? config.gifs.provider.contentFilter : 'high' }
+                : null
         }
     };
     document.querySelectorAll('[data-info-link]').forEach(link => { link.href = state.appConfig.infoUrl; });

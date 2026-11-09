@@ -9,6 +9,7 @@ const { chromium } = require('playwright');
 const BASE_URL = process.env.BASE_URL || 'http://127.0.0.1:3000';
 const GIF_HOST = 'https://gifs.e2e-media.org';
 const OTHER_HOST = 'https://elsewhere.e2e-media.org';
+const KLIPY_MEDIA = 'https://static.klipy.com/ii/e2e-hello';
 // 2x2 GIF, rot.
 const GIF_BYTES = Buffer.from('R0lGODlhAgACAPAAAP8AAAAAACH5BAAAAAAALAAAAAACAAIAAAIChF8AOw==', 'base64');
 
@@ -32,8 +33,30 @@ async function main() {
         await context.route('**/api/config', async route => {
             const response = await route.fetch();
             const config = await response.json();
-            await route.fulfill({ response, json: { ...config, gifs: { sources: ['library', 'url'], review: true } } });
+            await route.fulfill({ response, json: { ...config, gifs: {
+                sources: ['library', 'url', 'provider'], review: true, proxy: name === 'bob',
+                provider: { name: 'klipy', key: 'e2e-test-key', contentFilter: 'high' }
+            } } });
         });
+        // Klipy-API (Suche/Trending, direkt vom Client) und deren Medien.
+        await context.route('https://api.klipy.com/**', route => {
+            gifRequests[name].push(route.request().url());
+            return route.fulfill({ json: { result: true, data: { data: [
+                { type: 'gif', title: 'Hello', file: { sm: { webp: { url: KLIPY_MEDIA, width: 2, height: 2 } } } },
+                { type: 'ad', file: {} }
+            ], has_next: false } } });
+        });
+        await context.route('https://static.klipy.com/**', route => {
+            gifRequests[name].push(route.request().url());
+            return route.fulfill({ status: 200, contentType: 'image/gif', body: GIF_BYTES });
+        });
+        // Bob: Proxy des Routers an (gemockt), Alice laedt direkt.
+        await context.route('**/api/gif-proxy/token', route => route.fulfill({ json: { token: 'e2e-token' } }));
+        await context.route(url => url.pathname === '/api/gif-proxy', route => {
+            gifRequests[name].push(route.request().url());
+            return route.fulfill({ status: 200, contentType: 'image/gif', body: GIF_BYTES });
+        });
+        await context.route('**/api/gifs/report', route => route.fulfill({ json: { ok: true } }));
         await context.route('**/api/gifs**', route => (route.request().method() === 'GET'
             ? route.fulfill({ json: { gifs: [{ id: 1, url: `${GIF_HOST}/party.gif`, title: 'Party', width: 2, height: 2 }], next: null } })
             : route.fulfill({ status: 201, json: { status: 'pending', gif: { id: 2 } } })));
@@ -72,6 +95,12 @@ async function main() {
         await alice.click('#chat-media-btn');
         assert.ok(await alice.locator('#chat-media-gif').isVisible(), 'GIF sits in the media menu');
         await alice.click('#chat-media-gif');
+        // Erster Reiter: Klipy (Pflicht-Platzhalter, Werbung nicht gezeigt), dann die Bibliothek.
+        await alice.waitForSelector(`[data-gif-pick="${KLIPY_MEDIA}"]`, { timeout: 10000 });
+        assert.equal(await alice.getAttribute('#gif-provider-search', 'placeholder'), 'Search KLIPY');
+        assert.equal(await alice.locator('#gif-picker-body .gif-tile').count(), 1, 'ads are skipped');
+        assert.ok(gifRequests.alice.some(url => url.startsWith('https://api.klipy.com/api/v1/e2e-test-key/gifs/trending')), 'provider api is called from the client');
+        await alice.click('[data-gif-tab="library"]');
         await alice.waitForSelector(`[data-gif-pick="${GIF_HOST}/party.gif"]`, { timeout: 10000 });
         assert.equal(await alice.evaluate(() => gifSetting('enabled')), true, 'opening the picker asked and enabled gifs');
         await alice.click(`[data-gif-pick="${GIF_HOST}/party.gif"]`);
@@ -86,7 +115,20 @@ async function main() {
         await bob.click('[data-gif-enable="enable"]');
         await bob.waitForSelector('.gif-box img.gif-media', { timeout: 10000 });
         await waitFor(bob, () => [...document.querySelectorAll('.gif-box img.gif-media')].some(image => image.complete && image.naturalWidth === 2));
-        assert.ok(gifRequests.bob.some(url => url.endsWith('/party.gif')));
+        // Bob hat den Proxy an: das GIF kommt ueber den Router, der fremde Server sieht Bob nicht.
+        assert.ok(gifRequests.bob.some(url => url.includes('/api/gif-proxy?url=') && url.includes(encodeURIComponent('/party.gif'))), 'loaded through the proxy');
+        assert.ok(!gifRequests.bob.some(url => url.startsWith(GIF_HOST)), 'never directly');
+        // Bibliotheks-GIF melden.
+        await bob.click(`.gif-box [data-gif-report="${GIF_HOST}/party.gif"]`);
+        await waitFor(bob, url => document.querySelector(`.gif-box [data-gif-report="${url}"]`)?.disabled === true, `${GIF_HOST}/party.gif`);
+
+        // Klipy-GIF: direkt vom Anbieter, auch bei Bob mit Proxy (Regeln des Anbieters).
+        await alice.evaluate(() => openGifPicker());
+        await alice.waitForSelector(`[data-gif-pick="${KLIPY_MEDIA}"]`, { timeout: 10000 });
+        await alice.click(`[data-gif-pick="${KLIPY_MEDIA}"]`);
+        await waitFor(bob, id => (state.chats[id] || []).some(message => message.gif?.source === 'provider'), aliceId, 30000);
+        await waitFor(bob, url => [...document.querySelectorAll('.gif-box img.gif-media')].some(image => image.src === url && image.complete), KLIPY_MEDIA);
+        assert.ok(gifRequests.bob.includes(KLIPY_MEDIA), 'provider media loads directly');
 
         // Externer Link: eigene Zustimmung beim Empfaenger; Vorschlag fuer die Bibliothek.
         await alice.evaluate(() => openGifPicker());
@@ -101,13 +143,14 @@ async function main() {
         await bob.waitForSelector('[data-gif-enable="external"]', { timeout: 10000 });
         assert.ok(!gifRequests.bob.some(url => url.includes('elsewhere')), 'external gif is not loaded without its own consent');
         await bob.click('[data-gif-enable="external"]');
-        await waitFor(bob, () => document.querySelectorAll('.gif-box img.gif-media').length === 2);
+        await waitFor(bob, () => document.querySelectorAll('.gif-box img.gif-media').length === 3);
         assert.equal(await bob.evaluate(() => document.getElementById('gif-external-toggle').checked), true, 'setting follows the consent');
 
         // Favorit (auch extern) und Einstellungen.
         await bob.click(`[data-gif-favorite="${OTHER_HOST}/dance.gif"]`);
         assert.deepEqual(await bob.evaluate(() => gifState.favorites.map(item => item.url)), [`${OTHER_HOST}/dance.gif`]);
-        assert.deepEqual(await alice.evaluate(() => gifState.recent.map(item => item.source)), ['url', 'library']);
+        assert.deepEqual(await alice.evaluate(() => gifState.recent.map(item => item.source)), ['url', 'provider', 'library']);
+        assert.equal(await alice.evaluate(url => Boolean(gifState.index[url]), KLIPY_MEDIA), false, 'provider media is not cached');
         assert.equal(await bob.locator('#gif-settings-card').count(), 1);
         await bob.evaluate(() => updateGifSetting('enabled', false));
         await bob.waitForSelector('[data-gif-enable="enable"]', { timeout: 10000 });

@@ -769,6 +769,8 @@ function initSnapLongPress() {
             hapticTick(20);
             updateChatAlbumButton();
             document.getElementById('chat-album-btn')?.classList.add('album-reveal');
+            // Mit GIFs sitzt das Album im Medien-Menue: gleich aufklappen, damit man es sieht.
+            if (document.getElementById('chat-compose-row')?.classList.contains('media-combined')) toggleComposeMediaMenu(true);
         }, SNAP_LONG_PRESS_MS);
     });
     ['pointerup', 'pointerleave', 'pointercancel'].forEach(type => snap.addEventListener(type, cancel));

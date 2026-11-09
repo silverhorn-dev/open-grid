@@ -46,8 +46,16 @@ services:
       # Umzug per Code (Router-Relay, nur Chiffrat): Hoechstgroesse in MB.
       TRANSFER_MAX_MB: ${TRANSFER_MAX_MB:-50}
       # GIFs: off | library | url | library,url | any (nur Links, keine Dateien); im Admin-Panel live aenderbar.
-      GIF_SOURCES: ${GIF_SOURCES:-off}
+      GIF_SOURCES: ${GIF_SOURCES:-any}
       GIF_LIBRARY_REVIEW: ${GIF_LIBRARY_REVIEW:-true}
+      GIF_REPORT_HIDE: ${GIF_REPORT_HIDE:-3}
+      # Anbieter-Suche: off | klipy (Schluessel aus dem Klipy-Partner-Panel; Anfragen gehen direkt vom Browser).
+      GIF_PROVIDER: ${GIF_PROVIDER:-off}
+      GIF_PROVIDER_KEY: ${GIF_PROVIDER_KEY:-}
+      GIF_PROVIDER_FILTER: ${GIF_PROVIDER_FILTER:-high}
+      # GIFs ueber den Router laden (schuetzt Nutzer-IPs, kostet Bandbreite); Standard aus.
+      GIF_PROXY: ${GIF_PROXY:-off}
+      GIF_MAX_MB: ${GIF_MAX_MB:-8}
       PORT: 3000
       # STUN: ohne Angabe dient der eigene TURN-Server als STUN. "none" = kein STUN.
       # STUN_SERVER: none

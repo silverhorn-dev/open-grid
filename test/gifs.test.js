@@ -50,3 +50,20 @@ test('cache keeps favourites forever and the rest by age', () => {
     assert.equal(keep('https://a.example.org/fav.gif', 7), true, 'favourites stay even without an index entry');
     assert.equal(keep('https://a.example.org/browsed.gif', 0), false, 'library previews never sent are cleaned up');
 });
+
+test('provider results keep their order, skip ads and are never proxied or cached', () => {
+    const item = size => ({ url: `https://static.klipy.com/ii/${size}`, width: 220, height: 180 });
+    const hello = { type: 'gif', title: 'Hello', file: { sm: { webp: item('sm-webp'), gif: item('sm-gif') }, md: { webp: item('md') } } };
+    assert.deepEqual({ ...context.providerGifInfo(hello) }, { url: 'https://static.klipy.com/ii/sm-webp', source: 'provider', w: 220, h: 180, title: 'Hello' });
+    assert.equal(context.providerGifInfo({ type: 'ad', file: hello.file }), null, 'ads are not shown');
+    assert.equal(context.providerGifInfo({ type: 'gif', file: { sm: { webp: { url: 'https://evil.example.net/x.gif' } } } }), null, 'only provider media hosts');
+    assert.equal(context.isProviderMediaUrl('https://static2.klipy.com/a'), true);
+    assert.equal(context.isProviderMediaUrl('https://klipy.com.evil.net/a'), false);
+    const proxy = { proxy: true, token: 'tok' };
+    assert.equal(context.gifProxySrc('https://media.example.org/a.gif', proxy), '/api/gif-proxy?url=https%3A%2F%2Fmedia.example.org%2Fa.gif&t=tok');
+    assert.equal(context.gifProxySrc('https://static.klipy.com/ii/x', proxy), 'https://static.klipy.com/ii/x', 'provider media never via proxy');
+    assert.equal(context.gifProxySrc('https://media.example.org/a.gif', { proxy: false, token: 'tok' }), 'https://media.example.org/a.gif');
+    const provider = { url: 'https://static.klipy.com/ii/x', source: 'provider' };
+    assert.equal(context.gifDisplayState(provider, { sources: ['library'], enabled: true }), 'off', 'provider turned off on the router');
+    assert.equal(context.gifDisplayState(provider, { sources: ['provider'], enabled: true }), 'show', 'no extra consent like external links');
+});

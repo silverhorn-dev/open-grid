@@ -2,7 +2,13 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 302 · 2026-11-09
+## Build 303 · 2026-11-09
+- GIFs sind auf neuen Routern standardmaessig erlaubt (du stimmst in der App trotzdem erst zu)
+- GIF-Suche mit KLIPY, wenn dein Router sie eingerichtet hat: eigener Reiter mit Suche und Trends, direkt vom Geraet und ohne dass KLIPY dich wiedererkennt
+- GIFs aus der Bibliothek lassen sich melden; nach mehreren Meldungen sind sie weg, bis der Betreiber entscheidet
+- Router-Betreiber koennen GIFs ueber den Router laden lassen (Proxy, standardmaessig aus), dann sehen fremde Server nur den Router
+
+## Build 302 · 2026-11-09 · `dd9bd54`
 - GIFs im Chat (wenn dein Router sie erlaubt): im Medien-Menue suchen, Favoriten, Zuletzt oder einen Link einfuegen; gesendet wird nur der Link, verschluesselt
 - GIFs sind erst nach deiner Zustimmung zu sehen: bis dahin nur eine verschwommene Flaeche mit "GIF-Integration aktivieren?", fuer fremde Links extra
 - Geladene GIFs und Favoriten bleiben auf deinem Geraet; wie lange, stellst du unter Einstellungen > Medien > GIFs ein

@@ -1201,7 +1201,7 @@ test('gif sources, url checks and the library with review', async () => {
     const { checkGifUrl, parseGifSources } = await import('../server/gifs.js');
     assert.deepEqual(parseGifSources('off'), []);
     assert.deepEqual(parseGifSources(undefined), []);
-    assert.deepEqual(parseGifSources('any'), ['library', 'url']);
+    assert.deepEqual(parseGifSources('any'), ['library', 'url', 'provider']);
     assert.deepEqual(parseGifSources('url, library'), ['library', 'url']);
     assert.throws(() => parseGifSources('giphy'));
     assert.equal(checkGifUrl('https://media.example.org/cat.gif#x'), 'https://media.example.org/cat.gif');
@@ -1210,13 +1210,21 @@ test('gif sources, url checks and the library with review', async () => {
         assert.equal(checkGifUrl(bad), null, bad);
     }
 
-    // Standard: aus -> keine Bibliothek, CSP ohne fremde Bilder, Config meldet keine Quellen.
-    await registerPeer('peer-gif');
-    const headers = { ...authHeaders('peer-gif'), 'x-peer-id': 'peer-gif' };
-    assert.equal((await app.inject({ method: 'GET', url: '/api/gifs', headers })).statusCode, 404);
-    const offConfig = await app.inject({ method: 'GET', url: '/api/config' });
-    assert.deepEqual(offConfig.json().gifs.sources, []);
-    assert.ok(!/img-src[^;]*https:/.test(offConfig.headers['content-security-policy']));
+    // Standard: any, aber ohne Anbieter-Schluessel kein 'provider'; Proxy aus.
+    const defaultConfig = (await app.inject({ method: 'GET', url: '/api/config' })).json().gifs;
+    assert.deepEqual(defaultConfig, { sources: ['library', 'url'], review: true, proxy: false });
+    // GIF_SOURCES=off: keine Bibliothek, CSP ohne fremde Bilder.
+    const offApp = await buildApp({ store: createStore(':memory:'), gifSources: 'off', metrics: false });
+    try {
+        const offRegistration = await offApp.inject({ method: 'POST', url: '/api/register', payload: registrationPayload('peer-gif', 'registration-peer-gif') });
+        const headers = { authorization: `Bearer ${offRegistration.json().authToken}`, 'x-peer-id': 'peer-gif' };
+        assert.equal((await offApp.inject({ method: 'GET', url: '/api/gifs', headers })).statusCode, 404);
+        const offConfig = await offApp.inject({ method: 'GET', url: '/api/config' });
+        assert.deepEqual(offConfig.json().gifs.sources, []);
+        assert.ok(!/img-src[^;]*https:/.test(offConfig.headers['content-security-policy']));
+    } finally {
+        await offApp.close();
+    }
 
     const gifStoreRoot = createStore(':memory:');
     const gifApp = await buildApp({ store: gifStoreRoot, gifSources: 'library,url', metrics: false });
@@ -1224,7 +1232,7 @@ test('gif sources, url checks and the library with review', async () => {
         const registration = await gifApp.inject({ method: 'POST', url: '/api/register', payload: registrationPayload('peer-gif2', 'registration-peer-gif2') });
         const gifHeaders = { authorization: `Bearer ${registration.json().authToken}`, 'x-peer-id': 'peer-gif2' };
         const config = await gifApp.inject({ method: 'GET', url: '/api/config' });
-        assert.deepEqual(config.json().gifs, { sources: ['library', 'url'], review: true });
+        assert.deepEqual(config.json().gifs, { sources: ['library', 'url'], review: true, proxy: false });
         assert.match(config.headers['content-security-policy'], /img-src[^;]*https:/);
         assert.equal((await gifApp.inject({ method: 'GET', url: '/api/gifs', headers: { 'x-peer-id': 'peer-gif2' } })).statusCode, 401);
         const bad = await gifApp.inject({ method: 'POST', url: '/api/gifs', headers: gifHeaders, payload: { peerId: 'peer-gif2', url: 'https://10.0.0.1/x.gif' } });
@@ -1241,7 +1249,98 @@ test('gif sources, url checks and the library with review', async () => {
         assert.deepEqual(listed.gifs.map(gif => [gif.title, gif.width, gif.height]), [['Katze tanzt', 320, 240]]);
         assert.deepEqual((await gifApp.inject({ method: 'GET', url: '/api/gifs?q=hund', headers: gifHeaders })).json().gifs, []);
         assert.deepEqual((await gifApp.inject({ method: 'GET', url: '/api/gifs?q=%25', headers: gifHeaders })).json().gifs, [], 'like wildcards are escaped');
+        // Anbieter-Medien gehoeren nicht in die Bibliothek.
+        const klipy = await gifApp.inject({ method: 'POST', url: '/api/gifs', headers: gifHeaders, payload: { peerId: 'peer-gif2', url: 'https://static.klipy.com/ii/abc' } });
+        assert.equal(klipy.statusCode, 400);
+        // Melden: einmal je Peer, ab 3 verschiedenen Peers ausgeblendet; "Behalten" im Admin stellt es wieder her.
+        const report = peer => gifApp.inject({ method: 'POST', url: '/api/gifs/report', headers: peer.headers, payload: { peerId: peer.id, url: 'https://media.example.org/cat.gif' } });
+        const reporters = [];
+        for (const id of ['peer-r1', 'peer-r2', 'peer-r3']) {
+            const registered = await gifApp.inject({ method: 'POST', url: '/api/register', payload: registrationPayload(id, `registration-${id}`) });
+            reporters.push({ id, headers: { authorization: `Bearer ${registered.json().authToken}`, 'x-peer-id': id } });
+        }
+        assert.equal((await report(reporters[0])).statusCode, 200);
+        assert.equal((await report(reporters[0])).statusCode, 200, 'same peer counts once');
+        assert.equal((await report(reporters[1])).statusCode, 200);
+        assert.equal((await gifApp.inject({ method: 'GET', url: '/api/gifs', headers: gifHeaders })).json().gifs.length, 1, 'two reports keep it listed');
+        await report(reporters[2]);
+        assert.equal((await gifApp.inject({ method: 'GET', url: '/api/gifs', headers: gifHeaders })).json().gifs.length, 0, 'hidden after three reports');
+        assert.equal(gifStoreRoot.gifs.listByStatus('reported')[0].reports, 3);
+        gifStoreRoot.gifs.approve(suggested.json().gif.id, null, Date.now());
+        assert.equal((await gifApp.inject({ method: 'GET', url: '/api/gifs', headers: gifHeaders })).json().gifs.length, 1, 'kept by the admin');
+        assert.equal(gifStoreRoot.gifs.count('reported'), 0);
     } finally {
         await gifApp.close();
+    }
+});
+
+test('gif provider: key only for clients, csp allows the provider api, invalid settings are refused', async () => {
+    const { parseGifProvider } = await import('../server/gifs.js');
+    assert.equal(parseGifProvider({ name: 'off', key: 'abcdefgh12' }), null);
+    assert.equal(parseGifProvider({ name: 'klipy', key: '' }), null, 'no key, no provider');
+    assert.deepEqual(parseGifProvider({ name: 'klipy', key: 'abcdefgh12' }), { name: 'klipy', key: 'abcdefgh12', contentFilter: 'high' });
+    assert.throws(() => parseGifProvider({ name: 'giphy', key: 'abcdefgh12' }));
+    assert.throws(() => parseGifProvider({ name: 'klipy', key: 'abcdefgh12', contentFilter: 'wild' }));
+    const providerApp = await buildApp({ store: createStore(':memory:'), gifSources: 'provider', gifProvider: 'klipy', gifProviderKey: 'test-key-123', gifProviderFilter: 'medium', metrics: false });
+    try {
+        const config = await providerApp.inject({ method: 'GET', url: '/api/config' });
+        assert.deepEqual(config.json().gifs, { sources: ['provider'], review: true, proxy: false, provider: { name: 'klipy', key: 'test-key-123', contentFilter: 'medium' } });
+        assert.match(config.headers['content-security-policy'], /connect-src[^;]*https:\/\/api\.klipy\.com/);
+    } finally {
+        await providerApp.close();
+    }
+});
+
+test('gif proxy: off by default, tokens, private addresses, redirects, types and sizes', async () => {
+    const { createProxyTokens, isPublicAddress, proxyGif } = await import('../server/gif-proxy.js');
+    for (const address of ['10.1.2.3', '127.0.0.1', '169.254.169.254', '192.168.1.1', '172.20.0.1', '100.64.0.1', '0.0.0.0', '::1', 'fd00::1', 'fe80::1', '::ffff:10.0.0.1', '::ffff:127.0.0.1']) {
+        assert.equal(isPublicAddress(address), false, address);
+    }
+    for (const address of ['93.184.216.34', '2606:2800:220:1:248:1893:25c8:1946', '::ffff:93.184.216.34']) assert.equal(isPublicAddress(address), true, address);
+
+    let clock = Date.UTC(2026, 10, 9, 12);
+    const tokens = createProxyTokens({ now: () => clock });
+    const token = tokens.issue('peer-a');
+    assert.equal(tokens.verify(token), 'peer-a');
+    assert.equal(tokens.verify(token.replace(/.$/, token.endsWith('A') ? 'B' : 'A')), null, 'tampered');
+    clock += 2 * 24 * 60 * 60 * 1000;
+    assert.equal(tokens.verify(token), null, 'expired after a day');
+
+    const publicLookup = async () => [{ address: '93.184.216.34', family: 4 }];
+    const privateLookup = async () => [{ address: '93.184.216.34', family: 4 }, { address: '10.0.0.5', family: 4 }];
+    const { Readable } = await import('node:stream');
+    const reply = (statusCode, headers, body = Buffer.alloc(0)) => Object.assign(Readable.from([body]), { statusCode, headers });
+    const gifBody = Buffer.from('GIF89a');
+    const ok = await proxyGif('https://media.example.org/a.gif', { maxBytes: 100, lookup: publicLookup, fetch: async () => reply(200, { 'content-type': 'image/gif' }, gifBody) });
+    assert.deepEqual([ok.status, ok.type, ok.body.toString()], [200, 'image/gif', 'GIF89a']);
+    assert.equal((await proxyGif('https://media.example.org/a.gif', { maxBytes: 100, lookup: privateLookup, fetch: async () => reply(200, {}) })).status, 400, 'rebinding to a private address');
+    assert.equal((await proxyGif('https://static.klipy.com/ii/x', { maxBytes: 100, lookup: publicLookup })).status, 400, 'never for provider media');
+    assert.equal((await proxyGif('https://media.example.org/a.gif', { maxBytes: 100, lookup: publicLookup, fetch: async () => reply(200, { 'content-type': 'text/html' }) })).status, 415);
+    assert.equal((await proxyGif('https://media.example.org/a.gif', { maxBytes: 4, lookup: publicLookup, fetch: async () => reply(200, { 'content-type': 'image/gif' }, gifBody) })).status, 413, 'counted while reading');
+    assert.equal((await proxyGif('https://media.example.org/a.gif', { maxBytes: 100, lookup: publicLookup, fetch: async () => reply(200, { 'content-type': 'image/gif', 'content-length': '500' }) })).status, 413);
+    const hops = [];
+    const redirecting = async url => {
+        hops.push(url);
+        return url.endsWith('/a.gif') ? reply(302, { location: 'https://127.0.0.1/secret' }) : reply(200, { 'content-type': 'image/gif' }, gifBody);
+    };
+    assert.equal((await proxyGif('https://media.example.org/a.gif', { maxBytes: 100, lookup: publicLookup, fetch: redirecting })).status, 400, 'redirect to an ip is refused');
+    const loop = async () => reply(302, { location: 'https://media.example.org/next.gif' });
+    assert.equal((await proxyGif('https://media.example.org/a.gif', { maxBytes: 100, lookup: publicLookup, fetch: loop })).status, 508);
+
+    // Route: aus = 404; an: Token noetig, dann Bild.
+    assert.equal((await app.inject({ method: 'GET', url: '/api/gif-proxy?url=x&t=y' })).statusCode, 404);
+    const proxyApp = await buildApp({ store: createStore(':memory:'), gifProxy: 'on', metrics: false, gifProxyLookup: publicLookup, gifProxyFetch: async () => reply(200, { 'content-type': 'image/gif' }, gifBody) });
+    try {
+        assert.equal((await proxyApp.inject({ method: 'GET', url: '/api/config' })).json().gifs.proxy, true);
+        const registered = await proxyApp.inject({ method: 'POST', url: '/api/register', payload: registrationPayload('peer-p', 'registration-peer-p') });
+        const issued = await proxyApp.inject({ method: 'GET', url: '/api/gif-proxy/token', headers: { authorization: `Bearer ${registered.json().authToken}`, 'x-peer-id': 'peer-p' } });
+        assert.equal(issued.statusCode, 200);
+        assert.equal((await proxyApp.inject({ method: 'GET', url: '/api/gif-proxy?url=https%3A%2F%2Fmedia.example.org%2Fa.gif&t=bad' })).statusCode, 403);
+        const image = await proxyApp.inject({ method: 'GET', url: `/api/gif-proxy?url=${encodeURIComponent('https://media.example.org/a.gif')}&t=${encodeURIComponent(issued.json().token)}` });
+        assert.equal(image.statusCode, 200);
+        assert.equal(image.headers['content-type'], 'image/gif');
+        assert.equal(image.body, 'GIF89a');
+    } finally {
+        await proxyApp.close();
     }
 });

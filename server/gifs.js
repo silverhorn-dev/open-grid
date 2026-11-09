@@ -1,11 +1,18 @@
 // ================= GIFS (Board T34) =================
 // Der Router ist kein Medienserver: er speichert keine GIF-Dateien und laedt nichts nach. Er
-// - sagt den Clients, welche GIF-Quellen erlaubt sind (GIF_SOURCES: off | library | url | library,url | any),
+// - sagt den Clients, welche GIF-Quellen erlaubt sind (GIF_SOURCES: off | library | url | provider | Liste | any,
+//   Standard any; 'provider' nur mit GIF_PROVIDER + Schluessel),
 // - fuehrt eine Bibliothek aus GIF-URLs (nur URL, Titel, Masse), in die Nutzer externe GIFs vorschlagen;
 //   mit GIF_LIBRARY_REVIEW (Standard an) erscheinen sie erst nach Freigabe im Admin-Panel.
 // Im Chat geht nur die URL (E2E verschluesselt); die Clients laden das GIF selbst und halten es lokal.
+// Anbieter (GIF_PROVIDER=klipy): Suche und Medien laufen nach dessen Regeln direkt vom Client (kein Router,
+// kein Proxy, kein Cache), der Router gibt nur den App-Schluessel weiter.
+// Melden: GIF_REPORT_HIDE Meldungen verschiedener Peers blenden ein Bibliotheks-GIF aus, bis der Admin entscheidet.
 
-export const GIF_SOURCE_KINDS = ['library', 'url'];
+export const GIF_SOURCE_KINDS = ['library', 'url', 'provider'];
+export const GIF_PROVIDERS = ['klipy'];
+const PROVIDER_FILTERS = ['off', 'low', 'medium', 'high'];
+const REPORTS_TO_HIDE = 3;
 const MAX_URL_LENGTH = 1000;
 const MAX_TITLE_LENGTH = 60;
 const SUGGESTIONS_PER_DAY = 30;
@@ -17,8 +24,29 @@ export function parseGifSources(value) {
     if (text === 'any' || text === 'all') return [...GIF_SOURCE_KINDS];
     const kinds = text.split(',').map(entry => entry.trim()).filter(Boolean);
     const unknown = kinds.filter(kind => !GIF_SOURCE_KINDS.includes(kind));
-    if (unknown.length) throw new Error(`GIF_SOURCES: unknown source ${unknown.join(', ')} (off, library, url, any)`);
+    if (unknown.length) throw new Error(`GIF_SOURCES: unknown source ${unknown.join(', ')} (off, library, url, provider, any)`);
     return GIF_SOURCE_KINDS.filter(kind => kinds.includes(kind));
+}
+
+// Anbieter fuer die GIF-Suche: { name, key, contentFilter } oder null (aus bzw. ohne Schluessel).
+export function parseGifProvider({ name, key, contentFilter } = {}) {
+    const provider = String(name ?? 'off').trim().toLowerCase();
+    if (!provider || provider === 'off' || provider === 'none') return null;
+    if (!GIF_PROVIDERS.includes(provider)) throw new Error(`GIF_PROVIDER: unknown provider ${provider} (off, ${GIF_PROVIDERS.join(', ')})`);
+    const appKey = String(key ?? '').trim();
+    if (!/^[A-Za-z0-9_-]{8,200}$/.test(appKey)) return null;
+    const filter = String(contentFilter ?? 'high').trim().toLowerCase();
+    if (!PROVIDER_FILTERS.includes(filter)) throw new Error(`GIF_PROVIDER_FILTER must be one of ${PROVIDER_FILTERS.join(', ')}`);
+    return { name: provider, key: appKey, contentFilter: filter };
+}
+
+// Medien eines Anbieters (z. B. static.klipy.com): nie in die Bibliothek, nie ueber den Proxy, nie gecacht.
+export function isProviderMediaUrl(value) {
+    try {
+        return /(^|\.)klipy\.com$/i.test(new URL(value).hostname);
+    } catch {
+        return false;
+    }
 }
 
 export function parseGifReview(value) {
@@ -67,17 +95,30 @@ export function createGifStore(database) {
         );
         CREATE INDEX IF NOT EXISTS gif_library_status ON gif_library (status, approved_at);
         CREATE INDEX IF NOT EXISTS gif_library_suggester ON gif_library (suggested_by, created_at);
+        CREATE TABLE IF NOT EXISTS gif_reports (
+            gif_id INTEGER NOT NULL,
+            peer_id TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            PRIMARY KEY (gif_id, peer_id),
+            FOREIGN KEY (gif_id) REFERENCES gif_library (id) ON DELETE CASCADE
+        );
     `);
-    const columns = 'id, url, title, width, height, status, suggested_by AS suggestedBy, created_at AS createdAt, approved_at AS approvedAt';
+    const columns = `id, url, title, width, height, status, suggested_by AS suggestedBy, created_at AS createdAt, approved_at AS approvedAt,
+        (SELECT COUNT(*) FROM gif_reports WHERE gif_reports.gif_id = gif_library.id) AS reports`;
     const statements = {
         find: database.prepare(`SELECT ${columns} FROM gif_library WHERE id = ?`),
         findUrl: database.prepare(`SELECT ${columns} FROM gif_library WHERE url = ?`),
         insert: database.prepare('INSERT INTO gif_library (url, title, width, height, status, suggested_by, created_at, approved_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'),
-        approve: database.prepare("UPDATE gif_library SET status = 'approved', approved_at = ?, title = COALESCE(?, title) WHERE id = ?"),
+        approve: database.prepare("UPDATE gif_library SET status = 'approved', approved_at = COALESCE(approved_at, ?), title = COALESCE(?, title) WHERE id = ?"),
+        clearReports: database.prepare('DELETE FROM gif_reports WHERE gif_id = ?'),
+        addReport: database.prepare('INSERT OR IGNORE INTO gif_reports (gif_id, peer_id, created_at) VALUES (?, ?, ?)'),
+        hide: database.prepare("UPDATE gif_library SET status = 'hidden' WHERE id = ? AND status = 'approved'"),
         remove: database.prepare('DELETE FROM gif_library WHERE id = ?'),
         suggestedSince: database.prepare('SELECT COUNT(*) AS count FROM gif_library WHERE suggested_by = ? AND created_at > ?'),
         listApproved: database.prepare(`SELECT ${columns} FROM gif_library WHERE status = 'approved' AND (? = '' OR title LIKE ? ESCAPE '\\') ORDER BY approved_at DESC, id DESC LIMIT ? OFFSET ?`),
         listStatus: database.prepare(`SELECT ${columns} FROM gif_library WHERE status = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`),
+        listReported: database.prepare(`SELECT ${columns} FROM gif_library WHERE id IN (SELECT gif_id FROM gif_reports) ORDER BY reports DESC, id DESC LIMIT ? OFFSET ?`),
+        countReported: database.prepare('SELECT COUNT(DISTINCT gif_id) AS count FROM gif_reports'),
         countStatus: database.prepare('SELECT COUNT(*) AS count FROM gif_library WHERE status = ?')
     };
     return {
@@ -87,10 +128,10 @@ export function createGifStore(database) {
             return statements.listApproved.all(text, pattern, limit, offset);
         },
         listByStatus(status, { limit = 200, offset = 0 } = {}) {
-            return statements.listStatus.all(status, limit, offset);
+            return status === 'reported' ? statements.listReported.all(limit, offset) : statements.listStatus.all(status, limit, offset);
         },
         count(status) {
-            return Number(statements.countStatus.get(status).count);
+            return Number((status === 'reported' ? statements.countReported.get() : statements.countStatus.get(status)).count);
         },
         find(id) {
             return statements.find.get(Number(id)) || null;
@@ -102,8 +143,17 @@ export function createGifStore(database) {
             const result = statements.insert.run(url, title, width, height, approved ? 'approved' : 'pending', suggestedBy, now, approved ? now : null);
             return statements.find.get(Number(result.lastInsertRowid));
         },
+        // Freigeben (auch nach Meldungen: die Meldungen sind damit erledigt).
         approve(id, title, now) {
+            statements.clearReports.run(Number(id));
             return Number(statements.approve.run(now, title ?? null, Number(id)).changes) > 0;
+        },
+        // Meldung eines Peers (einmal je GIF); ab REPORTS_TO_HIDE ausgeblendet. Liefert die Anzahl.
+        report(id, peerId, now, hideAt = REPORTS_TO_HIDE) {
+            statements.addReport.run(Number(id), peerId, now);
+            const count = Number(statements.find.get(Number(id))?.reports || 0);
+            if (count >= hideAt) statements.hide.run(Number(id));
+            return count;
         },
         remove(id) {
             return Number(statements.remove.run(Number(id)).changes) > 0;
@@ -115,6 +165,7 @@ export function createGifStore(database) {
 }
 
 const publicGif = gif => ({ id: gif.id, url: gif.url, title: gif.title, width: gif.width, height: gif.height });
+const MAX_REPORTS_PER_DAY = 20;
 
 export function registerGifRoutes(app, { gifs, settings, allowRequest, requirePeerAuth, isString, now = Date.now, log }) {
     const libraryOn = () => settings().sources.includes('library');
@@ -143,6 +194,8 @@ export function registerGifRoutes(app, { gifs, settings, allowRequest, requirePe
         if (!requirePeerAuth(request, reply, peerId)) return;
         const checked = checkGifUrl(url);
         if (!checked) return reply.code(400).send({ error: 'Invalid GIF URL' });
+        // Anbieter-Inhalte bleiben getrennt (Regeln des Anbieters).
+        if (isProviderMediaUrl(checked)) return reply.code(400).send({ error: 'Provider GIFs cannot be added to the library' });
         const existing = gifs.findUrl(checked);
         if (existing) return { status: existing.status, gif: publicGif(existing) };
         const current = now();
@@ -154,14 +207,35 @@ export function registerGifRoutes(app, { gifs, settings, allowRequest, requirePe
         log?.info?.(`GIF library: ${approved ? 'added' : 'suggested'} #${gif.id}.`);
         return reply.code(201).send({ status: gif.status, gif: publicGif(gif) });
     });
+
+    // Bibliotheks-GIF melden (per URL, die Nachricht kennt nur sie). Ab mehreren Meldungen ausgeblendet.
+    const reportsToday = new Map();
+    app.post('/api/gifs/report', async (request, reply) => {
+        if (!libraryOn()) return reply.code(404).send({ error: 'GIF library is disabled' });
+        const { peerId, url } = request.body || {};
+        if (!isString(peerId, 200)) return reply.code(400).send({ error: 'Invalid peerId' });
+        if (!allowRequest('gifs', peerId, reply)) return;
+        if (!requirePeerAuth(request, reply, peerId)) return;
+        const checked = checkGifUrl(url);
+        const gif = checked ? gifs.findUrl(checked) : null;
+        if (!gif) return reply.code(404).send({ error: 'Unknown GIF' });
+        const day = Math.floor(now() / (24 * 60 * 60 * 1000));
+        const key = `${day}:${peerId}`;
+        if ((reportsToday.get(key) || 0) >= MAX_REPORTS_PER_DAY) return reply.code(429).send({ error: 'Too many reports today' });
+        reportsToday.set(key, (reportsToday.get(key) || 0) + 1);
+        if (reportsToday.size > 10000) reportsToday.clear();
+        gifs.report(gif.id, peerId, now(), settings().reportsToHide);
+        log?.info?.(`GIF library: #${gif.id} reported.`);
+        return { ok: true };
+    });
 }
 
 // Admin-Panel: Vorschlaege freigeben, Eintraege entfernen (Aufruf aus server/admin.js).
 export function registerGifAdminRoutes(app, { gifs, requireAdmin, now = Date.now, log }) {
     app.get('/api/admin/gifs', async (request, reply) => {
         if (!requireAdmin(request, reply)) return reply;
-        const status = request.query?.status === 'approved' ? 'approved' : 'pending';
-        return { status, gifs: gifs.listByStatus(status), pending: gifs.count('pending'), approved: gifs.count('approved') };
+        const status = ['approved', 'reported', 'hidden'].includes(request.query?.status) ? request.query.status : 'pending';
+        return { status, gifs: gifs.listByStatus(status), pending: gifs.count('pending'), approved: gifs.count('approved'), reported: gifs.count('reported') };
     });
 
     app.post('/api/admin/gifs/:id', async (request, reply) => {

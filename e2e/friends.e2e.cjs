@@ -168,9 +168,18 @@ async function main() {
         await dave.click('#chat-flirt-tab');
         assert.notEqual(await dave.evaluate(() => document.activeElement?.id), 'chat-input', 'no focus without focus before');
         await waitFor(dave, () => !document.querySelector('#chat-messages')?.textContent.includes('hi dave'));
-        // Normaler Freundes-Chat: Video wieder einzeln, kein Medien-Knopf.
-        assert.equal(await dave.isVisible('#chat-video-btn'), true, 'video button in plain social chats');
-        assert.equal(await dave.isVisible('#chat-media-btn'), false, 'no media button in plain social chats');
+        // Normaler Freundes-Chat: ohne GIFs Video einzeln und kein Medien-Knopf; mit GIFs (Router-Standard
+        // GIF_SOURCES=any) sitzen Video und GIF im Medien-Menue (gifs.js, Board T34).
+        if (await dave.evaluate(() => gifComposeAvailable())) {
+            assert.equal(await dave.isVisible('#chat-video-btn'), false, 'video sits in the media menu when gifs are on');
+            await dave.click('#chat-media-btn');
+            assert.equal(await dave.isVisible('#chat-media-menu [data-click="composeMediaVideo"]'), true, 'video in the media menu');
+            assert.equal(await dave.isVisible('#chat-media-gif'), true, 'gif in the media menu');
+            await dave.click('#chat-media-btn');
+        } else {
+            assert.equal(await dave.isVisible('#chat-video-btn'), true, 'video button in plain social chats');
+            assert.equal(await dave.isVisible('#chat-media-btn'), false, 'no media button in plain social chats');
+        }
         // Weit hochgescrollt: Lasche faehrt zum Streifen ein; Tippen klappt nur aus, schaltet nicht um.
         await dave.evaluate(id => {
             const now = Date.now();

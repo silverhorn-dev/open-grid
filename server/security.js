@@ -39,6 +39,8 @@ export const DEFAULT_RATE_LIMITS = {
     transfer: { windowMs: 60_000, max: 20 },
     // GIF-Bibliothek (gifs.js): stoebern und vorschlagen.
     gifs: { windowMs: 60_000, max: 60 },
+    // GIF-Proxy (gif-proxy.js, nur wenn an): je Peer.
+    gifProxy: { windowMs: 60_000, max: 120 },
     websocket: { windowMs: 10_000, max: 300 }
 };
 
@@ -103,7 +105,7 @@ export function buildLoggerOptions(logger) {
 // ================= Header =================
 const NOMINATIM_ORIGIN = 'https://nominatim.openstreetmap.org';
 
-export function securityHeaders(host, { wasm = false, externalMedia = false } = {}) {
+export function securityHeaders(host, { wasm = false, externalMedia = false, connectOrigins = [] } = {}) {
     // Skripte nur von der eigenen Origin, keine Inline-Handler (siehe client/app/actions.js).
     // Inline-Styles (style-Attribute) bleiben erlaubt.
     const socketOrigins = host ? ` ws://${host} wss://${host}` : '';
@@ -117,7 +119,7 @@ export function securityHeaders(host, { wasm = false, externalMedia = false } = 
             `img-src 'self' data: blob:${externalMedia ? ' https:' : ''}`,
             `media-src 'self' blob:${externalMedia ? ' https:' : ''}`,
             "font-src 'self'",
-            `connect-src 'self'${socketOrigins} ${NOMINATIM_ORIGIN}`,
+            `connect-src 'self'${socketOrigins} ${NOMINATIM_ORIGIN}${connectOrigins.map(origin => ` ${origin}`).join('')}`,
             "worker-src 'self'",
             "manifest-src 'self' data:",
             "object-src 'none'",

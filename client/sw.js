@@ -470,13 +470,13 @@ async function handleShareTarget(request) {
 
 const GIF_CACHE_NAME = 'opengrid-gifs';
 
-async function handleGifImage(request) {
+async function handleGifImage(request, key) {
     const cache = await caches.open(GIF_CACHE_NAME).catch(() => null);
-    const cached = cache ? await cache.match(request.url).catch(() => null) : null;
+    const cached = cache ? await cache.match(key).catch(() => null) : null;
     if (cached) return cached;
     const response = await fetch(request);
     // Auch undurchsichtige Antworten (ohne CORS) lassen sich cachen und als Bild ausliefern.
-    if (cache && (response.ok || response.type === 'opaque')) cache.put(request.url, response.clone()).catch(() => {});
+    if (cache && (response.ok || response.type === 'opaque')) cache.put(key, response.clone()).catch(() => {});
     return response;
 }
 
@@ -489,9 +489,14 @@ self.addEventListener('fetch', event => {
     if (request.method !== 'GET') return;
     const url = new URL(request.url);
     // GIFs (client/app/gifs.js) von fremden https-Servern: einmal geladen, danach aus dem lokalen Cache;
-    // aufgeraeumt wird von der Seite (cleanupGifCache). Videos nicht (Range-Anfragen).
-    if (url.origin !== self.location.origin && url.protocol === 'https:' && request.destination === 'image') {
-        event.respondWith(handleGifImage(request));
+    // aufgeraeumt wird von der Seite (cleanupGifCache). Videos nicht (Range-Anfragen). Anbieter-Medien (Klipy)
+    // nie (dessen Regeln). Ueber den Proxy des Routers geladene GIFs unter ihrer Original-URL.
+    if (url.origin !== self.location.origin && url.protocol === 'https:' && request.destination === 'image' && !/(^|\.)klipy\.com$/i.test(url.hostname)) {
+        event.respondWith(handleGifImage(request, request.url));
+        return;
+    }
+    if (url.origin === self.location.origin && url.pathname === '/api/gif-proxy' && request.destination === 'image' && url.searchParams.get('url')) {
+        event.respondWith(handleGifImage(request, url.searchParams.get('url')));
         return;
     }
     // Nur eigene Seiten und Dateien; API, WebSocket und Fremd-URLs laufen ungecacht durch.

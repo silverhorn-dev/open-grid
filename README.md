@@ -167,8 +167,14 @@ laufen durch dieselben Tests und bauen das echte Image zur Probe
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | generiert | Optional feste VAPID-Schluessel (base64url); sonst einmalig erzeugt und in SQLite gespeichert |
 | `APP_MODES` | alle | Erlaubte App-Modi, kommagetrennt: `discovery`, `chat`, `friends`, `event`. Z. B. `chat` fuer einen reinen Chat-Server. Sind nur Modi eines Bereichs erlaubt (Entdecken: `discovery`/`event`, Social: `chat`/`friends`), entfaellt die Bereichswahl beim Onboarding |
 | `DEFAULT_APP_MODE` | erster erlaubter | Vorauswahl fuer neue Nutzer |
-| `GIF_SOURCES` | `off` | Erlaubte GIF-Quellen: `off`, `library` (Bibliothek des Routers), `url` (beliebige eingefuegte GIF-Links), `library,url` oder `any`. Der Router speichert und laedt keine GIF-Dateien, im Chat geht nur der Link (E2E); jeder Client laedt das GIF selbst. Ist eine Quelle an, erlaubt die CSP Bilder/Videos von https. Live aenderbar im Admin-Panel |
+| `GIF_SOURCES` | `any` | Erlaubte GIF-Quellen: `off`, `library` (Bibliothek des Routers), `url` (beliebige eingefuegte GIF-Links), `provider` (Anbieter-Suche, nur mit `GIF_PROVIDER` + Schluessel), eine Liste wie `library,url` oder `any` (alles). Der Router speichert keine GIF-Dateien, im Chat geht nur der Link (E2E); jeder Client laedt das GIF selbst, erst nach Zustimmung des Nutzers (dort Standard aus). Ist eine Quelle an, erlaubt die CSP Bilder/Videos von https. Live aenderbar im Admin-Panel |
 | `GIF_LIBRARY_REVIEW` | `true` | Vorschlaege fuer die GIF-Bibliothek erst nach Freigabe im Admin-Panel (Reiter GIFs) zeigen; `false` = sofort fuer alle sichtbar |
+| `GIF_REPORT_HIDE` | 3 | Nach so vielen Meldungen verschiedener Nutzer wird ein Bibliotheks-GIF ausgeblendet, bis der Admin es behaelt oder entfernt |
+| `GIF_PROVIDER` | `off` | Anbieter fuer die GIF-Suche: `off` oder `klipy` (kostenlos, Schluessel im Klipy-Partner-Panel; Testschluessel 100 Anfragen/Stunde, fuer mehr "Production" beantragen; Werbung dort aus lassen). Nach den Regeln von Klipy laufen Suche und Medien direkt vom Browser zu Klipy (nicht ueber Router oder Proxy), Klipy-Medien werden nicht gecacht und nicht in die Bibliothek aufgenommen, das Suchfeld zeigt "Search KLIPY" |
+| `GIF_PROVIDER_KEY` | - | App-Schluessel des Anbieters. Die Clients bekommen ihn ueber `/api/config` (sie fragen den Anbieter selbst) |
+| `GIF_PROVIDER_FILTER` | `high` | Inhaltsfilter des Anbieters: `high`, `medium`, `low`, `off`; weitere Sperren im Partner-Panel des Anbieters |
+| `GIF_PROXY` | `off` | `on`: Bibliotheks- und Link-GIFs laden ueber den Router (`/api/gif-proxy`), fremde Server sehen dann nur den Router. Nur Bilder/Videos, hoechstens `GIF_MAX_MB`, keine privaten Adressen, Tages-Token je Peer. Kostet Bandbreite (grob 0,3 MB je angezeigtem GIF); Klipy-Medien nie |
+| `GIF_MAX_MB` | 8 | Hoechstgroesse eines GIFs ueber den Proxy |
 | `TRANSFER_MAX_MB` | 50 | Hoechstgroesse eines Umzugs per Code (Router-Relay, nur Chiffrat, 15 Minuten, einmal abholbar, auf der Platte unter `transfers/` im Datenordner). Groessere Umzuege gehen per Datei |
 | `FLAME_VISIBLE_HOURS` | `48` | Wie lange eine erhaltene Flamme sichtbar ist (1-720 Stunden); Flammen stapeln sich in dieser Zeit. Im Admin-Panel live aenderbar |
 | `FLAME_COOLDOWN_MINUTES` | `60` | Abstand, bevor man derselben Person wieder eine Flamme schicken kann (1-10080 Minuten), auch nach einem Match. Im Admin-Panel live aenderbar |
@@ -462,9 +468,11 @@ sh scripts/e2e.sh   # oder: npm run test:e2e
   neue ID, oeffentliche Schluessel). Damit erfahren die alte Kopie und
   Kontakte den Umzug auch nach langer Offline-Zeit.
 - GIFs: der Router haelt in der Bibliothek nur Links, Titel und Masse (wer
-  vorgeschlagen hat, sieht das Admin-Panel). Die GIF-Dateien laedt jeder Client
-  selbst von deren Server, erst nach Zustimmung in der App (der fremde Server
-  sieht dabei die IP), und behaelt sie lokal im Browser.
+  vorgeschlagen und gemeldet hat, sieht das Admin-Panel). Die GIF-Dateien laedt
+  jeder Client selbst von deren Server, erst nach Zustimmung in der App (der
+  fremde Server sieht dabei die IP; mit `GIF_PROXY=on` nur den Router), und
+  behaelt sie lokal im Browser. Bei Klipy fragt der Browser direkt bei Klipy
+  an, ohne Nutzerkennung (keine `customer_id`, kein Teilen-Signal).
 - Peers, die sich `CREDENTIAL_RETENTION_DAYS` (Standard 180) Tage nicht
   registriert haben, werden mit Zugangsdaten, Push-Abo, eigenen
   Chat-Kontrollen und wartenden Nachrichten geloescht.

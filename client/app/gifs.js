@@ -2,7 +2,11 @@
 // GIFs liegen auf fremden https-Servern. Im Chat geht nur die URL (E2E verschluesselt), jeder Client laedt
 // das GIF selbst; der Router ist kein Medienserver. Quellen erlaubt der Router (`/api/config` gifs.sources):
 // - 'library': Bibliothek des Routers (nur URLs, server/gifs.js), Vorschlaege mit Freigabe im Admin-Panel,
-// - 'url': beliebige eingefuegte GIF-URLs ("extern").
+// - 'url': beliebige eingefuegte GIF-URLs ("extern"),
+// - 'provider': Anbieter-Suche (Klipy). Nach dessen Regeln laufen Suche und Medien direkt vom Client (nie ueber
+//   Router oder Proxy), Medien werden nicht gecacht, Ergebnisse in eigenem Reiter und unveraendert, Suchfeld
+//   "Search KLIPY".
+// Proxy (Router `gifs.proxy`, standardmaessig aus): Bibliotheks- und Link-GIFs laden dann ueber /api/gif-proxy.
 // Beim Nutzer standardmaessig aus (`keys`/`gif-settings`, Router-Standard `CLIENT_DEFAULTS.gifs`/`gifsExternal`):
 // ohne Freigabe zeigt eine empfangene Nachricht nur eine verschwommene Flaeche mit "GIF-Integration aktivieren?",
 // geladen wird erst nach Bestaetigung (der fremde Server sieht sonst die IP).
@@ -48,7 +52,7 @@ function isGifVideoUrl(url) {
 
 function isValidGifInfo(gif) {
     return Boolean(gif) && typeof gif === 'object' && Boolean(gifUrlAllowed(gif.url)) && gifUrlAllowed(gif.url) === gif.url
-        && ['library', 'url'].includes(gif.source)
+        && ['library', 'url', 'provider'].includes(gif.source)
         && (gif.w === undefined || (Number.isInteger(gif.w) && gif.w > 0 && gif.w <= 4096))
         && (gif.h === undefined || (Number.isInteger(gif.h) && gif.h > 0 && gif.h <= 4096));
 }
@@ -56,7 +60,7 @@ function isValidGifInfo(gif) {
 // Was eine GIF-Nachricht zeigt: 'show', 'enable' (Integration aus), 'external' (externe URLs aus), 'off' (Router).
 function gifDisplayState(gif, { mine = false, sources = [], enabled = false, external = false } = {}) {
     if (!isValidGifInfo(gif) || !sources.length) return 'off';
-    if (gif.source === 'url' && !sources.includes('url')) return 'off';
+    if ((gif.source === 'url' || gif.source === 'provider') && !sources.includes(gif.source)) return 'off';
     if (mine) return 'show';
     if (!enabled) return 'enable';
     if (gif.source === 'url' && !external) return 'external';
@@ -69,6 +73,40 @@ function gifKeepUrl(url, { index = {}, favorites = new Set(), keepDays = 0, now 
     const entry = index[url];
     if (!entry) return false;
     return !keepDays || now - entry.at < keepDays * GIF_DAY_MS;
+}
+
+// Anbieter-Medien (Klipy): nie Proxy, nie Cache (Regeln des Anbieters). Gleiche Regel in server/gifs.js und sw.js.
+function isProviderMediaUrl(url) {
+    try {
+        return /(^|\.)klipy\.com$/i.test(new URL(url).hostname);
+    } catch {
+        return false;
+    }
+}
+
+// Ein Anbieter-Ergebnis -> GIF-Info (kleine Variante; Reihenfolge der Formate: webp, gif, mp4). Werbung: null.
+function providerGifInfo(item) {
+    if (!item || item.type === 'ad') return null;
+    for (const size of ['sm', 'md', 'xs']) {
+        for (const format of ['webp', 'gif', 'mp4']) {
+            const file = item.file?.[size]?.[format];
+            const url = gifUrlAllowed(file?.url);
+            if (!url || !isProviderMediaUrl(url)) continue;
+            const dimension = value => (Number.isInteger(value) && value > 0 && value <= 4096 ? value : undefined);
+            const info = { url, source: 'provider', w: dimension(file.width), h: dimension(file.height) };
+            if (info.w === undefined) delete info.w;
+            if (info.h === undefined) delete info.h;
+            if (typeof item.title === 'string' && item.title) info.title = item.title.slice(0, 60);
+            return info;
+        }
+    }
+    return null;
+}
+
+// Bild-URL: ueber den Proxy des Routers, wenn er an ist (nie fuer Anbieter-Medien), sonst direkt.
+function gifProxySrc(url, { proxy = false, token = null } = {}) {
+    if (!proxy || !token || isProviderMediaUrl(url)) return url;
+    return `/api/gif-proxy?url=${encodeURIComponent(url)}&t=${encodeURIComponent(token)}`;
 }
 
 // ----- Einstellungen -----
@@ -95,6 +133,7 @@ async function loadGifState() {
     gifState.recent = Array.isArray(recent?.items) ? recent.items.filter(isValidGifInfo) : [];
     gifState.index = index?.entries && typeof index.entries === 'object' ? index.entries : {};
     gifState.loaded = true;
+    if (state.appConfig?.gifs?.proxy) await refreshGifProxyToken().catch(() => null);
     renderGifSettings();
     cleanupGifCache().catch(logBackgroundError('loadGifState'));
 }
@@ -111,6 +150,17 @@ function renderGifSettings() {
     }
     const keep = document.getElementById('gif-keep-select');
     if (keep) keep.value = String(gifSetting('keepDays'));
+}
+
+async function refreshGifProxyToken() {
+    const response = await fetch(`${API_BASE}/api/gif-proxy/token`, { headers: peerAuthHeaders({ 'X-Peer-Id': state.myProfile.id }) });
+    const data = response.ok ? await response.json().catch(() => null) : null;
+    gifState.proxyToken = typeof data?.token === 'string' ? data.token : null;
+    return gifState.proxyToken;
+}
+
+function gifMediaSrc(url) {
+    return gifProxySrc(url, { proxy: Boolean(state.appConfig?.gifs?.proxy), token: gifState.proxyToken });
 }
 
 async function updateGifSetting(key, value) {
@@ -165,6 +215,8 @@ async function toggleFavoriteGif(gif) {
 }
 
 async function markGifCached(url, kind) {
+    // Anbieter-Medien werden nicht gecacht (Regeln des Anbieters); Favoriten merken nur die URL.
+    if (isProviderMediaUrl(url)) return;
     const previous = gifState.index[url];
     gifState.index[url] = { at: Date.now(), kind: previous?.kind === 'favorite' ? 'favorite' : kind };
     await putDatabaseRecord('keys', { id: GIF_INDEX_RECORD_ID, entries: gifState.index }).catch(() => {});
@@ -204,8 +256,44 @@ function createGifMedia(gif, className) {
         media.decoding = 'async';
         media.alt = gif.title || 'GIF';
     }
-    media.src = gif.url;
+    media.src = gifMediaSrc(gif.url);
+    // Proxy-Token abgelaufen (Neustart des Routers, neuer Tag): einmal neu holen und nochmal laden.
+    if (media.src.includes('/api/gif-proxy')) {
+        media.addEventListener('error', async () => {
+            if (media.dataset.retried) return;
+            media.dataset.retried = '1';
+            await refreshGifProxyToken().catch(() => null);
+            media.src = gifMediaSrc(gif.url);
+        });
+    }
     return media;
+}
+
+// Bibliotheks-GIF melden (der Router blendet es nach mehreren Meldungen aus, der Admin entscheidet).
+function gifReportButton(gif) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'gif-report';
+    button.dataset.gifReport = gif.url;
+    button.setAttribute('aria-label', t('gifs.report'));
+    button.innerHTML = '<i class="fa-regular fa-flag"></i>';
+    button.onclick = event => {
+        event.stopPropagation();
+        reportLibraryGif(gif, button).catch(logBackgroundError('gifReportButton'));
+    };
+    return button;
+}
+
+async function reportLibraryGif(gif, button = null) {
+    if (!window.confirm(t('gifs.reportConfirm'))) return false;
+    const response = await fetch(`${API_BASE}/api/gifs/report`, {
+        method: 'POST',
+        headers: peerAuthHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ peerId: state.myProfile.id, url: gif.url })
+    }).catch(() => null);
+    showToast(response?.ok ? t('gifs.reported') : t('gifs.reportFailed'), response?.ok ? 'info' : 'error');
+    if (response?.ok && button) button.disabled = true;
+    return Boolean(response?.ok);
 }
 
 function gifBox(gif) {
@@ -248,6 +336,7 @@ function renderGifMessage(bubble, message, isMine) {
             star.innerHTML = `<i class="fa-${now ? 'solid' : 'regular'} fa-star"></i>`;
         };
         box.append(media, star);
+        if (gif.source === 'library' && !isMine) box.appendChild(gifReportButton(gif));
     } else {
         // Nichts laden: nur eine verschwommene Flaeche, der Server des GIFs erfaehrt nichts.
         box.classList.add('gif-blocked');
@@ -292,12 +381,13 @@ async function openGifPicker() {
     body.id = 'gif-picker-body';
     body.className = 'space-y-3';
     const available = [
+        gifSources().includes('provider') && state.appConfig?.gifs?.provider && 'provider',
         gifSources().includes('library') && 'library',
         'favorites',
         'recent',
         gifSources().includes('url') && 'link'
     ].filter(Boolean);
-    const labels = { library: t('gifs.tabLibrary'), favorites: t('gifs.tabFavorites'), recent: t('gifs.tabRecent'), link: t('gifs.tabLink') };
+    const labels = { provider: 'KLIPY', library: t('gifs.tabLibrary'), favorites: t('gifs.tabFavorites'), recent: t('gifs.tabRecent'), link: t('gifs.tabLink') };
     const show = tab => {
         tabs.querySelectorAll('button').forEach(button => {
             const active = button.dataset.gifTab === tab;
@@ -305,7 +395,8 @@ async function openGifPicker() {
             button.className = `shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border ${active ? 'bg-brand-600 border-brand-500 text-white' : 'border-slate-700 text-slate-300'}`;
         });
         body.replaceChildren();
-        if (tab === 'library') renderGifLibraryTab(body);
+        if (tab === 'provider') renderGifProviderTab(body);
+        else if (tab === 'library') renderGifLibraryTab(body);
         else if (tab === 'link') renderGifLinkTab(body);
         else renderGifGrid(body, tab === 'favorites' ? gifState.favorites : gifState.recent, (tab === 'favorites' ? t('gifs.noFavorites') : t('gifs.noRecent')));
     };
@@ -362,7 +453,65 @@ function gifTile(gif) {
         paint();
     };
     tile.append(pick, star);
+    if (gif.source === 'library') tile.appendChild(gifReportButton(gif));
     return tile;
+}
+
+// Klipy (Regeln: Anfrage direkt vom Client, Suchfeld "Search KLIPY", Ergebnisse unveraendert in eigenem Reiter).
+// Keine customer_id und kein Share-Trigger: der Anbieter soll keine Nutzer wiedererkennen.
+function renderGifProviderTab(body) {
+    const provider = state.appConfig?.gifs?.provider;
+    const search = document.createElement('input');
+    search.type = 'search';
+    search.id = 'gif-provider-search';
+    // Pflicht laut Anbieter, darum nicht uebersetzt.
+    search.placeholder = 'Search KLIPY';
+    search.className = 'w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-base text-slate-100 focus:outline-hidden focus:border-brand-500';
+    const results = document.createElement('div');
+    const powered = document.createElement('p');
+    powered.className = 'text-[11px] text-slate-500 text-right';
+    powered.textContent = 'Powered by KLIPY';
+    body.append(search, results, powered);
+    let timer = null;
+    let token = 0;
+    const load = async (page = 1) => {
+        const current = ++token;
+        const query = search.value.trim();
+        const params = new URLSearchParams({ page: String(page), per_page: '24', content_filter: provider.contentFilter || 'high' });
+        if (query) params.set('q', query);
+        const endpoint = query ? 'search' : 'trending';
+        const response = await fetch(`https://api.klipy.com/api/v1/${encodeURIComponent(provider.key)}/gifs/${endpoint}?${params}`, {
+            credentials: 'omit', referrerPolicy: 'no-referrer'
+        }).catch(() => null);
+        if (current !== token) return;
+        const data = response?.ok ? await response.json().catch(() => null) : null;
+        if (page === 1) results.replaceChildren();
+        if (!data?.data) {
+            const error = document.createElement('p');
+            error.className = 'text-sm text-red-300';
+            error.textContent = t('gifs.providerError');
+            results.appendChild(error);
+            return;
+        }
+        const items = (Array.isArray(data.data.data) ? data.data.data : []).map(providerGifInfo).filter(Boolean);
+        const grid = page > 1 && results.querySelector('.gif-grid') ? results.querySelector('.gif-grid') : renderGifGrid(results, items, t('gifs.libraryEmpty'));
+        if (page > 1) items.forEach(gif => grid.appendChild(gifTile(gif)));
+        results.querySelector('[data-gif-more]')?.remove();
+        if (data.data.has_next) {
+            const more = document.createElement('button');
+            more.type = 'button';
+            more.dataset.gifMore = '';
+            more.className = 'btn-secondary w-full mt-2';
+            more.textContent = t('gifs.loadMore');
+            more.onclick = () => load(page + 1).catch(logBackgroundError('renderGifProviderTab'));
+            results.appendChild(more);
+        }
+    };
+    search.oninput = () => {
+        clearTimeout(timer);
+        timer = setTimeout(() => load().catch(logBackgroundError('renderGifProviderTab')), 350);
+    };
+    load().catch(logBackgroundError('renderGifProviderTab'));
 }
 
 function renderGifLibraryTab(body) {
@@ -498,7 +647,7 @@ async function suggestGifToLibrary(gif) {
 }
 
 async function sendGif(gif) {
-    const info = { url: gif.url, source: gif.source === 'library' ? 'library' : 'url', ...(gif.w ? { w: gif.w } : {}), ...(gif.h ? { h: gif.h } : {}) };
+    const info = { url: gif.url, source: ['library', 'provider'].includes(gif.source) ? gif.source : 'url', ...(gif.w ? { w: gif.w } : {}), ...(gif.h ? { h: gif.h } : {}) };
     if (!isValidGifInfo(info)) return false;
     closeMediaModal();
     const sent = await sendChatMessage(null, '', null, null, { gif: info });

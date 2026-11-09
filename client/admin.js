@@ -735,11 +735,12 @@ async function resolveReport(id, action) {
 
 // ----- GIF-Bibliothek (server/gifs.js): Vorschlaege freigeben, Eintraege entfernen -----
 async function refreshGifs() {
-    const { gifs, pending } = await adminApi(`gifs?status=${adminState.gifStatus}`);
+    const { gifs, pending, reported } = await adminApi(`gifs?status=${adminState.gifStatus}`);
     const badge = document.getElementById('admin-gif-badge');
+    const open = (pending || 0) + (reported || 0);
     if (badge) {
-        badge.textContent = pending > 99 ? '99+' : String(pending);
-        badge.classList.toggle('hidden', !pending);
+        badge.textContent = open > 99 ? '99+' : String(open);
+        badge.classList.toggle('hidden', !open);
     }
     const list = document.getElementById('admin-gif-list');
     if (!list) return;
@@ -768,13 +769,17 @@ async function refreshGifs() {
         const meta = document.createElement('p');
         meta.className = 'setting-desc break-all';
         meta.textContent = [gif.url, gif.width && gif.height ? `${gif.width}×${gif.height}` : null,
-            new Date(gif.createdAt).toLocaleString(i18nLocale()), gif.suggestedBy ? t('admin.reportBy', { reporter: gif.suggestedBy }) : null].filter(Boolean).join(' · ');
+            new Date(gif.createdAt).toLocaleString(i18nLocale()), gif.suggestedBy ? t('admin.reportBy', { reporter: gif.suggestedBy }) : null,
+            gif.reports ? t('admin.gifsReports', { count: gif.reports }) : null, gif.status === 'hidden' ? t('admin.gifsHidden') : null].filter(Boolean).join(' · ');
         text.append(title, meta);
         const actions = document.createElement('div');
         actions.className = 'flex gap-2 shrink-0';
+        // Vorschlag: freigeben/ablehnen; gemeldet oder ausgeblendet: behalten (Meldungen erledigt) oder entfernen.
         const buttons = gif.status === 'pending'
             ? [['approve', t('admin.gifsApprove'), 'btn-primary'], ['remove', t('admin.gifsReject'), 'btn-secondary']]
-            : [['remove', t('admin.gifsRemove'), 'btn-secondary']];
+            : gif.reports || gif.status === 'hidden'
+                ? [['approve', t('admin.gifsKeep'), 'btn-secondary'], ['remove', t('admin.gifsRemove'), 'btn-primary']]
+                : [['remove', t('admin.gifsRemove'), 'btn-secondary']];
         for (const [action, label, style] of buttons) {
             const button = document.createElement('button');
             button.className = style;

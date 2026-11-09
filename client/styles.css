@@ -1553,3 +1553,10 @@ html {
 /* GIF-Bibliothek im Admin-Panel */
 .admin-gif { display: flex; align-items: center; gap: 0.75rem; }
 .admin-gif-preview { width: 4.5rem; height: 4.5rem; object-fit: cover; border-radius: 0.5rem; flex-shrink: 0; background: rgb(var(--slate-800)); }
+
+.gif-report {
+    /* Unten links: oben liegt die Aktionsleiste der Nachricht. */
+    position: absolute; bottom: 0.375rem; left: 0.375rem; z-index: 1; width: 1.75rem; height: 1.75rem; border-radius: 9999px;
+    background: rgb(0 0 0 / 0.45); color: #fff; font-size: 0.6875rem;
+}
+.gif-report:disabled { opacity: 0.4; }

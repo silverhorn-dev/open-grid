@@ -36,7 +36,15 @@ async function main() {
             await setAppMode('chat');
             await openChatWithPeer('node_social');
         });
-        assert.equal(await page.isVisible('#chat-album-btn'), false, 'hidden in social chats');
+        // Mit GIFs (Router-Standard, gifs.js) sitzt das Album im Medien-Menue statt als eigener Knopf.
+        const gifs = await page.evaluate(() => gifComposeAvailable());
+        const albumVisible = async () => {
+            if (!gifs) return page.isVisible('#chat-album-btn');
+            const menuItem = '#chat-media-menu [data-click="composeMediaAlbum"]';
+            const visible = await page.evaluate(selector => !document.querySelector(selector).classList.contains('hidden'), menuItem);
+            return visible && !(await page.isVisible('#chat-album-btn'));
+        };
+        assert.equal(await albumVisible(), false, 'hidden in social chats');
 
         // Langer Druck auf Snap: Album-Knopf erscheint, Kamera bleibt zu.
         const snap = await page.locator('#chat-snap-btn').boundingBox();
@@ -45,7 +53,7 @@ async function main() {
         await page.waitForTimeout(800);
         await page.mouse.up();
         await page.waitForTimeout(300);
-        assert.equal(await page.isVisible('#chat-album-btn'), true, 'revealed by long press');
+        assert.equal(await albumVisible(), true, 'revealed by long press');
         assert.equal(await page.evaluate(() => document.getElementById('snap-capture-modal').classList.contains('hidden')), true, 'camera stays closed');
 
         // Ein kurzer Klick oeffnet weiterhin die Kamera.

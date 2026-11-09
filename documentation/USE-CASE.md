@@ -1338,4 +1338,11 @@ Akzeptanzkriterien:
   ein (Favoriten bleiben immer).
 - Der Betreiber gibt Vorschlaege im Admin-Panel unter "GIFs" frei oder
   entfernt sie.
+- Hat der Betreiber Klipy eingerichtet, gibt es einen eigenen Reiter "KLIPY"
+  mit Suche und Trends; die Suche geht direkt vom Geraet zu Klipy, ohne dass
+  Klipy mich wiedererkennt. Klipy-GIFs werden nicht auf dem Geraet behalten.
+- Ein GIF aus der Bibliothek kann ich mit der Fahne melden; nach mehreren
+  Meldungen ist es fuer alle weg, bis der Betreiber entscheidet.
+- Schaltet der Betreiber den Proxy an, laden Bibliotheks- und Link-GIFs ueber
+  den Router; die fremden Server sehen dann nur den Router.
 

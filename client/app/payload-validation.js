@@ -53,7 +53,7 @@ function isValidMessage(message) {
 function isPlainGifInfo(gif) {
     const size = value => value === undefined || (Number.isInteger(value) && value > 0 && value <= 4096);
     return Boolean(gif) && typeof gif === 'object' && typeof gif.url === 'string' && gif.url.length <= 1000
-        && gif.url.startsWith('https://') && ['library', 'url'].includes(gif.source) && size(gif.w) && size(gif.h);
+        && gif.url.startsWith('https://') && ['library', 'url', 'provider'].includes(gif.source) && size(gif.w) && size(gif.h);
 }
 
 function isPlainVideoInfo(video) {

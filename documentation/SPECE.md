@@ -263,7 +263,37 @@
   undurchsichtige Antworten ohne CORS) und liefert sie danach von dort,
   Videos nicht. `cleanupGifCache` loescht beim Start und bei Aenderung alles,
   was weder Favorit noch innerhalb `gifKeepDays` gesendet/empfangen ist.
-  Kein Proxy: der Server des GIFs sieht die IP dessen, der es laedt.
+  Anbieter (`GIF_PROVIDER=klipy`, Quelle `provider`): `/api/config` gibt
+  `gifs.provider = { name, key, contentFilter }`; der Client fragt
+  `https://api.klipy.com/api/v1/<key>/gifs/search?q=&page=&per_page=24&content_filter=`
+  bzw. `/gifs/trending` selbst (CSP `connect-src` erlaubt dann api.klipy.com),
+  ohne `customer_id`, ohne Share-Trigger. Eigener Reiter "KLIPY" zuerst,
+  Platzhalter "Search KLIPY" (Pflicht), "Powered by KLIPY", Reihenfolge
+  unveraendert, Eintraege mit `type: 'ad'` werden nicht gezeigt (Werbung im
+  Partner-Panel aus lassen). Gesendet wird `file.sm.webp` (sonst gif/mp4,
+  sonst md/xs) als `source: 'provider'`; Anzeige wie Bibliothek (nur
+  `enabled`). Klipy-Medien (`*.klipy.com`) nie ueber den Proxy, nie in Cache
+  Storage (sw.js) oder `gif-cache`, nie in die Bibliothek (400); Favoriten
+  merken nur die URL.
+  Melden: `POST /api/gifs/report { peerId, url }` (je Peer einmal je GIF,
+  hoechstens 20 am Tag), Tabelle `gif_reports (gif_id, peer_id, created_at)`;
+  ab `GIF_REPORT_HIDE` (3) Peers `status = 'hidden'` (nicht mehr gelistet).
+  Admin-Filter `reported`/`hidden`; "Behalten" (`approve`) loescht die
+  Meldungen und stellt es wieder her. Im Chat und in der Auswahl ein
+  Fahnen-Knopf an Bibliotheks-GIFs.
+  Proxy (`server/gif-proxy.js`, `GIF_PROXY`, Standard aus; `gifs.proxy` in der
+  Config): `GET /api/gif-proxy/token` (Peer-Token + `X-Peer-Id`) -> Tages-Token
+  `<tag>.<peerId b64url>.<HMAC>` (Geheimnis je Prozess, gilt heute und morgen);
+  Bilder laden `GET /api/gif-proxy?url=<GIF-URL>&t=<token>` (Rate-Limit
+  `gifProxy` je Peer). Der Router prueft die URL (`checkGifUrl`, keine
+  Klipy-Medien), loest den Host auf (jede Adresse oeffentlich, sonst 400) und
+  verbindet sich mit genau dieser Adresse (SNI = Host), Weiterleitungen
+  hoechstens 3 (jede neu geprueft), nur `image/gif|webp|png|jpeg|avif|apng`
+  und `video/mp4|webm`, hoechstens `GIF_MAX_MB` (auch beim Lesen gezaehlt),
+  10 s, ohne Cookies und Referer; Antwort `Cache-Control: private,
+  max-age=86400`. Der SW cacht Proxy-Bilder unter der Original-URL; laedt ein
+  Bild nicht, holt der Client einmal ein neues Token. Ohne Proxy: der Server
+  des GIFs sieht die IP dessen, der es laedt.
 - Installations-Anleitung (`install-guide.js`, UC-74): `installPlatform()`
   erkennt `ios-safari`, `ios-other` (Chrome/Firefox/Edge auf iOS, auch WebKit)
   und `mac-safari`; installiert = `display-mode: standalone` oder
@@ -1727,6 +1757,9 @@ clientseitig verschluesselte Payloads.
 | `POST` | `/api/cache` | Ciphertext mit einer TTL von 1 bis 72 Stunden ablegen |
 | `GET` | `/api/gifs` | Freigegebene GIF-Links der Bibliothek (nur mit `GIF_SOURCES` library) |
 | `POST` | `/api/gifs` | GIF-Link vorschlagen bzw. aufnehmen |
+| `POST` | `/api/gifs/report` | Bibliotheks-GIF melden |
+| `GET` | `/api/gif-proxy/token` | Tages-Token fuer den GIF-Proxy (nur mit `GIF_PROXY=on`) |
+| `GET` | `/api/gif-proxy` | GIF ueber den Router laden (`url`, `t`) |
 | `POST` | `/api/move` | Alte ID nach einem Umzug stilllegen (Token der alten ID, signierter Nachweis); danach 410 fuer `/api/register` der alten ID und `/api/cache` an sie |
 | `GET` | `/api/cache/:recipientId` | Gueltige Nachrichten eines Empfaengers lesen |
 | `DELETE` | `/api/cache/:msgId` | Verarbeitete Nachricht entfernen |

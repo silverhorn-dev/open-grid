@@ -67,3 +67,13 @@ test('provider results keep their order, skip ads and are never proxied or cache
     assert.equal(context.gifDisplayState(provider, { sources: ['library'], enabled: true }), 'off', 'provider turned off on the router');
     assert.equal(context.gifDisplayState(provider, { sources: ['provider'], enabled: true }), 'show', 'no extra consent like external links');
 });
+
+test('pasted links that look like gifs become gifs (e.g. discord attachments)', () => {
+    const discord = 'https://media.discordapp.net/attachments/1439809540488167444/1551803714204078090/work.gif?ex=6af29554&is=6af143d4&hm=6fe94c06fb477243355e7bad1283e98f8b7a8fe0702606dd2e0128f3a08959aa&=';
+    assert.equal(context.looksLikeGifUrl(discord), true);
+    assert.equal(context.gifUrlAllowed(discord), discord, 'signed query stays intact');
+    assert.equal(context.looksLikeGifUrl('https://giphy.com/gifs/cat-abc'), true);
+    assert.equal(context.looksLikeGifUrl('https://media.example.org/clip.mp4'), true);
+    assert.equal(context.looksLikeGifUrl('https://news.example.org/article'), false);
+    assert.equal(context.looksLikeGifUrl('http://media.example.org/a.gif'), false);
+});

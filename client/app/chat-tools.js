@@ -381,6 +381,8 @@ function renderMessageMenu() {
     // Kopieren direkt im Klick (nicht erst nach dem Schliessen): sonst ist die Nutzer-Geste weg und
     // Browser (v. a. Safari) verweigern die Zwischenablage.
     if (message.text) items.push(messageMenuItem('fa-regular fa-copy', t('common.copy'), () => {}, false, () => copyMessageText(message)));
+    // GIF (gifs.js): Link kopieren, ebenfalls direkt im Klick.
+    if (message.gif?.url && !message.deleted) items.push(messageMenuItem('fa-solid fa-link', t('gifs.copyUrl'), () => {}, false, () => copyGifUrl(message.gif)));
     if (canEditMessage(message)) items.push(messageMenuItem('fa-solid fa-pen', t('chat.edit'), () => startEditMessage(message.id)));
     items.push(messageMenuItem(message.starred ? 'fa-solid fa-star text-amber-400' : 'fa-regular fa-star',
         message.starred ? t('chat.removeStar') : t('chat.starForYourself'), () => toggleMessageStar(message.id)));

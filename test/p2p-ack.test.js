@@ -95,3 +95,16 @@ test('if Path C is not possible the message waits for the next connection', asyn
     assert.deepEqual(calls.onSent, ['p2p', 'pending']);
     assert.equal(context.state.secureMessageQueues.bob.length, 1);
 });
+
+test('chat operations without a callback (delete, edit, react) also fall back to Path C', async () => {
+    const { context, calls, advance } = loadDelivery();
+    await context.sendSecurePayload('bob', { type: 'CHAT_OPERATION', operation: { operationId: 'delete:1' } });
+    await advance(5000);
+    assert.deepEqual(calls.cleanup, ['bob'], 'half-dead channel detected');
+    assert.deepEqual(calls.cached, ['delete:1'], 'the delete still reaches the peer');
+    // Andere Nutzlasten (z. B. Tipp-Status) bleiben ohne ACK.
+    const other = loadDelivery();
+    await other.context.sendSecurePayload('bob', { type: 'CHAT_FOCUS', open: true });
+    await other.advance(10000);
+    assert.deepEqual(other.calls.cleanup, []);
+});

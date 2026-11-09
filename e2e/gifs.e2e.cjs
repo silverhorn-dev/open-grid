@@ -10,6 +10,8 @@ const BASE_URL = process.env.BASE_URL || 'http://127.0.0.1:3000';
 const GIF_HOST = 'https://gifs.e2e-media.org';
 const OTHER_HOST = 'https://elsewhere.e2e-media.org';
 const KLIPY_MEDIA = 'https://static.klipy.com/ii/e2e-hello';
+// Wie ein Discord-Anhang (signierte Query muss unveraendert bleiben).
+const PASTED = 'https://media.discordapp.net/attachments/1/2/work.gif?ex=6af29554&is=6af143d4&hm=abc123&=';
 // 2x2 GIF, rot.
 const GIF_BYTES = Buffer.from('R0lGODlhAgACAPAAAP8AAAAAACH5BAAAAAAALAAAAAACAAIAAAIChF8AOw==', 'base64');
 
@@ -60,7 +62,7 @@ async function main() {
         await context.route('**/api/gifs**', route => (route.request().method() === 'GET'
             ? route.fulfill({ json: { gifs: [{ id: 1, url: `${GIF_HOST}/party.gif`, title: 'Party', width: 2, height: 2 }], next: null } })
             : route.fulfill({ status: 201, json: { status: 'pending', gif: { id: 2 } } })));
-        for (const host of [GIF_HOST, OTHER_HOST]) {
+        for (const host of [GIF_HOST, OTHER_HOST, 'https://media.discordapp.net']) {
             await context.route(`${host}/**`, route => {
                 gifRequests[name].push(route.request().url());
                 return route.fulfill({ status: 200, contentType: 'image/gif', body: GIF_BYTES });
@@ -146,10 +148,42 @@ async function main() {
         await waitFor(bob, () => document.querySelectorAll('.gif-box img.gif-media').length === 3);
         assert.equal(await bob.evaluate(() => document.getElementById('gif-external-toggle').checked), true, 'setting follows the consent');
 
+        // Nur einen GIF-Link ins Eingabefeld eingefuegt: wird als GIF gesendet, nicht als Text.
+        await alice.fill('#chat-input', PASTED);
+        await alice.click('#send-chat-btn');
+        await waitFor(alice, ([id, url]) => (state.chats[id] || []).some(message => message.gif?.url === url && !message.text), [bobId, PASTED], 15000);
+        assert.equal(await alice.inputValue('#chat-input'), '', 'input cleared');
+        await waitFor(bob, ([id, url]) => (state.chats[id] || []).some(message => message.gif?.url === url), [aliceId, PASTED], 30000);
+
+        // Eigener Stern unten links, fremder unten rechts (oben liegt die Aktionsleiste).
+        assert.equal(await alice.evaluate(url => document.querySelector(`.gif-box [data-gif-favorite="${url}"]`).classList.contains('is-left'), PASTED), true);
+        assert.equal(await bob.evaluate(url => document.querySelector(`.gif-box [data-gif-favorite="${url}"]`).classList.contains('is-left'), PASTED), false);
+
+        // Grosse Ansicht und Link kopieren (Kontextmenue).
+        await bob.click(`.gif-box [data-gif-url="${PASTED}"]`);
+        await bob.waitForSelector('#gif-viewer-copy', { timeout: 5000 });
+        assert.equal(await bob.locator('.gif-viewer img').count(), 1);
+        await bob.evaluate(() => closeMediaModal());
+        await bob.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+        const messageId = await bob.evaluate(([id, url]) => state.chats[id].find(message => message.gif?.url === url).id, [aliceId, PASTED]);
+        await bob.evaluate(id => openMessageMenu(id), messageId);
+        await bob.waitForSelector('#message-menu .message-menu-items', { timeout: 5000 });
+        await bob.locator('#message-menu button', { hasText: 'Link kopieren' }).click();
+        assert.equal(await bob.evaluate(() => navigator.clipboard.readText()), PASTED, 'url copied');
+
+        // Medien-Uebersicht: GIFs einblendbar.
+        await bob.evaluate(() => openChatMediaOverview('all'));
+        await bob.waitForSelector('#media-overview-gifs-toggle', { timeout: 5000 });
+        assert.equal(await bob.locator('[data-gif-overview]').count(), 0, 'hidden until switched on');
+        await bob.click('#media-overview-gifs-toggle');
+        await bob.waitForSelector('[data-gif-overview]', { timeout: 5000 });
+        assert.equal(await bob.locator('[data-gif-overview]').count(), 4);
+        await bob.evaluate(() => closeMediaModal());
+
         // Favorit (auch extern) und Einstellungen.
         await bob.click(`[data-gif-favorite="${OTHER_HOST}/dance.gif"]`);
         assert.deepEqual(await bob.evaluate(() => gifState.favorites.map(item => item.url)), [`${OTHER_HOST}/dance.gif`]);
-        assert.deepEqual(await alice.evaluate(() => gifState.recent.map(item => item.source)), ['url', 'provider', 'library']);
+        assert.deepEqual(await alice.evaluate(() => gifState.recent.map(item => item.source)), ['url', 'url', 'provider', 'library']);
         assert.equal(await alice.evaluate(url => Boolean(gifState.index[url]), KLIPY_MEDIA), false, 'provider media is not cached');
         assert.equal(await bob.locator('#gif-settings-card').count(), 1);
         await bob.evaluate(() => updateGifSetting('enabled', false));

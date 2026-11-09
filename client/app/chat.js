@@ -527,6 +527,21 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
         return;
     }
     if ((!text && !hasAttachment) || !peerId || isPeerBlocked(peerId)) return false;
+    // Nur ein GIF-Link eingefuegt (gifs.js): als GIF senden statt als Text.
+    if (!hasAttachment && typeof gifFromTypedText === 'function') {
+        const gif = await gifFromTypedText(text).catch(() => null);
+        if (gif) {
+            input.value = '';
+            fitChatInput(input);
+            updateComposeButtons();
+            const sent = await sendChatMessage(null, '', null, null, { gif });
+            if (sent !== false) {
+                await rememberRecentGif(gif);
+                await markGifCached(gif.url, 'sent');
+            }
+            return sent;
+        }
+    }
 
     // Senden fuehrt nach unten, ausser man liest gerade weit oben im Verlauf.
     const history = document.getElementById('chat-messages');

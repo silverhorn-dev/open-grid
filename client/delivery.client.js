@@ -81,6 +81,9 @@ async function sendRequestedChatOperations(peerId, operationIds) {
 // options.notifyKind: Art fuer den Push beim Empfaenger, falls es ueber Pfad C geht (push.js).
 async function sendSecurePayload(peerId, payload, onSent = null, options = {}) {
     if (isPeerBlocked(peerId)) return false;
+    // Chat-Operationen (auch Loeschen, Bearbeiten, Reaktionen) immer mit ACK-Pruefung und Pfad-C-Fallback:
+    // ohne Rueckruf blieben sie bei einem halbtoten Kanal bis zum naechsten Chat-Sync haengen.
+    if (!onSent && payload?.type === 'CHAT_OPERATION') onSent = () => {};
     // Umgezogene alte Kopie (move.js): nur noch lesen.
     if (state.movedAway) return false;
     const channel = state.dataChannels[peerId];

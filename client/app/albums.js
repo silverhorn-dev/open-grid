@@ -597,7 +597,24 @@ function openChatMediaOverview(filter = state.mediaOverviewFilter || 'all') {
         && (filter === 'all' || (filter === 'mine') === (message.senderId === state.myProfile.id)));
     const snaps = messages.filter(isInlineSnap);
     const albums = messages.filter(message => message.album);
-    if (!snaps.length && !albums.length) {
+    // GIFs (gifs.js): einblendbar per Schalter, gemerkt im Browser.
+    const gifs = typeof isValidGifInfo === 'function' ? messages.filter(message => isValidGifInfo(message.gif)) : [];
+    const showGifs = window.localStorage.getItem('opengrid-media-gifs') === 'on';
+    if (gifs.length) {
+        const toggle = document.createElement('button');
+        toggle.type = 'button';
+        toggle.id = 'media-overview-gifs-toggle';
+        toggle.setAttribute('aria-pressed', String(showGifs));
+        toggle.className = `ml-2 px-3 py-1.5 rounded-lg text-xs font-semibold border ${showGifs ? 'bg-brand-600 border-brand-500 text-white' : 'border-slate-700 text-slate-400'}`;
+        toggle.textContent = t('gifs.overviewToggle', { count: gifs.length });
+        toggle.onclick = () => {
+            window.localStorage.setItem('opengrid-media-gifs', showGifs ? 'off' : 'on');
+            openChatMediaOverview(filter);
+        };
+        switcher.after(toggle);
+        switcher.classList.add('inline-flex');
+    }
+    if (!snaps.length && !albums.length && !(showGifs && gifs.length)) {
         const note = createEmptyState({ icon: 'fa-images', text: filter === 'all' ? t('albums.noImagesHaveBeenShared') : t('albums.noImagesInThisSelection') });
         content.appendChild(note);
         return;
@@ -626,6 +643,9 @@ function openChatMediaOverview(filter = state.mediaOverviewFilter || 'all') {
             tile.appendChild(label);
             grid.appendChild(tile);
         }));
+    }
+    if (showGifs && gifs.length) {
+        addSection(`GIFs (${gifs.length})`, grid => gifs.slice().reverse().forEach(message => grid.appendChild(gifOverviewTile(message))));
     }
 }
 

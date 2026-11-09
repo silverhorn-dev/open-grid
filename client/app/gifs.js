@@ -50,6 +50,14 @@ function isGifVideoUrl(url) {
     }
 }
 
+// Sieht ein eingefuegter Link wie ein GIF aus? Endung (gif, webp, mp4, webm) oder bekannte GIF-Dienste.
+function looksLikeGifUrl(value) {
+    const url = gifUrlAllowed(value);
+    if (!url) return false;
+    const { hostname, pathname } = new URL(url);
+    return /\.(gif|gifv|webp|mp4|webm)$/i.test(pathname) || /(^|\.)(giphy\.com|tenor\.com|klipy\.com)$/i.test(hostname);
+}
+
 function isValidGifInfo(gif) {
     return Boolean(gif) && typeof gif === 'object' && Boolean(gifUrlAllowed(gif.url)) && gifUrlAllowed(gif.url) === gif.url
         && ['library', 'url', 'provider'].includes(gif.source)
@@ -256,6 +264,7 @@ function createGifMedia(gif, className) {
         media.decoding = 'async';
         media.alt = gif.title || 'GIF';
     }
+    media.dataset.gifUrl = gif.url;
     media.src = gifMediaSrc(gif.url);
     // Proxy-Token abgelaufen (Neustart des Routers, neuer Tag): einmal neu holen und nochmal laden.
     if (media.src.includes('/api/gif-proxy')) {
@@ -321,9 +330,15 @@ function renderGifMessage(bubble, message, isMine) {
         const remember = () => markGifCached(gif.url, isMine ? 'sent' : 'received').catch(() => {});
         media.addEventListener(media.tagName === 'VIDEO' ? 'loadeddata' : 'load', remember, { once: true });
         media.addEventListener('error', () => box.classList.add('gif-broken'), { once: true });
+        media.classList.add('cursor-zoom-in');
+        media.onclick = event => {
+            event.stopPropagation();
+            openGifViewer(gif, { mine: isMine });
+        };
         const star = document.createElement('button');
         star.type = 'button';
-        star.className = 'gif-favorite';
+        // Oben liegt die Aktionsleiste der Nachricht: Stern unten, bei eigenen Nachrichten links.
+        star.className = `gif-favorite ${isMine ? 'is-left' : ''}`;
         star.dataset.gifFavorite = gif.url;
         const favorite = isFavoriteGif(gif.url);
         star.setAttribute('aria-pressed', String(favorite));
@@ -361,6 +376,95 @@ function renderGifMessage(bubble, message, isMine) {
         caption.textContent = message.text;
         bubble.appendChild(caption);
     }
+}
+
+// ----- Grosse Ansicht, Kontextmenue, Medien-Uebersicht -----
+function openGifViewer(gif, { mine = false } = {}) {
+    const content = openMediaModal(gif.title || t('gifs.viewerTitle'));
+    const box = document.createElement('div');
+    box.className = 'gif-viewer';
+    box.appendChild(createGifMedia(gif, 'gif-viewer-media'));
+    const actions = document.createElement('div');
+    actions.className = 'flex flex-wrap gap-2 mt-3';
+    const button = (id, icon, label, handler) => {
+        const element = document.createElement('button');
+        element.type = 'button';
+        element.id = id;
+        element.className = 'btn-secondary';
+        element.innerHTML = `<i class="${icon}"></i> `;
+        const text = document.createElement('span');
+        text.textContent = label;
+        element.appendChild(text);
+        element.onclick = handler;
+        return element;
+    };
+    actions.appendChild(button('gif-viewer-copy', 'fa-regular fa-copy', t('gifs.copyUrl'), () => copyGifUrl(gif)));
+    const favoriteLabel = () => (isFavoriteGif(gif.url) ? t('gifs.unfavorite') : t('gifs.favorite'));
+    const favorite = button('gif-viewer-favorite', 'fa-regular fa-star', favoriteLabel(), async () => {
+        await toggleFavoriteGif(gif);
+        favorite.querySelector('span').textContent = favoriteLabel();
+    });
+    actions.appendChild(favorite);
+    if (gif.source === 'library' && !mine) actions.appendChild(button('gif-viewer-report', 'fa-regular fa-flag', t('gifs.report'), () => reportLibraryGif(gif)));
+    content.append(box, actions);
+}
+
+async function copyGifUrl(gif) {
+    if (await copyTextToClipboard(gif.url)) showToast(t('gifs.urlCopied'), 'success');
+    else showToast(t('common.copyingIsNotPossible'), 'error');
+}
+
+// Kachel fuer die Medien-Uebersicht des Chats; ohne Freigabe nur verschwommen (nichts laden).
+function gifOverviewTile(message) {
+    const gif = message.gif;
+    const mine = message.senderId === state.myProfile.id;
+    const display = gifDisplayState(gif, { mine, sources: gifSources(), enabled: gifSetting('enabled'), external: gifSetting('external') });
+    const tile = document.createElement('button');
+    tile.type = 'button';
+    tile.className = 'gif-tile';
+    tile.dataset.gifOverview = gif.url;
+    if (display === 'show') {
+        tile.appendChild(createGifMedia(gif, 'gif-media'));
+        tile.onclick = () => openGifViewer(gif, { mine });
+    } else {
+        tile.classList.add('gif-blocked');
+        tile.innerHTML = '<span class="gif-enable"><i class="fa-solid fa-film"></i></span>';
+        if (display !== 'off') tile.onclick = () => enableGifsFromPrompt(display).then(enabled => enabled && openChatMediaOverview()).catch(logBackgroundError('gifOverviewTile'));
+    }
+    return tile;
+}
+
+// Text aus dem Eingabefeld: ist es nur ein GIF-Link, wird ein GIF daraus (sonst null -> normaler Text).
+async function gifFromTypedText(text) {
+    const value = String(text || '').trim();
+    if (!value || /\s/.test(value) || !looksLikeGifUrl(value)) return null;
+    const url = gifUrlAllowed(value);
+    const source = isProviderMediaUrl(url) ? 'provider' : 'url';
+    if (!gifSources().includes(source)) return null;
+    if (!gifSetting('enabled') && !await enableGifsFromPrompt('enable')) return null;
+    // Masse messen (laedt das GIF beim Absender, wie die Vorschau im Link-Reiter); klappt es nicht: Text.
+    const size = await new Promise(resolve => {
+        const video = isGifVideoUrl(url);
+        const probe = document.createElement(video ? 'video' : 'img');
+        probe.referrerPolicy = 'no-referrer';
+        if (video) probe.muted = true;
+        const timer = setTimeout(() => resolve(null), 8000);
+        probe.addEventListener(video ? 'loadeddata' : 'load', () => {
+            clearTimeout(timer);
+            resolve({ w: probe.naturalWidth || probe.videoWidth, h: probe.naturalHeight || probe.videoHeight });
+        }, { once: true });
+        probe.addEventListener('error', () => {
+            clearTimeout(timer);
+            resolve(null);
+        }, { once: true });
+        probe.src = gifMediaSrc(url);
+    });
+    if (!size) return null;
+    const clamp = value => (Number.isInteger(value) && value > 0 ? Math.min(4096, value) : undefined);
+    const info = { url, source, w: clamp(size.w), h: clamp(size.h) };
+    if (info.w === undefined) delete info.w;
+    if (info.h === undefined) delete info.h;
+    return info;
 }
 
 // ----- Auswahl und Senden -----

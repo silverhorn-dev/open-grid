@@ -105,7 +105,7 @@ export function buildLoggerOptions(logger) {
 // ================= Header =================
 const NOMINATIM_ORIGIN = 'https://nominatim.openstreetmap.org';
 
-export function securityHeaders(host, { wasm = false, externalMedia = false, connectOrigins = [] } = {}) {
+export function securityHeaders(host, { wasm = false, externalMedia = false, connectOrigins = [], serviceWorker = false } = {}) {
     // Skripte nur von der eigenen Origin, keine Inline-Handler (siehe client/app/actions.js).
     // Inline-Styles (style-Attribute) bleiben erlaubt.
     const socketOrigins = host ? ` ws://${host} wss://${host}` : '';
@@ -119,7 +119,9 @@ export function securityHeaders(host, { wasm = false, externalMedia = false, con
             `img-src 'self' data: blob:${externalMedia ? ' https:' : ''}`,
             `media-src 'self' blob:${externalMedia ? ' https:' : ''}`,
             "font-src 'self'",
-            `connect-src 'self'${socketOrigins} ${NOMINATIM_ORIGIN}${connectOrigins.map(origin => ` ${origin}`).join('')}`,
+            // Der Service Worker laedt GIFs von fremden https-Servern selbst (Cache, sw.js); fetch() im Worker
+            // faellt unter dessen connect-src. Die Seite selbst bleibt bei ihren festen Zielen.
+            `connect-src 'self'${socketOrigins} ${NOMINATIM_ORIGIN}${connectOrigins.map(origin => ` ${origin}`).join('')}${serviceWorker && externalMedia ? ' https:' : ''}`,
             "worker-src 'self'",
             "manifest-src 'self' data:",
             "object-src 'none'",

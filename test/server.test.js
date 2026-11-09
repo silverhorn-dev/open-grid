@@ -1234,6 +1234,10 @@ test('gif sources, url checks and the library with review', async () => {
         const config = await gifApp.inject({ method: 'GET', url: '/api/config' });
         assert.deepEqual(config.json().gifs, { sources: ['library', 'url'], review: true, proxy: false });
         assert.match(config.headers['content-security-policy'], /img-src[^;]*https:/);
+        // Der Service Worker laedt fremde GIFs selbst (Cache): nur sw.js darf per fetch an https-Server.
+        assert.ok(!/connect-src[^;]*https:(\s|;|$)/.test(config.headers['content-security-policy']), 'page connect-src stays strict');
+        const worker = await gifApp.inject({ method: 'GET', url: '/sw.js' });
+        assert.match(worker.headers['content-security-policy'], /connect-src[^;]* https:(\s|;|$)/);
         assert.equal((await gifApp.inject({ method: 'GET', url: '/api/gifs', headers: { 'x-peer-id': 'peer-gif2' } })).statusCode, 401);
         const bad = await gifApp.inject({ method: 'POST', url: '/api/gifs', headers: gifHeaders, payload: { peerId: 'peer-gif2', url: 'https://10.0.0.1/x.gif' } });
         assert.equal(bad.statusCode, 400);

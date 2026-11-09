@@ -2,6 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
+## Build 306 · 2026-11-09
+- Behoben: GIF-Links (z. B. von Discord) liessen sich nicht laden ("kein Bild oder Video"), weil der Speicher der App fremde Bilder nicht holen durfte
+- GIFs oeffnen sich jetzt im Vollbild wie Bilder
+
 ## Build 304 · 2026-11-09 · `5fd86f5`
 - Behoben: Loeschen (auch Bearbeiten und Reaktionen) kam beim anderen Geraet manchmal erst spaeter an; jetzt geht es wie Nachrichten notfalls ueber den Zwischenspeicher
 - GIF-Link einfach ins Eingabefeld einfuegen (z. B. von Discord), er wird als GIF gesendet

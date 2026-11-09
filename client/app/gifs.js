@@ -379,35 +379,63 @@ function renderGifMessage(bubble, message, isMine) {
 }
 
 // ----- Grosse Ansicht, Kontextmenue, Medien-Uebersicht -----
+// Vollbild wie der Bildbetrachter: Tippen daneben, Escape oder Zurueck schliesst.
 function openGifViewer(gif, { mine = false } = {}) {
-    const content = openMediaModal(gif.title || t('gifs.viewerTitle'));
-    const box = document.createElement('div');
-    box.className = 'gif-viewer';
-    box.appendChild(createGifMedia(gif, 'gif-viewer-media'));
-    const actions = document.createElement('div');
-    actions.className = 'flex flex-wrap gap-2 mt-3';
-    const button = (id, icon, label, handler) => {
-        const element = document.createElement('button');
-        element.type = 'button';
-        element.id = id;
-        element.className = 'btn-secondary';
-        element.innerHTML = `<i class="${icon}"></i> `;
-        const text = document.createElement('span');
-        text.textContent = label;
-        element.appendChild(text);
-        element.onclick = handler;
-        return element;
-    };
-    actions.appendChild(button('gif-viewer-copy', 'fa-regular fa-copy', t('gifs.copyUrl'), () => copyGifUrl(gif)));
-    const favoriteLabel = () => (isFavoriteGif(gif.url) ? t('gifs.unfavorite') : t('gifs.favorite'));
-    const favorite = button('gif-viewer-favorite', 'fa-regular fa-star', favoriteLabel(), async () => {
-        await toggleFavoriteGif(gif);
-        favorite.querySelector('span').textContent = favoriteLabel();
-    });
-    actions.appendChild(favorite);
-    if (gif.source === 'library' && !mine) actions.appendChild(button('gif-viewer-report', 'fa-regular fa-flag', t('gifs.report'), () => reportLibraryGif(gif)));
-    content.append(box, actions);
+    const element = document.getElementById('gif-viewer');
+    const stage = document.getElementById('gif-viewer-stage');
+    if (!element || !stage) return;
+    gifState.viewer = { gif, mine };
+    const media = createGifMedia(gif, 'gif-viewer-media');
+    media.classList.remove('cursor-zoom-in');
+    media.onclick = event => event.stopPropagation();
+    stage.replaceChildren(media);
+    stage.onclick = () => closeGifViewer();
+    document.getElementById('gif-viewer-report')?.classList.toggle('hidden', !(gif.source === 'library' && !mine));
+    paintViewerGifFavorite();
+    if (element.classList.contains('hidden')) {
+        element.classList.remove('hidden');
+        pushModalEntry('gif-viewer', hideGifViewer);
+    }
 }
+
+function hideGifViewer() {
+    document.getElementById('gif-viewer')?.classList.add('hidden');
+    document.getElementById('gif-viewer-stage')?.replaceChildren();
+    gifState.viewer = null;
+}
+
+function closeGifViewer() {
+    if (document.getElementById('gif-viewer')?.classList.contains('hidden')) return;
+    dismissModalEntry('gif-viewer', hideGifViewer);
+}
+
+function paintViewerGifFavorite() {
+    const button = document.getElementById('gif-viewer-favorite');
+    const gif = gifState.viewer?.gif;
+    if (!button || !gif) return;
+    const favorite = isFavoriteGif(gif.url);
+    button.setAttribute('aria-pressed', String(favorite));
+    button.setAttribute('aria-label', favorite ? t('gifs.unfavorite') : t('gifs.favorite'));
+    button.innerHTML = `<i class="fa-${favorite ? 'solid text-amber-400' : 'regular'} fa-star"></i>`;
+}
+
+async function toggleViewerGifFavorite() {
+    if (!gifState.viewer) return;
+    await toggleFavoriteGif(gifState.viewer.gif);
+    paintViewerGifFavorite();
+}
+
+function copyViewerGifUrl() {
+    if (gifState.viewer) return copyGifUrl(gifState.viewer.gif);
+}
+
+function reportViewerGif() {
+    if (gifState.viewer) return reportLibraryGif(gifState.viewer.gif, document.getElementById('gif-viewer-report'));
+}
+
+document.addEventListener?.('keydown', event => {
+    if (event.key === 'Escape') closeGifViewer();
+});
 
 async function copyGifUrl(gif) {
     if (await copyTextToClipboard(gif.url)) showToast(t('gifs.urlCopied'), 'success');

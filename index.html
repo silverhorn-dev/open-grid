@@ -1249,6 +1249,17 @@
     </div>
 
     <!-- Bildbetrachter (Vollbild) -->
+    <!-- GIF-Betrachter (gifs.js): Vollbild wie bei Bildern; GIFs sind fremde Links, darum eigener Betrachter -->
+    <div id="gif-viewer" class="hidden fixed inset-0 z-80 bg-black flex items-center justify-center select-none" role="dialog" aria-modal="true" data-i18n-attr="aria-label:gifs.viewerTitle" aria-label="GIF">
+        <div class="absolute top-0 inset-x-0 z-10 p-4 flex items-center justify-end gap-2 bg-linear-to-b from-black/70 to-transparent" style="padding-top: max(1rem, env(safe-area-inset-top));">
+            <button type="button" id="gif-viewer-report" data-click="reportViewerGif" class="hidden h-11 px-4 rounded-full bg-black/50 text-white text-sm font-semibold flex items-center gap-2" data-i18n-attr="aria-label:gifs.report" aria-label="GIF melden"><i class="fa-regular fa-flag"></i></button>
+            <button type="button" id="gif-viewer-favorite" data-click="toggleViewerGifFavorite" class="h-11 px-4 rounded-full bg-black/50 text-white text-sm font-semibold flex items-center gap-2" data-i18n-attr="aria-label:gifs.favorite" aria-label="Zu Favoriten"><i class="fa-regular fa-star"></i></button>
+            <button type="button" id="gif-viewer-copy" data-click="copyViewerGifUrl" class="h-11 px-4 rounded-full bg-black/50 text-white text-sm font-semibold flex items-center gap-2"><i class="fa-regular fa-copy"></i><span data-i18n="gifs.copyUrl" class="hidden sm:inline">Link kopieren</span></button>
+            <button type="button" data-click="closeGifViewer" class="w-11 h-11 rounded-full bg-black/50 text-white text-lg flex items-center justify-center" data-i18n-attr="aria-label:profileModal.close" aria-label="Schließen"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div id="gif-viewer-stage" class="w-full h-full flex items-center justify-center"></div>
+    </div>
+
     <div data-i18n-attr="aria-label:viewer.imageViewer" id="image-viewer" data-secure-screen class="hidden fixed inset-0 z-80 bg-black flex flex-col select-none" data-no-context-menu role="dialog" aria-modal="true" aria-label="Bildbetrachter">
         <div class="absolute top-0 inset-x-0 z-10 p-4 flex items-center justify-between bg-linear-to-b from-black/70 to-transparent" style="padding-top: max(1rem, env(safe-area-inset-top));">
             <span id="image-viewer-counter" class="mr-auto text-sm font-semibold text-white/90"></span>

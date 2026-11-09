@@ -161,9 +161,12 @@ async function main() {
 
         // Grosse Ansicht und Link kopieren (Kontextmenue).
         await bob.click(`.gif-box [data-gif-url="${PASTED}"]`);
-        await bob.waitForSelector('#gif-viewer-copy', { timeout: 5000 });
-        assert.equal(await bob.locator('.gif-viewer img').count(), 1);
-        await bob.evaluate(() => closeMediaModal());
+        await bob.waitForSelector('#gif-viewer:not(.hidden) #gif-viewer-copy', { timeout: 5000 });
+        const viewerBox = await bob.locator('#gif-viewer-stage img').boundingBox();
+        const viewport = bob.viewportSize();
+        assert.ok(viewerBox.width >= viewport.width - 2 || viewerBox.height >= viewport.height - 2, 'gif fills the screen like images');
+        await bob.keyboard.press('Escape');
+        await bob.waitForSelector('#gif-viewer', { state: 'hidden', timeout: 5000 });
         await bob.context().grantPermissions(['clipboard-read', 'clipboard-write']);
         const messageId = await bob.evaluate(([id, url]) => state.chats[id].find(message => message.gif?.url === url).id, [aliceId, PASTED]);
         await bob.evaluate(id => openMessageMenu(id), messageId);

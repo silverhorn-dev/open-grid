@@ -562,6 +562,7 @@ export async function buildApp(options = {}) {
         reply.headers(securityHeaders(request.headers.host, {
             wasm: request.url.startsWith('/client/app/nudity-worker.js'),
             externalMedia: gifSettings.sources.length > 0,
+            serviceWorker: request.url.split('?')[0] === '/sw.js',
             // Anbieter-Suche laeuft vom Client direkt zum Anbieter (dessen Regeln).
             connectOrigins: gifSettings.sources.includes('provider') ? ['https://api.klipy.com'] : []
         }));

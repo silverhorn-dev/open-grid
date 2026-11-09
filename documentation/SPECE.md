@@ -261,7 +261,8 @@
   `gif-recent` (40), `gif-cache` (Index URL -> { at, kind }); der Service
   Worker legt fremde https-Bilder in Cache Storage `opengrid-gifs` (auch
   undurchsichtige Antworten ohne CORS) und liefert sie danach von dort,
-  Videos nicht. `cleanupGifCache` loescht beim Start und bei Aenderung alles,
+  Videos nicht. Dafuer erlaubt nur die CSP von `/sw.js` `connect-src https:`
+  (fetch im Worker), sobald eine GIF-Quelle an ist; die Seite bleibt strikt. `cleanupGifCache` loescht beim Start und bei Aenderung alles,
   was weder Favorit noch innerhalb `gifKeepDays` gesendet/empfangen ist.
   Anbieter (`GIF_PROVIDER=klipy`, Quelle `provider`): `/api/config` gibt
   `gifs.provider = { name, key, contentFilter }`; der Client fragt
@@ -279,7 +280,8 @@
   (`looksLikeGifUrl`: Endung gif/gifv/webp/mp4/webm oder giphy/tenor/klipy),
   misst der Client das GIF (8 s) und sendet es als `gif` (Quelle `url` bzw.
   `provider`); laedt es nicht, geht es als Text. Tippen auf ein GIF oeffnet
-  die grosse Ansicht (Link kopieren, Favorit, Melden); im Nachrichten-Menue
+  den Vollbild-Betrachter `#gif-viewer` (wie Bilder; Link kopieren, Favorit,
+  Melden; Tippen daneben, Escape oder Zurueck schliesst); im Nachrichten-Menue
   "Link kopieren"; Medien-Uebersicht des Chats mit Schalter "GIFs" (gemerkt in
   `localStorage` `opengrid-media-gifs`, ohne Freigabe nur verschwommene
   Kacheln). Stern unten (eigene Nachrichten links), Fahne unten links.

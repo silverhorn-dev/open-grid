@@ -81,14 +81,14 @@ async function main() {
         await alice.fill('#snap-text-input', 'Hallo Bob');
         await alice.press('#snap-text-input', 'Enter');
         await alice.click('#snap-tool-emoji');
-        await alice.click('#snap-emoji-row button >> nth=2');
+        await alice.click('#snap-emoji-row .snap-sticker-emoji >> nth=2');
         const editState = await alice.evaluate(() => ({ strokes: snapEditor.strokes.length, items: snapEditor.items.map(item => item.kind) }));
         assert.equal(editState.strokes, 1);
         assert.deepEqual(editState.items, ['text', 'emoji']);
         await alice.click('[aria-label="Rückgängig"]');
         assert.equal(await alice.evaluate(() => snapEditor.items.length), 1, 'undo removes the emoji');
         await alice.click('#snap-tool-emoji');
-        await alice.click('#snap-emoji-row button >> nth=2');
+        await alice.click('#snap-emoji-row .snap-sticker-emoji >> nth=2');
         await alice.screenshot({ path: process.env.SHOT_DIR ? `${process.env.SHOT_DIR}/snap-editor.png` : '/tmp/snap-editor.png' });
         await alice.click('#snap-send-btn');
 

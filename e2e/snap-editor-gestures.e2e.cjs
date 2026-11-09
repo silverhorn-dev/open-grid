@@ -22,7 +22,14 @@ async function main() {
     const browser = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
     const pageErrors = [];
     try {
-        const context = await browser.newContext({ locale: 'de-DE', ...devices['Pixel 7'], permissions: ['camera'] });
+        // Service Worker aus: so faengt die Route unten auch die GIF-Anfragen ab (GIF-Sticker).
+        const context = await browser.newContext({ locale: 'de-DE', ...devices['Pixel 7'], permissions: ['camera'], serviceWorkers: 'block' });
+        const GIF_STICKER = 'https://stickers.e2e-media.org/wink.gif';
+        // 2x2 GIF, rot; mit CORS (sonst liesse sich das Bild nicht einbrennen).
+        await context.route('https://stickers.e2e-media.org/**', route => route.fulfill({
+            status: 200, contentType: 'image/gif', headers: { 'Access-Control-Allow-Origin': '*' },
+            body: Buffer.from('R0lGODlhAgACAPAAAP8AAAAAACH5BAAAAAAALAAAAAACAAIAAAIChF8AOw==', 'base64')
+        }));
         const page = await context.newPage();
         page.on('pageerror', error => pageErrors.push(error.message));
         await page.goto(`${BASE_URL}/`);
@@ -162,12 +169,53 @@ async function main() {
         await page.evaluate(() => undoSnapEdit());
         assert.equal(await page.getAttribute('#snap-filter-row [data-filter="bw"]', 'aria-checked'), 'true', 'undo returns to the previous filter');
 
-        // Uhrzeit als Sticker und Text mit anderer Art und vollem Hintergrund.
+        // Sticker: Reiter (Info, Emoji-Sets), Uhrzeit, Datum, zuletzt benutzt.
         await page.tap('#snap-tool-emoji');
+        const tabs = await page.evaluate(() => [...document.querySelectorAll('#snap-emoji-row [data-sticker-tab]')].map(tab => tab.dataset.stickerTab));
+        assert.deepEqual(tabs.slice(0, 2), ['info', 'faces'], 'info first, no recent yet');
+        assert.ok(['hearts', 'animals', 'food', 'party', 'nature', 'hands'].every(tab => tabs.includes(tab)));
+        await page.tap('#snap-emoji-row [data-sticker-tab="info"]');
         await page.tap('#snap-emoji-row [data-time-sticker]');
         const time = await page.evaluate(() => snapEditor.items.at(-1));
         assert.match(time.text, /^\d\d:\d\d$/);
         assert.equal(time.font, 'mono');
+        await page.tap('#snap-tool-emoji');
+        await page.tap('#snap-emoji-row [data-info-sticker="weekday"]');
+        assert.match(await page.evaluate(() => snapEditor.items.at(-1).text), /tag$|woch$/i, 'weekday in German');
+        await page.tap('#snap-tool-emoji');
+        await page.tap('#snap-emoji-row [data-sticker-tab="animals"]');
+        await page.tap('#snap-emoji-row .snap-sticker-emoji >> nth=3');
+        assert.equal(await page.evaluate(() => snapEditor.items.at(-1).text), '🐻');
+        await page.tap('#snap-tool-emoji');
+        assert.equal(await page.evaluate(() => snapEditor.stickerTab), 'animals', 'remembers the last tab');
+        await page.tap('#snap-emoji-row [data-sticker-tab="recent"]');
+        assert.equal(await page.textContent('#snap-emoji-row .snap-sticker-emoji'), '🐻', 'recently used');
+        await page.tap('#snap-tool-emoji');
+        // Wochentag und Baer wieder weg (die Uhrzeit braucht der Test unten noch).
+        await page.evaluate(() => { undoSnapEdit(); undoSnapEdit(); });
+
+        // GIF-Favorit als Sticker: wird eingebrannt (erstes Bild). Ohne CORS-Header waere er nicht nutzbar
+        // (Hinweis statt Sticker); das laesst sich hier nicht nachstellen, Playwright ergaenzt den Header selbst.
+        await page.evaluate(([withCors]) => {
+            state.appConfig.gifs = { sources: ['library', 'url'], review: true, proxy: false, provider: null };
+            gifState.favorites = [{ url: withCors, source: 'url', w: 2, h: 2 }];
+        }, [GIF_STICKER]);
+        await page.tap('#snap-tool-emoji');
+        await page.tap('#snap-emoji-row [data-sticker-tab="gifs"]');
+        await page.tap(`#snap-emoji-row [data-gif-sticker="${GIF_STICKER}"]`);
+        await waitFor(page, () => snapEditor.items.at(-1)?.kind === 'image');
+        assert.equal(await page.locator('#snap-edit-layers .snap-edit-image').count(), 1);
+        const burned = await page.evaluate(() => {
+            const sticker = snapEditor.items.at(-1);
+            sticker.x = 0.5;
+            sticker.y = 0.5;
+            const canvas = flattenSnapDraft();
+            const [r, g, b] = canvas.getContext('2d').getImageData(canvas.width / 2, canvas.height / 2, 1, 1).data;
+            return { r, g, b, exportable: canvas.toDataURL('image/jpeg').length > 100 };
+        });
+        assert.ok(burned.r > 200 && burned.g < 60 && burned.b < 60, `red gif burned into the snap: ${JSON.stringify(burned)}`);
+        assert.ok(burned.exportable, 'canvas stays exportable');
+        await page.evaluate(() => undoSnapEdit());
         await page.tap('[data-click="startSnapText"]');
         await page.fill('#snap-text-input', 'Hallo');
         await page.tap('#snap-text-style-btn');

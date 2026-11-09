@@ -364,9 +364,18 @@
   `serif`, `mono`, `hand`, `neon`; nur Geraeteschriften) und einen Hintergrund
   (`background`: `none`, `shade` = abgedunkelt, `solid` = Textfarbe als Kasten,
   Text dann schwarz/weiss nach Helligkeit). Filter fuer das Foto (`original`,
-  `bw`, `vivid`, `red`) als Pixel-Operation, einmal je Wahl auf eine Kopie
-  gerechnet (`filteredBase`, kein `canvas.filter` noetig). Uhrzeit-Sticker im
-  Emoji-Feld = Text-Ebene `HH:MM` (mono, abgedunkelt), frei platzierbar. `flattenSnapDraft` zeichnet alles mit diesen
+  `vivid`, `warm`, `cool`, `vintage`, `fade`, `dream`, `bw`, `noir`, `red`) als
+  Pixel-Operation (`SNAP_FILTER_PIXELS`), einmal je Wahl auf eine Kopie
+  gerechnet (`filteredBase`, kein `canvas.filter` noetig), Leiste mit
+  Vorschaubildern. Sticker-Feld (Board T33) mit Reitern: Info (Uhrzeit `HH:MM`
+  mono, Datum, Wochentag, Datum + Uhrzeit; Text-Ebenen, abgedunkelt), zuletzt
+  benutzte Emojis (`localStorage` `opengrid-snap-recent-emojis`, 16), Emoji-Sets
+  (`SNAP_STICKER_SETS`: Gesichter, Herzen, Tiere, Essen, Party, Natur, Haende),
+  GIFs (Favoriten + zuletzt aus `gifs.js`, ohne Klipy und ohne Videos). Ein
+  GIF-Sticker ist eine Bild-Ebene (`kind: 'image'`, Breite 35 %), geladen mit
+  `crossOrigin` (bzw. ueber den Proxy); laesst es sich nicht auslesen (Server
+  ohne CORS), gibt es einen Hinweis statt Sticker. Beim Flachen wird das erste
+  Bild eingebrannt. Der letzte Reiter bleibt gemerkt. `flattenSnapDraft` zeichnet alles mit diesen
   Transformationen in einen Canvas (ausserhalb des Fotos schwarz), erst danach
   bettet `encodeSnap` das Wasserzeichen ein und komprimiert unter 70 KB.
 - Kontextmenue einer Nachricht (`chat-tools.js`, `openMessageMenu`): oben die

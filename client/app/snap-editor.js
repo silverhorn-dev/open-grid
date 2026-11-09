@@ -3,7 +3,6 @@
 // einziges JPEG "geflacht" (flattenSnapDraft) und erst dann mit Wasserzeichen kodiert (encodeSnap),
 // der Empfaenger bekommt also keine Ebenen oder Metadaten.
 const SNAP_EDIT_COLORS = ['#ffffff', '#111111', '#ef4444', '#f59e0b', '#22c55e', '#3b82f6', '#ec4899'];
-const SNAP_EDIT_EMOJIS = ['😂', '😍', '🔥', '❤️', '😎', '🥳', '😮', '👍', '🌈', '✨', '💋', '🎉'];
 const SNAP_TEXT_SIZE = 0.07;
 const SNAP_EMOJI_SIZE = 0.14;
 const SNAP_STROKE_WIDTH = 0.012;
@@ -48,6 +47,8 @@ const snapEditor = {
     filteredBase: null,
     // Vorschaubilder je Filter (einmal pro Foto berechnet).
     filterPreviews: null,
+    // Zuletzt gewaehlter Sticker-Reiter.
+    stickerTab: null,
     textStyle: 'classic',
     textBackground: 'none',
     gesture: { pointers: new Map(), mode: null, item: null, itemPointerId: null, offset: null, start: null, swipe: null, snapped: false }
@@ -317,30 +318,179 @@ function renderSnapColorRow() {
     }));
 }
 
-function renderSnapEmojiRow() {
+// ----- Sticker (Board T33) -----
+// Reiter: Info (Uhrzeit, Datum, Wochentag), zuletzt benutzt, Emoji-Sets, GIFs (Favoriten/zuletzt, gifs.js).
+// GIF-Sticker: das erste Bild wird beim Senden eingebrannt (ein Snap ist ein Foto). Nur mit CORS oder ueber
+// den Proxy des Routers (sonst waere das Bild "verunreinigt" und nicht exportierbar); Klipy nie (dessen Regeln
+// verbieten Kopien).
+const SNAP_STICKER_SETS = {
+    faces: ['😂', '🥹', '😍', '🥰', '😘', '😎', '🤩', '🥳', '😜', '🤪', '😇', '🙃', '😏', '😴', '🤯', '😱', '😭', '😡', '🤔', '🫠'],
+    hearts: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '💖', '💘', '💕', '💔', '❤️‍🔥', '💋'],
+    animals: ['🐶', '🐱', '🦊', '🐻', '🐼', '🐨', '🐸', '🦄', '🐙', '🦋', '🐝', '🐢'],
+    food: ['🍕', '🍔', '🍟', '🌮', '🍣', '🍩', '🍦', '🍓', '🍉', '🍑', '🥑', '☕', '🍺', '🍷', '🍸'],
+    party: ['🎉', '🎊', '🥂', '🍾', '🎂', '🎁', '🎈', '🪩', '🎶', '🔥', '✨', '💯', '🏳️‍🌈', '🏳️‍⚧️'],
+    nature: ['☀️', '🌙', '⭐', '🌈', '⚡', '❄️', '🌊', '🌸', '🌻', '🌴', '🍀', '🍁'],
+    hands: ['👍', '👎', '👌', '✌️', '🤞', '🤘', '👋', '🙏', '👏', '💪', '🫶', '🤙']
+};
+const SNAP_RECENT_STICKERS_KEY = 'opengrid-snap-recent-emojis';
+const SNAP_RECENT_STICKERS_MAX = 16;
+const SNAP_IMAGE_STICKER_SIZE = 0.35;
+
+function recentSnapEmojis() {
+    try {
+        const list = JSON.parse(window.localStorage.getItem(SNAP_RECENT_STICKERS_KEY) || '[]');
+        return Array.isArray(list) ? list.filter(entry => typeof entry === 'string' && entry.length <= 16).slice(0, SNAP_RECENT_STICKERS_MAX) : [];
+    } catch {
+        return [];
+    }
+}
+
+function rememberSnapEmoji(emoji) {
+    const list = [emoji, ...recentSnapEmojis().filter(entry => entry !== emoji)].slice(0, SNAP_RECENT_STICKERS_MAX);
+    window.localStorage.setItem(SNAP_RECENT_STICKERS_KEY, JSON.stringify(list));
+}
+
+// Info-Sticker als Text (Sprache der App, 24 h).
+function snapInfoStickers(now = Date.now(), locale = i18nLocale()) {
+    const date = new Date(now);
+    return [
+        { id: 'time', text: formatClockTime(now) },
+        { id: 'date', text: date.toLocaleDateString(locale, { day: 'numeric', month: 'long' }) },
+        { id: 'weekday', text: date.toLocaleDateString(locale, { weekday: 'long' }) },
+        { id: 'datetime', text: `${date.toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' })} · ${formatClockTime(now)}` }
+    ];
+}
+
+// GIFs, die als Sticker taugen: Favoriten und zuletzt gesendete, ohne Klipy, ohne Videos.
+function snapGifStickerCandidates() {
+    if (typeof gifState === 'undefined' || typeof gifComposeAvailable !== 'function' || !gifComposeAvailable()) return [];
+    const seen = new Set();
+    return [...(gifState.favorites || []), ...(gifState.recent || [])].filter(gif => {
+        if (seen.has(gif.url) || isProviderMediaUrl(gif.url) || isGifVideoUrl(gif.url)) return false;
+        seen.add(gif.url);
+        return true;
+    });
+}
+
+function snapStickerTabs() {
+    const tabs = ['info'];
+    if (recentSnapEmojis().length) tabs.push('recent');
+    tabs.push(...Object.keys(SNAP_STICKER_SETS));
+    if (snapGifStickerCandidates().length) tabs.push('gifs');
+    return tabs;
+}
+
+function snapStickerTabLabel(tab) {
+    return {
+        info: t('snaps.stickerInfo'), recent: '🕘', faces: '😀', hearts: '❤️', animals: '🐶', food: '🍕',
+        party: '🎉', nature: '🌸', hands: '👍', gifs: 'GIF'
+    }[tab] || tab;
+}
+
+function renderSnapEmojiRow(tab = snapEditor.stickerTab || 'faces') {
     const row = document.getElementById('snap-emoji-row');
-    // Erster Sticker: die aktuelle Uhrzeit (verschieb-, skalier- und drehbar wie jede Ebene).
-    const time = document.createElement('button');
-    time.type = 'button';
-    time.dataset.timeSticker = 'true';
-    time.className = 'h-10 px-2 rounded-lg hover:bg-white/10 text-white text-sm font-bold font-mono';
-    time.setAttribute('aria-label', t('snaps.timeSticker'));
-    time.textContent = formatClockTime(Date.now());
-    time.onclick = () => {
-        addSnapItem({ kind: 'text', text: formatClockTime(Date.now()), size: SNAP_TEXT_SIZE, color: '#ffffff', font: 'mono', background: 'shade' });
-        row.classList.add('hidden');
-    };
-    row.replaceChildren(time, ...SNAP_EDIT_EMOJIS.map(emoji => {
+    if (!row) return;
+    const tabs = snapStickerTabs();
+    if (!tabs.includes(tab)) tab = 'faces';
+    snapEditor.stickerTab = tab;
+    const bar = document.createElement('div');
+    bar.className = 'snap-sticker-tabs';
+    bar.setAttribute('role', 'tablist');
+    tabs.forEach(name => {
         const button = document.createElement('button');
         button.type = 'button';
-        button.className = 'w-10 h-10 text-2xl rounded-lg hover:bg-white/10';
-        button.textContent = emoji;
-        button.onclick = () => {
-            addSnapItem({ kind: 'emoji', text: emoji, size: SNAP_EMOJI_SIZE, color: '#ffffff' });
-            row.classList.add('hidden');
+        button.dataset.stickerTab = name;
+        button.setAttribute('role', 'tab');
+        button.setAttribute('aria-selected', String(name === tab));
+        button.className = `snap-sticker-tab${name === tab ? ' is-active' : ''}`;
+        button.textContent = snapStickerTabLabel(name);
+        if (name === 'info') button.setAttribute('aria-label', t('snaps.stickerInfo'));
+        button.onclick = event => {
+            event.stopPropagation();
+            renderSnapEmojiRow(name);
         };
-        return button;
-    }));
+        bar.appendChild(button);
+    });
+    const grid = document.createElement('div');
+    grid.className = 'snap-sticker-grid';
+    const close = () => row.classList.add('hidden');
+    if (tab === 'info') {
+        snapInfoStickers().forEach(info => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.dataset.infoSticker = info.id;
+            if (info.id === 'time') {
+                button.dataset.timeSticker = 'true';
+                button.setAttribute('aria-label', t('snaps.timeSticker'));
+            }
+            button.className = 'snap-sticker-info';
+            button.textContent = info.text;
+            button.onclick = () => {
+                addSnapItem({ kind: 'text', text: info.text, size: SNAP_TEXT_SIZE, color: '#ffffff', font: info.id === 'time' ? 'mono' : 'classic', background: 'shade' });
+                close();
+            };
+            grid.appendChild(button);
+        });
+    } else if (tab === 'gifs') {
+        snapGifStickerCandidates().forEach(gif => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.dataset.gifSticker = gif.url;
+            button.className = 'snap-sticker-gif';
+            button.appendChild(createGifMedia(gif, 'gif-media'));
+            button.onclick = () => {
+                addSnapImageSticker(gif).catch(logBackgroundError('renderSnapEmojiRow'));
+                close();
+            };
+            grid.appendChild(button);
+        });
+    } else {
+        (tab === 'recent' ? recentSnapEmojis() : SNAP_STICKER_SETS[tab]).forEach(emoji => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'snap-sticker-emoji';
+            button.textContent = emoji;
+            button.onclick = () => {
+                addSnapItem({ kind: 'emoji', text: emoji, size: SNAP_EMOJI_SIZE, color: '#ffffff' });
+                rememberSnapEmoji(emoji);
+                close();
+            };
+            grid.appendChild(button);
+        });
+    }
+    row.replaceChildren(bar, grid);
+}
+
+// GIF als Bild-Sticker: mit CORS laden (bzw. ueber den Proxy, same-origin), sonst nicht nutzbar.
+function loadSnapStickerImage(gif) {
+    return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.crossOrigin = 'anonymous';
+        image.referrerPolicy = 'no-referrer';
+        image.decoding = 'async';
+        image.onload = () => resolve(image);
+        image.onerror = () => reject(new Error('sticker image not loadable'));
+        image.src = gifMediaSrc(gif.url);
+    });
+}
+
+async function addSnapImageSticker(gif) {
+    let image;
+    try {
+        image = await loadSnapStickerImage(gif);
+        // Probe: laesst sich das Bild auf eine Leinwand zeichnen und wieder auslesen?
+        const probe = document.createElement('canvas');
+        probe.width = probe.height = 1;
+        const context = probe.getContext('2d');
+        context.drawImage(image, 0, 0, 1, 1);
+        context.getImageData(0, 0, 1, 1);
+    } catch {
+        showToast(t('snaps.gifStickerUnavailable'), 'error');
+        return false;
+    }
+    const ratio = image.naturalHeight && image.naturalWidth ? image.naturalHeight / image.naturalWidth : 1;
+    addSnapItem({ kind: 'image', src: image.src, url: gif.url, ratio, size: SNAP_IMAGE_STICKER_SIZE, image });
+    return true;
 }
 
 function updateSnapToolButtons() {
@@ -359,7 +509,10 @@ function setSnapEditTool(tool) {
 
 function toggleSnapEmojiPicker() {
     document.getElementById('snap-text-entry').classList.add('hidden');
-    document.getElementById('snap-emoji-row').classList.toggle('hidden');
+    const row = document.getElementById('snap-emoji-row');
+    // Beim Oeffnen neu aufbauen: Uhrzeit, zuletzt benutzte und GIF-Favoriten sind dann aktuell.
+    if (row.classList.contains('hidden')) renderSnapEmojiRow();
+    row.classList.toggle('hidden');
 }
 
 function renderSnapTextOptions() {
@@ -461,6 +614,18 @@ function renderSnapItems() {
         const element = document.createElement('div');
         element.className = 'snap-edit-item absolute whitespace-nowrap font-bold pointer-events-auto cursor-move touch-none';
         element.dataset.itemId = item.id;
+        if (item.kind === 'image') {
+            // GIF-Sticker: Breite relativ zur Buehne, Hoehe nach Seitenverhaeltnis.
+            const image = document.createElement('img');
+            image.src = item.src;
+            image.alt = '';
+            image.draggable = false;
+            image.className = 'snap-edit-image';
+            image.style.width = `${item.size * stageWidth}px`;
+            element.appendChild(image);
+            positionSnapItemElement(element, item);
+            return element;
+        }
         element.textContent = item.text;
         element.style.fontSize = `${item.size * stageWidth}px`;
         const colors = snapItemColors(item);
@@ -782,6 +947,14 @@ function flattenSnapDraft() {
         context.save();
         context.translate(item.x * canvas.width, item.y * canvas.height);
         context.rotate(item.rotation || 0);
+        if (item.kind === 'image') {
+            // Erstes Bild des GIFs (ein Snap ist ein Foto).
+            const width = item.size * (item.scale || 1) * canvas.width;
+            const height = width * (item.ratio || 1);
+            if (item.image) context.drawImage(item.image, -width / 2, -height / 2, width, height);
+            context.restore();
+            return;
+        }
         const fontSize = Math.round(item.size * (item.scale || 1) * canvas.width);
         const style = item.kind === 'text' ? (SNAP_TEXT_STYLES[item.font] || SNAP_TEXT_STYLES.classic) : SNAP_TEXT_STYLES.classic;
         context.font = `${style.style} ${style.weight} ${fontSize}px ${style.family}`;

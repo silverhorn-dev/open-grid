@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 307 · 2026-11-09
+## Build 308 · 2026-11-09
+- Snap-Editor: Sticker mit Reitern - Info (Uhrzeit, Datum, Wochentag), zuletzt benutzt und viele neue Emojis (Gesichter, Herzen, Tiere, Essen, Party, Natur, Haende)
+- Snap-Editor: GIF-Favoriten als Sticker aufs Foto legen (das erste Bild wird eingebrannt)
+
+## Build 307 · 2026-11-09 · `0b39d40`
 - Personen melden: im Chat-Menue "Melden", mit Grund (und optional einer Notiz); danach kannst du sie auch blockieren
 - Melden mehrere verschiedene Personen jemanden, ist er im Grid nicht mehr sichtbar, bis der Betreiber entscheidet
 - GIF-Meldungen brauchen jetzt ebenfalls einen Grund

@@ -473,9 +473,11 @@ const GIF_CACHE_NAME = 'opengrid-gifs';
 async function handleGifImage(request, key) {
     const cache = await caches.open(GIF_CACHE_NAME).catch(() => null);
     const cached = cache ? await cache.match(key).catch(() => null) : null;
-    if (cached) return cached;
+    // CORS-Anfrage (z. B. GIF als Snap-Sticker): eine undurchsichtige Kopie taugt dafuer nicht, neu holen.
+    if (cached && !(request.mode === 'cors' && cached.type === 'opaque')) return cached;
     const response = await fetch(request);
     // Auch undurchsichtige Antworten (ohne CORS) lassen sich cachen und als Bild ausliefern.
+    // Eine CORS-Antwort ersetzt eine undurchsichtige (danach fuer beides nutzbar).
     if (cache && (response.ok || response.type === 'opaque')) cache.put(key, response.clone()).catch(() => {});
     return response;
 }

@@ -646,7 +646,9 @@
 - [x] mehr filter: farbenfroh, warm, kuehl, vintage, matt, traum, s/w, noir, rot (pixel-funktionen, gehen auch ohne `canvas.filter` auf iOS)
 - [x] filterleiste mit kleinen vorschaubildern (bildmitte, einmal pro foto), seitlich wischbar, aktiver filter wird mittig gescrollt
   - done 2026-11-09: `SNAP_FILTER_PIXELS`, `filteredSnapCanvas` (snap-editor.js); tests `test/snap-editor.test.js`, e2e `snap-editor-gestures`
-- [ ] mehr sticker (emoji-sets, ort/datum, ggf. aus dem GIF-paket von T34) -> erst nach T34 besprechen
+- [x] mehr sticker (nutzer 2026-11-09 "jo mach die sticker")
+  - done 2026-11-09: sticker-feld mit reitern: info (uhrzeit, datum, wochentag, datum+uhrzeit), zuletzt benutzt, 7 emoji-sets, GIFs (favoriten/zuletzt als bild-sticker, erstes bild eingebrannt, nur mit CORS/proxy, ohne Klipy); e2e `snap-editor-gestures`
+  - nicht gemacht: ort-sticker (ohne externe abfrage keine stadt aus dem geohash; nominatim nur auf ausdruecklichen klick, regel 1) -> bei bedarf besprechen; Klipy-sticker-API (keine kopien erlaubt, ein snap ist eine kopie)
 
 ## T34 GIFs im Chat (nutzer 2026-11-09, aus dem backlog)
 - [x] GIFs senden und empfangen wie bei discord: phase 1 (bibliothek + externe links + lokaler cache + medien-menue + admin-freigabe)

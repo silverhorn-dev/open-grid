@@ -185,6 +185,7 @@ export function createStore(databasePath, { credentialRetentionDays = DEFAULT_CR
                 audience = excluded.audience
         `),
         deletePeer: database.prepare('DELETE FROM peers WHERE peer_id = ?'),
+        setPeerSilent: database.prepare('UPDATE peers SET silent = ? WHERE peer_id = ?'),
         deletePeerRegistration: database.prepare('DELETE FROM peers WHERE peer_id = ? AND registration_id = ?'),
         // Prefix-Abfrage ueber den (geohash, expires_at)-Index: geohash >= prefix AND geohash < prefix + '~'.
         listPeersInCell: database.prepare(`
@@ -516,6 +517,11 @@ export function createStore(databasePath, { credentialRetentionDays = DEFAULT_CR
         // Fuer Tests und Betrieb: sofortiger Durchlauf der Aufbewahrungsregel.
         removeStaleIdentities(now = Date.now()) {
             return removeStaleIdentities(now);
+        },
+
+        // Meldungen (reports.js): Grid-Eintrag sofort still schalten; true, wenn er existierte.
+        setPeerSilent(peerId, silent) {
+            return Number(statements.setPeerSilent.run(silent ? 1 : 0, peerId).changes) > 0;
         },
 
         getPeerGeohash(peerId) {

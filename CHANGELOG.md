@@ -2,7 +2,12 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 306 · 2026-11-09
+## Build 307 · 2026-11-09
+- Personen melden: im Chat-Menue "Melden", mit Grund (und optional einer Notiz); danach kannst du sie auch blockieren
+- Melden mehrere verschiedene Personen jemanden, ist er im Grid nicht mehr sichtbar, bis der Betreiber entscheidet
+- GIF-Meldungen brauchen jetzt ebenfalls einen Grund
+
+## Build 306 · 2026-11-09 · `e648ca1`
 - Behoben: GIF-Links (z. B. von Discord) liessen sich nicht laden ("kein Bild oder Video"), weil der Speicher der App fremde Bilder nicht holen durfte
 - GIFs oeffnen sich jetzt im Vollbild wie Bilder
 

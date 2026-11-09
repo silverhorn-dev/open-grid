@@ -1257,12 +1257,14 @@ test('gif sources, url checks and the library with review', async () => {
         const klipy = await gifApp.inject({ method: 'POST', url: '/api/gifs', headers: gifHeaders, payload: { peerId: 'peer-gif2', url: 'https://static.klipy.com/ii/abc' } });
         assert.equal(klipy.statusCode, 400);
         // Melden: einmal je Peer, ab 3 verschiedenen Peers ausgeblendet; "Behalten" im Admin stellt es wieder her.
-        const report = peer => gifApp.inject({ method: 'POST', url: '/api/gifs/report', headers: peer.headers, payload: { peerId: peer.id, url: 'https://media.example.org/cat.gif' } });
+        const report = peer => gifApp.inject({ method: 'POST', url: '/api/gifs/report', headers: peer.headers, payload: { peerId: peer.id, url: 'https://media.example.org/cat.gif', reason: 'spam' } });
         const reporters = [];
         for (const id of ['peer-r1', 'peer-r2', 'peer-r3']) {
             const registered = await gifApp.inject({ method: 'POST', url: '/api/register', payload: registrationPayload(id, `registration-${id}`) });
             reporters.push({ id, headers: { authorization: `Bearer ${registered.json().authToken}`, 'x-peer-id': id } });
         }
+        const noReason = await gifApp.inject({ method: 'POST', url: '/api/gifs/report', headers: reporters[0].headers, payload: { peerId: 'peer-r1', url: 'https://media.example.org/cat.gif' } });
+        assert.equal(noReason.statusCode, 400, 'a reason is required');
         assert.equal((await report(reporters[0])).statusCode, 200);
         assert.equal((await report(reporters[0])).statusCode, 200, 'same peer counts once');
         assert.equal((await report(reporters[1])).statusCode, 200);
@@ -1270,6 +1272,7 @@ test('gif sources, url checks and the library with review', async () => {
         await report(reporters[2]);
         assert.equal((await gifApp.inject({ method: 'GET', url: '/api/gifs', headers: gifHeaders })).json().gifs.length, 0, 'hidden after three reports');
         assert.equal(gifStoreRoot.gifs.listByStatus('reported')[0].reports, 3);
+        assert.equal(gifStoreRoot.gifs.listByStatus('reported')[0].reportReasons, 'spam,spam,spam');
         gifStoreRoot.gifs.approve(suggested.json().gif.id, null, Date.now());
         assert.equal((await gifApp.inject({ method: 'GET', url: '/api/gifs', headers: gifHeaders })).json().gifs.length, 1, 'kept by the admin');
         assert.equal(gifStoreRoot.gifs.count('reported'), 0);
@@ -1347,4 +1350,29 @@ test('gif proxy: off by default, tokens, private addresses, redirects, types and
     } finally {
         await proxyApp.close();
     }
+});
+
+test('users can be reported manually with a reason; several reporters hide them from the grid until the admin decides', async () => {
+    for (const id of ['peer-bad', 'peer-u1', 'peer-u2', 'peer-u3']) await registerPeer(id);
+    const reportAs = (reporter, body) => app.inject({ method: 'POST', url: '/api/reports', headers: authHeaders(reporter), payload: { peerId: reporter, reportedPeerId: 'peer-bad', kind: 'user', ...body } });
+    assert.equal((await reportAs('peer-u1', {})).statusCode, 400, 'reason required');
+    assert.equal((await reportAs('peer-u1', { reason: 'bogus' })).statusCode, 400);
+    assert.equal((await reportAs('peer-u1', { reason: 'other' })).statusCode, 400, 'other needs a note');
+    assert.equal((await reportAs('peer-u1', { reason: 'harassment', note: 'beleidigt mich' })).statusCode, 200);
+    assert.equal((await reportAs('peer-u1', { reason: 'spam' })).json().duplicate, true, 'one open report per reporter');
+    assert.equal((await reportAs('peer-u2', { reason: 'other', note: 'fake profil' })).statusCode, 200);
+    assert.ok((await gridPeerIds()).peers.some(peer => peer.id === 'peer-bad'), 'two reporters: still visible');
+    assert.equal((await reportAs('peer-u3', { reason: 'scam' })).statusCode, 200);
+    assert.ok(!(await gridPeerIds()).peers.some(peer => peer.id === 'peer-bad'), 'hidden right away after three reporters');
+    // Neu anmelden hilft nicht.
+    await reregister('peer-bad');
+    assert.ok(!(await gridPeerIds()).peers.some(peer => peer.id === 'peer-bad'), 'stays hidden after re-registering');
+    const listed = store.admin.listReports('open');
+    assert.deepEqual(listed.map(report => report.reason).sort(), ['harassment', 'other', 'scam']);
+    assert.ok(listed.every(report => report.hidden));
+    // Admin stellt wieder her: alle Meldungen erledigt, beim naechsten Anmelden wieder sichtbar.
+    assert.ok(store.admin.resolveReport(listed[0].id, 'restored'));
+    assert.equal(store.admin.openReportCount(), 0);
+    await reregister('peer-bad');
+    assert.ok((await gridPeerIds()).peers.some(peer => peer.id === 'peer-bad'));
 });

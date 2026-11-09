@@ -692,15 +692,19 @@ async function refreshReports() {
         text.className = 'min-w-0';
         const head = document.createElement('p');
         head.className = 'font-semibold break-all';
-        head.textContent = t('admin.reportHead', { peer: report.reportedId, matches: report.matches ?? '?' });
+        // Manuelle Meldung (kind 'user') mit Grund, sonst Spur-Wasserzeichen mit Trefferguete.
+        head.textContent = report.kind === 'user'
+            ? t('admin.reportHeadUser', { peer: report.reportedId, reason: adminReasonLabel(report.reason) })
+            : t('admin.reportHead', { peer: report.reportedId, matches: report.matches ?? '?' });
         const meta = document.createElement('p');
         meta.className = 'setting-desc break-all';
         meta.textContent = [
             new Date(report.createdAt).toLocaleString(i18nLocale()),
             t('admin.reportBy', { reporter: report.reporterId }),
             t('admin.reportCounts', { reports: report.reportsAboutPeer, reporters: report.reportersAboutPeer }),
-            statusText[report.status] || report.status
-        ].join(' · ');
+            statusText[report.status] || report.status,
+            report.hidden ? t('admin.reportHidden') : null
+        ].filter(Boolean).join(' · ');
         text.append(head, meta);
         if (report.note) {
             const note = document.createElement('p');
@@ -712,7 +716,10 @@ async function refreshReports() {
         if (report.status === 'open') {
             const actions = document.createElement('div');
             actions.className = 'flex gap-2 shrink-0';
-            for (const [action, label, style] of [['ban', t('admin.reportBan'), 'btn-primary'], ['dismiss', t('admin.reportDismiss'), 'btn-secondary']]) {
+            const actionsList = [['ban', t('admin.reportBan'), 'btn-primary'], ['dismiss', t('admin.reportDismiss'), 'btn-secondary']];
+            // Ausgeblendet nach mehreren Meldungen: alle Meldungen erledigen und wieder sichtbar machen.
+            if (report.hidden) actionsList.push(['restore', t('admin.reportRestore'), 'btn-secondary']);
+            for (const [action, label, style] of actionsList) {
                 const button = document.createElement('button');
                 button.className = style;
                 button.textContent = label;
@@ -725,6 +732,14 @@ async function refreshReports() {
         }
         return item;
     }));
+}
+
+function adminReasonLabel(reason) {
+    return {
+        spam: t('report.reason.spam'), harassment: t('report.reason.harassment'), sexual: t('report.reason.sexual'),
+        minor: t('report.reason.minor'), scam: t('report.reason.scam'), hate: t('report.reason.hate'),
+        violence: t('report.reason.violence'), impersonation: t('report.reason.impersonation'), other: t('report.reason.other')
+    }[reason] || reason || '?';
 }
 
 async function resolveReport(id, action) {
@@ -768,7 +783,8 @@ async function refreshGifs() {
         title.textContent = gif.title || t('admin.gifsNoTitle');
         const meta = document.createElement('p');
         meta.className = 'setting-desc break-all';
-        meta.textContent = [gif.url, gif.width && gif.height ? `${gif.width}×${gif.height}` : null,
+        const reasons = gif.reportReasons ? [...new Set(String(gif.reportReasons).split(','))].map(adminReasonLabel).join(', ') : null;
+        meta.textContent = [gif.url, gif.width && gif.height ? `${gif.width}×${gif.height}` : null, reasons,
             new Date(gif.createdAt).toLocaleString(i18nLocale()), gif.suggestedBy ? t('admin.reportBy', { reporter: gif.suggestedBy }) : null,
             gif.reports ? t('admin.gifsReports', { count: gif.reports }) : null, gif.status === 'hidden' ? t('admin.gifsHidden') : null].filter(Boolean).join(' · ');
         text.append(title, meta);

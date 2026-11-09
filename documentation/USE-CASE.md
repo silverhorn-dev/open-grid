@@ -1350,3 +1350,21 @@ Akzeptanzkriterien:
 - Schaltet der Betreiber den Proxy an, laden Bibliotheks- und Link-GIFs ueber
   den Router; die fremden Server sehen dann nur den Router.
 
+## UC-77: Person melden
+
+**Als Nutzer** moechte ich jemanden melden koennen, der mich belaestigt,
+spammt oder betruegt.
+
+Akzeptanzkriterien:
+
+- Im Chat-Menue steht "Melden". Ich muss einen Grund waehlen (z. B. Spam,
+  Belaestigung, ungewollte sexuelle Inhalte, wirkt minderjaehrig, Betrug,
+  Hass, Gewalt, gibt sich als jemand anderes aus, Sonstiges); bei "Sonstiges"
+  beschreibe ich kurz, was passiert ist. Eine Notiz ist sonst optional.
+- Der Betreiber sieht nur Grund und Notiz, keine Chats.
+- Danach bietet die App an, die Person auch zu blockieren.
+- Melden mehrere verschiedene Personen dieselbe Person (Standard 3), ist sie
+  im Grid nicht mehr sichtbar, bis der Betreiber sie sperrt oder wieder
+  sichtbar macht. Dieselbe Person zaehlt nur einmal.
+- Auch GIFs aus der Bibliothek melde ich mit Grund.
+

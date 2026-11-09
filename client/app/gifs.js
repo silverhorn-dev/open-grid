@@ -294,11 +294,14 @@ function gifReportButton(gif) {
 }
 
 async function reportLibraryGif(gif, button = null) {
-    if (!window.confirm(t('gifs.reportConfirm'))) return false;
+    // Im Vollbild liegt der Dialog sonst dahinter.
+    if (gifState.viewer) closeGifViewer();
+    const choice = await openReportDialog({ title: t('gifs.report'), intro: t('gifs.reportConfirm'), reasons: GIF_REPORT_REASONS });
+    if (!choice) return false;
     const response = await fetch(`${API_BASE}/api/gifs/report`, {
         method: 'POST',
         headers: peerAuthHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ peerId: state.myProfile.id, url: gif.url })
+        body: JSON.stringify({ peerId: state.myProfile.id, url: gif.url, reason: choice.reason })
     }).catch(() => null);
     showToast(response?.ok ? t('gifs.reported') : t('gifs.reportFailed'), response?.ok ? 'info' : 'error');
     if (response?.ok && button) button.disabled = true;

@@ -26,6 +26,13 @@ export function createAdminStore(database) {
         );
         CREATE INDEX IF NOT EXISTS reports_status ON reports (status, created_at);
 
+        -- Nach mehreren Meldungen verschiedener Peers (USER_REPORT_HIDE) im Grid ausgeblendet, bis der Admin
+        -- entscheidet (wiederherstellen oder sperren).
+        CREATE TABLE IF NOT EXISTS report_hidden_peers (
+            peer_id TEXT PRIMARY KEY,
+            hidden_at INTEGER NOT NULL
+        );
+
         -- Admin-Sitzungen (nur der SHA-256 der Sitzungs-ID, damit eine Datenbank-Kopie kein Login ist).
         CREATE TABLE IF NOT EXISTS admin_sessions (
             id_hash TEXT PRIMARY KEY,
@@ -47,6 +54,10 @@ export function createAdminStore(database) {
             updated_at INTEGER NOT NULL
         );
     `);
+    // Grund der Meldung (nutzer-meldungen, Board T25): Spalte nachruesten.
+    if (!database.prepare('PRAGMA table_info(reports)').all().some(column => column.name === 'reason')) {
+        database.exec('ALTER TABLE reports ADD COLUMN reason TEXT');
+    }
     const statements = {
         list: database.prepare('SELECT id, name, created_at AS createdAt, last_used_at AS lastUsedAt FROM admin_passkeys ORDER BY created_at'),
         find: database.prepare('SELECT id, public_key AS publicKey, counter, transports FROM admin_passkeys WHERE id = ?'),
@@ -69,10 +80,15 @@ export function createAdminStore(database) {
         listSettings: database.prepare('SELECT key, value, updated_at AS updatedAt FROM admin_settings'),
         upsertSetting: database.prepare('INSERT INTO admin_settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at'),
         deleteSetting: database.prepare('DELETE FROM admin_settings WHERE key = ?'),
-        insertReport: database.prepare('INSERT INTO reports (id, reporter_id, reported_id, kind, matches, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'),
+        insertReport: database.prepare('INSERT INTO reports (id, reporter_id, reported_id, kind, reason, matches, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'),
+        openReporters: database.prepare("SELECT COUNT(DISTINCT reporter_id) AS count FROM reports WHERE reported_id = ? AND status = 'open'"),
+        hidePeer: database.prepare('INSERT OR IGNORE INTO report_hidden_peers (peer_id, hidden_at) VALUES (?, ?)'),
+        unhidePeer: database.prepare('DELETE FROM report_hidden_peers WHERE peer_id = ?'),
+        findHidden: database.prepare('SELECT hidden_at AS hiddenAt FROM report_hidden_peers WHERE peer_id = ?'),
         listReports: database.prepare(`
-            SELECT r.id, r.reporter_id AS reporterId, r.reported_id AS reportedId, r.kind, r.matches, r.note,
+            SELECT r.id, r.reporter_id AS reporterId, r.reported_id AS reportedId, r.kind, r.reason, r.matches, r.note,
                    r.created_at AS createdAt, r.status, r.resolved_at AS resolvedAt,
+                   EXISTS (SELECT 1 FROM report_hidden_peers hidden WHERE hidden.peer_id = r.reported_id) AS hidden,
                    (SELECT COUNT(*) FROM reports other WHERE other.reported_id = r.reported_id) AS reportsAboutPeer,
                    (SELECT COUNT(DISTINCT other.reporter_id) FROM reports other WHERE other.reported_id = r.reported_id) AS reportersAboutPeer
             FROM reports r WHERE (? = 'all' OR r.status = ?) ORDER BY r.created_at DESC LIMIT 200
@@ -117,7 +133,12 @@ export function createAdminStore(database) {
         settings: () => Object.fromEntries(statements.listSettings.all().map(row => [row.key, { value: JSON.parse(row.value), updatedAt: row.updatedAt }])),
         saveSetting: (key, value, now = Date.now()) => statements.upsertSetting.run(key, JSON.stringify(value), now),
         deleteSetting: key => statements.deleteSetting.run(key).changes > 0,
-        addReport: ({ id, reporterId, reportedId, kind, matches, note }, now = Date.now()) => statements.insertReport.run(id, reporterId, reportedId, kind, matches ?? null, note ?? null, now),
+        addReport: ({ id, reporterId, reportedId, kind, reason, matches, note }, now = Date.now()) => statements.insertReport.run(id, reporterId, reportedId, kind, reason ?? null, matches ?? null, note ?? null, now),
+        // Verschiedene Peers mit offener Meldung ueber diesen Peer.
+        openReporterCount: reportedId => Number(statements.openReporters.get(reportedId).count),
+        hidePeer: (peerId, now = Date.now()) => statements.hidePeer.run(peerId, now).changes > 0,
+        unhidePeer: peerId => statements.unhidePeer.run(peerId).changes > 0,
+        isPeerHidden: peerId => Boolean(statements.findHidden.get(peerId)),
         hasOpenReport: (reporterId, reportedId) => Boolean(statements.duplicateReport.get(reporterId, reportedId)),
         listReports: (status = 'open') => statements.listReports.all(status, status),
         findReport: id => statements.findReport.get(id) || null,
@@ -125,8 +146,10 @@ export function createAdminStore(database) {
         resolveReport(id, status, now = Date.now()) {
             const report = statements.findReport.get(id);
             if (!report) return false;
-            if (status === 'banned') statements.resolveReportsAbout.run(status, now, report.reportedId);
+            // Sperren und Wiederherstellen erledigen alle offenen Meldungen zu diesem Peer; "erledigt" nur die eine.
+            if (status === 'banned' || status === 'restored') statements.resolveReportsAbout.run(status === 'restored' ? 'dismissed' : status, now, report.reportedId);
             else statements.resolveReport.run(status, now, id);
+            if (status === 'restored' || status === 'banned') statements.unhidePeer.run(report.reportedId);
             return true;
         },
         openReportCount: () => statements.openReports.get().count,

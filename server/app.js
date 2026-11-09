@@ -17,7 +17,7 @@ import { registerAdminRoutes } from './admin.js';
 import { createMetrics } from './metrics.js';
 import { createLiveConfig } from './live-config.js';
 import { createApkSource, effectiveAppSigners, parseAppSigners, registerAndroidAppRoutes } from './android-app.js';
-import { registerReportRoutes } from './reports.js';
+import { parseUserReportHide, registerReportRoutes } from './reports.js';
 import { createEudiAgeProvider, parseEudiDoctypes, registerEudiTestRoutes } from './age-eudi.js';
 import { createOidcAgeProvider, describeOidcConfig, parseOidcConfig } from './age-oidc.js';
 import { createAgeTrustStore, EU_AGE_TEST_TRUSTED_LIST_SIGNERS, EU_AGE_TEST_TRUSTED_LIST_URL, EU_AGE_TRUSTED_LIST_SIGNERS, EU_AGE_TRUSTED_LIST_URL, parseAgeTrustConfig } from './age-trust.js';
@@ -197,6 +197,7 @@ const clientAssetFiles = [
     'app/snap-camera.js',
     'app/snap-studio.js',
     'app/gifs.js',
+    'app/report.js',
     'app/install-guide.js',
     'app/transfer.js',
     'app/move.js',
@@ -917,6 +918,14 @@ export async function buildApp(options = {}) {
         nudityConfig = next;
         nudityPublicConfig = describeNudityModels(nudityConfig, nudityAssets);
     };
+    // Nutzer-Meldungen (reports.js): ab so vielen verschiedenen Meldern im Grid ausgeblendet (0 = nie).
+    const userReportHideEnv = options.userReportHide ?? process.env.USER_REPORT_HIDE ?? 3;
+    let userReportHide = 3;
+    try {
+        userReportHide = parseUserReportHide(userReportHideEnv);
+    } catch (error) {
+        app.log.warn(`${error.message}; using 3.`);
+    }
     const liveConfig = createLiveConfig({
         store, log: app.log, now,
         entries: {
@@ -947,6 +956,10 @@ export async function buildApp(options = {}) {
                 env: gifEnv.providerFilter,
                 apply: value => updateGifProvider({ contentFilter: value ?? 'high' }),
                 options: () => ['high', 'medium', 'low', 'off']
+            },
+            USER_REPORT_HIDE: {
+                env: userReportHideEnv,
+                apply: value => { userReportHide = parseUserReportHide(value ?? 3); }
             },
             GIF_PROXY: {
                 env: gifEnv.proxy,
@@ -1086,7 +1099,15 @@ export async function buildApp(options = {}) {
     registerGifProxyRoutes(app, { settings: () => gifSettings, allowRequest, requirePeerAuth, isString, now, log: app.log, lookup: options.gifProxyLookup, fetch: options.gifProxyFetch });
 
     // Meldungen aus der App (server/reports.js), bearbeitet im Admin-Panel.
-    registerReportRoutes(app, { store, allowRequest, requirePeerAuth, isString, log: app.log });
+    registerReportRoutes(app, {
+        store, allowRequest, requirePeerAuth, isString, log: app.log,
+        hideAfter: () => userReportHide,
+        // Sofort aus dem Grid: Eintrag still schalten (wie "unsichtbar"), Zelle informieren.
+        onHidden: peerId => {
+            const geohash = store.getPeerGeohash(peerId);
+            if (geohash && store.setPeerSilent?.(peerId, true)) signaling.updatePeerCell(peerId, geohash, true);
+        }
+    });
 
     // Admin-Panel (server/admin.js): Passkey-Login, Status, Auslastung, Sperren, Live-Konfiguration, Meldungen.
     registerAdminRoutes(app, {
@@ -1225,7 +1246,8 @@ export async function buildApp(options = {}) {
             geohash: geohash.substring(0, GRID_PRECISION),
             thumbnail: thumbnail ? thumbnail.substring(0, 150000) : null,
             name: typeof name === 'string' ? name.substring(0, 100) : 'Peer',
-            silent: silent === true || missingVerification.length > 0,
+            // Nach mehreren Meldungen (reports.js) unsichtbar, bis der Admin entscheidet.
+            silent: silent === true || missingVerification.length > 0 || store.admin.isPeerHidden(peerId),
             ttlMs: ttlMinutes != null ? ttlMinutes * 60 * 1000 : undefined,
             scope: peerScope,
             eventHash: peerScope === 'event' ? eventHash : null,

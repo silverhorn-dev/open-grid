@@ -13,6 +13,7 @@ export const GIF_SOURCE_KINDS = ['library', 'url', 'provider'];
 export const GIF_PROVIDERS = ['klipy'];
 const PROVIDER_FILTERS = ['off', 'low', 'medium', 'high'];
 const REPORTS_TO_HIDE = 3;
+export const GIF_REPORT_REASONS = ['sexual', 'violence', 'hate', 'spam', 'other'];
 const MAX_URL_LENGTH = 1000;
 const MAX_TITLE_LENGTH = 60;
 const SUGGESTIONS_PER_DAY = 30;
@@ -103,15 +104,19 @@ export function createGifStore(database) {
             FOREIGN KEY (gif_id) REFERENCES gif_library (id) ON DELETE CASCADE
         );
     `);
+    if (!database.prepare('PRAGMA table_info(gif_reports)').all().some(column => column.name === 'reason')) {
+        database.exec('ALTER TABLE gif_reports ADD COLUMN reason TEXT');
+    }
     const columns = `id, url, title, width, height, status, suggested_by AS suggestedBy, created_at AS createdAt, approved_at AS approvedAt,
-        (SELECT COUNT(*) FROM gif_reports WHERE gif_reports.gif_id = gif_library.id) AS reports`;
+        (SELECT COUNT(*) FROM gif_reports WHERE gif_reports.gif_id = gif_library.id) AS reports,
+        (SELECT GROUP_CONCAT(reason) FROM gif_reports WHERE gif_reports.gif_id = gif_library.id) AS reportReasons`;
     const statements = {
         find: database.prepare(`SELECT ${columns} FROM gif_library WHERE id = ?`),
         findUrl: database.prepare(`SELECT ${columns} FROM gif_library WHERE url = ?`),
         insert: database.prepare('INSERT INTO gif_library (url, title, width, height, status, suggested_by, created_at, approved_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'),
         approve: database.prepare("UPDATE gif_library SET status = 'approved', approved_at = COALESCE(approved_at, ?), title = COALESCE(?, title) WHERE id = ?"),
         clearReports: database.prepare('DELETE FROM gif_reports WHERE gif_id = ?'),
-        addReport: database.prepare('INSERT OR IGNORE INTO gif_reports (gif_id, peer_id, created_at) VALUES (?, ?, ?)'),
+        addReport: database.prepare('INSERT OR IGNORE INTO gif_reports (gif_id, peer_id, created_at, reason) VALUES (?, ?, ?, ?)'),
         hide: database.prepare("UPDATE gif_library SET status = 'hidden' WHERE id = ? AND status = 'approved'"),
         remove: database.prepare('DELETE FROM gif_library WHERE id = ?'),
         suggestedSince: database.prepare('SELECT COUNT(*) AS count FROM gif_library WHERE suggested_by = ? AND created_at > ?'),
@@ -149,8 +154,8 @@ export function createGifStore(database) {
             return Number(statements.approve.run(now, title ?? null, Number(id)).changes) > 0;
         },
         // Meldung eines Peers (einmal je GIF); ab REPORTS_TO_HIDE ausgeblendet. Liefert die Anzahl.
-        report(id, peerId, now, hideAt = REPORTS_TO_HIDE) {
-            statements.addReport.run(Number(id), peerId, now);
+        report(id, peerId, now, hideAt = REPORTS_TO_HIDE, reason = null) {
+            statements.addReport.run(Number(id), peerId, now, reason);
             const count = Number(statements.find.get(Number(id))?.reports || 0);
             if (count >= hideAt) statements.hide.run(Number(id));
             return count;
@@ -212,8 +217,9 @@ export function registerGifRoutes(app, { gifs, settings, allowRequest, requirePe
     const reportsToday = new Map();
     app.post('/api/gifs/report', async (request, reply) => {
         if (!libraryOn()) return reply.code(404).send({ error: 'GIF library is disabled' });
-        const { peerId, url } = request.body || {};
+        const { peerId, url, reason } = request.body || {};
         if (!isString(peerId, 200)) return reply.code(400).send({ error: 'Invalid peerId' });
+        if (!GIF_REPORT_REASONS.includes(reason)) return reply.code(400).send({ error: 'A reason is required' });
         if (!allowRequest('gifs', peerId, reply)) return;
         if (!requirePeerAuth(request, reply, peerId)) return;
         const checked = checkGifUrl(url);
@@ -224,7 +230,7 @@ export function registerGifRoutes(app, { gifs, settings, allowRequest, requirePe
         if ((reportsToday.get(key) || 0) >= MAX_REPORTS_PER_DAY) return reply.code(429).send({ error: 'Too many reports today' });
         reportsToday.set(key, (reportsToday.get(key) || 0) + 1);
         if (reportsToday.size > 10000) reportsToday.clear();
-        gifs.report(gif.id, peerId, now(), settings().reportsToHide);
+        gifs.report(gif.id, peerId, now(), settings().reportsToHide, reason);
         log?.info?.(`GIF library: #${gif.id} reported.`);
         return { ok: true };
     });

@@ -49,6 +49,8 @@ services:
       GIF_SOURCES: ${GIF_SOURCES:-any}
       GIF_LIBRARY_REVIEW: ${GIF_LIBRARY_REVIEW:-true}
       GIF_REPORT_HIDE: ${GIF_REPORT_HIDE:-3}
+      # Nutzer-Meldungen: ab so vielen verschiedenen Meldern im Grid ausgeblendet (0 = nie).
+      USER_REPORT_HIDE: ${USER_REPORT_HIDE:-3}
       # Anbieter-Suche: off | klipy (Schluessel aus dem Klipy-Partner-Panel; Anfragen gehen direkt vom Browser).
       GIF_PROVIDER: ${GIF_PROVIDER:-off}
       GIF_PROVIDER_KEY: ${GIF_PROVIDER_KEY:-}

@@ -1734,6 +1734,18 @@ Meldungen (`server/reports.js`): `POST /api/reports` (Peer + Bearer, Rate-Limit
 `reported_id`, `kind`, `matches`, `note`, `created_at`, `status`
 open/banned/dismissed, `resolved_at`). App: nach einem Treffer in
 "Wasserzeichen pruefen" (`watermark.js`) Notizfeld + "Weitergabe melden".
+Manuell (`client/app/report.js`, Chat-Menue "Melden"): `{ kind: 'user', reason,
+note? }` mit `reason` aus spam, harassment, sexual, minor, scam, hate,
+violence, impersonation, other (Pflicht; bei `other` Notiz ab 3 Zeichen),
+Spalte `reason`. Danach bietet die App das normale Blockieren an. Haben
+`USER_REPORT_HIDE` (Standard 3, 0 = nie, live) verschiedene Peers offene
+Meldungen ueber denselben Peer, kommt er in `report_hidden_peers` und sein
+Grid-Eintrag wird sofort still (wie "unsichtbar"); jede Anmeldung bleibt
+still, bis der Admin sperrt oder "Wieder sichtbar machen" waehlt (`POST
+/api/admin/reports/:id { action: 'restore' }`: alle offenen Meldungen zu ihm
+erledigt). Bestehende Chats laufen weiter. GIF-Meldungen (`POST
+/api/gifs/report`) brauchen ebenfalls `reason` (sexual, violence, hate, spam,
+other), Spalte `gif_reports.reason`, das Panel zeigt die Gruende.
 
 Live-Konfiguration (`server/live-config.js`): Tabelle `admin_settings` (`key`,
 `value` JSON, `updated_at`). Beim Start gilt ein gespeicherter Wert vor der

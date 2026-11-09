@@ -662,6 +662,7 @@
 - [x] bug (nutzer 2026-11-09): loeschen am laptop kam am handy nicht sofort an -> `deleteChatMessage` (und bearbeiten, reaktionen, snap-status, blockieren) sendete ohne rueckruf, also ohne ACK-pruefung und pfad-C-fallback; bei halbtotem kanal hing es bis zum naechsten chat-sync. jetzt bekommt jede `CHAT_OPERATION` beides (`sendSecurePayload`), test `test/p2p-ack.test.js`
 - [x] bug (nutzer 2026-11-09): link-reiter "kein bild oder video" -> der SW laedt fremde GIFs selbst, `fetch` im worker lief gegen dessen CSP (`connect-src 'self'`); jetzt `https:` nur in der CSP von `/sw.js` (test `test/server.test.js`, gegenprobe im browser mit SW: ohne fix fehlschlag, mit fix geladen + gecacht)
 - [x] GIFs im vollbild wie bilder (`#gif-viewer`)
+- [x] nutzer 2026-11-09: "ausblenden nach mehreren meldungen geht nicht? nutzer nicht manuell meldbar, grund noetig" -> GIFs zaehlen nur verschiedene melder (3); neu: nutzer manuell melden mit pflicht-grund (`client/app/report.js`, chat-menue), ab `USER_REPORT_HIDE` (3) verschiedenen meldern im grid ausgeblendet bis admin sperrt/wiederherstellt; GIF-meldungen mit grund; UC-77, e2e `report-user`
 - [ ] offen: nacktfilter fuer GIFs (mit proxy same-origin und damit scanbar; ohne proxy fremde bilder ohne CORS nicht), videos (mp4) im cache (range-anfragen), sticker aus der bibliothek/Klipy-Sticker-API (T33)
 - erste ideen (vor phase 1):
   - entschieden (nutzer 2026-11-09):

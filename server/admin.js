@@ -259,13 +259,14 @@ export function registerAdminRoutes(app, {
         const action = request.body?.action;
         const report = store.admin.findReport(request.params.id);
         if (!report) return reply.code(404).send({ error: 'Unknown report' });
-        if (!['ban', 'dismiss'].includes(action)) return reply.code(400).send({ error: 'Invalid action' });
+        if (!['ban', 'dismiss', 'restore'].includes(action)) return reply.code(400).send({ error: 'Invalid action' });
         if (action === 'ban') {
             safety.ban('peer', report.reportedId, `report ${report.id}`);
             disconnectPeer(report.reportedId);
         }
-        store.admin.resolveReport(report.id, action === 'ban' ? 'banned' : 'dismissed', now());
-        log.info(`Admin panel: report ${action === 'ban' ? 'led to a ban' : 'dismissed'}.`);
+        // restore: alle offenen Meldungen zu diesem Peer erledigt, wieder sichtbar (ab der naechsten Anmeldung).
+        store.admin.resolveReport(report.id, { ban: 'banned', dismiss: 'dismissed', restore: 'restored' }[action], now());
+        log.info(`Admin panel: report ${{ ban: 'led to a ban', dismiss: 'dismissed', restore: 'dismissed, peer visible again' }[action]}.`);
         return { ok: true };
     });
 

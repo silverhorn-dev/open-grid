@@ -122,6 +122,10 @@ async function main() {
         assert.ok(!gifRequests.bob.some(url => url.startsWith(GIF_HOST)), 'never directly');
         // Bibliotheks-GIF melden.
         await bob.click(`.gif-box [data-gif-report="${GIF_HOST}/party.gif"]`);
+        // Grund ist Pflicht (report.js).
+        await bob.waitForSelector('#report-form', { timeout: 5000 });
+        await bob.check('#report-form input[value="spam"]');
+        await bob.click('#report-submit');
         await waitFor(bob, url => document.querySelector(`.gif-box [data-gif-report="${url}"]`)?.disabled === true, `${GIF_HOST}/party.gif`);
 
         // Klipy-GIF: direkt vom Anbieter, auch bei Bob mit Proxy (Regeln des Anbieters).

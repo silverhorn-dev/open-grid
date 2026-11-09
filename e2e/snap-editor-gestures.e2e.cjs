@@ -145,6 +145,22 @@ async function main() {
             return [r, g, b];
         });
         assert.ok(Math.abs(filtered[0] - filtered[2]) < 4, `black and white: ${filtered}`);
+        // Alle Filter mit Vorschaubild; "Warm" macht das blaue Foto waermer als S/W, Rueckgaengig geht zurueck.
+        const chips = await page.evaluate(() => [...document.querySelectorAll('#snap-filter-row [data-filter]')].map(chip => {
+            const [r, g, b] = chip.querySelector('canvas').getContext('2d').getImageData(22, 22, 1, 1).data;
+            return { filter: chip.dataset.filter, preview: r + g + b > 0 };
+        }));
+        assert.deepEqual(chips.map(chip => chip.filter), ['original', 'vivid', 'warm', 'cool', 'vintage', 'fade', 'dream', 'bw', 'noir', 'red']);
+        assert.ok(chips.every(chip => chip.preview), 'every chip shows a preview');
+        await page.evaluate(() => document.querySelector('#snap-filter-row [data-filter="cool"]').click());
+        await page.waitForTimeout(200);
+        const cool = await page.evaluate(() => {
+            const [r, , b] = flattenSnapDraft().getContext('2d').getImageData(300, 5, 1, 1).data;
+            return b - r;
+        });
+        assert.ok(cool > 20, `cool keeps the photo blue: ${cool}`);
+        await page.evaluate(() => undoSnapEdit());
+        assert.equal(await page.getAttribute('#snap-filter-row [data-filter="bw"]', 'aria-checked'), 'true', 'undo returns to the previous filter');
 
         // Uhrzeit als Sticker und Text mit anderer Art und vollem Hintergrund.
         await page.tap('#snap-tool-emoji');

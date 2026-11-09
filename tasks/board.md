@@ -641,3 +641,29 @@
 ## T32 RAM des Routers (nutzer 2026-11-04: "is it possible to analyse the ram used by the router? its current on 100MB")
 - [x] analyse: nackter node 47 MB RSS (40 MB davon das eingeblendete node-programm); router leer 104 MB = 57 MB dateien (node, sqlite) + 33-47 MB eigen (fastify, routen, ~1 MB asset-cache); tfjs/nsfwjs/modelle werden nur ausgeliefert, nicht geladen -> normal
 - [x] admin-panel: speicher aufgeteilt (eigen, dateien, JS-heap, puffer) + hinweis, wenn "eigen" ueber >= 6 h stetig > 2 MB/h waechst (`memoryTrend`); tests `test/metrics.test.js`, `test/admin.test.js`, e2e `admin`
+
+## T33 Snap-Editor: mehr Filter (nutzer 2026-11-05, aus dem backlog)
+- [x] mehr filter: farbenfroh, warm, kuehl, vintage, matt, traum, s/w, noir, rot (pixel-funktionen, gehen auch ohne `canvas.filter` auf iOS)
+- [x] filterleiste mit kleinen vorschaubildern (bildmitte, einmal pro foto), seitlich wischbar, aktiver filter wird mittig gescrollt
+  - done 2026-11-09: `SNAP_FILTER_PIXELS`, `filteredSnapCanvas` (snap-editor.js); tests `test/snap-editor.test.js`, e2e `snap-editor-gestures`
+- [ ] mehr sticker (emoji-sets, ort/datum, ggf. aus dem GIF-paket von T34) -> erst nach T34 besprechen
+
+## T34 GIFs im Chat (nutzer 2026-11-09, aus dem backlog)
+- [ ] GIFs senden und empfangen wie bei discord; erst planen, dann bauen
+  - entschieden (nutzer 2026-11-09):
+    - quellen: B (anbieter-suche, z. B. giphy) und C (eigene sammlung auf dem router); dazu beliebige GIF-URL einfuegen, die aufgeloest wird, auch wenn nicht von giphy
+    - router schraenkt die quellen ein (anbieter, sammlung, beliebige URLs); im offensten modus keine einschraenkung
+    - einstellung "GIF-Integration" beim nutzer, standard vom router; vorerst beides aus (router + client)
+    - gesendet wird die URL (im E2E-chiffrat), nicht die datei
+    - empfaenger ohne aktivierte integration: verschwommene flaeche mit "GIF-Integration aktivieren?" in der mitte -> tippen -> system-dialog zur bestaetigung -> an; bei externen URLs (nicht anbieter/sammlung) dieselbe abfrage
+    - gefahr bei fremden URLs (tracking, IP, riesige dateien, kein bild) -> GIF-abruf ueber den router proxen und/oder URLs vor dem abruf pruefen
+  - plan (vorschlag, noch nicht bestaetigt):
+    - router-config `GIF_SOURCES` = `off` (std) | liste aus `collection`, `provider`, `url` | `any`; `GIF_PROVIDER` (`giphy`) + `GIF_PROVIDER_KEY`; `CLIENT_DEFAULTS.gifs` (std aus); `/api/config` meldet die erlaubten quellen
+    - proxy `GET /api/gif?url=` (peer-token, rate-limit): nur https, nur standard-ports, DNS aufloesen und private/loopback/link-local/IPv6-ULA-adressen sperren (SSRF), redirects hoechstens 3 und jeden neu pruefen, content-type nur `image/gif|webp|png` und `video/mp4`, groesse <= `GIF_MAX_MB` (std 8), timeout, kurzer platten-cache; keine cookies/referer weitergeben
+    - client: alle GIFs (anbieter, sammlung, URL) laufen ueber den proxy -> nur der router sieht den abruf, der fremde server nur den router; der empfaenger laedt nichts direkt
+    - sammlung: dateien unter `data/gifs/` (betreiber), liste per `/api/gifs`, ausgeliefert wie statische assets
+    - anbieter-suche: `/api/gif/search?q=` ueber den router (key bleibt beim betreiber); rating je bereich (social `pg`, entdecken nach alterseinstellung)
+    - nachricht: neuer operations-typ bzw. `message.gif = { url, source, width, height }`; empfaenger prueft die URL gegen die eigene einstellung + quellen des routers; anzeige als stummes video/bild in schleife, `nudity`-filter wie bei bildern
+    - UI: GIF-knopf im eingabefeld (suche + sammlung + "URL einfuegen"), zuletzt benutzt/favoriten lokal (IndexedDB); eingefuegte GIF-URL im textfeld wird erkannt
+    - einstellungen > chat: "GIF-Integration" (an/aus), "externe GIF-URLs zeigen" (an/aus)
+  - offen: welcher anbieter (giphy-bedingungen, "Powered by GIPHY", api-key; alternativen pruefen); proxy immer an oder abschaltbar; harte regel 1 -> eintrag im decisions-log (wie nominatim)

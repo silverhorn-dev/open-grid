@@ -25,7 +25,9 @@ const SNAP_TEXT_STYLE_ORDER = Object.keys(SNAP_TEXT_STYLES);
 // Texthintergrund: keiner, abgedunkelt, voll in der Textfarbe (Text dann schwarz oder weiss).
 const SNAP_TEXT_BACKGROUNDS = ['none', 'shade', 'solid'];
 // Filter fuer das Foto (Pixel-Operationen, gehen also auch ohne canvas.filter, z. B. auf iOS).
-const SNAP_FILTERS = ['original', 'bw', 'vivid', 'red'];
+const SNAP_FILTERS = ['original', 'vivid', 'warm', 'cool', 'vintage', 'fade', 'dream', 'bw', 'noir', 'red'];
+// Kantenlaenge der kleinen Vorschaubilder in der Filterleiste.
+const SNAP_FILTER_PREVIEW = 44;
 
 const snapEditor = {
     base: null,
@@ -44,6 +46,8 @@ const snapEditor = {
     background: { scale: 1, rotation: 0, x: 0, y: 0 },
     filter: 'original',
     filteredBase: null,
+    // Vorschaubilder je Filter (einmal pro Foto berechnet).
+    filterPreviews: null,
     textStyle: 'classic',
     textBackground: 'none',
     gesture: { pointers: new Map(), mode: null, item: null, itemPointerId: null, offset: null, start: null, swipe: null, snapped: false }
@@ -98,6 +102,7 @@ function openSnapEditor(base) {
     snapEditor.background = { scale: 1, rotation: 0, x: 0, y: 0 };
     snapEditor.filter = 'original';
     snapEditor.filteredBase = null;
+    snapEditor.filterPreviews = null;
     snapEditor.editingItemId = null;
     clearTimeout(snapEditor.pendingTextEdit);
     resetSnapEditorGesture();
@@ -159,29 +164,67 @@ function drawSnapBackground(context, width, height) {
 }
 
 // ----- Filter -----
+// Je Filter eine Pixel-Funktion (rot, gruen, blau, Helligkeit) -> [rot, gruen, blau]; begrenzt wird danach.
+const contrast = (value, factor) => (value - 128) * factor + 128;
+const SNAP_FILTER_PIXELS = {
+    original: (red, green, blue) => [red, green, blue],
+    // Mehr Saettigung und etwas Kontrast.
+    vivid: (red, green, blue, light) => [red, green, blue].map(value => contrast(light + (value - light) * 1.6, 1.1)),
+    // Goldene Stunde: waermer, Schatten leicht angehoben.
+    warm: (red, green, blue) => [red * 1.08 + 12, green * 1.02 + 4, blue * 0.86],
+    // Kuehles Blau, etwas klarer.
+    cool: (red, green, blue) => [red * 0.9, green * 1.01 + 2, contrast(blue * 1.1 + 14, 1.03)],
+    // Sepia, halb mit dem Original gemischt, Schwarz angehoben wie bei altem Fotopapier.
+    vintage: (red, green, blue) => {
+        const sepia = [0.393 * red + 0.769 * green + 0.189 * blue, 0.349 * red + 0.686 * green + 0.168 * blue, 0.272 * red + 0.534 * green + 0.131 * blue];
+        return [red, green, blue].map((value, channel) => (value * 0.4 + sepia[channel] * 0.6) * 0.88 + 22);
+    },
+    // Matt: weniger Kontrast und Farbe, kein reines Schwarz.
+    fade: (red, green, blue, light) => [red, green, blue].map(value => (light + (value - light) * 0.75) * 0.8 + 34),
+    // Hell und pastellig.
+    dream: (red, green, blue, light) => [red, green, blue].map(value => (light + (value - light) * 1.15) * 0.82 + 255 * 0.18 + 6),
+    bw: (_red, _green, _blue, light) => [light, light, light],
+    // Schwarzweiss mit hartem Kontrast.
+    noir: (_red, _green, _blue, light) => {
+        const value = contrast(light, 1.55) - 8;
+        return [value, value, value];
+    },
+    red: (red, green, blue) => [red * 1.15 + 24, green * 0.88, blue * 0.82]
+};
+
 function applySnapFilterPixels(data, filter) {
+    const pixel = SNAP_FILTER_PIXELS[filter] || SNAP_FILTER_PIXELS.original;
     for (let index = 0; index < data.length; index += 4) {
-        let red = data[index];
-        let green = data[index + 1];
-        let blue = data[index + 2];
-        const light = 0.299 * red + 0.587 * green + 0.114 * blue;
-        if (filter === 'bw') {
-            red = green = blue = light;
-        } else if (filter === 'vivid') {
-            // Mehr Saettigung und etwas Kontrast.
-            red = (light + (red - light) * 1.6 - 128) * 1.1 + 128;
-            green = (light + (green - light) * 1.6 - 128) * 1.1 + 128;
-            blue = (light + (blue - light) * 1.6 - 128) * 1.1 + 128;
-        } else if (filter === 'red') {
-            red = red * 1.15 + 24;
-            green *= 0.88;
-            blue *= 0.82;
-        }
-        data[index] = Math.min(255, Math.max(0, red));
-        data[index + 1] = Math.min(255, Math.max(0, green));
-        data[index + 2] = Math.min(255, Math.max(0, blue));
+        const red = data[index];
+        const green = data[index + 1];
+        const blue = data[index + 2];
+        const [nextRed, nextGreen, nextBlue] = pixel(red, green, blue, 0.299 * red + 0.587 * green + 0.114 * blue);
+        data[index] = Math.min(255, Math.max(0, nextRed));
+        data[index + 1] = Math.min(255, Math.max(0, nextGreen));
+        data[index + 2] = Math.min(255, Math.max(0, nextBlue));
     }
     return data;
+}
+
+// Bild (oder Ausschnitt) in eine neue Leinwand zeichnen und filtern.
+function filteredSnapCanvas(source, filter, width = source.width, height = source.height) {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d');
+    if (width === source.width && height === source.height) {
+        context.drawImage(source, 0, 0);
+    } else {
+        // Quadratischer Ausschnitt aus der Mitte fuer die Vorschau.
+        const side = Math.min(source.width, source.height);
+        context.drawImage(source, (source.width - side) / 2, (source.height - side) / 2, side, side, 0, 0, width, height);
+    }
+    if (filter !== 'original') {
+        const image = context.getImageData(0, 0, width, height);
+        applySnapFilterPixels(image.data, filter);
+        context.putImageData(image, 0, 0);
+    }
+    return canvas;
 }
 
 function setSnapFilter(filter, { record = true } = {}) {
@@ -192,15 +235,7 @@ function setSnapFilter(filter, { record = true } = {}) {
         snapEditor.filteredBase = null;
     } else {
         // Einmal pro Filterwahl rechnen, nicht bei jedem Neuzeichnen (Zoomen bleibt fluessig).
-        const canvas = document.createElement('canvas');
-        canvas.width = snapEditor.base.width;
-        canvas.height = snapEditor.base.height;
-        const context = canvas.getContext('2d');
-        context.drawImage(snapEditor.base, 0, 0);
-        const image = context.getImageData(0, 0, canvas.width, canvas.height);
-        applySnapFilterPixels(image.data, filter);
-        context.putImageData(image, 0, 0);
-        snapEditor.filteredBase = canvas;
+        snapEditor.filteredBase = filteredSnapCanvas(snapEditor.base, filter);
     }
     redrawSnapBackground();
     renderSnapFilterRow();
@@ -209,19 +244,38 @@ function setSnapFilter(filter, { record = true } = {}) {
 function renderSnapFilterRow() {
     const row = document.getElementById('snap-filter-row');
     if (!row) return;
-    const labels = { original: t('snaps.filterOriginal'), bw: t('snaps.filterBw'), vivid: t('snaps.filterVivid'), red: t('snaps.filterRed') };
+    const labels = {
+        original: t('snaps.filterOriginal'), vivid: t('snaps.filterVivid'), warm: t('snaps.filterWarm'), cool: t('snaps.filterCool'),
+        vintage: t('snaps.filterVintage'), fade: t('snaps.filterFade'), dream: t('snaps.filterDream'), bw: t('snaps.filterBw'),
+        noir: t('snaps.filterNoir'), red: t('snaps.filterRed')
+    };
+    // Kleine Vorschau je Filter aus der Bildmitte, einmal pro Foto.
+    if (!snapEditor.filterPreviews && snapEditor.base) {
+        const thumb = filteredSnapCanvas(snapEditor.base, 'original', SNAP_FILTER_PREVIEW, SNAP_FILTER_PREVIEW);
+        snapEditor.filterPreviews = Object.fromEntries(SNAP_FILTERS.map(filter => [filter, filteredSnapCanvas(thumb, filter)]));
+    }
     row.replaceChildren(...SNAP_FILTERS.map(filter => {
         const chip = document.createElement('button');
         chip.type = 'button';
         chip.dataset.filter = filter;
         const active = filter === snapEditor.filter;
-        chip.className = `shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border ${active ? 'bg-white text-black border-white' : 'bg-black/50 text-white border-white/30'}`;
+        chip.className = 'shrink-0 flex flex-col items-center gap-1 text-[11px] font-semibold text-white';
         chip.setAttribute('role', 'radio');
         chip.setAttribute('aria-checked', String(active));
-        chip.textContent = labels[filter];
+        const preview = document.createElement('canvas');
+        preview.width = SNAP_FILTER_PREVIEW;
+        preview.height = SNAP_FILTER_PREVIEW;
+        preview.className = `w-11 h-11 rounded-xl border-2 ${active ? 'border-white' : 'border-white/20'}`;
+        const source = snapEditor.filterPreviews?.[filter];
+        if (source) preview.getContext('2d').drawImage(source, 0, 0);
+        const label = document.createElement('span');
+        label.className = active ? 'text-white' : 'text-white/70';
+        label.textContent = labels[filter];
+        chip.append(preview, label);
         chip.onclick = () => setSnapFilter(filter);
         return chip;
     }));
+    row.querySelector('[aria-checked="true"]')?.scrollIntoView?.({ block: 'nearest', inline: 'center' });
 }
 
 function redrawSnapBackground() {

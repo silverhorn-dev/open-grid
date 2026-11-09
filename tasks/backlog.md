@@ -37,7 +37,7 @@ Ideen ohne festen Termin. Neue Phasen werden von hier auf `tasks/board.md` gehol
 - (2026-10-26 auf das board verschoben: bereich beim onboarding waehlen)
 
 ## chat improvements
-- [ ] GIFs im chat (nutzer 2026-11-05: "giphy integration or smth like that"; "git integration" vermutlich auch gemeint = GIF)
+- [x] (2026-11-09 auf das board verschoben: T34) GIFs im chat (nutzer 2026-11-05: "giphy integration or smth like that"; "git integration" vermutlich auch gemeint = GIF)
   - notizen 2026-11-05 (noch nicht besprochen):
     - giphy ist ein externer dienst -> wie nominatim (entscheidung 2026-10-23) nur opt-in, suche direkt aus dem browser auf klick; die suchbegriffe + IP gehen an giphy, nie chats/profile
     - variante A "router-proxy": suche + download laufen ueber den router (`/api/gif/search?q=`), giphy sieht nur den router, nicht den nutzer; api-key liegt beim betreiber (`GIPHY_API_KEY`), ohne key ist die funktion aus; nachteil: router sieht suchbegriffe, mehr last + traffic
@@ -58,7 +58,7 @@ Ideen ohne festen Termin. Neue Phasen werden von hier auf `tasks/board.md` gehol
 # SNAPPING
 
 ## improvements
-- [ ] snap-editor: mehr filter und sticker (nutzer 2026-11-05: "could be more filter or more sticker but its okay")
+- [x] (2026-11-09 auf das board verschoben: T33) snap-editor: mehr filter und sticker (nutzer 2026-11-05: "could be more filter or more sticker but its okay")
   - notizen: filter per canvas/CSS-filter (s/w, vintage, waerme, kontrast, unschaerfe), live in der kamera-vorschau; mehr sticker-packs (emoji-sets, ort/uhrzeit/datum-sticker, umfrage-sticker?); alles lokal, keine externen assets; ggf. mit dem GIF-paket aus "chat improvements" teilen
 - (2026-10-27 auf das board verschoben: video-flackern, secure-snap-bugs, speicherbar-schalter)
 - (2026-10-27 auf das board verschoben: kontaktleiste z-achse, wischen in snap-vorschau, editing improvement)

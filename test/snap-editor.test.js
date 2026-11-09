@@ -22,6 +22,28 @@ test('photo filters: black and white, vivid, red', () => {
     assert.deepEqual([...original], [10, 20, 30, 255]);
 });
 
+test('every filter keeps pixels in range and has its own look', () => {
+    const sample = () => new Uint8ClampedArray([200, 100, 50, 255, 0, 0, 0, 255, 255, 255, 255, 255, 30, 90, 160, 128]);
+    const looks = new Map();
+    const filters = ['original', 'vivid', 'warm', 'cool', 'vintage', 'fade', 'dream', 'bw', 'noir', 'red'];
+    for (const filter of filters) {
+        const out = context.applySnapFilterPixels(sample(), filter);
+        assert.deepEqual([out[3], out[7], out[11], out[15]], [255, 255, 255, 128], `${filter}: alpha untouched`);
+        looks.set(filter, [...out].join(','));
+    }
+    assert.equal(new Set(looks.values()).size, filters.length, 'no two filters look the same');
+    const warm = context.applySnapFilterPixels(pixel(120, 120, 120), 'warm');
+    assert.ok(warm[0] > warm[2], `warm: ${[...warm]}`);
+    const cool = context.applySnapFilterPixels(pixel(120, 120, 120), 'cool');
+    assert.ok(cool[2] > cool[0], `cool: ${[...cool]}`);
+    const fade = context.applySnapFilterPixels(pixel(0, 0, 0), 'fade');
+    assert.ok(fade[0] > 20, `fade lifts black: ${[...fade]}`);
+    const noir = context.applySnapFilterPixels(pixel(200, 100, 50), 'noir');
+    assert.ok(noir[0] === noir[1] && noir[1] === noir[2], 'noir is grey');
+    const unknown = context.applySnapFilterPixels(pixel(10, 20, 30), 'nope');
+    assert.deepEqual([...unknown], [10, 20, 30, 255], 'unknown filter changes nothing');
+});
+
 test('rotation snaps near multiples of 90 degrees, text on full backgrounds stays readable', () => {
     assert.equal(context.snapEditorRotation(Math.PI / 2 + 0.05), Math.PI / 2);
     assert.equal(context.snapEditorRotation(0.3), 0.3, 'free in between');

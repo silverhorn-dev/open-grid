@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 293 · 2026-11-04
+## Build 297 · 2026-11-09
+- Snap-Editor: sechs neue Filter (Warm, Kuehl, Vintage, Matt, Traum, Noir), jeder mit kleinem Vorschaubild; die Filterleiste laesst sich seitlich wischen
+
+## Build 293 · 2026-11-04 · `47c4d2c`
 - Umzug auf ein anderes Geraet ist jetzt fuer alle da (Einstellungen > Medien, beim Einrichten): neues Handy, anderer Browser oder vom Safari-Tab in die App
 - Umzug: auch Kontakte, die laenger offline sind, und das alte Geraet erfahren den Umzug noch nach Wochen (dein Router legt die alte ID still)
 - Safari-Anleitung: Knopf "Daten mitnehmen" fuer alle, die OpenGrid schon im Tab nutzen

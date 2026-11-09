@@ -1519,3 +1519,7 @@ html {
 #snap-capture-modal.snap-in-page .snap-overlay > button[data-click="closeSnapModal"] { visibility: hidden; }
 #snap-capture-modal.snap-in-page .snap-overlay { padding-top: 0.75rem !important; padding-bottom: 0.75rem !important; }
 #snap-capture-modal.snap-in-page #snap-mode-pill { top: 0.75rem !important; }
+
+/* Filterleiste im Snap-Editor: seitlich wischen, ohne sichtbaren Scrollbalken. */
+#snap-filter-row { scrollbar-width: none; }
+#snap-filter-row::-webkit-scrollbar { display: none; }

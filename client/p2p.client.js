@@ -861,8 +861,9 @@ async function handleSecurePayload(peerId, payload, deliveredVia = 'E2EE P2P') {
             sendSecurePayload(peerId, { type: 'CHAT_OPERATION_ACK', operationId: payload.operation.operationId })
                 .catch(logBackgroundError('handleSecurePayload'));
         }
-        if (isOperationFromPeer(peerId, payload.operation)) await applyChatOperation(peerId, payload.operation, deliveredVia);
-        else logDebug(`Ignored an operation from ${peerId} on behalf of ${payload.operation?.actorId}.`);
+        if (!isOperationFromPeer(peerId, payload.operation)) logDebug(`Ignored an operation from ${peerId} on behalf of ${payload.operation?.actorId}.`);
+        else if (!await operationSignatureAcceptable(payload.operation)) logDebug(`Ignored an operation from ${peerId} with an invalid signature.`);
+        else await applyChatOperation(peerId, payload.operation, deliveredVia);
     } else if (payload.type === 'CHAT_OPERATION_ACK') {
         handleP2PAck(peerId, payload.operationId);
     } else if (payload.type === 'CHAT_FOCUS') {
@@ -877,8 +878,9 @@ async function handleSecurePayload(peerId, payload, deliveredVia = 'E2EE P2P') {
         await sendRequestedChatOperations(peerId, payload.operationIds || []);
     } else if (payload.type === 'CHAT_SYNC_OPERATIONS') {
         for (const operation of payload.operations || []) {
-            if (isOperationFromPeer(peerId, operation)) await applyChatOperation(peerId, operation, 'E2EE Sync');
-            else logDebug(`Ignored a synced operation from ${peerId} on behalf of ${operation?.actorId}.`);
+            if (!isOperationFromPeer(peerId, operation)) logDebug(`Ignored a synced operation from ${peerId} on behalf of ${operation?.actorId}.`);
+            else if (!await operationSignatureAcceptable(operation)) logDebug(`Ignored a synced operation from ${peerId} with an invalid signature.`);
+            else await applyChatOperation(peerId, operation, 'E2EE Sync');
         }
     } else if (payload.type === 'CHAT_MESSAGE') {
         await receiveChatMessage(peerId, payload);

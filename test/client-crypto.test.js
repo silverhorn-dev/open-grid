@@ -16,7 +16,7 @@ async function loadCryptoClient() {
         }
     });
     vm.runInContext(`${source}
-        globalThis.cryptoClient = { signProfileData, verifySignedProfile, signingKeyFingerprint };
+        globalThis.cryptoClient = { signProfileData, verifySignedProfile, signingKeyFingerprint, canonicalJson, signOperation, verifyOperationSignature };
     `, context);
     return context.cryptoClient;
 }
@@ -84,4 +84,21 @@ test('signing key fingerprints match the router grid (keyFp)', async () => {
     const router = createHash('sha256').update(`${jwk.x}.${jwk.y}`).digest('base64url').slice(0, 22);
     assert.equal(await signingKeyFingerprint(jwk), router);
     assert.equal(await signingKeyFingerprint({}), null);
+});
+
+test('chat operations: canonical json, signature survives the wire, tampering is detected', async () => {
+    const { canonicalJson, signOperation, verifyOperationSignature } = await loadCryptoClient();
+    assert.equal(canonicalJson({ b: 1, a: { d: [1, { y: 2, x: undefined }], c: 'z' }, sig: 'x', peerId: 'p', u: undefined }), '{"a":{"c":"z","d":[1,{"y":2}]},"b":1}');
+    const keys = await webcrypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+    const publicJwk = await webcrypto.subtle.exportKey('jwk', keys.publicKey);
+    const operation = { operationId: 'put:m1', type: 'MESSAGE_PUT', actorId: 'alice', messageId: 'm1', createdAt: 5, message: { id: 'm1', senderId: 'alice', text: 'hi', snapData: undefined } };
+    const sig = await signOperation(operation, keys.privateKey);
+    // Wie beim Empfaenger: JSON-Rundreise, andere Schluessel-Reihenfolge, lokales peerId.
+    const received = { peerId: 'alice', ...JSON.parse(JSON.stringify({ ...operation, sig })) };
+    assert.equal(await verifyOperationSignature(received, publicJwk), true);
+    assert.equal(await verifyOperationSignature({ ...received, message: { ...received.message, text: 'hacked' } }, publicJwk), false);
+    assert.equal(await verifyOperationSignature({ ...received, actorId: 'bob' }, publicJwk), false);
+    const other = await webcrypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+    assert.equal(await verifyOperationSignature(received, await webcrypto.subtle.exportKey('jwk', other.publicKey)), false, 'wrong key');
+    assert.equal(await verifyOperationSignature({ ...received, sig: undefined }, publicJwk), false, 'unsigned is not "valid"');
 });

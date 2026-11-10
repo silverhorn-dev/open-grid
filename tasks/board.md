@@ -712,7 +712,9 @@
   - [x] entscheidungen (nutzer 2026-11-10): 16 mitglieder, nur admins fuegen hinzu, verlauf waehlt der admin, chat & freunde + event (nicht entdecken), wurzel-geraet mit uebertragbarem recht, grid = zuletzt aktives geraet, pfad C gleich buendeln, forward secrecy in P5
 
 ## T36 Gruppen + Mehrgeraete (nutzer 2026-11-10, plan `documentation/GRUPPEN-MEHRGERAETE.md`)
-- [ ] P0 signierte operationen
+- [x] P0 signierte operationen
+  - done 2026-11-10: `canonicalJson`/`signOperation`/`verifyOperationSignature` (crypto.client.js), `signOwnOperation` + `operationSignatureAcceptable` (delivery.client.js), pruefung in p2p.client.js; uebergang: unsignierte bzw. ohne gepinnten schluessel noch erlaubt; tests `test/client-crypto.test.js`, `test/chat-sync.test.js`, e2e `sync-large`
+  - offen fuer P2: signaturen pflicht in gruppen, service worker prueft mit
 - [ ] P1 unterhaltungs-modell (`conversationId`), migration
 - [ ] P2 gruppen (mitglieder-ops, admins, 16, absender-schluessel, pfad C gebuendelt, verlauf nach wahl)
 - [ ] P3 medien-schwarm

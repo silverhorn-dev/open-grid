@@ -78,6 +78,14 @@ async function main() {
         const back = await open('Bob', false);
         await back.evaluate(id => openChatWithPeer(id), aliceId);
         await waitFor(back, ([id, count]) => (state.chats[id] || []).filter(message => message.snapData && /^bild \d$/.test(message.text)).length === count, [aliceId, IMAGES], 90000);
+        // Signierte Operationen (T36 P0): Alices Operationen kommen mit gueltiger Signatur an.
+        const signature = await back.evaluate(async id => {
+            const operations = await getChatOperations(id);
+            const put = operations.find(operation => operation.type === 'MESSAGE_PUT' && operation.actorId === id);
+            const key = (await getPeerIdentity(id))?.profileSigningKey;
+            return { signed: typeof put?.sig === 'string', valid: await verifyOperationSignature(put, key) };
+        }, aliceId);
+        assert.deepEqual(signature, { signed: true, valid: true });
         assert.deepEqual(pageErrors, []);
         console.log('E2E OK (sync with many images)');
     } finally {

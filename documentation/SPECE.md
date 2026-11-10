@@ -1131,6 +1131,17 @@ Chats werden als idempotente Operationen synchronisiert:
 - Von Peer B (P2P, Sync, Pfad C) werden nur Operationen mit `actorId` = B
   angenommen (`isOperationFromPeer`); ein Kontakt kann keine Nachrichten im
   Namen anderer einspielen (SECURITY-HACKATHON.md, S1).
+- Signierte Operationen (T36 P0, Grundlage fuer Gruppen/Mehrgeraete): eigene
+  Operationen gehen mit `sig` raus = ECDSA P-256 (Identitaets-Signaturschluessel)
+  ueber `canonicalJson(operation)` (Schluessel sortiert, `undefined` weg, ohne
+  `sig` und `peerId`). Signiert wird beim Senden (`signOwnOperation` in
+  `sendSecurePayload` und beim Sync-Versand); gespeichert bleibt die
+  unsignierte Fassung bzw. die des Urhebers. Aendert sich eine gespeicherte
+  Operation lokal (Bearbeitung, Snap entfernt), faellt ihre Signatur weg.
+  Empfang: mit `sig` und gepinntem `profileSigningKey` des Urhebers muss die
+  Signatur stimmen, sonst wird verworfen (`operationSignatureAcceptable`);
+  ohne `sig` (alte Clients) oder ohne gepinnten Schluessel entscheidet
+  vorerst der Kanal. Der Service Worker prueft (noch) nicht.
 
 Nach jedem neuen E2EE-Schluessel und vor einem weiteren Nachrichtenversand
 tauschen beide Clients die 20 neuesten Operations-IDs aus. Fehlende

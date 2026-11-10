@@ -84,3 +84,27 @@ test('expired, unconfirmed own messages are delivered again', async () => {
     assert.ok(!('peerId' in persisted[0]) || persisted[0].cacheExpiresAt === undefined, 'marked as in progress');
     assert.equal(persisted.at(-1).cacheExpiresAt, now + 86400000, 'new expiry from the new upload');
 });
+
+test('own operations go out signed, invalid signatures from pinned peers are rejected', async () => {
+    const { webcrypto } = await import('node:crypto');
+    const keys = await webcrypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+    const bobKeys = await webcrypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+    const bobJwk = await webcrypto.subtle.exportKey('jwk', bobKeys.publicKey);
+    const cryptoSource = readFileSync(new URL('../client/crypto.client.js', import.meta.url), 'utf8');
+    const { context } = loadDelivery({ window: { crypto: webcrypto, btoa, atob }, TextEncoder, Uint8Array });
+    vm.runInNewContext(cryptoSource, context);
+    context.state.myProfile = { id: 'me' };
+    context.state.myKeys = { ecdsaKeyPair: keys };
+    context.getPeerIdentity = async id => (id === 'bob' ? { profileSigningKey: bobJwk } : null);
+    const own = await context.signOwnOperation({ operationId: 'put:1', actorId: 'me', peerId: 'bob', createdAt: 1 });
+    assert.equal(typeof own.sig, 'string');
+    assert.equal('peerId' in own, false, 'local peerId never leaves');
+    const foreign = { operationId: 'put:2', actorId: 'bob', createdAt: 2 };
+    assert.equal(await context.signOwnOperation(foreign), foreign, 'foreign operations are not re-signed');
+    const signedByBob = { ...foreign, sig: await context.signOperation(foreign, bobKeys.privateKey) };
+    assert.equal(await context.operationSignatureAcceptable(signedByBob), true);
+    assert.equal(await context.operationSignatureAcceptable({ ...signedByBob, createdAt: 3 }), false, 'tampered');
+    assert.equal(await context.operationSignatureAcceptable({ ...signedByBob, sig: own.sig }), false, 'someone else\'s signature');
+    assert.equal(await context.operationSignatureAcceptable(foreign), true, 'unsigned (old clients) still accepted');
+    assert.equal(await context.operationSignatureAcceptable({ operationId: 'x', actorId: 'carol', sig: 'AAAA' }), true, 'no pinned key: channel decides');
+});

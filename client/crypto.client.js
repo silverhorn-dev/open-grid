@@ -10,6 +10,35 @@ function base64ToBytes(value) {
     return Uint8Array.from(window.atob(value), character => character.charCodeAt(0));
 }
 
+// ----- Signierte Chat-Operationen (Board T36, P0) -----
+// Kanonisches JSON: Schluessel sortiert, undefined weg, ohne `sig` und lokale Felder (`peerId`). So ergibt
+// dieselbe Operation nach Versand und JSON.parse beim Empfaenger dieselben Bytes.
+const OPERATION_LOCAL_FIELDS = ['sig', 'peerId'];
+
+function canonicalJson(value, top = true) {
+    if (value === null || typeof value !== 'object') return JSON.stringify(value);
+    if (Array.isArray(value)) return `[${value.map(entry => (entry === undefined ? 'null' : canonicalJson(entry, false))).join(',')}]`;
+    const keys = Object.keys(value).filter(key => value[key] !== undefined && !(top && OPERATION_LOCAL_FIELDS.includes(key))).sort();
+    return `{${keys.map(key => `${JSON.stringify(key)}:${canonicalJson(value[key], false)}`).join(',')}}`;
+}
+
+async function signOperation(operation, privateKey) {
+    const signature = await window.crypto.subtle.sign({ name: 'ECDSA', hash: { name: 'SHA-256' } }, privateKey,
+        new TextEncoder().encode(canonicalJson(operation)));
+    return bytesToBase64(new Uint8Array(signature));
+}
+
+async function verifyOperationSignature(operation, publicJwk) {
+    try {
+        if (typeof operation?.sig !== 'string' || !publicJwk) return false;
+        const key = await window.crypto.subtle.importKey('jwk', publicJwk, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+        return await window.crypto.subtle.verify({ name: 'ECDSA', hash: { name: 'SHA-256' } }, key,
+            base64ToBytes(operation.sig), new TextEncoder().encode(canonicalJson(operation)));
+    } catch {
+        return false;
+    }
+}
+
 async function signProfileData(profileData, privateKey, jwkPublic) {
     const encoder = new TextEncoder();
     const payloadToSign = {

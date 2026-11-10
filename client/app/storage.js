@@ -703,7 +703,8 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
         if (current) Object.assign(current, { text: updated.text, editedAt: updated.editedAt });
         // Das gespeicherte MESSAGE_PUT traegt ab jetzt den neuen Text (Chat-Sync mit spaeteren Geraeten).
         const put = await databaseRequest('chatOperations', 'readonly', store => store.get(`put:${updated.id}`)).catch(() => null);
-        if (put?.message) await putDatabaseRecord('chatOperations', { ...put, message: { ...put.message, text: updated.text, editedAt: updated.editedAt } });
+        // Inhalt geaendert: eine alte Signatur passt nicht mehr (eigene werden beim Senden neu signiert).
+        if (put?.message) await putDatabaseRecord('chatOperations', { ...put, sig: undefined, message: { ...put.message, text: updated.text, editedAt: updated.editedAt } });
         if (state.chatPreviews[peerId]?.id === updated.id) updateChatPreview(peerId, updated, true);
     } else if (localOperation.type === 'STATUS_POST' || localOperation.type === 'STATUS_DELETE') {
         // Status gehoeren nicht ins Chat-Log (wie Album-Schluessel).
@@ -862,6 +863,8 @@ async function removeSnapFromOperation(messageId) {
     const operation = await databaseRequest('chatOperations', 'readonly', store => store.get(`put:${messageId}`));
     if (!operation?.message?.snapData) return;
     operation.message = { ...operation.message, snapData: undefined };
+    // Inhalt geaendert: Signatur entfaellt (siehe MESSAGE_EDIT).
+    delete operation.sig;
     await persistChatOperation(operation);
 }
 

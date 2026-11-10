@@ -74,6 +74,8 @@ function isValidChatOperation(operation) {
     if (!operation || typeof operation !== 'object') return false;
     if (!isId(operation.operationId) || !CHAT_OPERATION_TYPES.includes(operation.type)) return false;
     if (!isOptionalString(operation.actorId, MAX_ID_LENGTH) || !isTimestamp(operation.createdAt)) return false;
+    // Signatur des Urhebers (T36 P0, ECDSA P-256, base64).
+    if (!isOptionalString(operation.sig, 200)) return false;
     if (operation.type === 'MESSAGE_PUT') return isId(operation.messageId) && isValidMessage(operation.message);
     if (['MESSAGE_DELETE', 'MESSAGE_REACT', 'SNAP_CONSUMED', 'SNAP_SAVED'].includes(operation.type)) return isId(operation.messageId);
     if (operation.type === 'MESSAGE_EDIT') return isId(operation.messageId) && typeof operation.text === 'string'

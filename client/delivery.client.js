@@ -89,11 +89,33 @@ function batchSyncOperations(operations, limit = SYNC_BATCH_BYTES) {
     return batches;
 }
 
+// Eigene Operation signieren (falls noch nicht); fremde bleiben, wie sie sind.
+async function signOwnOperation(operation) {
+    if (!operation || operation.sig || operation.actorId !== state.myProfile?.id || !state.myKeys?.ecdsaKeyPair?.privateKey
+        || typeof signOperation !== 'function') return operation;
+    const { peerId: _localPeerId, ...shared } = operation;
+    try {
+        return { ...shared, sig: await signOperation(shared, state.myKeys.ecdsaKeyPair.privateKey) };
+    } catch (error) {
+        logDebug(`Could not sign operation: ${error.message}`);
+        return operation;
+    }
+}
+
+// Signatur pruefen, wenn vorhanden und der Schluessel des Urhebers gepinnt ist. Ohne Signatur (alte Clients)
+// oder ohne gepinnten Schluessel gilt vorerst der Kanal als Beleg (Uebergang, T36 P0).
+async function operationSignatureAcceptable(operation) {
+    if (!operation?.sig) return true;
+    const key = (await getPeerIdentity(operation.actorId).catch(() => null))?.profileSigningKey;
+    if (!key) return true;
+    return verifyOperationSignature(operation, key);
+}
+
 async function sendRequestedChatOperations(peerId, operationIds) {
     const requestedIds = new Set(operationIds.slice(0, 50));
-    const operations = (await getChatOperations(peerId))
+    const operations = await Promise.all((await getChatOperations(peerId))
         .filter(operation => requestedIds.has(operation.operationId))
-        .map(({peerId: _localPeerId, ...operation}) => operation);
+        .map(({peerId: _localPeerId, ...operation}) => signOwnOperation(operation)));
     for (const batch of batchSyncOperations(operations)) {
         await sendSecurePayload(peerId, {
             type: 'CHAT_SYNC_OPERATIONS',
@@ -149,6 +171,8 @@ async function sendSecurePayload(peerId, payload, onSent = null, options = {}) {
     if (!onSent && payload?.type === 'CHAT_OPERATION') onSent = () => {};
     // Umgezogene alte Kopie (move.js): nur noch lesen.
     if (state.movedAway) return false;
+    // Eigene Chat-Operationen signiert verschicken (T36 P0); gespeichert bleibt die unsignierte Fassung.
+    if (payload?.type === 'CHAT_OPERATION') payload = { ...payload, operation: await signOwnOperation(payload.operation) };
     const channel = state.dataChannels[peerId];
 
     // Wenn der P2P/TURN-Kanal offen und sicher ist -> Direkt senden

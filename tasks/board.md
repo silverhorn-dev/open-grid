@@ -665,6 +665,9 @@
 - [x] bug (nutzer 2026-11-09): link-reiter "kein bild oder video" -> der SW laedt fremde GIFs selbst, `fetch` im worker lief gegen dessen CSP (`connect-src 'self'`); jetzt `https:` nur in der CSP von `/sw.js` (test `test/server.test.js`, gegenprobe im browser mit SW: ohne fix fehlschlag, mit fix geladen + gecacht)
 - [x] GIFs im vollbild wie bilder (`#gif-viewer`)
 - [x] nutzer 2026-11-09: "ausblenden nach mehreren meldungen geht nicht? nutzer nicht manuell meldbar, grund noetig" -> GIFs zaehlen nur verschiedene melder (3); neu: nutzer manuell melden mit pflicht-grund (`client/app/report.js`, chat-menue), ab `USER_REPORT_HIDE` (3) verschiedenen meldern im grid ausgeblendet bis admin sperrt/wiederherstellt; GIF-meldungen mit grund; UC-77, e2e `report-user`
+- [x] basis-anbieter entschieden (nutzer 2026-11-10): Klipy als eingebaute implementierung, std aus (`GIF_PROVIDER=off`), eigener schluessel je betreiber (kein projekt-schluessel: oeffentlich, missbrauch traefe alle router); Giphy raus (production kostet), Tenor tot -> `documentation/KLIPY.md` (regeln, umsetzung, sperr-risiken, offene fragen, antragsentwuerfe)
+  - [ ] antraege absenden (nutzer): fragen/freigaben an developers@klipy.com (lokaler cache, origin-beschraenkung, werbung auslassen, report-API), production-zugang je betreiber
+  - [ ] nach antwort: report-API fuer Klipy-GIFs, ggf. lokaler cache mit vorgaben, `preview`-format fuer vorschaubilder
 - [x] GIF-reste (nutzer 2026-11-09 "do gif rest"): pinch-/doppeltipp-/mausrad-zoom im vollbild, mp4-GIFs im SW-cache mit range-antworten (nur CORS/proxy), nacktfilter fuer GIFs (erstes bild, CORS/proxy; nicht pruefbar = unscharf "nicht geprueft"); tests `test/sw-gifs.test.js`, e2e `gifs`
 - sticker aus der bibliothek: erledigt ueber GIF-sticker (T33); Klipy-sticker-API bewusst nicht (keine kopien erlaubt)
 - erste ideen (vor phase 1):

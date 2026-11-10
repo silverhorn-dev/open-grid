@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 309 · 2026-11-09
+## Build 311 · 2026-11-10
+- Behoben: nach laengerer Offline-Zeit kamen Chats mit mehreren Bildern beim Abgleich nicht an
+- Nachrichten, die der andere nicht rechtzeitig aus dem Zwischenspeicher abgeholt hat, werden jetzt automatisch erneut zugestellt
+
+## Build 309 · 2026-11-09 · `456eb41`
 - GIF-Vollbild: mit zwei Fingern, Doppeltipp oder Mausrad zoomen, nach unten wischen schliesst
 - Video-GIFs (mp4) bleiben jetzt auch auf dem Geraet und laden nicht jedes Mal neu
 - Nacktbild-Filter gilt jetzt auch fuer GIFs: bis zur Pruefung unscharf, Tippen zeigt sie

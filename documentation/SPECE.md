@@ -1117,14 +1117,42 @@ Chats werden als idempotente Operationen synchronisiert:
   `CHAT_SYNC_HELLO` oder `CHAT_SYNC_INVENTORY` des Peers auf, wird sie als
   `deliveryConfirmed` markiert. Ist die TTL ohne Bestaetigung abgelaufen,
   zeigt der Chat "Nicht abgeholt - wird bei der naechsten direkten Verbindung
-  zugestellt"; der naechste Chat-Sync liefert die Operation aus.
+  zugestellt"; der naechste Chat-Sync liefert die Operation aus. Zusaetzlich
+  stellt `resendExpiredCacheMessages` (30 s nach dem Start, dann stuendlich)
+  solche Nachrichten erneut zu (P2P oder neue Pfad-C-Kopie, hoechstens 20 je
+  Chat und Lauf), damit sie auch ankommen, wenn beide nie gleichzeitig online
+  sind.
 - Operationen besitzen global eindeutige IDs und koennen mehrfach empfangen
   werden, ohne doppelte Nachrichten zu erzeugen.
 
 Nach jedem neuen E2EE-Schluessel und vor einem weiteren Nachrichtenversand
 tauschen beide Clients die 20 neuesten Operations-IDs aus. Fehlende
 Operationen werden angefordert. Aeltere IDs werden anschliessend in
-Inventarseiten zu je 50 IDs im Hintergrund verglichen.
+Inventarseiten zu je 50 IDs im Hintergrund verglichen. Die Antwort
+(`CHAT_SYNC_OPERATIONS`) geht in Paketen bis 96 KB Klartext-JSON
+(`batchSyncOperations`), weil ein DataChannel je Nachricht nur begrenzt viel
+nimmt (Chrome ~256 KB); eine einzelne groessere Operation geht allein. Liegt
+eine verschluesselte Nutzlast ueber `sctp.maxMessageSize`, versucht
+`sendSecurePayload` den Kanal gar nicht erst (Chat-Operationen gehen dann
+ueber Pfad C).
+
+Pruefung des Chat-Syncs (2026-11-10):
+- IDs: `put:<msgId>`, `delete:<msgId>:<uuid>`, `edit:`/`react:`/... sind
+  eindeutig; `applyChatOperation` verwirft bekannte `operationId`s, mehrfaches
+  Empfangen ist folgenlos.
+- Jede Verbindung vergleicht den ganzen Bestand (HELLO + Inventarseiten), das
+  kostet bei langen Chats einige Runden, ist aber vollstaendig.
+- Inventarseiten sind Offsets in einer neueste-zuerst-Liste: kommt waehrend
+  des Blaetterns etwas dazu oder weg, kann eine ID doppelt oder einmal nicht
+  verglichen werden; die naechste Verbindung holt das nach.
+- Behoben: zu grosse Sync-Antworten (mehrere Bilder) scheiterten am Kanal-Limit
+  (e2e `sync-large`); abgelaufene, unbestaetigte Nachrichten blieben liegen,
+  wenn beide nie gleichzeitig online waren.
+- Bekannte Grenze: je Chat bleiben nur die neuesten 100 `MESSAGE_DELETE`
+  (`trimChatDeleteOperations`); war der Partner bei mehr Loeschungen offline,
+  erfaehrt er von den aeltesten nichts.
+- Bestaetigt werden nur `put:`-Operationen; Loeschen/Bearbeiten laufen ueber
+  ACK, Pfad C und den naechsten Sync.
 
 Jede Nachricht traegt lokal ein `deliveredVia`-Label (nur im Debug-Modus
 sichtbar):

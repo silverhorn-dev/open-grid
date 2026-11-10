@@ -66,16 +66,79 @@ async function handleChatSyncInventory(peerId, payload) {
     }
 }
 
+// Ein DataChannel nimmt je Nachricht nur begrenzt viel (Chrome ~256 KB, verschluesselt + Base64 kommt
+// ein Drittel dazu). Bilder (~70 KB) und Sprachnachrichten (bis 160 KB) passen einzeln, 50 auf einmal nicht:
+// darum in Pakete bis SYNC_BATCH_BYTES (Klartext-JSON) aufteilen; zu Grosses geht allein.
+const SYNC_BATCH_BYTES = 96 * 1024;
+
+function batchSyncOperations(operations, limit = SYNC_BATCH_BYTES) {
+    const batches = [];
+    let current = [];
+    let size = 0;
+    for (const operation of operations) {
+        const bytes = JSON.stringify(operation).length;
+        if (current.length && size + bytes > limit) {
+            batches.push(current);
+            current = [];
+            size = 0;
+        }
+        current.push(operation);
+        size += bytes;
+    }
+    if (current.length) batches.push(current);
+    return batches;
+}
+
 async function sendRequestedChatOperations(peerId, operationIds) {
     const requestedIds = new Set(operationIds.slice(0, 50));
     const operations = (await getChatOperations(peerId))
         .filter(operation => requestedIds.has(operation.operationId))
         .map(({peerId: _localPeerId, ...operation}) => operation);
-    if (!operations.length) return;
-    await sendSecurePayload(peerId, {
-        type: 'CHAT_SYNC_OPERATIONS',
-        operations
-    });
+    for (const batch of batchSyncOperations(operations)) {
+        await sendSecurePayload(peerId, {
+            type: 'CHAT_SYNC_OPERATIONS',
+            operations: batch
+        });
+    }
+}
+
+// Pfad C haelt nur 24 h. Sind beide nie gleichzeitig online (Handy schlaeft), kaeme eine abgelaufene,
+// unbestaetigte Nachricht erst beim naechsten direkten Chat-Sync an. Darum: eigene Nachrichten, deren
+// Zwischenspeicher-Kopie abgelaufen ist und die noch nicht bestaetigt sind, erneut zustellen (P2P oder Pfad C).
+const RESEND_EXPIRED_LIMIT = 20;
+
+function expiredUnconfirmedMessages(messages, myId, now = Date.now()) {
+    return messages
+        .filter(message => message.senderId === myId && !message.deleted && !message.deliveryConfirmed
+            && Number.isFinite(message.cacheExpiresAt) && message.cacheExpiresAt < now)
+        .sort((left, right) => (left.createdAt || 0) - (right.createdAt || 0))
+        .slice(0, RESEND_EXPIRED_LIMIT);
+}
+
+async function resendExpiredCacheMessages() {
+    if (state.movedAway || !state.myProfile?.id) return 0;
+    let sent = 0;
+    for (const peerId of state.chatPeerIds || []) {
+        if (isPeerBlocked(peerId)) continue;
+        const messages = await getDatabaseRecordsByIndex('messages', 'peerId', peerId).catch(() => []);
+        const due = expiredUnconfirmedMessages(messages, state.myProfile.id);
+        if (!due.length) continue;
+        const operations = await getChatOperations(peerId);
+        for (const message of due) {
+            const operation = operations.find(entry => entry.operationId === `put:${message.id}`);
+            if (!operation) continue;
+            const { peerId: _localPeerId, ...shared } = operation;
+            // Bis zur neuen Zustellung kein zweites Mal anstossen.
+            await persistChatMessage(peerId, { ...message, cacheExpiresAt: undefined });
+            await sendSecurePayload(peerId, { type: 'CHAT_OPERATION', operation: shared }, (path, details = {}) => {
+                if (path !== 'cache' || !details.expiresAt) return;
+                persistChatMessage(peerId, { ...message, cacheExpiresAt: details.expiresAt }).catch(logBackgroundError('resendExpiredCacheMessages'));
+            });
+            sent += 1;
+        }
+    }
+    if (sent) logDebug(`Re-sent ${sent} expired, unconfirmed message(s).`);
+    return sent;
 }
 
 // options.notifyKind: Art fuer den Push beim Empfaenger, falls es ueber Pfad C geht (push.js).
@@ -91,7 +154,11 @@ async function sendSecurePayload(peerId, payload, onSent = null, options = {}) {
     // Wenn der P2P/TURN-Kanal offen und sicher ist -> Direkt senden
     if (channel?.readyState === 'open' && state.sessionKeys[peerId]) {
         try {
-            channel.send(JSON.stringify(await encryptSecurePayload(peerId, payload)));
+            const encoded = JSON.stringify(await encryptSecurePayload(peerId, payload));
+            // Groesser als der Kanal erlaubt: send() wuerde werfen; Chat-Operationen gehen dann ueber Pfad C.
+            const limit = state.webrtcConnections?.[peerId]?.sctp?.maxMessageSize;
+            if (Number.isFinite(limit) && limit > 0 && encoded.length > limit) throw new Error(`payload ${encoded.length} B exceeds channel limit ${limit} B`);
+            channel.send(encoded);
             if (onSent) {
                 onSent('p2p');
                 awaitP2PAck(peerId, channel, { payload, onSent, cacheQueued: false });

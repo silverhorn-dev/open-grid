@@ -211,6 +211,9 @@ window.onload = async () => {
         setInterval(() => {
             if (document.visibilityState === 'visible') registerWithWorkerGrid();
         }, 25000);
+        // Abgelaufene, unbestaetigte Nachrichten erneut zustellen (delivery.client.js): kurz nach dem Start, dann stuendlich.
+        setTimeout(() => resendExpiredCacheMessages().catch(logBackgroundError('resendExpiredCacheMessages')), 30000);
+        setInterval(() => resendExpiredCacheMessages().catch(logBackgroundError('resendExpiredCacheMessages')), 60 * 60 * 1000);
 
     } catch (error) {
         console.error('OpenGrid startup failed.', error);

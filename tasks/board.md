@@ -701,3 +701,12 @@
     - bremsen: nur kleine renditions (mp4/webp, nie original-.gif mit 1-5 MB), vorschaubilder der suche lazy (nur sichtbare), platten-cache, limit je peer/minute, `GIF_MAX_MB`
     - idee: ist P2P offen, schickt der sender die schon geladenen bytes direkt mit; der proxy nur fuer offline-empfaenger und die suche -> spart den groessten teil
   - offen: welcher anbieter (giphy-bedingungen, "Powered by GIPHY", api-key; alternativen pruefen)
+
+## T35 Chat-Sync pruefen, Gruppen + Mehrgeraete planen, Security-Hackathon (nutzer 2026-11-10: "do 1,2,3")
+- [x] 1 chat-sync pruefen (backlog "check the chat hist handshake")
+  - befunde + grenzen: SPECE "Pruefung des Chat-Syncs"
+  - behoben: `CHAT_SYNC_OPERATIONS` in paketen bis 96 KB (vorher bis 50 ops mit bildern in einer DataChannel-nachricht -> scheiterte am kanal-limit, gegenprobe e2e `sync-large`); `sendSecurePayload` prueft `sctp.maxMessageSize`; `resendExpiredCacheMessages` stellt abgelaufene, unbestaetigte nachrichten erneut zu
+  - tests: `test/chat-sync.test.js`, e2e `sync-large`
+  - fuer 3 (security): ein peer kann im 1:1-chat operationen mit `actorId` = eigene ID einspielen (verlauf-wiederherstellung) -> pruefen
+- [ ] 2 plan-dokument gruppen + mehrgeraete
+- [ ] 3 security-hackathon

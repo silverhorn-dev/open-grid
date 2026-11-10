@@ -49,6 +49,15 @@ Ideen ohne festen Termin. Neue Phasen werden von hier auf `tasks/board.md` gehol
     - UI: knopf neben dem emoji/anhang im chat-eingabefeld, suche mit raster, zuletzt benutzt + favoriten lokal; NSFW-filter (`nudity`) und die alters-einstellungen beachten (giphy `rating=g/pg` je nach bereich)
     - vorschlag: erst C (eigene sammlung + eigene loops, kein fremder dienst), dann A als betreiber-option; B nur, wenn der betreiber es ausdruecklich will
 
+### group chats
+
+- [ ] group chats with more participating nodes
+- [ ] swarm sending/caching/routing of images
+- [ ] lesser usage of the router cache
+- [x] Check the chat hist handshake for exchanging new chat actions (2026-11-10, board T35)
+	- [x] does the running ids work right? -> ja, eindeutig und idempotent (SPECE "Pruefung des Chat-Syncs")
+	- [x] offline states? -> abgelaufene pfad-C-nachrichten werden jetzt erneut zugestellt; zu grosse sync-pakete behoben
+
 # bugs
 
 - [x] messages sind nicht vollständig swipeable (bei content wie vorschau, bilder oder snaps) -> 2026-11-01 behoben: wischen startet auch auf inhalten (siehe board T29)
@@ -92,3 +101,19 @@ Ideen ohne festen Termin. Neue Phasen werden von hier auf `tasks/board.md` gehol
   - live-konfiguration (nutzer 2026-10-29): einstellungen zur laufzeit aendern, ohne neustart/neues deployment; env bleibt der startwert, aenderungen aus dem panel liegen in der datenbank und gewinnen
   - offen: zugang (eigener admin-schluessel/passkey, nur aus dem LAN/per tunnel?), welche einstellungen live gehen (z. B. CLIENT_DEFAULTS, AUDIENCE_MINIMUM, nacktbild-modell/schwelle, nachweis-pflichten) und welche einen neustart brauchen (ports, datenbank, TURN), getrennte route/seite (CSP wie die app), nie nutzerinhalte (die hat der router ohnehin nicht)
 
+# Security
+
+## Hackathon
+
+> to harden things diffrent things should be tried to Hack OG, infrastruktur, protocols, Caching, Turning, everything
+
+- [ ] Try to hack into a P2P Conn or read it
+- [ ] Try to hack into a client via a P2P connection
+- [ ] Try to hack user via profile request
+- [ ] Try to Modify client, so u can read things you shouldnt read
+	- [ ] Implementation of some hashing over the pwa code to ensure things arent touched.
+		- special characters at special positions.
+		- js encription? how do u call it, make things very difficult to read, or unreadable. 
+			- maybe after the deploy, app code should be readable in the repo, but not in the app? (optional)
+- [ ] try to listen or catch messages running over the turn server
+- [ ] try to read the reouter cache of other users

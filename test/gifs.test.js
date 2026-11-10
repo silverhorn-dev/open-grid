@@ -77,3 +77,13 @@ test('pasted links that look like gifs become gifs (e.g. discord attachments)', 
     assert.equal(context.looksLikeGifUrl('https://news.example.org/article'), false);
     assert.equal(context.looksLikeGifUrl('http://media.example.org/a.gif'), false);
 });
+
+test('image links count too, expired discord links are recognised', () => {
+    assert.equal(context.looksLikeGifUrl('https://cdn.discordapp.com/attachments/1/2/26421158.png?ex=6af30c1c&is=6af1ba9c&hm=abc&'), true);
+    assert.equal(context.looksLikeGifUrl('https://media.example.org/photo.JPG'), true);
+    const link = 'https://cdn.discordapp.com/attachments/1/2/a.png?ex=6af30c1c&is=6af1ba9c&hm=abc&';
+    const expiry = parseInt('6af30c1c', 16) * 1000;
+    assert.equal(context.discordLinkExpired(link, expiry - 1000), false);
+    assert.equal(context.discordLinkExpired(link, expiry + 1000), true);
+    assert.equal(context.discordLinkExpired('https://media.example.org/a.png?ex=1', Date.now()), false, 'only discord');
+});

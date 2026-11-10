@@ -372,8 +372,11 @@ function refreshGroupViews(groupId) {
 }
 
 // Kandidaten fuer neue Mitglieder: Freunde, im Event-Modus auch die Leute im Event-Grid.
+// Kandidaten: Freunde und alle Chat-Kontakte aus "Chat & Freunde" (nicht Entdecken), im Event-Modus auch die
+// Leute im Event-Grid.
 function groupCandidates(excluded = []) {
     const ids = new Set(Object.keys(state.friendState || {}).filter(id => typeof isFriend === 'function' && isFriend(id)));
+    (state.chatPeerIds || []).filter(id => typeof chatScopeOf === 'function' && chatScopeOf(id) === 'social').forEach(id => ids.add(id));
     if (state.appMode === 'event') (state.peers || []).forEach(peer => ids.add(peer.id));
     excluded.forEach(id => ids.delete(id));
     ids.delete(state.myProfile?.id);

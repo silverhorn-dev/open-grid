@@ -47,11 +47,17 @@ async function main() {
         const [aliceId, bobId, carolId] = await Promise.all([alice, bob, carol].map(page => page.evaluate(() => state.myProfile.id)));
         await befriend(alice, bob);
         await befriend(alice, carol);
+        // Dave ist nur Chat-Kontakt (kein Freund) in "Chat & Freunde": auch er steht zur Auswahl.
+        const dave = await user('Dave');
+        const daveId = await dave.evaluate(() => state.myProfile.id);
+        await dave.evaluate(async id => { await openChatWithPeer(id); document.getElementById('chat-input').value = 'hallo alice'; await sendChatMessage(); }, aliceId);
+        await waitFor(alice, id => (state.chats[id] || []).length > 0 && state.chatPeerIds.includes(id), daveId);
 
         // Alice erstellt die Gruppe in der Chatliste.
         await alice.evaluate(() => { leaveActiveChat(); switchTab('chat'); });
         await alice.click('#group-create-open');
         await alice.fill('#group-name-input', 'Crew');
+        assert.equal(await alice.locator(`[data-group-candidate="${daveId}"]`).count(), 1, 'chat contacts are candidates too');
         await alice.check(`[data-group-candidate="${bobId}"]`);
         await alice.check(`[data-group-candidate="${carolId}"]`);
         await alice.click('#group-create-btn');

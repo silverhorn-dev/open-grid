@@ -137,3 +137,16 @@ test('sender keys: seal once for the group, open per member, unknown keys wait',
     assert.deepEqual(rotated.map(entry => entry.peerId), ['bob'], 'carol gets no new key');
     assert.notEqual(rotated[0].payload.kid, keyMessages[0].payload.kid, 'rotated');
 });
+
+test('group candidates: friends and chat contacts from Chat & Friends, not Explore', () => {
+    const context = load({
+        isFriend: id => id === 'friend',
+        chatScopeOf: id => ({ friend: 'social', chatter: 'social', flirt: 'discovery' })[id] || null,
+        isPeerBlocked: id => id === 'blocked'
+    });
+    context.state.friendState = { friend: {} };
+    context.state.chatPeerIds = ['friend', 'chatter', 'flirt', 'blocked', group.id];
+    context.chatScopeOf = id => ({ friend: 'social', chatter: 'social', flirt: 'discovery', blocked: 'social' })[id] || null;
+    assert.deepEqual([...context.groupCandidates()].sort(), ['chatter', 'friend']);
+    assert.deepEqual([...context.groupCandidates(['chatter'])], ['friend'], 'existing members excluded');
+});

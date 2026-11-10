@@ -2,7 +2,12 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 320 · 2026-11-10
+## Build 321 · 2026-11-10
+- Behoben: beim Erstellen einer Gruppe standen nur Freunde zur Auswahl; jetzt alle Kontakte aus "Chat & Freunde"
+- Bild-Links (png, jpg) im Chat-Feld werden jetzt wie GIF-Links als Bild gesendet
+- Abgelaufene Discord-Links (gelten nur etwa einen Tag) bekommen einen eigenen Hinweis
+
+## Build 320 · 2026-11-10 · `a83d0f9`
 - Behoben: ein Tipp auf den Kopf eines Gruppenchats oeffnete ein Profil statt der Gruppen-Einstellungen
 - Behoben: eine neue Gruppe ohne Nachricht verschwand wieder aus der Chatliste
 

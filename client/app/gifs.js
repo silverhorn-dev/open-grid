@@ -51,11 +51,24 @@ function isGifVideoUrl(url) {
 }
 
 // Sieht ein eingefuegter Link wie ein GIF aus? Endung (gif, webp, mp4, webm) oder bekannte GIF-Dienste.
+// Auch normale Bild-Links (png, jpg, avif), wie sie z. B. Discord-Anhaenge oft haben.
 function looksLikeGifUrl(value) {
     const url = gifUrlAllowed(value);
     if (!url) return false;
     const { hostname, pathname } = new URL(url);
-    return /\.(gif|gifv|webp|mp4|webm)$/i.test(pathname) || /(^|\.)(giphy\.com|tenor\.com|klipy\.com)$/i.test(hostname);
+    return /\.(gif|gifv|webp|mp4|webm|png|jpe?g|avif)$/i.test(pathname) || /(^|\.)(giphy\.com|tenor\.com|klipy\.com)$/i.test(hostname);
+}
+
+// Discord-Anhaenge sind signiert und laufen ab (`ex` = Ablauf als Hex-Sekunden); danach antwortet Discord mit 404.
+function discordLinkExpired(value, now = Date.now()) {
+    try {
+        const url = new URL(value);
+        if (!/(^|\.)(discordapp\.(com|net)|discord\.com)$/i.test(url.hostname)) return false;
+        const expires = parseInt(url.searchParams.get('ex') || '', 16);
+        return Number.isFinite(expires) && expires * 1000 < now;
+    } catch {
+        return false;
+    }
 }
 
 function isValidGifInfo(gif) {
@@ -332,7 +345,11 @@ function renderGifMessage(bubble, message, isMine) {
         const media = createGifMedia(gif, 'gif-media');
         const remember = () => markGifCached(gif.url, isMine ? 'sent' : 'received').catch(() => {});
         media.addEventListener(media.tagName === 'VIDEO' ? 'loadeddata' : 'load', remember, { once: true });
-        media.addEventListener('error', () => box.classList.add('gif-broken'), { once: true });
+        media.addEventListener('error', () => {
+            box.classList.add('gif-broken');
+            // Abgelaufener Discord-Link: sagen, warum nichts kommt.
+            if (discordLinkExpired(gif.url)) box.title = t('gifs.linkExpired');
+        }, { once: true });
         media.classList.add('cursor-zoom-in');
         media.onclick = event => {
             event.stopPropagation();
@@ -965,7 +982,7 @@ function renderGifLinkTab(body) {
             send.disabled = false;
         };
         media.addEventListener(media.tagName === 'VIDEO' ? 'loadeddata' : 'load', ready, { once: true });
-        media.addEventListener('error', () => showError(t('gifs.linkNotLoading')), { once: true });
+        media.addEventListener('error', () => showError(discordLinkExpired(url) ? t('gifs.linkExpired') : t('gifs.linkNotLoading')), { once: true });
     };
     send.onclick = async () => {
         if (!current) return;

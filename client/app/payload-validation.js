@@ -163,6 +163,7 @@ function isValidAlbumManifest(manifest) {
 
 const PAYLOAD_VALIDATORS = {
     CHAT_OPERATION: payload => isValidChatOperation(payload.operation)
+        && (payload.deviceFanout === undefined || typeof payload.deviceFanout === 'boolean')
         && (payload.conversationId === undefined || isGroupConversationId(payload.conversationId))
         && (payload.mirrorOf === undefined || isId(payload.mirrorOf)),
     CHAT_OPERATION_ACK: payload => isId(payload.operationId),

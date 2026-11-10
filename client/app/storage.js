@@ -385,6 +385,9 @@ function rememberChatPeer(peerId) {
 function getPeerPresentation(peerId) {
     // Gruppe (conversations.js): Name und erzeugtes Bild statt Profil.
     if (typeof isGroupId === 'function' && isGroupId(peerId) && typeof groupPresentation === 'function') return groupPresentation(peerId);
+    // Geraet eines Kontakts: wie die Person (devices.js, T36 P4c).
+    const identity = typeof contactIdentityOf === 'function' ? contactIdentityOf(peerId) : null;
+    if (identity && identity !== peerId) return { ...getPeerPresentation(identity), id: peerId };
     const activePeer = state.peers.find(peer => peer.id === peerId);
     const profile = state.cachedProfiles[peerId];
     // Noch kein Profil: Visitenkarte aus einer gemeinsamen Gruppe (conversations.js), sonst "Unbekannt" statt der Node-ID.
@@ -399,7 +402,9 @@ function getPeerPresentation(peerId) {
 }
 
 function isPeerBlocked(peerId) {
-    return Boolean(state.chatControls[peerId]?.blockedAt);
+    // Geraet einer gesperrten Person ist ebenfalls gesperrt (devices.js, T36 P4c).
+    const identity = typeof contactIdentityOf === 'function' ? contactIdentityOf(peerId) : null;
+    return Boolean(state.chatControls[peerId]?.blockedAt || (identity && state.chatControls[identity]?.blockedAt));
 }
 
 async function purgeChatBefore(peerId, cutoff) {

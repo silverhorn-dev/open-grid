@@ -209,6 +209,8 @@ const state = {
     myDevices: null,
     devicePairing: null,
     deviceInvites: [],
+    // Geraetelisten von Kontakten: identityId -> { list, sig } (devices.js, P4c).
+    contactDevices: {},
     snapPageEnabled: null,
     // App-Modus (P8): vom Server erlaubte Modi, gewaehlter Modus und Event-Daten.
     appConfig: { modes: ['discovery', 'chat', 'friends', 'event'], defaultMode: 'discovery' },

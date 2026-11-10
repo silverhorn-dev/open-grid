@@ -66,3 +66,20 @@ test('mirroring goes only to my other devices and is only taken from them', asyn
     assert.equal(await context.handleMirroredOperation('phone', { operation, mirrorOf: 'bob' }, 'E2EE P2P'), false, 'not from myself');
     assert.deepEqual(applied, [['bob', 'put:1']]);
 });
+
+test('contacts: first device list anchored in the pinned identity key, updates only from allowed devices', () => {
+    const context = load();
+    const root = { x: 'rx', y: 'ry' };
+    const list = { identityId: 'alice', version: 2, devices: [{ nodeId: 'alice', key: root, canAdd: true, addedAt: 1 }, { nodeId: 'alice-pc', key, canAdd: false, addedAt: 2 }], updatedBy: 'alice', updatedAt: 2 };
+    assert.equal(context.judgeContactDeviceList(list, null, { senderId: 'alice', pinnedRootKey: root }), 'accept');
+    assert.equal(context.judgeContactDeviceList(list, null, { senderId: 'alice', pinnedRootKey: { x: 'other', y: 'key' } }), null, 'root key must be the pinned one');
+    assert.equal(context.judgeContactDeviceList(list, null, { senderId: 'alice', pinnedRootKey: null }), null, 'no pinned key, no list');
+    const forged = { ...list, version: 3, updatedBy: 'alice-pc', devices: list.devices.map(device => ({ ...device, canAdd: true })) };
+    assert.equal(context.judgeContactDeviceList(forged, list, { senderId: 'alice-pc', pinnedRootKey: root }), null, 'pc cannot rewrite the list');
+    assert.equal(context.judgeContactDeviceList({ ...list, version: 3 }, list, { senderId: 'alice', pinnedRootKey: root }), 'accept');
+    context.state.contactDevices = { alice: { list } };
+    assert.equal(context.identityOf('alice-pc'), 'alice');
+    assert.equal(context.identityOf('bob'), 'bob');
+    assert.deepEqual([...context.contactDeviceNodes('alice')], ['alice', 'alice-pc']);
+    assert.deepEqual([...context.contactDeviceNodes('bob')], ['bob']);
+});

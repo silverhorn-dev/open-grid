@@ -74,10 +74,17 @@ async function main() {
         await waitFor(pc, id => (state.chats[id] || []).some(message => message.text === 'handy schreibt'), bobId, 45000);
         await bob.evaluate(async id => { await openChatWithPeer(id); document.getElementById('chat-input').value = 'bob antwortet'; await sendChatMessage(); }, phoneId);
         await waitFor(pc, id => (state.chats[id] || []).some(message => message.text === 'bob antwortet'), bobId, 45000);
-        // Der PC schreibt: Bob bekommt es (P4c folgt: bis dahin ueber den PC selbst), und das Handy sieht es.
+        // P4c: Bob kennt Alices Geraete; was der PC schreibt, steht bei Bob im Chat mit Alice (nicht als neuer Kontakt).
+        await waitFor(bob, ([identity, device]) => contactDeviceNodes(identity).includes(device), [phoneId, pcId], 45000);
         await pc.evaluate(async id => { await openChatWithPeer(id); document.getElementById('chat-input').value = 'vom pc'; await sendChatMessage(); }, bobId);
+        await waitFor(bob, id => (state.chats[id] || []).some(message => message.text === 'vom pc'), phoneId, 45000);
+        assert.equal(await bob.evaluate(id => state.chatPeerIds.includes(id), pcId), false, 'no separate chat for the pc');
+        assert.equal(await bob.evaluate(id => displayNameFor(id), pcId), 'Alice');
         await waitFor(phone, id => (state.chats[id] || []).some(message => message.text === 'vom pc'), bobId, 45000);
-        // Offline-Abgleich: PC zu, Handy schreibt, PC wieder da -> kommt ueber Spiegel (Pfad C) bzw. Abgleich.
+        // Handy zu: Bob schreibt Alice, der PC bekommt es direkt.
+        await phone.close();
+        await bob.evaluate(async id => { await openChatWithPeer(id); document.getElementById('chat-input').value = 'handy ist aus'; await sendChatMessage(); }, phoneId);
+        await waitFor(pc, id => (state.chats[id] || []).some(message => message.text === 'handy ist aus'), bobId, 60000);
         assert.deepEqual(pageErrors, []);
         console.log('E2E OK (devices pairing)');
     } finally {

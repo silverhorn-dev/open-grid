@@ -871,9 +871,11 @@ async function handleSecurePayload(peerId, payload, deliveredVia = 'E2EE P2P') {
                 .catch(logBackgroundError('handleSecurePayload'));
         }
         // Gruppe (T36 P1): nur bekannte Gruppen, nur von Mitgliedern; die Gruppe steht auch in der signierten Operation.
-        const conversationId = typeof resolveIncomingConversation === 'function'
+        const resolved = typeof resolveIncomingConversation === 'function'
             ? resolveIncomingConversation(peerId, payload.conversationId, { groups: state.groups || {}, myId: state.myProfile.id })
             : (payload.conversationId ? null : peerId);
+        // Geraet eines Kontakts mit mehreren Geraeten: Chat der Identitaet (devices.js, T36 P4c).
+        const conversationId = resolved === peerId && typeof identityOf === 'function' ? identityOf(peerId) : resolved;
         const groupMismatch = (payload.operation?.conversationId ?? null) !== (payload.conversationId ?? null);
         // Unbekannte Gruppe: kurz aufheben, der Gruppen-Zustand kann gleich danach kommen (conversations.js).
         if (!conversationId && !groupMismatch && typeof stashGroupOperation === 'function' && isGroupConversationId(payload.conversationId)

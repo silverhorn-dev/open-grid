@@ -731,7 +731,7 @@
   - ansatz (2026-11-10): jedes geraet behaelt seine node-ID (routing unveraendert), identitaet = node-ID der wurzel, signierte geraeteliste; kontakte mit mehreren geraeten wie eine kleine gruppe
   - [x] P4a geraeteliste + koppeln per code (ohne umzug, ohne ID-umschreiben), `isOwnNode`; tests `test/devices.test.js`, e2e `devices`; UC-79
   - [x] P4b eigene geraete spiegeln (gesendet + empfangen) + sync zwischen eigenen geraeten (2026-11-10): `mirrorOf`, `handleMirroredOperation`, abgleich aller chats; tests `test/devices.test.js`, e2e `devices`
-  - [ ] P4c kontakte senden an alle geraete einer person, eingehende der identitaet zuordnen
+  - [x] P4c kontakte senden an alle geraete einer person, eingehende der identitaet zuordnen (2026-11-10): geraeteliste an kontakte, anker = gepinnter identitaets-schluessel, fan-out, `identityOf`; tests `test/devices.test.js`, e2e `devices`
   - [ ] P4d grid nur zuletzt aktives geraet, geraete verwalten (entfernen, recht weitergeben)
 - [ ] P5 forward secrecy
 - [x] 3 security-hackathon -> `documentation/SECURITY-HACKATHON.md`

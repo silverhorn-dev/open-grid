@@ -113,6 +113,7 @@ window.onload = async () => {
             await loadGroups();
             await loadGroupCards();
             await loadDevices();
+            await loadContactDevices();
             await loadChatReads();
             await loadChatPeerIds();
         });

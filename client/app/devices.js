@@ -112,6 +112,8 @@ async function ensureRootDeviceList() {
 async function publishDeviceList(next) {
     const signed = await signDeviceList(next);
     await saveDeviceList(signed.list, signed.sig);
+    // Kontakte erfahren die neue Liste ebenfalls (P4c).
+    setTimeout(() => shareDeviceListWithContacts(), 0);
     const others = signed.list.devices.map(device => device.nodeId).filter(id => id !== state.myProfile.id);
     await Promise.all(others.map(nodeId => sendSecurePayload(nodeId, { type: 'DEVICE_LIST', list: signed.list, sig: signed.sig }, () => {})
         .catch(logBackgroundError('publishDeviceList'))));
@@ -219,6 +221,11 @@ async function finishDevicePairing() {
 }
 
 async function handleDeviceList(peerId, payload) {
+    // Liste eines Kontakts (P4c): nicht meine Identitaet (auch nicht die, zu der ich gerade gekoppelt werde).
+    const pairingIdentity = state.devicePairing && !state.devicePairing.joinedAt ? state.devicePairing.identityId : null;
+    if (payload.list?.identityId && payload.list.identityId !== myIdentityId() && payload.list.identityId !== pairingIdentity) {
+        return handleContactDeviceList(peerId, payload);
+    }
     const verdict = judgeDeviceList(payload.list, myDeviceList(), { senderId: peerId, myNodeId: state.myProfile.id, pairing: state.devicePairing });
     // Erstes Mal nach dem Koppeln: die mitgebrachte Liste gilt noch nicht als "aktuell" fuer mich.
     const freshlyPaired = state.devicePairing && !state.devicePairing.joinedAt;
@@ -327,3 +334,98 @@ async function handleMirroredOperation(peerId, payload, deliveredVia) {
     return true;
 }
 
+
+// ================= KONTAKTE MIT MEHREREN GERAETEN (T36 P4c) =================
+// Kontakte bekommen meine Geraeteliste (bei Aenderung und beim ersten Verbinden). Vertrauensanker ist der
+// gepinnte Signaturschluessel der Identitaet (= Wurzel-Geraet): die erste Liste muss die Wurzel mit genau diesem
+// Schluessel enthalten; spaetere nur von Geraeten, die in der bisherigen Liste hinzufuegen duerfen.
+// Senden an eine Person mit mehreren Geraeten geht an alle; was von Geraet D der Person I kommt, gehoert zu I.
+const CONTACT_DEVICES_PREFIX = 'contact-devices:';
+
+async function loadContactDevices() {
+    const records = await getAllDatabaseRecords('keys').catch(() => []);
+    state.contactDevices = Object.fromEntries(records
+        .filter(record => typeof record?.id === 'string' && record.id.startsWith(CONTACT_DEVICES_PREFIX) && isValidDeviceList(record.list))
+        .map(record => [record.list.identityId, { list: record.list, sig: record.sig }]));
+}
+
+function contactIdentityOf(nodeId) {
+    if (!nodeId) return null;
+    for (const [identityId, entry] of Object.entries(state.contactDevices || {})) {
+        if (entry.list.devices.some(device => device.nodeId === nodeId)) return identityId;
+    }
+    return null;
+}
+
+// Wem gehoert diese Node? Eigene -> meine Identitaet, Geraet eines Kontakts -> dessen Identitaet, sonst sie selbst.
+function identityOf(nodeId) {
+    if (isOwnNode(nodeId)) return myIdentityId();
+    return contactIdentityOf(nodeId) || nodeId;
+}
+
+function contactDeviceNodes(identityId) {
+    const list = state.contactDevices?.[identityId]?.list;
+    return list ? list.devices.map(device => device.nodeId) : [identityId];
+}
+
+// Liste eines Kontakts bewerten: 'accept' oder null (rein, testbar).
+function judgeContactDeviceList(next, current, { senderId, pinnedRootKey }) {
+    if (!isValidDeviceList(next) || next.updatedBy !== senderId) return null;
+    if (!next.devices.some(device => device.nodeId === senderId)) return null;
+    if (current) {
+        if (next.identityId !== current.identityId || next.version <= current.version) return null;
+        return current.devices.find(device => device.nodeId === senderId)?.canAdd ? 'accept' : null;
+    }
+    const root = next.devices.find(device => device.nodeId === next.identityId);
+    if (!pinnedRootKey || !root || root.key.x !== pinnedRootKey.x || root.key.y !== pinnedRootKey.y) return null;
+    return 'accept';
+}
+
+async function handleContactDeviceList(peerId, payload) {
+    const list = payload.list;
+    const current = state.contactDevices?.[list?.identityId]?.list || null;
+    const pinnedRootKey = (await getPeerIdentity(list?.identityId).catch(() => null))?.profileSigningKey;
+    if (!judgeContactDeviceList(list, current, { senderId: peerId, pinnedRootKey })) {
+        logDebug(`Ignored a contact device list from ${peerId}.`);
+        return false;
+    }
+    const signer = list.devices.find(device => device.nodeId === peerId);
+    if (!await verifyOperationSignature({ ...deviceListSignable(list), sig: payload.sig }, { kty: 'EC', crv: 'P-256', x: signer.key.x, y: signer.key.y })) return false;
+    const signable = deviceListSignable(list);
+    state.contactDevices = { ...(state.contactDevices || {}), [list.identityId]: { list: signable, sig: payload.sig } };
+    await putDatabaseRecord('keys', { id: `${CONTACT_DEVICES_PREFIX}${list.identityId}`, list: signable, sig: payload.sig });
+    // Schluessel der Geraete fuer spaetere Pruefungen merken (nur, wo noch keiner gepinnt ist).
+    for (const device of signable.devices) {
+        if (device.nodeId === list.identityId) continue;
+        const known = await getPeerIdentity(device.nodeId).catch(() => null);
+        if (!known?.profileSigningKey && known?.jwkPublic) await persistPeerIdentityKey(device.nodeId, known.jwkPublic, { kty: 'EC', crv: 'P-256', x: device.key.x, y: device.key.y });
+    }
+    if (typeof renderActivePeerList === 'function') renderActivePeerList();
+    return true;
+}
+
+// Meine Liste an einen Kontakt (nur, wenn ich mehrere Geraete habe).
+function sendDeviceListToContact(peerId) {
+    const list = myDeviceList();
+    if (!list || list.devices.length < 2 || isOwnNode(peerId) || (typeof isGroupId === 'function' && isGroupId(peerId))) return;
+    sendSecurePayload(peerId, { type: 'DEVICE_LIST', list, sig: state.myDevices.sig }, () => {}).catch(logBackgroundError('sendDeviceListToContact'));
+}
+
+function shareDeviceListWithContacts() {
+    (state.chatPeerIds || []).filter(id => !isOwnNode(id) && !(typeof isGroupId === 'function' && isGroupId(id)))
+        .forEach(id => contactDeviceNodes(id).forEach(sendDeviceListToContact));
+}
+
+// Chat-Operation an alle Geraete einer Person; der Rueckruf meldet den besten Weg einmal.
+async function sendToContactDevices(identityId, payload, onSent, options) {
+    const reported = new Set();
+    const report = (path, details) => {
+        if (!onSent || reported.has(path)) return;
+        if (path === 'pending' && (reported.has('p2p') || reported.has('cache'))) return;
+        reported.add(path);
+        onSent(path, details);
+    };
+    const results = await Promise.all(contactDeviceNodes(identityId).map(nodeId => sendSecurePayload(nodeId, { ...payload, deviceFanout: true }, report, options)
+        .catch(() => false)));
+    return results.some(Boolean);
+}

@@ -1243,8 +1243,16 @@ Chats werden als idempotente Operationen synchronisiert:
   (`handleMirroredOperation`), nie weiter gespiegelt. Verbinden sich zwei
   eigene Geraete, gleicht `beginChatSync` alle Chats ab (`CHAT_SYNC_*` mit
   `conversationId` = jeder Chat, ohne `since`), ohne Zustellbestaetigung.
-  Bis P4c senden Kontakte nur an die Node, mit der sie den Chat haben; schreibt
-  ein zweites Geraet einen Kontakt an, erscheint es dort noch als eigener Kontakt.
+- Kontakte mit mehreren Geraeten (T36 P4c): Kontakte bekommen meine
+  Geraeteliste (`DEVICE_LIST` mit fremder `identityId`) bei jeder Aenderung und
+  beim Verbinden (`beginChatSync`), sobald ich mehr als ein Geraet habe. Erste
+  Liste nur, wenn das Wurzel-Geraet darin den gepinnten Signaturschluessel der
+  Identitaet hat; spaetere nur hoehere Version von einem Geraet mit `canAdd` in
+  der bisherigen (`judgeContactDeviceList`), signiert vom Absender. Gespeichert
+  in `keys`/`contact-devices:<identityId>`. Senden an eine solche Person geht an
+  alle ihre Geraete (`sendToContactDevices`, `deviceFanout`); Eingehendes von
+  Geraet D gehoert zum Chat der Identitaet (`identityOf`), ebenso Abgleich,
+  Sperren (`isPeerBlocked`) und Darstellung (`getPeerPresentation`).
 
 Nach jedem neuen E2EE-Schluessel und vor einem weiteren Nachrichtenversand
 tauschen beide Clients die 20 neuesten Operations-IDs aus. Fehlende

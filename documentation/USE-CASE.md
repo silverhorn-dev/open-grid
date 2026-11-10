@@ -1404,6 +1404,7 @@ Akzeptanzkriterien:
   Nachrichten erscheinen dort als meine.
 - Nur das erste Geraet (oder eines, dem es das Recht gegeben hat) kann weitere
   Geraete hinzufuegen.
-- (Folgt) Was ich auf einem Geraet schreibe und bekomme, erscheint auch auf
-  den anderen; Kontakte erreichen alle meine Geraete.
+- Was ich auf einem Geraet schreibe und bekomme, erscheint auch auf den
+  anderen. Kontakte erreichen alle meine Geraete, auch wenn eines aus ist, und
+  sehen mich nur einmal (nicht je Geraet).
 

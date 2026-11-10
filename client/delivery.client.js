@@ -4,7 +4,10 @@ async function beginChatSync(peerId) {
     if (state.chatSyncInProgress[peerId]) return;
     state.chatSyncInProgress[peerId] = true;
     try {
-        const operations = await getChatOperations(peerId);
+        // Geraet eines Kontakts mit mehreren Geraeten: der Chat liegt unter dessen Identitaet (P4c).
+        const conversation = typeof identityOf === 'function' && !isOwnNode(peerId) ? identityOf(peerId) : peerId;
+        const operations = await getChatOperations(conversation);
+        if (typeof sendDeviceListToContact === 'function') sendDeviceListToContact(peerId);
         await sendSecurePayload(peerId, {
             type: 'CHAT_SYNC_HELLO',
             recentOperationIds: operations.slice(0, 20).map(operation => operation.operationId),
@@ -31,7 +34,9 @@ async function beginChatSync(peerId) {
 
 // Unterhaltung eines Sync-Pakets: 1:1 = Absender, Gruppe nur, wenn bekannt und beide Mitglied; sonst null.
 function syncConversation(peerId, payload) {
-    if (payload?.conversationId === undefined || payload?.conversationId === null) return peerId;
+    if (payload?.conversationId === undefined || payload?.conversationId === null) {
+        return typeof identityOf === 'function' && !(typeof isOtherOwnDevice === 'function' && isOtherOwnDevice(peerId)) ? identityOf(peerId) : peerId;
+    }
     // Eigenes Geraet: jeder Chat (T36 P4b).
     if (typeof isOtherOwnDevice === 'function' && isOtherOwnDevice(peerId)) return typeof payload.conversationId === 'string' ? payload.conversationId : null;
     if (typeof resolveIncomingConversation !== 'function') return null;
@@ -42,12 +47,13 @@ function syncConversation(peerId, payload) {
 async function syncOperationsFor(peerId, conversationId) {
     const operations = await getChatOperations(conversationId);
     if (conversationId === peerId || typeof getGroup !== 'function') return operations;
+    if (typeof identityOf === 'function' && conversationId === identityOf(peerId)) return operations;
     if (typeof isOtherOwnDevice === 'function' && isOtherOwnDevice(peerId)) return operations;
     const cutoff = groupSyncCutoff(getGroup(conversationId), peerId);
     return operations.filter(operation => (operation.createdAt || 0) >= cutoff);
 }
 
-const withConversation = (conversationId, peerId, payload) => (conversationId === peerId ? payload : { ...payload, conversationId });
+const withConversation = (conversationId, peerId, payload) => (conversationId === peerId || (typeof identityOf === 'function' && conversationId === identityOf(peerId) && !isOwnNode(peerId)) ? payload : { ...payload, conversationId });
 
 async function handleChatSyncHello(peerId, payload) {
     const conversationId = syncConversation(peerId, payload);
@@ -217,6 +223,9 @@ async function sendSecurePayload(peerId, payload, onSent = null, options = {}) {
         && typeof mirrorToOwnDevices === 'function' && !isOwnNode(peerId)) mirrorToOwnDevices(peerId, payload.operation);
     // Gruppe (conversations.js, T36 P1): an alle Mitglieder verteilen.
     if (typeof isGroupId === 'function' && isGroupId(peerId)) return sendGroupPayload(peerId, payload, onSent, options);
+    // Person mit mehreren Geraeten (devices.js, T36 P4c): an alle ihre Geraete.
+    if (payload?.type === 'CHAT_OPERATION' && !payload.deviceFanout && !payload.mirrorOf && typeof contactDeviceNodes === 'function'
+        && contactDeviceNodes(peerId).length > 1) return sendToContactDevices(peerId, payload, onSent, options);
     if (isPeerBlocked(peerId)) return false;
     // Chat-Operationen (auch Loeschen, Bearbeiten, Reaktionen) immer mit ACK-Pruefung und Pfad-C-Fallback:
     // ohne Rueckruf blieben sie bei einem halbtoten Kanal bis zum naechsten Chat-Sync haengen.

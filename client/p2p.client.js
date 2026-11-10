@@ -856,6 +856,14 @@ async function handleSecurePayload(peerId, payload, deliveredVia = 'E2EE P2P') {
         await handleMoveAnnouncement(peerId, payload);
         return;
     }
+    // Gespiegelt von einem eigenen Geraet (devices.js, T36 P4b).
+    if (payload.type === 'CHAT_OPERATION' && payload.mirrorOf) {
+        if (deliveredVia === 'E2EE P2P' && payload.operation?.operationId) {
+            sendSecurePayload(peerId, { type: 'CHAT_OPERATION_ACK', operationId: payload.operation.operationId }).catch(() => {});
+        }
+        if (!(typeof handleMirroredOperation === 'function' && await handleMirroredOperation(peerId, payload, deliveredVia))) logDebug(`Ignored a mirrored operation from ${peerId}.`);
+        return;
+    }
     if (payload.type === 'CHAT_OPERATION') {
         // Direkt angekommen: sofort bestaetigen (siehe awaitP2PAck), noch vor dem Speichern.
         if (deliveredVia === 'E2EE P2P' && payload.operation?.operationId) {
@@ -875,7 +883,11 @@ async function handleSecurePayload(peerId, payload, deliveredVia = 'E2EE P2P') {
         // In Gruppen ist die Signatur Pflicht (T36 P2c): alle Mitglieder kennen die Absender-Schluessel.
         else if (conversationId !== peerId && !await groupOperationSignatureValid(conversationId, payload.operation)) logDebug(`Ignored an unsigned or invalid group operation from ${peerId}.`);
         else if (!await operationSignatureAcceptable(payload.operation)) logDebug(`Ignored an operation from ${peerId} with an invalid signature.`);
-        else await applyChatOperation(conversationId, payload.operation, deliveredVia);
+        else {
+            const applied = await applyChatOperation(conversationId, payload.operation, deliveredVia);
+            // Von einem Kontakt: auch an meine anderen Geraete (T36 P4b).
+            if (applied && typeof mirrorToOwnDevices === 'function' && !isOwnNode(peerId)) mirrorToOwnDevices(conversationId, payload.operation);
+        }
     } else if (payload.type === 'GROUP_STATE') {
         await handleGroupState(peerId, payload);
     } else if (payload.type === 'GROUP_LEAVE') {
@@ -904,7 +916,13 @@ async function handleSecurePayload(peerId, payload, deliveredVia = 'E2EE P2P') {
         await sendRequestedChatOperations(peerId, payload.operationIds || [], payload);
     } else if (payload.type === 'CHAT_SYNC_OPERATIONS') {
         const conversationId = syncConversation(peerId, payload);
+        // Eigenes Geraet: alles uebernehmen (T36 P4b).
+        const ownDevice = typeof isOtherOwnDevice === 'function' && isOtherOwnDevice(peerId);
         for (const operation of conversationId ? payload.operations || [] : []) {
+            if (ownDevice) {
+                await applyChatOperation(conversationId, operation, 'Own device');
+                continue;
+            }
             const group = conversationId !== peerId;
             // Gruppe (T36 P2b): eigene Operationen des Absenders wie gewohnt, fremde nur gueltig signiert vom Urheber.
             if (group && operation?.conversationId !== conversationId) logDebug(`Ignored a synced operation from ${peerId} for another conversation.`);

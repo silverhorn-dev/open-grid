@@ -1236,6 +1236,15 @@ Chats werden als idempotente Operationen synchronisiert:
   Gruppen-Absender-Schluessel (`group-keys:*`). Nachrichten von eigenen
   Geraeten gelten als eigene (`isOwnNode`); signiert wird weiter nur, was das
   Geraet selbst geschrieben hat.
+- Eigene Geraete spiegeln (T36 P4b): jede eigene Chat-Operation (1:1 oder
+  Gruppe) geht zusaetzlich als `CHAT_OPERATION { operation, mirrorOf: <Chat> }`
+  an die anderen eigenen Geraete; jede neu angenommene Operation eines Kontakts
+  ebenso. Angenommen nur von anderen eigenen Geraeten laut Liste
+  (`handleMirroredOperation`), nie weiter gespiegelt. Verbinden sich zwei
+  eigene Geraete, gleicht `beginChatSync` alle Chats ab (`CHAT_SYNC_*` mit
+  `conversationId` = jeder Chat, ohne `since`), ohne Zustellbestaetigung.
+  Bis P4c senden Kontakte nur an die Node, mit der sie den Chat haben; schreibt
+  ein zweites Geraet einen Kontakt an, erscheint es dort noch als eigener Kontakt.
 
 Nach jedem neuen E2EE-Schluessel und vor einem weiteren Nachrichtenversand
 tauschen beide Clients die 20 neuesten Operations-IDs aus. Fehlende

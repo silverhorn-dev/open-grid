@@ -44,3 +44,25 @@ test('own nodes: this device and every device in my list', () => {
     context.state.myProfile = { id: 'pc' };
     assert.equal(context.canAddDevices(), false, 'only devices with the right add devices');
 });
+
+test('mirroring goes only to my other devices and is only taken from them', async () => {
+    const sent = [];
+    const applied = [];
+    const context = load();
+    Object.assign(context, {
+        sendSecurePayload: async (peerId, payload) => { sent.push({ peerId, payload }); return true; },
+        logBackgroundError: () => () => {},
+        applyChatOperation: async (conversationId, operation) => { applied.push([conversationId, operation.operationId]); return true; }
+    });
+    context.state.myDevices = { list: { ...base, devices: [...base.devices, { nodeId: 'pc', key, canAdd: false, addedAt: 2 }] } };
+    const operation = { operationId: 'put:1', actorId: 'phone' };
+    context.mirrorToOwnDevices('bob', operation);
+    assert.deepEqual(sent.map(entry => [entry.peerId, entry.payload.mirrorOf]), [['pc', 'bob']]);
+    sent.length = 0;
+    context.mirrorToOwnDevices('pc', operation);
+    assert.deepEqual(sent, [], 'never mirror a chat with my own device');
+    assert.equal(await context.handleMirroredOperation('pc', { operation, mirrorOf: 'bob' }, 'E2EE P2P'), true);
+    assert.equal(await context.handleMirroredOperation('mallory', { operation, mirrorOf: 'bob' }, 'E2EE P2P'), false, 'only from my devices');
+    assert.equal(await context.handleMirroredOperation('phone', { operation, mirrorOf: 'bob' }, 'E2EE P2P'), false, 'not from myself');
+    assert.deepEqual(applied, [['bob', 'put:1']]);
+});

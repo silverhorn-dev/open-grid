@@ -11,7 +11,10 @@ async function beginChatSync(peerId) {
             hasMore: operations.length > 20
         });
         // Gemeinsame Gruppen (T36 P2b): je Gruppe derselbe Abgleich mit diesem Mitglied.
-        const groups = typeof sharedActiveGroups === 'function' ? sharedActiveGroups(peerId) : [];
+        // Eigenes anderes Geraet (T36 P4b): alle Chats abgleichen.
+        const groups = typeof isOtherOwnDevice === 'function' && isOtherOwnDevice(peerId)
+            ? (state.chatPeerIds || []).filter(id => !isOwnNode(id))
+            : typeof sharedActiveGroups === 'function' ? sharedActiveGroups(peerId) : [];
         for (const groupId of groups) {
             const groupOperations = await syncOperationsFor(peerId, groupId);
             await sendSecurePayload(peerId, {
@@ -29,6 +32,8 @@ async function beginChatSync(peerId) {
 // Unterhaltung eines Sync-Pakets: 1:1 = Absender, Gruppe nur, wenn bekannt und beide Mitglied; sonst null.
 function syncConversation(peerId, payload) {
     if (payload?.conversationId === undefined || payload?.conversationId === null) return peerId;
+    // Eigenes Geraet: jeder Chat (T36 P4b).
+    if (typeof isOtherOwnDevice === 'function' && isOtherOwnDevice(peerId)) return typeof payload.conversationId === 'string' ? payload.conversationId : null;
     if (typeof resolveIncomingConversation !== 'function') return null;
     return resolveIncomingConversation(peerId, payload.conversationId, { groups: state.groups || {}, myId: state.myProfile?.id });
 }
@@ -37,6 +42,7 @@ function syncConversation(peerId, payload) {
 async function syncOperationsFor(peerId, conversationId) {
     const operations = await getChatOperations(conversationId);
     if (conversationId === peerId || typeof getGroup !== 'function') return operations;
+    if (typeof isOtherOwnDevice === 'function' && isOtherOwnDevice(peerId)) return operations;
     const cutoff = groupSyncCutoff(getGroup(conversationId), peerId);
     return operations.filter(operation => (operation.createdAt || 0) >= cutoff);
 }
@@ -46,7 +52,8 @@ const withConversation = (conversationId, peerId, payload) => (conversationId ==
 async function handleChatSyncHello(peerId, payload) {
     const conversationId = syncConversation(peerId, payload);
     if (!conversationId) return;
-    await confirmDeliveredOperations(conversationId, payload.recentOperationIds || []);
+    // Eigene Geraete bestaetigen keine Zustellung an den Kontakt.
+    if (!(typeof isOtherOwnDevice === 'function' && isOtherOwnDevice(peerId))) await confirmDeliveredOperations(conversationId, payload.recentOperationIds || []);
     const operations = await getChatOperations(conversationId);
     const localIds = new Set(operations.map(operation => operation.operationId));
     const missingIds = (payload.recentOperationIds || []).filter(operationId => !localIds.has(operationId));
@@ -81,7 +88,7 @@ async function sendChatSyncInventory(peerId, cursor, payload = {}) {
 async function handleChatSyncInventory(peerId, payload) {
     const conversationId = syncConversation(peerId, payload);
     if (!conversationId) return;
-    await confirmDeliveredOperations(conversationId, payload.operationIds || []);
+    if (!(typeof isOtherOwnDevice === 'function' && isOtherOwnDevice(peerId))) await confirmDeliveredOperations(conversationId, payload.operationIds || []);
     const localIds = new Set(
         (await getChatOperations(conversationId)).map(operation => operation.operationId)
     );
@@ -204,6 +211,10 @@ async function resendExpiredCacheMessages() {
 
 // options.notifyKind: Art fuer den Push beim Empfaenger, falls es ueber Pfad C geht (push.js).
 async function sendSecurePayload(peerId, payload, onSent = null, options = {}) {
+    // Eigene Chat-Aktion: auch an meine anderen Geraete (devices.js, T36 P4b).
+    // (Nicht fuer die Einzelsendungen eines Gruppen-Fan-outs: die Gruppe selbst wurde schon gespiegelt.)
+    if (payload?.type === 'CHAT_OPERATION' && !payload.mirrorOf && !payload.conversationId && payload.operation?.actorId === state.myProfile?.id
+        && typeof mirrorToOwnDevices === 'function' && !isOwnNode(peerId)) mirrorToOwnDevices(peerId, payload.operation);
     // Gruppe (conversations.js, T36 P1): an alle Mitglieder verteilen.
     if (typeof isGroupId === 'function' && isGroupId(peerId)) return sendGroupPayload(peerId, payload, onSent, options);
     if (isPeerBlocked(peerId)) return false;

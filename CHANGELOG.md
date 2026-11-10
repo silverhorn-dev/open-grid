@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 324 · 2026-11-10
+## Build 325 · 2026-11-10
+- Mehrere Geraete (Vorschau): was du auf einem Geraet schreibst oder bekommst, erscheint jetzt auch auf deinen anderen Geraeten
+
+## Build 324 · 2026-11-10 · `3bc2da5`
 - Mehrere Geraete (Vorschau): unter Einstellungen > Meine Geraete ein weiteres Geraet koppeln; es uebernimmt deine Chats und dein Profil, beide bleiben aktiv (Abgleich zwischen den Geraeten folgt)
 
 ## Build 323 · 2026-11-10 · `be0f90a`

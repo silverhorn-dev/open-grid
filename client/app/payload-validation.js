@@ -104,7 +104,8 @@ function isValidGroupStatePayload(group, sig) {
 }
 
 // Sync-Pakete duerfen eine Gruppe nennen (T36 P2b).
-const optionalGroup = payload => payload.conversationId === undefined || isGroupConversationId(payload.conversationId);
+// Eigene Geraete (T36 P4b) gleichen jeden Chat ab, darum jede ID; Fremde werden beim Empfang auf Gruppen beschraenkt.
+const optionalGroup = payload => payload.conversationId === undefined || isId(payload.conversationId);
 
 function isGroupConversationId(value) {
     return typeof value === 'string' && /^group_[A-Za-z0-9-]{8,64}$/.test(value);
@@ -162,7 +163,8 @@ function isValidAlbumManifest(manifest) {
 
 const PAYLOAD_VALIDATORS = {
     CHAT_OPERATION: payload => isValidChatOperation(payload.operation)
-        && (payload.conversationId === undefined || isGroupConversationId(payload.conversationId)),
+        && (payload.conversationId === undefined || isGroupConversationId(payload.conversationId))
+        && (payload.mirrorOf === undefined || isId(payload.mirrorOf)),
     CHAT_OPERATION_ACK: payload => isId(payload.operationId),
     CHAT_FOCUS: payload => typeof payload.open === 'boolean',
     CHAT_SYNC_HELLO: payload => isIdList(payload.recentOperationIds || [], 20) && optionalGroup(payload),

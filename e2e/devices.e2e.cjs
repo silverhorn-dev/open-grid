@@ -69,6 +69,15 @@ async function main() {
             const message = state.chats[id].find(entry => entry.text === 'vom handy');
             return isOwnNode(message.senderId) && message.senderId !== state.myProfile.id;
         }, bobId), true);
+        // P4b: was das Handy schreibt, erscheint auf dem PC; was Bob ans Handy schickt, auch.
+        await phone.evaluate(async id => { await openChatWithPeer(id); document.getElementById('chat-input').value = 'handy schreibt'; await sendChatMessage(); }, bobId);
+        await waitFor(pc, id => (state.chats[id] || []).some(message => message.text === 'handy schreibt'), bobId, 45000);
+        await bob.evaluate(async id => { await openChatWithPeer(id); document.getElementById('chat-input').value = 'bob antwortet'; await sendChatMessage(); }, phoneId);
+        await waitFor(pc, id => (state.chats[id] || []).some(message => message.text === 'bob antwortet'), bobId, 45000);
+        // Der PC schreibt: Bob bekommt es (P4c folgt: bis dahin ueber den PC selbst), und das Handy sieht es.
+        await pc.evaluate(async id => { await openChatWithPeer(id); document.getElementById('chat-input').value = 'vom pc'; await sendChatMessage(); }, bobId);
+        await waitFor(phone, id => (state.chats[id] || []).some(message => message.text === 'vom pc'), bobId, 45000);
+        // Offline-Abgleich: PC zu, Handy schreibt, PC wieder da -> kommt ueber Spiegel (Pfad C) bzw. Abgleich.
         assert.deepEqual(pageErrors, []);
         console.log('E2E OK (devices pairing)');
     } finally {

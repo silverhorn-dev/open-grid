@@ -299,3 +299,31 @@ function openDevicePairing() {
     box.append(note, error, button, result);
     content.appendChild(box);
 }
+
+// ================= EIGENE GERAETE SPIEGELN (T36 P4b) =================
+// Was ich in einen Chat schicke oder von einem Kontakt bekomme, geht auch an meine anderen Geraete
+// (`CHAT_OPERATION` mit `mirrorOf` = Chat/Gruppe). Angenommen nur von eigenen Geraeten laut Liste.
+function otherOwnDevices() {
+    return myNodeIds().filter(nodeId => nodeId !== state.myProfile?.id);
+}
+
+function isOtherOwnDevice(nodeId) {
+    return Boolean(nodeId) && nodeId !== state.myProfile?.id && isOwnNode(nodeId);
+}
+
+function mirrorToOwnDevices(conversationId, operation) {
+    const devices = otherOwnDevices();
+    if (!devices.length || !conversationId || !operation || isOwnNode(conversationId)) return;
+    devices.forEach(nodeId => sendSecurePayload(nodeId, { type: 'CHAT_OPERATION', operation, mirrorOf: conversationId }, () => {})
+        .catch(logBackgroundError('mirrorToOwnDevices')));
+}
+
+// Gespiegelte Operation von einem eigenen Geraet: im genannten Chat ablegen (Gruppe nur, wenn bekannt).
+async function handleMirroredOperation(peerId, payload, deliveredVia) {
+    if (!isOtherOwnDevice(peerId)) return false;
+    const conversationId = payload.mirrorOf;
+    if (typeof isGroupId === 'function' && isGroupId(conversationId) && !getGroup(conversationId)) return false;
+    await applyChatOperation(conversationId, payload.operation, deliveredVia === 'E2EE P2P' ? 'Own device' : deliveredVia);
+    return true;
+}
+

@@ -198,6 +198,8 @@ const state = {
     moveReloadScheduled: false,
     // Umzugs-Nachweise vom Router (410), schon bearbeitet je alter ID (move.js).
     routerMovesHandled: new Set(),
+    // Gruppen (conversations.js, T36): groupId -> { id, name, members, admins, createdAt }.
+    groups: {},
     snapPageEnabled: null,
     // App-Modus (P8): vom Server erlaubte Modi, gewaehlter Modus und Event-Daten.
     appConfig: { modes: ['discovery', 'chat', 'friends', 'event'], defaultMode: 'discovery' },

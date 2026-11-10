@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 315 · 2026-11-10
+## Build 316 · 2026-11-10
+- Vorbereitung fuer Gruppenchats: Nachrichten koennen jetzt an mehrere Personen gehen (noch ohne Oberflaeche zum Anlegen)
+
+## Build 315 · 2026-11-10 · `3f4363d`
 - Sicherheit: Chat-Aktionen (Nachrichten, Loeschen, Bearbeiten, Reaktionen) werden jetzt signiert verschickt und beim Empfang geprueft; Grundlage fuer Gruppenchats und mehrere Geraete
 
 ## Build 313 · 2026-11-10 · `3025d48`

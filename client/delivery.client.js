@@ -165,6 +165,8 @@ async function resendExpiredCacheMessages() {
 
 // options.notifyKind: Art fuer den Push beim Empfaenger, falls es ueber Pfad C geht (push.js).
 async function sendSecurePayload(peerId, payload, onSent = null, options = {}) {
+    // Gruppe (conversations.js, T36 P1): an alle Mitglieder verteilen.
+    if (typeof isGroupId === 'function' && isGroupId(peerId)) return sendGroupPayload(peerId, payload, onSent, options);
     if (isPeerBlocked(peerId)) return false;
     // Chat-Operationen (auch Loeschen, Bearbeiten, Reaktionen) immer mit ACK-Pruefung und Pfad-C-Fallback:
     // ohne Rueckruf blieben sie bei einem halbtoten Kanal bis zum naechsten Chat-Sync haengen.

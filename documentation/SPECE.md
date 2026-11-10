@@ -1142,6 +1142,20 @@ Chats werden als idempotente Operationen synchronisiert:
   Signatur stimmen, sonst wird verworfen (`operationSignatureAcceptable`);
   ohne `sig` (alte Clients) oder ohne gepinnten Schluessel entscheidet
   vorerst der Kanal. Der Service Worker prueft (noch) nicht.
+- Unterhaltungen (T36 P1, `conversations.js`, ohne Migration): im 1:1-Chat
+  ist die Unterhaltungs-ID die Node-ID des Partners. Eine Gruppe hat die ID
+  `group_<uuid>` und steht ueberall, wo sonst die Partner-ID steht (`messages`,
+  `chatOperations`, Chatliste). Gruppen liegen in `keys`/`group:<id>` =
+  `{ group: { id, name, members (hoechstens 16 Node-IDs), admins, createdAt } }`,
+  geladen in `state.groups`. `sendSecurePayload(groupId, CHAT_OPERATION)`
+  verteilt an alle Mitglieder ausser mir (`sendGroupPayload`); die Nutzlast und
+  die (signierte) Operation tragen `conversationId`. Empfang: nur bekannte
+  Gruppe, Absender und ich sind Mitglied, `conversationId` in Nutzlast und
+  Operation gleich (`resolveIncomingConversation`), dann wie gewohnt
+  `isOperationFromPeer` und Signatur. Gruppen-IDs sind keine Nodes: kein
+  P2P-Aufbau, keine Praesenz, kein Profil-Abruf. Der Service Worker legt
+  Gruppen-Nachrichten aus Pushes nicht ab (allgemeine Benachrichtigung, die
+  Seite holt sie aus Pfad C).
 
 Nach jedem neuen E2EE-Schluessel und vor einem weiteren Nachrichtenversand
 tauschen beide Clients die 20 neuesten Operations-IDs aus. Fehlende

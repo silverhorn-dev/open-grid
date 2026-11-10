@@ -76,6 +76,8 @@ function isValidChatOperation(operation) {
     if (!isOptionalString(operation.actorId, MAX_ID_LENGTH) || !isTimestamp(operation.createdAt)) return false;
     // Signatur des Urhebers (T36 P0, ECDSA P-256, base64).
     if (!isOptionalString(operation.sig, 200)) return false;
+    // Gruppe (T36 P1).
+    if (operation.conversationId !== undefined && !isGroupConversationId(operation.conversationId)) return false;
     if (operation.type === 'MESSAGE_PUT') return isId(operation.messageId) && isValidMessage(operation.message);
     if (['MESSAGE_DELETE', 'MESSAGE_REACT', 'SNAP_CONSUMED', 'SNAP_SAVED'].includes(operation.type)) return isId(operation.messageId);
     if (operation.type === 'MESSAGE_EDIT') return isId(operation.messageId) && typeof operation.text === 'string'
@@ -93,6 +95,10 @@ function isValidChatOperation(operation) {
 
 // Eine Operation, die Peer B schickt (P2P, Sync, Pfad C), darf nur B selbst als Urheber haben. Sonst koennte
 // ein Kontakt Nachrichten "von mir" oder von Dritten in meinen Verlauf schreiben (Security-Hackathon 2026-11-10).
+function isGroupConversationId(value) {
+    return typeof value === 'string' && /^group_[A-Za-z0-9-]{8,64}$/.test(value);
+}
+
 function isOperationFromPeer(peerId, operation) {
     return Boolean(operation) && typeof peerId === 'string' && (operation.actorId === undefined || operation.actorId === peerId);
 }
@@ -144,7 +150,8 @@ function isValidAlbumManifest(manifest) {
 }
 
 const PAYLOAD_VALIDATORS = {
-    CHAT_OPERATION: payload => isValidChatOperation(payload.operation),
+    CHAT_OPERATION: payload => isValidChatOperation(payload.operation)
+        && (payload.conversationId === undefined || isGroupConversationId(payload.conversationId)),
     CHAT_OPERATION_ACK: payload => isId(payload.operationId),
     CHAT_FOCUS: payload => typeof payload.open === 'boolean',
     CHAT_SYNC_HELLO: payload => isIdList(payload.recentOperationIds || [], 20),

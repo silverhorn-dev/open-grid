@@ -342,7 +342,7 @@ async function loadChatPeerIds() {
 const PROFILE_REQUEST_INTERVAL_MS = 60 * 1000;
 
 function requestMissingProfile(peerId) {
-    if (!peerId || peerId === state.myProfile?.id || state.cachedProfiles?.[peerId] || isPeerBlocked(peerId)) return;
+    if (!peerId || peerId === state.myProfile?.id || state.cachedProfiles?.[peerId] || isPeerBlocked(peerId) || (typeof isGroupId === 'function' && isGroupId(peerId))) return;
     const now = Date.now();
     const requests = state.profileRequests || (state.profileRequests = {});
     const last = requests[peerId] || { direct: 0, swarm: 0 };

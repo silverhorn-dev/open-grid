@@ -110,6 +110,7 @@ window.onload = async () => {
             startStatusCleanup();
         });
         await runStartupStep('Chatliste', async () => {
+            await loadGroups();
             await loadChatReads();
             await loadChatPeerIds();
         });

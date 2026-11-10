@@ -392,7 +392,7 @@ async function handleSignalingMessage(message) {
 // Unabhaengig vom Grid: der Server meldet den Status gegenseitiger Chat-Partner, egal in welcher Zelle.
 function subscribePresence() {
     if (state.ws?.readyState !== WebSocket.OPEN) return;
-    state.presenceSubscription = state.chatPeerIds.filter(peerId => !isPeerBlocked(peerId));
+    state.presenceSubscription = state.chatPeerIds.filter(peerId => !isPeerBlocked(peerId) && !(typeof isGroupId === 'function' && isGroupId(peerId)));
     state.ws.send(JSON.stringify({ type: 'PRESENCE_SUBSCRIBE', peerIds: state.presenceSubscription }));
 }
 
@@ -604,7 +604,8 @@ function retryConnectionAfterStall(peerId) {
 }
 
 async function initiateP2PConnection(peerId) {
-    if (isPeerBlocked(peerId) || state.movedAway) return;
+    // Gruppen-IDs sind keine Nodes (conversations.js).
+    if (isPeerBlocked(peerId) || state.movedAway || (typeof isGroupId === 'function' && isGroupId(peerId))) return;
     if (state.dataChannels[peerId]?.readyState === 'open') return;
     if (state.dataChannels[peerId]?.readyState === 'connecting') return;
     if (state.connectionAttempts[peerId]) return state.connectionAttempts[peerId];
@@ -861,9 +862,15 @@ async function handleSecurePayload(peerId, payload, deliveredVia = 'E2EE P2P') {
             sendSecurePayload(peerId, { type: 'CHAT_OPERATION_ACK', operationId: payload.operation.operationId })
                 .catch(logBackgroundError('handleSecurePayload'));
         }
-        if (!isOperationFromPeer(peerId, payload.operation)) logDebug(`Ignored an operation from ${peerId} on behalf of ${payload.operation?.actorId}.`);
+        // Gruppe (T36 P1): nur bekannte Gruppen, nur von Mitgliedern; die Gruppe steht auch in der signierten Operation.
+        const conversationId = typeof resolveIncomingConversation === 'function'
+            ? resolveIncomingConversation(peerId, payload.conversationId, { groups: state.groups || {}, myId: state.myProfile.id })
+            : (payload.conversationId ? null : peerId);
+        const groupMismatch = (payload.operation?.conversationId ?? null) !== (payload.conversationId ?? null);
+        if (!conversationId || groupMismatch) logDebug(`Ignored an operation from ${peerId} for an unknown conversation.`);
+        else if (!isOperationFromPeer(peerId, payload.operation)) logDebug(`Ignored an operation from ${peerId} on behalf of ${payload.operation?.actorId}.`);
         else if (!await operationSignatureAcceptable(payload.operation)) logDebug(`Ignored an operation from ${peerId} with an invalid signature.`);
-        else await applyChatOperation(peerId, payload.operation, deliveredVia);
+        else await applyChatOperation(conversationId, payload.operation, deliveredVia);
     } else if (payload.type === 'CHAT_OPERATION_ACK') {
         handleP2PAck(peerId, payload.operationId);
     } else if (payload.type === 'CHAT_FOCUS') {

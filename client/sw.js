@@ -127,7 +127,8 @@ async function decryptQueuedOperation(identity, trustedSenderKey, queued) {
 
 function isValidMessagePut(payload, senderId) {
     const operation = payload?.operation;
-    return payload?.type === 'CHAT_OPERATION'
+    // Gruppen-Nachrichten (T36) ordnet die Seite zu; der SW zeigt dafuer nur eine allgemeine Benachrichtigung.
+    return payload?.type === 'CHAT_OPERATION' && !payload.conversationId && !operation?.conversationId
         && operation?.type === 'MESSAGE_PUT'
         && operation.actorId === senderId
         && operation.message?.senderId === senderId

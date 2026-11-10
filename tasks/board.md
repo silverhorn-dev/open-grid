@@ -715,7 +715,9 @@
 - [x] P0 signierte operationen
   - done 2026-11-10: `canonicalJson`/`signOperation`/`verifyOperationSignature` (crypto.client.js), `signOwnOperation` + `operationSignatureAcceptable` (delivery.client.js), pruefung in p2p.client.js; uebergang: unsignierte bzw. ohne gepinnten schluessel noch erlaubt; tests `test/client-crypto.test.js`, `test/chat-sync.test.js`, e2e `sync-large`
   - offen fuer P2: signaturen pflicht in gruppen, service worker prueft mit
-- [ ] P1 unterhaltungs-modell (`conversationId`), migration
+- [x] P1 unterhaltungs-modell ohne migration (nutzer 2026-11-10): 1:1 = node-ID des partners, gruppe = `group_<uuid>` an derselben stelle
+  - done 2026-11-10: `client/app/conversations.js` (gruppen-register in `keys`, fan-out, zuordnung beim empfang), hook in `sendSecurePayload`, schutz in P2P-aufbau/praesenz/profil/chat-sperre, SW laesst gruppen-nachrichten der seite; tests `test/conversations.test.js`, e2e `groups-core`
+  - fuer P2: chat-sync fuer gruppen (heute nur neue operationen), oberflaeche (anlegen, mitglieder, absendernamen), gebuendelter pfad C
 - [ ] P2 gruppen (mitglieder-ops, admins, 16, absender-schluessel, pfad C gebuendelt, verlauf nach wahl)
 - [ ] P3 medien-schwarm
 - [ ] P4 mehrgeraete

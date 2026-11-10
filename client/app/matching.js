@@ -236,6 +236,8 @@ function connectionWording() {
 
 // Absender-Sicht: was erlaubt die Einstellung des anderen? (nur Anzeige, durchgesetzt wird beim Empfaenger)
 function getPeerChatAllowance(peerId) {
+    // Gruppe (conversations.js): Mitglieder schreiben frei.
+    if ((typeof isGroupId === 'function' && isGroupId(peerId))) return getGroup(peerId) ? { allowed: true, remaining: Infinity, images: true } : { allowed: false, remaining: 0, images: false, reason: t('groups.unknown') };
     // Profil geloescht (account.js): hier kommt nichts mehr an.
     if (typeof isProfileDeleted === 'function' && isProfileDeleted(peerId)) {
         return { allowed: false, remaining: 0, images: false, reason: t('chat.profileDeletedNoWriting') };

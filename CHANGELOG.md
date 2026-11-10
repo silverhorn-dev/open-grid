@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 318 · 2026-11-10
+## Build 319 · 2026-11-10
+- Gruppen: sind Mitglieder offline, geht eine Nachricht nur noch einmal (verschluesselt fuer die Gruppe) in den Zwischenspeicher statt einzeln fuer jeden
+- Gruppen: wer entfernt wurde, kann neue Nachrichten nicht mehr entschluesseln
+
+## Build 318 · 2026-11-10 · `ca892d6`
 - Gruppen: beim Hinzufuegen waehlt der Admin, ob die Neuen den bisherigen Verlauf (die letzten 50 Nachrichten) bekommen
 - Gruppen: verpasste Nachrichten kommen nach, sobald du mit einem Mitglied verbunden bist
 

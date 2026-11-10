@@ -1188,6 +1188,23 @@ Chats werden als idempotente Operationen synchronisiert:
   Gruppe gehoert, der Urheber Mitglied ist und die Signatur zum gepinnten oder
   im Zustand bestaetigten Schluessel passt (`acceptRelayedOperation`).
   Ausgetretene/entfernte Gruppen nehmen nichts mehr an und gleichen nicht mehr ab.
+- Absender-Schluessel und gebuendelter Pfad C (T36 P2c): jedes Mitglied hat je
+  Gruppe einen AES-256-GCM-Schluessel (`keys`/`group-keys:<id>` =
+  `{ own: { kid, key }, members: { mitglied: { kid: key } } }`, je Mitglied die
+  letzten 3), verteilt paarweise als `GROUP_SENDER_KEY { groupId, kid, key }`
+  (P2P oder Pfad C). Neue Mitglieder bekommen den eigenen Schluessel, nach einem
+  Entfernen erzeugt jedes Mitglied einen neuen (der Entfernte bekommt ihn
+  nicht). `sendGroupPayload`: offene Verbindungen direkt, alle anderen mit
+  **einem** Upload `POST /api/cache { recipientIds (<=15), ciphertextPayload =
+  { version: 2, kind: 'group', groupId, kid, ciphertext }, ivHex }`; der Router
+  legt je Empfaenger eine Zeile ab (Sperre, Quote, Umzug je Empfaenger) und
+  antwortet `{ results: [{ recipientId, code, msgId? }] }`; wer im Buendel
+  nicht ankam, bekommt es einzeln. Empfang: Gruppen-Buendel nach den
+  Einzel-Nachrichten verarbeiten; fehlt der Schluessel noch, bleibt es liegen.
+  In Gruppen ist die Signatur Pflicht (`groupOperationSignatureValid`, gepinnter
+  oder im Zustand bestaetigter Schluessel), weil alle Mitglieder die
+  Absender-Schluessel kennen; Pfad C nimmt nur Uploads unter der eigenen ID an.
+  Forward Secrecy (Kette) folgt in P5.
 
 Nach jedem neuen E2EE-Schluessel und vor einem weiteren Nachrichtenversand
 tauschen beide Clients die 20 neuesten Operations-IDs aus. Fehlende

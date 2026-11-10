@@ -872,12 +872,16 @@ async function handleSecurePayload(peerId, payload, deliveredVia = 'E2EE P2P') {
             && !state.groups?.[payload.conversationId]) stashGroupOperation(payload.conversationId, peerId, payload, deliveredVia);
         else if (!conversationId || groupMismatch) logDebug(`Ignored an operation from ${peerId} for an unknown conversation.`);
         else if (!isOperationFromPeer(peerId, payload.operation)) logDebug(`Ignored an operation from ${peerId} on behalf of ${payload.operation?.actorId}.`);
+        // In Gruppen ist die Signatur Pflicht (T36 P2c): alle Mitglieder kennen die Absender-Schluessel.
+        else if (conversationId !== peerId && !await groupOperationSignatureValid(conversationId, payload.operation)) logDebug(`Ignored an unsigned or invalid group operation from ${peerId}.`);
         else if (!await operationSignatureAcceptable(payload.operation)) logDebug(`Ignored an operation from ${peerId} with an invalid signature.`);
         else await applyChatOperation(conversationId, payload.operation, deliveredVia);
     } else if (payload.type === 'GROUP_STATE') {
         await handleGroupState(peerId, payload);
     } else if (payload.type === 'GROUP_LEAVE') {
         await handleGroupLeave(peerId, payload.groupId);
+    } else if (payload.type === 'GROUP_SENDER_KEY') {
+        await handleGroupSenderKey(peerId, payload);
     } else if (payload.type === 'CHAT_OPERATION_ACK') {
         handleP2PAck(peerId, payload.operationId);
     } else if (payload.type === 'CHAT_FOCUS') {

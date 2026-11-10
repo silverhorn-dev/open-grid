@@ -46,6 +46,9 @@ test('group payloads fan out to every member with the group inside the operation
         }
     });
     context.state.groups = { [group.id]: group };
+    // Beide direkt verbunden: P2P an jeden (der Buendel-Weg ist unten im Sender-Schluessel-Test abgedeckt).
+    context.state.dataChannels = { bob: { readyState: 'open' }, carol: { readyState: 'open' } };
+    context.state.sessionKeys = { bob: {}, carol: {} };
     const paths = [];
     const ok = await context.sendGroupPayload(group.id, { type: 'CHAT_OPERATION', operation: { operationId: 'put:1', actorId: 'me' } }, path => paths.push(path));
     assert.equal(ok, true);
@@ -96,4 +99,41 @@ test('group history and relayed operations', async () => {
     context.state.groups[group.id] = { ...relayGroup, left: true };
     assert.equal(await context.acceptRelayedOperation(group.id, 'bob', signed), false, 'left groups take nothing');
     assert.equal(context.resolveIncomingConversation('bob', group.id, { groups: context.state.groups, myId: 'me' }), null);
+});
+
+test('sender keys: seal once for the group, open per member, unknown keys wait', async () => {
+    const { webcrypto } = await import('node:crypto');
+    const cryptoSource = readFileSync(new URL('../client/crypto.client.js', import.meta.url), 'utf8');
+    const records = new Map();
+    const sent = [];
+    const context = load({
+        window: { crypto: webcrypto, btoa, atob }, TextEncoder, TextDecoder, Uint8Array,
+        databaseRequest: async (_store, _mode, run) => run({ get: id => records.get(id) }),
+        putDatabaseRecord: async (_store, record) => records.set(record.id, structuredClone(record)),
+        sendSecurePayload: async (peerId, payload) => { sent.push({ peerId, payload }); return true; },
+        logBackgroundError: () => () => {}
+    });
+    vm.runInNewContext(cryptoSource, context);
+    context.state.groups = { [group.id]: group };
+    const payload = { type: 'CHAT_OPERATION', conversationId: group.id, operation: { operationId: 'put:1', actorId: 'me', conversationId: group.id } };
+    const sealed = await context.sealForGroup(group.id, payload);
+    const envelope = JSON.parse(sealed.ciphertextPayload);
+    assert.equal(envelope.kind, 'group');
+    assert.ok(!sealed.ciphertextPayload.includes('put:1'), 'encrypted');
+    const keyMessages = sent.filter(entry => entry.payload.type === 'GROUP_SENDER_KEY');
+    assert.deepEqual(keyMessages.map(entry => entry.peerId).sort(), ['bob', 'carol'], 'own key goes to every member once');
+    // Bob: kennt meinen Schluessel erst nach GROUP_SENDER_KEY.
+    context.state.myProfile = { id: 'bob' };
+    assert.equal(await context.openGroupEnvelope('me', envelope, sealed.ivHex), null, 'unknown key: wait');
+    await context.handleGroupSenderKey('me', keyMessages[0].payload);
+    assert.deepEqual(JSON.parse(JSON.stringify(await context.openGroupEnvelope('me', envelope, sealed.ivHex))), payload);
+    assert.equal(await context.openGroupEnvelope('mallory', envelope, sealed.ivHex), null, 'not from a member');
+    // Entfernen: neuer eigener Schluessel, der alte bleibt Bob fuer Altes, der Entfernte bekommt keinen neuen.
+    context.state.myProfile = { id: 'me' };
+    sent.length = 0;
+    context.state.groups = { [group.id]: { ...group, members: ['me', 'bob'] } };
+    await context.updateSenderKeysForMembership(group.id, ['me', 'bob', 'carol'], ['me', 'bob']);
+    const rotated = sent.filter(entry => entry.payload.type === 'GROUP_SENDER_KEY');
+    assert.deepEqual(rotated.map(entry => entry.peerId), ['bob'], 'carol gets no new key');
+    assert.notEqual(rotated[0].payload.kid, keyMessages[0].payload.kid, 'rotated');
 });

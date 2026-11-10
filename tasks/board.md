@@ -718,10 +718,10 @@
 - [x] P1 unterhaltungs-modell ohne migration (nutzer 2026-11-10): 1:1 = node-ID des partners, gruppe = `group_<uuid>` an derselben stelle
   - done 2026-11-10: `client/app/conversations.js` (gruppen-register in `keys`, fan-out, zuordnung beim empfang), hook in `sendSecurePayload`, schutz in P2P-aufbau/praesenz/profil/chat-sperre, SW laesst gruppen-nachrichten der seite; tests `test/conversations.test.js`, e2e `groups-core`
   - fuer P2: chat-sync fuer gruppen (heute nur neue operationen), oberflaeche (anlegen, mitglieder, absendernamen), gebuendelter pfad C
-- [ ] P2 gruppen (mitglieder-ops, admins, 16, absender-schluessel, pfad C gebuendelt, verlauf nach wahl)
+- [x] P2 gruppen (mitglieder-ops, admins, 16, absender-schluessel, pfad C gebuendelt, verlauf nach wahl)
   - [x] P2a verwalten + oberflaeche (2026-11-10): signierter `GROUP_STATE` vom admin, `GROUP_LEAVE`, anlegen aus freunden/event-peers, gruppen-info (umbenennen, hinzufuegen, entfernen, admin, verlassen), absendernamen, kopf mit mitgliederzahl, gruppenbild; tests `test/conversations.test.js`, e2e `groups`; UC-78
   - [x] P2b verlauf fuer neue mitglieder (admin waehlt: keiner / letzte 50) + chat-sync fuer gruppen (2026-11-10): `since` + `memberKeys` im signierten zustand, `CHAT_SYNC_*` mit `conversationId`, weitergereichte ops nur signiert vom urheber; tests `test/conversations.test.js`, e2e `groups-history`
-  - [ ] P2c absender-schluessel + gebuendelter pfad C
+  - [x] P2c absender-schluessel + gebuendelter pfad C (2026-11-10): `GROUP_SENDER_KEY`, rotation bei entfernen, `POST /api/cache { recipientIds }`, signatur pflicht in gruppen; tests `test/conversations.test.js`, `test/server.test.js`, e2e `groups-bundle`
 - [ ] P3 medien-schwarm
 - [ ] P4 mehrgeraete
 - [ ] P5 forward secrecy

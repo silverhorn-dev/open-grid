@@ -372,7 +372,7 @@ function cacheNotifyKind(item) {
 async function queuePayloadInCache(peerId, item) {
     // Umzugs-Ansagen (move.js) gehen auch ueber Pfad C: Kontakte koennen gerade offline sein.
     // Gruppen-Zustand und Austritt (T36) ebenfalls, sonst erfaehrt ein offline Mitglied nichts von der Gruppe.
-    if (item.cacheQueued || !['CHAT_OPERATION', 'MOVE_ANNOUNCE', 'GROUP_STATE', 'GROUP_LEAVE'].includes(item.payload?.type)) return false;
+    if (item.cacheQueued || !['CHAT_OPERATION', 'MOVE_ANNOUNCE', 'GROUP_STATE', 'GROUP_LEAVE', 'GROUP_SENDER_KEY'].includes(item.payload?.type)) return false;
     if (!state.gridSettings.cacheEnabled) {
         logDebug(`Path C skipped for ${peerId}: message cache is disabled locally.`);
         return false;
@@ -474,10 +474,30 @@ async function fetchQueuedCacheMessages() {
         if (!response.ok) throw new Error(`Cache API returned ${response.status}.`);
         const {messages = []} = await response.json();
 
-        for (const cachedMessage of messages) {
+        // Gruppen-Buendel zuletzt: ein Absender-Schluessel aus demselben Abruf ist dann schon gespeichert.
+        const isGroupBundle = message => {
+            try {
+                return JSON.parse(message.ciphertextPayload)?.kind === 'group';
+            } catch {
+                return false;
+            }
+        };
+        const ordered = [...messages.filter(message => !isGroupBundle(message)), ...messages.filter(isGroupBundle)];
+        for (const cachedMessage of ordered) {
             try {
                 if (isPeerBlocked(cachedMessage.senderId)) throw new Error('Sender is blocked.');
                 const envelope = JSON.parse(cachedMessage.ciphertextPayload);
+                // Gebuendelte Gruppen-Nachricht (T36 P2c): mit dem Absender-Schluessel des Mitglieds. Fehlt er noch,
+                // bleibt sie liegen (kein ACK) und wird beim naechsten Abruf erneut versucht.
+                if (envelope?.kind === 'group') {
+                    const groupPayload = typeof openGroupEnvelope === 'function' ? await openGroupEnvelope(cachedMessage.senderId, envelope, cachedMessage.ivHex) : null;
+                    if (!groupPayload) throw new Error('Group sender key not known yet.');
+                    if (groupPayload.type !== 'CHAT_OPERATION' || groupPayload.conversationId !== envelope.groupId) throw new Error('Unexpected group payload.');
+                    await handleSecurePayload(cachedMessage.senderId, groupPayload, 'Group Path C');
+                    const groupDelete = await fetch(`${API_BASE}/api/cache/${encodeURIComponent(cachedMessage.msgId)}`, {method: 'DELETE', headers: peerAuthHeaders()});
+                    if (!groupDelete.ok) throw new Error(`Cache delete returned ${groupDelete.status}.`);
+                    continue;
+                }
                 const trustedSenderKey = await getPeerIdentityKey(cachedMessage.senderId);
                 const trusted = Boolean(trustedSenderKey) && publicKeysMatch(trustedSenderKey, envelope.senderPublicKey);
                 // Unbekannter Absender: nur eine signierte Umzugs-Ansage (move.js), die sich selbst belegt.
@@ -495,7 +515,7 @@ async function fetchQueuedCacheMessages() {
                     if (payload.type !== 'MOVE_ANNOUNCE' || !isValidSecurePayload(payload)) throw new Error('Sender identity key is unknown.');
                     await handleMoveAnnouncement(cachedMessage.senderId, payload, envelope.senderPublicKey);
                 } else {
-                    if (!['CHAT_OPERATION', 'MOVE_ANNOUNCE', 'GROUP_STATE', 'GROUP_LEAVE'].includes(payload.type)) throw new Error('Unsupported cached payload type.');
+                    if (!['CHAT_OPERATION', 'MOVE_ANNOUNCE', 'GROUP_STATE', 'GROUP_LEAVE', 'GROUP_SENDER_KEY'].includes(payload.type)) throw new Error('Unsupported cached payload type.');
                     await handleSecurePayload(cachedMessage.senderId, payload, 'Encrypted Path C');
                 }
                 const deleteResponse = await fetch(

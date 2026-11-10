@@ -180,6 +180,8 @@ const PAYLOAD_VALIDATORS = {
     // Gruppen (conversations.js, T36 P2a): signierter Zustand vom Admin, Austritt eines Mitglieds.
     GROUP_STATE: payload => isValidGroupStatePayload(payload['state'], payload.sig),
     GROUP_LEAVE: payload => isGroupConversationId(payload.groupId),
+    GROUP_SENDER_KEY: payload => isGroupConversationId(payload.groupId) && typeof payload.kid === 'string' && /^[A-Za-z0-9]{8,32}$/.test(payload.kid)
+        && typeof payload.key === 'string' && /^[A-Za-z0-9+/]{43}=$/.test(payload.key),
     MOVE_ANNOUNCE: payload => ['delegation', 'announcement'].every(field => typeof payload[field] === 'string' && payload[field].length <= 4000)
         && ['delegationSignature', 'announcementSignature'].every(field => typeof payload[field] === 'string' && payload[field].length <= 200),
     PROFILE_RESPONSE: payload => isValidProfileEnvelope(payload.signedEnvelope || payload.profile),

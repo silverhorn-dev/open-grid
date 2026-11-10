@@ -1406,3 +1406,24 @@ test('users can be reported manually with a reason; several reporters hide them 
     }
 });
 
+
+test('path c bundles: one ciphertext for several recipients, each with its own result', async () => {
+    for (const id of ['peer-gs', 'peer-g1', 'peer-g2', 'peer-g3']) await registerPeer(id);
+    // peer-g3 hat peer-gs blockiert.
+    const block = await app.inject({ method: 'POST', url: '/api/chat-controls', headers: authHeaders('peer-g3'), payload: { ownerId: 'peer-g3', peerId: 'peer-gs', action: 'BLOCK' } });
+    assert.ok(block.statusCode < 300, `block ${block.statusCode}`);
+    const sent = await app.inject({ method: 'POST', url: '/api/cache', headers: authHeaders('peer-gs'),
+        payload: { recipientIds: ['peer-g1', 'peer-g2', 'peer-g3'], senderId: 'peer-gs', ciphertextPayload: '{"kind":"group"}', ivHex: 'iv' } });
+    assert.equal(sent.statusCode, 201);
+    assert.deepEqual(sent.json().results.map(result => [result.recipientId, result.code]), [['peer-g1', 201], ['peer-g2', 201], ['peer-g3', 403]]);
+    for (const id of ['peer-g1', 'peer-g2']) {
+        const queue = await app.inject({ method: 'GET', url: `/api/cache/${id}`, headers: authHeaders(id) });
+        assert.equal(queue.json().messages[0].ciphertextPayload, '{"kind":"group"}');
+    }
+    const tooMany = await app.inject({ method: 'POST', url: '/api/cache', headers: authHeaders('peer-gs'),
+        payload: { recipientIds: Array.from({ length: 16 }, (_, index) => `peer-x${index}`), senderId: 'peer-gs', ciphertextPayload: 'x' } });
+    assert.equal(tooMany.statusCode, 400);
+    const doubled = await app.inject({ method: 'POST', url: '/api/cache', headers: authHeaders('peer-gs'),
+        payload: { recipientIds: ['peer-g1', 'peer-g1'], senderId: 'peer-gs', ciphertextPayload: 'x' } });
+    assert.equal(doubled.statusCode, 400);
+});

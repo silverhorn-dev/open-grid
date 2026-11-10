@@ -1519,32 +1519,19 @@ export async function buildApp(options = {}) {
     });
 
     // Groesseres Limit nur hier: Sprachnachrichten (bis 60 s) gehen als Ganzes durch den Cache.
-    app.post('/api/cache', { bodyLimit: CACHE_BODY_LIMIT }, async (request, reply) => {
-        const { recipientId, senderId, ciphertextPayload, ivHex, ttlHours, notify } = request.body || {};
-        // Art fuer die Benachrichtigung (ohne Angabe: Chat-Nachricht, wie aeltere Clients).
-        const notifyKind = PUSH_KINDS.includes(request.body?.notifyKind) ? request.body.notifyKind : 'chat';
-        if (!isString(recipientId, 200) || !isString(ciphertextPayload, MAX_CACHE_CIPHERTEXT_LENGTH)) {
-            return reply.code(400).send({ error: 'Missing or invalid parameters' });
-        }
-        if (!isString(senderId, 200)) {
-            return reply.code(400).send({ error: 'Missing or invalid senderId' });
-        }
-        if (!requirePeerAuth(request, reply, senderId)) return;
-        if (!allowRequest('cache', senderId, reply)) return;
-        if (ivHex != null && typeof ivHex !== 'string') {
-            return reply.code(400).send({ error: 'Invalid ivHex' });
-        }
+    // Eine Nachricht fuer einen Empfaenger ablegen; liefert { code, body } (gleiche Antworten wie bisher).
+    function enqueueFor(recipientId, { senderId, ciphertextPayload, ivHex, ttlHours, notify, notifyKind }) {
         // Empfaenger ist umgezogen: Nachweis an den Absender, der zieht den Chat selbst um (client/app/move.js).
         const recipientMove = store.getPeerMove(recipientId, now());
-        if (recipientMove) return reply.code(410).send({ error: 'Recipient moved', movedTo: recipientMove.movedTo, proof: recipientMove.proof });
+        if (recipientMove) return { code: 410, body: { error: 'Recipient moved', movedTo: recipientMove.movedTo, proof: recipientMove.proof } };
         if (store.isBlocked(recipientId, senderId)) {
-            return reply.code(403).send({ error: 'Recipient does not accept messages from this sender' });
+            return { code: 403, body: { error: 'Recipient does not accept messages from this sender' } };
         }
         const usage = store.getQueueUsage(recipientId, senderId);
         if (usage.count >= MAX_QUEUED_MESSAGES_PER_RECIPIENT
             || usage.bytes + ciphertextPayload.length > MAX_QUEUED_BYTES_PER_RECIPIENT
             || usage.fromSender >= MAX_QUEUED_MESSAGES_PER_SENDER) {
-            return reply.code(429).send({ error: 'Recipient queue is full' });
+            return { code: 429, body: { error: 'Recipient queue is full' } };
         }
         const message = store.enqueueMessage({
             recipientId,
@@ -1558,12 +1545,39 @@ export async function buildApp(options = {}) {
         const pushRequested = notify === true && Boolean(store.getPushSubscription(recipientId)) && pushWanted(recipientId, notifyKind);
         if (pushRequested) notifyRecipient(message, notifyKind);
         signaling.notifyCacheWaiting(recipientId);
-        return reply.code(201).send({
-            status: 'queued',
-            msgId: message.msgId,
-            expiresAt: message.expiresAt,
-            pushRequested
-        });
+        return { code: 201, body: { status: 'queued', msgId: message.msgId, expiresAt: message.expiresAt, pushRequested } };
+    }
+
+    app.post('/api/cache', { bodyLimit: CACHE_BODY_LIMIT }, async (request, reply) => {
+        const { recipientId, recipientIds, senderId, ciphertextPayload, ivHex, ttlHours, notify } = request.body || {};
+        // Art fuer die Benachrichtigung (ohne Angabe: Chat-Nachricht, wie aeltere Clients).
+        const notifyKind = PUSH_KINDS.includes(request.body?.notifyKind) ? request.body.notifyKind : 'chat';
+        // Gruppen (T36 P2c): ein Chiffrat fuer mehrere Empfaenger (hoechstens 15), einmal hochgeladen.
+        const bundle = Array.isArray(recipientIds);
+        if (bundle ? !(recipientIds.length >= 1 && recipientIds.length <= 15 && recipientIds.every(id => isString(id, 200)) && new Set(recipientIds).size === recipientIds.length)
+            : !isString(recipientId, 200)) {
+            return reply.code(400).send({ error: 'Missing or invalid parameters' });
+        }
+        if (!isString(ciphertextPayload, MAX_CACHE_CIPHERTEXT_LENGTH)) {
+            return reply.code(400).send({ error: 'Missing or invalid parameters' });
+        }
+        if (!isString(senderId, 200)) {
+            return reply.code(400).send({ error: 'Missing or invalid senderId' });
+        }
+        if (!requirePeerAuth(request, reply, senderId)) return;
+        if (!allowRequest('cache', senderId, reply)) return;
+        if (ivHex != null && typeof ivHex !== 'string') {
+            return reply.code(400).send({ error: 'Invalid ivHex' });
+        }
+        const input = { senderId, ciphertextPayload, ivHex, ttlHours, notify, notifyKind };
+        if (!bundle) {
+            const result = enqueueFor(recipientId, input);
+            return reply.code(result.code).send(result.body);
+        }
+        // Je Empfaenger eigenes Ergebnis (gesperrt, voll, umgezogen betrifft nur diesen).
+        const results = recipientIds.filter(id => id !== senderId).map(id => ({ recipientId: id, ...enqueueFor(id, input) }))
+            .map(({ recipientId: id, code, body }) => ({ recipientId: id, ...body, code }));
+        return reply.code(201).send({ status: 'queued', results });
     });
 
     app.get('/api/cache/:recipientId', async (request, reply) => {

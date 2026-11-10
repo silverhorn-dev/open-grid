@@ -83,11 +83,33 @@ async function sendGroupPayload(groupId, payload, onSent = null, options = {}) {
         reported.add(path);
         onSent(path, details);
     };
-    const results = await Promise.all(recipients.map(member => sendSecurePayload(member, { ...payload, conversationId: groupId }, report, options)
+    const direct = member => sendSecurePayload(member, { ...payload, conversationId: groupId }, report, options)
         .catch(error => {
             logDebug(`Group send to ${member} failed: ${error.message}`);
             return false;
-        })));
+        });
+    // Offene Verbindungen direkt; alle anderen mit einem gebuendelten Pfad-C-Upload (T36 P2c).
+    const isOpen = member => state.dataChannels?.[member]?.readyState === 'open' && Boolean(state.sessionKeys?.[member]);
+    const open = recipients.filter(isOpen);
+    const offline = recipients.filter(member => !isOpen(member));
+    const results = await Promise.all(open.map(direct));
+    if (offline.length) {
+        let bundled = { ok: false, failed: offline };
+        if (state.gridSettings?.cacheEnabled !== false && typeof queueGroupBundle === 'function') {
+            try {
+                const signed = { ...payload, conversationId: groupId, operation: await signOwnOperation(payload.operation) };
+                const notifyKind = options.notifyKind || (payload.operation?.type === 'MESSAGE_PUT' ? 'chat' : null);
+                bundled = await queueGroupBundle(groupId, offline, signed, notifyKind);
+            } catch (error) {
+                logDebug(`Group bundle failed: ${error.message}`);
+            }
+        }
+        if (bundled.ok) report('cache', { expiresAt: bundled.expiresAt });
+        // Wer im Buendel nicht ankam (oder ohne Zwischenspeicher): einzeln wie bisher (P2P-Aufbau, Warteschlange).
+        results.push(...await Promise.all(bundled.failed.map(direct)));
+        if (bundled.ok) results.push(true);
+        offline.forEach(member => initiateP2PConnection(member).catch(() => {}));
+    }
     return results.some(Boolean);
 }
 
@@ -199,6 +221,7 @@ async function publishGroupState(next, previousMembers = []) {
     const sig = await signOperation(signable, state.myKeys.ecdsaKeyPair.privateKey);
     await saveGroup({ ...signable, sig });
     const recipients = [...new Set([...previousMembers, ...signable.members])].filter(member => member !== state.myProfile.id);
+    if (previousMembers.length) updateSenderKeysForMembership(signable.id, previousMembers, signable.members).catch(logBackgroundError('publishGroupState'));
     // Leerer Rueckruf: so greift der Pfad-C-Fallback auch fuer diese Nutzlast.
     await Promise.all(recipients.map(member => sendSecurePayload(member, { type: 'GROUP_STATE', ['state']: signable, sig }, () => {})
         .catch(logBackgroundError('publishGroupState'))));
@@ -226,6 +249,7 @@ async function handleGroupState(peerId, payload) {
         return true;
     }
     await saveGroup({ ...groupSignable(next), sig: payload.sig });
+    if (current) updateSenderKeysForMembership(next.id, current.members, next.members).catch(logBackgroundError('handleGroupState'));
     if (typeof ensureChatScope === 'function') await ensureChatScope(next.id, 'social');
     rememberChatPeer(next.id);
     if (!current) showToast(t('groups.youWereAdded', { name: next.name }), 'info');
@@ -582,4 +606,115 @@ function chatMenuGroupInfo() {
 
 function connectGroupMembers(groupId) {
     groupRecipients(groupId).forEach(member => initiateP2PConnection(member).catch(() => {}));
+}
+
+// ================= ABSENDER-SCHLUESSEL + GEBUENDELTER PFAD C (T36 P2c) =================
+// Jedes Mitglied hat je Gruppe einen eigenen AES-256-GCM-Schluessel (`kid` + 32 Byte), paarweise E2E an die
+// anderen verteilt (GROUP_SENDER_KEY). Fuer Mitglieder ohne offene Verbindung wird eine Nachricht einmal damit
+// verschluesselt und einmal mit Empfaengerliste in Pfad C gelegt. Wird jemand entfernt, erzeugen alle einen
+// neuen Schluessel (der Entfernte kann neue Nachrichten nicht mehr lesen). Forward Secrecy (Kette) folgt in P5.
+// Echtheit: Pfad C nimmt nur Uploads unter der eigenen ID an, und in Gruppen ist die Signatur der Operation Pflicht.
+const GROUP_KEYS_PREFIX = 'group-keys:';
+const GROUP_KEYS_KEEP = 3;
+
+async function loadGroupKeys(groupId) {
+    const record = await databaseRequest('keys', 'readonly', store => store.get(`${GROUP_KEYS_PREFIX}${groupId}`)).catch(() => null);
+    return record || { id: `${GROUP_KEYS_PREFIX}${groupId}`, own: null, members: {} };
+}
+
+async function saveGroupKeys(record) {
+    await putDatabaseRecord('keys', record);
+}
+
+function newSenderKey() {
+    const bytes = window.crypto.getRandomValues(new Uint8Array(32));
+    return { kid: window.crypto.randomUUID().replace(/-/g, '').slice(0, 16), key: bytesToBase64(bytes), createdAt: Date.now() };
+}
+
+async function distributeSenderKey(groupId, own, recipients) {
+    await Promise.all(recipients.map(member => sendSecurePayload(member, { type: 'GROUP_SENDER_KEY', groupId, kid: own.kid, key: own.key }, () => {})
+        .catch(logBackgroundError('distributeSenderKey'))));
+}
+
+// Eigenen Schluessel holen bzw. anlegen (rotate: neu, z. B. nach Entfernen) und an die Mitglieder geben.
+async function ensureOwnSenderKey(groupId, { rotate = false } = {}) {
+    const record = await loadGroupKeys(groupId);
+    if (record.own && !rotate) return record.own;
+    record.own = newSenderKey();
+    await saveGroupKeys(record);
+    await distributeSenderKey(groupId, record.own, groupRecipients(groupId));
+    return record.own;
+}
+
+async function handleGroupSenderKey(peerId, payload) {
+    const group = getGroup(payload.groupId);
+    if (!group || !isGroupActive(group.id) || !group.members.includes(peerId)) return false;
+    const record = await loadGroupKeys(group.id);
+    const known = record.members[peerId] || {};
+    // Nur die letzten Schluessel behalten (aeltere Nachrichten im Zwischenspeicher laufen nach 24 h ab).
+    const kids = [...Object.keys(known).filter(kid => kid !== payload.kid), payload.kid].slice(-GROUP_KEYS_KEEP);
+    record.members[peerId] = Object.fromEntries(kids.map(kid => [kid, kid === payload.kid ? payload.key : known[kid]]));
+    await saveGroupKeys(record);
+    return true;
+}
+
+// Nach einem neuen Gruppen-Stand: Entfernte -> eigenen Schluessel erneuern; Neue -> eigenen Schluessel bekommen.
+async function updateSenderKeysForMembership(groupId, previousMembers, nextMembers) {
+    if (!isGroupActive(groupId)) return;
+    const removed = previousMembers.filter(member => !nextMembers.includes(member));
+    const added = nextMembers.filter(member => !previousMembers.includes(member) && member !== state.myProfile.id);
+    const record = await loadGroupKeys(groupId);
+    for (const member of removed) delete record.members[member];
+    await saveGroupKeys(record);
+    if (removed.length && record.own) await ensureOwnSenderKey(groupId, { rotate: true });
+    else if (added.length && record.own) await distributeSenderKey(groupId, record.own, added);
+}
+
+async function senderCryptoKey(base64, usage) {
+    return window.crypto.subtle.importKey('raw', base64ToBytes(base64), { name: 'AES-GCM' }, false, [usage]);
+}
+
+async function sealForGroup(groupId, payload) {
+    const own = await ensureOwnSenderKey(groupId);
+    const iv = window.crypto.getRandomValues(new Uint8Array(12));
+    const ciphertext = await window.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await senderCryptoKey(own.key, 'encrypt'),
+        new TextEncoder().encode(JSON.stringify(payload)));
+    return {
+        ciphertextPayload: JSON.stringify({ version: 2, kind: 'group', groupId, kid: own.kid, ciphertext: bytesToBase64(new Uint8Array(ciphertext)) }),
+        ivHex: bytesToBase64(iv)
+    };
+}
+
+// Gruppen-Umschlag aus Pfad C oeffnen; null = Schluessel (noch) unbekannt.
+async function openGroupEnvelope(senderId, envelope, ivBase64) {
+    const group = getGroup(envelope?.groupId);
+    if (!group || !isGroupActive(group.id) || !group.members.includes(senderId)) return null;
+    const key = (await loadGroupKeys(group.id)).members[senderId]?.[envelope.kid];
+    if (!key) return null;
+    const plaintext = await window.crypto.subtle.decrypt({ name: 'AES-GCM', iv: base64ToBytes(ivBase64) }, await senderCryptoKey(key, 'decrypt'),
+        base64ToBytes(envelope.ciphertext));
+    return JSON.parse(new TextDecoder().decode(plaintext));
+}
+
+// Ein Upload fuer alle offline Mitglieder; liefert { ok, expiresAt, failed: [ids] }.
+async function queueGroupBundle(groupId, recipients, payload, notifyKind) {
+    const sealed = await sealForGroup(groupId, payload);
+    const response = await fetch(`${API_BASE}/api/cache`, {
+        method: 'POST',
+        headers: peerAuthHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ recipientIds: recipients, senderId: state.myProfile.id, ...sealed, ttlHours: 24, notify: Boolean(notifyKind), notifyKind: notifyKind || undefined })
+    });
+    if (!response.ok) return { ok: false, failed: recipients };
+    const { results = [] } = await response.json().catch(() => ({}));
+    const queued = results.filter(result => result.code === 201);
+    return { ok: queued.length > 0, expiresAt: queued[0]?.expiresAt, failed: recipients.filter(member => !queued.some(result => result.recipientId === member)) };
+}
+
+// Signatur in Gruppen Pflicht: gegen den gepinnten oder vom Admin bestaetigten Schluessel des Urhebers.
+async function groupOperationSignatureValid(groupId, operation) {
+    if (typeof operation?.sig !== 'string') return false;
+    const group = getGroup(groupId);
+    const pinned = (await getPeerIdentity(operation.actorId).catch(() => null))?.profileSigningKey;
+    const key = pinned || groupMemberKey(group, operation.actorId);
+    return Boolean(key) && verifyOperationSignature(operation, key);
 }

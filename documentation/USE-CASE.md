@@ -1385,4 +1385,8 @@ Akzeptanzkriterien:
   kann austreten; wer entfernt wurde oder ausgetreten ist, kann nicht mehr
   schreiben, sieht aber den bisherigen Verlauf.
 - Niemand ausserhalb der Gruppe kann Nachrichten in die Gruppe schreiben.
+- Beim Hinzufuegen waehlt der Admin, ob die Neuen den bisherigen Verlauf
+  bekommen ("kein bisheriger Verlauf" oder "die letzten 50 Nachrichten").
+- War ich offline, kommen verpasste Gruppen-Nachrichten an, sobald ich mit
+  einem Mitglied verbunden bin.
 

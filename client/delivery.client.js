@@ -10,59 +10,93 @@ async function beginChatSync(peerId) {
             recentOperationIds: operations.slice(0, 20).map(operation => operation.operationId),
             hasMore: operations.length > 20
         });
+        // Gemeinsame Gruppen (T36 P2b): je Gruppe derselbe Abgleich mit diesem Mitglied.
+        const groups = typeof sharedActiveGroups === 'function' ? sharedActiveGroups(peerId) : [];
+        for (const groupId of groups) {
+            const groupOperations = await syncOperationsFor(peerId, groupId);
+            await sendSecurePayload(peerId, {
+                type: 'CHAT_SYNC_HELLO',
+                conversationId: groupId,
+                recentOperationIds: groupOperations.slice(0, 20).map(operation => operation.operationId),
+                hasMore: groupOperations.length > 20
+            });
+        }
     } finally {
         delete state.chatSyncInProgress[peerId];
     }
 }
 
+// Unterhaltung eines Sync-Pakets: 1:1 = Absender, Gruppe nur, wenn bekannt und beide Mitglied; sonst null.
+function syncConversation(peerId, payload) {
+    if (payload?.conversationId === undefined || payload?.conversationId === null) return peerId;
+    if (typeof resolveIncomingConversation !== 'function') return null;
+    return resolveIncomingConversation(peerId, payload.conversationId, { groups: state.groups || {}, myId: state.myProfile?.id });
+}
+
+// Operationen, die dieses Gegenueber im Sync bekommen darf: in Gruppen erst ab seinem `since`.
+async function syncOperationsFor(peerId, conversationId) {
+    const operations = await getChatOperations(conversationId);
+    if (conversationId === peerId || typeof getGroup !== 'function') return operations;
+    const cutoff = groupSyncCutoff(getGroup(conversationId), peerId);
+    return operations.filter(operation => (operation.createdAt || 0) >= cutoff);
+}
+
+const withConversation = (conversationId, peerId, payload) => (conversationId === peerId ? payload : { ...payload, conversationId });
+
 async function handleChatSyncHello(peerId, payload) {
-    await confirmDeliveredOperations(peerId, payload.recentOperationIds || []);
-    const operations = await getChatOperations(peerId);
+    const conversationId = syncConversation(peerId, payload);
+    if (!conversationId) return;
+    await confirmDeliveredOperations(conversationId, payload.recentOperationIds || []);
+    const operations = await getChatOperations(conversationId);
     const localIds = new Set(operations.map(operation => operation.operationId));
     const missingIds = (payload.recentOperationIds || []).filter(operationId => !localIds.has(operationId));
     if (missingIds.length) {
-        await sendSecurePayload(peerId, {
+        await sendSecurePayload(peerId, withConversation(conversationId, peerId, {
             type: 'CHAT_SYNC_OPERATION_REQUEST',
             operationIds: missingIds
-        });
+        }));
     }
     if (payload.hasMore) {
-        await sendSecurePayload(peerId, {
+        await sendSecurePayload(peerId, withConversation(conversationId, peerId, {
             type: 'CHAT_SYNC_INVENTORY_REQUEST',
             cursor: 20
-        });
+        }));
     }
 }
 
-async function sendChatSyncInventory(peerId, cursor) {
-    const operations = await getChatOperations(peerId);
+async function sendChatSyncInventory(peerId, cursor, payload = {}) {
+    const conversationId = syncConversation(peerId, payload);
+    if (!conversationId) return;
+    const operations = await syncOperationsFor(peerId, conversationId);
     const pageSize = 50;
-    await sendSecurePayload(peerId, {
+    await sendSecurePayload(peerId, withConversation(conversationId, peerId, {
         type: 'CHAT_SYNC_INVENTORY',
         operationIds: operations
             .slice(cursor, cursor + pageSize)
             .map(operation => operation.operationId),
         nextCursor: cursor + pageSize < operations.length ? cursor + pageSize : null
-    });
+    }));
 }
 
 async function handleChatSyncInventory(peerId, payload) {
-    await confirmDeliveredOperations(peerId, payload.operationIds || []);
+    const conversationId = syncConversation(peerId, payload);
+    if (!conversationId) return;
+    await confirmDeliveredOperations(conversationId, payload.operationIds || []);
     const localIds = new Set(
-        (await getChatOperations(peerId)).map(operation => operation.operationId)
+        (await getChatOperations(conversationId)).map(operation => operation.operationId)
     );
     const missingIds = (payload.operationIds || []).filter(operationId => !localIds.has(operationId));
     if (missingIds.length) {
-        await sendSecurePayload(peerId, {
+        await sendSecurePayload(peerId, withConversation(conversationId, peerId, {
             type: 'CHAT_SYNC_OPERATION_REQUEST',
             operationIds: missingIds
-        });
+        }));
     }
     if (payload.nextCursor !== null && payload.nextCursor !== undefined) {
-        await sendSecurePayload(peerId, {
+        await sendSecurePayload(peerId, withConversation(conversationId, peerId, {
             type: 'CHAT_SYNC_INVENTORY_REQUEST',
             cursor: payload.nextCursor
-        });
+        }));
     }
 }
 
@@ -111,16 +145,21 @@ async function operationSignatureAcceptable(operation) {
     return verifyOperationSignature(operation, key);
 }
 
-async function sendRequestedChatOperations(peerId, operationIds) {
+async function sendRequestedChatOperations(peerId, operationIds, payload = {}) {
+    const conversationId = syncConversation(peerId, payload);
+    if (!conversationId) return;
+    const group = conversationId !== peerId;
     const requestedIds = new Set(operationIds.slice(0, 50));
-    const operations = await Promise.all((await getChatOperations(peerId))
+    const operations = await Promise.all((await syncOperationsFor(peerId, conversationId))
         .filter(operation => requestedIds.has(operation.operationId))
-        .map(({peerId: _localPeerId, ...operation}) => signOwnOperation(operation)));
+        // In Gruppen gehoert die Gruppe in die (signierte) Operation; fremde gehen unveraendert weiter.
+        .map(({peerId: _localPeerId, ...operation}) => signOwnOperation(group && operation.actorId === state.myProfile.id && !operation.conversationId
+            ? { ...operation, conversationId, sig: undefined } : operation)));
     for (const batch of batchSyncOperations(operations)) {
-        await sendSecurePayload(peerId, {
+        await sendSecurePayload(peerId, withConversation(conversationId, peerId, {
             type: 'CHAT_SYNC_OPERATIONS',
             operations: batch
-        });
+        }));
     }
 }
 

@@ -74,3 +74,26 @@ test('group states are only taken from admins, newer versions, and direct from t
     assert.ok(decodeURIComponent(context.groupAvatar({ id: group.id, name: 'Coole Crew' })).includes('>CC<'), 'initials');
     assert.ok(!decodeURIComponent(context.groupAvatar({ id: group.id, name: '<script>' })).includes('<script>'), 'no markup from names');
 });
+
+test('group history and relayed operations', async () => {
+    const { webcrypto } = await import('node:crypto');
+    const cryptoSource = readFileSync(new URL('../client/crypto.client.js', import.meta.url), 'utf8');
+    const alice = await webcrypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+    const aliceJwk = await webcrypto.subtle.exportKey('jwk', alice.publicKey);
+    const context = load({ window: { crypto: webcrypto, btoa, atob }, TextEncoder, Uint8Array, getPeerIdentity: async () => null });
+    vm.runInNewContext(cryptoSource, context);
+    const relayGroup = { ...group, members: ['me', 'bob', 'alice'], memberKeys: { alice: { x: aliceJwk.x, y: aliceJwk.y } }, since: { me: 500 }, createdAt: 100 };
+    context.state.groups = { [group.id]: relayGroup };
+    assert.equal(context.groupSyncCutoff(relayGroup, 'me'), 500, 'history from the admin choice');
+    assert.equal(context.groupSyncCutoff(relayGroup, 'bob'), 100, 'founding members: from the start');
+    const operation = { operationId: 'put:a1', type: 'MESSAGE_PUT', actorId: 'alice', conversationId: group.id, createdAt: 600, message: { id: 'a1', senderId: 'alice', text: 'hi' } };
+    const signed = { ...operation, sig: await context.signOperation(operation, alice.privateKey) };
+    assert.equal(await context.acceptRelayedOperation(group.id, 'bob', signed), true, 'signed by the author, key vouched by the admin');
+    assert.equal(await context.acceptRelayedOperation(group.id, 'bob', { ...signed, message: { ...signed.message, text: 'fake' } }), false, 'tampered');
+    assert.equal(await context.acceptRelayedOperation(group.id, 'bob', operation), false, 'unsigned relays are refused');
+    assert.equal(await context.acceptRelayedOperation(group.id, 'mallory', signed), false, 'relay must be a member');
+    assert.equal(await context.acceptRelayedOperation(group.id, 'bob', { ...signed, conversationId: 'group_other-12345' }), false);
+    context.state.groups[group.id] = { ...relayGroup, left: true };
+    assert.equal(await context.acceptRelayedOperation(group.id, 'bob', signed), false, 'left groups take nothing');
+    assert.equal(context.resolveIncomingConversation('bob', group.id, { groups: context.state.groups, myId: 'me' }), null);
+});

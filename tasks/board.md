@@ -720,7 +720,7 @@
   - fuer P2: chat-sync fuer gruppen (heute nur neue operationen), oberflaeche (anlegen, mitglieder, absendernamen), gebuendelter pfad C
 - [ ] P2 gruppen (mitglieder-ops, admins, 16, absender-schluessel, pfad C gebuendelt, verlauf nach wahl)
   - [x] P2a verwalten + oberflaeche (2026-11-10): signierter `GROUP_STATE` vom admin, `GROUP_LEAVE`, anlegen aus freunden/event-peers, gruppen-info (umbenennen, hinzufuegen, entfernen, admin, verlassen), absendernamen, kopf mit mitgliederzahl, gruppenbild; tests `test/conversations.test.js`, e2e `groups`; UC-78
-  - [ ] P2b verlauf fuer neue mitglieder (admin waehlt: keiner / letzte 50) + chat-sync fuer gruppen
+  - [x] P2b verlauf fuer neue mitglieder (admin waehlt: keiner / letzte 50) + chat-sync fuer gruppen (2026-11-10): `since` + `memberKeys` im signierten zustand, `CHAT_SYNC_*` mit `conversationId`, weitergereichte ops nur signiert vom urheber; tests `test/conversations.test.js`, e2e `groups-history`
   - [ ] P2c absender-schluessel + gebuendelter pfad C
 - [ ] P3 medien-schwarm
 - [ ] P4 mehrgeraete

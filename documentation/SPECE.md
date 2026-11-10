@@ -1175,6 +1175,19 @@ Chats werden als idempotente Operationen synchronisiert:
   Absendername ueber fremden Nachrichten, Chat-Menue "Gruppe" (Mitglieder,
   Admin: umbenennen, hinzufuegen, entfernen, zum Admin; alle: verlassen); kein
   Loeschen/Blockieren/Melden fuer Gruppen.
+- Verlauf und Abgleich in Gruppen (T36 P2b): der Zustand traegt
+  `since { mitglied: ms }` (ab wann jemand den Verlauf bekommt; beim
+  Hinzufuegen waehlt der Admin "kein Verlauf" = jetzt oder "letzte 50" =
+  Zeitpunkt der 50.-letzten Nachricht; Gruender ab `createdAt`) und
+  `memberKeys { mitglied: { x, y } }` (Signaturschluessel, der Admin buergt).
+  Beim Verbinden laeuft der Chat-Sync zusaetzlich je gemeinsamer, aktiver
+  Gruppe (`CHAT_SYNC_*` mit `conversationId`); ein Mitglied bekommt nur
+  Operationen ab seinem `since` (`syncOperationsFor`). Eigene Operationen gehen
+  mit `conversationId` signiert raus; fremde, weitergereichte Operationen werden
+  nur angenommen, wenn der Weiterreichende Mitglied ist, die Operation zur
+  Gruppe gehoert, der Urheber Mitglied ist und die Signatur zum gepinnten oder
+  im Zustand bestaetigten Schluessel passt (`acceptRelayedOperation`).
+  Ausgetretene/entfernte Gruppen nehmen nichts mehr an und gleichen nicht mehr ab.
 
 Nach jedem neuen E2EE-Schluessel und vor einem weiteren Nachrichtenversand
 tauschen beide Clients die 20 neuesten Operations-IDs aus. Fehlende

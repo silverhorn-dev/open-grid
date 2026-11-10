@@ -885,16 +885,23 @@ async function handleSecurePayload(peerId, payload, deliveredVia = 'E2EE P2P') {
     } else if (payload.type === 'CHAT_SYNC_HELLO') {
         await handleChatSyncHello(peerId, payload);
     } else if (payload.type === 'CHAT_SYNC_INVENTORY_REQUEST') {
-        await sendChatSyncInventory(peerId, payload.cursor || 0);
+        await sendChatSyncInventory(peerId, payload.cursor || 0, payload);
     } else if (payload.type === 'CHAT_SYNC_INVENTORY') {
         await handleChatSyncInventory(peerId, payload);
     } else if (payload.type === 'CHAT_SYNC_OPERATION_REQUEST') {
-        await sendRequestedChatOperations(peerId, payload.operationIds || []);
+        await sendRequestedChatOperations(peerId, payload.operationIds || [], payload);
     } else if (payload.type === 'CHAT_SYNC_OPERATIONS') {
-        for (const operation of payload.operations || []) {
-            if (!isOperationFromPeer(peerId, operation)) logDebug(`Ignored a synced operation from ${peerId} on behalf of ${operation?.actorId}.`);
+        const conversationId = syncConversation(peerId, payload);
+        for (const operation of conversationId ? payload.operations || [] : []) {
+            const group = conversationId !== peerId;
+            // Gruppe (T36 P2b): eigene Operationen des Absenders wie gewohnt, fremde nur gueltig signiert vom Urheber.
+            if (group && operation?.conversationId !== conversationId) logDebug(`Ignored a synced operation from ${peerId} for another conversation.`);
+            else if (group && operation?.actorId !== peerId) {
+                if (await acceptRelayedOperation(conversationId, peerId, operation)) await applyChatOperation(conversationId, operation, 'E2EE Sync');
+                else logDebug(`Ignored a relayed group operation from ${peerId}.`);
+            } else if (!isOperationFromPeer(peerId, operation)) logDebug(`Ignored a synced operation from ${peerId} on behalf of ${operation?.actorId}.`);
             else if (!await operationSignatureAcceptable(operation)) logDebug(`Ignored a synced operation from ${peerId} with an invalid signature.`);
-            else await applyChatOperation(peerId, operation, 'E2EE Sync');
+            else await applyChatOperation(conversationId, operation, 'E2EE Sync');
         }
     } else if (payload.type === 'CHAT_MESSAGE') {
         await receiveChatMessage(peerId, payload);

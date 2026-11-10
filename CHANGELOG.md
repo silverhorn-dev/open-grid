@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 317 · 2026-11-10
+## Build 318 · 2026-11-10
+- Gruppen: beim Hinzufuegen waehlt der Admin, ob die Neuen den bisherigen Verlauf (die letzten 50 Nachrichten) bekommen
+- Gruppen: verpasste Nachrichten kommen nach, sobald du mit einem Mitglied verbunden bist
+
+## Build 317 · 2026-11-10 · `012b91b`
 - Gruppenchats: in "Chat & Freunde" und bei Events ueber "Neue Gruppe" mit bis zu 16 Personen, Absendernamen ueber den Nachrichten
 - Gruppen verwalten im Chat-Menue unter "Gruppe": umbenennen, Mitglieder hinzufuegen oder entfernen, Admins ernennen, Gruppe verlassen (nur Admins aendern die Gruppe)
 

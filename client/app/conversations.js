@@ -39,6 +39,8 @@ function resolveIncomingConversation(senderId, conversationId, { groups = {}, my
     if (!isGroupId(conversationId)) return null;
     const group = groups[conversationId];
     if (!isValidGroup(group) || !group.members.includes(senderId) || (myId && !group.members.includes(myId))) return null;
+    // Ausgetreten oder entfernt: nichts mehr annehmen, nichts mehr abgleichen.
+    if (group.left || group.removed) return null;
     return conversationId;
 }
 
@@ -103,15 +105,66 @@ function conversationDisplayName(conversationId) {
 const GROUP_NAME_MAX = 60;
 const GROUP_PENDING_LIMIT = 50;
 
+// since: ab wann ein Mitglied den Verlauf bekommt (P2b, Wahl des Admins beim Hinzufuegen).
+// memberKeys: Signaturschluessel der Mitglieder ({ x, y }), damit weitergereichte Operationen auch ohne direkten
+// Kontakt pruefbar sind (der Admin buergt mit seiner Signatur dafuer).
 function groupSignable(group) {
-    return {
+    const signable = {
         id: group.id, name: group.name, members: [...group.members], admins: [...group.admins],
         createdAt: group.createdAt, version: group.version, updatedBy: group.updatedBy, updatedAt: group.updatedAt
     };
+    if (group.since) signable.since = Object.fromEntries(group.members.filter(member => Number.isFinite(group.since[member])).map(member => [member, group.since[member]]));
+    if (group.memberKeys) {
+        signable.memberKeys = Object.fromEntries(group.members.filter(member => group.memberKeys[member]?.x && group.memberKeys[member]?.y)
+            .map(member => [member, { x: group.memberKeys[member].x, y: group.memberKeys[member].y }]));
+    }
+    return signable;
+}
+
+function compactKey(jwk) {
+    return typeof jwk?.x === 'string' && typeof jwk?.y === 'string' ? { x: jwk.x, y: jwk.y } : null;
+}
+
+async function collectMemberKeys(members, existing = {}) {
+    const keys = { ...existing };
+    for (const member of members) {
+        const key = member === state.myProfile.id ? compactKey(state.myKeys?.jwkEcdsaPublic)
+            : compactKey((await getPeerIdentity(member).catch(() => null))?.profileSigningKey) || keys[member];
+        if (key) keys[member] = key;
+    }
+    return keys;
+}
+
+// Ab wann der Sync einem Mitglied Operationen dieser Gruppe gibt.
+function groupSyncCutoff(group, memberId) {
+    const since = group?.since?.[memberId];
+    return Number.isFinite(since) ? since : (group?.createdAt || 0);
+}
+
+function groupMemberKey(group, actorId) {
+    const key = group?.memberKeys?.[actorId];
+    return key ? { kty: 'EC', crv: 'P-256', x: key.x, y: key.y } : null;
+}
+
+// Fremde Operation, die ein Mitglied im Gruppen-Sync weiterreicht: Urheber muss Mitglied sein, die Operation
+// muss zur Gruppe gehoeren und gueltig vom Urheber signiert sein (gepinnter oder vom Admin bestaetigter Schluessel).
+async function acceptRelayedOperation(groupId, senderId, operation) {
+    const group = getGroup(groupId);
+    if (!group || !isGroupActive(groupId) || !group.members.includes(senderId)) return false;
+    if (operation?.conversationId !== groupId || !group.members.includes(operation.actorId) || typeof operation.sig !== 'string') return false;
+    const pinned = (await getPeerIdentity(operation.actorId).catch(() => null))?.profileSigningKey;
+    const key = pinned || groupMemberKey(group, operation.actorId);
+    return Boolean(key) && verifyOperationSignature(operation, key);
+}
+
+function sharedActiveGroups(peerId) {
+    return Object.values(state.groups || {}).filter(group => isGroupActive(group.id) && group.members.includes(peerId)).map(group => group.id);
 }
 
 function isValidGroupState(group) {
     return isValidGroup(group) && typeof group.name === 'string' && group.name.trim().length > 0 && group.name.length <= GROUP_NAME_MAX
+        && (group.since === undefined || (typeof group.since === 'object' && Object.values(group.since).every(Number.isFinite)))
+        && (group.memberKeys === undefined || (typeof group.memberKeys === 'object' && Object.values(group.memberKeys).every(key => typeof key?.x === 'string' && typeof key?.y === 'string')))
         && Array.isArray(group.admins) && group.admins.length >= 1 && group.admins.every(admin => group.members.includes(admin))
         && Number.isInteger(group.version) && group.version >= 1 && typeof group.updatedBy === 'string'
         && Number.isFinite(group.createdAt) && Number.isFinite(group.updatedAt);
@@ -140,7 +193,8 @@ function isGroupActive(groupId) {
 }
 
 async function publishGroupState(next, previousMembers = []) {
-    const signable = groupSignable({ ...next, updatedBy: state.myProfile.id, updatedAt: Date.now() });
+    const memberKeys = await collectMemberKeys(next.members, next.memberKeys || {});
+    const signable = groupSignable({ ...next, memberKeys, updatedBy: state.myProfile.id, updatedAt: Date.now() });
     if (!isValidGroupState(signable)) throw new Error('Invalid group state');
     const sig = await signOperation(signable, state.myKeys.ecdsaKeyPair.privateKey);
     await saveGroup({ ...signable, sig });
@@ -232,7 +286,18 @@ async function updateGroupAsAdmin(groupId, change) {
     return publishGroupState(next, group.members);
 }
 
-const addGroupMembers = (groupId, ids) => updateGroupAsAdmin(groupId, group => ({ members: [...new Set([...group.members, ...ids])] }));
+// history: 'none' = ab jetzt, 'last50' = ab der 50.-letzten Nachricht der Gruppe (Wahl des Admins).
+async function addGroupMembers(groupId, ids, history = 'none') {
+    let since = Date.now();
+    if (history === 'last50') {
+        const puts = (await getChatOperations(groupId)).filter(operation => operation.type === 'MESSAGE_PUT');
+        since = puts.length >= 50 ? puts[49].createdAt : (getGroup(groupId)?.createdAt || 0);
+    }
+    return updateGroupAsAdmin(groupId, group => ({
+        members: [...new Set([...group.members, ...ids])],
+        since: { ...(group.since || {}), ...Object.fromEntries(ids.filter(id => !group.members.includes(id)).map(id => [id, since])) }
+    }));
+}
 const removeGroupMember = (groupId, id) => updateGroupAsAdmin(groupId, group => ({ members: group.members.filter(member => member !== id) }));
 const makeGroupAdmin = (groupId, id) => updateGroupAsAdmin(groupId, group => ({ admins: [...new Set([...group.admins, id])] }));
 const renameGroup = (groupId, name) => updateGroupAsAdmin(groupId, () => ({ name: String(name || '').trim().slice(0, GROUP_NAME_MAX) }));
@@ -476,6 +541,24 @@ function openGroupMemberAdder(groupId) {
     if (!group) return;
     const content = openMediaModal(t('groups.addMembers'));
     const picker = memberPicker(groupCandidates(group.members), GROUP_MAX_MEMBERS - group.members.length);
+    // Verlauf fuer die Neuen (Wahl des Admins).
+    const history = document.createElement('div');
+    history.className = 'mt-3 space-y-1 text-sm text-slate-200';
+    history.setAttribute('role', 'radiogroup');
+    [['none', t('groups.historyNone')], ['last50', t('groups.historyLast50')]].forEach(([value, text], index) => {
+        const label = document.createElement('label');
+        label.className = 'flex items-center gap-2';
+        const radio = document.createElement('input');
+        radio.type = 'radio';
+        radio.name = 'group-history';
+        radio.value = value;
+        radio.checked = index === 0;
+        radio.dataset.groupHistory = value;
+        const span = document.createElement('span');
+        span.textContent = text;
+        label.append(radio, span);
+        history.appendChild(label);
+    });
     const confirm = document.createElement('button');
     confirm.type = 'button';
     confirm.id = 'group-add-confirm';
@@ -485,10 +568,11 @@ function openGroupMemberAdder(groupId) {
         const ids = picker.selected();
         if (!ids.length) return;
         confirm.disabled = true;
-        await addGroupMembers(groupId, ids).catch(logBackgroundError('openGroupMemberAdder'));
+        const choice = history.querySelector('input[name="group-history"]:checked')?.value || 'none';
+        await addGroupMembers(groupId, ids, choice).catch(logBackgroundError('openGroupMemberAdder'));
         openGroupInfo(groupId);
     };
-    content.append(picker.list, confirm);
+    content.append(picker.list, history, confirm);
 }
 
 function chatMenuGroupInfo() {

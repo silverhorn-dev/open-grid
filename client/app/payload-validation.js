@@ -103,6 +103,9 @@ function isValidGroupStatePayload(group, sig) {
         && typeof sig === 'string' && sig.length <= 200;
 }
 
+// Sync-Pakete duerfen eine Gruppe nennen (T36 P2b).
+const optionalGroup = payload => payload.conversationId === undefined || isGroupConversationId(payload.conversationId);
+
 function isGroupConversationId(value) {
     return typeof value === 'string' && /^group_[A-Za-z0-9-]{8,64}$/.test(value);
 }
@@ -162,13 +165,13 @@ const PAYLOAD_VALIDATORS = {
         && (payload.conversationId === undefined || isGroupConversationId(payload.conversationId)),
     CHAT_OPERATION_ACK: payload => isId(payload.operationId),
     CHAT_FOCUS: payload => typeof payload.open === 'boolean',
-    CHAT_SYNC_HELLO: payload => isIdList(payload.recentOperationIds || [], 20),
-    CHAT_SYNC_INVENTORY_REQUEST: payload => payload.cursor === undefined || isSmallInt(payload.cursor),
-    CHAT_SYNC_INVENTORY: payload => isIdList(payload.operationIds || [], MAX_SYNC_IDS)
+    CHAT_SYNC_HELLO: payload => isIdList(payload.recentOperationIds || [], 20) && optionalGroup(payload),
+    CHAT_SYNC_INVENTORY_REQUEST: payload => (payload.cursor === undefined || isSmallInt(payload.cursor)) && optionalGroup(payload),
+    CHAT_SYNC_INVENTORY: payload => optionalGroup(payload) && isIdList(payload.operationIds || [], MAX_SYNC_IDS)
         && (payload.nextCursor === undefined || payload.nextCursor === null || isSmallInt(payload.nextCursor)),
-    CHAT_SYNC_OPERATION_REQUEST: payload => isIdList(payload.operationIds || [], MAX_SYNC_IDS),
+    CHAT_SYNC_OPERATION_REQUEST: payload => isIdList(payload.operationIds || [], MAX_SYNC_IDS) && optionalGroup(payload),
     CHAT_SYNC_OPERATIONS: payload => Array.isArray(payload.operations) && payload.operations.length <= MAX_SYNC_IDS
-        && payload.operations.every(isValidChatOperation),
+        && payload.operations.every(isValidChatOperation) && optionalGroup(payload),
     CHAT_MESSAGE: payload => isId(payload.id) && isOptionalString(payload.text, MAX_TEXT_LENGTH)
         && isOptionalString(payload.snapData, MAX_INLINE_IMAGE_LENGTH),
     PRESENCE_PING: payload => isId(payload.nonce),

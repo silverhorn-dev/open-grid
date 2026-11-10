@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 316 · 2026-11-10
+## Build 317 · 2026-11-10
+- Gruppenchats: in "Chat & Freunde" und bei Events ueber "Neue Gruppe" mit bis zu 16 Personen, Absendernamen ueber den Nachrichten
+- Gruppen verwalten im Chat-Menue unter "Gruppe": umbenennen, Mitglieder hinzufuegen oder entfernen, Admins ernennen, Gruppe verlassen (nur Admins aendern die Gruppe)
+
+## Build 316 · 2026-11-10 · `fd93deb`
 - Vorbereitung fuer Gruppenchats: Nachrichten koennen jetzt an mehrere Personen gehen (noch ohne Oberflaeche zum Anlegen)
 
 ## Build 315 · 2026-11-10 · `3f4363d`

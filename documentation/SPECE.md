@@ -1156,6 +1156,25 @@ Chats werden als idempotente Operationen synchronisiert:
   P2P-Aufbau, keine Praesenz, kein Profil-Abruf. Der Service Worker legt
   Gruppen-Nachrichten aus Pushes nicht ab (allgemeine Benachrichtigung, die
   Seite holt sie aus Pfad C).
+- Gruppen verwalten (T36 P2a): der Zustand `{ id, name (60), members (<=16),
+  admins, createdAt, version, updatedBy, updatedAt }` wird vom aendernden Admin
+  signiert (`signOperation` ueber `canonicalJson`) und als `GROUP_STATE
+  { state, sig }` an alle Mitglieder und frisch Entfernte geschickt (P2P, sonst
+  Pfad C). Annahme (`judgeGroupState`): nur direkt vom Unterzeichner, der Admin
+  ist (bei bekannter Gruppe im bisherigen Stand), nur hoehere Version, Admins
+  muessen Mitglieder sein; bin ich nicht mehr dabei -> `removed` (nur lesen).
+  Signatur wird gegen den gepinnten Schluessel geprueft, sonst entscheidet der
+  Kanal. `GROUP_LEAVE { groupId }` darf jedes Mitglied fuer sich schicken; der
+  erste verbleibende Admin veroeffentlicht den neuen Stand, die anderen ziehen
+  lokal nach; wer austritt (`left`), nimmt keine Zustaende dieser Gruppe mehr an.
+  Ein einziger Admin macht vor dem Austritt ein anderes Mitglied zum Admin.
+  Chat-Operationen fuer eine noch unbekannte Gruppe werden kurz aufgehoben
+  (hoechstens 50) und nach Ankunft des Zustands verarbeitet. Oberflaeche:
+  "Neue Gruppe" in der Chatliste (Freunde, im Event-Modus auch Event-Peers;
+  nur Chat & Freunde und Event), Gruppenbild aus den Initialen (SVG),
+  Absendername ueber fremden Nachrichten, Chat-Menue "Gruppe" (Mitglieder,
+  Admin: umbenennen, hinzufuegen, entfernen, zum Admin; alle: verlassen); kein
+  Loeschen/Blockieren/Melden fuer Gruppen.
 
 Nach jedem neuen E2EE-Schluessel und vor einem weiteren Nachrichtenversand
 tauschen beide Clients die 20 neuesten Operations-IDs aus. Fehlende

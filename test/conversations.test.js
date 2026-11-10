@@ -54,3 +54,23 @@ test('group payloads fan out to every member with the group inside the operation
     assert.deepEqual(paths.sort(), ['cache', 'p2p'], 'each path reported once');
     assert.equal(await context.sendGroupPayload(group.id, { type: 'CHAT_FOCUS', open: true }), false, 'only chat operations');
 });
+
+test('group states are only taken from admins, newer versions, and direct from the signer', () => {
+    const context = load();
+    const base = { id: group.id, name: 'Crew', members: ['alice', 'me', 'bob'], admins: ['alice'], createdAt: 1, version: 1, updatedBy: 'alice', updatedAt: 1 };
+    const judge = (next, current, senderId = 'alice') => context.judgeGroupState(next, current, { senderId, myId: 'me' });
+    assert.equal(judge(base, null), 'accept', 'new group from its admin');
+    assert.equal(judge(base, null, 'bob'), null, 'must come directly from the signer');
+    assert.equal(judge({ ...base, updatedBy: 'bob' }, null, 'bob'), null, 'signer must be admin');
+    assert.equal(judge({ ...base, version: 2 }, base), 'accept');
+    assert.equal(judge(base, base), null, 'same version ignored');
+    assert.equal(judge({ ...base, version: 2, updatedBy: 'bob', admins: ['alice', 'bob'] }, base, 'bob'), null, 'bob cannot make himself admin');
+    assert.equal(judge({ ...base, version: 2, members: ['alice', 'bob'] }, base), 'removed');
+    assert.equal(judge({ ...base, members: ['alice', 'bob'] }, null), null, 'not about me');
+    assert.equal(judge({ ...base, version: 3 }, { ...base, left: true }), null, 'left groups stay left');
+    assert.equal(judge({ ...base, admins: ['carol'] }, null), null, 'admins must be members');
+    assert.equal(judge({ ...base, name: '' }, null), null);
+    assert.equal(context.groupAvatar({ id: group.id, name: 'Coole Crew' }).startsWith('data:image/svg+xml'), true);
+    assert.ok(decodeURIComponent(context.groupAvatar({ id: group.id, name: 'Coole Crew' })).includes('>CC<'), 'initials');
+    assert.ok(!decodeURIComponent(context.groupAvatar({ id: group.id, name: '<script>' })).includes('<script>'), 'no markup from names');
+});

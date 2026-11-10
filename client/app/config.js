@@ -200,6 +200,9 @@ const state = {
     routerMovesHandled: new Set(),
     // Gruppen (conversations.js, T36): groupId -> { id, name, members, admins, createdAt }.
     groups: {},
+    // Chat-Operationen fuer noch unbekannte Gruppen (kurz aufgehoben) und offene Gruppen-Info.
+    pendingGroupOperations: {},
+    groupInfoOpen: null,
     snapPageEnabled: null,
     // App-Modus (P8): vom Server erlaubte Modi, gewaehlter Modus und Event-Daten.
     appConfig: { modes: ['discovery', 'chat', 'friends', 'event'], defaultMode: 'discovery' },

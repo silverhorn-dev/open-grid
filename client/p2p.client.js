@@ -867,10 +867,17 @@ async function handleSecurePayload(peerId, payload, deliveredVia = 'E2EE P2P') {
             ? resolveIncomingConversation(peerId, payload.conversationId, { groups: state.groups || {}, myId: state.myProfile.id })
             : (payload.conversationId ? null : peerId);
         const groupMismatch = (payload.operation?.conversationId ?? null) !== (payload.conversationId ?? null);
-        if (!conversationId || groupMismatch) logDebug(`Ignored an operation from ${peerId} for an unknown conversation.`);
+        // Unbekannte Gruppe: kurz aufheben, der Gruppen-Zustand kann gleich danach kommen (conversations.js).
+        if (!conversationId && !groupMismatch && typeof stashGroupOperation === 'function' && isGroupConversationId(payload.conversationId)
+            && !state.groups?.[payload.conversationId]) stashGroupOperation(payload.conversationId, peerId, payload, deliveredVia);
+        else if (!conversationId || groupMismatch) logDebug(`Ignored an operation from ${peerId} for an unknown conversation.`);
         else if (!isOperationFromPeer(peerId, payload.operation)) logDebug(`Ignored an operation from ${peerId} on behalf of ${payload.operation?.actorId}.`);
         else if (!await operationSignatureAcceptable(payload.operation)) logDebug(`Ignored an operation from ${peerId} with an invalid signature.`);
         else await applyChatOperation(conversationId, payload.operation, deliveredVia);
+    } else if (payload.type === 'GROUP_STATE') {
+        await handleGroupState(peerId, payload);
+    } else if (payload.type === 'GROUP_LEAVE') {
+        await handleGroupLeave(peerId, payload.groupId);
     } else if (payload.type === 'CHAT_OPERATION_ACK') {
         handleP2PAck(peerId, payload.operationId);
     } else if (payload.type === 'CHAT_FOCUS') {

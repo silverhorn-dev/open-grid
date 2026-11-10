@@ -381,6 +381,8 @@ function rememberChatPeer(peerId) {
 }
 
 function getPeerPresentation(peerId) {
+    // Gruppe (conversations.js): Name und erzeugtes Bild statt Profil.
+    if (typeof isGroupId === 'function' && isGroupId(peerId) && typeof groupPresentation === 'function') return groupPresentation(peerId);
     const activePeer = state.peers.find(peer => peer.id === peerId);
     const profile = state.cachedProfiles[peerId];
     return activePeer || {

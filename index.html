@@ -227,7 +227,8 @@
                             </button>
                             <button data-i18n="chat.switchMode" id="chat-list-mode-btn" data-click="switchModeToViewedList" class="hidden normal-case tracking-normal text-[11px] font-semibold text-brand-400 hover:text-brand-300">Modus wechseln</button>
                         </span>
-                        <button data-i18n-attr="title:common.inviteContact" data-click="openInviteCard" class="ml-auto mr-2 normal-case tracking-normal text-brand-400 hover:text-brand-300 font-semibold" title="Kontakt einladen">
+                        <button data-i18n-attr="title:groups.create;aria-label:groups.create" id="group-create-open" data-click="openGroupCreator" class="ml-auto mr-1 w-7 h-7 rounded-lg normal-case tracking-normal text-brand-400 hover:text-brand-300 hover:bg-slate-800 flex items-center justify-center" title="Neue Gruppe" aria-label="Neue Gruppe"><i class="fa-solid fa-user-group"></i></button>
+                        <button data-i18n-attr="title:common.inviteContact" data-click="openInviteCard" class="mr-2 normal-case tracking-normal text-brand-400 hover:text-brand-300 font-semibold" title="Kontakt einladen">
                             <i class="fa-solid fa-user-plus"></i> <span data-i18n="chat.invite">Einladen</span>
                         </button>
                         <span id="active-peers-count" class="bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full text-xs">0</span>
@@ -277,6 +278,7 @@
                             </button>
                             <div id="chat-header-menu" class="hidden absolute right-0 top-full mt-1 z-30 w-48 py-1 rounded-xl border border-slate-700 bg-slate-900 shadow-xl" role="menu">
                                 <button data-click="chatMenuMedia" class="chat-menu-item" role="menuitem"><i class="fa-regular fa-images"></i> <span data-i18n="common.media">Medien</span></button>
+                                <button id="chat-menu-group" data-click="chatMenuGroupInfo" class="hidden chat-menu-item" role="menuitem"><i class="fa-solid fa-user-group"></i> <span data-i18n="groups.info">Gruppe</span></button>
                                 <button data-click="chatMenuProfile" class="chat-menu-item" role="menuitem"><i class="fa-regular fa-user"></i> <span data-i18n="common.profile">Profil</span></button>
                                 <button id="chat-menu-flirt" data-click="chatMenuToggleFlirt" class="hidden chat-menu-item" role="menuitem"><i class="fa-solid fa-fire text-brand-400"></i> <span id="chat-menu-flirt-label" data-i18n="friends.flirtModeOn">Flirt-Modus an</span></button>
                                 <button id="chat-menu-flirt-tab" data-click="chatMenuShowFlirtTab" class="hidden chat-menu-item" role="menuitem"><i class="fa-solid fa-eye"></i> <span data-i18n="friends.showFlirtTab">Flirt-Knopf zeigen</span></button>

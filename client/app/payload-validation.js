@@ -95,6 +95,14 @@ function isValidChatOperation(operation) {
 
 // Eine Operation, die Peer B schickt (P2P, Sync, Pfad C), darf nur B selbst als Urheber haben. Sonst koennte
 // ein Kontakt Nachrichten "von mir" oder von Dritten in meinen Verlauf schreiben (Security-Hackathon 2026-11-10).
+function isValidGroupStatePayload(group, sig) {
+    return Boolean(group) && typeof group === 'object' && isGroupConversationId(group.id)
+        && typeof group.name === 'string' && group.name.length <= 60
+        && isIdList(group.members || [], 16) && isIdList(group.admins || [], 16)
+        && isSmallInt(group.version) && isId(group.updatedBy)
+        && typeof sig === 'string' && sig.length <= 200;
+}
+
 function isGroupConversationId(value) {
     return typeof value === 'string' && /^group_[A-Za-z0-9-]{8,64}$/.test(value);
 }
@@ -166,6 +174,9 @@ const PAYLOAD_VALIDATORS = {
     PRESENCE_PING: payload => isId(payload.nonce),
     PRESENCE_PONG: payload => isId(payload.nonce),
     PROFILE_REQUEST: () => true,
+    // Gruppen (conversations.js, T36 P2a): signierter Zustand vom Admin, Austritt eines Mitglieds.
+    GROUP_STATE: payload => isValidGroupStatePayload(payload['state'], payload.sig),
+    GROUP_LEAVE: payload => isGroupConversationId(payload.groupId),
     MOVE_ANNOUNCE: payload => ['delegation', 'announcement'].every(field => typeof payload[field] === 'string' && payload[field].length <= 4000)
         && ['delegationSignature', 'announcementSignature'].every(field => typeof payload[field] === 'string' && payload[field].length <= 200),
     PROFILE_RESPONSE: payload => isValidProfileEnvelope(payload.signedEnvelope || payload.profile),

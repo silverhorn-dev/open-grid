@@ -320,7 +320,9 @@ async function openChatWithPeer(peerId) {
     renderChatHistory();
     updateChatActionButtons();
     updateChatLayout();
-    if (!isPeerBlocked(peerId)) initiateP2PConnection(peerId).catch(logBackgroundError('openChatWithPeer'));
+    // Gruppe: zu allen Mitgliedern verbinden (conversations.js).
+    if (typeof isGroupId === 'function' && isGroupId(peerId)) connectGroupMembers(peerId);
+    else if (!isPeerBlocked(peerId)) initiateP2PConnection(peerId).catch(logBackgroundError('openChatWithPeer'));
 }
 
 // Auf Smartphones zeigt der Chat-Tab entweder die Liste oder den Vollbild-Chat.
@@ -383,8 +385,12 @@ function updateChatActionButtons() {
         return;
     }
     const blocked = isPeerBlocked(peerId);
-    deleteButton.classList.toggle('hidden', blocked);
-    blockButton.classList.remove('hidden');
+    // Gruppe: kein Loeschen (wuerde den Verlauf bei allen wischen) und kein Blockieren; dafuer "Gruppe".
+    const group = typeof isGroupId === 'function' && isGroupId(peerId);
+    for (const id of ['chat-menu-group']) document.getElementById(id)?.classList.toggle('hidden', !group);
+    for (const selector of ['[data-click="chatMenuProfile"]', '#report-peer-btn']) document.querySelector(`#chat-header-menu ${selector}`)?.classList.toggle('hidden', group);
+    deleteButton.classList.toggle('hidden', blocked || group);
+    blockButton.classList.toggle('hidden', group);
     document.getElementById('block-peer-label').textContent = blocked ? t('common.unblock') : t('chat.block');
     input.disabled = blocked;
     sendButton.disabled = blocked;
@@ -762,6 +768,8 @@ function renderChatHistory() {
         older.onclick = loadOlderChatMessages;
         container.appendChild(older);
     }
+    const isGroupChat = typeof isGroupId === 'function' && isGroupId(state.activeChatPeerId);
+    let previousSenderId = null;
     msgs.forEach(message => {
         // Systemzeile (z. B. "Profil wurde geloescht", account.js): mittig, ohne Blase und Aktionen.
         if (message.system) {
@@ -776,6 +784,15 @@ function renderChatHistory() {
         const row = document.createElement('div');
         row.id = `chat-message-${message.id}`;
         row.className = `flex flex-col ${isMine ? 'items-end' : 'items-start'}`;
+        // Gruppe: Name des Absenders ueber fremden Nachrichten (nur wenn der vorige Absender ein anderer war).
+        if (isGroupChat && !isMine && !message.deleted && message.senderId !== previousSenderId) {
+            const sender = document.createElement('div');
+            sender.className = 'chat-group-sender';
+            sender.dataset.groupSender = message.senderId;
+            sender.textContent = displayNameFor(message.senderId);
+            row.appendChild(sender);
+        }
+        previousSenderId = message.senderId;
         if (message.replyTo && !message.deleted) row.appendChild(renderReplyQuote(message.replyTo, isMine));
         const bubble = document.createElement('div');
         if (markFlirt && message.scope === 'discovery' && !message.deleted) row.classList.add('flirt-message');

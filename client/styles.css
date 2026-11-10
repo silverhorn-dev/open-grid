@@ -1589,3 +1589,6 @@ html {
 /* GIF-Vollbild: Zoom und Verschieben (gifs.js) */
 #gif-viewer-stage { touch-action: none; overflow: hidden; }
 #gif-viewer-stage .gif-viewer-media { transform-origin: center center; will-change: transform; }
+
+/* Gruppen (conversations.js): Absendername ueber fremden Nachrichten */
+.chat-group-sender { font-size: 0.6875rem; font-weight: 600; color: rgb(var(--brand-300, 165 180 252)); margin: 0.25rem 0 0.125rem 0.5rem; }

@@ -660,6 +660,14 @@ function renderChatPeerIndicator() {
     const status = document.getElementById('chat-peer-status');
     if (!dot || !status) return;
     const peerId = state.activeChatPeerId;
+    // Gruppe: Anzahl der Mitglieder statt Online-Status.
+    if (typeof isGroupId === 'function' && isGroupId(peerId)) {
+        dot.classList.add('hidden');
+        status.textContent = t('groups.memberCount', { count: getGroup(peerId)?.members.length || 0 });
+        status.classList.remove('text-emerald-400', 'text-amber-400');
+        status.classList.add('text-slate-400');
+        return;
+    }
     const online = Boolean(peerId) && isPeerOnline(peerId) && !isPeerBlocked(peerId);
     // Abwesend (App nicht sichtbar) geht vor "hat den Chat offen": wer weg ist, schaut nicht zu.
     const away = online && isPeerAway(peerId);

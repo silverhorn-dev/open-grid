@@ -1368,3 +1368,21 @@ Akzeptanzkriterien:
   sichtbar macht. Dieselbe Person zaehlt nur einmal.
 - Auch GIFs aus der Bibliothek melde ich mit Grund.
 
+## UC-78: Gruppenchat
+
+**Als Nutzer** moechte ich mit mehreren Freunden gleichzeitig schreiben.
+
+Akzeptanzkriterien:
+
+- In "Chat & Freunde" (und bei Events) erstelle ich ueber "Neue Gruppe" eine
+  Gruppe mit Namen aus meinen Freunden (im Event auch aus den Leuten im
+  Event), hoechstens 16 Mitglieder. Ich bin Admin.
+- Alle Mitglieder sehen die Gruppe in ihrer Chatliste, auch wenn sie gerade
+  offline waren (ueber den Zwischenspeicher).
+- Nachrichten gehen verschluesselt an alle; ueber fremden Nachrichten steht der
+  Name des Absenders.
+- Nur Admins benennen um, fuegen hinzu, entfernen und ernennen Admins. Jeder
+  kann austreten; wer entfernt wurde oder ausgetreten ist, kann nicht mehr
+  schreiben, sieht aber den bisherigen Verlauf.
+- Niemand ausserhalb der Gruppe kann Nachrichten in die Gruppe schreiben.
+

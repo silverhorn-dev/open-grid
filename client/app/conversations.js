@@ -93,3 +93,409 @@ function conversationDisplayName(conversationId) {
     if (isGroupId(conversationId)) return getGroup(conversationId)?.name || t('groups.unnamed');
     return null;
 }
+
+// ================= GRUPPEN VERWALTEN (T36 P2a) =================
+// Der Zustand einer Gruppe (Name, Mitglieder, Admins, Version) wird von einem Admin signiert und als
+// GROUP_STATE an alle Mitglieder (und frisch Entfernte) geschickt; P2P, sonst Pfad C. Angenommen wird ein
+// Zustand nur direkt vom Unterzeichner, nur wenn er Admin ist (bei einer bekannten Gruppe: im bisherigen Stand)
+// und nur mit hoeherer Version. Austreten (GROUP_LEAVE) darf jedes Mitglied fuer sich; der erste verbleibende
+// Admin veroeffentlicht danach den neuen Stand. Wer ausgetreten ist, nimmt keine Zustaende dieser Gruppe mehr an.
+const GROUP_NAME_MAX = 60;
+const GROUP_PENDING_LIMIT = 50;
+
+function groupSignable(group) {
+    return {
+        id: group.id, name: group.name, members: [...group.members], admins: [...group.admins],
+        createdAt: group.createdAt, version: group.version, updatedBy: group.updatedBy, updatedAt: group.updatedAt
+    };
+}
+
+function isValidGroupState(group) {
+    return isValidGroup(group) && typeof group.name === 'string' && group.name.trim().length > 0 && group.name.length <= GROUP_NAME_MAX
+        && Array.isArray(group.admins) && group.admins.length >= 1 && group.admins.every(admin => group.members.includes(admin))
+        && Number.isInteger(group.version) && group.version >= 1 && typeof group.updatedBy === 'string'
+        && Number.isFinite(group.createdAt) && Number.isFinite(group.updatedAt);
+}
+
+// Entscheidet ueber einen eingehenden Zustand: 'accept', 'removed' (ich bin raus), oder null (verwerfen).
+function judgeGroupState(next, current, { senderId, myId }) {
+    if (!isValidGroupState(next) || next.updatedBy !== senderId) return null;
+    if (current?.left) return null;
+    if (current) {
+        if (!current.admins.includes(senderId) || next.version <= current.version) return null;
+    } else if (!next.admins.includes(senderId)) {
+        return null;
+    }
+    if (!next.members.includes(myId)) return current ? 'removed' : null;
+    return 'accept';
+}
+
+function isGroupAdmin(groupId, peerId = state.myProfile?.id) {
+    return Boolean(getGroup(groupId)?.admins?.includes(peerId));
+}
+
+function isGroupActive(groupId) {
+    const group = getGroup(groupId);
+    return Boolean(group) && !group.left && !group.removed && group.members.includes(state.myProfile?.id);
+}
+
+async function publishGroupState(next, previousMembers = []) {
+    const signable = groupSignable({ ...next, updatedBy: state.myProfile.id, updatedAt: Date.now() });
+    if (!isValidGroupState(signable)) throw new Error('Invalid group state');
+    const sig = await signOperation(signable, state.myKeys.ecdsaKeyPair.privateKey);
+    await saveGroup({ ...signable, sig });
+    const recipients = [...new Set([...previousMembers, ...signable.members])].filter(member => member !== state.myProfile.id);
+    // Leerer Rueckruf: so greift der Pfad-C-Fallback auch fuer diese Nutzlast.
+    await Promise.all(recipients.map(member => sendSecurePayload(member, { type: 'GROUP_STATE', ['state']: signable, sig }, () => {})
+        .catch(logBackgroundError('publishGroupState'))));
+    refreshGroupViews(signable.id);
+    return signable;
+}
+
+async function handleGroupState(peerId, payload) {
+    const next = payload['state'];
+    const current = getGroup(next?.id);
+    const verdict = judgeGroupState(next, current, { senderId: peerId, myId: state.myProfile.id });
+    if (!verdict) {
+        logDebug(`Ignored a group state from ${peerId}.`);
+        return false;
+    }
+    const key = (await getPeerIdentity(peerId).catch(() => null))?.profileSigningKey;
+    if (key && !await verifyOperationSignature({ ...groupSignable(next), sig: payload.sig }, key)) {
+        logDebug(`Ignored a group state from ${peerId} with an invalid signature.`);
+        return false;
+    }
+    if (verdict === 'removed') {
+        await saveGroup({ ...current, removed: true });
+        showToast(t('groups.youWereRemoved', { name: current.name }), 'info');
+        refreshGroupViews(current.id);
+        return true;
+    }
+    await saveGroup({ ...groupSignable(next), sig: payload.sig });
+    if (typeof ensureChatScope === 'function') await ensureChatScope(next.id, 'social');
+    rememberChatPeer(next.id);
+    if (!current) showToast(t('groups.youWereAdded', { name: next.name }), 'info');
+    refreshGroupViews(next.id);
+    await replayPendingGroupOperations(next.id);
+    return true;
+}
+
+// Chat-Operationen fuer eine (noch) unbekannte Gruppe kurz zurueckhalten: der Zustand kann knapp danach kommen.
+function stashGroupOperation(groupId, peerId, payload, deliveredVia) {
+    const pending = state.pendingGroupOperations || (state.pendingGroupOperations = {});
+    const list = pending[groupId] || (pending[groupId] = []);
+    if (list.length < GROUP_PENDING_LIMIT) list.push({ peerId, payload, deliveredVia });
+}
+
+async function replayPendingGroupOperations(groupId) {
+    const list = state.pendingGroupOperations?.[groupId];
+    if (!list?.length) return;
+    delete state.pendingGroupOperations[groupId];
+    for (const entry of list) await handleSecurePayload(entry.peerId, entry.payload, entry.deliveredVia);
+}
+
+async function handleGroupLeave(peerId, groupId) {
+    const group = getGroup(groupId);
+    if (!group || !group.members.includes(peerId) || group.left) return false;
+    const members = group.members.filter(member => member !== peerId);
+    const admins = group.admins.filter(admin => admin !== peerId);
+    // Der erste verbleibende Admin veroeffentlicht den neuen Stand; die anderen ziehen lokal nach.
+    if (admins[0] === state.myProfile.id && members.length) {
+        await publishGroupState({ ...group, members, admins, version: group.version + 1 }, group.members);
+    } else {
+        await saveGroup({ ...group, members, admins: admins.length ? admins : [members[0]].filter(Boolean) });
+        refreshGroupViews(groupId);
+    }
+    return true;
+}
+
+// ----- Aktionen (Oberflaeche) -----
+async function createGroup(name, memberIds) {
+    const members = [state.myProfile.id, ...new Set(memberIds.filter(id => typeof id === 'string' && id !== state.myProfile.id))];
+    if (members.length < 2 || members.length > GROUP_MAX_MEMBERS) throw new Error('group size');
+    const now = Date.now();
+    const group = await publishGroupState({
+        id: newGroupId(), name: String(name || '').trim().slice(0, GROUP_NAME_MAX) || t('groups.unnamed'),
+        members, admins: [state.myProfile.id], createdAt: now, version: 1
+    });
+    if (typeof setChatScope === 'function') await setChatScope(group.id, 'social');
+    rememberChatPeer(group.id);
+    return group;
+}
+
+async function updateGroupAsAdmin(groupId, change) {
+    const group = getGroup(groupId);
+    if (!group || !isGroupAdmin(groupId) || !isGroupActive(groupId)) throw new Error('not an admin');
+    const next = { ...group, ...change(group), version: group.version + 1 };
+    next.admins = next.admins.filter(admin => next.members.includes(admin));
+    if (!next.admins.length) next.admins = [state.myProfile.id];
+    return publishGroupState(next, group.members);
+}
+
+const addGroupMembers = (groupId, ids) => updateGroupAsAdmin(groupId, group => ({ members: [...new Set([...group.members, ...ids])] }));
+const removeGroupMember = (groupId, id) => updateGroupAsAdmin(groupId, group => ({ members: group.members.filter(member => member !== id) }));
+const makeGroupAdmin = (groupId, id) => updateGroupAsAdmin(groupId, group => ({ admins: [...new Set([...group.admins, id])] }));
+const renameGroup = (groupId, name) => updateGroupAsAdmin(groupId, () => ({ name: String(name || '').trim().slice(0, GROUP_NAME_MAX) }));
+
+async function leaveGroup(groupId) {
+    const group = getGroup(groupId);
+    if (!group || !isGroupActive(groupId)) return false;
+    const others = group.members.filter(member => member !== state.myProfile.id);
+    // Einziger Admin: vorher ein anderes Mitglied zum Admin machen und den Stand ohne mich veroeffentlichen.
+    if (group.admins.length === 1 && group.admins[0] === state.myProfile.id && others.length) {
+        await publishGroupState({ ...group, members: others, admins: [others[0]], version: group.version + 1 }, group.members);
+    } else {
+        await Promise.all(others.map(member => sendSecurePayload(member, { type: 'GROUP_LEAVE', groupId }, () => {})
+            .catch(logBackgroundError('leaveGroup'))));
+    }
+    await saveGroup({ ...getGroup(groupId), left: true });
+    refreshGroupViews(groupId);
+    return true;
+}
+
+// ----- Darstellung -----
+const GROUP_COLORS = ['#7c3aed', '#db2777', '#0891b2', '#16a34a', '#ea580c', '#2563eb'];
+
+function groupAvatar(group) {
+    const name = String(group?.name || '?').trim();
+    const initials = name.split(/\s+/).slice(0, 2).map(word => [...word][0] || '').join('').toUpperCase() || '#';
+    let hash = 0;
+    for (const character of String(group?.id || '')) hash = (hash * 31 + character.charCodeAt(0)) >>> 0;
+    const color = GROUP_COLORS[hash % GROUP_COLORS.length];
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="${color}"/>`
+        + `<text x="32" y="41" font-family="sans-serif" font-size="24" font-weight="700" fill="#fff" text-anchor="middle">${initials.replace(/[<>&"]/g, '')}</text></svg>`;
+    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+function groupPresentation(groupId) {
+    const group = getGroup(groupId);
+    return { id: groupId, name: group?.name || t('groups.unnamed'), avatar: groupAvatar(group), isGroup: true, offline: true };
+}
+
+function refreshGroupViews(groupId) {
+    if (typeof renderActivePeerList === 'function') renderActivePeerList();
+    if (state.activeChatPeerId === groupId) {
+        if (typeof renderChatPeerHeader === 'function') renderChatPeerHeader(groupId);
+        if (typeof renderChatPeerIndicator === 'function') renderChatPeerIndicator();
+        if (typeof updateChatActionButtons === 'function') updateChatActionButtons();
+    }
+    if (state.groupInfoOpen === groupId) openGroupInfo(groupId);
+}
+
+// Kandidaten fuer neue Mitglieder: Freunde, im Event-Modus auch die Leute im Event-Grid.
+function groupCandidates(excluded = []) {
+    const ids = new Set(Object.keys(state.friendState || {}).filter(id => typeof isFriend === 'function' && isFriend(id)));
+    if (state.appMode === 'event') (state.peers || []).forEach(peer => ids.add(peer.id));
+    excluded.forEach(id => ids.delete(id));
+    ids.delete(state.myProfile?.id);
+    return [...ids].filter(id => !isPeerBlocked(id) && !isGroupId(id));
+}
+
+function groupsAllowedHere() {
+    return (typeof isSocialMode === 'function' && isSocialMode()) || state.appMode === 'event';
+}
+
+function memberPicker(candidates, limit) {
+    const list = document.createElement('div');
+    list.className = 'space-y-1 max-h-72 overflow-y-auto';
+    if (!candidates.length) {
+        const empty = document.createElement('p');
+        empty.className = 'text-sm text-slate-400';
+        empty.textContent = t('groups.noCandidates');
+        list.appendChild(empty);
+    }
+    candidates.forEach(id => {
+        const label = document.createElement('label');
+        label.className = 'flex items-center gap-3 rounded-lg border border-slate-800 px-3 py-2 text-sm text-slate-200 cursor-pointer';
+        const box = document.createElement('input');
+        box.type = 'checkbox';
+        box.value = id;
+        box.dataset.groupCandidate = id;
+        box.onchange = () => {
+            if (list.querySelectorAll('input:checked').length > limit) {
+                box.checked = false;
+                showToast(t('groups.tooMany', { count: GROUP_MAX_MEMBERS }), 'info');
+            }
+        };
+        const image = document.createElement('img');
+        image.src = localAvatar(getPeerPresentation(id).avatar);
+        image.alt = '';
+        image.className = 'w-8 h-8 rounded-full object-cover';
+        const name = document.createElement('span');
+        name.textContent = displayNameFor(id);
+        label.append(box, image, name);
+        list.appendChild(label);
+    });
+    return { list, selected: () => [...list.querySelectorAll('input:checked')].map(input => input.value) };
+}
+
+function openGroupCreator() {
+    if (!groupsAllowedHere()) {
+        showToast(t('groups.onlySocialOrEvent'), 'info');
+        return;
+    }
+    const content = openMediaModal(t('groups.create'));
+    const name = document.createElement('input');
+    name.type = 'text';
+    name.id = 'group-name-input';
+    name.maxLength = GROUP_NAME_MAX;
+    name.placeholder = t('groups.namePlaceholder');
+    name.className = 'w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-base text-slate-100 focus:outline-hidden focus:border-brand-500 mb-3';
+    const picker = memberPicker(groupCandidates(), GROUP_MAX_MEMBERS - 1);
+    const create = document.createElement('button');
+    create.type = 'button';
+    create.id = 'group-create-btn';
+    create.className = 'w-full mt-3 rounded-full bg-brand-600 hover:bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white';
+    create.textContent = t('groups.createButton');
+    create.onclick = async () => {
+        const members = picker.selected();
+        if (!members.length) {
+            showToast(t('groups.pickMembers'), 'info');
+            return;
+        }
+        create.disabled = true;
+        try {
+            const group = await createGroup(name.value, members);
+            closeMediaModal();
+            await openChatWithPeer(group.id);
+        } catch (error) {
+            create.disabled = false;
+            showToast(t('groups.createFailed'), 'error');
+            logDebug(`Group creation failed: ${error.message}`);
+        }
+    };
+    content.append(name, picker.list, create);
+}
+
+function openGroupInfo(groupId = state.activeChatPeerId) {
+    const group = getGroup(groupId);
+    if (!group) return;
+    state.groupInfoOpen = groupId;
+    const content = openMediaModal(group.name);
+    const previousCleanup = state.mediaModalCleanup;
+    state.mediaModalCleanup = () => {
+        state.groupInfoOpen = null;
+        previousCleanup?.();
+    };
+    const admin = isGroupAdmin(groupId) && isGroupActive(groupId);
+    const box = document.createElement('div');
+    box.className = 'space-y-3';
+    if (!isGroupActive(groupId)) {
+        const note = document.createElement('p');
+        note.className = 'text-sm text-amber-300';
+        note.textContent = group.left ? t('groups.youLeft') : t('groups.youAreRemoved');
+        box.appendChild(note);
+    }
+    if (admin) {
+        const rename = document.createElement('div');
+        rename.className = 'flex gap-2';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.id = 'group-rename-input';
+        input.value = group.name;
+        input.maxLength = GROUP_NAME_MAX;
+        input.className = 'flex-1 min-w-0 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-base text-slate-100';
+        const save = document.createElement('button');
+        save.type = 'button';
+        save.id = 'group-rename-btn';
+        save.className = 'btn-secondary';
+        save.textContent = t('common.save');
+        save.onclick = () => input.value.trim() && renameGroup(groupId, input.value).catch(logBackgroundError('openGroupInfo'));
+        rename.append(input, save);
+        box.appendChild(rename);
+    }
+    const heading = document.createElement('h4');
+    heading.className = 'text-xs font-bold uppercase tracking-wider text-slate-400';
+    heading.textContent = t('groups.memberCount', { count: group.members.length });
+    box.appendChild(heading);
+    group.members.forEach(member => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-3';
+        row.dataset.groupMember = member;
+        const image = document.createElement('img');
+        image.src = localAvatar(member === state.myProfile.id ? state.myProfile.avatar : getPeerPresentation(member).avatar);
+        image.alt = '';
+        image.className = 'w-8 h-8 rounded-full object-cover';
+        const name = document.createElement('span');
+        name.className = 'flex-1 min-w-0 truncate text-sm text-slate-200';
+        name.textContent = member === state.myProfile.id ? t('groups.you') : displayNameFor(member);
+        row.append(image, name);
+        if (group.admins.includes(member)) {
+            const badge = document.createElement('span');
+            badge.className = 'text-[11px] font-semibold text-brand-300';
+            badge.textContent = t('groups.admin');
+            row.appendChild(badge);
+        }
+        if (admin && member !== state.myProfile.id) {
+            if (!group.admins.includes(member)) {
+                const promote = document.createElement('button');
+                promote.type = 'button';
+                promote.className = 'text-xs text-slate-300 hover:text-white';
+                promote.dataset.groupPromote = member;
+                promote.textContent = t('groups.makeAdmin');
+                promote.onclick = () => makeGroupAdmin(groupId, member).catch(logBackgroundError('openGroupInfo'));
+                row.appendChild(promote);
+            }
+            const remove = document.createElement('button');
+            remove.type = 'button';
+            remove.className = 'text-xs text-red-300 hover:text-red-200';
+            remove.dataset.groupRemove = member;
+            remove.textContent = t('groups.remove');
+            remove.onclick = () => window.confirm(t('groups.confirmRemove', { name: displayNameFor(member) }))
+                && removeGroupMember(groupId, member).catch(logBackgroundError('openGroupInfo'));
+            row.appendChild(remove);
+        }
+        box.appendChild(row);
+    });
+    if (admin && group.members.length < GROUP_MAX_MEMBERS) {
+        const add = document.createElement('button');
+        add.type = 'button';
+        add.id = 'group-add-btn';
+        add.className = 'btn-secondary w-full';
+        add.textContent = t('groups.addMembers');
+        add.onclick = () => openGroupMemberAdder(groupId);
+        box.appendChild(add);
+    }
+    if (isGroupActive(groupId)) {
+        const leave = document.createElement('button');
+        leave.type = 'button';
+        leave.id = 'group-leave-btn';
+        leave.className = 'w-full rounded-full border border-red-500/40 px-4 py-2 text-sm font-semibold text-red-300 hover:bg-red-500/10';
+        leave.textContent = t('groups.leave');
+        leave.onclick = async () => {
+            if (!window.confirm(t('groups.confirmLeave', { name: group.name }))) return;
+            await leaveGroup(groupId);
+        };
+        box.appendChild(leave);
+    }
+    content.appendChild(box);
+}
+
+function openGroupMemberAdder(groupId) {
+    const group = getGroup(groupId);
+    if (!group) return;
+    const content = openMediaModal(t('groups.addMembers'));
+    const picker = memberPicker(groupCandidates(group.members), GROUP_MAX_MEMBERS - group.members.length);
+    const confirm = document.createElement('button');
+    confirm.type = 'button';
+    confirm.id = 'group-add-confirm';
+    confirm.className = 'w-full mt-3 rounded-full bg-brand-600 hover:bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white';
+    confirm.textContent = t('groups.add');
+    confirm.onclick = async () => {
+        const ids = picker.selected();
+        if (!ids.length) return;
+        confirm.disabled = true;
+        await addGroupMembers(groupId, ids).catch(logBackgroundError('openGroupMemberAdder'));
+        openGroupInfo(groupId);
+    };
+    content.append(picker.list, confirm);
+}
+
+function chatMenuGroupInfo() {
+    if (typeof closeChatHeaderMenu === 'function') closeChatHeaderMenu();
+    openGroupInfo(state.activeChatPeerId);
+}
+
+function connectGroupMembers(groupId) {
+    groupRecipients(groupId).forEach(member => initiateP2PConnection(member).catch(() => {}));
+}

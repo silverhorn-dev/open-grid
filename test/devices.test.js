@@ -83,3 +83,11 @@ test('contacts: first device list anchored in the pinned identity key, updates o
     assert.deepEqual([...context.contactDeviceNodes('alice')], ['alice', 'alice-pc']);
     assert.deepEqual([...context.contactDeviceNodes('bob')], ['bob']);
 });
+
+test('grid: only the most recently active own device stays visible', () => {
+    const context = load();
+    assert.equal(context.hiddenByNewerDevice({ phone: 10, pc: 20 }, 'phone'), true);
+    assert.equal(context.hiddenByNewerDevice({ phone: 30, pc: 20 }, 'phone'), false);
+    assert.equal(context.hiddenByNewerDevice({}, 'phone'), false, 'unknown activity: visible');
+    assert.equal(context.deviceHiddenFromGrid(), false, 'single device: never hidden');
+});

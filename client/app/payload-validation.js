@@ -186,6 +186,7 @@ const PAYLOAD_VALIDATORS = {
     // Mehrere Geraete (devices.js, T36 P4a).
     DEVICE_JOIN: payload => isId(payload.identityId) && isId(payload.inviteId) && isId(payload.nodeId)
         && typeof payload.key?.x === 'string' && payload.key.x.length <= 64 && typeof payload.key?.y === 'string' && payload.key.y.length <= 64,
+    DEVICE_ACTIVE: payload => Number.isFinite(payload.at),
     DEVICE_LIST: payload => Boolean(payload.list) && isId(payload.list.identityId) && isSmallInt(payload.list.version)
         && Array.isArray(payload.list.devices) && payload.list.devices.length <= 8 && isId(payload.list.updatedBy)
         && typeof payload.sig === 'string' && payload.sig.length <= 200,

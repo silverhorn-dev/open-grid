@@ -193,6 +193,7 @@ window.onload = async () => {
             syncChatFocus();
             reportAway();
             if (document.visibilityState === 'visible') {
+                if (typeof markThisDeviceActive === 'function') markThisDeviceActive();
                 // Zurueck aus dem Hintergrund: Signaling pruefen (oft halb offen), dann aktualisieren.
                 checkSignalingHealth('resume');
                 refreshPresenceAndGrid();

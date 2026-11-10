@@ -1,7 +1,10 @@
 # Gruppenchats und Mehrgeraete-Betrieb (Plan)
 
 Stand: 2026-11-10 (Board T35, Backlog "group chats" und "Mehrgeraete-Betrieb").
-Noch nichts davon ist gebaut. Am Ende stehen die offenen Entscheidungen.
+Gebaut: P0, P1, P2 (Gruppen) und P4 (Mehrgeraete, 2026-11-10; Umsetzung in
+SPECE.md). Offen: P3 (Medien-Schwarm), P5 (Forward Secrecy). Abweichung bei P4:
+jedes Geraet behaelt seine Node-ID, die Router-Registrierung bekommt keine
+Identitaets-ID; das nicht zuletzt aktive Geraet meldet sich still an.
 
 ## 1. Ziel
 

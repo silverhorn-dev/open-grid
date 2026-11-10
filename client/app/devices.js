@@ -237,6 +237,11 @@ async function handleDeviceList(peerId, payload) {
     const signerKey = payload.list.devices.find(device => device.nodeId === peerId)?.key;
     const jwk = signerKey ? { kty: 'EC', crv: 'P-256', x: signerKey.x, y: signerKey.y } : null;
     if (!jwk || !await verifyOperationSignature({ ...deviceListSignable(payload.list), sig: payload.sig }, jwk)) return false;
+    // Ich stehe nicht mehr drin: dieses Geraet wurde entfernt.
+    if (!payload.list.devices.some(device => device.nodeId === state.myProfile.id)) {
+        await handleRemovedFromDevices();
+        return true;
+    }
     await saveDeviceList(deviceListSignable(payload.list), payload.sig);
     if (freshlyPaired) {
         state.devicePairing = { ...state.devicePairing, joinedAt: Date.now() };
@@ -267,6 +272,26 @@ function renderDevicesCard() {
             badge.className = 'text-[11px] text-brand-300';
             badge.textContent = t('devices.canAdd');
             row.appendChild(badge);
+        }
+        // Verwalten (P4d): nur mit Recht, nie die Wurzel und nie dieses Geraet.
+        const manageable = canAddDevices() && myDeviceList() && device.nodeId !== myDeviceList().identityId && device.nodeId !== state.myProfile?.id;
+        if (manageable && !device.canAdd) {
+            const grant = document.createElement('button');
+            grant.type = 'button';
+            grant.className = 'text-xs text-slate-300 hover:text-white';
+            grant.dataset.deviceGrant = device.nodeId;
+            grant.textContent = t('devices.grant');
+            grant.onclick = () => grantDeviceRight(device.nodeId).catch(logBackgroundError('renderDevicesCard'));
+            row.appendChild(grant);
+        }
+        if (manageable) {
+            const remove = document.createElement('button');
+            remove.type = 'button';
+            remove.className = 'text-xs text-red-300 hover:text-red-200';
+            remove.dataset.deviceRemove = device.nodeId;
+            remove.textContent = t('devices.remove');
+            remove.onclick = () => window.confirm(t('devices.confirmRemove')) && removeOwnDevice(device.nodeId).catch(logBackgroundError('renderDevicesCard'));
+            row.appendChild(remove);
         }
         return row;
     }));
@@ -428,4 +453,69 @@ async function sendToContactDevices(identityId, payload, onSent, options) {
     const results = await Promise.all(contactDeviceNodes(identityId).map(nodeId => sendSecurePayload(nodeId, { ...payload, deviceFanout: true }, report, options)
         .catch(() => false)));
     return results.some(Boolean);
+}
+
+// ================= GRID UND GERAETE VERWALTEN (T36 P4d) =================
+// Im Grid ist nur das zuletzt aktive eigene Geraet sichtbar: wer in den Vordergrund kommt, meldet das den
+// anderen eigenen Geraeten (DEVICE_ACTIVE); wer nicht das neueste ist, meldet sich beim Router "still" an.
+// Geraete mit Recht entfernen andere Geraete oder geben ihnen das Recht, Geraete hinzuzufuegen.
+const DEVICE_ACTIVE_THROTTLE_MS = 30 * 1000;
+
+// Reine Regel: bin ich im Grid versteckt, weil ein anderes eigenes Geraet zuletzt aktiv war?
+function hiddenByNewerDevice(activity, myNodeId) {
+    const mine = activity?.[myNodeId] || 0;
+    return Object.entries(activity || {}).some(([nodeId, at]) => nodeId !== myNodeId && at > mine);
+}
+
+function deviceHiddenFromGrid() {
+    if (!otherOwnDevices().length) return false;
+    const active = Object.fromEntries(Object.entries(state.ownDeviceActivity || {}).filter(([nodeId]) => isOwnNode(nodeId)));
+    return hiddenByNewerDevice(active, state.myProfile?.id);
+}
+
+function markThisDeviceActive() {
+    const devices = otherOwnDevices();
+    if (!devices.length || !state.myProfile?.id) return;
+    const now = Date.now();
+    const previous = state.ownDeviceActivity?.[state.myProfile.id] || 0;
+    if (now - previous < DEVICE_ACTIVE_THROTTLE_MS) return;
+    const wasHidden = deviceHiddenFromGrid();
+    state.ownDeviceActivity = { ...(state.ownDeviceActivity || {}), [state.myProfile.id]: now };
+    devices.forEach(nodeId => sendSecurePayload(nodeId, { type: 'DEVICE_ACTIVE', at: now }).catch(() => {}));
+    if (wasHidden && typeof registerWithWorkerGrid === 'function') registerWithWorkerGrid().catch(() => {});
+}
+
+async function handleDeviceActive(peerId, payload) {
+    if (!isOtherOwnDevice(peerId) || !Number.isFinite(payload.at)) return false;
+    const wasHidden = deviceHiddenFromGrid();
+    state.ownDeviceActivity = { ...(state.ownDeviceActivity || {}), [peerId]: Math.min(payload.at, Date.now() + 60000) };
+    // Neu versteckt: sofort "still" anmelden, damit die Person nur einmal im Grid steht.
+    if (!wasHidden && deviceHiddenFromGrid() && typeof registerWithWorkerGrid === 'function') await registerWithWorkerGrid().catch(() => {});
+    return true;
+}
+
+async function removeOwnDevice(nodeId) {
+    const list = myDeviceList();
+    if (!list || !canAddDevices() || nodeId === list.identityId || nodeId === state.myProfile.id) return false;
+    const removed = list.devices.find(device => device.nodeId === nodeId);
+    if (!removed) return false;
+    await publishDeviceList({ ...list, version: list.version + 1, devices: list.devices.filter(device => device.nodeId !== nodeId) });
+    // Das entfernte Geraet erfaehrt es ebenfalls (es steht nicht mehr in der Liste).
+    sendSecurePayload(nodeId, { type: 'DEVICE_LIST', list: myDeviceList(), sig: state.myDevices.sig }, () => {}).catch(() => {});
+    return true;
+}
+
+async function grantDeviceRight(nodeId) {
+    const list = myDeviceList();
+    if (!list || !canAddDevices()) return false;
+    await publishDeviceList({ ...list, version: list.version + 1, devices: list.devices.map(device => (device.nodeId === nodeId ? { ...device, canAdd: true } : device)) });
+    return true;
+}
+
+// Dieses Geraet wurde entfernt: ab jetzt allein (eigene Node-ID als Identitaet).
+async function handleRemovedFromDevices() {
+    state.myDevices = null;
+    await deleteDatabaseRecord('keys', DEVICE_LIST_RECORD_ID).catch(() => {});
+    showToast(t('devices.removedHere'), 'info');
+    renderDevicesCard();
 }

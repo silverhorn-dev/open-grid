@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 326 · 2026-11-10
+## Build 327 · 2026-11-10
+- Mehrere Geraete: im Grid erscheinst du nur einmal (mit dem zuletzt benutzten Geraet); unter Meine Geraete kannst du Geraete entfernen oder ihnen erlauben, weitere hinzuzufuegen
+
+## Build 326 · 2026-11-10 · `b599abb`
 - Mehrere Geraete: deine Kontakte erreichen alle deine Geraete (auch wenn eines aus ist) und sehen dich nur einmal
 
 ## Build 325 · 2026-11-10 · `fa1197e`

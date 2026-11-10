@@ -727,12 +727,12 @@
   - [x] nutzer 2026-11-10: profile aus der gruppen-uebersicht oeffnen -> mitglieder und absendernamen antippbar (`openGroupMemberProfile`); e2e `groups`
   - [x] P2c absender-schluessel + gebuendelter pfad C (2026-11-10): `GROUP_SENDER_KEY`, rotation bei entfernen, `POST /api/cache { recipientIds }`, signatur pflicht in gruppen; tests `test/conversations.test.js`, `test/server.test.js`, e2e `groups-bundle`
 - [ ] P3 medien-schwarm
-- [ ] P4 mehrgeraete
+- [x] P4 mehrgeraete
   - ansatz (2026-11-10): jedes geraet behaelt seine node-ID (routing unveraendert), identitaet = node-ID der wurzel, signierte geraeteliste; kontakte mit mehreren geraeten wie eine kleine gruppe
   - [x] P4a geraeteliste + koppeln per code (ohne umzug, ohne ID-umschreiben), `isOwnNode`; tests `test/devices.test.js`, e2e `devices`; UC-79
   - [x] P4b eigene geraete spiegeln (gesendet + empfangen) + sync zwischen eigenen geraeten (2026-11-10): `mirrorOf`, `handleMirroredOperation`, abgleich aller chats; tests `test/devices.test.js`, e2e `devices`
   - [x] P4c kontakte senden an alle geraete einer person, eingehende der identitaet zuordnen (2026-11-10): geraeteliste an kontakte, anker = gepinnter identitaets-schluessel, fan-out, `identityOf`; tests `test/devices.test.js`, e2e `devices`
-  - [ ] P4d grid nur zuletzt aktives geraet, geraete verwalten (entfernen, recht weitergeben)
+  - [x] P4d grid nur zuletzt aktives geraet, geraete verwalten (entfernen, recht weitergeben) (2026-11-10): `DEVICE_ACTIVE`, stille anmeldung, `removeOwnDevice`/`grantDeviceRight`; e2e `devices`
 - [ ] P5 forward secrecy
 - [x] 3 security-hackathon -> `documentation/SECURITY-HACKATHON.md`
   - behoben: S1 fremde `actorId` in operationen (`isOperationFromPeer`), S2 gefaelschte schwarm-profile (grid `keyFp` + `signingKeyFingerprint`), S3 wegmelden mit wegwerf-konten (`USER_REPORT_MIN_AGE_HOURS`, std 24), S4 zu grosse sync-antworten (teil 1)

@@ -900,6 +900,8 @@ async function handleSecurePayload(peerId, payload, deliveredVia = 'E2EE P2P') {
         await handleDeviceJoin(peerId, payload);
     } else if (payload.type === 'DEVICE_LIST') {
         await handleDeviceList(peerId, payload);
+    } else if (payload.type === 'DEVICE_ACTIVE') {
+        await handleDeviceActive(peerId, payload);
     } else if (payload.type === 'GROUP_MEMBER_CARD') {
         await handleGroupMemberCard(peerId, payload);
     } else if (payload.type === 'GROUP_CARD_REQUEST') {

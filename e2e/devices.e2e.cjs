@@ -81,10 +81,42 @@ async function main() {
         assert.equal(await bob.evaluate(id => state.chatPeerIds.includes(id), pcId), false, 'no separate chat for the pc');
         assert.equal(await bob.evaluate(id => displayNameFor(id), pcId), 'Alice');
         await waitFor(phone, id => (state.chats[id] || []).some(message => message.text === 'vom pc'), bobId, 45000);
+        // P4d: zuletzt aktives Geraet im Grid; das andere meldet sich still an.
+        await pc.evaluate(() => { state.ownDeviceActivity[state.myProfile.id] = 0; markThisDeviceActive(); });
+        await waitFor(phone, () => deviceHiddenFromGrid(), null, 30000);
+        // Beim Router: das Handy ist nicht mehr im Grid, der PC schon.
+        const gridHas = (viewer, id) => viewer.evaluate(async peer => {
+            const response = await fetch(`/api/grid?geohash=${state.myProfile.geohash}`);
+            return (await response.json()).peers.some(entry => entry.id === peer);
+        }, id);
+        await waitFor(bob, async () => true, null, 500);
+        const startedAt = Date.now();
+        while (await gridHas(bob, phoneId) && Date.now() - startedAt < 30000) await bob.waitForTimeout(500);
+        assert.equal(await gridHas(bob, phoneId), false, 'inactive device hidden from the grid');
+        assert.equal(await gridHas(bob, pcId), true, 'active device visible');
+        // Verwalten: das Handy gibt dem PC das Recht, dann entfernt es ihn wieder testweise nicht (Wurzel bleibt).
+        await phone.evaluate(id => grantDeviceRight(id), pcId);
+        await waitFor(pc, () => canAddDevices(), null, 30000);
+
         // Handy zu: Bob schreibt Alice, der PC bekommt es direkt.
         await phone.close();
         await bob.evaluate(async id => { await openChatWithPeer(id); document.getElementById('chat-input').value = 'handy ist aus'; await sendChatMessage(); }, phoneId);
         await waitFor(pc, id => (state.chats[id] || []).some(message => message.text === 'handy ist aus'), bobId, 60000);
+        // Ein drittes Geraet wird gekoppelt und vom PC (hat jetzt das Recht) wieder entfernt.
+        const tablet = await page('tablet');
+        await pc.evaluate(() => openDevicePairing());
+        await pc.click('#devices-code-btn');
+        await pc.waitForSelector('#transfer-code-output', { timeout: 15000 });
+        const tabletCode = await pc.inputValue('#transfer-code-output');
+        await tablet.click('#onboarding-transfer-btn');
+        await tablet.fill('#transfer-import-code', tabletCode.trim());
+        await Promise.all([tablet.waitForEvent('load', { timeout: 60000 }), tablet.click('#transfer-import-btn')]);
+        await waitFor(tablet, () => Boolean(state.ws && state.ws.readyState === 1 && state.myProfile.updatedAt));
+        const tabletId = await tablet.evaluate(() => state.myProfile.id);
+        await waitFor(pc, id => myDeviceList().devices.some(device => device.nodeId === id), tabletId, 60000);
+        await pc.evaluate(id => removeOwnDevice(id), tabletId);
+        await waitFor(tablet, () => !myDeviceList(), null, 60000);
+        await waitFor(bob, ([identity, device]) => !contactDeviceNodes(identity).includes(device), [phoneId, tabletId], 60000);
         assert.deepEqual(pageErrors, []);
         console.log('E2E OK (devices pairing)');
     } finally {

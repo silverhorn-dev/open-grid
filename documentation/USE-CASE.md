@@ -1407,4 +1407,7 @@ Akzeptanzkriterien:
 - Was ich auf einem Geraet schreibe und bekomme, erscheint auch auf den
   anderen. Kontakte erreichen alle meine Geraete, auch wenn eines aus ist, und
   sehen mich nur einmal (nicht je Geraet).
-
+- Im Grid erscheine ich nur einmal, mit dem Geraet, das ich zuletzt benutzt
+  habe.
+- Ein Geraet mit Recht kann andere Geraete entfernen oder ihnen das Recht
+  geben, Geraete hinzuzufuegen; die Wurzel kann nicht entfernt werden.

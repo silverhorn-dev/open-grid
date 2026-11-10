@@ -1253,6 +1253,15 @@ Chats werden als idempotente Operationen synchronisiert:
   alle ihre Geraete (`sendToContactDevices`, `deviceFanout`); Eingehendes von
   Geraet D gehoert zum Chat der Identitaet (`identityOf`), ebenso Abgleich,
   Sperren (`isPeerBlocked`) und Darstellung (`getPeerPresentation`).
+- Grid und Verwalten (T36 P4d): kommt ein Geraet in den Vordergrund, meldet es
+  `DEVICE_ACTIVE { at }` an die anderen eigenen Geraete (hoechstens alle 30 s).
+  Ein Geraet, das nicht das zuletzt aktive ist (`deviceHiddenFromGrid`), meldet
+  sich beim Router mit `silent: true` an; so steht die Person nur einmal im
+  Grid. Geraete mit `canAdd` koennen anderen das Recht geben
+  (`grantDeviceRight`) oder sie entfernen (`removeOwnDevice`, nie die Wurzel,
+  nie sich selbst): neue Liste an eigene Geraete und Kontakte, das entfernte
+  Geraet bekommt sie auch, sieht sich nicht mehr darin und laeuft danach allein
+  weiter.
 
 Nach jedem neuen E2EE-Schluessel und vor einem weiteren Nachrichtenversand
 tauschen beide Clients die 20 neuesten Operations-IDs aus. Fehlende

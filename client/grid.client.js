@@ -498,7 +498,8 @@ async function registerWithWorkerGrid() {
                 profileVersion: Number.isSafeInteger(state.myProfile.version) ? state.myProfile.version : undefined,
                 // "Nur zeigen fuer ...": Regel als kurzer Code (audience.js), sonst nichts.
                 audience: myAudienceCode(),
-                silent: isEffectivelySilent() || isModeSilent(),
+                // Mehrere Geraete (devices.js, P4d): nur das zuletzt aktive ist im Grid sichtbar.
+                silent: isEffectivelySilent() || isModeSilent() || (typeof deviceHiddenFromGrid === 'function' && deviceHiddenFromGrid()),
                 ...getRegistrationScope(),
                 ttlMinutes: state.gridSettings.ttlMinutes,
                 registrationProof: {

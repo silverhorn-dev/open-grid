@@ -104,7 +104,7 @@ async function handleOriginalRequest(peerId, payload) {
     // Nur Nachrichten aus dem Chat mit genau diesem Peer (im Speicher ohne peerId, gespeichert mit).
     const loaded = (state.chats[peerId] || []).find(entry => entry.id === payload.messageId);
     const message = loaded || await databaseRequest('messages', 'readonly', store => store.get(payload.messageId)).catch(() => null);
-    if (!message || (!loaded && message.peerId !== peerId) || message.senderId !== state.myProfile.id || !message.original || message.deleted) return;
+    if (!message || (!loaded && message.peerId !== peerId) || !(typeof isOwnNode === 'function' ? isOwnNode(message.senderId) : message.senderId === state.myProfile.id) || !message.original || message.deleted) return;
     const dataUrl = await loadOriginal(message.id);
     if (!dataUrl) return;
     const total = Math.ceil(dataUrl.length / ORIGINAL_CHUNK_LENGTH);
@@ -130,7 +130,7 @@ async function handleOriginalRequest(peerId, payload) {
 async function bestImageFor(message) {
     // Bei Videos ist das "Original" das Video selbst, im Bildbetrachter bleibt die Vorschau.
     if (message.video) return message.snapData;
-    if (message.original && (message.originalReady || message.senderId === state.myProfile.id)) {
+    if (message.original && (message.originalReady || (typeof isOwnNode === 'function' ? isOwnNode(message.senderId) : message.senderId === state.myProfile.id))) {
         const original = await loadOriginal(message.id);
         if (original) return original;
     }

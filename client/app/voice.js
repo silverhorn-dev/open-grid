@@ -281,7 +281,7 @@ function hasVoiceRest(message) {
 }
 
 function isVoiceRestAvailable(message) {
-    return message.senderId === state.myProfile.id || Boolean(message.originalReady);
+    return (typeof isOwnNode === 'function' ? isOwnNode(message.senderId) : message.senderId === state.myProfile.id) || Boolean(message.originalReady);
 }
 
 // Wiedergabe-Geschwindigkeit fuer alle Sprachnachrichten (lokal gemerkt).

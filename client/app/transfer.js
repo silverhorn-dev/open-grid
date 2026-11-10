@@ -18,7 +18,10 @@ const TRANSFER_STORES = ['localProfile', 'profiles', 'messages', 'chatOperations
 const TRANSFER_TOP_SEALED_STORES = ['localProfile', 'profiles', 'media'];
 const TRANSFER_FIELD_SEALED_STORES = ['albums', 'statusUpdates'];
 // Geraetegebunden: eigene Schluessel, Zugang zum Router, zwischengespeicherte Router-Konfiguration.
-const TRANSFER_SKIPPED_KEYS = ['identity-key', 'profile-cache', 'router-auth', 'app-config', 'transfer-imported'];
+const TRANSFER_SKIPPED_KEYS = ['identity-key', 'profile-cache', 'router-auth', 'app-config', 'transfer-imported',
+    // Geraetebezogen (devices.js, conversations.js): Geraeteliste/Einladungen/Kopplung und Gruppen-Absender-Schluessel.
+    'device-list', 'device-invites', 'device-pairing'];
+const TRANSFER_SKIPPED_KEY_PREFIXES = ['group-keys:'];
 const TRANSFER_SKIPPED_LOCAL = ['opengrid-node-id', 'opengrid-router-auth-token'];
 const TRANSFER_EXTRA_LOCAL = ['appliedChatWipes', 'hiddenByPeers'];
 
@@ -35,6 +38,7 @@ function containsCryptoKey(value, depth = 0) {
 
 function transferKeepsKeyRecord(record) {
     if (!record || TRANSFER_SKIPPED_KEYS.includes(record.id)) return false;
+    if (TRANSFER_SKIPPED_KEY_PREFIXES.some(prefix => String(record.id).startsWith(prefix))) return false;
     return !containsCryptoKey(record);
 }
 
@@ -491,7 +495,9 @@ function openTransferImport(prefilledCode = '') {
                 ? await readTransferCode(codeValue)
                 : await readTransferFile(chosen, document.getElementById('transfer-import-password').value);
             if (bundle.nodeId === state.nodeId) throw new Error('same');
-            await applyTransferBundle(bundle);
+            // Koppeln (devices.js): weiteres Geraet derselben Person statt Umzug.
+            if (typeof isPairingBundle === 'function' && isPairingBundle(bundle)) await applyPairingBundle(bundle);
+            else await applyTransferBundle(bundle);
             showToast(t('transfer.imported'), 'success');
             // Sauber neu starten: alles wird aus dem uebernommenen Speicher geladen.
             setTimeout(() => window.location.reload(), 600);

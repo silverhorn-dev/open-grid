@@ -594,7 +594,7 @@ function openChatMediaOverview(filter = state.mediaOverviewFilter || 'all') {
     });
     content.appendChild(switcher);
     const messages = (state.chats[peerId] || []).filter(message => !message.deleted && !message.held
-        && (filter === 'all' || (filter === 'mine') === (message.senderId === state.myProfile.id)));
+        && (filter === 'all' || (filter === 'mine') === ((typeof isOwnNode === 'function' ? isOwnNode(message.senderId) : message.senderId === state.myProfile.id))));
     const snaps = messages.filter(isInlineSnap);
     const albums = messages.filter(message => message.album);
     // GIFs (gifs.js): einblendbar per Schalter, gemerkt im Browser.

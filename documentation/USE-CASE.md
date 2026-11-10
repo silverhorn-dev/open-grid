@@ -1390,3 +1390,20 @@ Akzeptanzkriterien:
 - War ich offline, kommen verpasste Gruppen-Nachrichten an, sobald ich mit
   einem Mitglied verbunden bin.
 
+## UC-79: Mehrere Geraete
+
+**Als Nutzer** moechte ich OpenGrid auf Handy und PC gleichzeitig nutzen.
+
+Akzeptanzkriterien:
+
+- Unter Einstellungen > Meine Geraete erstelle ich auf dem ersten Geraet einen
+  Code (oder QR). Auf dem neuen Geraet waehle ich beim Einrichten "Daten von
+  einem anderen Geraet uebernehmen" und gebe ihn ein. Beide Geraete bleiben
+  aktiv (kein Umzug).
+- Das neue Geraet hat meine Chats, Kontakte und mein Profil; meine bisherigen
+  Nachrichten erscheinen dort als meine.
+- Nur das erste Geraet (oder eines, dem es das Recht gegeben hat) kann weitere
+  Geraete hinzufuegen.
+- (Folgt) Was ich auf einem Geraet schreibe und bekomme, erscheint auch auf
+  den anderen; Kontakte erreichen alle meine Geraete.
+

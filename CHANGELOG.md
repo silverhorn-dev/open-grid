@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 323 · 2026-11-10
+## Build 324 · 2026-11-10
+- Mehrere Geraete (Vorschau): unter Einstellungen > Meine Geraete ein weiteres Geraet koppeln; es uebernimmt deine Chats und dein Profil, beide bleiben aktiv (Abgleich zwischen den Geraeten folgt)
+
+## Build 323 · 2026-11-10 · `be0f90a`
 - Gruppen: Mitglieder in der Gruppen-Uebersicht und Absendernamen im Chat antippen oeffnet das Profil
 
 ## Build 322 · 2026-11-10 · `317a6c3`

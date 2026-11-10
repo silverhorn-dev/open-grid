@@ -675,7 +675,7 @@ async function copyGifUrl(gif) {
 // Kachel fuer die Medien-Uebersicht des Chats; ohne Freigabe nur verschwommen (nichts laden).
 function gifOverviewTile(message) {
     const gif = message.gif;
-    const mine = message.senderId === state.myProfile.id;
+    const mine = (typeof isOwnNode === 'function' ? isOwnNode(message.senderId) : message.senderId === state.myProfile.id);
     const display = gifDisplayState(gif, { mine, sources: gifSources(), enabled: gifSetting('enabled'), external: gifSetting('external') });
     const tile = document.createElement('button');
     tile.type = 'button';

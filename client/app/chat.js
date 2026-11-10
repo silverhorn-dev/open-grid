@@ -657,7 +657,7 @@ async function receiveChatMessage(peerId, payload) {
 async function deleteChatMessage(messageId) {
     const peerId = state.activeChatPeerId;
     const message = state.chats[peerId]?.find(item => item.id === messageId);
-    if (!peerId || !message || message.deleted || message.senderId !== state.myProfile.id) return;
+    if (!peerId || !message || message.deleted || !(typeof isOwnNode === 'function' ? isOwnNode(message.senderId) : message.senderId === state.myProfile.id)) return;
 
     const operation = {
         operationId: `delete:${messageId}:${window.crypto.randomUUID()}`,
@@ -785,7 +785,7 @@ function renderChatHistory() {
             container.appendChild(note);
             return;
         }
-        const isMine = message.senderId === state.myProfile.id;
+        const isMine = (typeof isOwnNode === 'function' ? isOwnNode(message.senderId) : message.senderId === state.myProfile.id);
         const row = document.createElement('div');
         row.id = `chat-message-${message.id}`;
         row.className = `flex flex-col ${isMine ? 'items-end' : 'items-start'}`;
@@ -837,7 +837,7 @@ function renderChatHistory() {
             renderGifMessage(bubble, message, isMine);
         } else if (message.snapData) {
             if (isSafeInlineImage(message.snapData)) {
-                if (message.nudityScan && message.senderId !== state.myProfile.id && typeof markForcedNudityScan === 'function') markForcedNudityScan(message.snapData);
+                if (message.nudityScan && !(typeof isOwnNode === 'function' ? isOwnNode(message.senderId) : message.senderId === state.myProfile.id) && typeof markForcedNudityScan === 'function') markForcedNudityScan(message.snapData);
                 const image = createSecureImage(message.snapData, 'w-48 sm:w-64 rounded-xl mb-1.5 border border-slate-900/50 cursor-zoom-in', message.imageSize, { own: isMine, reuseKey: `image:${message.id}` });
                 image.onclick = event => {
                     event.stopPropagation();

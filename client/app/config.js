@@ -205,6 +205,10 @@ const state = {
     groupInfoOpen: null,
     // Visitenkarten von Gruppen-Mitgliedern: ownerId -> { card, sig }.
     groupCards: {},
+    // Mehrere Geraete (devices.js): eigene Geraeteliste, laufende Kopplung, offene Einladungen.
+    myDevices: null,
+    devicePairing: null,
+    deviceInvites: [],
     snapPageEnabled: null,
     // App-Modus (P8): vom Server erlaubte Modi, gewaehlter Modus und Event-Daten.
     appConfig: { modes: ['discovery', 'chat', 'friends', 'event'], defaultMode: 'discovery' },

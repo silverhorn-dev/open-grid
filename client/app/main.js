@@ -112,6 +112,7 @@ window.onload = async () => {
         await runStartupStep('Chatliste', async () => {
             await loadGroups();
             await loadGroupCards();
+            await loadDevices();
             await loadChatReads();
             await loadChatPeerIds();
         });
@@ -168,6 +169,8 @@ window.onload = async () => {
         renderInviteCard().catch(error => logDebug(`Invite card failed: ${error.message}`));
         if (state.pendingAgeCallback) finishPendingAgeCallback().catch(error => logDebug(`Age check failed: ${error.message}`));
         finishTransferMoveWhenOnline().catch(error => logDebug(`Move announce failed: ${error.message}`));
+        // Frisch gekoppeltes Geraet (devices.js): beim einladenden Geraet melden, sobald online.
+        setTimeout(() => finishDevicePairing().catch(error => logDebug(`Device pairing failed: ${error.message}`)), 3000);
         if (state.pendingInvite) acceptPendingInvite().catch(error => logDebug(`Invite failed: ${error.message}`));
         handleIncomingShare().catch(error => logDebug(`Share target failed: ${error.message}`));
         handleNativeShare().catch(error => logDebug(`Native share failed: ${error.message}`));

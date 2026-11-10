@@ -49,7 +49,7 @@ function cancelReply() {
 // Eigene Textnachrichten (auch Bild-Unterschriften): der Text kommt ins Eingabefeld, Senden speichert die
 // Aenderung (MESSAGE_EDIT, verschluesselt wie alle Chat-Operationen); beim anderen steht "bearbeitet".
 function canEditMessage(message) {
-    return Boolean(message) && message.senderId === state.myProfile.id && !message.deleted && Boolean(message.text)
+    return Boolean(message) && (typeof isOwnNode === 'function' ? isOwnNode(message.senderId) : message.senderId === state.myProfile.id) && !message.deleted && Boolean(message.text)
         && !message.audioData && !message.secureSnap && !message.video;
 }
 
@@ -113,7 +113,7 @@ function renderReplyBar() {
     const reference = buildReplyReference(state.activeChatPeerId, state.replyToMessageId);
     bar.classList.toggle('hidden', !reference);
     if (!reference) return;
-    const author = reference.senderId === state.myProfile.id ? t('chat.yourself') : getPeerPresentation(reference.senderId).name || HIDDEN_PEER_NAME;
+    const author = (typeof isOwnNode === 'function' ? isOwnNode(reference.senderId) : reference.senderId === state.myProfile.id) ? t('chat.yourself') : getPeerPresentation(reference.senderId).name || HIDDEN_PEER_NAME;
     document.getElementById('chat-reply-author').textContent = t('chat.replyTo', { author });
     document.getElementById('chat-reply-preview').textContent = reference.preview;
 }
@@ -122,7 +122,7 @@ function renderReplyQuote(replyTo, isMine) {
     const quote = document.createElement('button');
     quote.type = 'button';
     quote.className = `max-w-[80%] mb-0.5 px-3 py-1 rounded-xl border-l-2 border-brand-400 bg-slate-800/60 text-[11px] text-slate-400 text-left truncate ${isMine ? 'self-end' : 'self-start'}`;
-    const author = replyTo.senderId === state.myProfile.id ? t('chat.you') : getPeerPresentation(replyTo.senderId).name || HIDDEN_PEER_NAME;
+    const author = (typeof isOwnNode === 'function' ? isOwnNode(replyTo.senderId) : replyTo.senderId === state.myProfile.id) ? t('chat.you') : getPeerPresentation(replyTo.senderId).name || HIDDEN_PEER_NAME;
     quote.textContent = `${author}: ${replyTo.preview}`;
     quote.onclick = () => scrollToChatMessage(replyTo.messageId);
     return quote;
@@ -328,7 +328,7 @@ function renderMessageMenu() {
         closeMessageMenu();
         return;
     }
-    const isMine = message.senderId === state.myProfile.id;
+    const isMine = (typeof isOwnNode === 'function' ? isOwnNode(message.senderId) : message.senderId === state.myProfile.id);
     let backdrop = document.getElementById('message-menu-backdrop');
     if (!backdrop) {
         backdrop = document.createElement('div');
@@ -893,7 +893,7 @@ function renderMessageSelection() {
             closeMessageSelection();
         }));
     }
-    if (messages.length && messages.every(message => message.senderId === state.myProfile.id)) {
+    if (messages.length && messages.every(message => (typeof isOwnNode === 'function' ? isOwnNode(message.senderId) : message.senderId === state.myProfile.id))) {
         actions.push(button('fa-solid fa-trash', t('common.delete'), () => deleteSelectedMessages(), true));
     }
     bar.replaceChildren(...actions);
@@ -902,7 +902,7 @@ function renderMessageSelection() {
 // Texte mit Namen, je Nachricht eine Zeile (wie beim Weiterleiten aus anderen Messengern).
 async function copySelectedMessages() {
     const lines = selectedMessages().filter(message => message.text).map(message => {
-        const author = message.senderId === state.myProfile.id ? t('chat.you') : getPeerPresentation(message.senderId).name || HIDDEN_PEER_NAME;
+        const author = (typeof isOwnNode === 'function' ? isOwnNode(message.senderId) : message.senderId === state.myProfile.id) ? t('chat.you') : getPeerPresentation(message.senderId).name || HIDDEN_PEER_NAME;
         return `${author}: ${message.text}`;
     });
     if (await copyTextToClipboard(lines.join('\n'))) showToast(t('chat.messagesCopied', { count: lines.length }), 'success');
@@ -910,7 +910,7 @@ async function copySelectedMessages() {
 }
 
 async function deleteSelectedMessages() {
-    const messages = selectedMessages().filter(message => message.senderId === state.myProfile.id);
+    const messages = selectedMessages().filter(message => (typeof isOwnNode === 'function' ? isOwnNode(message.senderId) : message.senderId === state.myProfile.id));
     if (!messages.length || !window.confirm(t('chat.deleteSelectedMessages', { count: messages.length }))) return;
     closeMessageSelection();
     for (const message of messages) await deleteChatMessage(message.id);

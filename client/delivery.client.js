@@ -372,7 +372,7 @@ function cacheNotifyKind(item) {
 async function queuePayloadInCache(peerId, item) {
     // Umzugs-Ansagen (move.js) gehen auch ueber Pfad C: Kontakte koennen gerade offline sein.
     // Gruppen-Zustand und Austritt (T36) ebenfalls, sonst erfaehrt ein offline Mitglied nichts von der Gruppe.
-    if (item.cacheQueued || !['CHAT_OPERATION', 'MOVE_ANNOUNCE', 'GROUP_STATE', 'GROUP_LEAVE', 'GROUP_SENDER_KEY', 'GROUP_MEMBER_CARD'].includes(item.payload?.type)) return false;
+    if (item.cacheQueued || !['CHAT_OPERATION', 'MOVE_ANNOUNCE', 'GROUP_STATE', 'GROUP_LEAVE', 'GROUP_SENDER_KEY', 'GROUP_MEMBER_CARD', 'DEVICE_JOIN', 'DEVICE_LIST'].includes(item.payload?.type)) return false;
     if (!state.gridSettings.cacheEnabled) {
         logDebug(`Path C skipped for ${peerId}: message cache is disabled locally.`);
         return false;
@@ -515,7 +515,7 @@ async function fetchQueuedCacheMessages() {
                     if (payload.type !== 'MOVE_ANNOUNCE' || !isValidSecurePayload(payload)) throw new Error('Sender identity key is unknown.');
                     await handleMoveAnnouncement(cachedMessage.senderId, payload, envelope.senderPublicKey);
                 } else {
-                    if (!['CHAT_OPERATION', 'MOVE_ANNOUNCE', 'GROUP_STATE', 'GROUP_LEAVE', 'GROUP_SENDER_KEY', 'GROUP_MEMBER_CARD'].includes(payload.type)) throw new Error('Unsupported cached payload type.');
+                    if (!['CHAT_OPERATION', 'MOVE_ANNOUNCE', 'GROUP_STATE', 'GROUP_LEAVE', 'GROUP_SENDER_KEY', 'GROUP_MEMBER_CARD', 'DEVICE_JOIN', 'DEVICE_LIST'].includes(payload.type)) throw new Error('Unsupported cached payload type.');
                     await handleSecurePayload(cachedMessage.senderId, payload, 'Encrypted Path C');
                 }
                 const deleteResponse = await fetch(

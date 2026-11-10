@@ -206,7 +206,7 @@ async function shouldHoldIncomingMessage(peerId, message) {
     if (policy.mode === 'A') return false;
     // Liest aus der Datenbank, der Chat muss dafuer nicht geoeffnet sein.
     const stored = await getDatabaseRecordsByIndex('messages', 'peerId', peerId).catch(() => []);
-    if (stored.some(item => item.senderId === state.myProfile.id && !item.held)) return false;
+    if (stored.some(item => (typeof isOwnNode === 'function' ? isOwnNode(item.senderId) : item.senderId === state.myProfile.id) && !item.held)) return false;
     if (policy.mode === 'C') return true;
     if (!policy.allowImages && messageHasImage(message)) return true;
     const received = stored.filter(item => item.senderId === peerId && !item.held && item.id !== message.id).length;
@@ -264,7 +264,7 @@ function getPeerChatAllowance(peerId) {
         const reason = wording.social ? t('matching.onlyFriendsCanWriteAdd') : t('matching.onlyMatchesCanWriteSend');
         return { allowed: false, remaining: 0, images: false, reason };
     }
-    const sent = (state.chats[peerId] || []).filter(message => message.senderId === state.myProfile.id && !message.deleted).length;
+    const sent = (state.chats[peerId] || []).filter(message => (typeof isOwnNode === 'function' ? isOwnNode(message.senderId) : message.senderId === state.myProfile.id) && !message.deleted).length;
     const remaining = Math.max(0, policy.limit - sent);
     return {
         allowed: remaining > 0,
@@ -409,7 +409,7 @@ async function syncChatGate() {
     try {
         const messages = await getAllDatabaseRecords('messages');
         const accepted = new Set(messages
-            .filter(message => message.senderId === state.myProfile.id && !message.held)
+            .filter(message => (typeof isOwnNode === 'function' ? isOwnNode(message.senderId) : message.senderId === state.myProfile.id) && !message.held)
             .map(message => message.peerId));
         Object.keys(state.matchState).filter(isMatched).forEach(peerId => accepted.add(peerId));
         Object.keys(state.friendState).filter(isFriend).forEach(peerId => accepted.add(peerId));

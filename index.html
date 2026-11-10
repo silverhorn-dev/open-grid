@@ -992,6 +992,16 @@
                     </label>
                 </div>
 
+                <!-- Mehrere Geraete (devices.js): dieselbe Person auf Handy und PC -->
+                <div id="devices-card" class="settings-card" data-settings-tab="media">
+                    <h3 class="settings-card-title"><i class="fa-solid fa-laptop-mobile text-sky-400"></i> <span data-i18n="devices.title">Meine Geräte</span></h3>
+                    <div class="setting-block space-y-2">
+                        <div data-i18n="devices.description" class="setting-desc">Nutze OpenGrid auf mehreren Geräten gleichzeitig, z. B. Handy und PC.</div>
+                        <div id="devices-list" class="space-y-1"></div>
+                        <button data-i18n="devices.add" id="devices-add-btn" data-click="openDevicePairing" class="btn-secondary">Gerät hinzufügen</button>
+                    </div>
+                </div>
+
                 <!-- Umzug (transfer.js, move.js): Daten auf ein anderes Geraet oder vom Browser-Tab in die installierte App -->
                 <div class="settings-card" data-settings-tab="media">
                     <h3 class="settings-card-title"><i class="fa-solid fa-truck-arrow-right text-emerald-400"></i> <span data-i18n="transfer.cardTitle">Umzug auf ein anderes Gerät</span></h3>
@@ -1492,6 +1502,7 @@
     <script src="/client/app/gifs.js?v={{assetVersion}}"></script>
     <script src="/client/app/report.js?v={{assetVersion}}"></script>
     <script src="/client/app/conversations.js?v={{assetVersion}}"></script>
+    <script src="/client/app/devices.js?v={{assetVersion}}"></script>
     <script src="/client/app/install-guide.js?v={{assetVersion}}"></script>
     <script src="/client/app/transfer.js?v={{assetVersion}}"></script>
     <script src="/client/app/move.js?v={{assetVersion}}"></script>

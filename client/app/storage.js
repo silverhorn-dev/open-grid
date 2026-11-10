@@ -471,7 +471,7 @@ function updateChatPreview(peerId, message, render = true) {
     state.chatPreviews[peerId] = {
         id: message.id,
         at,
-        mine: message.senderId === state.myProfile.id,
+        mine: (typeof isOwnNode === 'function' ? isOwnNode(message.senderId) : message.senderId === state.myProfile.id),
         text: message.deleted ? t('common.messageDeleted') : messagePreview(message)
     };
     if (render) renderActivePeerList();
@@ -733,7 +733,7 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
         // Nur der Empfaenger eines eigenen Einmal-Snaps darf ihn als verbraucht melden.
         if (localOperation.actorId !== peerId) return false;
         const ownMessage = await databaseRequest('messages', 'readonly', store => store.get(localOperation.messageId));
-        if (!ownMessage || ownMessage.peerId !== peerId || ownMessage.senderId !== state.myProfile.id
+        if (!ownMessage || ownMessage.peerId !== peerId || !(typeof isOwnNode === 'function' ? isOwnNode(ownMessage.senderId) : ownMessage.senderId === state.myProfile.id)
             || ownMessage.snapMode !== 'replay') return false;
         const loaded = state.chats[peerId]?.find(item => item.id === ownMessage.id);
         const target = loaded || ownMessage;
@@ -754,7 +754,7 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
         // Der Empfaenger meldet: er hat meinen Snap gespeichert.
         if (localOperation.actorId !== peerId) return false;
         const ownMessage = await databaseRequest('messages', 'readonly', store => store.get(localOperation.messageId));
-        if (!ownMessage || ownMessage.peerId !== peerId || ownMessage.senderId !== state.myProfile.id || !ownMessage.snapMode) return false;
+        if (!ownMessage || ownMessage.peerId !== peerId || !(typeof isOwnNode === 'function' ? isOwnNode(ownMessage.senderId) : ownMessage.senderId === state.myProfile.id) || !ownMessage.snapMode) return false;
         const target = state.chats[peerId]?.find(item => item.id === ownMessage.id) || ownMessage;
         target.savedByPeer = true;
         await persistChatMessage(peerId, target);
@@ -881,7 +881,7 @@ async function confirmDeliveredOperations(peerId, operationIds) {
         .map(operationId => operationId.slice(4));
     for (const messageId of messageIds) {
         const stored = await databaseRequest('messages', 'readonly', store => store.get(messageId));
-        if (!stored || stored.peerId !== peerId || stored.senderId !== state.myProfile.id || stored.deliveryConfirmed) continue;
+        if (!stored || stored.peerId !== peerId || !(typeof isOwnNode === 'function' ? isOwnNode(stored.senderId) : stored.senderId === state.myProfile.id) || stored.deliveryConfirmed) continue;
         const loaded = state.chats[peerId]?.find(item => item.id === messageId);
         if (loaded) loaded.deliveryConfirmed = true;
         await persistChatMessage(peerId, { ...stored, ...(loaded || {}), deliveryConfirmed: true });

@@ -180,6 +180,12 @@ const PAYLOAD_VALIDATORS = {
     // Gruppen (conversations.js, T36 P2a): signierter Zustand vom Admin, Austritt eines Mitglieds.
     GROUP_STATE: payload => isValidGroupStatePayload(payload['state'], payload.sig),
     GROUP_LEAVE: payload => isGroupConversationId(payload.groupId),
+    // Mehrere Geraete (devices.js, T36 P4a).
+    DEVICE_JOIN: payload => isId(payload.identityId) && isId(payload.inviteId) && isId(payload.nodeId)
+        && typeof payload.key?.x === 'string' && payload.key.x.length <= 64 && typeof payload.key?.y === 'string' && payload.key.y.length <= 64,
+    DEVICE_LIST: payload => Boolean(payload.list) && isId(payload.list.identityId) && isSmallInt(payload.list.version)
+        && Array.isArray(payload.list.devices) && payload.list.devices.length <= 8 && isId(payload.list.updatedBy)
+        && typeof payload.sig === 'string' && payload.sig.length <= 200,
     // Visitenkarte eines Mitglieds (Name, kleines Bild), signiert vom Besitzer.
     GROUP_MEMBER_CARD: payload => Boolean(payload.card) && isId(payload.card.ownerId) && typeof payload.card.name === 'string'
         && payload.card.name.length <= 60 && Number.isFinite(payload.card.updatedAt)

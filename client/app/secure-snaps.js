@@ -201,7 +201,7 @@ async function openOwnSecureSnap(messageId) {
     const peerId = state.activeChatPeerId;
     const message = state.chats[peerId]?.find(item => item.id === messageId);
     const snapId = message?.secureSnap?.snapId;
-    if (!snapId || message.senderId !== state.myProfile.id) return;
+    if (!snapId || !(typeof isOwnNode === 'function' ? isOwnNode(message.senderId) : message.senderId === state.myProfile.id)) return;
     const keptUntil = message.secureSnap.ownKeepUntil;
     const secret = keptUntil && keptUntil <= Date.now() ? null : await loadSecureSnapSecret(snapId);
     let bytes = null;
@@ -347,7 +347,7 @@ async function requestSecureSnapView(messageId) {
     const peerId = state.activeChatPeerId;
     const message = state.chats[peerId]?.find(item => item.id === messageId);
     const snap = message?.secureSnap;
-    if (!snap || snap.expired || !snap.encrypted || message.senderId === state.myProfile.id) return;
+    if (!snap || snap.expired || !snap.encrypted || (typeof isOwnNode === 'function' ? isOwnNode(message.senderId) : message.senderId === state.myProfile.id)) return;
     openSecureSnapViewer(t('snaps.connectingToSender'));
     state.secureSnapViewing = { peerId, snapId: snap.snapId, messageId, phase: 'requesting' };
     if (!await waitForSecureChannel(peerId)) {

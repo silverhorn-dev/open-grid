@@ -95,7 +95,7 @@ function captureVideoPoster(url) {
 }
 
 function isVideoAvailable(message) {
-    return message.senderId === state.myProfile.id || Boolean(message.originalReady);
+    return (typeof isOwnNode === 'function' ? isOwnNode(message.senderId) : message.senderId === state.myProfile.id) || Boolean(message.originalReady);
 }
 
 // Vorschaubild mit Abspiel-Symbol und Laenge; ohne Video ein Hinweis auf die direkte Uebertragung.
@@ -149,7 +149,7 @@ async function openChatVideo(message) {
         showToast(t('video.notFound'), 'error');
         return;
     }
-    const sender = message.senderId === state.myProfile.id ? 'Du' : getPeerPresentation(message.senderId).name || HIDDEN_PEER_NAME;
+    const sender = (typeof isOwnNode === 'function' ? isOwnNode(message.senderId) : message.senderId === state.myProfile.id) ? 'Du' : getPeerPresentation(message.senderId).name || HIDDEN_PEER_NAME;
     openVideoViewer(data, {
         allowSave: canDownloadMedia(message),
         title: sender,

@@ -1216,6 +1216,26 @@ Chats werden als idempotente Operationen synchronisiert:
   verbundenen Mitglied). Gespeichert in `keys`/`group-cards`. Das volle Profil
   bleibt beim Besitzer. Ohne Profil und Karte heisst ein Peer "Unbekannt"
   (nicht mehr "Peer <id>").
+- Mehrere Geraete (T36 P4a, `devices.js`): jedes Geraet behaelt seine Node-ID
+  (`state.myProfile.id`, Router/Pfad C/Signaling unveraendert). Identitaet =
+  Node-ID des Wurzel-Geraets. Geraeteliste `keys`/`device-list` =
+  `{ list: { identityId, version, devices: [{ nodeId, key: { x, y }, canAdd,
+  addedAt }], updatedBy, updatedAt }, sig }`, signiert von einem Geraet mit
+  `canAdd` (`judgeDeviceList`: hoehere Version, Unterzeichner darf hinzufuegen;
+  ein frisch gekoppeltes Geraet nimmt die erste Liste nur vom einladenden Geraet
+  und nur, wenn es selbst darin steht). Koppeln: Einstellungen > Meine Geraete >
+  "Geraet hinzufuegen" erzeugt einen Code (Umzugs-Relay) mit Daten-Buendel ohne
+  Router-Token und Umzugs-Vollmacht, dazu `pair = { invite { identityId,
+  inviteId, inviter, expiresAt (15 min) }, deviceList, deviceListSig }`. Das
+  neue Geraet uebernimmt es beim Einrichten ("Daten von einem anderen Geraet
+  uebernehmen") **ohne** IDs umzuschreiben (eigenes Profil bekommt seine
+  Node-ID), schickt danach `DEVICE_JOIN { identityId, inviteId, nodeId, key }`;
+  das einladende Geraet prueft Einladung und gepinnten Schluessel, nimmt es auf
+  (`canAdd: false`) und verteilt `DEVICE_LIST { list, sig }` an alle eigenen
+  Geraete. Nicht mitkopiert werden Geraeteliste/Einladungen und
+  Gruppen-Absender-Schluessel (`group-keys:*`). Nachrichten von eigenen
+  Geraeten gelten als eigene (`isOwnNode`); signiert wird weiter nur, was das
+  Geraet selbst geschrieben hat.
 
 Nach jedem neuen E2EE-Schluessel und vor einem weiteren Nachrichtenversand
 tauschen beide Clients die 20 neuesten Operations-IDs aus. Fehlende

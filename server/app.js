@@ -199,6 +199,7 @@ const clientAssetFiles = [
     'app/gifs.js',
     'app/report.js',
     'app/conversations.js',
+    'app/devices.js',
     'app/install-guide.js',
     'app/transfer.js',
     'app/move.js',

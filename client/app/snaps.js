@@ -56,7 +56,7 @@ function openReplaySnap(messageId) {
     const peerId = state.activeChatPeerId;
     const message = state.chats[peerId]?.find(item => item.id === messageId);
     if (!message || !isSafeInlineImage(message.snapData)) return;
-    const isMine = message.senderId === state.myProfile.id;
+    const isMine = (typeof isOwnNode === 'function' ? isOwnNode(message.senderId) : message.senderId === state.myProfile.id);
     // Die Ansicht zaehlt schon beim Oeffnen: Neu laden oder Schliessen der App waehrend des Ansehens
     // gibt keine zusaetzliche Ansicht.
     if (!isMine && !message.snapSaved) {
@@ -202,7 +202,7 @@ async function expireUsedReplaySnaps(peerId) {
 // loeschen: Einmal-Snaps das Bild, Secure Snaps Schluessel und Ciphertext.
 async function expireOwnKeptSnaps(peerId, now = Date.now()) {
     for (const message of state.chats[peerId] || []) {
-        if (message.senderId !== state.myProfile.id) continue;
+        if (!(typeof isOwnNode === 'function' ? isOwnNode(message.senderId) : message.senderId === state.myProfile.id)) continue;
         if (message.snapMode === 'replay' && message.snapData && !message.snapSaved && message.ownKeepUntil && message.ownKeepUntil <= now) {
             message.snapData = undefined;
             await removeSnapFromOperation(message.id);
@@ -226,7 +226,7 @@ function scheduleReplaySnapExpiry(peerId) {
     const next = messages
         .filter(message => message.snapMode === 'replay' && message.senderId === peerId && !message.snapSaved && message.snapData)
         .map(replaySnapExpiresAt)
-        .concat(messages.filter(message => message.senderId === state.myProfile.id)
+        .concat(messages.filter(message => (typeof isOwnNode === 'function' ? isOwnNode(message.senderId) : message.senderId === state.myProfile.id))
             .map(message => (message.snapData && !message.snapSaved ? message.ownKeepUntil : message.secureSnap?.encrypted && message.secureSnap.ownKeepUntil) || null))
         .filter(at => at !== null && at !== undefined)
         .sort((left, right) => left - right)[0];

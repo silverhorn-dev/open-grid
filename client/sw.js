@@ -98,10 +98,40 @@ async function acknowledgeQueuedMessage(routerAuth, msgId) {
     }
 }
 
-async function decryptQueuedOperation(identity, trustedSenderKey, queued) {
+// Forward Secrecy (T36 P5, wie openPathCKey in client/app/forward-secrecy.js; test/forward-secrecy.test.js
+// prueft beide gegeneinander): Umschlag v3 = HKDF(ECDH(Prekey bzw. Identitaet, Wegwerf) || ECDH(Identitaet, Identitaet)).
+async function swEcdhBits(privateKey, publicKey) {
+    const imported = await self.crypto.subtle.importKey('jwk', { kty: 'EC', crv: 'P-256', x: publicKey.x, y: publicKey.y, ext: true },
+        { name: 'ECDH', namedCurve: 'P-256' }, false, []);
+    return new Uint8Array(await self.crypto.subtle.deriveBits({ name: 'ECDH', public: imported }, privateKey, 256));
+}
+
+async function swPathCKeyV3(identity, prekeys, senderId, recipientId, envelope) {
+    const privateKey = envelope.prekeyId
+        ? (prekeys?.keys || []).find(entry => entry.id === envelope.prekeyId)?.privateKey
+        : identity.privateKey;
+    if (!privateKey) throw new Error('Prekey expired.');
+    const ephemeralSecret = await swEcdhBits(privateKey, envelope.ephemeralKey);
+    const staticSecret = await swEcdhBits(identity.privateKey, envelope.senderPublicKey);
+    const material = new Uint8Array(ephemeralSecret.length + staticSecret.length);
+    material.set(ephemeralSecret, 0);
+    material.set(staticSecret, ephemeralSecret.length);
+    const base = await self.crypto.subtle.importKey('raw', material, 'HKDF', false, ['deriveKey']);
+    return self.crypto.subtle.deriveKey({
+        name: 'HKDF', hash: 'SHA-256', salt: new TextEncoder().encode('opengrid-fs-v1'),
+        info: new TextEncoder().encode(`pathc|${senderId}|${recipientId}|${envelope.prekeyId || 'static'}`)
+    }, base, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+}
+
+async function decryptQueuedOperation(identity, trustedSenderKey, queued, context = {}) {
     const envelope = JSON.parse(queued.ciphertextPayload);
     if (!publicKeysMatch(trustedSenderKey, envelope.senderPublicKey)) {
         throw new Error('Sender identity key does not match the trusted P2P key.');
+    }
+    if (envelope.version === 3) {
+        const key = await swPathCKeyV3(identity, context.prekeys, queued.senderId || context.senderId, context.recipientId, envelope);
+        const plaintext = await self.crypto.subtle.decrypt({ name: 'AES-GCM', iv: base64ToBytes(queued.ivHex) }, key, base64ToBytes(envelope.ciphertext));
+        return JSON.parse(new TextDecoder().decode(plaintext));
     }
     const senderKey = await self.crypto.subtle.importKey(
         'jwk',
@@ -183,16 +213,18 @@ async function findPeerName(database, peerId) {
 async function receivePathCPush(data) {
     const database = await openDatabase();
     try {
-        const [identity, routerAuth, peerIdentity] = await Promise.all([
+        const [identity, routerAuth, peerIdentity, prekeys] = await Promise.all([
             getRecord(database, 'keys', 'identity-key'),
             getRecord(database, 'keys', 'router-auth'),
-            getRecord(database, 'keys', `peer-identity:${data.senderId}`)
+            getRecord(database, 'keys', `peer-identity:${data.senderId}`),
+            getRecord(database, 'keys', 'prekeys')
         ]);
         if (!identity?.privateKey || !routerAuth?.authToken || !peerIdentity?.jwkPublic) {
             throw new Error('Keys for background delivery are missing.');
         }
         const queued = data.ciphertextPayload ? data : await fetchQueuedMessage(routerAuth, data.msgId);
-        const payload = await decryptQueuedOperation(identity, peerIdentity.jwkPublic, queued);
+        const payload = await decryptQueuedOperation(identity, peerIdentity.jwkPublic, queued,
+            { prekeys, senderId: data.senderId, recipientId: routerAuth.nodeId });
         if (!isValidMessagePut(payload, data.senderId)) {
             throw new Error('Push payload is not a valid chat message.');
         }

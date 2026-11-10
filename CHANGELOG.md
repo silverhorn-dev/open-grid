@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 329 · 2026-11-10
+## Build 330 · 2026-11-10
+- Forward Secrecy: direkte Verbindungen, Nachrichten ueber den Router und Gruppen nutzen jetzt wechselnde Schluessel. Kommt spaeter jemand an dein Geraet, kann er frueher mitgeschnittene Nachrichten nicht mehr entschluesseln
+
+## Build 329 · 2026-11-10 · `253c6c1`
 - Originale (Bilder, Videos, Sprache) kommen jetzt auch, wenn der Absender offline ist: von anderen Gruppenmitgliedern oder deinen eigenen Geraeten, die sie schon haben (immer geprueft, nie ueber den Router)
 - Behoben: Originale in Gruppen kamen gar nicht an
 

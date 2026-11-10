@@ -734,20 +734,28 @@ async function saveGroupKeys(record) {
     await putDatabaseRecord('keys', record);
 }
 
+// Kette (T36 P5): `ck` ist das aktuelle Glied, `n` der Index der naechsten Nachricht. Nach jeder Nachricht wird
+// das Glied ersetzt; wer den Schluessel spaeter bekommt (neue Mitglieder), liest nur ab dem aktuellen Index.
 function newSenderKey() {
     const bytes = window.crypto.getRandomValues(new Uint8Array(32));
-    return { kid: window.crypto.randomUUID().replace(/-/g, '').slice(0, 16), key: bytesToBase64(bytes), createdAt: Date.now() };
+    return { kid: window.crypto.randomUUID().replace(/-/g, '').slice(0, 16), ck: bytesToBase64(bytes), n: 0, createdAt: Date.now() };
+}
+
+// Aeltere Schluessel (vor der Kette) als Kette ab Index 0 weiterfuehren.
+function chainedOwnKey(own) {
+    return own && !own.ck && own.key ? { kid: own.kid, ck: own.key, n: 0, createdAt: own.createdAt } : own;
 }
 
 async function distributeSenderKey(groupId, own, recipients) {
-    await Promise.all(recipients.map(member => sendSecurePayload(member, { type: 'GROUP_SENDER_KEY', groupId, kid: own.kid, key: own.key }, () => {})
+    const current = chainedOwnKey(own);
+    await Promise.all(recipients.map(member => sendSecurePayload(member, { type: 'GROUP_SENDER_KEY', groupId, kid: current.kid, key: current.ck, n: current.n }, () => {})
         .catch(logBackgroundError('distributeSenderKey'))));
 }
 
 // Eigenen Schluessel holen bzw. anlegen (rotate: neu, z. B. nach Entfernen) und an die Mitglieder geben.
 async function ensureOwnSenderKey(groupId, { rotate = false } = {}) {
     const record = await loadGroupKeys(groupId);
-    if (record.own && !rotate) return record.own;
+    if (record.own && !rotate) return chainedOwnKey(record.own);
     record.own = newSenderKey();
     await saveGroupKeys(record);
     const nodes = groupRecipientNodes(groupId);
@@ -774,9 +782,13 @@ async function handleGroupSenderKey(peerId, payload) {
     if (!group || !isGroupActive(group.id) || !group.members.includes(memberIdOf(peerId))) return false;
     const record = await loadGroupKeys(group.id);
     const known = record.members[peerId] || {};
+    // Kette (T36 P5): ein schon weiter fortgeschrittener Stand bleibt (sonst liessen sich Glieder zurueckholen).
+    const existing = known[payload.kid];
+    const incoming = Number.isInteger(payload.n) ? { ck: payload.key, n: payload.n, skipped: {} } : payload.key;
+    const value = existing && typeof existing === 'object' && typeof incoming === 'object' && existing.n >= incoming.n ? existing : incoming;
     // Nur die letzten Schluessel behalten (aeltere Nachrichten im Zwischenspeicher laufen nach 24 h ab).
     const kids = [...Object.keys(known).filter(kid => kid !== payload.kid), payload.kid].slice(-GROUP_KEYS_KEEP);
-    record.members[peerId] = Object.fromEntries(kids.map(kid => [kid, kid === payload.kid ? payload.key : known[kid]]));
+    record.members[peerId] = Object.fromEntries(kids.map(kid => [kid, kid === payload.kid ? value : known[kid]]));
     await saveGroupKeys(record);
     return true;
 }
@@ -798,26 +810,52 @@ async function senderCryptoKey(base64, usage) {
     return window.crypto.subtle.importKey('raw', base64ToBytes(base64), { name: 'AES-GCM' }, false, [usage]);
 }
 
+// Nacheinander je Gruppe: zwei gleichzeitige Nachrichten duerfen nicht denselben Index bekommen.
+function withGroupSealLock(groupId, task) {
+    const previous = state.groupSealLocks?.[groupId] || Promise.resolve();
+    const next = previous.catch(() => {}).then(task);
+    state.groupSealLocks = { ...(state.groupSealLocks || {}), [groupId]: next };
+    return next;
+}
+
 async function sealForGroup(groupId, payload) {
-    const own = await ensureOwnSenderKey(groupId);
-    const iv = window.crypto.getRandomValues(new Uint8Array(12));
-    const ciphertext = await window.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await senderCryptoKey(own.key, 'encrypt'),
-        new TextEncoder().encode(JSON.stringify(payload)));
-    return {
-        ciphertextPayload: JSON.stringify({ version: 2, kind: 'group', groupId, kid: own.kid, ciphertext: bytesToBase64(new Uint8Array(ciphertext)) }),
-        ivHex: bytesToBase64(iv)
-    };
+    return withGroupSealLock(groupId, async () => {
+        await ensureOwnSenderKey(groupId);
+        const record = await loadGroupKeys(groupId);
+        const own = chainedOwnKey(record.own);
+        const step = await chainStep(own.ck);
+        // Erst das naechste Glied speichern, dann verschluesseln: das alte Glied ist danach weg.
+        record.own = { ...own, ck: step.next, n: own.n + 1 };
+        await saveGroupKeys(record);
+        const iv = window.crypto.getRandomValues(new Uint8Array(12));
+        const ciphertext = await window.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await senderCryptoKey(step.messageKey, 'encrypt'),
+            new TextEncoder().encode(JSON.stringify(payload)));
+        return {
+            ciphertextPayload: JSON.stringify({ version: 3, kind: 'group', groupId, kid: own.kid, n: own.n, ciphertext: bytesToBase64(new Uint8Array(ciphertext)) }),
+            ivHex: bytesToBase64(iv)
+        };
+    });
 }
 
 // Gruppen-Umschlag aus Pfad C oeffnen; null = Schluessel (noch) unbekannt.
 async function openGroupEnvelope(senderId, envelope, ivBase64) {
     const group = getGroup(envelope?.groupId);
     if (!group || !isGroupActive(group.id) || !group.members.includes(memberIdOf(senderId))) return null;
-    const key = (await loadGroupKeys(group.id)).members[senderId]?.[envelope.kid];
-    if (!key) return null;
-    const plaintext = await window.crypto.subtle.decrypt({ name: 'AES-GCM', iv: base64ToBytes(ivBase64) }, await senderCryptoKey(key, 'decrypt'),
-        base64ToBytes(envelope.ciphertext));
-    return JSON.parse(new TextDecoder().decode(plaintext));
+    const record = await loadGroupKeys(group.id);
+    const stored = record.members[senderId]?.[envelope.kid];
+    if (!stored) return null;
+    const decrypt = async key => JSON.parse(new TextDecoder().decode(await window.crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: base64ToBytes(ivBase64) }, await senderCryptoKey(key, 'decrypt'), base64ToBytes(envelope.ciphertext))));
+    // Alter Absender (Schluessel ohne Kette).
+    if (typeof stored === 'string') return Number.isInteger(envelope.n) ? null : decrypt(stored);
+    if (!Number.isInteger(envelope.n)) return null;
+    const step = await chainMessageKey(stored, envelope.n);
+    if (!step) return null;
+    const payload = await decrypt(step.messageKey);
+    // Erst nach erfolgreichem Entschluesseln weiterruecken (verbrauchte Glieder sind dann weg).
+    record.members[senderId][envelope.kid] = step.state;
+    await saveGroupKeys(record);
+    return payload;
 }
 
 // Ein Upload fuer alle offline Mitglieder; liefert { ok, expiresAt, failed: [ids] }.

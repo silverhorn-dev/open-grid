@@ -85,6 +85,7 @@ test('group history and relayed operations', async () => {
     const aliceJwk = await webcrypto.subtle.exportKey('jwk', alice.publicKey);
     const context = load({ window: { crypto: webcrypto, btoa, atob }, TextEncoder, Uint8Array, getPeerIdentity: async () => null });
     vm.runInNewContext(cryptoSource, context);
+    vm.runInNewContext(readFileSync(new URL('../client/app/forward-secrecy.js', import.meta.url), 'utf8'), context);
     const relayGroup = { ...group, members: ['me', 'bob', 'alice'], memberKeys: { alice: { x: aliceJwk.x, y: aliceJwk.y } }, since: { me: 500 }, createdAt: 100 };
     context.state.groups = { [group.id]: relayGroup };
     assert.equal(context.groupSyncCutoff(relayGroup, 'me'), 500, 'history from the admin choice');
@@ -114,6 +115,7 @@ test('sender keys: seal once for the group, open per member, unknown keys wait',
         logBackgroundError: () => () => {}
     });
     vm.runInNewContext(cryptoSource, context);
+    vm.runInNewContext(readFileSync(new URL('../client/app/forward-secrecy.js', import.meta.url), 'utf8'), context);
     context.state.groups = { [group.id]: group };
     const payload = { type: 'CHAT_OPERATION', conversationId: group.id, operation: { operationId: 'put:1', actorId: 'me', conversationId: group.id } };
     const sealed = await context.sealForGroup(group.id, payload);
@@ -166,6 +168,7 @@ test('member cards: signed by the owner, accepted within shared groups, admins p
         sendSecurePayload: async (peerId, payload) => { forwarded.push({ peerId, payload }); return true; }
     });
     vm.runInNewContext(cryptoSource, context);
+    vm.runInNewContext(readFileSync(new URL('../client/app/forward-secrecy.js', import.meta.url), 'utf8'), context);
     const crew = { ...group, members: ['me', 'bob', 'carol'], admins: ['me'], memberKeys: { carol: { x: carolJwk.x, y: carolJwk.y } } };
     context.state.groups = { [crew.id]: crew };
     const card = { ownerId: 'carol', name: 'Carol', updatedAt: 5 };

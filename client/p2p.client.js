@@ -192,6 +192,7 @@ function cleanupPeerConnection(peerId, connection) {
         delete state.webrtcConnections[peerId];
         delete state.dataChannels[peerId];
         delete state.sessionKeys[peerId];
+        if (typeof forgetChannelEphemeral === 'function') forgetChannelEphemeral(peerId);
         delete state.earlyEnvelopes[peerId];
         delete state.pendingIceCandidates[peerId];
         delete state.peerChatFocus[peerId];
@@ -499,7 +500,10 @@ function sendKeyHello(peerId, channel, attempt, force = false) {
     channel.send(JSON.stringify({
         type: 'KEY_HELLO',
         publicKey: state.myKeys.jwkPublic,
-        profileSigningKey: state.myKeys.jwkEcdsaPublic
+        profileSigningKey: state.myKeys.jwkEcdsaPublic,
+        // Forward Secrecy (forward-secrecy.js, T36 P5): signierter Wegwerf-Schluessel dieses Kanals + Prekey fuer Pfad C.
+        ...(typeof channelEphemeralHello === 'function' && channelEphemeralHello(peerId) ? { ephemeral: channelEphemeralHello(peerId) } : {}),
+        ...(typeof ownPrekeyHello === 'function' && ownPrekeyHello() ? { prekey: ownPrekeyHello() } : {})
     }));
     if (!force && attempt + 1 < MAX_KEY_HELLO_ATTEMPTS) setTimeout(() => sendKeyHello(peerId, channel, attempt + 1), KEY_HELLO_RETRY_MS);
 }
@@ -513,13 +517,16 @@ function setupDataChannel(peerId, channel) {
         logDebug(`DataChannel opened with ${peerId}. Starting key handshake.`);
         updateChatConnectionStatus(peerId, t('connection.securingChannel'), 'bg-sky-500/10 text-sky-400 border-sky-500/30');
         renderActivePeerList();
-        sendKeyHello(peerId, channel, 0);
+        // Erst den Wegwerf-Schluessel des Kanals bereitstellen (T36 P5), dann das KEY_HELLO.
+        const ready = typeof ensureChannelEphemeral === 'function' ? ensureChannelEphemeral(peerId, channel) : Promise.resolve();
+        ready.catch(error => logDebug(`Ephemeral key failed: ${error.message}`)).finally(() => sendKeyHello(peerId, channel, 0));
     };
     channel.onmessage = (event) => handleDataChannelMessage(peerId, event.data);
     channel.onclose = () => {
         if (state.dataChannels[peerId] === channel) {
             delete state.dataChannels[peerId];
             delete state.sessionKeys[peerId];
+            if (typeof forgetChannelEphemeral === 'function') forgetChannelEphemeral(peerId);
             updateChatConnectionStatus(peerId, t('common.disconnected'), 'bg-red-500/10 text-red-400 border-red-500/30');
             renderActivePeerList();
         }
@@ -642,7 +649,7 @@ async function initiateP2PConnection(peerId) {
     }
 }
 
-async function deriveSessionKey(peerId, publicJwk, profileSigningKey) {
+async function deriveSessionKey(peerId, publicJwk, profileSigningKey, { ephemeral = null, prekey = null } = {}) {
     if (!profileSigningKey) throw new Error('Peer did not provide a profile signing key.');
     const knownIdentity = await getPeerIdentity(peerId);
     if (knownIdentity?.jwkPublic && !publicKeysMatch(knownIdentity.jwkPublic, publicJwk)) {
@@ -659,20 +666,32 @@ async function deriveSessionKey(peerId, publicJwk, profileSigningKey) {
         throw new Error('Peer key does not match the invite fingerprint.');
     }
     await persistPeerIdentityKey(peerId, publicJwk, profileSigningKey);
-    const publicKey = await window.crypto.subtle.importKey(
-        'jwk',
-        publicJwk,
-        {name: 'ECDH', namedCurve: 'P-256'},
-        false,
-        []
-    );
-    state.sessionKeys[peerId] = await window.crypto.subtle.deriveKey(
-        {name: 'ECDH', public: publicKey},
-        state.myKeys.keyPair.privateKey,
-        {name: 'AES-GCM', length: 256},
-        false,
-        ['encrypt', 'decrypt']
-    );
+    // Forward Secrecy (T36 P5): bot die Gegenseite sie schon einmal an, kein Rueckfall auf statische Schluessel.
+    const forwardSecrecy = typeof deriveForwardSecureSessionKey === 'function';
+    if (forwardSecrecy && !ephemeral && await peerSupportsForwardSecrecy(peerId)) {
+        throw new Error('Peer dropped forward secrecy (downgrade).');
+    }
+    if (forwardSecrecy && prekey) await storePeerPrekey(peerId, prekey, profileSigningKey).catch(() => false);
+    const forwardKey = forwardSecrecy ? await deriveForwardSecureSessionKey(peerId, publicJwk, profileSigningKey, ephemeral) : null;
+    if (forwardKey) {
+        state.sessionKeys[peerId] = forwardKey;
+    } else {
+        // Gegenseite ohne Forward Secrecy (alte Version): statisches ECDH wie bisher.
+        const publicKey = await window.crypto.subtle.importKey(
+            'jwk',
+            publicJwk,
+            {name: 'ECDH', namedCurve: 'P-256'},
+            false,
+            []
+        );
+        state.sessionKeys[peerId] = await window.crypto.subtle.deriveKey(
+            {name: 'ECDH', public: publicKey},
+            state.myKeys.keyPair.privateKey,
+            {name: 'AES-GCM', length: 256},
+            false,
+            ['encrypt', 'decrypt']
+        );
+    }
     updateChatConnectionStatus(peerId, 'E2EE connected', 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30');
     if (isChatVisibleFor(peerId)) sendChatFocus(peerId, true);
     // Profil-Handshake: neuer Kontakt (Einladung, erste Nachricht) ohne bekanntes Profil.
@@ -810,7 +829,12 @@ async function handleDataChannelMessage(peerId, rawMessage) {
         if (message.type === 'KEY_HELLO') {
             logDebug(`KEY_HELLO von ${peerId} empfangen.`);
             const hadKey = Boolean(state.sessionKeys[peerId]);
-            await deriveSessionKey(peerId, message.publicKey, message.profileSigningKey);
+            const shortKey = value => typeof value === 'string' && value.length <= 64;
+            const ephemeral = message.ephemeral && shortKey(message.ephemeral.x) && shortKey(message.ephemeral.y)
+                && typeof message.ephemeral.sig === 'string' && message.ephemeral.sig.length <= 200 ? message.ephemeral : null;
+            const prekey = message.prekey && shortKey(message.prekey.id) && shortKey(message.prekey.x) && shortKey(message.prekey.y)
+                && Number.isFinite(message.prekey.createdAt) && typeof message.prekey.sig === 'string' && message.prekey.sig.length <= 200 ? message.prekey : null;
+            await deriveSessionKey(peerId, message.publicKey, message.profileSigningKey, { ephemeral, prekey });
             logDebug(`Sitzungsschluessel fuer ${peerId} bereit.`);
             // Die Gegenseite fragt erneut (unser KEY_HELLO ging verloren): antworten.
             if (hadKey) sendKeyHello(peerId, state.dataChannels[peerId], 0, true);

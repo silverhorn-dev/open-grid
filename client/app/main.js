@@ -114,6 +114,8 @@ window.onload = async () => {
             await loadGroupCards();
             await loadDevices();
             await loadContactDevices();
+            // Forward Secrecy (T36 P5): Prekey fuer Pfad C taeglich erneuern, alte private Teile loeschen.
+            await rotatePrekeys().catch(error => logDebug(`Prekey rotation failed: ${error.message}`));
             await loadChatReads();
             await loadChatPeerIds();
         });
@@ -221,6 +223,7 @@ window.onload = async () => {
         // Abgelaufene, unbestaetigte Nachrichten erneut zustellen (delivery.client.js): kurz nach dem Start, dann stuendlich.
         setTimeout(() => resendExpiredCacheMessages().catch(logBackgroundError('resendExpiredCacheMessages')), 30000);
         setInterval(() => resendExpiredCacheMessages().catch(logBackgroundError('resendExpiredCacheMessages')), 60 * 60 * 1000);
+        setInterval(() => rotatePrekeys().catch(logBackgroundError('rotatePrekeys')), 60 * 60 * 1000);
 
     } catch (error) {
         console.error('OpenGrid startup failed.', error);

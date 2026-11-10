@@ -197,7 +197,8 @@ const PAYLOAD_VALIDATORS = {
         && typeof payload.sig === 'string' && payload.sig.length <= 200,
     GROUP_CARD_REQUEST: payload => isGroupConversationId(payload.groupId) && isIdList(payload.memberIds || [], 16),
     GROUP_SENDER_KEY: payload => isGroupConversationId(payload.groupId) && typeof payload.kid === 'string' && /^[A-Za-z0-9]{8,32}$/.test(payload.kid)
-        && typeof payload.key === 'string' && /^[A-Za-z0-9+/]{43}=$/.test(payload.key),
+        && typeof payload.key === 'string' && /^[A-Za-z0-9+/]{43}=$/.test(payload.key)
+        && (payload.n === undefined || isSmallInt(payload.n)),
     MOVE_ANNOUNCE: payload => ['delegation', 'announcement'].every(field => typeof payload[field] === 'string' && payload[field].length <= 4000)
         && ['delegationSignature', 'announcementSignature'].every(field => typeof payload[field] === 'string' && payload[field].length <= 200),
     PROFILE_RESPONSE: payload => isValidProfileEnvelope(payload.signedEnvelope || payload.profile),

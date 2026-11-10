@@ -1,8 +1,7 @@
 # Gruppenchats und Mehrgeraete-Betrieb (Plan)
 
 Stand: 2026-11-10 (Board T35, Backlog "group chats" und "Mehrgeraete-Betrieb").
-Gebaut: P0, P1, P2 (Gruppen), P3 (Medien-Schwarm) und P4 (Mehrgeraete,
-2026-11-10; Umsetzung in SPECE.md). Offen: P5 (Forward Secrecy). Abweichung bei
+Alle Phasen gebaut (P0-P5, 2026-11-10; Umsetzung in SPECE.md). Abweichung bei
 P3: kein eigener Medien-Schluessel/`mediaId`; der Schwarm nutzt die vorhandenen
 Originale (Nachrichten-ID + SHA-256 in der Nachricht), uebertragen ueber die
 paarweise verschluesselten Kanaele. Abweichung bei P4:

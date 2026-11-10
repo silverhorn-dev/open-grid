@@ -403,7 +403,9 @@ async function queuePayloadInCache(peerId, item) {
         return false;
     }
 
-    const encryptionKey = await deriveCacheEncryptionKey(peerPublicKey);
+    // Forward Secrecy (T36 P5): Wegwerf-Schluessel + Prekey des Empfaengers (Umschlag v3).
+    const sealed = typeof sealPathCKey === 'function' ? await sealPathCKey(peerId, peerPublicKey) : null;
+    const encryptionKey = sealed ? sealed.key : await deriveCacheEncryptionKey(peerPublicKey);
     const iv = window.crypto.getRandomValues(new Uint8Array(12));
     const ciphertext = await window.crypto.subtle.encrypt(
         {name: 'AES-GCM', iv},
@@ -416,11 +418,9 @@ async function queuePayloadInCache(peerId, item) {
         body: JSON.stringify({
             recipientId: peerId,
             senderId: state.myProfile.id,
-            ciphertextPayload: JSON.stringify({
-                version: 1,
-                senderPublicKey: state.myKeys.jwkPublic,
-                ciphertext: bytesToBase64(new Uint8Array(ciphertext))
-            }),
+            ciphertextPayload: JSON.stringify(sealed
+                ? { ...sealed.envelope, ciphertext: bytesToBase64(new Uint8Array(ciphertext)) }
+                : { version: 1, senderPublicKey: state.myKeys.jwkPublic, ciphertext: bytesToBase64(new Uint8Array(ciphertext)) }),
             ivHex: bytesToBase64(iv),
             ttlHours: 24,
             // Nur neue Nachrichten, Flammen/Matches, Anfragen und Profilbesuche wecken den Empfaenger per
@@ -524,7 +524,9 @@ async function fetchQueuedCacheMessages() {
                 if (!trusted && trustedSenderKey) {
                     throw new Error('Sender identity key does not match the trusted P2P key.');
                 }
-                const decryptionKey = await deriveCacheEncryptionKey(envelope.senderPublicKey);
+                const decryptionKey = envelope.version === 3
+                    ? await openPathCKey(cachedMessage.senderId, envelope)
+                    : await deriveCacheEncryptionKey(envelope.senderPublicKey);
                 const plaintext = await window.crypto.subtle.decrypt(
                     {name: 'AES-GCM', iv: base64ToBytes(cachedMessage.ivHex)},
                     decryptionKey,

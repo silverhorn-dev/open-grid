@@ -726,7 +726,6 @@
   - [x] nutzer 2026-11-10: profile in gruppen "meshy" teilen (A kennt C nicht, B laedt beide ein, C offline) + "Unbekannt" statt node-ID -> signierte visitenkarten, admin reicht weiter, nachfragen; tests `test/conversations.test.js`, e2e `groups-cards`
   - [x] nutzer 2026-11-10: profile aus der gruppen-uebersicht oeffnen -> mitglieder und absendernamen antippbar (`openGroupMemberProfile`); e2e `groups`
   - [x] P2c absender-schluessel + gebuendelter pfad C (2026-11-10): `GROUP_SENDER_KEY`, rotation bei entfernen, `POST /api/cache { recipientIds }`, signatur pflicht in gruppen; tests `test/conversations.test.js`, `test/server.test.js`, e2e `groups-bundle`
-- [ ] P3 medien-schwarm
 - [x] P3 medien-schwarm (2026-11-10): originale von jedem, der sie hat (eigene geraete, absender-geraete, gruppen-mitglieder), `ORIGINAL_MISSING` -> naechste quelle, hash-pruefung; tests `test/originals.test.js`, e2e `groups-swarm`, `devices`; UC-80
 - [x] P4 mehrgeraete
   - ansatz (2026-11-10): jedes geraet behaelt seine node-ID (routing unveraendert), identitaet = node-ID der wurzel, signierte geraeteliste; kontakte mit mehreren geraeten wie eine kleine gruppe
@@ -735,9 +734,9 @@
   - [x] P4c kontakte senden an alle geraete einer person, eingehende der identitaet zuordnen (2026-11-10): geraeteliste an kontakte, anker = gepinnter identitaets-schluessel, fan-out, `identityOf`; tests `test/devices.test.js`, e2e `devices`
   - [x] P4e beim koppeln alles uebertragen (gruppen-schluessel, sperren), danach nur chats + gruppen abgleichen; gruppen ueber geraete (mitglied = identitaet) (2026-11-10); e2e `devices`
   - [x] P4d grid nur zuletzt aktives geraet, geraete verwalten (entfernen, recht weitergeben) (2026-11-10): `DEVICE_ACTIVE`, stille anmeldung, `removeOwnDevice`/`grantDeviceRight`; e2e `devices`
-- [ ] P5 forward secrecy
+- [x] P5 forward secrecy (2026-11-10): P2P mit signierten wegwerf-schluesseln je kanal, pfad C v3 (wegwerf + prekey, 24 h / 7 tage), gruppen-kette je nachricht, kein rueckfall bei FS-faehigen gegenstellen; SW leitet mit ab; tests `test/forward-secrecy.test.js`, e2e `forward-secrecy`; UC-81
 - [x] 3 security-hackathon -> `documentation/SECURITY-HACKATHON.md`
   - behoben: S1 fremde `actorId` in operationen (`isOperationFromPeer`), S2 gefaelschte schwarm-profile (grid `keyFp` + `signingKeyFingerprint`), S3 wegmelden mit wegwerf-konten (`USER_REPORT_MIN_AGE_HOURS`, std 24), S4 zu grosse sync-antworten (teil 1)
   - geprueft ok: GIF-proxy (SSRF), router-cache fremder nutzer, umzug, P2P-nutzlasten/XSS, TURN (nur metadaten)
-  - [ ] offen S5: keine forward secrecy (statisches ECDH fuer P2P + pfad C) -> GRUPPEN-MEHRGERAETE.md entscheidung 8 / P5
+  - [x] S5 behoben mit P5: keine forward secrecy (statisches ECDH fuer P2P + pfad C) -> GRUPPEN-MEHRGERAETE.md entscheidung 8 / P5
   - S12 einschaetzung: keine code-verschleierung (bringt keine sicherheit); echte attestierung nur in der android-app

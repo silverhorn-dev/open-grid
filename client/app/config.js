@@ -216,6 +216,10 @@ const state = {
     // Gruppen-Absender-Schluessel von noch unbekannten Geraeten, bis deren Geraeteliste da ist (P4).
     pendingDeviceSenderKeys: {},
     deviceListSent: {},
+    // Forward Secrecy (forward-secrecy.js, T36 P5): Wegwerf-Schluessel je Kanal, eigener Prekey, Gruppen-Sperren.
+    channelEphemerals: {},
+    ownPrekey: null,
+    groupSealLocks: {},
     snapPageEnabled: null,
     // App-Modus (P8): vom Server erlaubte Modi, gewaehlter Modus und Event-Daten.
     appConfig: { modes: ['discovery', 'chat', 'friends', 'event'], defaultMode: 'discovery' },

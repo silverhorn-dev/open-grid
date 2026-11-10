@@ -1291,6 +1291,34 @@ Chats werden als idempotente Operationen synchronisiert:
   { messageId }`, dann fragt der Empfaenger die naechste offene Quelle. Geprueft
   wird immer gegen `original.size` und `original.sha256` der Nachricht (in
   Gruppen signiert), egal wer liefert.
+- Forward Secrecy (T36 P5, `forward-secrecy.js`):
+  - P2P: `KEY_HELLO` traegt zusaetzlich `ephemeral { x, y, sig }` (Wegwerf-ECDH
+    je Kanal, signiert mit dem Identitaets-ECDSA-Schluessel ueber
+    `{ purpose: 'p2p-ephemeral', from, to, x, y }`) und `prekey`.
+    Sitzungsschluessel = HKDF-SHA-256(salt `opengrid-fs-v1`, info
+    `p2p|<ids sortiert>|<x sortiert>`, ECDH(Wegwerf, Wegwerf) ||
+    ECDH(Identitaet, Identitaet)); der private Wegwerf-Schluessel wird danach
+    verworfen. Gegenstellen ohne `ephemeral` (alte Version) bekommen den
+    statischen Schluessel, ausser sie haben schon einmal einen Prekey geschickt
+    (dann Abbruch: kein Rueckfall).
+  - Prekeys: `keys`/`prekeys` = `{ keys: [{ id, x, y, createdAt, sig,
+    privateKey (CryptoKey) }] }`, neu nach 24 h, private Teile nach 7 Tagen
+    geloescht (Rotation beim Start, stuendlich und vor dem ersten
+    Kanalaufbau). Fremde Prekeys (signiert, `{ purpose: 'prekey', id, x, y,
+    createdAt }`) in `keys`/`peer-prekey:<nodeId>`; Absender nutzen sie bis 6
+    Tage nach `createdAt`.
+  - Pfad C 1:1, Umschlag v3: `{ version: 3, senderPublicKey, ephemeralKey
+    { x, y }, prekeyId | null, ciphertext }`; Schluessel = HKDF(info
+    `pathc|<sender>|<empfaenger>|<prekeyId|static>`, ECDH(Wegwerf, Prekey bzw.
+    Identitaet des Empfaengers) || ECDH(Identitaet, Identitaet)). Der Service
+    Worker leitet genauso ab (`swPathCKeyV3`). Version 1 wird weiter gelesen.
+  - Gruppen-Buendel v3: `{ version: 3, kind: 'group', groupId, kid, n,
+    ciphertext }`; Absender-Schluessel als Kette (`ck`, `n`): Nachrichten-
+    schluessel = HMAC(ck, 0x01), naechstes Glied = HMAC(ck, 0x02), altes Glied
+    geloescht. `GROUP_SENDER_KEY { key: ck, n }` gibt den aktuellen Stand
+    weiter (Neue lesen erst ab dort). Empfaenger rueckt erst nach erfolgreichem
+    Entschluesseln vor und hebt uebersprungene Schluessel auf (hoechstens 500).
+    Schluessel ohne `n` (alte Absender) werden wie bisher direkt genutzt.
 
 Nach jedem neuen E2EE-Schluessel und vor einem weiteren Nachrichtenversand
 tauschen beide Clients die 20 neuesten Operations-IDs aus. Fehlende

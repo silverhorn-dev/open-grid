@@ -1431,3 +1431,20 @@ Akzeptanzkriterien:
 - Wer nicht in der Gruppe ist (oder erst nach der Nachricht beigetreten ist),
   bekommt nichts.
 
+## UC-81: Alte Nachrichten bleiben geschuetzt (Forward Secrecy)
+
+**Als Nutzer** moechte ich, dass jemand, der spaeter an mein Geraet kommt,
+frueher mitgeschnittene Nachrichten nicht entschluesseln kann.
+
+Akzeptanzkriterien:
+
+- Jede direkte Verbindung nutzt eigene Wegwerf-Schluessel; danach sind sie
+  verworfen.
+- Nachrichten ueber den Router-Zwischenspeicher nutzen einen Wegwerf-Schluessel
+  und den taeglich wechselnden Prekey des Empfaengers; nach 7 Tagen ist der
+  private Prekey geloescht.
+- In Gruppen hat jede Nachricht einen eigenen Schluessel; benutzte Schluessel
+  sind danach weg, neue Mitglieder lesen erst ab ihrem Beitritt.
+- Eine Gegenstelle, die das schon einmal konnte, faellt nicht auf die alten
+  festen Schluessel zurueck.
+

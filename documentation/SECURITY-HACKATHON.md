@@ -13,7 +13,7 @@ beheben, Test behalten. Board T35.
 | S2 | Gefaelschte Schwarm-Profile | mittel | behoben |
 | S3 | Wegmelden mit Wegwerf-Konten | mittel | behoben |
 | S4 | Zu grosse Sync-Antworten (Verfuegbarkeit) | mittel | behoben (Chat-Sync-Pruefung) |
-| S5 | Keine Forward Secrecy | mittel | offen, geplant |
+| S5 | Keine Forward Secrecy | mittel | behoben (P5) |
 | S6 | GIF-Links verraten IP und Oeffnen | niedrig | akzeptiert (Zustimmung, Proxy) |
 | S7 | Ungesigniertes Alt-Profil vom direkten Peer | niedrig | akzeptiert |
 | S8 | GIF-Proxy (SSRF) | - | geprueft, in Ordnung |
@@ -68,7 +68,7 @@ Siehe SPECE "Pruefung des Chat-Syncs": eine Sync-Antwort mit mehreren Bildern
 passte nicht in eine DataChannel-Nachricht; jetzt in Paketen. Gegenprobe e2e
 `sync-large`.
 
-### S5 Keine Forward Secrecy (offen)
+### S5 Keine Forward Secrecy (behoben, P5)
 
 - P2P-Sitzung und Pfad C nutzen statisches ECDH je Paar -> immer derselbe
   AES-Schluessel. Wer spaeter an einen privaten Geraeteschluessel kommt und
@@ -77,8 +77,18 @@ passte nicht in eine DataChannel-Nachricht; jetzt in Paketen. Gegenprobe e2e
   entschluesseln.
 - Mildernd: Schluessel sind nicht exportierbar (im Browser gespeichert),
   Pfad C haelt hoechstens 72 h.
-- Plan: ephemeres ECDH beim Verbinden fuer P2P, Ketten-Schluessel fuer Gruppen
-  (GRUPPEN-MEHRGERAETE.md, Entscheidung 8, Phase P5).
+- Fix (2026-11-10, `client/app/forward-secrecy.js`, Details in SPECE.md):
+  P2P-Sitzung aus signierten Wegwerf-Schluesseln je Kanal (gemischt mit dem
+  statischen ECDH), Pfad C als Umschlag v3 mit Wegwerf-Schluessel des
+  Absenders und taeglich wechselndem Prekey des Empfaengers (privat nach 7
+  Tagen geloescht), Gruppen-Absender-Schluessel als Kette je Nachricht. Kein
+  Rueckfall auf statische Schluessel bei Gegenstellen, die FS schon einmal
+  angeboten haben. Tests: `test/forward-secrecy.test.js`, E2E `forward-secrecy`.
+- Grenzen: Gegenstellen mit alter Version und Pfad-C-Nachrichten an Kontakte
+  ohne bekannten Prekey (nie oder vor mehr als 6 Tagen verbunden) nutzen
+  weiter statisches ECDH fuer die Empfaengerseite; die Absenderseite ist durch
+  den Wegwerf-Schluessel trotzdem geschuetzt. Keine "Selbstheilung" nach einer
+  Kompromittierung (kein Double Ratchet).
 
 ### S6 GIF-Links verraten IP und Oeffnen (akzeptiert)
 

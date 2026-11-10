@@ -509,9 +509,10 @@ async function continueVoicePlayback(playback) {
 
 function requestVoiceRest(message) {
     const peerId = message.peerId || state.activeChatPeerId;
-    if (!peerId || message.senderId !== peerId) return;
-    if (isSecureChannelOpen(peerId)) requestMissingOriginals(peerId).catch(logBackgroundError('requestVoiceRest'));
-    else initiateP2PConnection(peerId).catch(logBackgroundError('requestVoiceRest'));
+    if (!peerId || message.senderId === state.myProfile.id) return;
+    // Schwarm (T36 P3): jede offene Quelle fragen; ohne Kanal zum Absender verbinden.
+    requestMissingOriginals(peerId).catch(logBackgroundError('requestVoiceRest'));
+    if (!isSecureChannelOpen(message.senderId)) initiateP2PConnection(message.senderId).catch(logBackgroundError('requestVoiceRest'));
 }
 
 // Von originals.js: Rest ist angekommen. Wartet die Wiedergabe darauf, geht es direkt weiter.

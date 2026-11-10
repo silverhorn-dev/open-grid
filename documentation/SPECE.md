@@ -1279,6 +1279,18 @@ Chats werden als idempotente Operationen synchronisiert:
   Geraete werden aufgehoben, bis deren Liste da ist. Anker fuer die Liste eines
   Mitglieds ohne gepinnten Schluessel: `memberKeys` aus einem Admin-signierten
   Gruppen-Zustand. Die Visitenkarte signiert nur das Wurzel-Geraet.
+- Medien-Schwarm (T36 P3, `originals.js`): Originale (Bild, Video, Sprach-Rest)
+  reisen weiter nur ueber verschluesselte DataChannels, nie ueber Pfad C (dort
+  nur die Vorschau). Liefern darf jeder, der das Original hat und die Nachricht
+  sehen darf (`mayReceiveOriginal`): eigene andere Geraete, im 1:1 jedes Geraet
+  der Partner-Identitaet, in Gruppen jedes aktive Mitglied ab seinem `since`.
+  Quellen (`isOriginalSource`): Geraete des Absenders, eigene Geraete, in
+  Gruppen alle Mitglieder. `ORIGINAL_REQUEST { messageId, conversationId? }`
+  (`conversationId` fehlt nur, wenn es der 1:1-Chat mit dem Gefragten ist);
+  wer es nicht hat (oder noch nicht fertig), antwortet `ORIGINAL_MISSING
+  { messageId }`, dann fragt der Empfaenger die naechste offene Quelle. Geprueft
+  wird immer gegen `original.size` und `original.sha256` der Nachricht (in
+  Gruppen signiert), egal wer liefert.
 
 Nach jedem neuen E2EE-Schluessel und vor einem weiteren Nachrichtenversand
 tauschen beide Clients die 20 neuesten Operations-IDs aus. Fehlende

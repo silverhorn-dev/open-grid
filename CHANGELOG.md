@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 328 · 2026-11-10
+## Build 329 · 2026-11-10
+- Originale (Bilder, Videos, Sprache) kommen jetzt auch, wenn der Absender offline ist: von anderen Gruppenmitgliedern oder deinen eigenen Geraeten, die sie schon haben (immer geprueft, nie ueber den Router)
+- Behoben: Originale in Gruppen kamen gar nicht an
+
+## Build 328 · 2026-11-10 · `d3c19b2`
 - Mehrere Geraete: beim Koppeln kommt jetzt alles mit (auch Gruppen, Einstellungen und Sperren); danach bleiben Chats und Gruppen abgeglichen, Einstellungen nicht
 - Gruppen funktionieren auf allen deinen Geraeten: du kannst ueberall schreiben, die anderen sehen dich als eine Person
 

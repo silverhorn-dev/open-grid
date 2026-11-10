@@ -1415,3 +1415,19 @@ Akzeptanzkriterien:
   Danach bleiben Chats und Gruppen abgeglichen, Einstellungen nicht.
 - In Gruppen kann ich von jedem Geraet schreiben; die anderen sehen mich als
   eine Person.
+
+## UC-80: Medien aus dem Schwarm
+
+**Als Gruppenmitglied** moechte ich Originale (Bilder, Videos, Sprache) auch
+bekommen, wenn der Absender gerade offline ist.
+
+Akzeptanzkriterien:
+
+- Hat ein anderes Mitglied (oder eines meiner Geraete) das Original schon,
+  bekomme ich es von dort, sobald wir verbunden sind.
+- Was ankommt, wird gegen Groesse und Hash aus der Nachricht geprueft; passt
+  es nicht, wird es verworfen.
+- Originale gehen nie ueber den Router-Zwischenspeicher, nur die Vorschau.
+- Wer nicht in der Gruppe ist (oder erst nach der Nachricht beigetreten ist),
+  bekommt nichts.
+

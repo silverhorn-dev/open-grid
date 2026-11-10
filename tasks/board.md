@@ -727,6 +727,7 @@
   - [x] nutzer 2026-11-10: profile aus der gruppen-uebersicht oeffnen -> mitglieder und absendernamen antippbar (`openGroupMemberProfile`); e2e `groups`
   - [x] P2c absender-schluessel + gebuendelter pfad C (2026-11-10): `GROUP_SENDER_KEY`, rotation bei entfernen, `POST /api/cache { recipientIds }`, signatur pflicht in gruppen; tests `test/conversations.test.js`, `test/server.test.js`, e2e `groups-bundle`
 - [ ] P3 medien-schwarm
+- [x] P3 medien-schwarm (2026-11-10): originale von jedem, der sie hat (eigene geraete, absender-geraete, gruppen-mitglieder), `ORIGINAL_MISSING` -> naechste quelle, hash-pruefung; tests `test/originals.test.js`, e2e `groups-swarm`, `devices`; UC-80
 - [x] P4 mehrgeraete
   - ansatz (2026-11-10): jedes geraet behaelt seine node-ID (routing unveraendert), identitaet = node-ID der wurzel, signierte geraeteliste; kontakte mit mehreren geraeten wie eine kleine gruppe
   - [x] P4a geraeteliste + koppeln per code (ohne umzug, ohne ID-umschreiben), `isOwnNode`; tests `test/devices.test.js`, e2e `devices`; UC-79

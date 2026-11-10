@@ -139,8 +139,9 @@ async function openChatVideo(message) {
         showToast(t('video.isOnlySentDirectly'), 'info');
         const peerId = state.activeChatPeerId;
         if (peerId) {
-            if (!isSecureChannelOpen(peerId)) initiateP2PConnection(peerId).catch(logBackgroundError('openChatVideo'));
-            else requestMissingOriginals(peerId).catch(logBackgroundError('openChatVideo'));
+            // Schwarm (T36 P3): offene Quellen fragen, sonst zum Absender verbinden.
+            requestMissingOriginals(peerId).catch(logBackgroundError('openChatVideo'));
+            if (!isSecureChannelOpen(message.senderId)) initiateP2PConnection(message.senderId).catch(logBackgroundError('openChatVideo'));
         }
         return;
     }

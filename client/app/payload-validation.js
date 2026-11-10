@@ -227,7 +227,9 @@ const PAYLOAD_VALIDATORS = {
     SNAP_STREAM_PLAYING: payload => isId(payload.snapId),
     SNAP_STREAM_END: payload => isId(payload.snapId),
     SNAP_VIEW_CLOSED: payload => isId(payload.snapId),
-    ORIGINAL_REQUEST: payload => isId(payload.messageId),
+    // Schwarm (T36 P3): Gruppe bzw. Chat bei Anfragen an andere als den Absender.
+    ORIGINAL_REQUEST: payload => isId(payload.messageId) && (payload.conversationId === undefined || isId(payload.conversationId)),
+    ORIGINAL_MISSING: payload => isId(payload.messageId),
     ORIGINAL_CHUNK: payload => isId(payload.messageId) && isSmallInt(payload.index) && isSmallInt(payload.total)
         && payload.total <= 400 && typeof payload.data === 'string' && payload.data.length <= 64 * 1024,
     IMAGE_REQUEST: payload => isId(payload.imageId) && (payload.version === undefined || isSmallInt(payload.version)),

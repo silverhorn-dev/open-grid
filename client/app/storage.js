@@ -662,8 +662,8 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
             }
             // Chat-Berechtigungen: ohne Match ggf. zurueckhalten (wird beim Match freigegeben).
             if (await shouldHoldIncomingMessage(peerId, message)) message.held = true;
-            // Original folgt nur ueber P2P: anfragen, sobald ein Kanal offen ist.
-            if (message.original && message.senderId === peerId && typeof requestMissingOriginals === 'function') {
+            // Original folgt nur ueber P2P (Absender oder Schwarm): anfragen, sobald ein Kanal offen ist.
+            if (message.original && message.senderId !== state.myProfile.id && typeof requestMissingOriginals === 'function') {
                 setTimeout(() => requestMissingOriginals(peerId).catch(logBackgroundError('applyChatOperation')), 0);
             }
             // Liste des Absenders (Grid & Event oder Chat & Freunde), wenn der Chat noch keine hat.

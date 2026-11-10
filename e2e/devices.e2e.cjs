@@ -84,6 +84,18 @@ async function main() {
         await waitFor(pc, id => (state.chats[id] || []).some(message => message.text === 'handy schreibt'), bobId, 45000);
         await bob.evaluate(async id => { await openChatWithPeer(id); document.getElementById('chat-input').value = 'bob antwortet'; await sendChatMessage(); }, phoneId);
         await waitFor(pc, id => (state.chats[id] || []).some(message => message.text === 'bob antwortet'), bobId, 45000);
+        // P3: Original eines Bildes vom Handy kommt auch auf den PC (eigenes Geraet als Quelle).
+        const imageId = await phone.evaluate(async id => {
+            await openChatWithPeer(id);
+            const canvas = document.createElement('canvas');
+            canvas.width = 600; canvas.height = 400;
+            const context = canvas.getContext('2d');
+            for (let index = 0; index < 200; index++) { context.fillStyle = `hsl(${index * 41 % 360}, 60%, 50%)`; context.fillRect((index * 31) % 600, (index * 17) % 400, 50, 30); }
+            await sendChatMessage(canvas.toDataURL('image/jpeg', 0.3), '', null, null, { original: await createOriginalImage(canvas, id) });
+            return state.chats[id].at(-1).id;
+        }, bobId);
+        await waitFor(pc, mid => Object.values(state.chats).flat().find(message => message.id === mid)?.originalReady === true, imageId, 60000);
+
         // P4c: Bob kennt Alices Geraete; was der PC schreibt, steht bei Bob im Chat mit Alice (nicht als neuer Kontakt).
         await waitFor(bob, ([identity, device]) => contactDeviceNodes(identity).includes(device), [phoneId, pcId], 45000);
         await pc.evaluate(async id => { await openChatWithPeer(id); document.getElementById('chat-input').value = 'vom pc'; await sendChatMessage(); }, bobId);

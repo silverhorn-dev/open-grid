@@ -1043,6 +1043,8 @@ async function handleSecurePayload(peerId, payload, deliveredVia = 'E2EE P2P') {
         await handleOriginalRequest(peerId, payload);
     } else if (payload.type === 'ORIGINAL_CHUNK') {
         await handleOriginalChunk(peerId, payload);
+    } else if (payload.type === 'ORIGINAL_MISSING') {
+        await handleOriginalMissing(peerId, payload);
     } else if (payload.type === 'SWARM_IMAGE_REQUEST') {
         await handleSwarmImageRequest(peerId, payload);
     } else if (payload.type === 'SWARM_IMAGE_RESPONSE') {

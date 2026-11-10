@@ -721,6 +721,7 @@
 - [x] P2 gruppen (mitglieder-ops, admins, 16, absender-schluessel, pfad C gebuendelt, verlauf nach wahl)
   - [x] P2a verwalten + oberflaeche (2026-11-10): signierter `GROUP_STATE` vom admin, `GROUP_LEAVE`, anlegen aus freunden/event-peers, gruppen-info (umbenennen, hinzufuegen, entfernen, admin, verlassen), absendernamen, kopf mit mitgliederzahl, gruppenbild; tests `test/conversations.test.js`, e2e `groups`; UC-78
   - [x] P2b verlauf fuer neue mitglieder (admin waehlt: keiner / letzte 50) + chat-sync fuer gruppen (2026-11-10): `since` + `memberKeys` im signierten zustand, `CHAT_SYNC_*` mit `conversationId`, weitergereichte ops nur signiert vom urheber; tests `test/conversations.test.js`, e2e `groups-history`
+  - [x] bugs (nutzer 2026-11-10): kopf-klick im gruppenchat oeffnete ein profil -> gruppen-einstellungen (`openProfileModal`); gruppe ohne nachricht verschwand aus der liste -> `loadChatPeerIds` nimmt gruppen mit auf; e2e `groups`
   - [x] P2c absender-schluessel + gebuendelter pfad C (2026-11-10): `GROUP_SENDER_KEY`, rotation bei entfernen, `POST /api/cache { recipientIds }`, signatur pflicht in gruppen; tests `test/conversations.test.js`, `test/server.test.js`, e2e `groups-bundle`
 - [ ] P3 medien-schwarm
 - [ ] P4 mehrgeraete

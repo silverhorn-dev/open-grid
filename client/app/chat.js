@@ -37,6 +37,11 @@ async function probePeerPresence(peerId) {
 }
 
 function openProfileModal(peerId) {
+    // Gruppe (conversations.js): statt eines Profils die Gruppen-Einstellungen.
+    if (typeof isGroupId === 'function' && isGroupId(peerId)) {
+        openGroupInfo(peerId);
+        return;
+    }
     state.activeModalPeerId = peerId;
     const peer = state.peers.find(p => p.id === peerId) || getPeerPresentation(peerId);
     if (!peer) return;

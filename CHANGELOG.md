@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 319 · 2026-11-10
+## Build 320 · 2026-11-10
+- Behoben: ein Tipp auf den Kopf eines Gruppenchats oeffnete ein Profil statt der Gruppen-Einstellungen
+- Behoben: eine neue Gruppe ohne Nachricht verschwand wieder aus der Chatliste
+
+## Build 319 · 2026-11-10 · `790aac2`
 - Gruppen: sind Mitglieder offline, geht eine Nachricht nur noch einmal (verschluesselt fuer die Gruppe) in den Zwischenspeicher statt einzeln fuer jeden
 - Gruppen: wer entfernt wurde, kann neue Nachrichten nicht mehr entschluesseln
 

@@ -326,6 +326,8 @@ async function loadChatPeerIds() {
 
     state.chatPeerIds = Array.from(new Set([
         ...activeMessages.map(message => message.peerId),
+        // Gruppen auch ohne Nachricht (sonst verschwindet eine frisch erstellte Gruppe beim Neuaufbau der Liste).
+        ...Object.values(state.groups || {}).filter(group => !group.left).map(group => group.id),
         ...Object.values(state.chatControls)
             .filter(control => control.blockedAt)
 

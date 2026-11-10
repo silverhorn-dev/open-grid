@@ -60,6 +60,17 @@ async function main() {
         await waitFor(alice, () => document.getElementById('chat-peer-name').textContent === 'Crew'
             && /3 Mitglieder/.test(document.getElementById('chat-peer-status').textContent), null, 10000);
 
+        // Kopf antippen: Gruppen-Einstellungen statt Profil.
+        await alice.click('[data-click="openActiveChatProfile"]');
+        await alice.waitForSelector('#group-leave-btn', { timeout: 5000 });
+        assert.equal(await alice.evaluate(() => document.getElementById('profile-detail-modal').classList.contains('hidden')), true, 'no profile popup');
+        await alice.evaluate(() => closeMediaModal());
+        // Ohne Nachricht neu laden: die Gruppe bleibt in der Liste.
+        await alice.reload();
+        await waitFor(alice, () => Boolean(state.ws && state.ws.readyState === 1 && state.myProfile.id));
+        await waitFor(alice, id => state.chatPeerIds.includes(id) && document.getElementById('active-peers-list')?.textContent.includes('Crew'), groupId, 15000);
+        await alice.evaluate(id => openChatWithPeer(id), groupId);
+
         // Bob und Carol bekommen die Gruppe.
         for (const page of [bob, carol]) await waitFor(page, id => Boolean(getGroup(id)) && state.chatPeerIds.includes(id), groupId, 45000);
 

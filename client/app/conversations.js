@@ -514,7 +514,19 @@ function openGroupInfo(groupId = state.activeChatPeerId) {
         const name = document.createElement('span');
         name.className = 'flex-1 min-w-0 truncate text-sm text-slate-200';
         name.textContent = member === state.myProfile.id ? t('groups.you') : displayNameFor(member);
-        row.append(image, name);
+        if (member === state.myProfile.id) {
+            row.append(image, name);
+        } else {
+            // Antippen oeffnet das Profil des Mitglieds (zeigt, was bekannt ist, und holt den Rest).
+            const open = document.createElement('button');
+            open.type = 'button';
+            open.className = 'flex-1 min-w-0 flex items-center gap-3 text-left hover:opacity-80';
+            open.dataset.groupMemberProfile = member;
+            open.setAttribute('aria-label', t('chat.showProfile'));
+            open.onclick = () => openGroupMemberProfile(member);
+            open.append(image, name);
+            row.appendChild(open);
+        }
         if (group.admins.includes(member)) {
             const badge = document.createElement('span');
             badge.className = 'text-[11px] font-semibold text-brand-300';
@@ -604,6 +616,32 @@ function openGroupMemberAdder(groupId) {
     };
     content.append(picker.list, history, confirm);
 }
+
+function openGroupMemberProfile(peerId) {
+    if (!peerId || peerId === state.myProfile.id) return;
+    const show = () => {
+        openProfileModal(peerId);
+        // Profil fehlt noch: direkt bzw. ueber den Schwarm anfragen.
+        if (!state.cachedProfiles?.[peerId] && typeof requestMissingProfile === 'function') requestMissingProfile(peerId);
+    };
+    // Die Gruppen-Uebersicht schliesst ueber history.back() (asynchron); erst danach das Profil oeffnen,
+    // sonst nimmt dieses Zurueck gleich das neue Profil-Fenster mit.
+    if (!document.getElementById('media-modal')?.classList.contains('hidden')) {
+        let done = false;
+        const once = () => {
+            if (done) return;
+            done = true;
+            window.removeEventListener('popstate', once);
+            setTimeout(show, 0);
+        };
+        window.addEventListener('popstate', once);
+        setTimeout(once, 400);
+        closeMediaModal();
+        return;
+    }
+    show();
+}
+
 
 function chatMenuGroupInfo() {
     if (typeof closeChatHeaderMenu === 'function') closeChatHeaderMenu();

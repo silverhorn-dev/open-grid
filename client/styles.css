@@ -1592,3 +1592,5 @@ html {
 
 /* Gruppen (conversations.js): Absendername ueber fremden Nachrichten */
 .chat-group-sender { font-size: 0.6875rem; font-weight: 600; color: rgb(var(--brand-300, 165 180 252)); margin: 0.25rem 0 0.125rem 0.5rem; }
+.chat-group-sender { cursor: pointer; }
+.chat-group-sender:hover { text-decoration: underline; }

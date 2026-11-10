@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 322 · 2026-11-10
+## Build 323 · 2026-11-10
+- Gruppen: Mitglieder in der Gruppen-Uebersicht und Absendernamen im Chat antippen oeffnet das Profil
+
+## Build 322 · 2026-11-10 · `317a6c3`
 - Gruppen: Mitglieder sehen Namen und Bild voneinander, auch wenn sie sich vorher nicht kannten und der andere gerade offline ist
 - Unbekannte Personen heissen jetzt "Unbekannt" statt einer langen Geraete-ID
 

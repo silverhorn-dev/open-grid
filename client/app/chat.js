@@ -795,6 +795,12 @@ function renderChatHistory() {
             sender.className = 'chat-group-sender';
             sender.dataset.groupSender = message.senderId;
             sender.textContent = displayNameFor(message.senderId);
+            sender.setAttribute('role', 'button');
+            sender.tabIndex = 0;
+            sender.onclick = event => {
+                event.stopPropagation();
+                openGroupMemberProfile(message.senderId);
+            };
             row.appendChild(sender);
         }
         previousSenderId = message.senderId;

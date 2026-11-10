@@ -92,11 +92,20 @@ async function main() {
         assert.equal(await bob.evaluate(() => document.getElementById('block-peer-btn').classList.contains('hidden')), true);
         assert.equal(await bob.evaluate(() => document.getElementById('chat-menu-group').classList.contains('hidden')), false);
 
+        // Absendername antippen: Profil von Alice.
+        await bob.click(`#chat-messages [data-group-sender="${aliceId}"]`);
+        await waitFor(bob, id => !document.getElementById('profile-detail-modal').classList.contains('hidden') && state.activeModalPeerId === id, aliceId, 10000);
+        await bob.evaluate(() => closeProfileModal());
+
         // Nur Admins: Bob sieht keine Admin-Knoepfe.
         await bob.evaluate(() => chatMenuGroupInfo());
         await bob.waitForSelector('#group-leave-btn', { timeout: 5000 });
         assert.equal(await bob.locator('[data-group-remove]').count(), 0, 'no admin actions for members');
-        await bob.evaluate(() => closeMediaModal());
+        // Mitglied in der Uebersicht antippen: dessen Profil.
+        await bob.click(`[data-group-member-profile="${carolId}"]`);
+        await waitFor(bob, id => !document.getElementById('profile-detail-modal').classList.contains('hidden') && state.activeModalPeerId === id, carolId, 10000);
+        assert.equal(await bob.locator(`[data-group-member-profile="${bobId}"]`).count(), 0, 'own entry is not a profile link');
+        await bob.evaluate(() => closeProfileModal());
 
         // Admin entfernt Carol.
         await alice.evaluate(() => chatMenuGroupInfo());

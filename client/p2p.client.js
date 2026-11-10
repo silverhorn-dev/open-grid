@@ -861,7 +861,8 @@ async function handleSecurePayload(peerId, payload, deliveredVia = 'E2EE P2P') {
             sendSecurePayload(peerId, { type: 'CHAT_OPERATION_ACK', operationId: payload.operation.operationId })
                 .catch(logBackgroundError('handleSecurePayload'));
         }
-        await applyChatOperation(peerId, payload.operation, deliveredVia);
+        if (isOperationFromPeer(peerId, payload.operation)) await applyChatOperation(peerId, payload.operation, deliveredVia);
+        else logDebug(`Ignored an operation from ${peerId} on behalf of ${payload.operation?.actorId}.`);
     } else if (payload.type === 'CHAT_OPERATION_ACK') {
         handleP2PAck(peerId, payload.operationId);
     } else if (payload.type === 'CHAT_FOCUS') {
@@ -876,7 +877,8 @@ async function handleSecurePayload(peerId, payload, deliveredVia = 'E2EE P2P') {
         await sendRequestedChatOperations(peerId, payload.operationIds || []);
     } else if (payload.type === 'CHAT_SYNC_OPERATIONS') {
         for (const operation of payload.operations || []) {
-            await applyChatOperation(peerId, operation, 'E2EE Sync');
+            if (isOperationFromPeer(peerId, operation)) await applyChatOperation(peerId, operation, 'E2EE Sync');
+            else logDebug(`Ignored a synced operation from ${peerId} on behalf of ${operation?.actorId}.`);
         }
     } else if (payload.type === 'CHAT_MESSAGE') {
         await receiveChatMessage(peerId, payload);
@@ -923,8 +925,15 @@ async function handleSecurePayload(peerId, payload, deliveredVia = 'E2EE P2P') {
             return;
         }
         if (verdict === 'unpinned') {
+            // Ohne gepinnten Schluessel koennte jeder ein Profil "von A" mit eigenem Schluessel signieren. Darum
+            // nur annehmen, wenn der Schluessel zum Fingerabdruck passt, den der Router fuer A meldet.
+            const expected = state.peers.find(peer => peer.id === targetNodeId)?.keyFp;
+            if (!expected || expected !== await signingKeyFingerprint(signedEnvelope.publicKey)) {
+                logDebug(`Schwarm-Profil fuer ${targetNodeId} von ${peerId} verworfen: Schluessel passt nicht zum Router.`);
+                return;
+            }
             logDebug(`Schwarm-Profil fuer ${targetNodeId} von ${peerId} erhalten (Signatur gueltig, `
-                + 'Schluessel noch unbestaetigt - wird erst bei direkter Verbindung gepinnt).');
+                + 'Schluessel passt zum Router, noch unbestaetigt - wird erst bei direkter Verbindung gepinnt).');
         } else {
             logDebug(`Gueltiges Schwarm-Profil fuer ${targetNodeId} von ${peerId} erhalten!`);
         }

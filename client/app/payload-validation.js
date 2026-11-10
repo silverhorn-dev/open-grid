@@ -89,6 +89,12 @@ function isValidChatOperation(operation) {
     return true;
 }
 
+// Eine Operation, die Peer B schickt (P2P, Sync, Pfad C), darf nur B selbst als Urheber haben. Sonst koennte
+// ein Kontakt Nachrichten "von mir" oder von Dritten in meinen Verlauf schreiben (Security-Hackathon 2026-11-10).
+function isOperationFromPeer(peerId, operation) {
+    return Boolean(operation) && typeof peerId === 'string' && (operation.actorId === undefined || operation.actorId === peerId);
+}
+
 function isValidProfileEnvelope(envelope) {
     if (!envelope || typeof envelope !== 'object') return false;
     // Signierter Umschlag oder (alt) direktes Profil.

@@ -100,6 +100,13 @@ async function sha256Base64(text) {
  * kryptografisch intakt, aber der Schluessel selbst ist unbestaetigt und darf
  * nicht als vertrauenswuerdig gepinnt werden.
  */
+// Fingerabdruck eines Signaturschluessels wie im Grid des Routers (server/app.js, keyFingerprint).
+async function signingKeyFingerprint(jwk) {
+    if (typeof jwk?.x !== 'string' || typeof jwk?.y !== 'string') return null;
+    const digest = new Uint8Array(await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${jwk.x}.${jwk.y}`)));
+    return bytesToBase64(digest).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '').slice(0, 22);
+}
+
 async function verifySignedProfile(signedEnvelope, expectedOwnerId, expectedPublicKey) {
     try {
         if (!signedEnvelope?.payload || !signedEnvelope.signature || !signedEnvelope.publicKey) return false;

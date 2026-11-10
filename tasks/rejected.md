@@ -20,3 +20,8 @@ Aufgaben, die nicht (mehr) umgesetzt werden, mit Grund.
 ## Snap-Seite: Modus-Wahl schon im Editor (verworfen 2026-11-04)
 - idee (T30 plan 3): snap / secure / bild nicht mehr per lasche an der kamera, sondern erst im editor waehlen; ggf. auch "als profilbild"
 - grund (nutzer): "we could drop modus in edit", der aktuelle stand (lasche + zielauswahl mit mehreren zielen) ist gut; stattdessen den stand gemeinsam durchsprechen
+
+## Code-Hashing / Verschleierung der PWA (verworfen 2026-11-10)
+- idee (backlog security hackathon): app-code hashen, sonderzeichen an bestimmten stellen, js unlesbar machen, damit veraenderte clients auffallen
+- grund: in einer PWA kontrolliert der nutzer seinen browser ganz; jede pruefung im client laesst sich entfernen, verschleierung macht die app nur schwerer pruefbar. schutz entsteht durch pruefungen beim empfaenger und auf dem router (S1, S2) und E2E; echte attestierung nur in der android-app (`documentation/SECURITY-HACKATHON.md` S12)
+

@@ -582,6 +582,10 @@ Kam der neue Chat ohne P2P-Sitzung (erste Nachricht ueber den Router-Cache
 oder Push), holt `requestMissingProfile` das Profil aktiv: direkt per
 `PROFILE_REQUEST` (startet den P2P-Aufbau), sobald der Peer laut Praesenz online
 ist, und zusaetzlich per `SWARM_PROFILE_REQUEST` ueber andere offene Kanaele.
+Ein ueber Dritte bezogenes Profil mit noch nicht gepinntem Schluessel wird nur
+angenommen, wenn `signingKeyFingerprint(publicKey)` (SHA-256 ueber `x.y`,
+base64url, 22 Zeichen) dem `keyFp` des Grid-Eintrags entspricht, den der Router
+aus dem Registrierungsschluessel berechnet (SECURITY-HACKATHON.md, S2).
 Je Weg hoechstens einmal pro Minute und Peer; ein Klick aufs Profil ist nicht
 noetig.
 
@@ -1124,6 +1128,9 @@ Chats werden als idempotente Operationen synchronisiert:
   sind.
 - Operationen besitzen global eindeutige IDs und koennen mehrfach empfangen
   werden, ohne doppelte Nachrichten zu erzeugen.
+- Von Peer B (P2P, Sync, Pfad C) werden nur Operationen mit `actorId` = B
+  angenommen (`isOperationFromPeer`); ein Kontakt kann keine Nachrichten im
+  Namen anderer einspielen (SECURITY-HACKATHON.md, S1).
 
 Nach jedem neuen E2EE-Schluessel und vor einem weiteren Nachrichtenversand
 tauschen beide Clients die 20 neuesten Operations-IDs aus. Fehlende
@@ -1783,7 +1790,9 @@ Manuell (`client/app/report.js`, Chat-Menue "Melden"): `{ kind: 'user', reason,
 note? }` mit `reason` aus spam, harassment, sexual, minor, scam, hate,
 violence, impersonation, other (Pflicht; bei `other` Notiz ab 3 Zeichen),
 Spalte `reason`. Danach bietet die App das normale Blockieren an. Haben
-`USER_REPORT_HIDE` (Standard 3, 0 = nie, live) verschiedene Peers offene
+`USER_REPORT_HIDE` (Standard 3, 0 = nie, live) verschiedene Peers mit einem
+Konto aelter als `USER_REPORT_MIN_AGE_HOURS` (Standard 24, Schutz vor
+Wegwerf-Konten; `reporterSince` im Panel) offene
 Meldungen ueber denselben Peer, kommt er in `report_hidden_peers` und sein
 Grid-Eintrag wird sofort still (wie "unsichtbar"); jede Anmeldung bleibt
 still, bis der Admin sperrt oder "Wieder sichtbar machen" waehlt (`POST

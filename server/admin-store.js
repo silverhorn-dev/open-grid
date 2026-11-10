@@ -81,12 +81,18 @@ export function createAdminStore(database) {
         upsertSetting: database.prepare('INSERT INTO admin_settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at'),
         deleteSetting: database.prepare('DELETE FROM admin_settings WHERE key = ?'),
         insertReport: database.prepare('INSERT INTO reports (id, reporter_id, reported_id, kind, reason, matches, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'),
-        openReporters: database.prepare("SELECT COUNT(DISTINCT reporter_id) AS count FROM reports WHERE reported_id = ? AND status = 'open'"),
+        // Nur Melder mit Konto aelter als minAge zaehlen (sonst reichen drei Wegwerf-Konten zum Ausblenden).
+        openReporters: database.prepare(`
+            SELECT COUNT(DISTINCT r.reporter_id) AS count FROM reports r
+            JOIN peer_credentials c ON c.peer_id = r.reporter_id
+            WHERE r.reported_id = ? AND r.status = 'open' AND c.created_at <= ?
+        `),
         hidePeer: database.prepare('INSERT OR IGNORE INTO report_hidden_peers (peer_id, hidden_at) VALUES (?, ?)'),
         unhidePeer: database.prepare('DELETE FROM report_hidden_peers WHERE peer_id = ?'),
         findHidden: database.prepare('SELECT hidden_at AS hiddenAt FROM report_hidden_peers WHERE peer_id = ?'),
         listReports: database.prepare(`
             SELECT r.id, r.reporter_id AS reporterId, r.reported_id AS reportedId, r.kind, r.reason, r.matches, r.note,
+                   (SELECT c.created_at FROM peer_credentials c WHERE c.peer_id = r.reporter_id) AS reporterSince,
                    r.created_at AS createdAt, r.status, r.resolved_at AS resolvedAt,
                    EXISTS (SELECT 1 FROM report_hidden_peers hidden WHERE hidden.peer_id = r.reported_id) AS hidden,
                    (SELECT COUNT(*) FROM reports other WHERE other.reported_id = r.reported_id) AS reportsAboutPeer,
@@ -135,7 +141,7 @@ export function createAdminStore(database) {
         deleteSetting: key => statements.deleteSetting.run(key).changes > 0,
         addReport: ({ id, reporterId, reportedId, kind, reason, matches, note }, now = Date.now()) => statements.insertReport.run(id, reporterId, reportedId, kind, reason ?? null, matches ?? null, note ?? null, now),
         // Verschiedene Peers mit offener Meldung ueber diesen Peer.
-        openReporterCount: reportedId => Number(statements.openReporters.get(reportedId).count),
+        openReporterCount: (reportedId, minAccountAgeMs = 0, now = Date.now()) => Number(statements.openReporters.get(reportedId, now - minAccountAgeMs).count),
         hidePeer: (peerId, now = Date.now()) => statements.hidePeer.run(peerId, now).changes > 0,
         unhidePeer: peerId => statements.unhidePeer.run(peerId).changes > 0,
         isPeerHidden: peerId => Boolean(statements.findHidden.get(peerId)),

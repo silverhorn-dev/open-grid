@@ -51,6 +51,8 @@ services:
       GIF_REPORT_HIDE: ${GIF_REPORT_HIDE:-3}
       # Nutzer-Meldungen: ab so vielen verschiedenen Meldern im Grid ausgeblendet (0 = nie).
       USER_REPORT_HIDE: ${USER_REPORT_HIDE:-3}
+      # Nur Melder mit Konto aelter als so viele Stunden zaehlen dafuer.
+      USER_REPORT_MIN_AGE_HOURS: ${USER_REPORT_MIN_AGE_HOURS:-24}
       # Anbieter-Suche: off | klipy (Schluessel aus dem Klipy-Partner-Panel; Anfragen gehen direkt vom Browser).
       GIF_PROVIDER: ${GIF_PROVIDER:-off}
       GIF_PROVIDER_KEY: ${GIF_PROVIDER_KEY:-}

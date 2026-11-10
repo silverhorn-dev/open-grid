@@ -710,4 +710,8 @@
   - fuer 3 (security): ein peer kann im 1:1-chat operationen mit `actorId` = eigene ID einspielen (verlauf-wiederherstellung) -> pruefen
 - [x] 2 plan-dokument gruppen + mehrgeraete -> `documentation/GRUPPEN-MEHRGERAETE.md` (gemeinsamer kern "unterhaltung mit mitgliedern", signierte operationen, fan-out, sender keys, medien-schwarm, geraete-bescheinigungen, phasen P0-P5, 8 offene entscheidungen)
   - [ ] nutzer: offene entscheidungen beantworten, dann P0 (signierte operationen) bauen
-- [ ] 3 security-hackathon
+- [x] 3 security-hackathon -> `documentation/SECURITY-HACKATHON.md`
+  - behoben: S1 fremde `actorId` in operationen (`isOperationFromPeer`), S2 gefaelschte schwarm-profile (grid `keyFp` + `signingKeyFingerprint`), S3 wegmelden mit wegwerf-konten (`USER_REPORT_MIN_AGE_HOURS`, std 24), S4 zu grosse sync-antworten (teil 1)
+  - geprueft ok: GIF-proxy (SSRF), router-cache fremder nutzer, umzug, P2P-nutzlasten/XSS, TURN (nur metadaten)
+  - [ ] offen S5: keine forward secrecy (statisches ECDH fuer P2P + pfad C) -> GRUPPEN-MEHRGERAETE.md entscheidung 8 / P5
+  - S12 einschaetzung: keine code-verschleierung (bringt keine sicherheit); echte attestierung nur in der android-app

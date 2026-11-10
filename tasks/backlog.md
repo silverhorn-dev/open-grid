@@ -107,13 +107,13 @@ Ideen ohne festen Termin. Neue Phasen werden von hier auf `tasks/board.md` gehol
 
 > to harden things diffrent things should be tried to Hack OG, infrastruktur, protocols, Caching, Turning, everything
 
-- [ ] Try to hack into a P2P Conn or read it
-- [ ] Try to hack into a client via a P2P connection
-- [ ] Try to hack user via profile request
-- [ ] Try to Modify client, so u can read things you shouldnt read
-	- [ ] Implementation of some hashing over the pwa code to ensure things arent touched.
+- [x] Try to hack into a P2P Conn or read it (2026-11-10: S5 keine forward secrecy offen, sonst ok; `documentation/SECURITY-HACKATHON.md`)
+- [x] Try to hack into a client via a P2P connection (S1 behoben, S10 ok)
+- [x] Try to hack user via profile request (S2 behoben)
+- [x] Try to Modify client, so u can read things you shouldnt read (S12: verschleierung bringt nichts, schutz ueber pruefungen beim empfaenger/router)
+	- [x] Implementation of some hashing over the pwa code to ensure things arent touched. -> verworfen (S12), siehe tasks/rejected.md
 		- special characters at special positions.
 		- js encription? how do u call it, make things very difficult to read, or unreadable. 
 			- maybe after the deploy, app code should be readable in the repo, but not in the app? (optional)
-- [ ] try to listen or catch messages running over the turn server
-- [ ] try to read the reouter cache of other users
+- [x] try to listen or catch messages running over the turn server (S11: nur metadaten)
+- [x] try to read the reouter cache of other users (S9: token des empfaengers noetig)

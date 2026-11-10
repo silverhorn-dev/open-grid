@@ -317,6 +317,14 @@ async function gridPeerIds(query = 'geohash=u10j2k') {
     return response.json();
 }
 
+test('grid entries carry a fingerprint of the registered signing key', async () => {
+    await registerPeer('peer-fp');
+    const { createHash } = await import('node:crypto');
+    const jwk = peerSigningKeys.get('peer-fp').publicKey.export({ format: 'jwk' });
+    const entry = (await gridPeerIds()).peers.find(peer => peer.id === 'peer-fp');
+    assert.equal(entry.keyFp, createHash('sha256').update(`${jwk.x}.${jwk.y}`).digest('base64url').slice(0, 22));
+});
+
 test('hides silent peers from the grid and tombstones them for other clients', async () => {
     await registerPeer('peer-a');
     await registerPeer('peer-b');
@@ -376,7 +384,7 @@ test('loads the grid ring by ring with distance buckets and no locations', async
     assert.deepEqual(ring0.peers.map(peer => peer.id), ['peer-a']);
     assert.equal(ring0.hasMore, true);
     // Keine Standorte; die Profil-Version ist nur ein Zaehler (ohne Angabe null).
-    assert.deepEqual(Object.keys(ring0.peers[0]).sort(), ['avatar', 'distanceBucket', 'id', 'name', 'version']);
+    assert.deepEqual(Object.keys(ring0.peers[0]).sort(), ['avatar', 'distanceBucket', 'id', 'keyFp', 'name', 'version']);
     assert.equal(ring0.peers[0].version, null);
     assert.equal(ring0.peers[0].distanceBucket, 'lt1');
     await app.inject({ method: 'POST', url: '/api/register', headers: authHeaders('peer-a'), payload: registrationPayload('peer-a', 'registration-peer-a', { profileVersion: 7 }) });
@@ -1354,25 +1362,47 @@ test('gif proxy: off by default, tokens, private addresses, redirects, types and
 
 test('users can be reported manually with a reason; several reporters hide them from the grid until the admin decides', async () => {
     for (const id of ['peer-bad', 'peer-u1', 'peer-u2', 'peer-u3']) await registerPeer(id);
-    const reportAs = (reporter, body) => app.inject({ method: 'POST', url: '/api/reports', headers: authHeaders(reporter), payload: { peerId: reporter, reportedPeerId: 'peer-bad', kind: 'user', ...body } });
-    assert.equal((await reportAs('peer-u1', {})).statusCode, 400, 'reason required');
-    assert.equal((await reportAs('peer-u1', { reason: 'bogus' })).statusCode, 400);
-    assert.equal((await reportAs('peer-u1', { reason: 'other' })).statusCode, 400, 'other needs a note');
-    assert.equal((await reportAs('peer-u1', { reason: 'harassment', note: 'beleidigt mich' })).statusCode, 200);
-    assert.equal((await reportAs('peer-u1', { reason: 'spam' })).json().duplicate, true, 'one open report per reporter');
-    assert.equal((await reportAs('peer-u2', { reason: 'other', note: 'fake profil' })).statusCode, 200);
-    assert.ok((await gridPeerIds()).peers.some(peer => peer.id === 'peer-bad'), 'two reporters: still visible');
-    assert.equal((await reportAs('peer-u3', { reason: 'scam' })).statusCode, 200);
-    assert.ok(!(await gridPeerIds()).peers.some(peer => peer.id === 'peer-bad'), 'hidden right away after three reporters');
-    // Neu anmelden hilft nicht.
-    await reregister('peer-bad');
-    assert.ok(!(await gridPeerIds()).peers.some(peer => peer.id === 'peer-bad'), 'stays hidden after re-registering');
-    const listed = store.admin.listReports('open');
-    assert.deepEqual(listed.map(report => report.reason).sort(), ['harassment', 'other', 'scam']);
-    assert.ok(listed.every(report => report.hidden));
-    // Admin stellt wieder her: alle Meldungen erledigt, beim naechsten Anmelden wieder sichtbar.
-    assert.ok(store.admin.resolveReport(listed[0].id, 'restored'));
-    assert.equal(store.admin.openReportCount(), 0);
-    await reregister('peer-bad');
-    assert.ok((await gridPeerIds()).peers.some(peer => peer.id === 'peer-bad'));
+    const reportAs = (target, reporter, body) => target.inject({ method: 'POST', url: '/api/reports', headers: authHeaders(reporter), payload: { peerId: reporter, reportedPeerId: 'peer-bad', kind: 'user', ...body } });
+    assert.equal((await reportAs(app, 'peer-u1', {})).statusCode, 400, 'reason required');
+    assert.equal((await reportAs(app, 'peer-u1', { reason: 'bogus' })).statusCode, 400);
+    assert.equal((await reportAs(app, 'peer-u1', { reason: 'other' })).statusCode, 400, 'other needs a note');
+    // Drei frische Konten (Wegwerf-Konten) reichen nicht zum Ausblenden; gespeichert wird trotzdem.
+    assert.equal((await reportAs(app, 'peer-u1', { reason: 'harassment', note: 'beleidigt mich' })).statusCode, 200);
+    assert.equal((await reportAs(app, 'peer-u1', { reason: 'spam' })).json().duplicate, true, 'one open report per reporter');
+    assert.equal((await reportAs(app, 'peer-u2', { reason: 'other', note: 'fake profil' })).statusCode, 200);
+    assert.equal((await reportAs(app, 'peer-u3', { reason: 'scam' })).statusCode, 200);
+    assert.ok((await gridPeerIds()).peers.some(peer => peer.id === 'peer-bad'), 'fresh accounts cannot hide anyone');
+    assert.equal(store.admin.listReports('open').length, 3);
+    assert.ok(store.admin.listReports('open').every(report => Number.isFinite(report.reporterSince)), 'panel sees the account age');
+
+    // Mit aelteren Konten (hier: Mindestalter 0) blenden drei Melder aus.
+    const agedStore = createStore(':memory:');
+    const aged = await buildApp({ store: agedStore, reporterMinAccountAgeMs: 0, metrics: false });
+    try {
+        const tokens = {};
+        for (const id of ['peer-bad', 'peer-u1', 'peer-u2', 'peer-u3']) {
+            const response = await aged.inject({ method: 'POST', url: '/api/register', payload: registrationPayload(id, `registration-${id}`) });
+            tokens[id] = response.json().authToken;
+        }
+        const reportAged = (reporter, body) => aged.inject({ method: 'POST', url: '/api/reports', headers: { authorization: `Bearer ${tokens[reporter]}` }, payload: { peerId: reporter, reportedPeerId: 'peer-bad', kind: 'user', ...body } });
+        const visible = async () => (await aged.inject({ method: 'GET', url: '/api/grid?geohash=u10j2k' })).json().peers.some(peer => peer.id === 'peer-bad');
+        await reportAged('peer-u1', { reason: 'harassment' });
+        await reportAged('peer-u2', { reason: 'spam' });
+        assert.equal(await visible(), true, 'two reporters: still visible');
+        await reportAged('peer-u3', { reason: 'scam' });
+        assert.equal(await visible(), false, 'hidden right away after three reporters');
+        const again = await aged.inject({ method: 'POST', url: '/api/register', payload: registrationPayload('peer-bad', 'registration-peer-bad', { authToken: tokens['peer-bad'] }) });
+        assert.equal(again.statusCode, 200);
+        assert.equal(await visible(), false, 'stays hidden after re-registering');
+        const listed = agedStore.admin.listReports('open');
+        assert.deepEqual(listed.map(report => report.reason).sort(), ['harassment', 'scam', 'spam']);
+        assert.ok(listed.every(report => report.hidden));
+        assert.ok(agedStore.admin.resolveReport(listed[0].id, 'restored'));
+        assert.equal(agedStore.admin.openReportCount(), 0);
+        await aged.inject({ method: 'POST', url: '/api/register', payload: registrationPayload('peer-bad', 'registration-peer-bad', { authToken: tokens['peer-bad'] }) });
+        assert.equal(await visible(), true);
+    } finally {
+        await aged.close();
+    }
 });
+

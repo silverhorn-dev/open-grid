@@ -18,7 +18,11 @@ export function parseUserReportHide(value) {
     return count;
 }
 
-export function registerReportRoutes(app, { store, allowRequest, requirePeerAuth, isString, log, hideAfter = () => 3, onHidden = () => {} }) {
+// Fuer das automatische Ausblenden zaehlen nur Melder, deren Konto mindestens so alt ist (Schutz vor
+// Wegwerf-Konten; ein Konto kostet nur einen Schluessel). Gespeichert wird jede Meldung.
+export const REPORTER_MIN_ACCOUNT_AGE_MS = 24 * 60 * 60 * 1000;
+
+export function registerReportRoutes(app, { store, allowRequest, requirePeerAuth, isString, log, hideAfter = () => 3, onHidden = () => {}, minAccountAgeMs = REPORTER_MIN_ACCOUNT_AGE_MS, now = Date.now }) {
     app.post('/api/reports', async (request, reply) => {
         const { peerId, reportedPeerId, kind = 'leak', matches, note, reason } = request.body || {};
         if (!isString(peerId, 200) || !isString(reportedPeerId, 200) || !REPORT_KINDS.includes(kind)) {
@@ -49,7 +53,7 @@ export function registerReportRoutes(app, { store, allowRequest, requirePeerAuth
         });
         log.info('New report for the admin panel.');
         const limit = hideAfter();
-        if (kind === 'user' && limit > 0 && store.admin.openReporterCount(reportedPeerId) >= limit && store.admin.hidePeer(reportedPeerId)) {
+        if (kind === 'user' && limit > 0 && store.admin.openReporterCount(reportedPeerId, minAccountAgeMs, now()) >= limit && store.admin.hidePeer(reportedPeerId)) {
             log.info('A reported peer was hidden from the grid until the admin decides.');
             onHidden(reportedPeerId);
         }

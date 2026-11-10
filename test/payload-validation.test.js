@@ -51,3 +51,11 @@ test('album revoke operations need an album id', () => {
     assert.equal(valid({ type: 'ALBUM_VIEW_CLOSED', albumId: 'alb_1' }), true);
     assert.equal(valid({ type: 'ALBUM_VIEW_CLOSED' }), false);
 });
+
+test('operations from a peer may only carry that peer as actor', () => {
+    assert.equal(context.isOperationFromPeer('peer', put), true);
+    assert.equal(context.isOperationFromPeer('peer', { ...put, actorId: undefined }), true, 'types without actor rely on their own checks');
+    assert.equal(context.isOperationFromPeer('peer', { ...put, actorId: 'me', message: { ...message, senderId: 'me' } }), false, 'no messages "from me" injected by a contact');
+    assert.equal(context.isOperationFromPeer('peer', { ...put, actorId: 'someone-else' }), false);
+    assert.equal(context.isOperationFromPeer('peer', null), false);
+});

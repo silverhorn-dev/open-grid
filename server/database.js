@@ -188,21 +188,23 @@ export function createStore(databasePath, { credentialRetentionDays = DEFAULT_CR
         setPeerSilent: database.prepare('UPDATE peers SET silent = ? WHERE peer_id = ?'),
         deletePeerRegistration: database.prepare('DELETE FROM peers WHERE peer_id = ? AND registration_id = ?'),
         // Prefix-Abfrage ueber den (geohash, expires_at)-Index: geohash >= prefix AND geohash < prefix + '~'.
+        // identityJwk: Signaturschluessel aus der Registrierung (fuer den Fingerabdruck im Grid, gegen gefaelschte
+        // Schwarm-Profile; client/p2p.client.js).
         listPeersInCell: database.prepare(`
-            SELECT peer_id AS peerId, geohash, thumbnail, name, profile_version AS profileVersion, audience
-            FROM peers
+            SELECT peers.peer_id AS peerId, geohash, thumbnail, name, profile_version AS profileVersion, audience, credentials.identity_jwk AS identityJwk
+            FROM peers LEFT JOIN peer_credentials credentials ON credentials.peer_id = peers.peer_id
             WHERE geohash >= ? AND geohash < ? AND expires_at > ? AND silent = 0 AND scope = 'public'
         `),
         listEventPeers: database.prepare(`
-            SELECT peer_id AS peerId, geohash, thumbnail, name, profile_version AS profileVersion, audience
-            FROM peers
+            SELECT peers.peer_id AS peerId, geohash, thumbnail, name, profile_version AS profileVersion, audience, credentials.identity_jwk AS identityJwk
+            FROM peers LEFT JOIN peer_credentials credentials ON credentials.peer_id = peers.peer_id
             WHERE event_hash = ? AND scope = 'event' AND expires_at > ? AND silent = 0
             LIMIT 500
         `),
         findVisiblePeer: database.prepare(`
-            SELECT peer_id AS peerId, geohash, thumbnail, name, profile_version AS profileVersion, audience
-            FROM peers
-            WHERE peer_id = ? AND expires_at > ? AND silent = 0 AND scope IN ('public', 'friends')
+            SELECT peers.peer_id AS peerId, geohash, thumbnail, name, profile_version AS profileVersion, audience, credentials.identity_jwk AS identityJwk
+            FROM peers LEFT JOIN peer_credentials credentials ON credentials.peer_id = peers.peer_id
+            WHERE peers.peer_id = ? AND expires_at > ? AND silent = 0 AND scope IN ('public', 'friends')
         `),
         listRemovedInCell: database.prepare(`
             SELECT peer_id AS peerId

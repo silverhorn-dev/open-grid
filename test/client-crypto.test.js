@@ -16,7 +16,7 @@ async function loadCryptoClient() {
         }
     });
     vm.runInContext(`${source}
-        globalThis.cryptoClient = { signProfileData, verifySignedProfile };
+        globalThis.cryptoClient = { signProfileData, verifySignedProfile, signingKeyFingerprint };
     `, context);
     return context.cryptoClient;
 }
@@ -74,4 +74,14 @@ test('the signed profile carries chat rules and the add flag, tampering breaks i
     assert.equal(envelope.payload.allowMatchFriends, false);
     const tampered = { ...envelope, payload: { ...envelope.payload, allowMatchFriends: true } };
     assert.equal(await verifySignedProfile(tampered, 'peer-a', publicKey), false);
+});
+
+test('signing key fingerprints match the router grid (keyFp)', async () => {
+    const { signingKeyFingerprint } = await loadCryptoClient();
+    const { createHash, generateKeyPairSync } = await import('node:crypto');
+    const { publicKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+    const jwk = publicKey.export({ format: 'jwk' });
+    const router = createHash('sha256').update(`${jwk.x}.${jwk.y}`).digest('base64url').slice(0, 22);
+    assert.equal(await signingKeyFingerprint(jwk), router);
+    assert.equal(await signingKeyFingerprint({}), null);
 });

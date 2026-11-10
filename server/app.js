@@ -1101,7 +1101,10 @@ export async function buildApp(options = {}) {
     // Meldungen aus der App (server/reports.js), bearbeitet im Admin-Panel.
     registerReportRoutes(app, {
         store, allowRequest, requirePeerAuth, isString, log: app.log,
-        hideAfter: () => userReportHide,
+        hideAfter: () => userReportHide, now,
+        // Mindestalter der Melder-Konten fuer das Ausblenden (USER_REPORT_MIN_AGE_HOURS, Standard 24 h).
+        minAccountAgeMs: options.reporterMinAccountAgeMs ?? (Number.isFinite(Number(process.env.USER_REPORT_MIN_AGE_HOURS)) && process.env.USER_REPORT_MIN_AGE_HOURS !== ''
+            ? Math.max(0, Number(process.env.USER_REPORT_MIN_AGE_HOURS)) * 60 * 60 * 1000 : undefined),
         // Sofort aus dem Grid: Eintrag still schalten (wie "unsichtbar"), Zelle informieren.
         onHidden: peerId => {
             const geohash = store.getPeerGeohash(peerId);
@@ -1314,11 +1317,29 @@ export async function buildApp(options = {}) {
         // Fuer die Anzeige in den Einstellungen ("vom Server vorgegeben").
         audienceMinimum: audienceMinimumRule ? (typeof audienceMinimumRule === 'string' ? JSON.parse(audienceMinimumRule) : audienceMinimumRule) : null }));
 
+    // Kurzer Fingerabdruck des Signaturschluessels (SHA-256 ueber "x.y", base64url, 22 Zeichen): Clients nehmen
+    // ein ueber Dritte bezogenes Profil nur an, wenn sein Schluessel dazu passt (gleiche Rechnung im Client).
+    const keyFingerprints = new Map();
+    const keyFingerprint = identityJwk => {
+        if (!identityJwk) return null;
+        if (keyFingerprints.has(identityJwk)) return keyFingerprints.get(identityJwk);
+        let fingerprint = null;
+        try {
+            const { x, y } = JSON.parse(identityJwk);
+            if (typeof x === 'string' && typeof y === 'string') fingerprint = createHash('sha256').update(`${x}.${y}`).digest('base64url').slice(0, 22);
+        } catch {
+            fingerprint = null;
+        }
+        if (keyFingerprints.size > 20000) keyFingerprints.clear();
+        keyFingerprints.set(identityJwk, fingerprint);
+        return fingerprint;
+    };
     const toGridPeer = (origin) => ({ peer, km }) => ({
         id: peer.peerId,
         avatar: peer.thumbnail,
         name: peer.name,
         version: peer.profileVersion ?? null,
+        ...(keyFingerprint(peer.identityJwk) ? { keyFp: keyFingerprint(peer.identityJwk) } : {}),
         ...(peer.audience ? { audience: peer.audience } : {}),
         distanceBucket: origin ? distanceBucket(km) : null
     });

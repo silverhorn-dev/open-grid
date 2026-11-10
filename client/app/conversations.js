@@ -222,6 +222,7 @@ async function publishGroupState(next, previousMembers = []) {
     await saveGroup({ ...signable, sig });
     const recipients = [...new Set([...previousMembers, ...signable.members])].filter(member => member !== state.myProfile.id);
     if (previousMembers.length) updateSenderKeysForMembership(signable.id, previousMembers, signable.members).catch(logBackgroundError('publishGroupState'));
+    shareGroupCards(signable.id, previousMembers).catch(logBackgroundError('publishGroupState'));
     // Leerer Rueckruf: so greift der Pfad-C-Fallback auch fuer diese Nutzlast.
     await Promise.all(recipients.map(member => sendSecurePayload(member, { type: 'GROUP_STATE', ['state']: signable, sig }, () => {})
         .catch(logBackgroundError('publishGroupState'))));
@@ -250,6 +251,8 @@ async function handleGroupState(peerId, payload) {
     }
     await saveGroup({ ...groupSignable(next), sig: payload.sig });
     if (current) updateSenderKeysForMembership(next.id, current.members, next.members).catch(logBackgroundError('handleGroupState'));
+    // Visitenkarten: meine an Neue (Gruppe neu fuer mich: an alle), fehlende beim Absender erfragen.
+    shareGroupCards(next.id, current ? current.members : [state.myProfile.id], peerId).catch(logBackgroundError('handleGroupState'));
     if (typeof ensureChatScope === 'function') await ensureChatScope(next.id, 'social');
     rememberChatPeer(next.id);
     if (!current) showToast(t('groups.youWereAdded', { name: next.name }), 'info');
@@ -609,6 +612,9 @@ function chatMenuGroupInfo() {
 
 function connectGroupMembers(groupId) {
     groupRecipients(groupId).forEach(member => initiateP2PConnection(member).catch(() => {}));
+    // Fehlende Visitenkarten bei einem verbundenen Mitglied erfragen.
+    const connected = groupRecipients(groupId).find(member => state.dataChannels?.[member]?.readyState === 'open' && state.sessionKeys?.[member]);
+    if (connected) requestMissingGroupCards(groupId, connected).catch(() => {});
 }
 
 // ================= ABSENDER-SCHLUESSEL + GEBUENDELTER PFAD C (T36 P2c) =================
@@ -720,4 +726,133 @@ async function groupOperationSignatureValid(groupId, operation) {
     const pinned = (await getPeerIdentity(operation.actorId).catch(() => null))?.profileSigningKey;
     const key = pinned || groupMemberKey(group, operation.actorId);
     return Boolean(key) && verifyOperationSignature(operation, key);
+}
+
+// ================= VISITENKARTEN IN GRUPPEN (T36) =================
+// Damit Mitglieder sich sehen, auch wenn sie sich nie direkt getroffen haben: jedes Mitglied hat eine kleine,
+// signierte Karte { ownerId, name, avatar (Vorschaubild), updatedAt }. Es schickt sie beim Beitritt an alle
+// Mitglieder; innerhalb gemeinsamer Gruppen darf jedes Mitglied fremde Karten weitergeben (Mesh). Geprueft wird
+// gegen den gepinnten oder den vom Admin im Gruppen-Zustand bestaetigten Schluessel. Das volle Profil bleibt
+// beim Besitzer und folgt seinen Regeln (direkte Verbindung).
+const GROUP_CARDS_RECORD_ID = 'group-cards';
+const GROUP_CARD_AVATAR_EDGE = 96;
+
+function cardSignable(card) {
+    return { ownerId: card.ownerId, name: card.name, ...(card.avatar ? { avatar: card.avatar } : {}), updatedAt: card.updatedAt };
+}
+
+async function loadGroupCards() {
+    const record = await databaseRequest('keys', 'readonly', store => store.get(GROUP_CARDS_RECORD_ID)).catch(() => null);
+    state.groupCards = record?.cards && typeof record.cards === 'object' ? record.cards : {};
+}
+
+async function saveGroupCards() {
+    await putDatabaseRecord('keys', { id: GROUP_CARDS_RECORD_ID, cards: state.groupCards || {} });
+}
+
+function groupCardOf(peerId) {
+    return state.groupCards?.[peerId]?.card || null;
+}
+
+// Kleines Vorschaubild (JPEG, 96 px) aus dem eigenen Social-Profilbild.
+function shrinkAvatar(dataUrl) {
+    return new Promise(resolve => {
+        if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/')) {
+            resolve(undefined);
+            return;
+        }
+        const image = new Image();
+        image.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = GROUP_CARD_AVATAR_EDGE;
+            canvas.height = GROUP_CARD_AVATAR_EDGE;
+            const side = Math.min(image.naturalWidth, image.naturalHeight) || 1;
+            canvas.getContext('2d').drawImage(image, (image.naturalWidth - side) / 2, (image.naturalHeight - side) / 2, side, side, 0, 0, GROUP_CARD_AVATAR_EDGE, GROUP_CARD_AVATAR_EDGE);
+            resolve(canvas.toDataURL('image/jpeg', 0.7));
+        };
+        image.onerror = () => resolve(undefined);
+        image.src = dataUrl;
+    });
+}
+
+async function ownGroupCard() {
+    const part = typeof profilePart === 'function' ? profilePart('social') : state.myProfile;
+    const card = {
+        ownerId: state.myProfile.id,
+        name: String(part?.fields?.displayName || state.myProfile.fields?.displayName || '').slice(0, 60) || t('peer.unknown'),
+        avatar: await shrinkAvatar(part?.avatar || state.myProfile.avatar),
+        updatedAt: state.myProfile.updatedAt || Date.now()
+    };
+    const signable = cardSignable(card);
+    return { card: signable, sig: await signOperation(signable, state.myKeys.ecdsaKeyPair.privateKey) };
+}
+
+async function sendOwnGroupCard(recipients) {
+    if (!recipients.length || !state.myKeys?.ecdsaKeyPair?.privateKey) return;
+    const signed = await ownGroupCard();
+    await Promise.all(recipients.map(member => sendSecurePayload(member, { type: 'GROUP_MEMBER_CARD', ...signed }, () => {})
+        .catch(logBackgroundError('sendOwnGroupCard'))));
+}
+
+// Schluessel fuer die Karte eines Mitglieds: gepinnt oder aus einer gemeinsamen Gruppe.
+async function cardKeyFor(ownerId) {
+    const pinned = (await getPeerIdentity(ownerId).catch(() => null))?.profileSigningKey;
+    if (pinned) return pinned;
+    const group = Object.values(state.groups || {}).find(entry => isGroupActive(entry.id) && entry.members.includes(ownerId) && entry.memberKeys?.[ownerId]);
+    return group ? groupMemberKey(group, ownerId) : null;
+}
+
+// Karte annehmen: Besitzer und Absender teilen eine aktive Gruppe mit mir, Signatur passt, neuer als bekannt.
+async function handleGroupMemberCard(peerId, payload) {
+    const card = payload.card;
+    const shared = Object.values(state.groups || {}).some(group => isGroupActive(group.id)
+        && group.members.includes(card?.ownerId) && group.members.includes(peerId));
+    if (!shared || card.ownerId === state.myProfile.id) return false;
+    const key = await cardKeyFor(card.ownerId);
+    if (!key || !await verifyOperationSignature({ ...cardSignable(card), sig: payload.sig }, key)) return false;
+    const known = state.groupCards?.[card.ownerId];
+    if (known && (known.card.updatedAt || 0) >= (card.updatedAt || 0)) return true;
+    state.groupCards = { ...(state.groupCards || {}), [card.ownerId]: { card: cardSignable(card), sig: payload.sig } };
+    await saveGroupCards();
+    // Mesh: Admins reichen neue Karten an die anderen Mitglieder weiter (die kennen sich oft nicht direkt).
+    const forwardTo = new Set();
+    Object.values(state.groups || {}).filter(group => isGroupActive(group.id) && isGroupAdmin(group.id) && group.members.includes(card.ownerId))
+        .forEach(group => group.members.filter(member => ![state.myProfile.id, card.ownerId, peerId].includes(member)).forEach(member => forwardTo.add(member)));
+    forwardTo.forEach(member => sendSecurePayload(member, { type: 'GROUP_MEMBER_CARD', card: cardSignable(card), sig: payload.sig }, () => {}).catch(() => {}));
+    if (typeof renderActivePeerList === 'function') renderActivePeerList();
+    if (state.activeChatPeerId && isGroupId(state.activeChatPeerId) && typeof renderChatHistory === 'function') renderChatHistory();
+    if (state.groupInfoOpen) openGroupInfo(state.groupInfoOpen);
+    return true;
+}
+
+// Fehlende Karten bei einem Mitglied erfragen; es antwortet mit allen, die es fuer diese Gruppe kennt.
+async function requestMissingGroupCards(groupId, fromPeerId) {
+    const group = getGroup(groupId);
+    if (!group) return;
+    const missing = group.members.filter(member => member !== state.myProfile.id && member !== fromPeerId
+        && !state.cachedProfiles?.[member] && !groupCardOf(member));
+    if (missing.length) await sendSecurePayload(fromPeerId, { type: 'GROUP_CARD_REQUEST', groupId, memberIds: missing }, () => {}).catch(logBackgroundError('requestMissingGroupCards'));
+}
+
+async function handleGroupCardRequest(peerId, payload) {
+    const group = getGroup(payload.groupId);
+    if (!group || !isGroupActive(group.id) || !group.members.includes(peerId)) return;
+    for (const memberId of (payload.memberIds || []).filter(id => group.members.includes(id))) {
+        if (memberId === state.myProfile.id) {
+            await sendOwnGroupCard([peerId]);
+            continue;
+        }
+        const stored = state.groupCards?.[memberId];
+        if (stored) await sendSecurePayload(peerId, { type: 'GROUP_MEMBER_CARD', card: stored.card, sig: stored.sig }, () => {}).catch(() => {});
+    }
+}
+
+// Nach einem neuen Gruppen-Stand: eigene Karte an Neue (bzw. an alle, wenn die Gruppe fuer mich neu ist),
+// fehlende Karten beim Absender erfragen.
+async function shareGroupCards(groupId, previousMembers, fromPeerId = null) {
+    const group = getGroup(groupId);
+    if (!group || !isGroupActive(groupId)) return;
+    const newcomers = group.members.filter(member => member !== state.myProfile.id && !previousMembers.includes(member));
+    await sendOwnGroupCard(newcomers);
+    if (fromPeerId) await requestMissingGroupCards(groupId, fromPeerId);
 }

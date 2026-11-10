@@ -111,6 +111,7 @@ window.onload = async () => {
         });
         await runStartupStep('Chatliste', async () => {
             await loadGroups();
+            await loadGroupCards();
             await loadChatReads();
             await loadChatPeerIds();
         });

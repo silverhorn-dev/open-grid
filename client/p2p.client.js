@@ -882,6 +882,10 @@ async function handleSecurePayload(peerId, payload, deliveredVia = 'E2EE P2P') {
         await handleGroupLeave(peerId, payload.groupId);
     } else if (payload.type === 'GROUP_SENDER_KEY') {
         await handleGroupSenderKey(peerId, payload);
+    } else if (payload.type === 'GROUP_MEMBER_CARD') {
+        await handleGroupMemberCard(peerId, payload);
+    } else if (payload.type === 'GROUP_CARD_REQUEST') {
+        await handleGroupCardRequest(peerId, payload);
     } else if (payload.type === 'CHAT_OPERATION_ACK') {
         handleP2PAck(peerId, payload.operationId);
     } else if (payload.type === 'CHAT_FOCUS') {

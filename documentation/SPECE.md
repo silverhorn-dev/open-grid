@@ -1205,6 +1205,17 @@ Chats werden als idempotente Operationen synchronisiert:
   oder im Zustand bestaetigter Schluessel), weil alle Mitglieder die
   Absender-Schluessel kennen; Pfad C nimmt nur Uploads unter der eigenen ID an.
   Forward Secrecy (Kette) folgt in P5.
+- Visitenkarten in Gruppen: jedes Mitglied hat eine signierte Karte
+  `{ ownerId, name, avatar (JPEG 96 px), updatedAt }` (`GROUP_MEMBER_CARD
+  { card, sig }`, Name/Bild aus dem Social-Profil), schickt sie Neuen beim
+  Beitritt; angenommen nur, wenn Besitzer und Absender mit mir eine aktive
+  Gruppe teilen und die Signatur zum gepinnten oder im Zustand bestaetigten
+  Schluessel passt. Admins reichen neue Karten an die anderen Mitglieder weiter;
+  fehlende Karten erfragt man mit `GROUP_CARD_REQUEST { groupId, memberIds }`
+  (nach einem neuen Stand beim Absender, beim Oeffnen der Gruppe bei einem
+  verbundenen Mitglied). Gespeichert in `keys`/`group-cards`. Das volle Profil
+  bleibt beim Besitzer. Ohne Profil und Karte heisst ein Peer "Unbekannt"
+  (nicht mehr "Peer <id>").
 
 Nach jedem neuen E2EE-Schluessel und vor einem weiteren Nachrichtenversand
 tauschen beide Clients die 20 neuesten Operations-IDs aus. Fehlende

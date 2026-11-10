@@ -180,6 +180,12 @@ const PAYLOAD_VALIDATORS = {
     // Gruppen (conversations.js, T36 P2a): signierter Zustand vom Admin, Austritt eines Mitglieds.
     GROUP_STATE: payload => isValidGroupStatePayload(payload['state'], payload.sig),
     GROUP_LEAVE: payload => isGroupConversationId(payload.groupId),
+    // Visitenkarte eines Mitglieds (Name, kleines Bild), signiert vom Besitzer.
+    GROUP_MEMBER_CARD: payload => Boolean(payload.card) && isId(payload.card.ownerId) && typeof payload.card.name === 'string'
+        && payload.card.name.length <= 60 && Number.isFinite(payload.card.updatedAt)
+        && (payload.card.avatar === undefined || (typeof payload.card.avatar === 'string' && payload.card.avatar.startsWith('data:image/jpeg') && payload.card.avatar.length <= 40000))
+        && typeof payload.sig === 'string' && payload.sig.length <= 200,
+    GROUP_CARD_REQUEST: payload => isGroupConversationId(payload.groupId) && isIdList(payload.memberIds || [], 16),
     GROUP_SENDER_KEY: payload => isGroupConversationId(payload.groupId) && typeof payload.kid === 'string' && /^[A-Za-z0-9]{8,32}$/.test(payload.kid)
         && typeof payload.key === 'string' && /^[A-Za-z0-9+/]{43}=$/.test(payload.key),
     MOVE_ANNOUNCE: payload => ['delegation', 'announcement'].every(field => typeof payload[field] === 'string' && payload[field].length <= 4000)

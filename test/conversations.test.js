@@ -150,3 +150,31 @@ test('group candidates: friends and chat contacts from Chat & Friends, not Explo
     assert.deepEqual([...context.groupCandidates()].sort(), ['chatter', 'friend']);
     assert.deepEqual([...context.groupCandidates(['chatter'])], ['friend'], 'existing members excluded');
 });
+
+test('member cards: signed by the owner, accepted within shared groups, admins pass them on', async () => {
+    const { webcrypto } = await import('node:crypto');
+    const cryptoSource = readFileSync(new URL('../client/crypto.client.js', import.meta.url), 'utf8');
+    const carol = await webcrypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+    const carolJwk = await webcrypto.subtle.exportKey('jwk', carol.publicKey);
+    const records = new Map();
+    const forwarded = [];
+    const context = load({
+        window: { crypto: webcrypto, btoa, atob }, TextEncoder, Uint8Array,
+        getPeerIdentity: async () => null,
+        databaseRequest: async (_store, _mode, run) => run({ get: id => records.get(id) }),
+        putDatabaseRecord: async (_store, record) => records.set(record.id, record),
+        sendSecurePayload: async (peerId, payload) => { forwarded.push({ peerId, payload }); return true; }
+    });
+    vm.runInNewContext(cryptoSource, context);
+    const crew = { ...group, members: ['me', 'bob', 'carol'], admins: ['me'], memberKeys: { carol: { x: carolJwk.x, y: carolJwk.y } } };
+    context.state.groups = { [crew.id]: crew };
+    const card = { ownerId: 'carol', name: 'Carol', updatedAt: 5 };
+    const sig = await context.signOperation(card, carol.privateKey);
+    assert.equal(await context.handleGroupMemberCard('carol', { card, sig }), true);
+    assert.equal(context.groupCardOf('carol').name, 'Carol');
+    assert.deepEqual(forwarded.map(entry => entry.peerId), ['bob'], 'admin passes the card on to the other members');
+    assert.equal(await context.handleGroupMemberCard('carol', { card: { ...card, name: 'Fake' }, sig }), false, 'tampered');
+    assert.equal(await context.handleGroupMemberCard('mallory', { card, sig }), false, 'only from members of a shared group');
+    context.state.groups = {};
+    assert.equal(await context.handleGroupMemberCard('carol', { card: { ...card, updatedAt: 6 }, sig }), false, 'no shared group: nothing');
+});

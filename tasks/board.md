@@ -723,6 +723,7 @@
   - [x] P2b verlauf fuer neue mitglieder (admin waehlt: keiner / letzte 50) + chat-sync fuer gruppen (2026-11-10): `since` + `memberKeys` im signierten zustand, `CHAT_SYNC_*` mit `conversationId`, weitergereichte ops nur signiert vom urheber; tests `test/conversations.test.js`, e2e `groups-history`
   - [x] bugs (nutzer 2026-11-10): kopf-klick im gruppenchat oeffnete ein profil -> gruppen-einstellungen (`openProfileModal`); gruppe ohne nachricht verschwand aus der liste -> `loadChatPeerIds` nimmt gruppen mit auf; e2e `groups`
   - [x] bugs (nutzer 2026-11-10): gruppen-auswahl nur freunde -> auch chat-kontakte aus "Chat & Freunde"; discord-png "laedt nicht" -> link war abgelaufen (`ex`), jetzt eigener hinweis, png/jpg-links werden erkannt
+  - [x] nutzer 2026-11-10: profile in gruppen "meshy" teilen (A kennt C nicht, B laedt beide ein, C offline) + "Unbekannt" statt node-ID -> signierte visitenkarten, admin reicht weiter, nachfragen; tests `test/conversations.test.js`, e2e `groups-cards`
   - [x] P2c absender-schluessel + gebuendelter pfad C (2026-11-10): `GROUP_SENDER_KEY`, rotation bei entfernen, `POST /api/cache { recipientIds }`, signatur pflicht in gruppen; tests `test/conversations.test.js`, `test/server.test.js`, e2e `groups-bundle`
 - [ ] P3 medien-schwarm
 - [ ] P4 mehrgeraete

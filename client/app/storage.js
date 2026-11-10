@@ -387,10 +387,12 @@ function getPeerPresentation(peerId) {
     if (typeof isGroupId === 'function' && isGroupId(peerId) && typeof groupPresentation === 'function') return groupPresentation(peerId);
     const activePeer = state.peers.find(peer => peer.id === peerId);
     const profile = state.cachedProfiles[peerId];
+    // Noch kein Profil: Visitenkarte aus einer gemeinsamen Gruppe (conversations.js), sonst "Unbekannt" statt der Node-ID.
+    const card = typeof groupCardOf === 'function' ? groupCardOf(peerId) : null;
     return activePeer || {
         id: peerId,
-        name: profile?.fields?.displayName || `Peer ${peerId.slice(-8)}`,
-        avatar: profile?.avatar || null,
+        name: profile?.fields?.displayName || card?.name || t('peer.unknown'),
+        avatar: profile?.avatar || card?.avatar || null,
         fullProfile: profile,
         offline: true
     };

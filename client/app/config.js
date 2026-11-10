@@ -203,6 +203,8 @@ const state = {
     // Chat-Operationen fuer noch unbekannte Gruppen (kurz aufgehoben) und offene Gruppen-Info.
     pendingGroupOperations: {},
     groupInfoOpen: null,
+    // Visitenkarten von Gruppen-Mitgliedern: ownerId -> { card, sig }.
+    groupCards: {},
     snapPageEnabled: null,
     // App-Modus (P8): vom Server erlaubte Modi, gewaehlter Modus und Event-Daten.
     appConfig: { modes: ['discovery', 'chat', 'friends', 'event'], defaultMode: 'discovery' },

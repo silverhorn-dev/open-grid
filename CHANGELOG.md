@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 321 · 2026-11-10
+## Build 322 · 2026-11-10
+- Gruppen: Mitglieder sehen Namen und Bild voneinander, auch wenn sie sich vorher nicht kannten und der andere gerade offline ist
+- Unbekannte Personen heissen jetzt "Unbekannt" statt einer langen Geraete-ID
+
+## Build 321 · 2026-11-10 · `0117685`
 - Behoben: beim Erstellen einer Gruppe standen nur Freunde zur Auswahl; jetzt alle Kontakte aus "Chat & Freunde"
 - Bild-Links (png, jpg) im Chat-Feld werden jetzt wie GIF-Links als Bild gesendet
 - Abgelaufene Discord-Links (gelten nur etwa einen Tag) bekommen einen eigenen Hinweis

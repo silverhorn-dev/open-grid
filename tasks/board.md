@@ -709,7 +709,15 @@
   - tests: `test/chat-sync.test.js`, e2e `sync-large`
   - fuer 3 (security): ein peer kann im 1:1-chat operationen mit `actorId` = eigene ID einspielen (verlauf-wiederherstellung) -> pruefen
 - [x] 2 plan-dokument gruppen + mehrgeraete -> `documentation/GRUPPEN-MEHRGERAETE.md` (gemeinsamer kern "unterhaltung mit mitgliedern", signierte operationen, fan-out, sender keys, medien-schwarm, geraete-bescheinigungen, phasen P0-P5, 8 offene entscheidungen)
-  - [ ] nutzer: offene entscheidungen beantworten, dann P0 (signierte operationen) bauen
+  - [x] entscheidungen (nutzer 2026-11-10): 16 mitglieder, nur admins fuegen hinzu, verlauf waehlt der admin, chat & freunde + event (nicht entdecken), wurzel-geraet mit uebertragbarem recht, grid = zuletzt aktives geraet, pfad C gleich buendeln, forward secrecy in P5
+
+## T36 Gruppen + Mehrgeraete (nutzer 2026-11-10, plan `documentation/GRUPPEN-MEHRGERAETE.md`)
+- [ ] P0 signierte operationen
+- [ ] P1 unterhaltungs-modell (`conversationId`), migration
+- [ ] P2 gruppen (mitglieder-ops, admins, 16, absender-schluessel, pfad C gebuendelt, verlauf nach wahl)
+- [ ] P3 medien-schwarm
+- [ ] P4 mehrgeraete
+- [ ] P5 forward secrecy
 - [x] 3 security-hackathon -> `documentation/SECURITY-HACKATHON.md`
   - behoben: S1 fremde `actorId` in operationen (`isOperationFromPeer`), S2 gefaelschte schwarm-profile (grid `keyFp` + `signingKeyFingerprint`), S3 wegmelden mit wegwerf-konten (`USER_REPORT_MIN_AGE_HOURS`, std 24), S4 zu grosse sync-antworten (teil 1)
   - geprueft ok: GIF-proxy (SSRF), router-cache fremder nutzer, umzug, P2P-nutzlasten/XSS, TURN (nur metadaten)

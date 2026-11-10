@@ -123,31 +123,29 @@ aus zwei Nodes. Darum wird beides gemeinsam geplant.
   Geraet das Recht "kann Geraete hinzufuegen" geben; ohne das bleibt nur der
   Umzug mit neuer Identitaet.
 
-## 7. Phasen (Vorschlag)
+## 7. Entscheidungen (2026-11-10)
 
-| Phase | Inhalt | Nutzen allein |
-|---|---|---|
-| P0 | Signierte Operationen (ECDSA je Operation, Pruefung beim Empfang) | schliesst die Faelschungs-Luecke im 1:1-Chat |
-| P1 | Unterhaltungs-Modell (`conversationId`), 1:1 als Sonderfall, Migration der IndexedDB (Schema-Version hoch) | Grundlage |
-| P2 | Gruppen mit paarweisem Fan-out, bis 32 Mitglieder, Mitglieder-Operationen, Admins | Gruppenchats |
-| P3 | Medien-Schwarm (content-adressiert, Stuecke, Hash-Pruefung) | weniger Router-Cache, auch 1:1 |
-| P4 | Mehrgeraete: Kopplung, Geraete-Bescheinigung, Geraeteliste, Fan-out an Geraete, Sync eigener Geraete | Handy + PC |
-| P5 | Absender-Schluessel mit Kette (Forward Secrecy in Gruppen), groessere Gruppen | Skalierung, Sicherheit |
+1. Gruppengroesse: hoechstens **16** Mitglieder.
+2. Rechte: nur **Admins** fuegen hinzu (Gruender ist Admin, kann weitere ernennen).
+3. Verlauf fuer neue Mitglieder: der **Admin entscheidet beim Hinzufuegen**
+   (kein Verlauf oder die letzten 50 Nachrichten, neu verschluesselt).
+4. Bereich: Gruppen in **Chat & Freunde** und im **Event-Modus**, nicht in
+   Entdecken.
+5. Mehrgeraete: das erste Geraet ist die **Wurzel**, das Recht "Geraete
+   hinzufuegen" ist auf ein zweites Geraet uebertragbar.
+6. Grid: nur das **zuletzt aktive** Geraet einer Person ist sichtbar.
+7. Pfad C: **gleich buendeln** - ein Chiffrat mit Empfaengerliste
+   (Erweiterung von `POST /api/cache`). Dafuer kommen die Gruppen-Schluessel
+   (Absender-Schluessel ohne Kette) schon mit den Gruppen (P2), nicht erst P5.
+8. Forward Secrecy: **mit P5** (Ketten fuer Gruppen, ephemeres ECDH fuer 1:1).
 
-P0 lohnt sich sofort (Sicherheit), P3 auch ohne Gruppen.
+## 8. Phasen
 
-## 8. Offene Entscheidungen
-
-1. Gruppengroesse: Grenze fuer Stufe 1 (Vorschlag 32)?
-2. Rechte: nur Admins fuegen hinzu, oder jedes Mitglied?
-3. Verlauf fuer neue Mitglieder: keiner (Vorschlag), die letzten N Nachrichten,
-   oder alles?
-4. Gruppen nur im Bereich "Chat & Freunde" oder auch fuer Entdecken/Events
-   (z. B. Event-Gruppe)?
-5. Mehrgeraete: Wurzel-Geraet mit uebertragbarem Recht (Vorschlag) oder alle
-   Geraete gleichberechtigt?
-6. Grid mit mehreren Geraeten: nur das zuletzt aktive sichtbar (Vorschlag)?
-7. Pfad C fuer mehrere Empfaenger (ein Chiffrat) einfuehren oder beim
-   paarweisen Fan-out bleiben?
-8. Forward Secrecy auch fuer 1:1 (z. B. regelmaessig neue Sitzungs-Schluessel
-   per ephemerem ECDH beim Verbinden)?
+| Phase | Inhalt |
+|---|---|
+| P0 | Signierte Operationen: jede eigene Operation traegt `sig` (ECDSA ueber kanonisches JSON); Empfaenger pruefen gegen den gepinnten Schluessel des Urhebers. Uebergang: unsignierte Operationen vom direkten Peer werden noch angenommen. |
+| P1 | Unterhaltungs-Modell (`conversationId`), 1:1 als Sonderfall, IndexedDB-Migration |
+| P2 | Gruppen: Mitglieder-Operationen (signiert), Admins, bis 16, Bereich Chat & Freunde + Event; Absender-Schluessel je Mitglied (AES-256-GCM, paarweise verteilt, bei Entfernen erneuert); Nachricht einmal verschluesselt, Pfad C gebuendelt (`recipients`); Verlauf fuer Neue nach Wahl des Admins |
+| P3 | Medien-Schwarm (content-adressiert, Stuecke, Hash-Pruefung) |
+| P4 | Mehrgeraete: Kopplung (QR/Code), Geraete-Bescheinigung von der Wurzel, Geraeteliste, Fan-out an Geraete, Sync eigener Geraete, Grid nur zuletzt aktives Geraet |
+| P5 | Forward Secrecy: Ketten-Ableitung der Absender-Schluessel, ephemeres ECDH fuer 1:1 (P2P und Pfad C) |

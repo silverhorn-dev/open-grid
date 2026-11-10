@@ -138,6 +138,11 @@ async function collectPairingBundle() {
     const bundle = await collectTransferBundle();
     delete bundle.move;
     delete bundle.routerToken;
+    // Alles mitnehmen: auch die Gruppen-Schluessel der anderen Mitglieder (der eigene ist je Geraet).
+    const groupKeys = (await getAllDatabaseRecords('keys').catch(() => []))
+        .filter(record => typeof record?.id === 'string' && record.id.startsWith('group-keys:'))
+        .map(record => ({ id: record.id, own: null, members: record.members || {} }));
+    bundle.stores.keys = [...(bundle.stores.keys || []), ...groupKeys];
     bundle.pair = { invite, deviceList: state.myDevices.list, deviceListSig: state.myDevices.sig };
     return bundle;
 }
@@ -205,7 +210,9 @@ async function applyPairingBundle(bundle) {
     }
     // Das einladende Geraet als bekannte Gegenstelle (fuer P2P und Pfad C).
     if (bundle.publicKeys?.jwkPublic) await persistPeerIdentityKey(bundle.pair.invite.inviter, bundle.publicKeys.jwkPublic, bundle.publicKeys.jwkEcdsaPublic);
-    await putDatabaseRecord('keys', { id: DEVICE_PAIRING_RECORD_ID, ...bundle.pair.invite, joinedAt: null });
+    // Sperren gelten beim Router je Node: nach dem Koppeln auch fuer dieses Geraet eintragen.
+    const blocked = Array.isArray(bundle.blocked) ? bundle.blocked.filter(id => typeof id === 'string').slice(0, 1000) : [];
+    await putDatabaseRecord('keys', { id: DEVICE_PAIRING_RECORD_ID, ...bundle.pair.invite, blocked, joinedAt: null });
     await putDatabaseRecord('keys', { id: DEVICE_LIST_RECORD_ID, list: bundle.pair.deviceList, sig: bundle.pair.deviceListSig });
     return { identityId: bundle.pair.invite.identityId };
 }
@@ -244,8 +251,10 @@ async function handleDeviceList(peerId, payload) {
     }
     await saveDeviceList(deviceListSignable(payload.list), payload.sig);
     if (freshlyPaired) {
-        state.devicePairing = { ...state.devicePairing, joinedAt: Date.now() };
+        const blocked = state.devicePairing.blocked || [];
+        state.devicePairing = { ...state.devicePairing, blocked: [], joinedAt: Date.now() };
         await putDatabaseRecord('keys', { id: DEVICE_PAIRING_RECORD_ID, ...state.devicePairing });
+        for (const blockedId of blocked) await storeChatControl(blockedId, 'block').catch(logBackgroundError('handleDeviceList'));
         showToast(t('devices.paired'), 'success');
     }
     if (typeof renderChatHistory === 'function' && state.activeChatPeerId) renderChatHistory();
@@ -409,7 +418,9 @@ function judgeContactDeviceList(next, current, { senderId, pinnedRootKey }) {
 async function handleContactDeviceList(peerId, payload) {
     const list = payload.list;
     const current = state.contactDevices?.[list?.identityId]?.list || null;
-    const pinnedRootKey = (await getPeerIdentity(list?.identityId).catch(() => null))?.profileSigningKey;
+    // Anker: gepinnter Schluessel der Identitaet, sonst der vom Admin bestaetigte aus einer gemeinsamen Gruppe.
+    const groupKey = Object.values(state.groups || {}).map(group => group.memberKeys?.[list?.identityId]).find(key => key?.x && key?.y);
+    const pinnedRootKey = (await getPeerIdentity(list?.identityId).catch(() => null))?.profileSigningKey || groupKey || null;
     if (!judgeContactDeviceList(list, current, { senderId: peerId, pinnedRootKey })) {
         logDebug(`Ignored a contact device list from ${peerId}.`);
         return false;
@@ -417,6 +428,7 @@ async function handleContactDeviceList(peerId, payload) {
     const signer = list.devices.find(device => device.nodeId === peerId);
     if (!await verifyOperationSignature({ ...deviceListSignable(list), sig: payload.sig }, { kty: 'EC', crv: 'P-256', x: signer.key.x, y: signer.key.y })) return false;
     const signable = deviceListSignable(list);
+    const previousNodes = current ? current.devices.map(device => device.nodeId) : [list.identityId];
     state.contactDevices = { ...(state.contactDevices || {}), [list.identityId]: { list: signable, sig: payload.sig } };
     await putDatabaseRecord('keys', { id: `${CONTACT_DEVICES_PREFIX}${list.identityId}`, list: signable, sig: payload.sig });
     // Schluessel der Geraete fuer spaetere Pruefungen merken (nur, wo noch keiner gepinnt ist).
@@ -425,20 +437,44 @@ async function handleContactDeviceList(peerId, payload) {
         const known = await getPeerIdentity(device.nodeId).catch(() => null);
         if (!known?.profileSigningKey && known?.jwkPublic) await persistPeerIdentityKey(device.nodeId, known.jwkPublic, { kty: 'EC', crv: 'P-256', x: device.key.x, y: device.key.y });
     }
+    // Gruppen: aufgehobene Absender-Schluessel der Geraete nachspielen, neue Geraete bekommen meine.
+    const newNodes = signable.devices.map(device => device.nodeId).filter(node => !previousNodes.includes(node));
+    for (const node of signable.devices.map(device => device.nodeId)) {
+        const pending = state.pendingDeviceSenderKeys?.[node] || [];
+        if (!pending.length) continue;
+        delete state.pendingDeviceSenderKeys[node];
+        for (const keyPayload of pending) await handleGroupSenderKey(node, keyPayload).catch(() => {});
+    }
+    if (newNodes.length && typeof shareSenderKeysWithDevices === 'function') await shareSenderKeysWithDevices(list.identityId, newNodes).catch(() => {});
     if (typeof renderActivePeerList === 'function') renderActivePeerList();
     return true;
 }
 
 // Meine Liste an einen Kontakt (nur, wenn ich mehrere Geraete habe).
+// Je Sitzung und Listen-Version einmal je Node (Gruppen schicken sie vor jeder Nachricht eines weiteren Geraets).
 function sendDeviceListToContact(peerId) {
     const list = myDeviceList();
-    if (!list || list.devices.length < 2 || isOwnNode(peerId) || (typeof isGroupId === 'function' && isGroupId(peerId))) return;
-    sendSecurePayload(peerId, { type: 'DEVICE_LIST', list, sig: state.myDevices.sig }, () => {}).catch(logBackgroundError('sendDeviceListToContact'));
+    if (!list || list.devices.length < 2 || isOwnNode(peerId) || (typeof isGroupId === 'function' && isGroupId(peerId))) return Promise.resolve(false);
+    if (state.deviceListSent?.[peerId] === list.version) return Promise.resolve(true);
+    state.deviceListSent = { ...(state.deviceListSent || {}), [peerId]: list.version };
+    return sendSecurePayload(peerId, { type: 'DEVICE_LIST', list, sig: state.myDevices.sig }, () => {}).catch(logBackgroundError('sendDeviceListToContact'));
+}
+
+// Signaturschluessel einer Node laut meiner oder einer Kontakt-Geraeteliste (JWK) oder null.
+function deviceKeyOf(nodeId) {
+    const lists = [myDeviceList(), ...Object.values(state.contactDevices || {}).map(entry => entry.list)].filter(Boolean);
+    for (const list of lists) {
+        const device = list.devices.find(entry => entry.nodeId === nodeId);
+        if (device) return { kty: 'EC', crv: 'P-256', x: device.key.x, y: device.key.y };
+    }
+    return null;
 }
 
 function shareDeviceListWithContacts() {
-    (state.chatPeerIds || []).filter(id => !isOwnNode(id) && !(typeof isGroupId === 'function' && isGroupId(id)))
-        .forEach(id => contactDeviceNodes(id).forEach(sendDeviceListToContact));
+    const ids = new Set((state.chatPeerIds || []).filter(id => !isOwnNode(id) && !(typeof isGroupId === 'function' && isGroupId(id))));
+    // Auch Gruppen-Mitglieder ohne 1:1-Chat.
+    Object.values(state.groups || {}).filter(group => !group.left && !group.removed).forEach(group => group.members.forEach(id => ids.add(id)));
+    [...ids].filter(id => !isOwnNode(id)).forEach(id => contactDeviceNodes(id).forEach(sendDeviceListToContact));
 }
 
 // Chat-Operation an alle Geraete einer Person; der Rueckruf meldet den besten Weg einmal.

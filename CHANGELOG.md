@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 327 · 2026-11-10
+## Build 328 · 2026-11-10
+- Mehrere Geraete: beim Koppeln kommt jetzt alles mit (auch Gruppen, Einstellungen und Sperren); danach bleiben Chats und Gruppen abgeglichen, Einstellungen nicht
+- Gruppen funktionieren auf allen deinen Geraeten: du kannst ueberall schreiben, die anderen sehen dich als eine Person
+
+## Build 327 · 2026-11-10 · `d2b297c`
 - Mehrere Geraete: im Grid erscheinst du nur einmal (mit dem zuletzt benutzten Geraet); unter Meine Geraete kannst du Geraete entfernen oder ihnen erlauben, weitere hinzuzufuegen
 
 ## Build 326 · 2026-11-10 · `b599abb`

@@ -213,6 +213,9 @@ const state = {
     contactDevices: {},
     // Wann welches eigene Geraet zuletzt aktiv war (nodeId -> ms), fuer das Grid (devices.js, P4d).
     ownDeviceActivity: {},
+    // Gruppen-Absender-Schluessel von noch unbekannten Geraeten, bis deren Geraeteliste da ist (P4).
+    pendingDeviceSenderKeys: {},
+    deviceListSent: {},
     snapPageEnabled: null,
     // App-Modus (P8): vom Server erlaubte Modi, gewaehlter Modus und Event-Daten.
     appConfig: { modes: ['discovery', 'chat', 'friends', 'event'], defaultMode: 'discovery' },

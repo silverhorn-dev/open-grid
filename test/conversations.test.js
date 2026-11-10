@@ -178,3 +178,15 @@ test('member cards: signed by the owner, accepted within shared groups, admins p
     context.state.groups = {};
     assert.equal(await context.handleGroupMemberCard('carol', { card: { ...card, updatedAt: 6 }, sig }), false, 'no shared group: nothing');
 });
+
+test('multi-device: a device counts as its identity, my identity is the member', () => {
+    const context = load();
+    const memberOf = id => ({ 'bob-pc': 'bob', 'me-pc': 'me' }[id] || id);
+    const groups = { [group.id]: group };
+    assert.equal(context.resolveIncomingConversation('bob-pc', group.id, { groups, myId: 'me', memberOf }), group.id, 'other device of a member');
+    assert.equal(context.resolveIncomingConversation('bob-pc', group.id, { groups, myId: 'me' }), null, 'unknown device without its list');
+    const next = { ...group, version: 2, updatedBy: 'me-pc', updatedAt: 2, name: 'Crew 2' };
+    const current = { ...group, version: 1, updatedBy: 'me', updatedAt: 1 };
+    assert.equal(context.judgeGroupState(next, current, { senderId: 'me-pc', myId: 'bob', memberOf }), 'accept', 'admin acting from a second device');
+    assert.equal(context.judgeGroupState({ ...next, updatedBy: 'bob-pc' }, current, { senderId: 'bob-pc', myId: 'carol', memberOf }), null, 'device of a non-admin');
+});

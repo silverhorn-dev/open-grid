@@ -9,6 +9,27 @@ const GROUP_PREFIX = 'group_';
 const GROUP_RECORD_PREFIX = 'group:';
 const GROUP_MAX_MEMBERS = 16;
 
+// Mehrere Geraete (devices.js, T36 P4): Mitglieder sind Identitaeten (Node-ID des Wurzel-Geraets). Ein Geraet zaehlt
+// als seine Identitaet; gesendet wird an alle Geraete eines Mitglieds, meine anderen Geraete bekommen alles gespiegelt.
+function selfMemberId() {
+    return typeof myIdentityId === 'function' ? myIdentityId() : state.myProfile?.id;
+}
+
+function memberIdOf(nodeId) {
+    return typeof identityOf === 'function' ? identityOf(nodeId) : nodeId;
+}
+
+// Alle Nodes eines Mitglieds (meine eigenen nie: die bekommen den Spiegel).
+function memberNodes(memberId) {
+    if (memberId === selfMemberId()) return [];
+    const nodes = typeof contactDeviceNodes === 'function' ? contactDeviceNodes(memberId) : [memberId];
+    return nodes.filter(node => !(typeof isOwnNode === 'function' && isOwnNode(node)));
+}
+
+function memberKeyForNode(group, nodeId) {
+    return groupMemberKey(group, nodeId) || (typeof deviceKeyOf === 'function' ? deviceKeyOf(nodeId) : null);
+}
+
 // ----- Reine Hilfen (test/conversations.test.js) -----
 function isGroupId(id) {
     return typeof id === 'string' && /^group_[A-Za-z0-9-]{8,64}$/.test(id);
@@ -34,11 +55,11 @@ function conversationRecipients(conversationId, { groups = {}, myId = null } = {
 }
 
 // Zu welcher Unterhaltung eine eingehende Nutzlast von senderId gehoert; null = verwerfen.
-function resolveIncomingConversation(senderId, conversationId, { groups = {}, myId = null } = {}) {
+function resolveIncomingConversation(senderId, conversationId, { groups = {}, myId = null, memberOf = id => id } = {}) {
     if (conversationId === undefined || conversationId === null) return senderId;
     if (!isGroupId(conversationId)) return null;
     const group = groups[conversationId];
-    if (!isValidGroup(group) || !group.members.includes(senderId) || (myId && !group.members.includes(myId))) return null;
+    if (!isValidGroup(group) || !group.members.includes(memberOf(senderId)) || (myId && !group.members.includes(myId))) return null;
     // Ausgetreten oder entfernt: nichts mehr annehmen, nichts mehr abgleichen.
     if (group.left || group.removed) return null;
     return conversationId;
@@ -66,13 +87,25 @@ async function saveGroup(group) {
 }
 
 function groupRecipients(groupId) {
-    return conversationRecipients(groupId, { groups: state.groups || {}, myId: state.myProfile?.id });
+    return conversationRecipients(groupId, { groups: state.groups || {}, myId: selfMemberId() });
+}
+
+// Alle Nodes, an die eine Gruppen-Nachricht geht (Geraete aller anderen Mitglieder).
+function groupRecipientNodes(groupId) {
+    return [...new Set(groupRecipients(groupId).flatMap(memberNodes))];
+}
+
+// Nicht-Wurzel-Geraet: Empfaengern vorher meine Geraeteliste geben, damit sie mich als Mitglied erkennen.
+async function announceMyDevicesTo(nodes) {
+    if (typeof sendDeviceListToContact !== 'function' || selfMemberId() === state.myProfile?.id) return;
+    await Promise.all(nodes.map(node => sendDeviceListToContact(node)));
 }
 
 // Fan-out einer Chat-Operation an alle Mitglieder. Der Rueckruf meldet den besten Weg einmal (P2P vor Pfad C).
 async function sendGroupPayload(groupId, payload, onSent = null, options = {}) {
-    const recipients = groupRecipients(groupId);
+    const recipients = groupRecipientNodes(groupId);
     if (!recipients.length || payload?.type !== 'CHAT_OPERATION') return false;
+    await announceMyDevicesTo(recipients);
     // Die Gruppe gehoert in die (signierte) Operation selbst, damit niemand sie in eine andere Gruppe umleiten kann.
     payload = { ...payload, operation: { ...payload.operation, conversationId: groupId } };
     const reported = new Set();
@@ -83,7 +116,8 @@ async function sendGroupPayload(groupId, payload, onSent = null, options = {}) {
         reported.add(path);
         onSent(path, details);
     };
-    const direct = member => sendSecurePayload(member, { ...payload, conversationId: groupId }, report, options)
+    // deviceFanout: die Geraete sind hier schon aufgezaehlt (kein zweites Verteilen in sendSecurePayload).
+    const direct = member => sendSecurePayload(member, { ...payload, conversationId: groupId, deviceFanout: true }, report, options)
         .catch(error => {
             logDebug(`Group send to ${member} failed: ${error.message}`);
             return false;
@@ -150,7 +184,9 @@ function compactKey(jwk) {
 async function collectMemberKeys(members, existing = {}) {
     const keys = { ...existing };
     for (const member of members) {
-        const key = member === state.myProfile.id ? compactKey(state.myKeys?.jwkEcdsaPublic)
+        // Ich selbst: Schluessel meiner Identitaet (Wurzel-Geraet), auf einem weiteren Geraet aus meiner Geraeteliste.
+        const key = member === selfMemberId()
+            ? (typeof deviceKeyOf === 'function' && deviceKeyOf(member) ? compactKey(deviceKeyOf(member)) : compactKey(state.myKeys?.jwkEcdsaPublic))
             : compactKey((await getPeerIdentity(member).catch(() => null))?.profileSigningKey) || keys[member];
         if (key) keys[member] = key;
     }
@@ -159,7 +195,7 @@ async function collectMemberKeys(members, existing = {}) {
 
 // Ab wann der Sync einem Mitglied Operationen dieser Gruppe gibt.
 function groupSyncCutoff(group, memberId) {
-    const since = group?.since?.[memberId];
+    const since = group?.since?.[memberIdOf(memberId)];
     return Number.isFinite(since) ? since : (group?.createdAt || 0);
 }
 
@@ -172,15 +208,15 @@ function groupMemberKey(group, actorId) {
 // muss zur Gruppe gehoeren und gueltig vom Urheber signiert sein (gepinnter oder vom Admin bestaetigter Schluessel).
 async function acceptRelayedOperation(groupId, senderId, operation) {
     const group = getGroup(groupId);
-    if (!group || !isGroupActive(groupId) || !group.members.includes(senderId)) return false;
-    if (operation?.conversationId !== groupId || !group.members.includes(operation.actorId) || typeof operation.sig !== 'string') return false;
+    if (!group || !isGroupActive(groupId) || !group.members.includes(memberIdOf(senderId))) return false;
+    if (operation?.conversationId !== groupId || !group.members.includes(memberIdOf(operation.actorId)) || typeof operation.sig !== 'string') return false;
     const pinned = (await getPeerIdentity(operation.actorId).catch(() => null))?.profileSigningKey;
-    const key = pinned || groupMemberKey(group, operation.actorId);
+    const key = pinned || memberKeyForNode(group, operation.actorId);
     return Boolean(key) && verifyOperationSignature(operation, key);
 }
 
 function sharedActiveGroups(peerId) {
-    return Object.values(state.groups || {}).filter(group => isGroupActive(group.id) && group.members.includes(peerId)).map(group => group.id);
+    return Object.values(state.groups || {}).filter(group => isGroupActive(group.id) && group.members.includes(memberIdOf(peerId))).map(group => group.id);
 }
 
 function isValidGroupState(group) {
@@ -193,25 +229,25 @@ function isValidGroupState(group) {
 }
 
 // Entscheidet ueber einen eingehenden Zustand: 'accept', 'removed' (ich bin raus), oder null (verwerfen).
-function judgeGroupState(next, current, { senderId, myId }) {
+function judgeGroupState(next, current, { senderId, myId, memberOf = id => id }) {
     if (!isValidGroupState(next) || next.updatedBy !== senderId) return null;
     if (current?.left) return null;
     if (current) {
-        if (!current.admins.includes(senderId) || next.version <= current.version) return null;
-    } else if (!next.admins.includes(senderId)) {
+        if (!current.admins.includes(memberOf(senderId)) || next.version <= current.version) return null;
+    } else if (!next.admins.includes(memberOf(senderId))) {
         return null;
     }
     if (!next.members.includes(myId)) return current ? 'removed' : null;
     return 'accept';
 }
 
-function isGroupAdmin(groupId, peerId = state.myProfile?.id) {
+function isGroupAdmin(groupId, peerId = selfMemberId()) {
     return Boolean(getGroup(groupId)?.admins?.includes(peerId));
 }
 
 function isGroupActive(groupId) {
     const group = getGroup(groupId);
-    return Boolean(group) && !group.left && !group.removed && group.members.includes(state.myProfile?.id);
+    return Boolean(group) && !group.left && !group.removed && group.members.includes(selfMemberId());
 }
 
 async function publishGroupState(next, previousMembers = []) {
@@ -220,7 +256,10 @@ async function publishGroupState(next, previousMembers = []) {
     if (!isValidGroupState(signable)) throw new Error('Invalid group state');
     const sig = await signOperation(signable, state.myKeys.ecdsaKeyPair.privateKey);
     await saveGroup({ ...signable, sig });
-    const recipients = [...new Set([...previousMembers, ...signable.members])].filter(member => member !== state.myProfile.id);
+    // Alle Geraete der bisherigen und neuen Mitglieder, dazu meine anderen Geraete (Spiegel).
+    const recipients = [...new Set([...previousMembers, ...signable.members].flatMap(memberNodes)
+        .concat(typeof otherOwnDevices === 'function' ? otherOwnDevices() : []))];
+    await announceMyDevicesTo(recipients);
     if (previousMembers.length) updateSenderKeysForMembership(signable.id, previousMembers, signable.members).catch(logBackgroundError('publishGroupState'));
     shareGroupCards(signable.id, previousMembers).catch(logBackgroundError('publishGroupState'));
     // Leerer Rueckruf: so greift der Pfad-C-Fallback auch fuer diese Nutzlast.
@@ -233,15 +272,23 @@ async function publishGroupState(next, previousMembers = []) {
 async function handleGroupState(peerId, payload) {
     const next = payload['state'];
     const current = getGroup(next?.id);
-    const verdict = judgeGroupState(next, current, { senderId: peerId, myId: state.myProfile.id });
+    // Von meinem anderen Geraet weitergereicht (Spiegel): gilt der eigentliche Unterzeichner, Signatur ist Pflicht.
+    const fromOwnDevice = typeof isOtherOwnDevice === 'function' && isOtherOwnDevice(peerId);
+    const signer = fromOwnDevice ? next?.updatedBy : peerId;
+    const verdict = judgeGroupState(next, current, { senderId: signer, myId: selfMemberId(), memberOf: memberIdOf });
     if (!verdict) {
         logDebug(`Ignored a group state from ${peerId}.`);
         return false;
     }
-    const key = (await getPeerIdentity(peerId).catch(() => null))?.profileSigningKey;
+    const key = (await getPeerIdentity(signer).catch(() => null))?.profileSigningKey || memberKeyForNode(current || next, signer);
+    if (fromOwnDevice && !key) return false;
     if (key && !await verifyOperationSignature({ ...groupSignable(next), sig: payload.sig }, key)) {
         logDebug(`Ignored a group state from ${peerId} with an invalid signature.`);
         return false;
+    }
+    // An meine anderen Geraete weiterreichen (nicht zurueck an eigene Geraete).
+    if (!fromOwnDevice && typeof otherOwnDevices === 'function') {
+        otherOwnDevices().forEach(node => sendSecurePayload(node, { type: 'GROUP_STATE', ['state']: next, sig: payload.sig }, () => {}).catch(() => {}));
     }
     if (verdict === 'removed') {
         await saveGroup({ ...current, removed: true });
@@ -252,7 +299,7 @@ async function handleGroupState(peerId, payload) {
     await saveGroup({ ...groupSignable(next), sig: payload.sig });
     if (current) updateSenderKeysForMembership(next.id, current.members, next.members).catch(logBackgroundError('handleGroupState'));
     // Visitenkarten: meine an Neue (Gruppe neu fuer mich: an alle), fehlende beim Absender erfragen.
-    shareGroupCards(next.id, current ? current.members : [state.myProfile.id], peerId).catch(logBackgroundError('handleGroupState'));
+    shareGroupCards(next.id, current ? current.members : [selfMemberId()], peerId).catch(logBackgroundError('handleGroupState'));
     if (typeof ensureChatScope === 'function') await ensureChatScope(next.id, 'social');
     rememberChatPeer(next.id);
     if (!current) showToast(t('groups.youWereAdded', { name: next.name }), 'info');
@@ -277,11 +324,18 @@ async function replayPendingGroupOperations(groupId) {
 
 async function handleGroupLeave(peerId, groupId) {
     const group = getGroup(groupId);
-    if (!group || !group.members.includes(peerId) || group.left) return false;
-    const members = group.members.filter(member => member !== peerId);
-    const admins = group.admins.filter(admin => admin !== peerId);
+    // Mein anderes Geraet ist ausgetreten: hier ebenfalls.
+    if (group && !group.left && typeof isOtherOwnDevice === 'function' && isOtherOwnDevice(peerId)) {
+        await saveGroup({ ...group, left: true });
+        refreshGroupViews(groupId);
+        return true;
+    }
+    const leaver = memberIdOf(peerId);
+    if (!group || !group.members.includes(leaver) || group.left) return false;
+    const members = group.members.filter(member => member !== leaver);
+    const admins = group.admins.filter(admin => admin !== leaver);
     // Der erste verbleibende Admin veroeffentlicht den neuen Stand; die anderen ziehen lokal nach.
-    if (admins[0] === state.myProfile.id && members.length) {
+    if (admins[0] === selfMemberId() && members.length) {
         await publishGroupState({ ...group, members, admins, version: group.version + 1 }, group.members);
     } else {
         await saveGroup({ ...group, members, admins: admins.length ? admins : [members[0]].filter(Boolean) });
@@ -292,12 +346,13 @@ async function handleGroupLeave(peerId, groupId) {
 
 // ----- Aktionen (Oberflaeche) -----
 async function createGroup(name, memberIds) {
-    const members = [state.myProfile.id, ...new Set(memberIds.filter(id => typeof id === 'string' && id !== state.myProfile.id))];
+    const self = selfMemberId();
+    const members = [self, ...new Set(memberIds.filter(id => typeof id === 'string' && id !== self))];
     if (members.length < 2 || members.length > GROUP_MAX_MEMBERS) throw new Error('group size');
     const now = Date.now();
     const group = await publishGroupState({
         id: newGroupId(), name: String(name || '').trim().slice(0, GROUP_NAME_MAX) || t('groups.unnamed'),
-        members, admins: [state.myProfile.id], createdAt: now, version: 1
+        members, admins: [self], createdAt: now, version: 1
     });
     if (typeof setChatScope === 'function') await setChatScope(group.id, 'social');
     rememberChatPeer(group.id);
@@ -309,7 +364,7 @@ async function updateGroupAsAdmin(groupId, change) {
     if (!group || !isGroupAdmin(groupId) || !isGroupActive(groupId)) throw new Error('not an admin');
     const next = { ...group, ...change(group), version: group.version + 1 };
     next.admins = next.admins.filter(admin => next.members.includes(admin));
-    if (!next.admins.length) next.admins = [state.myProfile.id];
+    if (!next.admins.length) next.admins = [selfMemberId()];
     return publishGroupState(next, group.members);
 }
 
@@ -332,14 +387,19 @@ const renameGroup = (groupId, name) => updateGroupAsAdmin(groupId, () => ({ name
 async function leaveGroup(groupId) {
     const group = getGroup(groupId);
     if (!group || !isGroupActive(groupId)) return false;
-    const others = group.members.filter(member => member !== state.myProfile.id);
+    const self = selfMemberId();
+    const others = group.members.filter(member => member !== self);
     // Einziger Admin: vorher ein anderes Mitglied zum Admin machen und den Stand ohne mich veroeffentlichen.
-    if (group.admins.length === 1 && group.admins[0] === state.myProfile.id && others.length) {
+    if (group.admins.length === 1 && group.admins[0] === self && others.length) {
         await publishGroupState({ ...group, members: others, admins: [others[0]], version: group.version + 1 }, group.members);
     } else {
-        await Promise.all(others.map(member => sendSecurePayload(member, { type: 'GROUP_LEAVE', groupId }, () => {})
+        const nodes = others.flatMap(memberNodes);
+        await announceMyDevicesTo(nodes);
+        await Promise.all(nodes.map(member => sendSecurePayload(member, { type: 'GROUP_LEAVE', groupId }, () => {})
             .catch(logBackgroundError('leaveGroup'))));
     }
+    // Meine anderen Geraete treten mit aus.
+    (typeof otherOwnDevices === 'function' ? otherOwnDevices() : []).forEach(node => sendSecurePayload(node, { type: 'GROUP_LEAVE', groupId }, () => {}).catch(() => {}));
     await saveGroup({ ...getGroup(groupId), left: true });
     refreshGroupViews(groupId);
     return true;
@@ -380,10 +440,10 @@ function refreshGroupViews(groupId) {
 function groupCandidates(excluded = []) {
     const ids = new Set(Object.keys(state.friendState || {}).filter(id => typeof isFriend === 'function' && isFriend(id)));
     (state.chatPeerIds || []).filter(id => typeof chatScopeOf === 'function' && chatScopeOf(id) === 'social').forEach(id => ids.add(id));
-    if (state.appMode === 'event') (state.peers || []).forEach(peer => ids.add(peer.id));
+    if (state.appMode === 'event') (state.peers || []).forEach(peer => ids.add(memberIdOf(peer.id)));
     excluded.forEach(id => ids.delete(id));
-    ids.delete(state.myProfile?.id);
-    return [...ids].filter(id => !isPeerBlocked(id) && !isGroupId(id));
+    ids.delete(selfMemberId());
+    return [...ids].filter(id => !isPeerBlocked(id) && !isGroupId(id) && !(typeof isOwnNode === 'function' && isOwnNode(id)));
 }
 
 function groupsAllowedHere() {
@@ -508,13 +568,14 @@ function openGroupInfo(groupId = state.activeChatPeerId) {
         row.className = 'flex items-center gap-3';
         row.dataset.groupMember = member;
         const image = document.createElement('img');
-        image.src = localAvatar(member === state.myProfile.id ? state.myProfile.avatar : getPeerPresentation(member).avatar);
+        const isSelf = member === selfMemberId();
+        image.src = localAvatar(isSelf ? state.myProfile.avatar : getPeerPresentation(member).avatar);
         image.alt = '';
         image.className = 'w-8 h-8 rounded-full object-cover';
         const name = document.createElement('span');
         name.className = 'flex-1 min-w-0 truncate text-sm text-slate-200';
-        name.textContent = member === state.myProfile.id ? t('groups.you') : displayNameFor(member);
-        if (member === state.myProfile.id) {
+        name.textContent = isSelf ? t('groups.you') : displayNameFor(member);
+        if (isSelf) {
             row.append(image, name);
         } else {
             // Antippen oeffnet das Profil des Mitglieds (zeigt, was bekannt ist, und holt den Rest).
@@ -533,7 +594,7 @@ function openGroupInfo(groupId = state.activeChatPeerId) {
             badge.textContent = t('groups.admin');
             row.appendChild(badge);
         }
-        if (admin && member !== state.myProfile.id) {
+        if (admin && !isSelf) {
             if (!group.admins.includes(member)) {
                 const promote = document.createElement('button');
                 promote.type = 'button';
@@ -618,7 +679,7 @@ function openGroupMemberAdder(groupId) {
 }
 
 function openGroupMemberProfile(peerId) {
-    if (!peerId || peerId === state.myProfile.id) return;
+    if (!peerId || peerId === selfMemberId()) return;
     const show = () => {
         openProfileModal(peerId);
         // Profil fehlt noch: direkt bzw. ueber den Schwarm anfragen.
@@ -649,9 +710,9 @@ function chatMenuGroupInfo() {
 }
 
 function connectGroupMembers(groupId) {
-    groupRecipients(groupId).forEach(member => initiateP2PConnection(member).catch(() => {}));
+    groupRecipientNodes(groupId).forEach(member => initiateP2PConnection(member).catch(() => {}));
     // Fehlende Visitenkarten bei einem verbundenen Mitglied erfragen.
-    const connected = groupRecipients(groupId).find(member => state.dataChannels?.[member]?.readyState === 'open' && state.sessionKeys?.[member]);
+    const connected = groupRecipientNodes(groupId).find(member => state.dataChannels?.[member]?.readyState === 'open' && state.sessionKeys?.[member]);
     if (connected) requestMissingGroupCards(groupId, connected).catch(() => {});
 }
 
@@ -689,13 +750,28 @@ async function ensureOwnSenderKey(groupId, { rotate = false } = {}) {
     if (record.own && !rotate) return record.own;
     record.own = newSenderKey();
     await saveGroupKeys(record);
-    await distributeSenderKey(groupId, record.own, groupRecipients(groupId));
+    const nodes = groupRecipientNodes(groupId);
+    await announceMyDevicesTo(nodes);
+    await distributeSenderKey(groupId, record.own, nodes);
     return record.own;
+}
+
+// Neue Geraete eines Mitglieds (seine Geraeteliste hat sich geaendert): meinen Schluessel bekommen sie auch.
+async function shareSenderKeysWithDevices(identityId, nodes) {
+    for (const group of Object.values(state.groups || {}).filter(entry => isGroupActive(entry.id) && entry.members.includes(identityId))) {
+        const record = await loadGroupKeys(group.id);
+        if (record.own && nodes.length) await distributeSenderKey(group.id, record.own, nodes);
+    }
 }
 
 async function handleGroupSenderKey(peerId, payload) {
     const group = getGroup(payload.groupId);
-    if (!group || !isGroupActive(group.id) || !group.members.includes(peerId)) return false;
+    // Unbekanntes Geraet: aufheben, bis seine Geraeteliste da ist (devices.js spielt es dann nach).
+    if (group && isGroupActive(group.id) && memberIdOf(peerId) === peerId && !group.members.includes(peerId)) {
+        state.pendingDeviceSenderKeys = { ...(state.pendingDeviceSenderKeys || {}), [peerId]: [...(state.pendingDeviceSenderKeys?.[peerId] || []), payload].slice(-20) };
+        return false;
+    }
+    if (!group || !isGroupActive(group.id) || !group.members.includes(memberIdOf(peerId))) return false;
     const record = await loadGroupKeys(group.id);
     const known = record.members[peerId] || {};
     // Nur die letzten Schluessel behalten (aeltere Nachrichten im Zwischenspeicher laufen nach 24 h ab).
@@ -709,12 +785,13 @@ async function handleGroupSenderKey(peerId, payload) {
 async function updateSenderKeysForMembership(groupId, previousMembers, nextMembers) {
     if (!isGroupActive(groupId)) return;
     const removed = previousMembers.filter(member => !nextMembers.includes(member));
-    const added = nextMembers.filter(member => !previousMembers.includes(member) && member !== state.myProfile.id);
+    const added = nextMembers.filter(member => !previousMembers.includes(member) && member !== selfMemberId());
     const record = await loadGroupKeys(groupId);
-    for (const member of removed) delete record.members[member];
+    // Schluessel liegen je Geraet: alle Geraete eines Entfernten vergessen.
+    for (const node of Object.keys(record.members)) if (removed.includes(memberIdOf(node)) || removed.includes(node)) delete record.members[node];
     await saveGroupKeys(record);
     if (removed.length && record.own) await ensureOwnSenderKey(groupId, { rotate: true });
-    else if (added.length && record.own) await distributeSenderKey(groupId, record.own, added);
+    else if (added.length && record.own) await distributeSenderKey(groupId, record.own, added.flatMap(memberNodes));
 }
 
 async function senderCryptoKey(base64, usage) {
@@ -735,7 +812,7 @@ async function sealForGroup(groupId, payload) {
 // Gruppen-Umschlag aus Pfad C oeffnen; null = Schluessel (noch) unbekannt.
 async function openGroupEnvelope(senderId, envelope, ivBase64) {
     const group = getGroup(envelope?.groupId);
-    if (!group || !isGroupActive(group.id) || !group.members.includes(senderId)) return null;
+    if (!group || !isGroupActive(group.id) || !group.members.includes(memberIdOf(senderId))) return null;
     const key = (await loadGroupKeys(group.id)).members[senderId]?.[envelope.kid];
     if (!key) return null;
     const plaintext = await window.crypto.subtle.decrypt({ name: 'AES-GCM', iv: base64ToBytes(ivBase64) }, await senderCryptoKey(key, 'decrypt'),
@@ -762,7 +839,7 @@ async function groupOperationSignatureValid(groupId, operation) {
     if (typeof operation?.sig !== 'string') return false;
     const group = getGroup(groupId);
     const pinned = (await getPeerIdentity(operation.actorId).catch(() => null))?.profileSigningKey;
-    const key = pinned || groupMemberKey(group, operation.actorId);
+    const key = pinned || memberKeyForNode(group, operation.actorId);
     return Boolean(key) && verifyOperationSignature(operation, key);
 }
 
@@ -826,6 +903,9 @@ async function ownGroupCard() {
 }
 
 async function sendOwnGroupCard(recipients) {
+    // Die Karte signiert das Wurzel-Geraet (ownerId = Identitaet); weitere Geraete schicken keine eigene.
+    if (selfMemberId() !== state.myProfile?.id) return;
+    recipients = [...new Set(recipients.flatMap(id => (memberIdOf(id) === id ? memberNodes(id) : [id])))];
     if (!recipients.length || !state.myKeys?.ecdsaKeyPair?.privateKey) return;
     const signed = await ownGroupCard();
     await Promise.all(recipients.map(member => sendSecurePayload(member, { type: 'GROUP_MEMBER_CARD', ...signed }, () => {})
@@ -844,8 +924,8 @@ async function cardKeyFor(ownerId) {
 async function handleGroupMemberCard(peerId, payload) {
     const card = payload.card;
     const shared = Object.values(state.groups || {}).some(group => isGroupActive(group.id)
-        && group.members.includes(card?.ownerId) && group.members.includes(peerId));
-    if (!shared || card.ownerId === state.myProfile.id) return false;
+        && group.members.includes(card?.ownerId) && group.members.includes(memberIdOf(peerId)));
+    if (!shared || card.ownerId === selfMemberId()) return false;
     const key = await cardKeyFor(card.ownerId);
     if (!key || !await verifyOperationSignature({ ...cardSignable(card), sig: payload.sig }, key)) return false;
     const known = state.groupCards?.[card.ownerId];
@@ -855,7 +935,8 @@ async function handleGroupMemberCard(peerId, payload) {
     // Mesh: Admins reichen neue Karten an die anderen Mitglieder weiter (die kennen sich oft nicht direkt).
     const forwardTo = new Set();
     Object.values(state.groups || {}).filter(group => isGroupActive(group.id) && isGroupAdmin(group.id) && group.members.includes(card.ownerId))
-        .forEach(group => group.members.filter(member => ![state.myProfile.id, card.ownerId, peerId].includes(member)).forEach(member => forwardTo.add(member)));
+        .forEach(group => group.members.filter(member => ![selfMemberId(), card.ownerId, memberIdOf(peerId)].includes(member))
+            .flatMap(memberNodes).forEach(member => forwardTo.add(member)));
     forwardTo.forEach(member => sendSecurePayload(member, { type: 'GROUP_MEMBER_CARD', card: cardSignable(card), sig: payload.sig }, () => {}).catch(() => {}));
     if (typeof renderActivePeerList === 'function') renderActivePeerList();
     if (state.activeChatPeerId && isGroupId(state.activeChatPeerId) && typeof renderChatHistory === 'function') renderChatHistory();
@@ -867,16 +948,16 @@ async function handleGroupMemberCard(peerId, payload) {
 async function requestMissingGroupCards(groupId, fromPeerId) {
     const group = getGroup(groupId);
     if (!group) return;
-    const missing = group.members.filter(member => member !== state.myProfile.id && member !== fromPeerId
+    const missing = group.members.filter(member => member !== selfMemberId() && member !== memberIdOf(fromPeerId)
         && !state.cachedProfiles?.[member] && !groupCardOf(member));
     if (missing.length) await sendSecurePayload(fromPeerId, { type: 'GROUP_CARD_REQUEST', groupId, memberIds: missing }, () => {}).catch(logBackgroundError('requestMissingGroupCards'));
 }
 
 async function handleGroupCardRequest(peerId, payload) {
     const group = getGroup(payload.groupId);
-    if (!group || !isGroupActive(group.id) || !group.members.includes(peerId)) return;
+    if (!group || !isGroupActive(group.id) || !group.members.includes(memberIdOf(peerId))) return;
     for (const memberId of (payload.memberIds || []).filter(id => group.members.includes(id))) {
-        if (memberId === state.myProfile.id) {
+        if (memberId === selfMemberId()) {
             await sendOwnGroupCard([peerId]);
             continue;
         }
@@ -890,7 +971,7 @@ async function handleGroupCardRequest(peerId, payload) {
 async function shareGroupCards(groupId, previousMembers, fromPeerId = null) {
     const group = getGroup(groupId);
     if (!group || !isGroupActive(groupId)) return;
-    const newcomers = group.members.filter(member => member !== state.myProfile.id && !previousMembers.includes(member));
+    const newcomers = group.members.filter(member => member !== selfMemberId() && !previousMembers.includes(member));
     await sendOwnGroupCard(newcomers);
     if (fromPeerId) await requestMissingGroupCards(groupId, fromPeerId);
 }

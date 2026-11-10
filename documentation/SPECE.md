@@ -1262,6 +1262,23 @@ Chats werden als idempotente Operationen synchronisiert:
   nie sich selbst): neue Liste an eigene Geraete und Kontakte, das entfernte
   Geraet bekommt sie auch, sieht sich nicht mehr darin und laeuft danach allein
   weiter.
+- Was beim Koppeln mitkommt (Entscheidung 2026-11-10): **alles**, wie beim
+  Umzug (Profil, Chats, Gruppen, Kontakte, Alben, Medien, Status, alle
+  `opengrid-*`-Einstellungen), dazu die Gruppen-Schluessel der anderen
+  Mitglieder (der eigene Absender-Schluessel ist je Geraet) und die Sperren
+  (nach dem Beitritt beim Router fuer die neue Node eingetragen). Danach werden
+  nur Chats und Gruppen abgeglichen, Einstellungen und Profil nicht.
+- Gruppen ueber Geraete: Mitglieder sind Identitaeten (`selfMemberId`,
+  `memberIdOf`); eine Node zaehlt als ihre Identitaet (Empfangen, Admin-Rechte,
+  Absender-Schluessel, Karten, Austritt). Gesendet wird an alle Geraete der
+  Mitglieder (`groupRecipientNodes`, Fan-out und gebuendelter Pfad C), meine
+  anderen Geraete bekommen Operationen, Gruppen-Zustaende und Austritte
+  gespiegelt (weitergereichter `GROUP_STATE` wird gegen den eigentlichen
+  Unterzeichner geprueft). Ein weiteres Geraet schickt Empfaengern vorher seine
+  Geraeteliste (je Sitzung und Version einmal); Absender-Schluessel unbekannter
+  Geraete werden aufgehoben, bis deren Liste da ist. Anker fuer die Liste eines
+  Mitglieds ohne gepinnten Schluessel: `memberKeys` aus einem Admin-signierten
+  Gruppen-Zustand. Die Visitenkarte signiert nur das Wurzel-Geraet.
 
 Nach jedem neuen E2EE-Schluessel und vor einem weiteren Nachrichtenversand
 tauschen beide Clients die 20 neuesten Operations-IDs aus. Fehlende

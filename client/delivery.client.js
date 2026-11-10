@@ -40,7 +40,7 @@ function syncConversation(peerId, payload) {
     // Eigenes Geraet: jeder Chat (T36 P4b).
     if (typeof isOtherOwnDevice === 'function' && isOtherOwnDevice(peerId)) return typeof payload.conversationId === 'string' ? payload.conversationId : null;
     if (typeof resolveIncomingConversation !== 'function') return null;
-    return resolveIncomingConversation(peerId, payload.conversationId, { groups: state.groups || {}, myId: state.myProfile?.id });
+    return resolveIncomingConversation(peerId, payload.conversationId, { groups: state.groups || {}, myId: selfMemberId(), memberOf: memberIdOf });
 }
 
 // Operationen, die dieses Gegenueber im Sync bekommen darf: in Gruppen erst ab seinem `since`.

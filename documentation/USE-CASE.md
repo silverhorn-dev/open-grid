@@ -1411,3 +1411,7 @@ Akzeptanzkriterien:
   habe.
 - Ein Geraet mit Recht kann andere Geraete entfernen oder ihnen das Recht
   geben, Geraete hinzuzufuegen; die Wurzel kann nicht entfernt werden.
+- Beim Koppeln kommt alles mit (auch Gruppen, Einstellungen und Sperren).
+  Danach bleiben Chats und Gruppen abgeglichen, Einstellungen nicht.
+- In Gruppen kann ich von jedem Geraet schreiben; die anderen sehen mich als
+  eine Person.

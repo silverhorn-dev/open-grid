@@ -732,6 +732,7 @@
   - [x] P4a geraeteliste + koppeln per code (ohne umzug, ohne ID-umschreiben), `isOwnNode`; tests `test/devices.test.js`, e2e `devices`; UC-79
   - [x] P4b eigene geraete spiegeln (gesendet + empfangen) + sync zwischen eigenen geraeten (2026-11-10): `mirrorOf`, `handleMirroredOperation`, abgleich aller chats; tests `test/devices.test.js`, e2e `devices`
   - [x] P4c kontakte senden an alle geraete einer person, eingehende der identitaet zuordnen (2026-11-10): geraeteliste an kontakte, anker = gepinnter identitaets-schluessel, fan-out, `identityOf`; tests `test/devices.test.js`, e2e `devices`
+  - [x] P4e beim koppeln alles uebertragen (gruppen-schluessel, sperren), danach nur chats + gruppen abgleichen; gruppen ueber geraete (mitglied = identitaet) (2026-11-10); e2e `devices`
   - [x] P4d grid nur zuletzt aktives geraet, geraete verwalten (entfernen, recht weitergeben) (2026-11-10): `DEVICE_ACTIVE`, stille anmeldung, `removeOwnDevice`/`grantDeviceRight`; e2e `devices`
 - [ ] P5 forward secrecy
 - [x] 3 security-hackathon -> `documentation/SECURITY-HACKATHON.md`

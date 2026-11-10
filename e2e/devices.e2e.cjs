@@ -42,6 +42,12 @@ async function main() {
         await phone.evaluate(async id => { await openChatWithPeer(id); document.getElementById('chat-input').value = 'vom handy'; await sendChatMessage(); }, bobId);
         await waitFor(bob, id => (state.chats[id] || []).some(message => message.text === 'vom handy'), phoneId);
 
+        // Vor dem Koppeln: eine Gruppe mit Bob und eine Einstellung; beides muss mitkommen.
+        const groupId = await phone.evaluate(async id => (await createGroup('Team', [id])).id, bobId);
+        await waitFor(bob, id => Boolean(getGroup(id)), groupId);
+        await phone.evaluate(async id => { await openChatWithPeer(id); document.getElementById('chat-input').value = 'gruppe vorher'; await sendChatMessage(); }, groupId);
+        await phone.evaluate(() => window.localStorage.setItem('opengrid-chat-font-size', 'large'));
+
         // Handy: Code ueber Einstellungen > Meine Geraete.
         await phone.evaluate(() => openDevicePairing());
         await phone.click('#devices-code-btn');
@@ -63,6 +69,10 @@ async function main() {
         await waitFor(pc, id => myDeviceList()?.devices.some(device => device.nodeId === id) && state.devicePairing?.joinedAt, pcId, 60000);
         assert.equal(await phone.evaluate(() => Boolean(state.movedAway)), false, 'phone stays active');
         assert.deepEqual(await pc.evaluate(() => myDeviceList().devices.map(device => [device.nodeId === myIdentityId(), device.canAdd])), [[true, true], [false, false]]);
+        // Alles uebernommen: Gruppe mit Verlauf und Einstellungen.
+        assert.equal(await pc.evaluate(async id => isGroupActive(id)
+            && (await getChatOperations(id)).some(op => op.message?.text === 'gruppe vorher'), groupId), true, 'group came along');
+        assert.equal(await pc.evaluate(() => window.localStorage.getItem('opengrid-chat-font-size')), 'large', 'settings came along');
         // Alte eigene Nachricht gilt auf dem PC als eigene.
         await pc.evaluate(id => openChatWithPeer(id), bobId);
         assert.equal(await pc.evaluate(id => {
@@ -81,6 +91,19 @@ async function main() {
         assert.equal(await bob.evaluate(id => state.chatPeerIds.includes(id), pcId), false, 'no separate chat for the pc');
         assert.equal(await bob.evaluate(id => displayNameFor(id), pcId), 'Alice');
         await waitFor(phone, id => (state.chats[id] || []).some(message => message.text === 'vom pc'), bobId, 45000);
+        // Gruppen ueber Geraete: der PC schreibt in die Gruppe, Bob sieht es als Alice; Bobs Antwort kommt auf beiden an.
+        await pc.evaluate(async id => { await openChatWithPeer(id); document.getElementById('chat-input').value = 'gruppe vom pc'; await sendChatMessage(); }, groupId);
+        await waitFor(bob, id => (state.chats[id] || []).some(message => message.text === 'gruppe vom pc'), groupId, 45000);
+        await waitFor(phone, id => (state.chats[id] || []).some(message => message.text === 'gruppe vom pc'), groupId, 45000);
+        await bob.evaluate(async id => { await openChatWithPeer(id); document.getElementById('chat-input').value = 'gruppe von bob'; await sendChatMessage(); }, groupId);
+        await waitFor(pc, id => (state.chats[id] || []).some(message => message.text === 'gruppe von bob'), groupId, 45000);
+        await waitFor(phone, id => (state.chats[id] || []).some(message => message.text === 'gruppe von bob'), groupId, 45000);
+        // Eine neue Gruppe vom Handy erscheint auch auf dem PC.
+        const group2 = await phone.evaluate(async id => (await createGroup('Zwei', [id])).id, bobId);
+        await waitFor(pc, id => isGroupActive(id), group2, 45000);
+        // Einstellungen danach nicht abgeglichen.
+        await phone.evaluate(() => window.localStorage.setItem('opengrid-chat-font-size', 'small'));
+
         // P4d: zuletzt aktives Geraet im Grid; das andere meldet sich still an.
         await pc.evaluate(() => { state.ownDeviceActivity[state.myProfile.id] = 0; markThisDeviceActive(); });
         await waitFor(phone, () => deviceHiddenFromGrid(), null, 30000);
@@ -102,6 +125,9 @@ async function main() {
         await phone.close();
         await bob.evaluate(async id => { await openChatWithPeer(id); document.getElementById('chat-input').value = 'handy ist aus'; await sendChatMessage(); }, phoneId);
         await waitFor(pc, id => (state.chats[id] || []).some(message => message.text === 'handy ist aus'), bobId, 60000);
+        await bob.evaluate(async id => { await openChatWithPeer(id); document.getElementById('chat-input').value = 'gruppe handy aus'; await sendChatMessage(); }, groupId);
+        await waitFor(pc, id => (state.chats[id] || []).some(message => message.text === 'gruppe handy aus'), groupId, 60000);
+        assert.equal(await pc.evaluate(() => window.localStorage.getItem('opengrid-chat-font-size')), 'large', 'settings are not synced later');
         // Ein drittes Geraet wird gekoppelt und vom PC (hat jetzt das Recht) wieder entfernt.
         const tablet = await page('tablet');
         await pc.evaluate(() => openDevicePairing());

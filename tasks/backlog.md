@@ -14,7 +14,7 @@ Ideen ohne festen Termin. Neue Phasen werden von hier auf `tasks/board.md` gehol
   - [ ] native API fuer die PWA zum senden/empfangen von bildern im hintergrund/offline (spart akku) -> plan auf dem board unter T4
 
 ## Mehrgeraete-Betrieb (nutzer 2026-11-01, "music of the future")
-- [ ] dieselbe identitaet auf mehreren geraeten gleichzeitig (z. B. PC + handy oder zwei handys): chats, matches, freunde ueberall; kopplung per QR (wie der geplante umzug PWA -> app, `documentation/ANDROID-APP.md`), dazu sync zwischen den eigenen geraeten
+- [x] (2026-11-10, board T36 P4) dieselbe identitaet auf mehreren geraeten gleichzeitig (z. B. PC + handy oder zwei handys): chats, matches, freunde ueberall; kopplung per QR (wie der geplante umzug PWA -> app, `documentation/ANDROID-APP.md`), dazu sync zwischen den eigenen geraeten
 
 ## Hyperlocal Mesh (Festival/Club Mode)
 - [x] WebRTC over LAN: mDNS und lokale Host-Kandidaten aggressiv priorisieren
@@ -51,9 +51,9 @@ Ideen ohne festen Termin. Neue Phasen werden von hier auf `tasks/board.md` gehol
 
 ### group chats
 
-- [ ] group chats with more participating nodes
-- [ ] swarm sending/caching/routing of images
-- [ ] lesser usage of the router cache
+- [x] group chats with more participating nodes (2026-11-10, board T36 P0-P2)
+- [x] swarm sending/caching/routing of images (2026-11-10, board T36 P3)
+- [x] lesser usage of the router cache (2026-11-10: originale nur P2P/schwarm, gruppen gebuendelt; board T36 P2c/P3)
 - [x] Check the chat hist handshake for exchanging new chat actions (2026-11-10, board T35)
 	- [x] does the running ids work right? -> ja, eindeutig und idempotent (SPECE "Pruefung des Chat-Syncs")
 	- [x] offline states? -> abgelaufene pfad-C-nachrichten werden jetzt erneut zugestellt; zu grosse sync-pakete behoben

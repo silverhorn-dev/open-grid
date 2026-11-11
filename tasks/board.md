@@ -144,7 +144,7 @@
   - [ ] K2 schnittstelle oberflaeche <-> kern (RPC, ereignisse, herzschlag, rueckfall)
   - [ ] K3 live-funktionen ueber den kern (secure snaps, originale, praesenz, alben, status ...)
   - [ ] K4 kern auf abruf (nutzer 2026-11-11: kein dauer-browser): nativer posteingang (WS "erreichbar", spaeter UnifiedPush) weckt die kern-WebView bei bedarf, kern schlaeft nach ruhe wieder; oberflaechen-WebView beim schliessen zerstoert (`WebViewHolder` aus 0.2.0 entfaellt); einstellung (standard immer), akku, start nach neustart
-  - [ ] R1 router "erreichbar + wecken": praesenz `reachable`, P2P-angebote kurz puffern + `WAKE` an den posteingang, absender warten bei "erreichbar" laenger auf P2P bevor pfad C
+  - [ ] R1 router "erreichbar + wecken": praesenz `reachable`, P2P-angebote kurz puffern + `WAKE` an den posteingang, absender warten bei "erreichbar" laenger auf P2P bevor pfad C; vorab wecken beim oeffnen des chats + bei tippen/snap/medien-auswahl (nutzer 2026-11-11), weck-limit je absender/empfaenger, nur zugelassene chats
   - [ ] K5 messen auf geraeten
   - entschieden (nutzer 2026-11-11): standard "immer", autostart nach neustart, eine datenquelle (gleiche IndexedDB); oberflaeche schreibt eigene nachrichten, kern alles eingehende
 - [ ] die wrapper-app (siehe backlog "real application for android") stellt der PWA eine API bereit, um bilder zu senden und zu empfangen, auch offline bzw. wenn die app im hintergrund ist; grund: dauernd geladene PWA zieht viel akku

@@ -100,6 +100,11 @@ const state = {
     secureMessageQueues: {},
     presenceProbes: {},
     peerChatFocus: {},
+    // "Tippt ..." (chat-tools.js): eigene Einstellung, was die anderen gerade tun, was zuletzt gesendet wurde.
+    typingIndicator: true,
+    peerTyping: {},
+    typingSent: {},
+    typingTimers: {},
     // Verbindungsart pro Peer (lan, direct, relay) und ob der Server im LAN-Modus laeuft.
     peerTransport: {},
     serverLanMode: false,

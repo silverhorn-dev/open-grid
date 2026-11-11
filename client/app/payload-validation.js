@@ -168,6 +168,7 @@ const PAYLOAD_VALIDATORS = {
         && (payload.mirrorOf === undefined || isId(payload.mirrorOf)),
     CHAT_OPERATION_ACK: payload => isId(payload.operationId),
     CHAT_FOCUS: payload => typeof payload.open === 'boolean',
+    CHAT_TYPING: payload => ['text', 'snap', 'media', 'idle'].includes(payload.kind),
     CHAT_SYNC_HELLO: payload => isIdList(payload.recentOperationIds || [], 20) && optionalGroup(payload),
     CHAT_SYNC_INVENTORY_REQUEST: payload => (payload.cursor === undefined || isSmallInt(payload.cursor)) && optionalGroup(payload),
     CHAT_SYNC_INVENTORY: payload => optionalGroup(payload) && isIdList(payload.operationIds || [], MAX_SYNC_IDS)

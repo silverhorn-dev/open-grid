@@ -2558,3 +2558,16 @@ Gilt nur fuer Dating (Entdecken), nicht fuer Chat & Freunde.
   Precache, der Service Worker antwortet offline mit ihrer eigenen Shell.
 - Der Kern arbeitet unabhaengig von der Sichtbarkeit (`isAppActive()`), richtet
   ohne eigenes Profil nichts ein und laedt kein Nacktbild-Modell.
+
+## "Tippt ..." (CHAT_TYPING)
+
+- `CHAT_TYPING { kind: 'text' | 'snap' | 'media' | 'idle' }` nur ueber einen
+  offenen P2P-Kanal (nie Pfad C), nur 1:1. Ausloeser: Eingabe mit Text (alle
+  3 s erneuert), leere Eingabe = `idle`, Snap-Kamera fuer den Chat = `snap`,
+  Medien-Menue bzw. GIF-Auswahl = `media`. Anzeige im Chat-Kopf ("tippt ...",
+  "macht einen Snap ...", "waehlt Medien aus ...") vor "hat den Chat offen";
+  endet nach 6 s ohne Erneuerung, mit der eingehenden Nachricht oder wenn der
+  Chat geschlossen wird.
+- Gegenseitig: Einstellung `keys`/`typing-indicator` (Router-Standard
+  `CLIENT_DEFAULTS.typingIndicator`, an); aus = nichts senden, nichts zeigen.
+- Spaeter (ANDROID-APP.md, R1): dieselbe Absicht weckt einen schlafenden Kern.

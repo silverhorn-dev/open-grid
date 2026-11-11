@@ -676,7 +676,9 @@ function renderChatPeerIndicator() {
     const sameNetwork = online && state.peerTransport[peerId] === 'lan' ? t('chat.onSameWiFi') : '';
     const presence = peerId ? presenceTextOf(peerId) : '';
     const presenceSuffix = presence ? ` · ${presence}` : '';
-    const state_ = !peerId ? '' : watching ? `\u{1F440} ${t('chat.hasChatOpen')}` : away ? t('chat.away') : online ? t('chat.online') : t('chat.offline2');
+    // Tippt / Snap / Medien (nur ueber P2P, gegenseitig abschaltbar) geht vor "hat den Chat offen".
+    const typing = online && isSecureChannelOpen(peerId) ? peerTypingLabel(peerId) : '';
+    const state_ = !peerId ? '' : typing || (watching ? `\u{1F440} ${t('chat.hasChatOpen')}` : away ? t('chat.away') : online ? t('chat.online') : t('chat.offline2'));
     status.textContent = peerId ? `${state_}${online ? sameNetwork : ''}${presenceSuffix}` : '';
     status.classList.toggle('text-emerald-400', online && !away);
     status.classList.toggle('text-amber-400', away);
@@ -728,7 +730,67 @@ function syncChatFocus() {
 
 function receiveChatFocus(peerId, open) {
     state.peerChatFocus[peerId] = Boolean(open);
+    // Chat geschlossen: auch kein "tippt" mehr.
+    if (!open) delete state.peerTyping[peerId];
     if (state.activeChatPeerId === peerId) renderChatPeerIndicator();
+}
+
+// ----- "Tippt ..." (CHAT_TYPING) -----
+// Nur ueber einen offenen P2P-Kanal (nie Zwischenspeicher), nur 1:1, gegenseitig: wer es ausschaltet, sendet
+// nichts und sieht nichts (`keys`/`typing-indicator`, Router-Standard `CLIENT_DEFAULTS.typingIndicator`, an).
+// Arten: text (tippt), snap (Snap-Kamera), media (Bild-/GIF-Auswahl), idle (fertig). Haelt 6 s ohne Erneuerung.
+const TYPING_KINDS = ['text', 'snap', 'media', 'idle'];
+const TYPING_SEND_INTERVAL_MS = 3000;
+const TYPING_SHOW_MS = 6000;
+const TYPING_RECORD_ID = 'typing-indicator';
+
+async function loadTypingSetting() {
+    const stored = await databaseRequest('keys', 'readonly', store => store.get(TYPING_RECORD_ID)).catch(() => null);
+    state.typingIndicator = typeof stored?.enabled === 'boolean' ? stored.enabled : clientDefault('typingIndicator', true) !== false;
+    const toggle = document.getElementById('typing-indicator-toggle');
+    if (toggle) toggle.checked = state.typingIndicator;
+}
+
+async function updateTypingSetting(enabled) {
+    state.typingIndicator = Boolean(enabled);
+    if (!state.typingIndicator) {
+        state.peerTyping = {};
+        renderChatPeerIndicator();
+    }
+    await putDatabaseRecord('keys', { id: TYPING_RECORD_ID, enabled: state.typingIndicator })
+        .catch(error => logDebug(`Could not store typing setting: ${error.message}`));
+}
+
+function typingAllowedFor(peerId) {
+    return state.typingIndicator !== false && Boolean(peerId) && !(typeof isGroupId === 'function' && isGroupId(peerId))
+        && !isPeerBlocked(peerId) && isSecureChannelOpen(peerId);
+}
+
+// Eigene Absicht melden (gedrosselt; "idle" sofort).
+function sendTyping(kind, peerId = state.activeChatPeerId) {
+    if (!TYPING_KINDS.includes(kind) || !typingAllowedFor(peerId)) return;
+    const last = state.typingSent[peerId];
+    const now = Date.now();
+    if (kind === 'idle' ? !last || last.kind === 'idle' : last && last.kind === kind && now - last.at < TYPING_SEND_INTERVAL_MS) return;
+    state.typingSent[peerId] = { kind, at: now };
+    sendSecurePayload(peerId, { type: 'CHAT_TYPING', kind }).catch(logBackgroundError('sendTyping'));
+}
+
+function receiveTyping(peerId, kind) {
+    if (state.typingIndicator === false || !TYPING_KINDS.includes(kind)) return;
+    if (kind === 'idle') delete state.peerTyping[peerId];
+    else state.peerTyping[peerId] = { kind, until: Date.now() + TYPING_SHOW_MS };
+    if (state.activeChatPeerId !== peerId) return;
+    renderChatPeerIndicator();
+    // Ablauf ohne Erneuerung: Anzeige wieder normal.
+    clearTimeout(state.typingTimers[peerId]);
+    if (kind !== 'idle') state.typingTimers[peerId] = setTimeout(() => renderChatPeerIndicator(), TYPING_SHOW_MS + 50);
+}
+
+function peerTypingLabel(peerId) {
+    const entry = state.peerTyping[peerId];
+    if (!entry || state.typingIndicator === false || entry.until < Date.now()) return '';
+    return { text: t('chat.typing'), snap: t('chat.typingSnap'), media: t('chat.typingMedia') }[entry.kind] || '';
 }
 
 // ----- Album-Knopf im Chat -----

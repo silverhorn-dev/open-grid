@@ -263,6 +263,8 @@ async function openSnapUploadModal() {
 // Ziel: 'chat' (Snap an den aktiven Chat) oder 'status' (Foto-Status fuer Freunde, status.js).
 async function openSnapCamera(target) {
     state.snapTarget = target;
+    // Snap fuer einen Chat: "macht einen Snap" (chat-tools.js).
+    if (target === 'chat' && typeof sendTyping === 'function') sendTyping('snap');
     // Nacktbild-Warnung vor dem Senden: Modell schon jetzt im Hintergrund laden (nudity-model.js).
     if (typeof warmUpNudityModel === 'function') warmUpNudityModel();
     setSnapSendMode('snap');

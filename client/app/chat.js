@@ -607,6 +607,8 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
         fitChatInput(input);
         updateComposeButtons();
     }
+    // Gesendet: kein "tippt" mehr; die naechste Eingabe meldet sich gleich wieder.
+    if (state.typingSent?.[peerId]) state.typingSent[peerId] = { kind: 'idle', at: Date.now() };
     if (isOpenChat) {
         state.replyToMessageId = null;
         renderReplyBar();

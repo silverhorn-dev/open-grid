@@ -1469,3 +1469,15 @@ Akzeptanzkriterien:
   melden; schon wenige solcher Meldungen blenden die Person aus, bis der
   Betreiber entscheidet.
 
+## UC-83: Sehen, dass jemand schreibt
+
+**Als Nutzer** moechte ich sehen, wenn mein Gegenueber gerade schreibt, einen
+Snap macht oder Medien auswaehlt.
+
+Akzeptanzkriterien:
+
+- Im Chat-Kopf steht "tippt ...", "macht einen Snap ..." bzw. "waehlt Medien
+  aus ...", solange es dauert; mit der Nachricht verschwindet es.
+- Das geht nur bei direkter Verbindung, nie ueber den Router.
+- Ich kann es ausschalten; dann sehe ich es bei anderen auch nicht.
+

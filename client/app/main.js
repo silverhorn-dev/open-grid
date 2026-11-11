@@ -128,6 +128,7 @@ window.onload = async () => {
             await loadChatSwitchSettings();
             await loadPullUpSetting();
             await loadChatSwipeCloseSetting();
+            await loadTypingSetting();
             await loadSnapPageSetting();
             await loadGifState();
             await loadReloadMode();
@@ -187,6 +188,8 @@ window.onload = async () => {
         chatInput.addEventListener('input', () => {
             fitChatInput(chatInput);
             updateComposeButtons();
+            // "Tippt ..." (chat-tools.js): Text da = tippt, leer = fertig.
+            sendTyping(chatInput.value.trim() ? 'text' : 'idle');
         });
         updateComposeButtons();
         chatInput.addEventListener('keydown', (event) => {

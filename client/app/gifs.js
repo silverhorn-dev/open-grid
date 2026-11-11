@@ -736,6 +736,7 @@ async function openGifPicker() {
     if (!gifComposeAvailable() || !state.activeChatPeerId) return;
     // Vorschaubilder laden fremde Server: erst nach Zustimmung.
     if (!gifSetting('enabled') && !await enableGifsFromPrompt('enable')) return;
+    if (typeof sendTyping === 'function') sendTyping('media');
     const content = openMediaModal(t('gifs.pickerTitle'));
     const tabs = document.createElement('div');
     tabs.className = 'flex gap-2 overflow-x-auto pb-2';

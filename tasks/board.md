@@ -767,3 +767,4 @@
   - [x] P4 (2026-11-11): `NEW_ACCOUNT_HOURS`/`NEW_ACCOUNT_DISCOVERY_CONTACTS` (pfad C, art discovery), meldegrund `sextortion` blendet ab der haelfte aus; tests `test/server.test.js`
   - plan P4 router-signale ohne inhalt: viele erstkontakte junger konten drosseln; meldegrund "verlangt nacktbilder / erpressung" mit schnellerem ausblenden
   - plan P5 hilfe bei erpressung (sextortion): kurze hilfeseite mit anlaufstellen, aus melden heraus erreichbar
+- [x] nutzer 2026-11-11: "tippt ..." ueber den P2P-kanal, ausschaltbar -> `CHAT_TYPING` (text/snap/media/idle), gegenseitig, `CLIENT_DEFAULTS.typingIndicator`; e2e `typing`; UC-83

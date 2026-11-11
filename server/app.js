@@ -80,6 +80,7 @@ const CLIENT_DEFAULT_RULES = {
     chatSwitchStyle: ['bar', 'arrows', 'swipe'],
     pullUpAction: ['reload', 'next', 'switcher', 'snap', 'album'],
     inputSwipeClosesChat: 'boolean',
+    typingIndicator: 'boolean',
     chatPagesByDay: 'boolean',
     reloadMode: ['full', 'app'],
     notifyMatch: 'boolean',

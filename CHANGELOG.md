@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 338 · 2026-11-11
+## Build 341 · 2026-11-11
+- Im Chat siehst du jetzt, wenn jemand tippt, einen Snap macht oder Medien auswaehlt (nur bei direkter Verbindung; in den Einstellungen abschaltbar, dann siehst du es auch bei anderen nicht)
+
+## Build 338 · 2026-11-11 · `72e762a`
 - Vorbereitung Android-App: OpenGrid kann als unsichtbarer Hintergrund-Kern laufen (noch nicht in der App aktiv)
 
 ## Build 336 · 2026-11-11 · `abdc135`

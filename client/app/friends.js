@@ -489,6 +489,7 @@ function toggleComposeMediaMenu(force = null) {
     const open = force === null ? menu.classList.contains('hidden') : force;
     menu.classList.toggle('hidden', !open);
     button.setAttribute('aria-expanded', String(open));
+    if (open && typeof sendTyping === 'function') sendTyping('media');
 }
 
 function closeComposeMediaMenu() {

@@ -196,6 +196,7 @@ function cleanupPeerConnection(peerId, connection) {
         delete state.earlyEnvelopes[peerId];
         delete state.pendingIceCandidates[peerId];
         delete state.peerChatFocus[peerId];
+        delete state.peerTyping[peerId];
         delete state.peerTransport[peerId];
         if (state.activeChatPeerId === peerId) renderChatPeerIndicator();
     }
@@ -932,6 +933,8 @@ async function handleSecurePayload(peerId, payload, deliveredVia = 'E2EE P2P') {
         await handleGroupCardRequest(peerId, payload);
     } else if (payload.type === 'CHAT_OPERATION_ACK') {
         handleP2PAck(peerId, payload.operationId);
+    } else if (payload.type === 'CHAT_TYPING') {
+        if (typeof receiveTyping === 'function') receiveTyping(peerId, payload.kind);
     } else if (payload.type === 'CHAT_FOCUS') {
         receiveChatFocus(peerId, payload.open);
     } else if (payload.type === 'CHAT_SYNC_HELLO') {

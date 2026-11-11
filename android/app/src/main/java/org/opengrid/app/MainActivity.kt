@@ -12,6 +12,7 @@ import android.view.Gravity
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
+import android.webkit.CookieManager
 import android.webkit.GeolocationPermissions
 import android.webkit.PermissionRequest
 import android.webkit.ValueCallback
@@ -192,8 +193,14 @@ class MainActivity : ComponentActivity(), Bridge.Handler {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 val url = request.url
                 if (RouterAddress.sameOrigin(url.toString(), routerOrigin)) return false
+                if (RouterAddress.isAccessLogin(url.toString())) return false
                 openExternal(url)
                 return true
+            }
+
+            // Erst wenn der Router selbst geladen ist (nach einer Anmeldung bei Cloudflare Access), nach Updates fragen.
+            override fun onPageFinished(view: WebView, url: String?) {
+                if (RouterAddress.sameOrigin(url, routerOrigin)) checkForUpdate(routerOrigin)
             }
         }
         view.webChromeClient = object : WebChromeClient() {
@@ -229,7 +236,6 @@ class MainActivity : ComponentActivity(), Bridge.Handler {
         }
         setContentView(view)
         if (savedInstanceState == null || view.restoreState(savedInstanceState) == null) view.loadUrl(routerOrigin)
-        checkForUpdate(routerOrigin)
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -305,7 +311,11 @@ class MainActivity : ComponentActivity(), Bridge.Handler {
                 val connection = URL("$routerOrigin/api/config").openConnection() as HttpURLConnection
                 connection.connectTimeout = 10000
                 connection.readTimeout = 10000
-                connection.inputStream.bufferedReader().use { JSONObject(it.readText()) }.optJSONObject("android")
+                // Hinter Cloudflare Access: Anmelde-Cookie der WebView mitschicken; Umleitung zur Anmeldung = kein Ergebnis.
+                CookieManager.getInstance().getCookie(routerOrigin)?.let { connection.setRequestProperty("Cookie", it) }
+                connection.instanceFollowRedirects = false
+                if (connection.responseCode != HttpURLConnection.HTTP_OK) null
+                else connection.inputStream.bufferedReader().use { JSONObject(it.readText()) }.optJSONObject("android")
             } catch (_: Exception) {
                 null
             } ?: return@thread

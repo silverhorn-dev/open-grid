@@ -741,3 +741,4 @@
   - [x] S5 behoben mit P5: keine forward secrecy (statisches ECDH fuer P2P + pfad C) -> GRUPPEN-MEHRGERAETE.md entscheidung 8 / P5
   - S12 einschaetzung: keine code-verschleierung (bringt keine sicherheit); echte attestierung nur in der android-app
 - [x] nutzer 2026-11-11: neue reiter-leisten ohne wischen (grid-reiter, profil dating/freunde, GIF-auswahl, sticker-reiter) -> `attachTabStripSwipe` wie die einstellungen; grid erst sub-reiter, an den enden haupt-reiter; e2e `tab-swipes`
+- [x] nutzer 2026-11-11: app hinter cloudflare tunnel + access (e-mail-login) -> anmeldeseite `*.cloudflareaccess.com` bleibt in der webview, update-pruefung erst nach dem laden mit webview-cookie; apk 0.1.1 (versionCode 2)

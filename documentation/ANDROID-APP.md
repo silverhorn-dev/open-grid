@@ -59,6 +59,14 @@ Identitaet. Einen Export/Import gibt es noch nicht; Umzug siehe Entscheidung 7.
 - Verteilung (Regel 4, keine App-Stores): APK direkt vom Router
   (`/app/opengrid.apk`, Link auf der Info-Seite), optional F-Droid. Updates:
   die App vergleicht ihre Version mit `/api/config` und bietet das neue APK an.
+- Router hinter Cloudflare Access (Tunnel mit Zugriffsregeln, z. B. E-Mail-Code):
+  die Anmeldeseite (`https://*.cloudflareaccess.com`) bleibt in der WebView,
+  damit das Anmelde-Cookie dort landet und die Weiterleitung zurueck zum Router
+  in der App ankommt (Bruecke und Rechte weiter nur fuer den Router). Die
+  Update-Pruefung laeuft erst, wenn der Router geladen ist, und schickt das
+  Cookie der WebView mit. Der APK-Download oeffnet im Browser und braucht dort
+  dieselbe Anmeldung. Google als Anmeldeweg geht in WebViews nicht (Google
+  sperrt eingebettete Anmeldungen).
 
 ### Phase 2: Bruecke (PWA <-> App)
 

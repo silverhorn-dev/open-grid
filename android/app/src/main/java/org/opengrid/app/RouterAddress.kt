@@ -30,6 +30,16 @@ object RouterAddress {
         return uri.getQueryParameter("url")
     }
 
+    // Anmeldeseite von Cloudflare Access (Router hinter einem Cloudflare-Tunnel mit Zugriffsregeln):
+    // bleibt in der WebView, damit das Anmelde-Cookie dort landet und der Rueckweg zum Router klappt.
+    // Die Bruecke und Rechte gelten weiter nur fuer den Router-Ursprung.
+    fun isAccessLogin(url: String?): Boolean {
+        if (url == null) return false
+        val uri = Uri.parse(url)
+        val host = uri.host?.lowercase() ?: return false
+        return uri.scheme?.lowercase() == "https" && host.endsWith(".cloudflareaccess.com")
+    }
+
     fun sameOrigin(url: String?, origin: String): Boolean {
         if (url == null) return false
         val uri = Uri.parse(url)

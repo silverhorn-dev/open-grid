@@ -769,3 +769,4 @@
   - plan P5 hilfe bei erpressung (sextortion): kurze hilfeseite mit anlaufstellen, aus melden heraus erreichbar
 - [x] nutzer 2026-11-11: "tippt ..." ueber den P2P-kanal, ausschaltbar -> `CHAT_TYPING` (text/snap/media/idle), gegenseitig, `CLIENT_DEFAULTS.typingIndicator`; e2e `typing`; UC-83
 - [x] nutzer 2026-11-11: invite-code einfuegen, QR scannen in der einladen-karte, OpenGrid-QRs in der snap-kamera aufloesen -> `qr-scan.js` (BarcodeDetector, sonst jsQR vom router), einladung/umzug/router-link/fremder router; tests `test/qr-scan.test.js`, e2e `qr-invite`; UC-84
+- [x] bug (nutzer 2026-11-11): beim snappen keine bilder aus der galerie -> im browser ok (e2e jetzt ueber den echten galerie-knopf); in der app kam die mehrfachauswahl (ClipData) nicht an -> `pickedUris`, app 0.2.1

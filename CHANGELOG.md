@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 342 · 2026-11-11
+## Build 343 · 2026-11-11
+- Behoben (Android-App 0.2.1): mehrere Bilder aus der Galerie (z. B. beim Snappen) kamen in der App nicht an
+
+## Build 342 · 2026-11-11 · `078a8cd`
 - Einladungen: Link oder Code einfuegen und oeffnen, oder mit "Scannen" den QR-Code mit der Kamera lesen (Einstellungen > Kontakt einladen)
 - Snap-Kamera: hast du einen OpenGrid-QR-Code im Bild, kannst du die Einladung direkt oeffnen
 

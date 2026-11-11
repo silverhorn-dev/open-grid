@@ -77,7 +77,17 @@ class MainActivity : ComponentActivity(), Bridge.Handler {
     private val fileChooser = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val callback = fileCallback ?: return@registerForActivityResult
         fileCallback = null
-        callback.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(result.resultCode, result.data))
+        callback.onReceiveValue(pickedUris(result.resultCode, result.data))
+    }
+
+    // Mehrfachauswahl (Galerie, <input multiple>) kommt als ClipData; parseResult kennt nur ein einzelnes Bild.
+    private fun pickedUris(resultCode: Int, data: Intent?): Array<Uri>? {
+        if (resultCode != RESULT_OK || data == null) return null
+        val clip = data.clipData
+        if (clip != null && clip.itemCount > 0) {
+            return (0 until clip.itemCount).mapNotNull { clip.getItemAt(it)?.uri }.toTypedArray().takeIf { it.isNotEmpty() }
+        }
+        return WebChromeClient.FileChooserParams.parseResult(resultCode, data)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

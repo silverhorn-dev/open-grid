@@ -153,6 +153,13 @@ async function main() {
         // Mehrfachauswahl aus der Galerie: erst durchsehen (blaettern, eins entfernen), dann alle senden.
         const tinyPng = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
         const beforePick = await bob.evaluate(() => Object.values(state.chats).flat().filter(message => message.snapMode === 'replay').length);
+        // Ueber den echten Galerie-Knopf (Dateiauswahl): ein Bild landet im Editor.
+        await openCamera();
+        const chooserOpened = alice.waitForEvent('filechooser', { timeout: 10000 });
+        await alice.locator('#snap-live-controls label').click();
+        await (await chooserOpened).setFiles([{ name: 'galerie.png', mimeType: 'image/png', buffer: tinyPng }]);
+        await waitFor(alice, () => hasSnapDraft(), null, 10000);
+        await alice.evaluate(() => closeSnapModal());
         await openCamera();
         await alice.setInputFiles('#snap-file-input', [1, 2, 3, 4].map(index => ({ name: `bild${index}.png`, mimeType: 'image/png', buffer: tinyPng })));
         await alice.waitForSelector('#picked-review-send', { state: 'visible', timeout: 10000 });

@@ -409,14 +409,31 @@ async function handleSnapStreamStart(peerId, payload) {
         viewsLeft: Number(payload.viewsLeft) || 0
     });
     setSecureSnapStatus(t('snaps.loadingLiveSnap'));
+    // Oberflaeche der App: der Stream kommt als Einzelbilder vom Kern.
+    if (APP_ROLE === 'ui') {
+        if (typeof takePendingCoreSnapFrame === 'function') takePendingCoreSnapFrame(payload.streamId);
+        return;
+    }
     const pendingTrack = state.pendingSnapTracks[payload.streamId];
     if (pendingTrack) attachSecureSnapStream(pendingTrack);
+}
+
+// Erstes Bild ist zu sehen: Anzeige beginnt (Absender erfaehrt es, Zeit laeuft, Ansicht zaehlt).
+function startSecureSnapPlayback(viewing) {
+    if (state.secureSnapViewing !== viewing || viewing.started) return;
+    viewing.started = true;
+    setSecureSnapStatus('');
+    sendSecurePayload(viewing.peerId, { type: 'SNAP_STREAM_PLAYING', snapId: viewing.snapId }).catch(logBackgroundError('startSecureSnapPlayback'));
+    startSecureSnapCountdown(viewing.seconds);
+    recordSecureSnapView(viewing.peerId, viewing.snapId, viewing.viewsLeft).catch(logBackgroundError('startSecureSnapPlayback'));
 }
 
 // Wird von ontrack der RTCPeerConnection aufgerufen.
 function handleSnapStreamTrack(peerId, event) {
     const stream = event.streams?.[0];
     if (!stream) return;
+    // Kern der App: der Betrachter ist in der Oberflaeche; Einzelbilder dorthin (core-link.js).
+    if (typeof relayCoreSnapStream === 'function' && relayCoreSnapStream(stream)) return;
     const viewing = state.secureSnapViewing;
     if (viewing?.peerId === peerId && viewing.streamId === stream.id && viewing.phase === 'streaming') {
         attachSecureSnapStream(stream);
@@ -434,14 +451,7 @@ function attachSecureSnapStream(stream) {
     video.srcObject = stream;
     video.classList.remove('hidden');
     video.play().catch(logBackgroundError('attachSecureSnapStream'));
-    video.onplaying = () => {
-        if (state.secureSnapViewing !== viewing || viewing.started) return;
-        viewing.started = true;
-        setSecureSnapStatus('');
-        sendSecurePayload(viewing.peerId, { type: 'SNAP_STREAM_PLAYING', snapId: viewing.snapId }).catch(logBackgroundError('attachSecureSnapStream'));
-        startSecureSnapCountdown(viewing.seconds);
-        recordSecureSnapView(viewing.peerId, viewing.snapId, viewing.viewsLeft).catch(logBackgroundError('attachSecureSnapStream'));
-    };
+    video.onplaying = () => startSecureSnapPlayback(viewing);
 }
 
 async function handleSnapViewGrant(peerId, payload) {

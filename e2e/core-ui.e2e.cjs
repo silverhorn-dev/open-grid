@@ -75,6 +75,28 @@ async function main() {
         await waitFor(ui, () => document.getElementById('chat-peer-status').textContent.includes('tippt'), null, 15000);
         await bob.fill('#chat-input', '');
 
+        // K3: Secure Snap von Bob in der Oberflaeche ansehen. Der Live-Stream kommt im Kern an und erscheint als
+        // Einzelbilder im Betrachter der Oberflaeche; Bob sieht die verbrauchte Ansicht.
+        await bob.evaluate(async id => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 320;
+            canvas.height = 240;
+            const context = canvas.getContext('2d');
+            context.fillStyle = '#c026d3';
+            context.fillRect(0, 0, 320, 240);
+            await sendChatMessage(null, '', null, await createSecureSnap(canvas.toDataURL('image/jpeg', 0.9), id, 2, 4));
+        }, aliceId);
+        await waitFor(ui, id => (state.chats[id] || []).some(message => message.secureSnap?.encrypted), bobId, 30000);
+        const snapMessageId = await ui.evaluate(id => state.chats[id].find(message => message.secureSnap?.encrypted).id, bobId);
+        await ui.evaluate(id => requestSecureSnapView(id), snapMessageId);
+        await waitFor(ui, () => {
+            const image = document.getElementById('secure-snap-image');
+            return !image.classList.contains('hidden') && image.width > 0 && state.secureSnapViewing?.started === true;
+        }, null, 30000);
+        assert.equal(await ui.evaluate(() => state.secureSnapViewing.phase), 'streaming', 'shown as a live stream, no key handed out');
+        await waitFor(bob, id => (state.chats[id].find(message => message.secureSnap)?.secureSnap.viewsUsed || 0) >= 1, aliceId, 15000);
+        await ui.evaluate(() => closeSecureSnapViewer());
+
         // Gruppe aus der Oberflaeche: der Kern kennt sie (DB), Bob bekommt Zustand und Nachricht.
         const groupId = await ui.evaluate(async id => (await createGroup('App-Gruppe', [id])).id, bobId);
         await waitFor(bob, id => Boolean(getGroup(id)), groupId, 30000);
@@ -83,6 +105,10 @@ async function main() {
         await waitFor(bob, id => (state.chats[id] || []).some(message => message.text === 'gruppe aus der app'), groupId, 30000);
         await bob.evaluate(async id => { await openChatWithPeer(id); document.getElementById('chat-input').value = 'gruppe zurueck'; await sendChatMessage(); }, groupId);
         await waitFor(ui, id => (state.chats[id] || []).some(message => message.text === 'gruppe zurueck'), groupId, 30000);
+
+        // Sperren in der Oberflaeche: der Kern zieht nach und trennt den direkten Kanal.
+        await ui.evaluate(id => storeChatControl(id, 'BLOCK'), bobId);
+        await waitFor(core, id => isPeerBlocked(id) && !isSecureChannelOpen(id), bobId, 20000);
 
         // Kern beendet: die Oberflaeche laedt neu und arbeitet allein.
         await core.close();

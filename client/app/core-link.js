@@ -31,6 +31,17 @@ const CORE_PROXIED_FUNCTIONS = [
     'requestMissingProfile', 'requestMissingOriginals', 'checkSignalingHealth', 'reconnectSignaling',
     'scheduleCacheFetch', 'connectGroupMembers', 'finishDevicePairing', 'retryVisiblePeerConnections'
 ];
+// Laeuft in der Oberflaeche selbst UND im Kern (Kern muss seinen Zustand nachziehen, z. B. Sperren trennen Kanaele).
+const CORE_ALSO_IN_CORE = ['refreshChatControls'];
+// Antworten auf etwas, das die Oberflaeche angestossen hat (Ansehen, Laden): der Kern reicht sie weiter, die
+// Oberflaeche zeigt sie an (K3). Ohne Oberflaeche behandelt sie der Kern selbst.
+const CORE_FORWARDED_PAYLOADS = [
+    'SNAP_VIEW_GRANT', 'SNAP_VIEW_DENIED', 'SNAP_STREAM_START', 'SNAP_STREAM_END',
+    'ALBUM_RESPONSE', 'ALBUM_DENIED', 'SWARM_ALBUM_RESPONSE', 'SWARM_ALBUM_IMAGE_RESPONSE',
+    'IMAGE_RESPONSE', 'SWARM_IMAGE_RESPONSE', 'PROFILE_RESPONSE', 'SWARM_PROFILE_RESPONSE'
+];
+const CORE_SNAP_FRAME_MS = 100;
+const CORE_SNAP_RELAY_MAX_MS = 5 * 60 * 1000;
 // Schreibzugriffe in `keys`, die nur der Kern braucht und die sehr oft passieren (keine Neuladen-Welle).
 const CORE_QUIET_KEY_PREFIXES = ['group-keys:', 'prekeys', 'peer-prekey:', 'router-auth', 'device-invites', 'peer-identity:'];
 
@@ -137,6 +148,9 @@ function handleCoreLinkMessage(message) {
         else if (message.kind === 'call') runCoreCall(message);
         else if (message.kind === 'ui') updateCoreUiPresence(message);
         else if (message.kind === 'db') scheduleCoreReload(message);
+        else if (message.kind === 'also' && CORE_ALSO_IN_CORE.includes(message.fn) && typeof window[message.fn] === 'function') {
+            window[message.fn]().catch?.(error => logDebug(`${message.fn} in core failed: ${error.message}`));
+        }
         return;
     }
     if (APP_ROLE !== 'ui') return;
@@ -156,6 +170,14 @@ function handleCoreLinkMessage(message) {
         scheduleCoreReload(message);
     } else if (message.kind === 'toast') {
         showToast(message.message, message.type);
+    } else if (message.kind === 'payload') {
+        // Weitergereichte Antwort (schon im Kern entschluesselt und geprueft).
+        Promise.resolve(handleSecurePayload(message.peerId, message.payload, message.via))
+            .catch(error => logDebug(`Forwarded ${message.payload?.type} failed: ${error.message}`));
+    } else if (message.kind === 'snapframe') {
+        receiveCoreSnapFrame(message.streamId, message.bitmap);
+    } else if (message.kind === 'original-ready') {
+        if (typeof onVoiceRestReady === 'function') onVoiceRestReady(message.messageId);
     }
 }
 
@@ -189,6 +211,15 @@ function installCoreProxies() {
     for (const name of CORE_PROXIED_FUNCTIONS) {
         if (typeof window[name] !== 'function') continue;
         window[name] = (...args) => coreCall(name, args);
+    }
+    for (const name of CORE_ALSO_IN_CORE) {
+        const local = window[name];
+        if (typeof local !== 'function') continue;
+        window[name] = async (...args) => {
+            const result = await local(...args);
+            corePost({ kind: 'also', fn: name });
+            return result;
+        };
     }
     // Die Oberflaeche baut selbst keine Router-Verbindung auf.
     window.connectWorkerWebSocket = () => {};
@@ -245,6 +276,9 @@ function coreLiveSnapshot() {
         focus: state.peerChatFocus || {},
         typing: state.peerTyping || {},
         transport: state.peerTransport || {},
+        // Fortschritt der Originale (Anzeige "Original 40 %").
+        originals: Object.fromEntries(Object.entries(state.originalTransfers || {})
+            .map(([messageId, transfer]) => [messageId, { received: transfer.received || 0, total: transfer.total || 0 }])),
         channels,
         connected: state.ws?.readyState === 1
     };
@@ -274,6 +308,8 @@ function applyCoreLive(snapshot) {
     state.dataChannels = Object.fromEntries([...open].map(peerId => [peerId, { readyState: 'open', bufferedAmount: 0, coreMirror: true, send() {} }]));
     state.sessionKeys = Object.fromEntries([...open].map(peerId => [peerId, true]));
     state.coreConnected = snapshot.connected === true;
+    state.originalTransfers = { ...(snapshot.originals || {}) };
+    if (typeof renderOriginalProgress === 'function') Object.keys(state.originalTransfers).forEach(renderOriginalProgress);
     if (typeof renderActivePeerList === 'function') renderActivePeerList();
     if (typeof renderChatPeerIndicator === 'function') renderChatPeerIndicator();
 }
@@ -344,3 +380,76 @@ async function reloadCachedProfile(peerId) {
     if (profile && !profile.isMe) state.cachedProfiles[peerId] = profile;
     else if (!record) delete state.cachedProfiles[peerId];
 }
+
+// ----- K3: Antworten weiterreichen, Secure-Snap-Stream als Einzelbilder -----
+// Kern: true = an die Oberflaeche gegeben (der Kern behandelt die Nachricht dann nicht selbst).
+function coreForwardToUi(peerId, payload, deliveredVia) {
+    if (APP_ROLE !== 'core' || !coreUiConnected() || !CORE_FORWARDED_PAYLOADS.includes(payload?.type)) return false;
+    corePost({ kind: 'payload', peerId, payload, via: deliveredVia });
+    return true;
+}
+
+// Kern: den Video-Track eines Secure-Snap-Streams unsichtbar abspielen und Einzelbilder weitergeben. Bilddaten
+// bleiben im Arbeitsspeicher (wie beim Abspielen im Video-Element); gespeichert wird nichts.
+function relayCoreSnapStream(stream) {
+    if (APP_ROLE !== 'core' || !coreUiConnected() || !stream) return false;
+    const video = document.createElement('video');
+    video.muted = true;
+    video.playsInline = true;
+    video.srcObject = stream;
+    video.play().catch(() => {});
+    const startedAt = Date.now();
+    const timer = setInterval(async () => {
+        const ended = !stream.active || stream.getVideoTracks().every(track => track.readyState === 'ended');
+        if (ended || Date.now() - startedAt > CORE_SNAP_RELAY_MAX_MS || !coreUiConnected()) {
+            clearInterval(timer);
+            video.srcObject = null;
+            corePost({ kind: 'snapframe', streamId: stream.id, bitmap: null });
+            return;
+        }
+        if (video.readyState < 2 || !video.videoWidth) return;
+        try {
+            corePost({ kind: 'snapframe', streamId: stream.id, bitmap: await createImageBitmap(video) });
+        } catch (error) {
+            logDebug(`Snap frame failed: ${error.message}`);
+        }
+    }, CORE_SNAP_FRAME_MS);
+    return true;
+}
+
+// Oberflaeche: Einzelbild in den Betrachter zeichnen; das erste startet die Anzeige (wie "playing" beim Video).
+function receiveCoreSnapFrame(streamId, bitmap) {
+    const viewing = state.secureSnapViewing;
+    if (!viewing || viewing.streamId !== streamId || viewing.phase !== 'streaming') {
+        // Kann vor SNAP_STREAM_START kommen: das letzte Bild aufheben.
+        if (bitmap) state.pendingSnapFrames = { ...(state.pendingSnapFrames || {}), [streamId]: bitmap };
+        else if (state.pendingSnapFrames) delete state.pendingSnapFrames[streamId];
+        return;
+    }
+    if (!bitmap) return;
+    const canvas = document.getElementById('secure-snap-image');
+    if (!canvas) return;
+    if (canvas.width !== bitmap.width || canvas.height !== bitmap.height) {
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
+    }
+    canvas.getContext('2d').drawImage(bitmap, 0, 0);
+    bitmap.close?.();
+    canvas.classList.remove('hidden');
+    document.getElementById('secure-snap-video')?.classList.add('hidden');
+    if (typeof startSecureSnapPlayback === 'function') startSecureSnapPlayback(viewing);
+}
+
+// Oberflaeche: SNAP_STREAM_START angenommen; ein schon angekommenes Bild sofort zeigen.
+function takePendingCoreSnapFrame(streamId) {
+    const bitmap = state.pendingSnapFrames?.[streamId];
+    if (!bitmap) return;
+    delete state.pendingSnapFrames[streamId];
+    receiveCoreSnapFrame(streamId, bitmap);
+}
+
+// Kern: Sprach-Rest (Original) fertig -> die wartende Wiedergabe in der Oberflaeche geht weiter.
+function notifyCoreOriginalReady(messageId) {
+    if (APP_ROLE === 'core' && coreUiConnected()) corePost({ kind: 'original-ready', messageId });
+}
+

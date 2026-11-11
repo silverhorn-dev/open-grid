@@ -107,7 +107,7 @@ test('a blocked old id stays blocked under the new id', async () => {
     const { context, calls } = loadMove({ myId: 'node_contact', myKeys: (await identity()).keys, identities: { [oldId]: { profileSigningKey: old.keys.jwkEcdsaPublic } }, blocked: [oldId] });
     assert.equal(await context.handleMoveAnnouncement(newId, payload, fresh.keys.jwkPublic), true);
     assert.deepEqual(calls.renamed, []);
-    assert.deepEqual(calls.blocks, [{ id: newId, action: 'block' }]);
+    assert.deepEqual(calls.blocks, [{ id: newId, action: 'BLOCK' }]);
 });
 
 test('the old copy locks itself when it receives its own move', async () => {

@@ -879,6 +879,8 @@ async function handleSecurePayload(peerId, payload, deliveredVia = 'E2EE P2P') {
         logDebug(`Rejected invalid ${typeof payload?.type === 'string' ? payload.type.substring(0, 40) : 'unknown'} payload from ${peerId}.`);
         return;
     }
+    // Kern der App (core-link.js, K3): Antworten fuer die Oberflaeche weiterreichen.
+    if (typeof coreForwardToUi === 'function' && coreForwardToUi(peerId, payload, deliveredVia)) return;
     if (payload.type === 'MOVE_ANNOUNCE') {
         await handleMoveAnnouncement(peerId, payload);
         return;

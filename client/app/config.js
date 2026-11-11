@@ -246,6 +246,8 @@ const state = {
     snapQrCode: null,
     // Spiegel des Kerns in der Oberflaeche (core-link.js): Router-Verbindung des Kerns steht.
     coreConnected: false,
+    // Secure-Snap-Einzelbilder vom Kern, die vor SNAP_STREAM_START ankamen (core-link.js).
+    pendingSnapFrames: {},
     snapPageEnabled: null,
     // App-Modus (P8): vom Server erlaubte Modi, gewaehlter Modus und Event-Daten.
     appConfig: { modes: ['discovery', 'chat', 'friends', 'event'], defaultMode: 'discovery' },

@@ -165,6 +165,8 @@ async function finishOriginal(conversationId, messageId, dataUrl) {
     if (state.activeChatPeerId === conversationId) renderChatHistory();
     // Wartet die Wiedergabe einer Sprachnachricht auf den Rest, geht es jetzt weiter.
     if (message.audioData) onVoiceRestReady(messageId);
+    // Kern der App: die Oberflaeche wartet ggf. auf den Rest (core-link.js).
+    if (message.audioData && typeof notifyCoreOriginalReady === 'function') notifyCoreOriginalReady(messageId);
 }
 
 function renderOriginalProgress(messageId) {

@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 344 · 2026-11-11
+## Build 345 · 2026-11-11
+- Behoben: Sperren wurden nach einem Umzug oder dem Koppeln eines Geraets beim Router nicht eingetragen
+- Vorbereitung Android-App: Secure Snaps, Alben und Originale funktionieren auch, wenn der Hintergrund-Kern die Verbindungen haelt
+
+## Build 344 · 2026-11-11 · `e71acae`
 - Vorbereitung Android-App: Oberflaeche und Hintergrund-Kern arbeiten zusammen (eine Datenbank, Senden ueber den Kern); in der App noch nicht aktiv
 
 ## Build 343 · 2026-11-11 · `95ed5bd`

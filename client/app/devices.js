@@ -163,7 +163,8 @@ async function createPairingRelay() {
 }
 
 async function handleDeviceJoin(peerId, payload) {
-    const invites = state.deviceInvites || (await databaseRequest('keys', 'readonly', store => store.get('device-invites')).catch(() => null))?.invites || [];
+    // Immer aus der DB: die Einladung kann in der Oberflaeche entstanden sein (Kern der App, core-link.js).
+    const invites = (await databaseRequest('keys', 'readonly', store => store.get('device-invites')).catch(() => null))?.invites || state.deviceInvites || [];
     const invite = invites.find(entry => entry.inviteId === payload.inviteId && entry.expiresAt > Date.now());
     const list = myDeviceList();
     if (!invite || !list || payload.nodeId !== peerId || invite.identityId !== list.identityId || !canAddDevices()) return false;
@@ -254,7 +255,7 @@ async function handleDeviceList(peerId, payload) {
         const blocked = state.devicePairing.blocked || [];
         state.devicePairing = { ...state.devicePairing, blocked: [], joinedAt: Date.now() };
         await putDatabaseRecord('keys', { id: DEVICE_PAIRING_RECORD_ID, ...state.devicePairing });
-        for (const blockedId of blocked) await storeChatControl(blockedId, 'block').catch(logBackgroundError('handleDeviceList'));
+        for (const blockedId of blocked) await storeChatControl(blockedId, 'BLOCK').catch(logBackgroundError('handleDeviceList'));
         showToast(t('devices.paired'), 'success');
     }
     if (typeof renderChatHistory === 'function' && state.activeChatPeerId) renderChatHistory();

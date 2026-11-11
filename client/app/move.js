@@ -78,7 +78,7 @@ async function finishTransferMove() {
     const record = await databaseRequest('keys', 'readonly', store => store.get(TRANSFER_IMPORTED_RECORD_ID)).catch(() => null);
     if (!record?.move || (record.done && (record.retired || !record.routerToken))) return;
     if (!record.blocksApplied) {
-        for (const peerId of record.blocked || []) await storeChatControl(peerId, 'block').catch(logBackgroundError('finishTransferMove'));
+        for (const peerId of record.blocked || []) await storeChatControl(peerId, 'BLOCK').catch(logBackgroundError('finishTransferMove'));
         record.blocksApplied = true;
     }
     if (!record.announcement) {
@@ -238,7 +238,7 @@ async function handleMoveAnnouncement(senderId, payload, senderPublicKey = null)
     }
     // Gesperrte alte ID bleibt gesperrt, auch unter der neuen.
     if (isPeerBlocked(announcement.from)) {
-        await storeChatControl(senderId, 'block').catch(logBackgroundError('handleMoveAnnouncement'));
+        await storeChatControl(senderId, 'BLOCK').catch(logBackgroundError('handleMoveAnnouncement'));
         return true;
     }
     const name = state.cachedProfiles?.[announcement.from]?.fields?.displayName || '';

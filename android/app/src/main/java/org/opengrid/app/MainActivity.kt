@@ -199,20 +199,19 @@ class MainActivity : ComponentActivity(), Bridge.Handler {
     private fun startWebApp(routerOrigin: String, savedInstanceState: Bundle?) {
         origin = routerOrigin
         Notifications.ensureChannels(this)
-        // Laeuft die App noch im Hintergrund (KeepAliveService): dieselbe WebView ohne Neuladen weiter nutzen.
-        val reused = WebViewHolder.reuse(this, routerOrigin)
-        val appBridge = if (reused != null) WebViewHolder.bridge!! else Bridge(routerOrigin, this)
-        val view = reused ?: WebViewHolder.create(this, routerOrigin, appBridge)
+        // Kern auf Abruf (CoreHost) zuerst: die Oberflaeche findet ihn beim Start und baut keine eigene Verbindung auf.
+        CoreHost.setUiAttached(this, true, routerOrigin)
+        InboxService.start(this)
+        val view = WebView(this)
+        val appBridge = Bridge(routerOrigin, this)
         webView = view
         bridge = appBridge
         appBridge.handler = this
-        pageReady = reused != null
-        if (reused == null) configureWebView(view, appBridge)
+        pageReady = false
+        configureWebView(view, appBridge)
         attachClients(view, routerOrigin)
-        // Nicht zurueckstufen, wenn das Fenster nicht sichtbar ist: P2P und Abgleich laufen weiter.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) view.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false)
         setContentView(view)
-        if (reused == null && (savedInstanceState == null || view.restoreState(savedInstanceState) == null)) view.loadUrl(routerOrigin)
+        if (savedInstanceState == null || view.restoreState(savedInstanceState) == null) view.loadUrl(routerOrigin)
         askNotificationsOnce()
     }
 
@@ -229,7 +228,8 @@ class MainActivity : ComponentActivity(), Bridge.Handler {
             setSupportMultipleWindows(false)
             setGeolocationEnabled(true)
             // Kennung fuer die PWA (zusaetzlich zur Bruecke), z. B. fuer Statistik im Debug-Log.
-            userAgentString = "$userAgentString OpenGridApp/${BuildConfig.VERSION_NAME}"
+            // OpenGridCore: in der App gibt es einen Kern; die Oberflaeche wartet beim Start auf ihn (core-link.js).
+            userAgentString = "$userAgentString OpenGridApp/${BuildConfig.VERSION_NAME}" + if (BackgroundSettings.enabled(this@MainActivity)) " OpenGridCore/1" else ""
         }
         Bridge.install(view, appBridge)
     }
@@ -295,22 +295,16 @@ class MainActivity : ComponentActivity(), Bridge.Handler {
         webView?.saveState(outState)
     }
 
-    // Sichtbar: Hintergrund-Dienst nicht noetig. Unsichtbar: je nach Einstellung eine Weile aktiv bleiben.
-    override fun onResume() {
-        super.onResume()
-        KeepAliveService.stop(this)
-    }
-
-    override fun onPause() {
-        super.onPause()
-        if (webView != null && !isChangingConfigurations) KeepAliveService.start(this, BackgroundSettings.minutes(this))
-    }
-
+    // Fenster zu: die Oberflaeche wird entladen; der Kern bleibt nur, solange etwas passiert (CoreHost),
+    // der Posteingang (InboxService) weckt ihn bei Bedarf wieder.
     override fun onDestroy() {
         bridge?.handler = null
-        // Mit laufendem Dienst bleibt die WebView (und damit die PWA) im Hintergrund aktiv.
-        if (webView != null) WebViewHolder.detach(this, keep = KeepAliveService.requested || isChangingConfigurations)
+        webView?.let {
+            (it.parent as? ViewGroup)?.removeView(it)
+            it.destroy()
+        }
         webView = null
+        if (!isChangingConfigurations) CoreHost.setUiAttached(this, false, origin)
         super.onDestroy()
     }
 

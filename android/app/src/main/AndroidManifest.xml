@@ -9,11 +9,12 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.VIBRATE" />
-    <!-- Benachrichtigungen und Hintergrund-Dienst (KeepAliveService) -->
+    <!-- Benachrichtigungen und Posteingang (InboxService) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
@@ -68,14 +69,21 @@
                 <data android:mimeType="image/*" />
             </intent-filter>
         </activity>
-        <!-- Haelt die App nach dem Schliessen eine einstellbare Zeit aktiv (Chat-Verbindung, Profilbilder per P2P) -->
+        <!-- Posteingang: schlanke Router-Verbindung, weckt den Kern bei Nachrichten (kein dauernd laufender Browser) -->
         <service
-            android:name=".KeepAliveService"
+            android:name=".InboxService"
             android:exported="false"
             android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Keeps the end-to-end encrypted peer-to-peer chat connection open for a user-chosen time after the app was closed" />
+                android:value="Keeps a minimal connection to the user's own self-hosted chat router so incoming end-to-end encrypted peer-to-peer messages can wake the app" />
         </service>
+        <!-- Nach einem Neustart: Posteingang wieder starten -->
+        <receiver android:name=".BootReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

@@ -244,6 +244,7 @@ async function sendSecurePayload(peerId, payload, onSent = null, options = {}) {
             const limit = state.webrtcConnections?.[peerId]?.sctp?.maxMessageSize;
             if (Number.isFinite(limit) && limit > 0 && encoded.length > limit) throw new Error(`payload ${encoded.length} B exceeds channel limit ${limit} B`);
             channel.send(encoded);
+            state.lastP2PTrafficAt = Date.now();
             if (onSent) {
                 onSent('p2p');
                 awaitP2PAck(peerId, channel, { payload, onSent, cacheQueued: false });

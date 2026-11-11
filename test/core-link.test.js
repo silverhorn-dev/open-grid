@@ -8,6 +8,7 @@ function load(role, alive = null) {
     const context = {
         APP_ROLE: role,
         state: {},
+        navigator: { userAgent: 'Mozilla/5.0 Chrome' },
         Date,
         setTimeout: () => 0,
         clearTimeout: () => {},
@@ -47,3 +48,27 @@ test('writes are announced to the other page, except quiet core-only records; a 
     full.context.coreLinkNotifyWrite('messages', { id: 'm1', peerId: 'bob' });
     assert.equal(full.posted.length, 0);
 });
+
+test('inside the app (user agent "OpenGridCore") the UI waits for the starting core instead of going "full"', async () => {
+    const { context, posted } = load('full', null);
+    context.navigator.userAgent = 'Mozilla/5.0 OpenGridApp/0.3.0 OpenGridCore/1';
+    let channel = null;
+    context.BroadcastChannel = class {
+        constructor() { channel = this; }
+        postMessage(message) { posted.push(message); }
+        close() {}
+    };
+    context.setTimeout = (callback, ms) => { context.lastTimeout = ms; return 1; };
+    context.setInterval = () => 2;
+    context.clearInterval = () => {};
+    context.document = { addEventListener: () => {}, visibilityState: 'visible' };
+    context.window.location = { reload: () => {} };
+    const role = context.detectCoreRole();
+    assert.equal(context.lastTimeout, 15000, 'waits up to 15 s');
+    assert.equal(posted[0].kind, 'hello');
+    // Kern startet noch (nicht bereit, nicht idle): weiter warten; dann bereit.
+    channel.onmessage({ data: { v: 1, kind: 'welcome', ready: false, idle: false } });
+    channel.onmessage({ data: { v: 1, kind: 'welcome', ready: true } });
+    assert.equal(await role, 'ui');
+});
+

@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 346 · 2026-11-11
+## Build 347 · 2026-11-11
+- Android-App 0.3.0: im Hintergrund erreichbar ohne dauernd laufende App. Eine kleine Verbindung zum Router weckt OpenGrid, sobald etwas kommt (Nachricht, Profilbild-Anfrage, jemand tippt); danach schlaeft es wieder. Die Oberflaeche wird beim Schliessen ganz beendet
+- Einstellung "Im Hintergrund erreichbar" (Standard an) ersetzt "Nach dem Schliessen aktiv bleiben"
+
+## Build 346 · 2026-11-11 · `9aada9f`
 - Router: Kontakte mit der Android-App koennen "erreichbar" sein, auch wenn die App geschlossen ist; Nachrichten und Anfragen wecken sie, und es geht direkt statt ueber den Zwischenspeicher (in der App folgt das mit dem naechsten Update)
 
 ## Build 345 · 2026-11-11 · `d73baf9`

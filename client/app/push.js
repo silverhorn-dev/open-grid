@@ -13,6 +13,8 @@ function base64UrlToBytes(value) {
 function onRouterAuthUpdated() {
     if (!db || !state.routerAuthToken || state.persistedRouterAuthToken === state.routerAuthToken) return;
     const authToken = state.routerAuthToken;
+    // Android-App: auch der Posteingang braucht sie (native.js).
+    if (typeof sendNativeInboxCredentials === 'function') sendNativeInboxCredentials();
     putDatabaseRecord('keys', { id: 'router-auth', nodeId: state.myProfile.id, authToken })
         .then(() => { state.persistedRouterAuthToken = authToken; })
         .catch(error => logDebug(`Could not store router auth for the service worker: ${error.message}`));

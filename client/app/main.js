@@ -88,6 +88,7 @@ window.onload = async () => {
         if (!hasLocalProfile && APP_ROLE === 'core') {
             // Kern ohne Profil: nichts verbinden; die Oberflaeche richtet das Profil ein (K2 startet den Kern dann neu).
             logDebug('Core page without a local profile: idle until the profile exists.');
+            state.coreStartupDone = true;
             return;
         }
         if (!hasLocalProfile) {

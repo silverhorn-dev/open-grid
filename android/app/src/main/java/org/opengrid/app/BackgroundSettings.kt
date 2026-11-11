@@ -3,22 +3,36 @@ package org.opengrid.app
 import android.content.Context
 import android.os.PowerManager
 
-// Wie lange die App nach dem Schliessen aktiv bleibt (Minuten; 0 = gar nicht, -1 = immer).
+// "Im Hintergrund erreichbar" (Standard an) und die Zugangsdaten des Posteingangs (Node-ID + Router-Token, von der
+// PWA ueber die Bruecke; bleiben im privaten App-Speicher).
 object BackgroundSettings {
-    const val DEFAULT_MINUTES = 60
-    private val ALLOWED = setOf(0, 15, 60, 240, 480, -1)
     private const val PREFS = "opengrid"
-    private const val KEY = "background-minutes"
+    private const val KEY_ENABLED = "reachable"
+    private const val KEY_NODE = "inbox-node"
+    private const val KEY_TOKEN = "inbox-token"
 
-    fun minutes(context: Context): Int =
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt(KEY, DEFAULT_MINUTES).takeIf { it in ALLOWED } ?: DEFAULT_MINUTES
+    fun enabled(context: Context): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_ENABLED, true)
 
-    fun setMinutes(context: Context, minutes: Int) {
-        if (minutes !in ALLOWED) throw IllegalArgumentException("Unsupported duration")
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt(KEY, minutes).apply()
+    fun setEnabled(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY_ENABLED, enabled).apply()
     }
 
-    // Akku-Optimierung aus? Sonst kann Android die App im Doze trotz Dienst vom Netz trennen.
+    fun credentials(context: Context): Pair<String, String>? {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val node = prefs.getString(KEY_NODE, null) ?: return null
+        val token = prefs.getString(KEY_TOKEN, null) ?: return null
+        return node to token
+    }
+
+    // true = neu oder geaendert.
+    fun setCredentials(context: Context, nodeId: String, token: String): Boolean {
+        if (credentials(context) == (nodeId to token)) return false
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY_NODE, nodeId).putString(KEY_TOKEN, token).apply()
+        return true
+    }
+
+    // Akku-Optimierung aus? Sonst kann Android die App im Ruhezustand (Doze) vom Netz trennen.
     fun batteryUnrestricted(context: Context): Boolean =
         context.getSystemService(PowerManager::class.java)?.isIgnoringBatteryOptimizations(context.packageName) == true
 }

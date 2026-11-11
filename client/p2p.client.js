@@ -863,6 +863,7 @@ async function handleIncomingImageResponse(peerId, imageId, version, data) {
 }
 
 async function handleDataChannelMessage(peerId, rawMessage) {
+    state.lastP2PTrafficAt = Date.now();
     try {
         // Uebergrosse oder binaere Nachrichten gar nicht erst parsen.
         if (typeof rawMessage !== 'string' || rawMessage.length > MAX_SECURE_MESSAGE_LENGTH) {

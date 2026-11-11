@@ -15,8 +15,8 @@ android {
         applicationId = "org.opengrid.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 4
-        versionName = "0.2.1"
+        versionCode = 5
+        versionName = "0.3.0"
         manifestPlaceholders["appLinkHost"] = appLinkHost
     }
 
@@ -56,5 +56,7 @@ android {
 dependencies {
     implementation("androidx.activity:activity-ktx:1.9.2")
     implementation("androidx.core:core-ktx:1.13.1")
+    // WebSocket fuer den Posteingang (InboxService), ohne WebView.
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("androidx.webkit:webkit:1.11.0")
 }

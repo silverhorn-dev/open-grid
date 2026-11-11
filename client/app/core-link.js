@@ -14,6 +14,11 @@
 const CORE_CHANNEL_NAME = 'opengrid-core';
 const CORE_PROTOCOL = 1;
 const CORE_HELLO_TIMEOUT_MS = 800;
+// In der App wartet die Oberflaeche so lange auf den gerade startenden Kern.
+const CORE_APP_WAIT_MS = 15000;
+// Kern meldet der App, ob etwas los ist (sonst schlaeft er nach einigen Minuten wieder, CoreHost.kt).
+const CORE_STATUS_MS = 20000;
+const CORE_ACTIVE_WINDOW_MS = 2 * 60 * 1000;
 const CORE_CALL_TIMEOUT_MS = 60000;
 const CORE_UI_HEARTBEAT_MS = 2000;
 const CORE_UI_STALE_MS = 7000;
@@ -64,27 +69,47 @@ function corePost(message) {
     coreLink.channel?.postMessage({ v: CORE_PROTOCOL, ...message });
 }
 
+// Die Kern-Seite behaelt ihre Adresse (/core.html): der Router der App (router.js) schreibt sonst gleich beim Start
+// /grid usw. hinein, und ein Neuladen (z. B. nach einem Update) wuerde die normale Seite laden.
+if (APP_ROLE === 'core' && typeof window !== 'undefined' && window.history) {
+    const replaceState = window.history.replaceState.bind(window.history);
+    const pushState = window.history.pushState.bind(window.history);
+    window.history.replaceState = (data, title) => replaceState(data, title);
+    window.history.pushState = (data, title) => pushState(data, title);
+}
+
 // ----- Rolle bestimmen (Oberflaeche) -----
 // Antwortet ein Kern mit Profil, wird diese Seite "ui"; sonst bleibt sie "full".
 async function detectCoreRole() {
     if (APP_ROLE !== 'full' || typeof BroadcastChannel === 'undefined') return APP_ROLE;
+    // Android-App mit Kern (User-Agent "OpenGridCore"): der Kern startet gerade mit der App; auf ihn warten, sonst
+    // waeren zwei Kopien online. Im Browser nur fragen, wenn ein frisches Lebenszeichen da ist.
+    const expectCore = /OpenGridCore\//.test(navigator.userAgent || '');
     let alive = 0;
     try {
         alive = Number(window.localStorage.getItem(CORE_ALIVE_KEY)) || 0;
     } catch {
         alive = 0;
     }
-    if (Date.now() - alive > CORE_ALIVE_FRESH_MS) return APP_ROLE;
+    if (!expectCore && Date.now() - alive > CORE_ALIVE_FRESH_MS) return APP_ROLE;
     const channel = new BroadcastChannel(CORE_CHANNEL_NAME);
     const ready = await new Promise(resolve => {
-        const timer = setTimeout(() => resolve(false), CORE_HELLO_TIMEOUT_MS);
+        const timer = setTimeout(() => finish(false), expectCore ? CORE_APP_WAIT_MS : CORE_HELLO_TIMEOUT_MS);
+        let retry = null;
+        function finish(value) {
+            clearTimeout(timer);
+            clearInterval(retry);
+            resolve(value);
+        }
         channel.onmessage = event => {
             if (event.data?.v === CORE_PROTOCOL && event.data.kind === 'welcome') {
-                clearTimeout(timer);
-                resolve(event.data.ready === true);
+                // Kern ohne Profil (Einrichten): die Seite arbeitet allein, der Kern folgt nach dem Schliessen.
+                if (event.data.ready === true || !expectCore || event.data.idle === true) finish(event.data.ready === true);
             }
         };
-        channel.postMessage({ v: CORE_PROTOCOL, kind: 'hello' });
+        const hello = () => channel.postMessage({ v: CORE_PROTOCOL, kind: 'hello' });
+        hello();
+        if (expectCore) retry = setInterval(hello, 500);
     });
     if (!ready) {
         channel.close();
@@ -100,6 +125,7 @@ async function detectCoreRole() {
 // ----- Kern: Kanal oeffnen (auch ohne Profil, damit die Oberflaeche "nicht bereit" erfaehrt) -----
 function initCoreLinkAsCore() {
     if (APP_ROLE !== 'core' || typeof BroadcastChannel === 'undefined' || coreLink.channel) return;
+
     coreLink.channel = new BroadcastChannel(CORE_CHANNEL_NAME);
     coreLink.channel.onmessage = event => handleCoreLinkMessage(event.data);
     // Hinweise des Kerns zeigt die Oberflaeche.
@@ -109,6 +135,11 @@ function initCoreLinkAsCore() {
         if (coreUiConnected()) corePost({ kind: 'toast', message: String(message), type });
     };
     setInterval(publishCoreLive, CORE_LIVE_INTERVAL_MS);
+    // Android-App: der Kern sagt, ob er gebraucht wird (Verkehr, Oberflaeche, laufende Uebertragungen).
+    setInterval(() => {
+        if (typeof isNativeApp !== 'function' || !isNativeApp()) return;
+        nativeCall('coreStatus', { active: coreIsActive(), ready: coreReady() }).catch(() => {});
+    }, CORE_STATUS_MS);
     const beat = () => {
         try {
             window.localStorage.setItem(CORE_ALIVE_KEY, String(Date.now()));
@@ -125,6 +156,13 @@ function initCoreLinkAsCore() {
             // egal
         }
     });
+}
+
+function coreIsActive() {
+    return coreUiConnected()
+        || Date.now() - (state.lastP2PTrafficAt || 0) < CORE_ACTIVE_WINDOW_MS
+        || Object.keys(state.originalTransfers || {}).length > 0
+        || Object.values(state.secureMessageQueues || {}).some(queue => queue.length > 0);
 }
 
 function coreReady() {
@@ -144,7 +182,8 @@ function coreUiVisible() {
 function handleCoreLinkMessage(message) {
     if (!message || message.v !== CORE_PROTOCOL || typeof message.kind !== 'string') return;
     if (APP_ROLE === 'core') {
-        if (message.kind === 'hello') corePost({ kind: 'welcome', ready: coreReady() });
+        // idle = ohne Profil (wartet aufs Einrichten), sonst startet er gerade noch.
+        if (message.kind === 'hello') corePost({ kind: 'welcome', ready: coreReady(), idle: !state.myProfile?.updatedAt && state.coreStartupDone === true });
         else if (message.kind === 'call') runCoreCall(message);
         else if (message.kind === 'ui') updateCoreUiPresence(message);
         else if (message.kind === 'db') scheduleCoreReload(message);

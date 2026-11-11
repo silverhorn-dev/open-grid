@@ -4,10 +4,8 @@
 // Nachrichten sind JSON-Texte: Anfrage { v, id, type, data }, Antwort { v, id, ok, result | error },
 // Ereignis der App { v, event, data }. Die Liste muss zu android/.../Bridge.kt passen (Test prueft das).
 const NATIVE_PROTOCOL_VERSION = 1;
-const NATIVE_REQUEST_TYPES = ['capabilities', 'secureScreen', 'takeShare', 'notify', 'notifications', 'background'];
+const NATIVE_REQUEST_TYPES = ['capabilities', 'secureScreen', 'takeShare', 'notify', 'notifications', 'background', 'inbox', 'coreStatus'];
 const NATIVE_EVENT_TYPES = ['shareReady', 'openChat'];
-// Wie lange die App nach dem Schliessen aktiv bleibt (Minuten, -1 = immer); muss zu BackgroundSettings.kt passen.
-const NATIVE_BACKGROUND_OPTIONS = [0, 15, 60, 240, 480, -1];
 const NATIVE_CALL_TIMEOUT_MS = 10000;
 // Ansichten ohne Bildschirmfotos: markierte Bereiche (Medien, Profile, Flirt-Chat) und sichere Bilder.
 const SECURE_SCREEN_SELECTOR = '[data-secure-screen], canvas.secure-image';
@@ -156,22 +154,28 @@ function notifyNativeMessage(peerId, message) {
     notifyNative(kind, { title, body: sender ? `${sender}: ${preview}` : preview, peerId }).catch(() => {});
 }
 
-// Einstellungen: Recht fuer Benachrichtigungen und Dauer im Hintergrund (nur in der App sichtbar).
+// Einstellungen: "Im Hintergrund erreichbar" (Posteingang + Kern auf Abruf, nur in der App sichtbar).
 async function renderNativeAppSettings() {
     if (!isNativeApp()) return;
-    const select = document.getElementById('native-background-select');
+    const toggle = document.getElementById('native-reachable-toggle');
     const battery = document.getElementById('native-battery-hint');
     const result = await nativeCall('background').catch(() => null);
-    if (select && result) select.value = String(NATIVE_BACKGROUND_OPTIONS.includes(result.minutes) ? result.minutes : 60);
-    battery?.classList.toggle('hidden', !result || result.minutes !== -1 || result.batteryUnrestricted === true);
+    if (toggle && result) toggle.checked = result.enabled !== false;
+    battery?.classList.toggle('hidden', !result || result.enabled === false || result.batteryUnrestricted === true);
 }
 
-async function setNativeBackgroundMinutes(value) {
-    const minutes = Number(value);
-    if (!NATIVE_BACKGROUND_OPTIONS.includes(minutes)) return;
-    // "Immer": Android soll die App im Ruhezustand nicht vom Netz trennen -> Systemdialog Akku-Optimierung.
-    await nativeCall('background', { minutes, askBattery: minutes === -1 }).catch(error => logDebug(`Native background failed: ${error.message}`));
+async function setNativeReachable(enabled) {
+    // An: Android soll die App im Ruhezustand nicht vom Netz trennen -> Systemdialog Akku-Optimierung.
+    await nativeCall('background', { enabled: Boolean(enabled), askBattery: Boolean(enabled) }).catch(error => logDebug(`Native background failed: ${error.message}`));
     renderNativeAppSettings().catch(() => {});
+}
+
+// Zugangsdaten fuer den Posteingang der App (Node-ID + Router-Token); bleiben in der App.
+function sendNativeInboxCredentials() {
+    if (!isNativeApp() || nativeBridge.capabilities?.core !== true) return;
+    const authToken = state.routerAuthToken || window.localStorage.getItem('opengrid-router-auth-token');
+    if (!state.myProfile?.id || !authToken || !state.myProfile.updatedAt) return;
+    nativeCall('inbox', { nodeId: state.myProfile.id, authToken }).catch(error => logDebug(`Native inbox failed: ${error.message}`));
 }
 
 function nativeAskBatteryExemption() {
@@ -197,6 +201,7 @@ function initNativeBridge() {
             logDebug(`Native app ${result?.versionName || '?'} (protocol ${result?.protocol ?? '?'})`);
             if (typeof updatePushStatus === 'function') updatePushStatus().catch(() => {});
             renderNativeAppSettings().catch(() => {});
+            sendNativeInboxCredentials();
         })
         .catch(error => logDebug(`Native capabilities failed: ${error.message}`));
 }

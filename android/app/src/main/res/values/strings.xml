@@ -16,7 +16,7 @@
     <string name="update_later">Later</string>
     <string name="channel_messages">Messages</string>
     <string name="channel_background">Background connection</string>
-    <string name="background_title">OpenGrid is still active</string>
-    <string name="background_text">Messages and profile pictures keep arriving. Tap to open.</string>
-    <string name="background_stop">Stop</string>
+    <string name="background_title">OpenGrid is reachable</string>
+    <string name="background_text">Messages wake the app. Tap to open.</string>
+    <string name="background_stop">Turn off</string>
 </resources>

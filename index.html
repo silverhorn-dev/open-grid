@@ -838,17 +838,10 @@
                         <div data-i18n="common.checking" id="push-status" class="debug-only text-xs font-mono text-slate-400 mb-2">Wird geprüft...</div>
                         <button data-i18n="common.turnOnNotifications" id="push-toggle-btn" data-click="togglePushNotifications" class="btn-secondary">Benachrichtigungen einschalten</button>
                     </div>
-                    <!-- Nur in der Android-App: aktiv bleiben nach dem Schliessen (KeepAliveService) -->
+                    <!-- Nur in der Android-App: Posteingang + Kern auf Abruf (InboxService, CoreHost) -->
                     <label class="setting-row native-only">
-                        <span class="setting-text"><span data-i18n="settings.nativeBackground" class="setting-title">Nach dem Schließen aktiv bleiben</span><span data-i18n="settings.nativeBackgroundDescription" class="setting-desc">Die App bleibt verbunden: Nachrichten und Benachrichtigungen kommen an, andere können deine Profilbilder laden. Braucht etwas Akku.</span></span>
-                        <select id="native-background-select" data-change="setNativeBackgroundMinutes" data-args='["$value"]' class="setting-select">
-                            <option value="0" data-i18n="settings.nativeBackgroundOff">Nein</option>
-                            <option value="15" data-i18n="settings.nativeBackground15">15 Minuten</option>
-                            <option value="60" data-i18n="settings.nativeBackground60">1 Stunde</option>
-                            <option value="240" data-i18n="settings.nativeBackground240">4 Stunden</option>
-                            <option value="480" data-i18n="settings.nativeBackground480">8 Stunden</option>
-                            <option value="-1" data-i18n="settings.nativeBackgroundAlways">Immer</option>
-                        </select>
+                        <span class="setting-text"><span data-i18n="settings.nativeReachable" class="setting-title">Im Hintergrund erreichbar</span><span data-i18n="settings.nativeReachableDescription" class="setting-desc">Nach dem Schließen hält die App eine kleine Verbindung zum Router. Kommt etwas, wacht sie kurz auf: Nachrichten und Benachrichtigungen kommen an, andere können deine Profilbilder laden.</span></span>
+                        <input type="checkbox" role="switch" id="native-reachable-toggle" checked data-change="setNativeReachable" data-args='["$checked"]' class="switch">
                     </label>
                     <p id="native-battery-hint" class="hidden native-only setting-note"><span data-i18n="settings.nativeBatteryHint">Damit Android die App im Ruhezustand nicht vom Netz trennt, schalte die Akku-Optimierung für OpenGrid aus.</span> <button type="button" data-i18n="settings.nativeBatteryButton" data-click="nativeAskBatteryExemption" class="underline">Akku-Optimierung ausschalten</button></p>
                     <label class="setting-row">

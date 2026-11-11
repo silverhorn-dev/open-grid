@@ -139,6 +139,13 @@
   - entschieden 2026-11-01: push nur UnifiedPush (ntfy empfehlen), kein FCM; echtheit per Android Key Attestation; umzug PWA -> app per QR (eigene phase nach 1 + 2), format so, dass es spaeter zum mehrgeraete-betrieb passt (backlog)
 - [x] nutzer 2026-11-11: in der app kommen keine benachrichtigungen, hintergrund-abgleich schwach; app soll nach dem schliessen eine weile aktiv bleiben (profilbilder, abgleich) -> benachrichtigungen nativ ueber die bruecke (`notify`, `notifications`, ereignis `openChat`), `POST_NOTIFICATIONS`, `KeepAliveService` (specialUse) + `WebViewHolder`, dauer einstellbar bis "immer" + akku-optimierung; app 0.2.0; tests `test/android-app.test.js`
   - offen: benachrichtigungen bei komplett beendeter app / nach neustart -> phase 3 (UnifiedPush)
+- [ ] nutzer 2026-11-11: app als nachrichten-client im hintergrund, oberflaeche (PWA) beim schliessen entladen -> entschieden variante B: gleicher JS-code in zwei rollen, unsichtbare kern-WebView (`/core.html`) im dienst + oberflaeche, verbunden per `BroadcastChannel`; kein nativer nachbau, kein localhost-server; plan in `documentation/ANDROID-APP.md` ("Kern im Hintergrund")
+  - [ ] K1 rollen + kern-seite, UI-aufrufe im transport-code entkoppeln
+  - [ ] K2 schnittstelle oberflaeche <-> kern (RPC, ereignisse, herzschlag, rueckfall)
+  - [ ] K3 live-funktionen ueber den kern (secure snaps, originale, praesenz, alben, status ...)
+  - [ ] K4 app: dienst besitzt kern-WebView, oberflaechen-WebView wird beim schliessen zerstoert (`WebViewHolder` aus 0.2.0 entfaellt), einstellung, akku, ggf. start nach neustart
+  - [ ] K5 messen auf geraeten
+  - offen: standard "im hintergrund erreichbar" (zeitlich/immer), start nach neustart, schreib-regeln (vorschlag: oberflaeche schreibt eigene nachrichten, kern alles eingehende)
 - [ ] die wrapper-app (siehe backlog "real application for android") stellt der PWA eine API bereit, um bilder zu senden und zu empfangen, auch offline bzw. wenn die app im hintergrund ist; grund: dauernd geladene PWA zieht viel akku
   - idee: PWA erkennt die bruecke (z. B. `window.OpenGridNative` bzw. `postMessage`-kanal der WebView) und gibt ihr ausgehende, schon verschluesselte nachrichten (pfad-C-ciphertext + empfaenger + msgId); die app liefert sie im hintergrund aus (router-cache/push, spaeter P2P) und meldet den status zurueck
   - empfangen: app nimmt web-push/FCM im hintergrund an, holt ciphertext aus `/api/cache`, legt ihn in einen eigenen speicher; beim oeffnen uebernimmt die PWA ihn (wie heute der SW, `MESSAGE_PUT`)

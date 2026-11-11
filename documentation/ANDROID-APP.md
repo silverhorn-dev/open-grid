@@ -103,6 +103,65 @@ Identitaet. Einen Export/Import gibt es noch nicht; Umzug siehe Entscheidung 7.
   System den Dienst beendet, gibt es keine Benachrichtigungen mehr (dafuer
   Phase 3). Die stille Meldung des Dienstes ist Pflicht (Android).
 
+### Kern im Hintergrund (Variante B, entschieden 2026-11-11, Plan)
+
+Ziel (Nutzer): die App ist der Nachrichten-Client im Hintergrund. Kommt eine
+Nachricht, nimmt die App sie an und reicht sie an die Web-App weiter; schliesst
+man die App, wird die Oberflaeche (PWA) entladen, der Nachrichten-Teil bleibt
+online (P2P, Profilbilder ausliefern, Abgleich, Benachrichtigungen).
+
+Entschieden: **kein** nativer Nachbau (Kotlin, eigenes WebRTC, doppelte
+Protokoll-Logik) und **kein** lokaler HTTP-Server (127.0.0.1 waere fuer jede
+App und Webseite auf dem Geraet erreichbar). Stattdessen laeuft der vorhandene
+JS-Code in zwei Rollen:
+
+- **Kern** (`/core.html`, unsichtbare WebView im Dienst der App): Router-WS
+  (Registrierung, Signaling, Praesenz), WebRTC/P2P, Krypto (inkl. Forward
+  Secrecy), Pfad C, Chat-Operationen und Abgleich, Gruppen, Geraete, Schwarm
+  (Profile, Originale), Benachrichtigungen ueber die Bruecke. Keine Oberflaeche.
+- **Oberflaeche** (`/`, die bekannte PWA in der App): zeigt an, nimmt Eingaben
+  an, Kamera/Editor. Baut selbst keine Verbindungen auf; Transport geht an den
+  Kern.
+- **Voll** (Browser ohne App, wie heute): beides in einer Seite, nichts aendert
+  sich.
+
+Beide Seiten haben denselben Ursprung in derselben App: sie teilen IndexedDB
+(also auch die nicht exportierbaren Schluessel) und den Service Worker. Die
+Verbindung zwischen ihnen ist ein `BroadcastChannel` (nur innerhalb des
+Ursprungs, von aussen nicht erreichbar); die Bruecke zur App bleibt fuer
+Benachrichtigungen und Lebenszyklus.
+
+Schnittstelle Oberflaeche <-> Kern (`BroadcastChannel('opengrid-core')`,
+versioniert):
+
+- Anfragen der Oberflaeche (RPC mit `id`, Antwort/Fehler): an der heutigen
+  Transport-Naht, z. B. `sendSecurePayload`, `initiateP2PConnection`,
+  `requestMissingOriginals`, `requestMissingProfile`, Secure-Snap-Stream
+  oeffnen, Praesenz abonnieren, Grid-Anmeldung/Sichtbarkeit.
+- Ereignisse des Kerns: `chat-changed { peerId }` (Oberflaeche liest den Chat
+  neu aus IndexedDB), `profile-changed`, `presence`, `connection { peerId,
+  state }`, `toast`, `original-progress`, Secure-Snap-Bilder, Gruppen/Geraete
+  geaendert.
+- Herzschlag: die Oberflaeche meldet "sichtbar"; ohne Oberflaeche (oder
+  unsichtbar) zeigt der Kern Benachrichtigungen ueber die Bruecke.
+- Rueckfall: antwortet kein Kern (z. B. Dienst aus), arbeitet die Oberflaeche
+  als "Voll" wie heute.
+
+Phasen:
+
+| Phase | Inhalt |
+|---|---|
+| K1 | Rollen (`full`/`core`/`ui`) und Kern-Seite: `/core.html` (Route, CSP, Skriptliste ohne Oberflaeche), UI-Aufrufe im Transport-Code entkoppeln (Stubs bzw. Ereignisse statt `render*`/`showToast`/`document`), Test: alle im Kern geladenen Skripte kommen ohne fehlende Funktionen aus. E2E: `core.html` allein ist ein vollwertiger Knoten (empfaengt, speichert, liefert Profil aus). |
+| K2 | Schnittstelle: Kanal, RPC, Ereignisse, Herzschlag, Rueckfall; Rolle `ui` nutzt sie. E2E simuliert die App mit zwei Seiten im selben Browser-Kontext (`core.html` + `/`). |
+| K3 | Live-Funktionen ueber den Kern: Secure-Snap-Stream, Fortschritt der Originale, Praesenz/Tippen/Chat-Fokus, Alben-Schluessel, Status, Sprach-Rest, Geraete-Kopplung. |
+| K4 | App: der Dienst besitzt die Kern-WebView (App-Kontext, ohne Fenster); die Oberflaechen-WebView wird beim Schliessen zerstoert (der Keep-Alive-Teil aus 0.2.0 - `WebViewHolder` - entfaellt). Einstellung "Im Hintergrund erreichbar" (aus / zeitlich / immer), Akku-Optimierung, optional Start nach Neustart. Service-Worker-Update: Kern laedt neu, wenn die Oberflaeche aktualisiert. |
+| K5 | Messen auf Geraeten (RAM, Akku, Hersteller mit aggressivem Beenden), Feinschliff. |
+
+Offen (vor K1 klaeren): Standard fuer "Im Hintergrund erreichbar" (zeitlich
+oder immer); Start nach Neustart des Handys; wer schreibt welche Daten
+(Vorschlag: Oberflaeche schreibt eigene neue Nachrichten wie heute und gibt
+nur das Senden an den Kern; alles Eingehende schreibt der Kern).
+
 ### Phase 3: Push ohne Browser (UnifiedPush)
 
 - WebView kann kein Web Push; die App empfaengt Push nativ.

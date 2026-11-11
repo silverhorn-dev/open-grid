@@ -288,8 +288,18 @@ async function handleSignalingMessage(message) {
         return;
     }
 
+    // Schlafender App-Kern (R1): der Router weckt ihn und haelt das Signaling fest; laenger warten statt Pfad C.
+    if (message.type === 'PEER_WAKING') {
+        if (typeof message.targetPeerId !== 'string') return;
+        state.peerWaking[message.targetPeerId] = Date.now();
+        updateChatConnectionStatus(message.targetPeerId, t('connection.waking'), 'bg-sky-500/10 text-sky-400 border-sky-500/30');
+        return;
+    }
+
     if (message.type === 'PRESENCE_SNAPSHOT') {
         const online = new Set(Array.isArray(message.online) ? message.online : []);
+        state.peerReachable = Object.fromEntries((Array.isArray(message.reachable) ? message.reachable : [])
+            .filter(peerId => typeof peerId === 'string').map(peerId => [peerId, true]));
         const away = new Set(Array.isArray(message.away) ? message.away : []);
         state.peerPresence = Object.fromEntries(state.presenceSubscription.map(peerId => [peerId, online.has(peerId)]));
         state.peerAway = Object.fromEntries([...away].filter(peerId => online.has(peerId)).map(peerId => [peerId, true]));
@@ -300,6 +310,8 @@ async function handleSignalingMessage(message) {
     if (message.type === 'PRESENCE') {
         if (typeof message.peerId !== 'string' || !state.presenceSubscription.includes(message.peerId)) return;
         state.peerPresence[message.peerId] = message.online === true;
+        if (message.online !== true && message.reachable === true) state.peerReachable[message.peerId] = true;
+        else delete state.peerReachable[message.peerId];
         if (message.online === true && message.away === true) state.peerAway[message.peerId] = true;
         else delete state.peerAway[message.peerId];
         if (message.online === true) handlePeerCameOnline(message.peerId);
@@ -326,6 +338,7 @@ async function handleSignalingMessage(message) {
     }
 
     if (message.type === 'PEER_OFFLINE_FALLBACK') {
+        delete state.peerWaking[message.targetPeerId];
         const connection = state.webrtcConnections[message.targetPeerId];
         if (connection) cleanupPeerConnection(message.targetPeerId, connection);
         flushPeerQueueToCache(message.targetPeerId).catch(error => {
@@ -571,6 +584,11 @@ function watchConnectionAttempt(peerId, connection) {
         if (state.webrtcConnections[peerId] !== connection || state.dataChannels[peerId]?.readyState === 'open') return;
         // Mit Antwort, aber noch ohne Kanal: mehr Zeit (ICE ueber TURN kann dauern).
         const answered = Boolean(connection.remoteDescription);
+        // Gegenseite wird gerade geweckt (R1): auf die Antwort laenger warten, nicht neu anbieten.
+        if (!answered && isPeerWaking(peerId) && Date.now() - startedAt < WAKE_WAIT_MS) {
+            state.connectionWatchdogs[peerId] = setTimeout(check, Math.min(2000, WAKE_WAIT_MS - (Date.now() - startedAt)));
+            return;
+        }
         if (answered && Date.now() - startedAt < CHANNEL_OPEN_TIMEOUT_MS) {
             state.connectionWatchdogs[peerId] = setTimeout(check, CHANNEL_OPEN_TIMEOUT_MS - (Date.now() - startedAt));
             return;
@@ -587,6 +605,28 @@ function watchConnectionAttempt(peerId, connection) {
     };
     const startedAt = Date.now();
     state.connectionWatchdogs[peerId] = setTimeout(check, OFFER_ANSWER_TIMEOUT_MS);
+}
+
+// ----- Erreichbar + wecken (R1, documentation/ANDROID-APP.md) -----
+const WAKE_WAIT_MS = 20000;
+const WAKE_INTENT_INTERVAL_MS = 30000;
+
+function isPeerWaking(peerId) {
+    return Date.now() - (state.peerWaking[peerId] || 0) < WAKE_WAIT_MS;
+}
+
+function isPeerReachable(peerId) {
+    return state.peerReachable[peerId] === true && !isPeerOnline(peerId);
+}
+
+// Vorab wecken (tippt, Snap, Medien): schlaeft der Kern des Kontakts, die Verbindung schon jetzt aufbauen; das
+// Angebot weckt ihn ueber den Router. Gedrosselt; Router begrenzt zusaetzlich.
+function wakePeerIfReachable(peerId) {
+    if (!peerId || isSecureChannelOpen(peerId) || !isPeerReachable(peerId) || isPeerBlocked(peerId)) return false;
+    if (Date.now() - (state.wakeIntents[peerId] || 0) < WAKE_INTENT_INTERVAL_MS) return false;
+    state.wakeIntents[peerId] = Date.now();
+    initiateP2PConnection(peerId).catch(error => logDebug(`Wake connect failed: ${error.message}`));
+    return true;
 }
 
 function isPolitePeer(peerId) {

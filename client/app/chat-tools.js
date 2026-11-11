@@ -678,7 +678,9 @@ function renderChatPeerIndicator() {
     const presenceSuffix = presence ? ` · ${presence}` : '';
     // Tippt / Snap / Medien (nur ueber P2P, gegenseitig abschaltbar) geht vor "hat den Chat offen".
     const typing = online && isSecureChannelOpen(peerId) ? peerTypingLabel(peerId) : '';
-    const state_ = !peerId ? '' : typing || (watching ? `\u{1F440} ${t('chat.hasChatOpen')}` : away ? t('chat.away') : online ? t('chat.online') : t('chat.offline2'));
+    // Schlafender App-Kern (R1): "erreichbar" statt "offline".
+    const reachable = !online && typeof isPeerReachable === 'function' && isPeerReachable(peerId);
+    const state_ = !peerId ? '' : typing || (watching ? `\u{1F440} ${t('chat.hasChatOpen')}` : away ? t('chat.away') : online ? t('chat.online') : reachable ? t('chat.reachable') : t('chat.offline2'));
     status.textContent = peerId ? `${state_}${online ? sameNetwork : ''}${presenceSuffix}` : '';
     status.classList.toggle('text-emerald-400', online && !away);
     status.classList.toggle('text-amber-400', away);
@@ -768,6 +770,8 @@ function typingAllowedFor(peerId) {
 
 // Eigene Absicht melden (gedrosselt; "idle" sofort).
 function sendTyping(kind, peerId = state.activeChatPeerId) {
+    // Absicht (tippt, Snap, Medien) bei schlafendem Kontakt: vorab wecken (R1), auch ohne "tippt"-Anzeige.
+    if (kind !== 'idle' && typeof wakePeerIfReachable === 'function' && !(typeof isGroupId === 'function' && isGroupId(peerId))) wakePeerIfReachable(peerId);
     if (!TYPING_KINDS.includes(kind) || !typingAllowedFor(peerId)) return;
     const last = state.typingSent[peerId];
     const now = Date.now();

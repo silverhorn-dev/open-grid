@@ -2590,3 +2590,24 @@ Gilt nur fuer Dating (Entdecken), nicht fuer Chat & Freunde.
   Kamera und oeffnet ihn.
 - Erkennung auf dem Geraet: `BarcodeDetector`, sonst jsQR (Apache-2.0) vom
   Router (`/vendor/jsqr/jsQR.js`, erst bei Bedarf geladen). Kein fremder Dienst.
+
+## Erreichbar + wecken (R1, `server/signaling.js`)
+
+- `REGISTER_INBOX { peerId, authToken }` (Posteingang der Android-App, gleiche
+  Anmeldung wie `REGISTER_SOCKET`): zaehlt nicht als online, nicht im Grid;
+  Antwort `INBOX_REGISTERED`. Der Posteingang bekommt nur `WAKE { reason:
+  'signal' | 'cache' | 'intent' }`, nie Signaling-Inhalte.
+- Signaling an einen Peer ohne `REGISTER_SOCKET`, aber mit Posteingang: der
+  Router haelt es fest (30 s, hoechstens 20 Nachrichten), weckt und antwortet
+  dem Absender `PEER_WAKING { targetPeerId }`; meldet sich der Kern an, liefert
+  er alles in Reihenfolge nach. Neues im Zwischenspeicher weckt ebenfalls
+  (`cache`). `WAKE_REQUEST { targetPeerId }` weckt vorab (`intent`).
+- Grenzen: ein Wecken je Absender und Empfaenger je 30 s (Zwischenspeicher je
+  10 s), hoechstens 60 je Empfaenger und Stunde; Gesperrte wecken nie (dann wie
+  bisher `PEER_OFFLINE_FALLBACK`).
+- Praesenz: `PRESENCE { online: false, reachable: true }`, `PRESENCE_SNAPSHOT`
+  mit `reachable`; Abos bleiben, solange der Posteingang verbunden ist.
+- Client: Chat-Kopf "erreichbar"; bei `PEER_WAKING` wartet der Absender bis zu
+  20 s auf den direkten Kanal (Wachhund und Pfad-C-Rueckfall warten), danach
+  Pfad C wie bisher. Vorab wecken: Chat oeffnen (baut ohnehin P2P auf) sowie
+  Tippen, Snap-Kamera und Medien-/GIF-Auswahl (`wakePeerIfReachable`, je 30 s).

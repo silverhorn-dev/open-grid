@@ -248,6 +248,10 @@ const state = {
     coreConnected: false,
     // Secure-Snap-Einzelbilder vom Kern, die vor SNAP_STREAM_START ankamen (core-link.js).
     pendingSnapFrames: {},
+    // Erreichbar + wecken (R1): schlafende App-Kerne, laufendes Wecken, eigene Weck-Absichten.
+    peerReachable: {},
+    peerWaking: {},
+    wakeIntents: {},
     snapPageEnabled: null,
     // App-Modus (P8): vom Server erlaubte Modi, gewaehlter Modus und Event-Daten.
     appConfig: { modes: ['discovery', 'chat', 'friends', 'event'], defaultMode: 'discovery' },

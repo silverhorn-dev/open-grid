@@ -627,6 +627,70 @@ test('relays signaling messages between two websocket clients', async () => {
     peerB.close();
 });
 
+test('reachable inbox: signaling to a sleeping peer is held, the inbox is woken, the core gets it after registering', async () => {
+    await registerPeer('peer-a');
+    await registerPeer('peer-b');
+    await registerPeer('peer-c');
+    await app.listen({ host: '127.0.0.1', port: 0 });
+    const url = `ws://127.0.0.1:${app.server.address().port}/ws`;
+    const connect = (peerId, type) => new Promise((resolve, reject) => {
+        const socket = new WebSocket(url);
+        const messages = [];
+        const timeout = setTimeout(() => reject(new Error(`Timed out registering ${peerId} (${type}).`)), 3000);
+        socket.onmessage = event => {
+            const message = JSON.parse(event.data);
+            messages.push(message);
+            if (message.type === 'SOCKET_REGISTERED' || message.type === 'INBOX_REGISTERED') {
+                clearTimeout(timeout);
+                resolve({ socket, messages });
+            }
+        };
+        socket.onopen = () => socket.send(JSON.stringify({ type, peerId, authToken: peerTokens.get(peerId) }));
+    });
+    const waitFor = async (check, label) => {
+        for (let attempt = 0; attempt < 60; attempt++) {
+            if (check()) return;
+            await new Promise(resolve => setTimeout(resolve, 50));
+        }
+        throw new Error(`Timed out: ${label}`);
+    };
+    // B schlaeft (nur Posteingang), A will verbinden.
+    const inbox = await connect('peer-b', 'REGISTER_INBOX');
+    const a = await connect('peer-a', 'REGISTER_SOCKET');
+    a.socket.send(JSON.stringify({ type: 'PRESENCE_SUBSCRIBE', peerIds: ['peer-b'] }));
+    inbox.socket.send(JSON.stringify({ type: 'PING' }));
+    a.socket.send(JSON.stringify({ type: 'SDP_OFFER', targetPeerId: 'peer-b', sdp: { type: 'offer', sdp: 'o1' } }));
+    a.socket.send(JSON.stringify({ type: 'ICE_CANDIDATE', targetPeerId: 'peer-b', candidate: { candidate: 'c1' } }));
+    await waitFor(() => a.messages.some(message => message.type === 'PEER_WAKING'), 'PEER_WAKING');
+    assert.equal(a.messages.some(message => message.type === 'PEER_OFFLINE_FALLBACK'), false, 'no fallback for a reachable peer');
+    await waitFor(() => inbox.messages.some(message => message.type === 'WAKE'), 'WAKE');
+    assert.equal(inbox.messages.filter(message => message.type === 'WAKE').length, 1, 'one wake per sender and 30 s');
+    assert.deepEqual(inbox.messages.find(message => message.type === 'WAKE'), { type: 'WAKE', reason: 'signal' });
+    assert.equal(inbox.messages.some(message => message.type === 'SDP_OFFER'), false, 'the inbox never sees signaling content');
+    // Kern wacht auf und meldet sich an: bekommt das Festgehaltene in Reihenfolge.
+    const core = await connect('peer-b', 'REGISTER_SOCKET');
+    core.socket.send(JSON.stringify({ type: 'PRESENCE_SUBSCRIBE', peerIds: ['peer-a'] }));
+    await waitFor(() => core.messages.some(message => message.type === 'ICE_CANDIDATE'), 'flushed signals');
+    await waitFor(() => core.messages.some(message => message.type === 'PRESENCE_SNAPSHOT'), 'core subscribed');
+    const relayed = core.messages.filter(message => ['SDP_OFFER', 'ICE_CANDIDATE'].includes(message.type));
+    assert.deepEqual(relayed.map(message => [message.type, message.senderNodeId]), [['SDP_OFFER', 'peer-a'], ['ICE_CANDIDATE', 'peer-a']]);
+    // Kern schlaeft wieder: A sieht "erreichbar" (nicht online).
+    core.socket.close();
+    await waitFor(() => a.messages.some(message => message.type === 'PRESENCE' && message.peerId === 'peer-b' && message.online === false && message.reachable === true), 'reachable presence');
+
+    // Gesperrte wecken nie: C ist bei B gesperrt -> normaler Rueckfall.
+    const block = await app.inject({ method: 'POST', url: '/api/chat-controls', headers: authHeaders('peer-b'), payload: { ownerId: 'peer-b', peerId: 'peer-c', action: 'BLOCK' } });
+    assert.ok(block.statusCode < 300);
+    const c = await connect('peer-c', 'REGISTER_SOCKET');
+    const wakesBefore = inbox.messages.filter(message => message.type === 'WAKE').length;
+    c.socket.send(JSON.stringify({ type: 'SDP_OFFER', targetPeerId: 'peer-b', sdp: { type: 'offer', sdp: 'o2' } }));
+    c.socket.send(JSON.stringify({ type: 'WAKE_REQUEST', targetPeerId: 'peer-b' }));
+    await waitFor(() => c.messages.some(message => message.type === 'PEER_OFFLINE_FALLBACK'), 'fallback for blocked sender');
+    await new Promise(resolve => setTimeout(resolve, 200));
+    assert.equal(inbox.messages.filter(message => message.type === 'WAKE').length, wakesBefore, 'blocked senders do not wake');
+    for (const socket of [inbox.socket, a.socket, c.socket]) socket.close();
+});
+
 test('notifies peers in the same geohash when a socket closes', async () => {
     await registerPeer('peer-a');
     await registerPeer('peer-b');
@@ -731,7 +795,7 @@ test('shares presence only between mutually subscribed, unblocked chat partners 
     peerB2.send(JSON.stringify({ type: 'PRESENCE_AWAY', away: true }));
     assert.deepEqual(await peerA.next('PRESENCE'), { type: 'PRESENCE', peerId: 'peer-b', online: true, away: true });
     peerA.send(JSON.stringify({ type: 'PRESENCE_SUBSCRIBE', peerIds: ['peer-b'] }));
-    assert.deepEqual(await peerA.next('PRESENCE_SNAPSHOT'), { type: 'PRESENCE_SNAPSHOT', online: ['peer-b'], away: ['peer-b'] });
+    assert.deepEqual(await peerA.next('PRESENCE_SNAPSHOT'), { type: 'PRESENCE_SNAPSHOT', online: ['peer-b'], away: ['peer-b'], reachable: [] });
     peerB2.send(JSON.stringify({ type: 'PRESENCE_AWAY', away: false }));
     assert.deepEqual(await peerA.next('PRESENCE'), { type: 'PRESENCE', peerId: 'peer-b', online: true, away: false });
     peerB2.close();

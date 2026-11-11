@@ -7,8 +7,24 @@ const MAX_PRESENCE_SUBSCRIPTIONS = 500;
 // PEER_OFFLINE_FALLBACK statt ins Leere zu laufen.
 export const HEARTBEAT_INTERVAL_MS = 30000;
 
-export function registerSignalingRoute(app, store, { messageLimiter = null, heartbeatMs = HEARTBEAT_INTERVAL_MS } = {}) {
+// "Erreichbar + wecken" (documentation/ANDROID-APP.md, R1): der kleine Posteingang der Android-App meldet sich mit
+// REGISTER_INBOX an. Er zaehlt nicht als online; Signaling an einen schlafenden Peer haelt der Router kurz fest,
+// weckt den Posteingang (WAKE) und liefert nach, sobald sich der Kern anmeldet. Der Absender bekommt PEER_WAKING
+// und wartet laenger, bevor er den Zwischenspeicher nimmt.
+export const WAKE_BUFFER_MS = 30000;
+export const WAKE_BUFFER_MAX = 20;
+// Hoechstens ein Wecken je Absender und Empfaenger in dieser Zeit, insgesamt hoechstens WAKE_MAX_PER_HOUR je
+// Empfaenger (Schutz vor leergesaugtem Akku); Gesperrte wecken nie.
+export const WAKE_PAIR_INTERVAL_MS = 30000;
+export const WAKE_CACHE_INTERVAL_MS = 10000;
+export const WAKE_MAX_PER_HOUR = 60;
+
+export function registerSignalingRoute(app, store, { messageLimiter = null, heartbeatMs = HEARTBEAT_INTERVAL_MS, now = Date.now } = {}) {
     const activeSockets = new Map();
+    const inboxSockets = new Map();
+    // Festgehaltenes Signaling je schlafendem Empfaenger: [{ at, message }].
+    const pendingSignals = new Map();
+    const wakeLog = new Map();
     const allSockets = new Set();
     const heartbeat = setInterval(() => {
         for (const socket of allSockets) {
@@ -34,6 +50,46 @@ export function registerSignalingRoute(app, store, { messageLimiter = null, hear
     const subscriptions = new Map();
 
     const isOnline = (peerId) => activeSockets.get(peerId)?.readyState === 1;
+    const isReachable = (peerId) => !isOnline(peerId) && inboxSockets.get(peerId)?.readyState === 1;
+
+    // Weckt den Posteingang (falls die Grenzen es erlauben); true = geweckt oder kuerzlich schon.
+    const wakeInbox = (targetId, reason, senderId = null) => {
+        const inbox = inboxSockets.get(targetId);
+        if (inbox?.readyState !== 1) return false;
+        if (senderId) {
+            try {
+                if (store.isBlocked(targetId, senderId)) return false;
+            } catch {
+                return false;
+            }
+        }
+        const at = now();
+        const log = wakeLog.get(targetId) || { pairs: new Map(), cacheAt: 0, hour: [] };
+        log.hour = log.hour.filter(time => at - time < 60 * 60 * 1000);
+        const recent = senderId ? log.pairs.get(senderId) : log.cacheAt;
+        if (recent && at - recent < (senderId ? WAKE_PAIR_INTERVAL_MS : WAKE_CACHE_INTERVAL_MS)) return true;
+        if (log.hour.length >= WAKE_MAX_PER_HOUR) return false;
+        if (senderId) log.pairs.set(senderId, at);
+        else log.cacheAt = at;
+        log.hour.push(at);
+        wakeLog.set(targetId, log);
+        inbox.send(JSON.stringify({ type: 'WAKE', reason }));
+        return true;
+    };
+
+    const holdSignal = (targetId, message) => {
+        const at = now();
+        const list = (pendingSignals.get(targetId) || []).filter(entry => at - entry.at < WAKE_BUFFER_MS);
+        list.push({ at, message });
+        pendingSignals.set(targetId, list.slice(-WAKE_BUFFER_MAX));
+    };
+
+    const flushSignals = (peerId) => {
+        const list = pendingSignals.get(peerId) || [];
+        pendingSignals.delete(peerId);
+        const at = now();
+        for (const entry of list) if (at - entry.at < WAKE_BUFFER_MS) send(peerId, entry.message);
+    };
 
     const send = (peerId, message) => {
         if (isOnline(peerId)) activeSockets.get(peerId).send(JSON.stringify(message));
@@ -72,7 +128,9 @@ export function registerSignalingRoute(app, store, { messageLimiter = null, hear
     const awayPeers = new Set();
     const presenceMessage = (peerId, online, awayChanged = false) => {
         const away = online && awayPeers.has(peerId);
-        return away || awayChanged ? { type: 'PRESENCE', peerId, online, away } : { type: 'PRESENCE', peerId, online };
+        const message = away || awayChanged ? { type: 'PRESENCE', peerId, online, away } : { type: 'PRESENCE', peerId, online };
+        if (!online && isReachable(peerId)) message.reachable = true;
+        return message;
     };
 
     const notifyPresence = (peerId, online, awayChanged = false) => {
@@ -90,7 +148,8 @@ export function registerSignalingRoute(app, store, { messageLimiter = null, hear
             .map(id => id.substring(0, 200)));
         subscriptions.set(peerId, targets);
         const online = [...targets].filter(targetId => isOnline(targetId) && canSeePresence(peerId, targetId));
-        send(peerId, { type: 'PRESENCE_SNAPSHOT', online, away: online.filter(targetId => awayPeers.has(targetId)) });
+        const reachable = [...targets].filter(targetId => isReachable(targetId) && canSeePresence(peerId, targetId));
+        send(peerId, { type: 'PRESENCE_SNAPSHOT', online, away: online.filter(targetId => awayPeers.has(targetId)), reachable });
         // Wer jetzt gegenseitig sichtbar ist, erfaehrt, dass dieser Peer online ist.
         online.forEach(targetId => send(targetId, presenceMessage(peerId, true)));
     };
@@ -147,6 +206,36 @@ export function registerSignalingRoute(app, store, { messageLimiter = null, hear
                     activeSockets.set(peerId, socket);
                     setPeerCell(peerId, store.getPeerGeohash(peerId), !store.isPeerPublic(peerId));
                     socket.send(JSON.stringify({ type: 'SOCKET_REGISTERED', peerId }));
+                    // Geweckt: festgehaltenes Signaling nachliefern.
+                    flushSignals(peerId);
+                    return;
+                }
+
+                // Posteingang der App (R1): nicht online, nur weckbar.
+                if (data.type === 'REGISTER_INBOX' && typeof data.peerId === 'string' && typeof data.authToken === 'string') {
+                    const peerId = data.peerId.substring(0, 200);
+                    const authHash = createHash('sha256').update(data.authToken).digest('hex');
+                    if (!store.authenticatePeer(peerId, authHash)) {
+                        socket.send(JSON.stringify({ type: 'SIGNALING_ERROR', message: 'Peer authentication failed' }));
+                        socket.close(1008, 'Peer authentication failed');
+                        return;
+                    }
+                    const previous = inboxSockets.get(peerId);
+                    if (previous && previous !== socket) previous.close(1000, 'Replaced by a newer connection');
+                    inboxSockets.set(peerId, socket);
+                    socket.inboxPeerId = peerId;
+                    socket.send(JSON.stringify({ type: 'INBOX_REGISTERED', peerId }));
+                    if (!isOnline(peerId)) notifyPresence(peerId, false);
+                    // Wartet schon etwas? Gleich wecken.
+                    if (pendingSignals.get(peerId)?.length) wakeInbox(peerId, 'signal');
+                    return;
+                }
+
+                // Vorab wecken (Chat geoeffnet, tippt, Snap/Medien): nur wenn der Empfaenger schlaeft.
+                if (data.type === 'WAKE_REQUEST') {
+                    if (currentPeerId && typeof data.targetPeerId === 'string' && isReachable(data.targetPeerId)) {
+                        wakeInbox(data.targetPeerId.substring(0, 200), 'intent', currentPeerId);
+                    }
                     return;
                 }
 
@@ -172,6 +261,10 @@ export function registerSignalingRoute(app, store, { messageLimiter = null, hear
                         ...data,
                         senderNodeId: currentPeerId
                     }));
+                } else if (isReachable(data.targetPeerId) && wakeInbox(data.targetPeerId, 'signal', currentPeerId)) {
+                    // Schlaeft, ist aber erreichbar: festhalten, wecken, Absender wartet.
+                    holdSignal(data.targetPeerId, { ...data, senderNodeId: currentPeerId });
+                    socket.send(JSON.stringify({ type: 'PEER_WAKING', targetPeerId: data.targetPeerId }));
                 } else {
                     socket.send(JSON.stringify({
                         type: 'PEER_OFFLINE_FALLBACK',
@@ -193,14 +286,28 @@ export function registerSignalingRoute(app, store, { messageLimiter = null, hear
             activeSockets.delete(currentPeerId);
             awayPeers.delete(currentPeerId);
             notifyPresence(currentPeerId, false);
-            subscriptions.delete(currentPeerId);
+            // Mit Posteingang (schlafender App-Kern) bleiben die Abos: Kontakte sehen weiter "erreichbar".
+            if (!isReachable(currentPeerId)) subscriptions.delete(currentPeerId);
             notifyPeerOffline(currentPeerId);
+        };
+        const removeInbox = () => {
+            const peerId = socket.inboxPeerId;
+            if (!peerId || inboxSockets.get(peerId) !== socket) return;
+            inboxSockets.delete(peerId);
+            if (!isOnline(peerId)) {
+                notifyPresence(peerId, false);
+                subscriptions.delete(peerId);
+            }
         };
         socket.on('close', () => {
             allSockets.delete(socket);
             removeSocket();
+            removeInbox();
         });
-        socket.on('error', removeSocket);
+        socket.on('error', () => {
+            removeSocket();
+            removeInbox();
+        });
     });
 
     return {
@@ -221,7 +328,10 @@ export function registerSignalingRoute(app, store, { messageLimiter = null, hear
         // nur der Hinweis). Sonst laege sie bis zum naechsten Verbinden oder einem Web Push dort.
         notifyCacheWaiting(peerId) {
             if (isOnline(peerId)) send(peerId, { type: 'CACHE_WAITING' });
+            // Schlafender App-Kern: Posteingang wecken (der Kern holt den Zwischenspeicher dann selbst ab).
+            else if (isReachable(peerId)) wakeInbox(peerId, 'cache');
         },
+        isPeerReachable: isReachable,
         // Vom Register-Endpunkt: Zelle oder Silent-Modus haben sich geaendert.
         updatePeerCell(peerId, geohash, silent) {
             if (activeSockets.has(peerId)) setPeerCell(peerId, geohash, silent);

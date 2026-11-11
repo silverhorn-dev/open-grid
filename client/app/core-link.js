@@ -276,6 +276,8 @@ function coreLiveSnapshot() {
         focus: state.peerChatFocus || {},
         typing: state.peerTyping || {},
         transport: state.peerTransport || {},
+        reachable: state.peerReachable || {},
+        waking: state.peerWaking || {},
         // Fortschritt der Originale (Anzeige "Original 40 %").
         originals: Object.fromEntries(Object.entries(state.originalTransfers || {})
             .map(([messageId, transfer]) => [messageId, { received: transfer.received || 0, total: transfer.total || 0 }])),
@@ -304,6 +306,8 @@ function applyCoreLive(snapshot) {
     state.peerChatFocus = { ...snapshot.focus };
     state.peerTyping = { ...snapshot.typing };
     state.peerTransport = { ...snapshot.transport };
+    state.peerReachable = { ...(snapshot.reachable || {}) };
+    state.peerWaking = { ...(snapshot.waking || {}) };
     const open = new Set(snapshot.channels || []);
     state.dataChannels = Object.fromEntries([...open].map(peerId => [peerId, { readyState: 'open', bufferedAmount: 0, coreMirror: true, send() {} }]));
     state.sessionKeys = Object.fromEntries([...open].map(peerId => [peerId, true]));

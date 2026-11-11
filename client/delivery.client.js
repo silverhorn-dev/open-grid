@@ -276,8 +276,13 @@ async function sendSecurePayload(peerId, payload, onSent = null, options = {}) {
 const SECURE_QUEUE_FALLBACK_MS = 10000;
 
 function scheduleQueueFallback(peerId, item) {
-    setTimeout(async () => {
+    setTimeout(async function fallback() {
         if (!state.secureMessageQueues[peerId]?.includes(item) || item.cacheQueued || item.discarded) return;
+        // Wird gerade geweckt (R1): noch warten, der direkte Kanal kommt gleich.
+        if (typeof isPeerWaking === 'function' && isPeerWaking(peerId)) {
+            setTimeout(fallback, 2000);
+            return;
+        }
         let queued = false;
         try {
             queued = await queuePayloadInCache(peerId, item);

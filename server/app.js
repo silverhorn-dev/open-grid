@@ -551,7 +551,7 @@ export async function buildApp(options = {}) {
         }
     };
     const limits = scaleRateLimits({ ...DEFAULT_RATE_LIMITS, ...(options.rateLimits || {}) }, options.rateLimitScale ?? process.env.RATE_LIMIT_SCALE);
-    const signaling = registerSignalingRoute(app, store, { messageLimiter: () => createRateLimiter(limits.websocket), heartbeatMs: options.heartbeatMs });
+    const signaling = registerSignalingRoute(app, store, { messageLimiter: () => createRateLimiter(limits.websocket), heartbeatMs: options.heartbeatMs, now: options.now || Date.now });
 
     app.addHook('onClose', async () => {
         if (ownsStore) store.close();

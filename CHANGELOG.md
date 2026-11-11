@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 345 · 2026-11-11
+## Build 346 · 2026-11-11
+- Router: Kontakte mit der Android-App koennen "erreichbar" sein, auch wenn die App geschlossen ist; Nachrichten und Anfragen wecken sie, und es geht direkt statt ueber den Zwischenspeicher (in der App folgt das mit dem naechsten Update)
+
+## Build 345 · 2026-11-11 · `d73baf9`
 - Behoben: Sperren wurden nach einem Umzug oder dem Koppeln eines Geraets beim Router nicht eingetragen
 - Vorbereitung Android-App: Secure Snaps, Alben und Originale funktionieren auch, wenn der Hintergrund-Kern die Verbindungen haelt
 

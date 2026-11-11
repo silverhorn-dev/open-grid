@@ -129,7 +129,9 @@ async function nativeCompactNotifications() {
 }
 
 function nativeNotificationsUsable() {
-    return isNativeApp() && nativeBridge.capabilities?.notifications === true && document.visibilityState !== 'visible';
+    // Kern: Benachrichtigung, solange die Oberflaeche nicht zu sehen ist; Oberflaeche selbst meldet nichts (der Kern tut es).
+    const pageVisible = APP_ROLE === 'core' ? typeof coreUiVisible === 'function' && coreUiVisible() : document.visibilityState === 'visible';
+    return isNativeApp() && APP_ROLE !== 'ui' && nativeBridge.capabilities?.notifications === true && !pageVisible;
 }
 
 async function notifyNative(kind, { title, body, peerId = null }) {

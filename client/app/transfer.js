@@ -22,7 +22,7 @@ const TRANSFER_SKIPPED_KEYS = ['identity-key', 'profile-cache', 'router-auth', '
     // Geraetebezogen (devices.js, conversations.js): Geraeteliste/Einladungen/Kopplung und Gruppen-Absender-Schluessel.
     'device-list', 'device-invites', 'device-pairing'];
 const TRANSFER_SKIPPED_KEY_PREFIXES = ['group-keys:'];
-const TRANSFER_SKIPPED_LOCAL = ['opengrid-node-id', 'opengrid-router-auth-token'];
+const TRANSFER_SKIPPED_LOCAL = ['opengrid-node-id', 'opengrid-router-auth-token', 'opengrid-core-alive'];
 const TRANSFER_EXTRA_LOCAL = ['appliedChatWipes', 'hiddenByPeers'];
 
 // ----- Reine Hilfen (test/transfer.test.js) -----

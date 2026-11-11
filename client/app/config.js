@@ -14,8 +14,8 @@ const CONFIG = { DEBUG_MODE: loadDebugModePreference(), DEFAULT_GEOHASH: 'u10j2k
 
 // Rolle der Seite (documentation/ANDROID-APP.md, "Kern im Hintergrund"): 'full' = alles in einer Seite (Browser,
 // wie bisher); 'core' = unsichtbare Kern-Seite der App (/core.html: Verbindungen, Krypto, Abgleich, keine
-// Bedienung); 'ui' = Oberflaeche, deren Verbindungen der Kern haelt (folgt in K2).
-const APP_ROLE = ['core', 'ui'].includes(document.documentElement?.dataset?.role) ? document.documentElement.dataset.role : 'full';
+// Bedienung); 'ui' = Oberflaeche, deren Verbindungen der Kern haelt (core-link.js stellt das beim Start fest).
+let APP_ROLE = ['core', 'ui'].includes(document.documentElement?.dataset?.role) ? document.documentElement.dataset.role : 'full';
 
 // Laufende Aufgaben (Signaling pruefen, Grid-Anmeldung, Abgleich): im Browser nur bei sichtbarer Seite, der Kern
 // ist nie sichtbar und arbeitet immer.
@@ -244,6 +244,8 @@ const state = {
     qrScanCanvas: null,
     snapQrTimer: null,
     snapQrCode: null,
+    // Spiegel des Kerns in der Oberflaeche (core-link.js): Router-Verbindung des Kerns steht.
+    coreConnected: false,
     snapPageEnabled: null,
     // App-Modus (P8): vom Server erlaubte Modi, gewaehlter Modus und Event-Daten.
     appConfig: { modes: ['discovery', 'chat', 'friends', 'event'], defaultMode: 'discovery' },

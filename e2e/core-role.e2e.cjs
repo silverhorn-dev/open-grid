@@ -69,7 +69,16 @@ async function main() {
 
         // Bob holt Alices Profil direkt beim Kern.
         await bob.evaluate(id => { delete state.cachedProfiles[id]; requestMissingProfile(id); }, aliceId);
-        await waitFor(bob, id => state.cachedProfiles[id]?.fields?.displayName === 'Alice', aliceId, 30000);
+        // Anfragen sind gedrosselt: bis zur Antwort ab und zu erneut fragen.
+        await waitFor(bob, id => {
+            if (state.cachedProfiles[id]?.fields?.displayName === 'Alice') return true;
+            if (!window.lastProfileAsk || Date.now() - window.lastProfileAsk > 5000) {
+                window.lastProfileAsk = Date.now();
+                if (isSecureChannelOpen(id)) sendSecurePayload(id, { type: 'PROFILE_REQUEST' }).catch(() => {});
+                else requestMissingProfile(id);
+            }
+            return false;
+        }, aliceId, 45000);
 
         // Antwort des Kerns kommt bei Bob an (Senden aus dem Kern).
         await core.evaluate(async id => {

@@ -159,6 +159,7 @@ test('notifications go to the app only while the page is hidden, compact by defa
     const opened = [];
     Object.assign(bridge.context, {
         state: { compactNotifications: null },
+        APP_ROLE: 'full',
         t: key => key,
         databaseRequest: async () => ({ compactNotifications: false }),
         notificationEnabled: kind => kind !== 'profileView',

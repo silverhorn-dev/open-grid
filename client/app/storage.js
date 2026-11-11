@@ -64,14 +64,21 @@ function databaseRequest(storeName, mode, operation) {
     });
 }
 
+// Schreibzugriffe meldet core-link.js der anderen Seite (App: Oberflaeche <-> Kern teilen dieselbe DB).
 function putDatabaseRecord(storeName, value) {
     if (!db) return Promise.resolve();
-    return databaseRequest(storeName, 'readwrite', store => store.put(value));
+    return databaseRequest(storeName, 'readwrite', store => store.put(value)).then(result => {
+        if (typeof coreLinkNotifyWrite === 'function') coreLinkNotifyWrite(storeName, value, 'put');
+        return result;
+    });
 }
 
 function deleteDatabaseRecord(storeName, key) {
     if (!db) return Promise.resolve();
-    return databaseRequest(storeName, 'readwrite', store => store.delete(key));
+    return databaseRequest(storeName, 'readwrite', store => store.delete(key)).then(result => {
+        if (typeof coreLinkNotifyWrite === 'function') coreLinkNotifyWrite(storeName, key, 'delete');
+        return result;
+    });
 }
 
 function getDatabaseRecordsByIndex(storeName, indexName, value) {
@@ -96,7 +103,10 @@ function deleteDatabaseRecordsByPeerBefore(storeName, peerId, cutoff) {
             cursor.continue();
         };
         request.onerror = () => reject(request.error);
-        transaction.oncomplete = () => resolve();
+        transaction.oncomplete = () => {
+            if (typeof coreLinkNotifyWrite === 'function') coreLinkNotifyWrite(storeName, { peerId }, 'put');
+            resolve();
+        };
         transaction.onerror = () => reject(transaction.error);
         transaction.onabort = () => reject(transaction.error);
     });

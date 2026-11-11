@@ -202,6 +202,7 @@ const clientAssetFiles = [
     'app/conversations.js',
     'app/forward-secrecy.js',
     'app/qr-scan.js',
+    'app/core-link.js',
     'app/devices.js',
     'app/install-guide.js',
     'app/transfer.js',

@@ -46,6 +46,9 @@ window.onload = async () => {
     // Deep Link in einen Chat: sofort die Chat-Ansicht zeigen (statt kurz die Liste), der Inhalt
     // kommt, sobald Datenbank und Chatliste bereit sind.
     if (initialRoute.peerId) showChatLoadingPlaceholder();
+    // Kern der App (core-link.js): Kanal sofort oeffnen; Oberflaeche: laeuft ein Kern, wird diese Seite "ui".
+    initCoreLinkAsCore();
+    await detectCoreRole();
     window.addEventListener('popstate', handlePopState);
     initNativeBridge();
     initImageViewer();

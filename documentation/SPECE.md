@@ -2558,6 +2558,10 @@ Gilt nur fuer Dating (Entdecken), nicht fuer Chat & Freunde.
   Precache, der Service Worker antwortet offline mit ihrer eigenen Shell.
 - Der Kern arbeitet unabhaengig von der Sichtbarkeit (`isAppActive()`), richtet
   ohne eigenes Profil nichts ein und laedt kein Nacktbild-Modell.
+- Oberflaeche <-> Kern (`core-link.js`, K2): `BroadcastChannel('opengrid-core')`,
+  Protokoll v1 mit `hello`/`welcome`, `call`/`result`/`callback`, `db`, `live`,
+  `ui`, `toast` (Details in ANDROID-APP.md). Lebenszeichen des Kerns:
+  `localStorage` `opengrid-core-alive` (wird beim Umzug/Koppeln nicht kopiert).
 
 ## "Tippt ..." (CHAT_TYPING)
 

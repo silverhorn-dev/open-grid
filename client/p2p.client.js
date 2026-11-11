@@ -406,7 +406,9 @@ function isPeerAway(peerId) {
 // Eigenen Zustand melden: versteckte Seite = abwesend. `force` meldet auch ohne Aenderung (neue
 // WS-Verbindung). Bei `pagehide` gilt abwesend, egal was visibilityState gerade sagt.
 function reportAway(forceAway = undefined, force = false) {
-    const away = forceAway === undefined ? document.visibilityState === 'hidden' : forceAway;
+    // Kern der App: abwesend, solange die Oberflaeche nicht zu sehen ist (core-link.js).
+    const hidden = APP_ROLE === 'core' ? !(typeof coreUiVisible === 'function' && coreUiVisible()) : document.visibilityState === 'hidden';
+    const away = forceAway === undefined ? hidden : forceAway;
     if (!force && state.reportedAway === away) return;
     if (state.ws?.readyState !== WebSocket.OPEN) return;
     state.reportedAway = away;

@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 343 · 2026-11-11
+## Build 344 · 2026-11-11
+- Vorbereitung Android-App: Oberflaeche und Hintergrund-Kern arbeiten zusammen (eine Datenbank, Senden ueber den Kern); in der App noch nicht aktiv
+
+## Build 343 · 2026-11-11 · `95ed5bd`
 - Behoben (Android-App 0.2.1): mehrere Bilder aus der Galerie (z. B. beim Snappen) kamen in der App nicht an
 
 ## Build 342 · 2026-11-11 · `078a8cd`

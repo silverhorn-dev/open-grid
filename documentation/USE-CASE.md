@@ -549,6 +549,10 @@ Akzeptanzkriterien:
   kommen. Doppelt tippen reagiert mit ❤️.
 - Text laesst sich ueber die Aktion "Kopieren" kopieren.
 - Seitlich wischen wechselt zwischen Grid, Chat und Profil.
+- Reiter-Leisten lassen sich wie die Bereiche der Einstellungen seitlich
+  wischen: im Grid erst Grid / Interaktionen / Matches (an den Enden weiter
+  zum naechsten Haupt-Reiter), im Profil-Popup Dating / Freunde, in der
+  GIF-Auswahl und bei den Stickern im Snap-Editor die Reiter.
 - Profil- und Medienfenster schliessen per Wischen nach unten.
 - Im Chat am Ende nach oben ziehen loest die eingestellte Aktion aus: Seite
   neu laden (Standard), naechster Chat, Auswahl aller Chats der Liste

@@ -751,7 +751,9 @@ async function openGifPicker() {
         gifSources().includes('url') && 'link'
     ].filter(Boolean);
     const labels = { provider: 'KLIPY', library: t('gifs.tabLibrary'), favorites: t('gifs.tabFavorites'), recent: t('gifs.tabRecent'), link: t('gifs.tabLink') };
+    let currentTab = null;
     const show = tab => {
+        currentTab = tab;
         tabs.querySelectorAll('button').forEach(button => {
             const active = button.dataset.gifTab === tab;
             button.setAttribute('aria-selected', String(active));
@@ -774,6 +776,8 @@ async function openGifPicker() {
     });
     content.append(tabs, body);
     show(available[0]);
+    // Seitlich wischen wechselt den Reiter (gestures.js).
+    if (typeof attachTabStripSwipe === 'function') attachTabStripSwipe(body, { tabs: () => available, current: () => currentTab, select: show, moving: () => body });
 }
 
 function renderGifGrid(container, items, emptyText) {

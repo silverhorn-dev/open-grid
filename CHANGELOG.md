@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 330 · 2026-11-10
+## Build 331 · 2026-11-11
+- Reiter seitlich wischen wie in den Einstellungen: im Grid (Grid, Interaktionen, Matches), im Profil (Dating, Freunde), in der GIF-Auswahl und bei den Stickern im Snap-Editor
+
+## Build 330 · 2026-11-10 · `a142ae8`
 - Forward Secrecy: direkte Verbindungen, Nachrichten ueber den Router und Gruppen nutzen jetzt wechselnde Schluessel. Kommt spaeter jemand an dein Geraet, kann er frueher mitgeschnittene Nachrichten nicht mehr entschluesseln
 
 ## Build 329 · 2026-11-10 · `253c6c1`

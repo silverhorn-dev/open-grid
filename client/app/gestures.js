@@ -538,6 +538,15 @@ function handleTabTouchEnd() {
         animateTabChange(target, forward, () => stepSettingsTab(forward ? 1 : -1));
         return;
     }
+    // Grid: erst durch Grid / Interaktionen / Matches, an den Enden weiter zum naechsten Haupt-Reiter.
+    if (tab === 'grid' && typeof gridTabsAvailable === 'function' && gridTabsAvailable()) {
+        const viewIndex = GRID_VIEWS.indexOf(state.gridView || 'grid') + (forward ? 1 : -1);
+        if (viewIndex >= 0 && viewIndex < GRID_VIEWS.length) {
+            hapticTick();
+            animateTabChange(target, forward, () => setGridView(GRID_VIEWS[viewIndex]));
+            return;
+        }
+    }
     if (tab === 'editprofile' && forward) {
         hapticTick();
         openMenu();
@@ -631,6 +640,61 @@ function attachSwipeRight(area, { moving = () => area, close, enabled = () => tr
         }
         // Standard: ganz hinausgleiten, dann schliessen.
         slideOutThen(moving(), 'translate3d(100%, 0, 0)', close);
+    };
+    area.addEventListener('touchend', () => finish(false), { passive: true });
+    area.addEventListener('touchcancel', () => finish(true), { passive: true });
+}
+
+// ----- Reiter-Leisten seitlich wischen (wie die Bereiche der Einstellungen) -----
+// Profil-Popup (Dating/Freunde), GIF-Auswahl und Sticker im Snap-Editor. `tabs()` liefert die verfuegbaren Reiter,
+// `current()` den aktiven, `select(tab)` schaltet um; `moving()` (optional) folgt dem Finger ein Stueck.
+// An den Enden passiert nichts. Waagerecht scrollbare Leisten (die Reiterzeile selbst) gehoeren dem Finger.
+function attachTabStripSwipe(area, { tabs, current, select, moving = null, enabled = () => true }) {
+    if (!area || area.dataset.tabStripSwipe) return;
+    area.dataset.tabStripSwipe = 'on';
+    let gesture = null;
+    area.addEventListener('touchstart', event => {
+        gesture = null;
+        if (event.touches.length !== 1 || !enabled() || tabs().length < 2) return;
+        if (event.target.closest('textarea:focus, input:focus:not([type="checkbox"]):not([type="radio"]), input[type="range"], [role="slider"]')) return;
+        // `data-no-tab-swipe` ausserhalb gilt dem Haupt-Wischer, nicht dieser Leiste.
+        const blocker = event.target.closest('[data-no-tab-swipe]');
+        if (blocker && blocker !== area && area.contains(blocker)) return;
+        for (let element = event.target; element && element !== area.parentElement; element = element.parentElement) {
+            const overflowX = getComputedStyle(element).overflowX;
+            if ((overflowX === 'auto' || overflowX === 'scroll') && element.scrollWidth > element.clientWidth) return;
+        }
+        const touch = event.touches[0];
+        gesture = { startX: touch.clientX, startY: touch.clientY, axis: null, deltaX: 0, startedAt: performance.now() };
+    }, { passive: true });
+    area.addEventListener('touchmove', event => {
+        if (!gesture) return;
+        const deltaX = event.touches[0].clientX - gesture.startX;
+        const deltaY = event.touches[0].clientY - gesture.startY;
+        if (!gesture.axis) {
+            if (Math.hypot(deltaX, deltaY) < GESTURE_LOCK_DISTANCE * 1.5) return;
+            gesture.axis = Math.abs(deltaX) > Math.abs(deltaY) * 1.5 ? 'x' : 'other';
+        }
+        if (gesture.axis !== 'x') return;
+        gesture.deltaX = deltaX;
+        const element = moving?.();
+        if (element && !prefersReducedMotion()) {
+            setStylesNextFrame(element, { transition: 'none', willChange: 'transform', transform: `translate3d(${deltaX * 0.35}px, 0, 0)` });
+        }
+    }, { passive: true });
+    const finish = cancelled => {
+        const finished = gesture;
+        gesture = null;
+        if (finished?.axis !== 'x') return;
+        const element = moving?.();
+        if (element) springBack(element);
+        const fast = Math.abs(finished.deltaX) / Math.max(1, performance.now() - finished.startedAt) > 0.5;
+        if (cancelled || (Math.abs(finished.deltaX) < TAB_SWIPE_TRIGGER && !fast)) return;
+        const list = tabs();
+        const index = list.indexOf(current()) + (finished.deltaX < 0 ? 1 : -1);
+        if (index < 0 || index >= list.length) return;
+        hapticTick();
+        select(list[index]);
     };
     area.addEventListener('touchend', () => finish(false), { passive: true });
     area.addEventListener('touchcancel', () => finish(true), { passive: true });
@@ -909,6 +973,16 @@ function initGestures() {
         document.querySelector('#profile-detail-modal > div'),
         closeProfileModal
     );
+    // Profil-Popup: Dating/Freunde seitlich wechseln (nur wenn die Reiter sichtbar sind).
+    attachTabStripSwipe(document.getElementById('profile-detail-modal'), {
+        tabs: () => {
+            const strip = document.getElementById('modal-profile-tabs');
+            return strip && !strip.classList.contains('hidden') ? [...strip.querySelectorAll('[data-profile-tab]')].map(button => button.dataset.profileTab) : [];
+        },
+        current: () => state.profileModalTab?.tab,
+        select: setProfileModalTab,
+        moving: () => document.getElementById('modal-rendered-fields')
+    });
     attachSwipeRight(document.getElementById('app-menu'), { close: closeMenu });
     attachChatListPullRefresh();
     attachSwipeRight(document.getElementById('chat-input-bar'), {

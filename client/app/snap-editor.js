@@ -413,6 +413,10 @@ function renderSnapEmojiRow(tab = snapEditor.stickerTab || 'faces') {
     });
     const grid = document.createElement('div');
     grid.className = 'snap-sticker-grid';
+    // Seitlich wischen wechselt den Sticker-Reiter (gestures.js); einmal je Panel.
+    if (typeof attachTabStripSwipe === 'function') {
+        attachTabStripSwipe(row, { tabs: snapStickerTabs, current: () => snapEditor.stickerTab, select: renderSnapEmojiRow });
+    }
     const close = () => row.classList.add('hidden');
     if (tab === 'info') {
         snapInfoStickers().forEach(info => {

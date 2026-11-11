@@ -457,6 +457,11 @@
   gestapelt sein (`state.modalStack`); "Zurueck" schliesst alle Modals oberhalb
   der Tiefe des neuen Eintrags. Navigiert man aus einem Modal
   heraus, ersetzt die neue Route den Modal-Eintrag.
+Reiter-Leisten (`attachTabStripSwipe` in `gestures.js`): Profil-Popup (Dating /
+Freunde), GIF-Auswahl und Sticker-Reiter im Snap-Editor wechseln per seitlichem
+Wischen (Schwelle wie beim Tab-Wischer, an den Enden nichts). Im Grid laeuft der
+Tab-Wischer erst durch `GRID_VIEWS` und erst an den Enden zum naechsten
+Haupt-Reiter.
 
 Der Dienst laeuft als einzelner Docker-Container hinter einem TLS
 terminierenden Reverse Proxy.

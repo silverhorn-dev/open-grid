@@ -220,6 +220,8 @@ const state = {
     channelEphemerals: {},
     ownPrekey: null,
     groupSealLocks: {},
+    // "Kompakte Meldung" fuer Benachrichtigungen der Android-App (native.js), null = noch nicht gelesen.
+    compactNotifications: null,
     snapPageEnabled: null,
     // App-Modus (P8): vom Server erlaubte Modi, gewaehlter Modus und Event-Daten.
     appConfig: { modes: ['discovery', 'chat', 'friends', 'event'], defaultMode: 'discovery' },

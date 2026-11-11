@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 335 · 2026-11-11
+## Build 336 · 2026-11-11
+- Android-App 0.2.0: Benachrichtigungen funktionieren jetzt in der App (Android fragt beim ersten Start nach dem Recht)
+- Android-App: bleibt nach dem Schliessen eine einstellbare Zeit aktiv (Standard 1 Stunde, bis "immer"), damit Nachrichten, Abgleich und deine Profilbilder fuer andere weiterlaufen (Einstellungen > Benachrichtigungen)
+
+## Build 335 · 2026-11-11 · `050d108`
 - Dating: willst du ein Bild senden, das nach Nacktbild aussieht, schlaegt die App vor, es als Secure Snap zu senden (nur ansehen, nicht speicherbar)
 - Neue Konten koennen im Dating nur eine begrenzte Zahl neuer Leute anschreiben, solange diese offline sind
 - Neuer Meldegrund "Verlangt Nacktbilder oder erpresst damit": schon wenige Meldungen blenden die Person aus

@@ -77,6 +77,32 @@ Identitaet. Einen Export/Import gibt es noch nicht; Umzug siehe Entscheidung 7.
   `share_target`), Haptik.
 - Nichts davon bekommt Klartext ausser dem, was die Funktion braucht.
 
+### Hintergrund und Benachrichtigungen (umgesetzt 2026-11-11, App 0.2.0)
+
+- Die WebView kann weder Web Push noch die Notification-API. Die PWA zeigt
+  Benachrichtigungen deshalb ueber die Bruecke (`notify { title, body, tag,
+  peerId }`), nativ im Kanal "Nachrichten"; Antippen oeffnet den Chat
+  (Ereignis `openChat`). Nur wenn die Seite nicht sichtbar ist, nach den
+  Schaltern je Art; "Kompakte Meldung" (Standard an) schickt nur "Neue
+  Nachrichten". Ausloeser: neue Nachricht eines anderen (`storage.js`) und
+  alles, was `notifyInApp` meldet (Match, Flamme, Adden, Profilbesuch ...).
+- Recht: Android 13+ fragt die App beim ersten Start nach `POST_NOTIFICATIONS`;
+  danach ueber Einstellungen > Benachrichtigungen (`notifications { request }`),
+  nach zweimal Ablehnen oeffnet sie die System-Einstellungen.
+- Aktiv bleiben (`KeepAliveService`, Vordergrund-Dienst `specialUse` mit
+  stiller Meldung und "Beenden"): beim Verlassen startet er fuer die
+  eingestellte Dauer (Einstellungen > Benachrichtigungen, nur in der App:
+  aus / 15 min / 1 h (Standard) / 4 h / 8 h / immer; `background { minutes }`).
+  Die WebView ueberlebt dabei auch das Wegwischen der App (`WebViewHolder`,
+  `MutableContextWrapper`) und wird beim Oeffnen ohne Neuladen weiter genutzt;
+  ihr Renderer bleibt "wichtig" (`RENDERER_PRIORITY_IMPORTANT`). So bleiben
+  Router-Verbindung, P2P (Profilbilder, Originale), Abgleich und
+  Benachrichtigungen aktiv. Bei "immer" fragt die App nach dem Abschalten der
+  Akku-Optimierung, sonst trennt Android im Ruhezustand (Doze) das Netz.
+- Grenzen: nach "Beenden", Ablauf der Dauer, Neustart des Handys oder wenn das
+  System den Dienst beendet, gibt es keine Benachrichtigungen mehr (dafuer
+  Phase 3). Die stille Meldung des Dienstes ist Pflicht (Android).
+
 ### Phase 3: Push ohne Browser (UnifiedPush)
 
 - WebView kann kein Web Push; die App empfaengt Push nativ.
@@ -203,6 +229,8 @@ Repository verschieben. Jenkins baut das APK vorerst nicht (zu schwach).
   Browser; zurueck in die App kommt `/age-callback` nur mit verifiziertem
   App-Link (eigener Build mit `appLinkHost`). Loesung fuer die Projekt-App
   offen (z. B. Custom Tab und Rueckweg ueber `opengrid://open`).
-- Benachrichtigungen gibt es in der App erst mit Phase 3 (UnifiedPush).
+- Benachrichtigungen ohne laufende App (komplett beendet, nach Neustart des
+  Handys): erst mit Phase 3 (UnifiedPush). Solange der Hintergrund-Dienst
+  laeuft, kommen sie schon (siehe "Hintergrund und Benachrichtigungen").
 - Erster Build und Pruefung auf einem Geraet (Kamera, WebRTC, Service Worker,
   `FLAG_SECURE`, Teilen).

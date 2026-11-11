@@ -14,4 +14,9 @@
     <string name="update_message">Version %1$s of the OpenGrid app is available from your router.</string>
     <string name="update_download">Download</string>
     <string name="update_later">Later</string>
+    <string name="channel_messages">Messages</string>
+    <string name="channel_background">Background connection</string>
+    <string name="background_title">OpenGrid is still active</string>
+    <string name="background_text">Messages and profile pictures keep arriving. Tap to open.</string>
+    <string name="background_stop">Stop</string>
 </resources>

@@ -201,6 +201,8 @@ function sendProfileView(peerId) {
 // Hinweis in der App nur, wenn die Art eingeschaltet ist.
 function notifyInApp(kind, message, type = 'info') {
     if (notificationEnabled(kind)) showToast(message, type);
+    // In der Android-App im Hintergrund zusaetzlich als Benachrichtigung (native.js).
+    if (typeof notifyNative === 'function') notifyNative(kind, { title: 'OpenGrid', body: message }).catch(() => {});
 }
 
 async function getPushSubscription() {
@@ -228,6 +230,7 @@ async function syncPushSubscription() {
 }
 
 async function setCompactPushNotifications(enabled) {
+    state.compactNotifications = Boolean(enabled);
     try {
         await putDatabaseRecord('keys', { id: 'push-settings', compactNotifications: enabled });
     } catch (error) {
@@ -245,6 +248,15 @@ async function updatePushStatus() {
     const status = document.getElementById('push-status');
     const button = document.getElementById('push-toggle-btn');
     if (!status || !button) return;
+    // Android-App: Benachrichtigungen nativ (WebView kann kein Web Push), Recht ueber Android.
+    if (typeof isNativeApp === 'function' && isNativeApp() && nativeBridge.capabilities?.notifications) {
+        const granted = (await nativeCall('notifications').catch(() => null))?.granted === true;
+        status.textContent = granted ? t('push.active') : t('push.off');
+        button.disabled = false;
+        button.textContent = granted ? t('push.nativeSettings') : t('common.turnOnNotifications');
+        button.classList.toggle('hidden', granted);
+        return;
+    }
     if (!isPushSupported() || !state.serviceWorkerRegistration) {
         status.textContent = t('push.notSupportedOnIosOnly');
         button.disabled = true;
@@ -262,6 +274,18 @@ async function updatePushStatus() {
 async function togglePushNotifications() {
     const button = document.getElementById('push-toggle-btn');
     button.disabled = true;
+    if (typeof isNativeApp === 'function' && isNativeApp() && nativeBridge.capabilities?.notifications) {
+        try {
+            const granted = (await nativeCall('notifications', { request: true }))?.granted === true;
+            showToast(granted ? t('push.notificationsTurnedOn') : t('push.notificationsWereNotAllowed'), granted ? 'success' : 'warning');
+        } catch (error) {
+            logDebug(`Native notification permission failed: ${error.message}`);
+        } finally {
+            button.disabled = false;
+            updatePushStatus();
+        }
+        return;
+    }
     try {
         const existing = await getPushSubscription();
         if (existing && Notification.permission === 'granted') {

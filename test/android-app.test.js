@@ -154,6 +154,59 @@ test('bridge replies resolve the matching call, unknown types are refused', asyn
     bridge.context.api.handleNativeMessage('not json');
 });
 
+test('notifications go to the app only while the page is hidden, compact by default; tapping opens the chat', async () => {
+    const bridge = setupBridge();
+    const opened = [];
+    Object.assign(bridge.context, {
+        state: { compactNotifications: null },
+        t: key => key,
+        databaseRequest: async () => ({ compactNotifications: false }),
+        notificationEnabled: kind => kind !== 'profileView',
+        chatScopeOf: () => 'discovery',
+        getPeerPresentation: id => ({ name: id === 'alice' ? 'Alice' : 'Bob' }),
+        messagePreview: message => message.text,
+        openChatWithPeer: id => opened.push(id),
+        switchTab: () => {},
+        Date
+    });
+    vm.runInContext('this.api.notifyNative = notifyNative; this.api.notifyNativeMessage = notifyNativeMessage;', vm.createContext(bridge.context));
+    // Die App bestaetigt Benachrichtigungen sofort.
+    const post = bridge.port.postMessage;
+    bridge.port.postMessage = text => {
+        post(text);
+        const message = JSON.parse(text);
+        if (message.type === 'notify') queueMicrotask(() => bridge.context.api.handleNativeMessage(JSON.stringify({ v: 1, id: message.id, ok: true, result: { shown: true } })));
+    };
+    bridge.context.api.initNativeBridge();
+    const caps = bridge.sent.find(message => message.type === 'capabilities');
+    bridge.context.api.handleNativeMessage(JSON.stringify({ v: 1, id: caps.id, ok: true, result: { notifications: true } }));
+    await new Promise(resolve => setImmediate(resolve));
+    const notifies = () => bridge.sent.filter(message => message.type === 'notify').map(message => message.data);
+
+    bridge.context.document.visibilityState = 'visible';
+    bridge.context.api.notifyNativeMessage('alice', { senderId: 'alice', text: 'hi', createdAt: Date.now() });
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(notifies().length, 0, 'visible page: in-app only');
+
+    bridge.context.document.visibilityState = 'hidden';
+    bridge.context.api.notifyNativeMessage('alice', { senderId: 'alice', text: 'hi', createdAt: Date.now() });
+    await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual({ ...notifies()[0] }, { title: 'Alice', body: 'hi', tag: 'chat-alice', peerId: 'alice' }, 'compact off: name and preview');
+    bridge.context.api.notifyNativeMessage('alice', { senderId: 'alice', text: 'old', createdAt: Date.now() - 2 * 24 * 60 * 60 * 1000 });
+    bridge.context.api.notifyNativeMessage('alice', { senderId: 'alice', text: 'held', held: true, createdAt: Date.now() });
+    await bridge.context.api.notifyNative('profileView', { title: 'x', body: 'y' });
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(notifies().length, 1, 'old, held and muted kinds stay silent');
+
+    bridge.context.state.compactNotifications = true;
+    await bridge.context.api.notifyNative('match', { title: 'Match', body: 'mit Bob' });
+    assert.deepEqual({ ...notifies().at(-1) }, { title: 'sw.newMessages', body: 'sw.tapToOpen', tag: 'opengrid-messages', peerId: null }, 'compact: no name or text');
+
+    bridge.context.api.handleNativeMessage(JSON.stringify({ v: 1, event: 'openChat', data: { peerId: 'alice' } }));
+    await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(opened, ['alice']);
+});
+
 test('without the app nothing is installed', async () => {
     const context = { window: {}, document: {}, logDebug: () => {} };
     vm.runInNewContext(`${nativeSource}\ninitNativeBridge();\nthis.native = isNativeApp();`, context);

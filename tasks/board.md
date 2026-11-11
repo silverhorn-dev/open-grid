@@ -137,6 +137,8 @@
   - plan: phase 6 senden/empfangen im hintergrund (siehe unten, variante A/B)
   - entschieden 2026-11-01: eigene WebView; verteilung router-APK + F-Droid; projekt signiert, betreiber koennen weitere schluessel eintragen; `FLAG_SECURE` nur in medien, grid-profilen und flirt-chats
   - entschieden 2026-11-01: push nur UnifiedPush (ntfy empfehlen), kein FCM; echtheit per Android Key Attestation; umzug PWA -> app per QR (eigene phase nach 1 + 2), format so, dass es spaeter zum mehrgeraete-betrieb passt (backlog)
+- [x] nutzer 2026-11-11: in der app kommen keine benachrichtigungen, hintergrund-abgleich schwach; app soll nach dem schliessen eine weile aktiv bleiben (profilbilder, abgleich) -> benachrichtigungen nativ ueber die bruecke (`notify`, `notifications`, ereignis `openChat`), `POST_NOTIFICATIONS`, `KeepAliveService` (specialUse) + `WebViewHolder`, dauer einstellbar bis "immer" + akku-optimierung; app 0.2.0; tests `test/android-app.test.js`
+  - offen: benachrichtigungen bei komplett beendeter app / nach neustart -> phase 3 (UnifiedPush)
 - [ ] die wrapper-app (siehe backlog "real application for android") stellt der PWA eine API bereit, um bilder zu senden und zu empfangen, auch offline bzw. wenn die app im hintergrund ist; grund: dauernd geladene PWA zieht viel akku
   - idee: PWA erkennt die bruecke (z. B. `window.OpenGridNative` bzw. `postMessage`-kanal der WebView) und gibt ihr ausgehende, schon verschluesselte nachrichten (pfad-C-ciphertext + empfaenger + msgId); die app liefert sie im hintergrund aus (router-cache/push, spaeter P2P) und meldet den status zurueck
   - empfangen: app nimmt web-push/FCM im hintergrund an, holt ciphertext aus `/api/cache`, legt ihn in einen eigenen speicher; beim oeffnen uebernimmt die PWA ihn (wie heute der SW, `MESSAGE_PUT`)
@@ -745,7 +747,7 @@
 
 ## T37 Schutz vor Fake-Profilen und Nacktbild-Jaegern (nutzer 2026-11-11, besprechen)
 - [ ] ziel (nutzer): fake-profile bzw. boesartige menschen, die auf nacktbilder aus sind, ausbremsen
-  - entschieden (nutzer 2026-11-11): gilt nur fuer dating (entdecken), nicht fuer chat & freunde (nochmal besprechen); haken "profilbild verifiziert" fuer nicht attestierte clients prueft der router (dringend)
+  - entschieden (nutzer 2026-11-11, bestaetigt): verifizierung + schutz nur im dating (entdecken); event fraglich; social: kein abgleich mit dem profilbild (dort oft kein eigenes gesicht), wuenschenswert optional eine video-ident-pruefung ohne profilbild-bezug; haken "profilbild verifiziert" fuer nicht attestierte clients prueft der router (dringend)
   - vorhanden: nacktbild-filter beim empfaenger + warnung beim absender (T3), secure snaps (stream), wasserzeichen, chat-richtlinien (zurueckhalten), melden mit grund + ausblenden, FLAG_SECURE in der android-app
   - plan P1 "profilbild verifiziert": live-selfie nur per kamera (kein upload) mit zufaelliger aufgabe (kopf drehen, zwinkern, geste), gesicht + vergleich mit dem profilbild auf dem geraet, selfie wird danach verworfen; haken im profil/grid
     - offen: wer bestaetigt? browser = selbstauskunft (gepfuschter client kann luegen); android-app mit attestierung (ANDROID-APP.md phase 4) = belastbar; router prueft kurz selbst = bricht "server sieht nur chiffrat" (nutzer-entscheidung)

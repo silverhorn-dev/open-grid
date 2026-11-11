@@ -674,6 +674,9 @@ async function applyChatOperation(peerId, operation, deliveredVia = 'E2EE P2P') 
             const index = state.chats[peerId].findIndex(item => item.id === message.id);
             if (index >= 0) state.chats[peerId][index] = message;
             else state.chats[peerId].push(message);
+            // Android-App im Hintergrund: neue Nachricht eines anderen als Benachrichtigung (native.js).
+            const fromOther = typeof isOwnNode === 'function' ? !isOwnNode(message.senderId) : message.senderId !== state.myProfile.id;
+            if (!existingMessage && fromOther && typeof notifyNativeMessage === 'function') notifyNativeMessage(peerId, message);
         }
     } else if (localOperation.type === 'MESSAGE_DELETE') {
         const existingMessage = await databaseRequest(

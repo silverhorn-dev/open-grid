@@ -7,7 +7,9 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.view.Gravity
 import android.view.ViewGroup
 import android.view.WindowManager
@@ -56,6 +58,16 @@ class MainActivity : ComponentActivity(), Bridge.Handler {
         if (allowed.isEmpty()) request.deny() else request.grant(allowed.toTypedArray())
     }
 
+    private var notificationCallback: ((Boolean) -> Unit)? = null
+    private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        val callback = notificationCallback
+        notificationCallback = null
+        callback?.invoke(granted)
+    }
+    // Chat aus einer Benachrichtigung, bevor die Seite fertig geladen ist.
+    private var pendingOpenChat: String? = null
+    private var pageReady = false
+
     private val locationPermission = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { granted ->
         val (requestOrigin, callback) = pendingGeolocation ?: return@registerForActivityResult
         pendingGeolocation = null
@@ -95,6 +107,11 @@ class MainActivity : ComponentActivity(), Bridge.Handler {
 
     private fun handleIntent(intent: Intent, fresh: Boolean) {
         val current = origin ?: return
+        intent.getStringExtra(Notifications.EXTRA_OPEN_CHAT)?.let { peerId ->
+            intent.removeExtra(Notifications.EXTRA_OPEN_CHAT)
+            if (pageReady) bridge?.sendEvent("openChat", JSONObject().put("peerId", peerId)) else pendingOpenChat = peerId
+            return
+        }
         if (shareInbox.accept(intent)) {
             // Laeuft die Seite schon, holt sie den Inhalt sofort ab; sonst beim Start (handleNativeShare).
             if (!fresh) bridge?.sendEvent("shareReady")
@@ -171,8 +188,26 @@ class MainActivity : ComponentActivity(), Bridge.Handler {
     @SuppressLint("SetJavaScriptEnabled")
     private fun startWebApp(routerOrigin: String, savedInstanceState: Bundle?) {
         origin = routerOrigin
-        val view = WebView(this)
+        Notifications.ensureChannels(this)
+        // Laeuft die App noch im Hintergrund (KeepAliveService): dieselbe WebView ohne Neuladen weiter nutzen.
+        val reused = WebViewHolder.reuse(this, routerOrigin)
+        val appBridge = if (reused != null) WebViewHolder.bridge!! else Bridge(routerOrigin, this)
+        val view = reused ?: WebViewHolder.create(this, routerOrigin, appBridge)
         webView = view
+        bridge = appBridge
+        appBridge.handler = this
+        pageReady = reused != null
+        if (reused == null) configureWebView(view, appBridge)
+        attachClients(view, routerOrigin)
+        // Nicht zurueckstufen, wenn das Fenster nicht sichtbar ist: P2P und Abgleich laufen weiter.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) view.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false)
+        setContentView(view)
+        if (reused == null && (savedInstanceState == null || view.restoreState(savedInstanceState) == null)) view.loadUrl(routerOrigin)
+        askNotificationsOnce()
+    }
+
+    @SuppressLint("SetJavaScriptEnabled")
+    private fun configureWebView(view: WebView, appBridge: Bridge) {
         view.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
@@ -186,9 +221,11 @@ class MainActivity : ComponentActivity(), Bridge.Handler {
             // Kennung fuer die PWA (zusaetzlich zur Bruecke), z. B. fuer Statistik im Debug-Log.
             userAgentString = "$userAgentString OpenGridApp/${BuildConfig.VERSION_NAME}"
         }
-        val appBridge = Bridge(routerOrigin, this)
-        bridge = appBridge
         Bridge.install(view, appBridge)
+    }
+
+    // Rueckrufe haengen am Fenster (Rechte-Dialoge, Dateiauswahl): bei jedem Anzeigen neu setzen.
+    private fun attachClients(view: WebView, routerOrigin: String) {
         view.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 val url = request.url
@@ -200,7 +237,14 @@ class MainActivity : ComponentActivity(), Bridge.Handler {
 
             // Erst wenn der Router selbst geladen ist (nach einer Anmeldung bei Cloudflare Access), nach Updates fragen.
             override fun onPageFinished(view: WebView, url: String?) {
-                if (RouterAddress.sameOrigin(url, routerOrigin)) checkForUpdate(routerOrigin)
+                if (!RouterAddress.sameOrigin(url, routerOrigin)) return
+                pageReady = true
+                checkForUpdate(routerOrigin)
+                pendingOpenChat?.let { peerId ->
+                    pendingOpenChat = null
+                    // Kurz warten, bis die PWA ihre Bruecke eingerichtet hat.
+                    view.postDelayed({ bridge?.sendEvent("openChat", JSONObject().put("peerId", peerId)) }, 1500)
+                }
             }
         }
         view.webChromeClient = object : WebChromeClient() {
@@ -234,8 +278,6 @@ class MainActivity : ComponentActivity(), Bridge.Handler {
                 }
             }
         }
-        setContentView(view)
-        if (savedInstanceState == null || view.restoreState(savedInstanceState) == null) view.loadUrl(routerOrigin)
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -243,10 +285,31 @@ class MainActivity : ComponentActivity(), Bridge.Handler {
         webView?.saveState(outState)
     }
 
+    // Sichtbar: Hintergrund-Dienst nicht noetig. Unsichtbar: je nach Einstellung eine Weile aktiv bleiben.
+    override fun onResume() {
+        super.onResume()
+        KeepAliveService.stop(this)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        if (webView != null && !isChangingConfigurations) KeepAliveService.start(this, BackgroundSettings.minutes(this))
+    }
+
     override fun onDestroy() {
-        webView?.destroy()
+        bridge?.handler = null
+        // Mit laufendem Dienst bleibt die WebView (und damit die PWA) im Hintergrund aktiv.
+        if (webView != null) WebViewHolder.detach(this, keep = KeepAliveService.requested || isChangingConfigurations)
         webView = null
         super.onDestroy()
+    }
+
+    // Einmal beim ersten Start nach dem Recht fuer Benachrichtigungen fragen (Android 13+).
+    private fun askNotificationsOnce() {
+        if (Build.VERSION.SDK_INT < 33 || Notifications.allowed(this)) return
+        val prefs = getSharedPreferences("opengrid", MODE_PRIVATE)
+        if (prefs.getBoolean("notifications-asked", false)) return
+        requestNotificationPermission { }
     }
 
     private fun openExternal(uri: Uri) {
@@ -292,12 +355,51 @@ class MainActivity : ComponentActivity(), Bridge.Handler {
         else window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
     }
 
-    override fun capabilities(): JSONObject = JSONObject()
-        .put("protocol", Bridge.PROTOCOL)
-        .put("versionName", BuildConfig.VERSION_NAME)
-        .put("versionCode", BuildConfig.VERSION_CODE)
-        .put("secureScreen", true)
-        .put("share", true)
+    override fun requestNotificationPermission(done: (Boolean) -> Unit) {
+        if (Notifications.allowed(this)) {
+            done(true)
+            return
+        }
+        if (Build.VERSION.SDK_INT < 33) {
+            // Vor Android 13 gibt es keinen Dialog: Einstellungen der App oeffnen.
+            openNotificationSettings()
+            done(false)
+            return
+        }
+        // Nach zweimal Ablehnen zeigt Android keinen Dialog mehr: dann die Einstellungen oeffnen.
+        val prefs = getSharedPreferences("opengrid", MODE_PRIVATE)
+        val askedBefore = prefs.getBoolean("notifications-asked", false)
+        if (askedBefore && !shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)
+            && prefs.getBoolean("notifications-asked-twice", false)
+        ) {
+            openNotificationSettings()
+            done(false)
+            return
+        }
+        prefs.edit().putBoolean("notifications-asked", true).putBoolean("notifications-asked-twice", askedBefore).apply()
+        notificationCallback = done
+        notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+    }
+
+    private fun openNotificationSettings() {
+        try {
+            startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName))
+        } catch (_: ActivityNotFoundException) {
+        }
+    }
+
+    @SuppressLint("BatteryLife")
+    override fun askBatteryExemption() {
+        if (BackgroundSettings.batteryUnrestricted(this)) return
+        try {
+            startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:$packageName")))
+        } catch (_: ActivityNotFoundException) {
+            try {
+                startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+            } catch (_: ActivityNotFoundException) {
+            }
+        }
+    }
 
     override fun takeShare(): JSONObject? = shareInbox.take()
 

@@ -15,8 +15,8 @@ android {
         applicationId = "org.opengrid.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 2
-        versionName = "0.1.1"
+        versionCode = 3
+        versionName = "0.2.0"
         manifestPlaceholders["appLinkHost"] = appLinkHost
     }
 
@@ -55,5 +55,6 @@ android {
 
 dependencies {
     implementation("androidx.activity:activity-ktx:1.9.2")
+    implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.webkit:webkit:1.11.0")
 }

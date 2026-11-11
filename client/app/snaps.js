@@ -718,9 +718,12 @@ function finishPickedEdit() {
 async function sendPickedReview() {
     const { items, context } = pickedReview;
     if (!items.length || !context) return;
-    const picked = items.map(item => ({ base: item.base, mode: item.mode }));
+    let picked = items.map(item => ({ base: item.base, mode: item.mode }));
     // Nacktbild-Warnung (nudity.js): vor dem Schliessen, damit "Abbrechen" in der Durchsicht bleibt.
-    if (!(await confirmNudeSend(picked.map(item => item.base)))) return;
+    // Im Dating-Chat (T37 P3) kann die Antwort "als Secure Snap" lauten: dann alle so senden.
+    const choice = await confirmNudeSend(picked.map(item => item.base), { peerId: context.target === 'status' ? null : context.peerId });
+    if (!choice) return;
+    if (choice === 'secure') picked = picked.map(item => ({ ...item, mode: 'secure' }));
     closeMediaModal();
     let sent = 0;
     for (const { base, mode } of picked) {
@@ -780,14 +783,22 @@ async function sendSnapDraft() {
     }
     const peerId = state.activeChatPeerId;
     if (!hasSnapDraft() || !peerId) return;
-    // Nacktbild-Warnung (nudity.js); "Abbrechen" laesst den Entwurf offen.
-    if (!(await confirmNudeSend([flattenSnapDraft()]))) return;
+    // Nacktbild-Warnung (nudity.js); "Abbrechen" laesst den Entwurf offen. Im Dating-Chat ggf. als Secure Snap.
+    const choice = await confirmNudeSend([flattenSnapDraft()], { peerId });
+    if (!choice) return;
     const snapData = await encodeSnapDraft(peerId);
     if (!snapData) {
         showToast(t('snaps.couldNotBeCreated'), 'error');
         return;
     }
     const caption = document.getElementById('snap-caption-input').value;
+    if (choice === 'secure') {
+        const views = Number(document.getElementById('snap-review-views')?.value) || state.snapSettings.views;
+        const seconds = Number(document.getElementById('snap-review-seconds')?.value ?? state.snapSettings.seconds);
+        closeSnapModal();
+        await sendChatMessage(null, caption, null, await createSecureSnap(snapData, peerId, views, Number.isFinite(seconds) ? seconds : 10));
+        return;
+    }
     if (state.snapSendMode === 'image') {
         const wantsOriginal = document.getElementById('snap-original-toggle')?.checked;
         const original = wantsOriginal ? await createOriginalImage(flattenSnapDraft(), peerId) : null;

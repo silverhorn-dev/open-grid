@@ -1522,12 +1522,38 @@ export async function buildApp(options = {}) {
 
     // Groesseres Limit nur hier: Sprachnachrichten (bis 60 s) gehen als Ganzes durch den Cache.
     // Eine Nachricht fuer einen Empfaenger ablegen; liefert { code, body } (gleiche Antworten wie bisher).
+    // Neue Konten im Dating (T37 P4): hoechstens NEW_ACCOUNT_DISCOVERY_CONTACTS verschiedene Empfaenger je 24 h
+    // ueber den Zwischenspeicher, solange das Konto juenger als NEW_ACCOUNT_HOURS ist. Zaehlt nur Eintraege der
+    // Art "discovery" (Chat & Freunde bleibt frei); im Speicher, nach einem Neustart beginnt die Zaehlung neu.
+    const numberSetting = (value, fallback, min, max) => {
+        const parsed = value === undefined || value === null || value === '' ? fallback : Number(value);
+        return Number.isFinite(parsed) ? Math.min(max, Math.max(min, parsed)) : fallback;
+    };
+    const newAccountHours = numberSetting(options.newAccountHours ?? process.env.NEW_ACCOUNT_HOURS, 24, 0, 24 * 30);
+    const newAccountContacts = numberSetting(options.newAccountDiscoveryContacts ?? process.env.NEW_ACCOUNT_DISCOVERY_CONTACTS, 20, 0, 10000);
+    const discoveryContacts = new Map();
+    function newAccountContactAllowed(senderId, recipientId) {
+        if (!newAccountContacts || !newAccountHours) return true;
+        const createdAt = store.getAccountCreatedAt(senderId);
+        const at = now();
+        if (!Number.isFinite(createdAt) || at - createdAt >= newAccountHours * 60 * 60 * 1000) return true;
+        const contacts = discoveryContacts.get(senderId) || new Map();
+        for (const [id, seen] of contacts) if (at - seen > 24 * 60 * 60 * 1000) contacts.delete(id);
+        if (!contacts.has(recipientId) && contacts.size >= newAccountContacts) return false;
+        contacts.set(recipientId, at);
+        discoveryContacts.set(senderId, contacts);
+        return true;
+    }
+
     function enqueueFor(recipientId, { senderId, ciphertextPayload, ivHex, ttlHours, notify, notifyKind }) {
         // Empfaenger ist umgezogen: Nachweis an den Absender, der zieht den Chat selbst um (client/app/move.js).
         const recipientMove = store.getPeerMove(recipientId, now());
         if (recipientMove) return { code: 410, body: { error: 'Recipient moved', movedTo: recipientMove.movedTo, proof: recipientMove.proof } };
         if (store.isBlocked(recipientId, senderId)) {
             return { code: 403, body: { error: 'Recipient does not accept messages from this sender' } };
+        }
+        if (notifyKind === 'discovery' && !newAccountContactAllowed(senderId, recipientId)) {
+            return { code: 429, body: { error: 'New account contact limit', newAccountLimit: true } };
         }
         const usage = store.getQueueUsage(recipientId, senderId);
         if (usage.count >= MAX_QUEUED_MESSAGES_PER_RECIPIENT

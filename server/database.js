@@ -149,6 +149,7 @@ export function createStore(databasePath, { credentialRetentionDays = DEFAULT_CR
             FROM peers
             WHERE peer_id = ?
         `),
+        findCredentialCreatedAt: database.prepare('SELECT created_at AS createdAt FROM peer_credentials WHERE peer_id = ?'),
         findPeerCredential: database.prepare(`
             SELECT auth_hash AS authHash, identity_jwk AS identityJwk
             FROM peer_credentials
@@ -503,6 +504,10 @@ export function createStore(databasePath, { credentialRetentionDays = DEFAULT_CR
         },
 
         // Signaturschluessel aus der Registrierung (fuer den Umzugs-Nachweis).
+        // Wann sich die ID zum ersten Mal angemeldet hat (Konto-Alter, T37); null = unbekannt.
+        getAccountCreatedAt(peerId) {
+            return statements.findCredentialCreatedAt.get(peerId)?.createdAt ?? null;
+        },
         getPeerIdentityJwk(peerId) {
             const jwk = statements.findPeerCredential.get(peerId)?.identityJwk;
             try {

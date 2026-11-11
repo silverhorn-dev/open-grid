@@ -1407,6 +1407,53 @@ test('users can be reported manually with a reason; several reporters hide them 
 });
 
 
+test('urgent reports (asks for nudes / blackmail) hide after half the reporters, never after one', async () => {
+    const { urgentHideThreshold } = await import('../server/reports.js');
+    assert.deepEqual([1, 2, 3, 4, 5].map(urgentHideThreshold), [2, 2, 2, 2, 3]);
+    assert.equal(urgentHideThreshold(0), 0, 'hiding off stays off');
+    const urgentStore = createStore(':memory:');
+    const urgent = await buildApp({ store: urgentStore, reporterMinAccountAgeMs: 0, metrics: false });
+    try {
+        const tokens = {};
+        for (const id of ['peer-hunter', 'peer-v1', 'peer-v2']) {
+            tokens[id] = (await urgent.inject({ method: 'POST', url: '/api/register', payload: registrationPayload(id, `registration-${id}`) })).json().authToken;
+        }
+        const reportAs = (reporter, reason) => urgent.inject({ method: 'POST', url: '/api/reports', headers: { authorization: `Bearer ${tokens[reporter]}` }, payload: { peerId: reporter, reportedPeerId: 'peer-hunter', kind: 'user', reason } });
+        const visible = async () => (await urgent.inject({ method: 'GET', url: '/api/grid?geohash=u10j2k' })).json().peers.some(peer => peer.id === 'peer-hunter');
+        assert.equal((await reportAs('peer-v1', 'sextortion')).statusCode, 200);
+        assert.equal(await visible(), true, 'one report is not enough');
+        await reportAs('peer-v2', 'sextortion');
+        assert.equal(await visible(), false, 'two urgent reports hide (normal: three)');
+    } finally {
+        await urgent.close();
+    }
+});
+
+test('new accounts reach only a limited number of new people in dating through the cache; chat stays free', async () => {
+    let clock = Date.UTC(2026, 10, 11, 12);
+    const brakeStore = createStore(':memory:');
+    const brake = await buildApp({ store: brakeStore, metrics: false, now: () => clock, newAccountDiscoveryContacts: 2, newAccountHours: 24, rateLimitScale: 100 });
+    try {
+        const tokens = {};
+        for (const id of ['peer-new', 'peer-r1', 'peer-r2', 'peer-r3']) {
+            tokens[id] = (await brake.inject({ method: 'POST', url: '/api/register', payload: registrationPayload(id, `registration-${id}`) })).json().authToken;
+        }
+        const send = (recipientId, notifyKind) => brake.inject({ method: 'POST', url: '/api/cache', headers: { authorization: `Bearer ${tokens['peer-new']}` },
+            payload: { recipientId, senderId: 'peer-new', ciphertextPayload: '{"version":3}', ivHex: 'iv', notify: true, notifyKind } });
+        assert.equal((await send('peer-r1', 'discovery')).statusCode, 201);
+        assert.equal((await send('peer-r2', 'discovery')).statusCode, 201);
+        assert.equal((await send('peer-r1', 'discovery')).statusCode, 201, 'same person again is fine');
+        const blocked = await send('peer-r3', 'discovery');
+        assert.equal(blocked.statusCode, 429);
+        assert.equal(blocked.json().newAccountLimit, true);
+        assert.equal((await send('peer-r3', 'chat')).statusCode, 201, 'chat & friends is not limited');
+        clock += 25 * 60 * 60 * 1000;
+        assert.equal((await send('peer-r3', 'discovery')).statusCode, 201, 'older than a day: no limit');
+    } finally {
+        await brake.close();
+    }
+});
+
 test('path c bundles: one ciphertext for several recipients, each with its own result', async () => {
     for (const id of ['peer-gs', 'peer-g1', 'peer-g2', 'peer-g3']) await registerPeer(id);
     // peer-g3 hat peer-gs blockiert.

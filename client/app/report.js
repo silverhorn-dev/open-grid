@@ -3,13 +3,14 @@
 // An den Router gehen nur IDs, Grund und Notiz (nie Chat-Inhalte); nach mehreren Meldungen verschiedener
 // Personen blendet der Router den Peer im Grid aus, bis der Betreiber entscheidet (server/reports.js).
 // Derselbe Dialog dient fuer GIF-Meldungen (gifs.js) mit eigener Grundliste.
-const USER_REPORT_REASONS = ['spam', 'harassment', 'sexual', 'minor', 'scam', 'hate', 'violence', 'impersonation', 'other'];
+const USER_REPORT_REASONS = ['spam', 'harassment', 'sexual', 'sextortion', 'minor', 'scam', 'hate', 'violence', 'impersonation', 'other'];
 const GIF_REPORT_REASONS = ['sexual', 'violence', 'hate', 'spam', 'other'];
 
 // Feste Schluessel: scripts/i18n-keys.mjs findet nur woertliche Aufrufe, keine zusammengesetzten Schluessel.
 function reportReasonLabel(reason) {
     return {
         spam: t('report.reason.spam'), harassment: t('report.reason.harassment'), sexual: t('report.reason.sexual'),
+        sextortion: t('report.reason.sextortion'),
         minor: t('report.reason.minor'), scam: t('report.reason.scam'), hate: t('report.reason.hate'),
         violence: t('report.reason.violence'), impersonation: t('report.reason.impersonation'), other: t('report.reason.other')
     }[reason] || reason;

@@ -737,6 +737,7 @@ async function refreshReports() {
 function adminReasonLabel(reason) {
     return {
         spam: t('report.reason.spam'), harassment: t('report.reason.harassment'), sexual: t('report.reason.sexual'),
+        sextortion: t('report.reason.sextortion'),
         minor: t('report.reason.minor'), scam: t('report.reason.scam'), hate: t('report.reason.hate'),
         violence: t('report.reason.violence'), impersonation: t('report.reason.impersonation'), other: t('report.reason.other')
     }[reason] || reason || '?';

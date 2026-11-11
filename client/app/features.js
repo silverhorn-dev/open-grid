@@ -21,6 +21,7 @@ async function shouldBlurImage() { return false; }
 function drawBlurredImage() {}
 function revealBlurredImage() { return false; }
 async function confirmNudeSend() { return true; }
+function isDatingChat() { return false; }
 function initNudityModel() {}
 function warmUpNudityModel() {}
 function nudityCheckNeeded() { return false; }

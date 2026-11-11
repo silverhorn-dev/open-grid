@@ -2,7 +2,12 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 333 · 2026-11-11
+## Build 335 · 2026-11-11
+- Dating: willst du ein Bild senden, das nach Nacktbild aussieht, schlaegt die App vor, es als Secure Snap zu senden (nur ansehen, nicht speicherbar)
+- Neue Konten koennen im Dating nur eine begrenzte Zahl neuer Leute anschreiben, solange diese offline sind
+- Neuer Meldegrund "Verlangt Nacktbilder oder erpresst damit": schon wenige Meldungen blenden die Person aus
+
+## Build 333 · 2026-11-11 · `542ad0e`
 - Android-App 0.1.1: funktioniert hinter einer Cloudflare-Zugangsseite (E-Mail-Anmeldung bleibt in der App, danach geht es direkt weiter)
 
 ## Build 331 · 2026-11-11 · `bbc00bf`

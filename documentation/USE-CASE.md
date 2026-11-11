@@ -1452,3 +1452,20 @@ Akzeptanzkriterien:
 - Eine Gegenstelle, die das schon einmal konnte, faellt nicht auf die alten
   festen Schluessel zurueck.
 
+## UC-82: Schutz im Dating vor Nacktbild-Jaegern
+
+**Als Nutzerin im Entdecken** moechte ich davor geschuetzt sein, dass jemand
+meine Nacktbilder sammelt oder mich damit erpresst.
+
+Akzeptanzkriterien:
+
+- Will ich in einem Dating-Chat ein Bild senden, das nach Nacktbild aussieht,
+  bietet die App an, es als Secure Snap zu senden (nur ansehen, nicht
+  speicherbar); normal senden geht nur bewusst.
+- In Chat & Freunde bleibt es bei der einfachen Nachfrage.
+- Neue Konten koennen im Dating nur eine begrenzte Zahl neuer Leute ueber den
+  Zwischenspeicher anschreiben.
+- Ich kann jemanden mit dem Grund "verlangt Nacktbilder oder erpresst damit"
+  melden; schon wenige solcher Meldungen blenden die Person aus, bis der
+  Betreiber entscheidet.
+

@@ -2524,3 +2524,27 @@ erreichten Stand pruefen. Server und Client duerfen waehrend eines gestaffelten
 Rollouts nicht stillschweigend inkompatibel werden. Fuer eine Uebergangsphase
 ist entweder Rueckwaertskompatibilitaet bereitzustellen oder der notwendige
 Cache-, Token- beziehungsweise Datenbank-Reset deutlich auszuweisen.
+
+## Schutz vor Fake-Profilen und Nacktbild-Jaegern (T37)
+
+Gilt nur fuer Dating (Entdecken), nicht fuer Chat & Freunde.
+
+- Absender-Schutz (P3, `nudity.js`): erkennt der Nacktbild-Filter vor dem
+  Senden ein Treffer-Bild in einem Dating-Chat (`isDatingChat`: Chat-Liste
+  `discovery`, ohne Zuordnung im Entdecken-Modus; keine Gruppen), erscheint statt
+  der einfachen Nachfrage ein eigenes Fenster: "Als Secure Snap senden"
+  (Standard), "Trotzdem normal senden", "Nicht senden". `confirmNudeSend`
+  liefert dann `'secure'`; Kamera-Entwurf und Mehrfachauswahl senden alles als
+  Secure Snap. Die Einstellung "Vor dem Senden warnen" gilt weiter.
+- Kontakt-Bremse fuer neue Konten (P4, Router): Konten juenger als
+  `NEW_ACCOUNT_HOURS` (24) erreichen ueber `POST /api/cache` mit `notifyKind:
+  'discovery'` hoechstens `NEW_ACCOUNT_DISCOVERY_CONTACTS` (20) verschiedene
+  Empfaenger je 24 h; danach `429 { newAccountLimit: true }` (die Nachricht
+  bleibt beim Absender und geht P2P, wenn beide online sind). Zaehlung im
+  Speicher. Grenze: direkte P2P-Nachrichten sieht der Router nicht, und ein
+  veraenderter Client kann eine andere Art angeben.
+- Meldegrund `sextortion` ("verlangt Nacktbilder oder erpresst damit"): blendet
+  schon ab der Haelfte von `USER_REPORT_HIDE` aus (aufgerundet, mindestens 2,
+  `urgentHideThreshold`).
+- Entschieden (2026-11-11): der Haken "Profilbild verifiziert" (P1) wird fuer
+  Clients ohne App-Attestierung vom Router geprueft; Details offen.

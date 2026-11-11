@@ -87,6 +87,11 @@ export function createAdminStore(database) {
             JOIN peer_credentials c ON c.peer_id = r.reporter_id
             WHERE r.reported_id = ? AND r.status = 'open' AND c.created_at <= ?
         `),
+        openReportersFor: database.prepare(`
+            SELECT COUNT(DISTINCT r.reporter_id) AS count FROM reports r
+            JOIN peer_credentials c ON c.peer_id = r.reporter_id
+            WHERE r.reported_id = ? AND r.status = 'open' AND r.reason = ? AND c.created_at <= ?
+        `),
         hidePeer: database.prepare('INSERT OR IGNORE INTO report_hidden_peers (peer_id, hidden_at) VALUES (?, ?)'),
         unhidePeer: database.prepare('DELETE FROM report_hidden_peers WHERE peer_id = ?'),
         findHidden: database.prepare('SELECT hidden_at AS hiddenAt FROM report_hidden_peers WHERE peer_id = ?'),
@@ -142,6 +147,7 @@ export function createAdminStore(database) {
         addReport: ({ id, reporterId, reportedId, kind, reason, matches, note }, now = Date.now()) => statements.insertReport.run(id, reporterId, reportedId, kind, reason ?? null, matches ?? null, note ?? null, now),
         // Verschiedene Peers mit offener Meldung ueber diesen Peer.
         openReporterCount: (reportedId, minAccountAgeMs = 0, now = Date.now()) => Number(statements.openReporters.get(reportedId, now - minAccountAgeMs).count),
+        openReporterCountFor: (reportedId, reason, minAccountAgeMs = 0, now = Date.now()) => Number(statements.openReportersFor.get(reportedId, reason, now - minAccountAgeMs).count),
         hidePeer: (peerId, now = Date.now()) => statements.hidePeer.run(peerId, now).changes > 0,
         unhidePeer: peerId => statements.unhidePeer.run(peerId).changes > 0,
         isPeerHidden: peerId => Boolean(statements.findHidden.get(peerId)),

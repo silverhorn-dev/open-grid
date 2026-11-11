@@ -9,7 +9,14 @@ import { randomUUID } from 'node:crypto';
 // verschiedenen Meldern wird der Peer im Grid ausgeblendet (wie "unsichtbar"), bis der Admin entscheidet;
 // bestehende Chats laufen weiter. Der Router sieht nur IDs, Grund und Notiz, nie Chat-Inhalte.
 const REPORT_KINDS = ['leak', 'user'];
-export const USER_REPORT_REASONS = ['spam', 'harassment', 'sexual', 'minor', 'scam', 'hate', 'violence', 'impersonation', 'other'];
+export const USER_REPORT_REASONS = ['spam', 'harassment', 'sexual', 'sextortion', 'minor', 'scam', 'hate', 'violence', 'impersonation', 'other'];
+// Dringend (T37): verlangt Nacktbilder bzw. erpresst damit. Blendet schon ab der Haelfte der Meldungen aus
+// (aufgerundet, mindestens 2, damit eine einzelne boeswillige Meldung nicht reicht).
+export const URGENT_REPORT_REASONS = ['sextortion'];
+
+export function urgentHideThreshold(limit) {
+    return limit > 0 ? Math.max(2, Math.ceil(limit / 2)) : 0;
+}
 const MAX_NOTE_LENGTH = 500;
 
 export function parseUserReportHide(value) {
@@ -53,7 +60,9 @@ export function registerReportRoutes(app, { store, allowRequest, requirePeerAuth
         });
         log.info('New report for the admin panel.');
         const limit = hideAfter();
-        if (kind === 'user' && limit > 0 && store.admin.openReporterCount(reportedPeerId, minAccountAgeMs, now()) >= limit && store.admin.hidePeer(reportedPeerId)) {
+        const reached = () => store.admin.openReporterCount(reportedPeerId, minAccountAgeMs, now()) >= limit
+            || URGENT_REPORT_REASONS.some(urgent => limit > 0 && store.admin.openReporterCountFor(reportedPeerId, urgent, minAccountAgeMs, now()) >= Math.min(limit, urgentHideThreshold(limit)));
+        if (kind === 'user' && limit > 0 && reached() && store.admin.hidePeer(reportedPeerId)) {
             log.info('A reported peer was hidden from the grid until the admin decides.');
             onHidden(reportedPeerId);
         }

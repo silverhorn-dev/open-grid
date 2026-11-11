@@ -217,7 +217,55 @@ function revealBlurredImage(canvas) {
 // Eigene Bilder werden vor dem Senden (Chat, Snaps, Status) lokal mit demselben Modell geprueft; bei
 // einem Treffer fragt die App nach. Nur eine Warnung: schlaegt die Pruefung fehl, wird normal gesendet.
 // Nichts davon verlaesst das Geraet. true = senden.
-async function confirmNudeSend(canvases) {
+// Dating-Chat (T37 P3, nur Entdecken, nicht Chat & Freunde): an jemanden, den man nur aus dem Entdecken kennt.
+function isDatingChat(peerId) {
+    if (!peerId || (typeof isGroupId === 'function' && isGroupId(peerId))) return false;
+    const scope = typeof chatScopeOf === 'function' ? chatScopeOf(peerId) : null;
+    if (scope) return scope === 'discovery';
+    return typeof inExploringMode === 'function' && inExploringMode();
+}
+
+// Auswahl im Dating-Chat: 'secure' (als Secure Snap), true (trotzdem normal) oder false (abbrechen).
+// Eigenes Fenster ueber allem (auch ueber der Snap-Kamera), Standard-Knopf = Secure Snap.
+function nudeDatingChoice() {
+    return new Promise(resolve => {
+        const overlay = document.createElement('div');
+        overlay.id = 'nude-dating-choice';
+        overlay.className = 'fixed inset-0 z-80 bg-slate-950/90 flex items-center justify-center p-4';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        const card = document.createElement('div');
+        card.className = 'w-full max-w-sm rounded-2xl bg-slate-900 border border-slate-700 p-4 space-y-3';
+        const title = document.createElement('h2');
+        title.className = 'text-base font-bold text-white';
+        title.textContent = t('nudity.datingTitle');
+        const text = document.createElement('p');
+        text.className = 'text-sm text-slate-300';
+        text.textContent = t('nudity.datingText');
+        const finish = value => {
+            overlay.remove();
+            resolve(value);
+        };
+        const button = (id, label, className, value) => {
+            const element = document.createElement('button');
+            element.type = 'button';
+            element.id = id;
+            element.className = `w-full rounded-full px-4 py-2.5 text-sm font-semibold ${className}`;
+            element.textContent = label;
+            element.addEventListener('click', () => finish(value));
+            return element;
+        };
+        card.append(title, text,
+            button('nude-dating-secure', t('nudity.datingSecure'), 'bg-brand-600 hover:bg-brand-500 text-white', 'secure'),
+            button('nude-dating-send', t('nudity.datingSendAnyway'), 'bg-slate-800 hover:bg-slate-700 text-slate-200', true),
+            button('nude-dating-cancel', t('nudity.datingCancel'), 'text-slate-400 hover:text-white', false));
+        overlay.appendChild(card);
+        document.body.appendChild(overlay);
+        document.getElementById('nude-dating-secure')?.focus();
+    });
+}
+
+async function confirmNudeSend(canvases, { peerId = null } = {}) {
     if (state.nudityWarnBeforeSend === false || !hasNudityClassifier() || !canvases?.length) return true;
     const threshold = state.appConfig?.nudity?.threshold ?? NUDITY_THRESHOLD;
     let hits = 0;
@@ -244,6 +292,7 @@ async function confirmNudeSend(canvases) {
         }
     }
     if (!hits) return true;
+    if (isDatingChat(peerId)) return nudeDatingChoice();
     return window.confirm(canvases.length === 1 ? t('nudity.sendWarningOne') : t('nudity.sendWarningMany', { count: hits, total: canvases.length }));
 }
 

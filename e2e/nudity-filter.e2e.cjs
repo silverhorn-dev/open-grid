@@ -178,6 +178,32 @@ async function main() {
         assert.equal(dialogs[0], 'Das sieht nach einem Nacktbild aus. Trotzdem senden?');
         answer.accept = true;
         assert.equal(await sendCheck('#ff0000'), true, 'hit: confirmed');
+
+        // Dating-Chat (T37 P3): eigenes Fenster mit "als Secure Snap" als Standard; Chat & Freunde wie bisher.
+        const datingCheck = (scope, button) => page.evaluate(async ({ scope, button }) => {
+            const peerId = `node_dating-${scope}`;
+            state.chatScopes[peerId] = scope;
+            const canvas = document.createElement('canvas');
+            canvas.width = 200;
+            canvas.height = 200;
+            const context = canvas.getContext('2d');
+            context.fillStyle = '#ff0000';
+            context.fillRect(0, 0, 200, 200);
+            const pending = confirmNudeSend([canvas], { peerId });
+            if (button) {
+                for (let tries = 0; tries < 50 && !document.getElementById(button); tries++) await new Promise(resolve => setTimeout(resolve, 50));
+                document.getElementById(button).click();
+            }
+            const value = await pending;
+            return { value, open: Boolean(document.getElementById('nude-dating-choice')) };
+        }, { scope, button });
+        const dialogsBefore = dialogs.length;
+        assert.deepEqual(await datingCheck('discovery', 'nude-dating-secure'), { value: 'secure', open: false });
+        assert.deepEqual(await datingCheck('discovery', 'nude-dating-send'), { value: true, open: false });
+        assert.deepEqual(await datingCheck('discovery', 'nude-dating-cancel'), { value: false, open: false });
+        assert.equal(dialogs.length, dialogsBefore, 'dating uses its own window, not confirm()');
+        assert.deepEqual(await datingCheck('social', null), { value: true, open: false }, 'chat & friends: plain question as before');
+        assert.equal(dialogs.length, dialogsBefore + 1);
         page.off('dialog', onDialog);
 
         // Bildbetrachter: ein unscharfes Bild im Viewer laesst sich per Tippen aufdecken (der Viewer faengt

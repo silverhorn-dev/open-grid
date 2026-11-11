@@ -745,12 +745,15 @@
 
 ## T37 Schutz vor Fake-Profilen und Nacktbild-Jaegern (nutzer 2026-11-11, besprechen)
 - [ ] ziel (nutzer): fake-profile bzw. boesartige menschen, die auf nacktbilder aus sind, ausbremsen
+  - entschieden (nutzer 2026-11-11): gilt nur fuer dating (entdecken), nicht fuer chat & freunde (nochmal besprechen); haken "profilbild verifiziert" fuer nicht attestierte clients prueft der router (dringend)
   - vorhanden: nacktbild-filter beim empfaenger + warnung beim absender (T3), secure snaps (stream), wasserzeichen, chat-richtlinien (zurueckhalten), melden mit grund + ausblenden, FLAG_SECURE in der android-app
   - plan P1 "profilbild verifiziert": live-selfie nur per kamera (kein upload) mit zufaelliger aufgabe (kopf drehen, zwinkern, geste), gesicht + vergleich mit dem profilbild auf dem geraet, selfie wird danach verworfen; haken im profil/grid
     - offen: wer bestaetigt? browser = selbstauskunft (gepfuschter client kann luegen); android-app mit attestierung (ANDROID-APP.md phase 4) = belastbar; router prueft kurz selbst = bricht "server sieht nur chiffrat" (nutzer-entscheidung)
     - offen: modell fuer gesichtsvergleich (lizenz, groesse), kein speichern von gesichtsmerkmalen ueber konten hinweg (DSGVO art. 9)
     - KI-bild-erkennung nur als weiches signal, nicht als tor (unzuverlaessig)
   - plan P2 empfaenger-regeln: "nur verifizierte duerfen mir schreiben / bilder schicken"; router-standard per `CLIENT_DEFAULTS`
+  - [x] P3 (2026-11-11): fenster im dating-chat mit "als secure snap senden" als standard (`isDatingChat`, `nudeDatingChoice`); e2e `nudity-filter`
   - plan P3 absender-schutz: erkanntes nacktbild an neue/unverifizierte kontakte oder browser-empfaenger -> deutlichere warnung, standard nur als secure snap (stream, nicht speicherbar, wasserzeichen); hinweis "empfaenger nutzt browser, screenshots moeglich"
+  - [x] P4 (2026-11-11): `NEW_ACCOUNT_HOURS`/`NEW_ACCOUNT_DISCOVERY_CONTACTS` (pfad C, art discovery), meldegrund `sextortion` blendet ab der haelfte aus; tests `test/server.test.js`
   - plan P4 router-signale ohne inhalt: viele erstkontakte junger konten drosseln; meldegrund "verlangt nacktbilder / erpressung" mit schnellerem ausblenden
   - plan P5 hilfe bei erpressung (sextortion): kurze hilfeseite mit anlaufstellen, aus melden heraus erreichbar

@@ -742,3 +742,15 @@
   - S12 einschaetzung: keine code-verschleierung (bringt keine sicherheit); echte attestierung nur in der android-app
 - [x] nutzer 2026-11-11: neue reiter-leisten ohne wischen (grid-reiter, profil dating/freunde, GIF-auswahl, sticker-reiter) -> `attachTabStripSwipe` wie die einstellungen; grid erst sub-reiter, an den enden haupt-reiter; e2e `tab-swipes`
 - [x] nutzer 2026-11-11: app hinter cloudflare tunnel + access (e-mail-login) -> anmeldeseite `*.cloudflareaccess.com` bleibt in der webview, update-pruefung erst nach dem laden mit webview-cookie; apk 0.1.1 (versionCode 2)
+
+## T37 Schutz vor Fake-Profilen und Nacktbild-Jaegern (nutzer 2026-11-11, besprechen)
+- [ ] ziel (nutzer): fake-profile bzw. boesartige menschen, die auf nacktbilder aus sind, ausbremsen
+  - vorhanden: nacktbild-filter beim empfaenger + warnung beim absender (T3), secure snaps (stream), wasserzeichen, chat-richtlinien (zurueckhalten), melden mit grund + ausblenden, FLAG_SECURE in der android-app
+  - plan P1 "profilbild verifiziert": live-selfie nur per kamera (kein upload) mit zufaelliger aufgabe (kopf drehen, zwinkern, geste), gesicht + vergleich mit dem profilbild auf dem geraet, selfie wird danach verworfen; haken im profil/grid
+    - offen: wer bestaetigt? browser = selbstauskunft (gepfuschter client kann luegen); android-app mit attestierung (ANDROID-APP.md phase 4) = belastbar; router prueft kurz selbst = bricht "server sieht nur chiffrat" (nutzer-entscheidung)
+    - offen: modell fuer gesichtsvergleich (lizenz, groesse), kein speichern von gesichtsmerkmalen ueber konten hinweg (DSGVO art. 9)
+    - KI-bild-erkennung nur als weiches signal, nicht als tor (unzuverlaessig)
+  - plan P2 empfaenger-regeln: "nur verifizierte duerfen mir schreiben / bilder schicken"; router-standard per `CLIENT_DEFAULTS`
+  - plan P3 absender-schutz: erkanntes nacktbild an neue/unverifizierte kontakte oder browser-empfaenger -> deutlichere warnung, standard nur als secure snap (stream, nicht speicherbar, wasserzeichen); hinweis "empfaenger nutzt browser, screenshots moeglich"
+  - plan P4 router-signale ohne inhalt: viele erstkontakte junger konten drosseln; meldegrund "verlangt nacktbilder / erpressung" mit schnellerem ausblenden
+  - plan P5 hilfe bei erpressung (sextortion): kurze hilfeseite mit anlaufstellen, aus melden heraus erreichbar

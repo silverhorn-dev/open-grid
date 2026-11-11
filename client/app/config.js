@@ -238,6 +238,12 @@ const state = {
     groupSealLocks: {},
     // "Kompakte Meldung" fuer Benachrichtigungen der Android-App (native.js), null = noch nicht gelesen.
     compactNotifications: null,
+    // QR-Codes (qr-scan.js): Erkenner, jsQR-Laden, Zeichenflaeche, Snap-Kamera-Pruefung.
+    qrDetector: undefined,
+    jsQrLoading: null,
+    qrScanCanvas: null,
+    snapQrTimer: null,
+    snapQrCode: null,
     snapPageEnabled: null,
     // App-Modus (P8): vom Server erlaubte Modi, gewaehlter Modus und Event-Daten.
     appConfig: { modes: ['discovery', 'chat', 'friends', 'event'], defaultMode: 'discovery' },

@@ -26,6 +26,7 @@
     "@tensorflow/tfjs": "^4.22.0",
     "@xmldom/xmldom": "^0.8.11",
     "fastify": "^5.6.1",
+    "jsqr": "^1.4.0",
     "nsfwjs": "^4.3.0",
     "qrcode-generator": "^1.4.4",
     "xml-crypto": "^6.4.0",

@@ -581,6 +581,12 @@
                         <div class="flex gap-2">
                             <button data-click="copyInviteLink" class="btn-secondary"><i class="fa-regular fa-copy"></i> <span data-i18n="common.copy">Kopieren</span></button>
                             <button data-click="shareInviteLink" class="btn-secondary"><i class="fa-solid fa-share-nodes"></i> <span data-i18n="settings.share">Teilen</span></button>
+                            <button id="invite-scan-btn" data-click="openQrScanner" class="btn-secondary"><i class="fa-solid fa-qrcode"></i> <span data-i18n="scan.button">Scannen</span></button>
+                        </div>
+                        <!-- Einladung von jemand anderem: Link oder Code einfuegen (qr-scan.js) -->
+                        <div class="flex gap-2">
+                            <input id="invite-paste-input" type="text" data-enter="openPastedInvite" data-i18n-attr="placeholder:scan.pastePlaceholder" placeholder="Einladungslink oder Code einfügen" class="setting-input flex-1 min-w-0 text-xs">
+                            <button id="invite-paste-btn" data-click="openPastedInvite" class="btn-secondary"><i class="fa-solid fa-right-to-bracket"></i> <span data-i18n="scan.open">Öffnen</span></button>
                         </div>
                     </div>
                 </div>
@@ -1390,6 +1396,8 @@
         <!-- Live-Kamera: Vollbild, Gesten (snap-camera.js): runter = schliessen, doppelt tippen = Kamera wechseln, zwei Finger = Zoom -->
         <div id="snap-camera-stage" class="absolute inset-0 overflow-hidden touch-none">
             <video id="snap-video-preview" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover"></video>
+            <!-- OpenGrid-QR im Bild erkannt (qr-scan.js) -->
+            <button type="button" id="snap-qr-chip" data-click="openSnapQrCode" class="hidden absolute bottom-36 left-1/2 -translate-x-1/2 z-20 px-4 py-2 rounded-full bg-brand-600 text-white text-sm font-semibold shadow-lg flex items-center gap-2"><i class="fa-solid fa-qrcode"></i> <span data-snap-qr-label></span></button>
             <div id="snap-zoom-label" class="hidden absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 px-3 py-1 rounded-full bg-black/60 text-white text-sm font-semibold"></div>
         </div>
         <!-- Editor nach der Aufnahme: Bild + Zeichnung + Text/Emoji-Ebenen (snap-editor.js) -->
@@ -1520,6 +1528,7 @@
     <script src="/client/app/report.js?v={{assetVersion}}"></script>
     <script src="/client/app/conversations.js?v={{assetVersion}}"></script>
     <script src="/client/app/forward-secrecy.js?v={{assetVersion}}"></script>
+    <script src="/client/app/qr-scan.js?v={{assetVersion}}"></script>
     <script src="/client/app/devices.js?v={{assetVersion}}"></script>
     <script src="/client/app/install-guide.js?v={{assetVersion}}"></script>
     <script src="/client/app/transfer.js?v={{assetVersion}}"></script>

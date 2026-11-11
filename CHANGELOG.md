@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 341 · 2026-11-11
+## Build 342 · 2026-11-11
+- Einladungen: Link oder Code einfuegen und oeffnen, oder mit "Scannen" den QR-Code mit der Kamera lesen (Einstellungen > Kontakt einladen)
+- Snap-Kamera: hast du einen OpenGrid-QR-Code im Bild, kannst du die Einladung direkt oeffnen
+
+## Build 341 · 2026-11-11 · `797bf0a`
 - Im Chat siehst du jetzt, wenn jemand tippt, einen Snap macht oder Medien auswaehlt (nur bei direkter Verbindung; in den Einstellungen abschaltbar, dann siehst du es auch bei anderen nicht)
 
 ## Build 338 · 2026-11-11 · `72e762a`

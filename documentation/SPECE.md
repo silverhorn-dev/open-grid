@@ -2571,3 +2571,18 @@ Gilt nur fuer Dating (Entdecken), nicht fuer Chat & Freunde.
 - Gegenseitig: Einstellung `keys`/`typing-indicator` (Router-Standard
   `CLIENT_DEFAULTS.typingIndicator`, an); aus = nichts senden, nichts zeigen.
 - Spaeter (ANDROID-APP.md, R1): dieselbe Absicht weckt einen schlafenden Kern.
+
+## OpenGrid-Codes einfuegen und scannen (`qr-scan.js`)
+
+- Erkannt werden (`classifyOpenGridCode`): Einladungen (`/invite#...` dieses
+  Routers oder nur der Code `<peerId>.<fingerprint>~<modus>`), Einladungen
+  anderer Router (nur Hinweis mit Host), Umzugs-/Kopplungs-Codes
+  (`/transfer#...`, Hinweis: auf dem neuen Geraet beim Einrichten eingeben) und
+  Router-Links (`opengrid://connect?url=...`, in der Android-App Wechsel mit
+  Rueckfrage, sonst Hinweis). Alles andere wird ignoriert.
+- Einladen-Karte: Feld "Einladungslink oder Code einfuegen" und Knopf
+  "Scannen" (Kamera, Rueckseite). Snap-Kamera: alle 0,8 s wird das Livebild
+  geprueft; erkannter Code = Hinweis-Knopf im Bild, Antippen schliesst die
+  Kamera und oeffnet ihn.
+- Erkennung auf dem Geraet: `BarcodeDetector`, sonst jsQR (Apache-2.0) vom
+  Router (`/vendor/jsqr/jsQR.js`, erst bei Bedarf geladen). Kein fremder Dienst.

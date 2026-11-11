@@ -201,6 +201,7 @@ const clientAssetFiles = [
     'app/report.js',
     'app/conversations.js',
     'app/forward-secrecy.js',
+    'app/qr-scan.js',
     'app/devices.js',
     'app/install-guide.js',
     'app/transfer.js',
@@ -396,6 +397,11 @@ async function loadVendorAssets() {
     assets.set('/vendor/qrcode/qrcode.js', {
         contentType: 'text/javascript; charset=utf-8',
         body: await readFile(join(projectDirectory, 'node_modules', 'qrcode-generator', 'qrcode.js'))
+    });
+    // QR-Codes lesen (client/app/qr-scan.js), wo der Browser keinen BarcodeDetector hat; Apache-2.0.
+    assets.set('/vendor/jsqr/jsQR.js', {
+        contentType: 'text/javascript; charset=utf-8',
+        body: await readFile(join(projectDirectory, 'node_modules', 'jsqr', 'dist', 'jsQR.js'))
     });
     for (const file of ICON_FILES) {
         assets.set(`/client/${file}`, {

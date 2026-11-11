@@ -1481,3 +1481,18 @@ Akzeptanzkriterien:
 - Das geht nur bei direkter Verbindung, nie ueber den Router.
 - Ich kann es ausschalten; dann sehe ich es bei anderen auch nicht.
 
+## UC-84: Einladung einfuegen oder scannen
+
+**Als Nutzer** moechte ich eine Einladung oeffnen, die ich als Text oder als
+QR-Code bekommen habe, ohne einen Link antippen zu muessen.
+
+Akzeptanzkriterien:
+
+- In "Kontakt einladen" kann ich einen Einladungslink oder nur den Code
+  einfuegen und oeffnen.
+- "Scannen" oeffnet die Kamera; ein OpenGrid-QR-Code oeffnet die Einladung.
+- Habe ich in der Snap-Kamera einen OpenGrid-QR-Code im Bild, erscheint ein
+  Knopf "Einladung oeffnen".
+- Andere QR-Codes werden ignoriert; Einladungen eines anderen Routers und
+  Umzugs-Codes erklaert die App statt sie zu oeffnen.
+

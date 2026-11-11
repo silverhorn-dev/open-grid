@@ -276,6 +276,7 @@ async function openSnapCamera(target) {
 }
 
 function stopSnapCamera() {
+    if (typeof stopSnapQrWatch === 'function') stopSnapQrWatch();
     if (state.mediaStream) {
         state.mediaStream.getTracks().forEach(track => track.stop());
         state.mediaStream = null;
@@ -313,6 +314,8 @@ async function startSnapCamera() {
         video.classList.toggle('snap-mirrored', state.snapFacingMode === 'user');
         await video.play().catch(logBackgroundError('startSnapCamera'));
         updateSnapCameraCapabilities();
+        // OpenGrid-QR-Codes im Bild erkennen (qr-scan.js).
+        if (typeof startSnapQrWatch === 'function') startSnapQrWatch();
     } catch (error) {
         logDebug(`Camera error: ${error.name}: ${error.message}`);
         showSnapCameraProblem(error.name === 'NotAllowedError'

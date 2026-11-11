@@ -450,7 +450,8 @@ async function handleNavigation(request) {
         return await withTimeout(fetch(request), NAVIGATION_TIMEOUT_MS);
     } catch {
         const cache = await caches.open(SHELL_CACHE);
-        const shell = await cache.match('/');
+        // Kern-Seite der App hat ihre eigene Shell (Rolle "core"), alles andere die normale.
+        const shell = await cache.match(new URL(request.url).pathname === '/core.html' ? '/core.html' : '/');
         return shell || Response.error();
     }
 }

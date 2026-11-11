@@ -2548,3 +2548,13 @@ Gilt nur fuer Dating (Entdecken), nicht fuer Chat & Freunde.
   `urgentHideThreshold`).
 - Entschieden (2026-11-11): der Haken "Profilbild verifiziert" (P1) wird fuer
   Clients ohne App-Attestierung vom Router geprueft; Details offen.
+
+## Rollen der Seite (Android-App, Kern im Hintergrund)
+
+- `APP_ROLE` (`client/app/config.js`) aus `<html data-role>`: `full` (Browser,
+  Standard), `core` (`/core.html`, unsichtbare Kern-Seite der App), `ui`
+  (Oberflaeche mit Kern, ab K2). Plan und Phasen: `documentation/ANDROID-APP.md`.
+- `/core.html` liefert dieselbe App-Shell mit `data-role="core"`; sie steht im
+  Precache, der Service Worker antwortet offline mit ihrer eigenen Shell.
+- Der Kern arbeitet unabhaengig von der Sichtbarkeit (`isAppActive()`), richtet
+  ohne eigenes Profil nichts ein und laedt kein Nacktbild-Modell.

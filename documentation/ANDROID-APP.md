@@ -151,16 +151,17 @@ Phasen:
 
 | Phase | Inhalt |
 |---|---|
-| K1 | Rollen (`full`/`core`/`ui`) und Kern-Seite: `/core.html` (Route, CSP, Skriptliste ohne Oberflaeche), UI-Aufrufe im Transport-Code entkoppeln (Stubs bzw. Ereignisse statt `render*`/`showToast`/`document`), Test: alle im Kern geladenen Skripte kommen ohne fehlende Funktionen aus. E2E: `core.html` allein ist ein vollwertiger Knoten (empfaengt, speichert, liefert Profil aus). |
+| K1 | **Erledigt 2026-11-11.** Rollen `full`/`core`/`ui` (`APP_ROLE` in `config.js`, aus `<html data-role>`), Kern-Seite `/core.html` = dieselbe App-Shell mit `data-role="core"` (gleiche CSP, im Precache, offline eigene Shell im Service Worker). Abweichung vom Plan: keine eigene Skriptliste; der Kern laedt alles und rendert in ein unsichtbares DOM, so muss der Transport-Code nicht sofort entkoppelt werden (Verschlanken spaeter, K5). Kern: arbeitet immer (`isAppActive()` statt "Seite sichtbar" fuer Signaling-Pruefung, Grid-Abruf und -Anmeldung), ohne eigenes Profil bleibt er still (kein Einrichten), kein Nacktbild-Modell. E2E `core-role`: Kern allein empfaengt und speichert (P2P), liefert das Profil aus, sendet. |
 | K2 | Schnittstelle: Kanal, RPC, Ereignisse, Herzschlag, Rueckfall; Rolle `ui` nutzt sie. E2E simuliert die App mit zwei Seiten im selben Browser-Kontext (`core.html` + `/`). |
 | K3 | Live-Funktionen ueber den Kern: Secure-Snap-Stream, Fortschritt der Originale, Praesenz/Tippen/Chat-Fokus, Alben-Schluessel, Status, Sprach-Rest, Geraete-Kopplung. |
 | K4 | App: der Dienst besitzt die Kern-WebView (App-Kontext, ohne Fenster); die Oberflaechen-WebView wird beim Schliessen zerstoert (der Keep-Alive-Teil aus 0.2.0 - `WebViewHolder` - entfaellt). Einstellung "Im Hintergrund erreichbar" (aus / zeitlich / immer), Akku-Optimierung, optional Start nach Neustart. Service-Worker-Update: Kern laedt neu, wenn die Oberflaeche aktualisiert. |
 | K5 | Messen auf Geraeten (RAM, Akku, Hersteller mit aggressivem Beenden), Feinschliff. |
 
-Offen (vor K1 klaeren): Standard fuer "Im Hintergrund erreichbar" (zeitlich
-oder immer); Start nach Neustart des Handys; wer schreibt welche Daten
-(Vorschlag: Oberflaeche schreibt eigene neue Nachrichten wie heute und gibt
-nur das Senden an den Kern; alles Eingehende schreibt der Kern).
+Entschieden (Nutzer, 2026-11-11): "Im Hintergrund erreichbar" standardmaessig
+**immer**; nach einem Neustart des Handys startet der Kern automatisch; eine
+Datenquelle (dieselbe IndexedDB fuer beide Seiten), die Oberflaeche schreibt
+eigene neue Nachrichten und gibt nur das Senden an den Kern, alles Eingehende
+schreibt der Kern.
 
 ### Phase 3: Push ohne Browser (UnifiedPush)
 

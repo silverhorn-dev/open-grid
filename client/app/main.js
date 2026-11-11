@@ -82,6 +82,11 @@ window.onload = async () => {
         await runStartupStep('App-Modus', loadAppMode);
         await runStartupStep('Module', loadEnabledFeatures);
         const hasLocalProfile = await loadMyLocalProfile();
+        if (!hasLocalProfile && APP_ROLE === 'core') {
+            // Kern ohne Profil: nichts verbinden; die Oberflaeche richtet das Profil ein (K2 startet den Kern dann neu).
+            logDebug('Core page without a local profile: idle until the profile exists.');
+            return;
+        }
         if (!hasLocalProfile) {
             // Safari/iOS im Browser-Tab: erst installieren, sonst loescht Safari die Daten (install-guide.js).
             await runStartupStep('Installation', maybeShowInstallGuide);
@@ -152,7 +157,8 @@ window.onload = async () => {
         await runStartupStep('Snap-Einstellungen', async () => {
             await loadSnapSettings();
             await loadTraceWatermarkSetting();
-            initNudityModel();
+            // Kern: kein Nacktbild-Modell (nur fuer Anzeige und Senden in der Oberflaeche).
+            if (APP_ROLE !== 'core') initNudityModel();
             await loadNuditySettings();
             await loadMediaDownloadSetting();
             await loadDiscoveryHistorySetting();
@@ -206,7 +212,7 @@ window.onload = async () => {
         window.addEventListener('pagehide', () => reportAway(true));
         window.addEventListener('online', () => checkSignalingHealth('online'));
         setInterval(() => {
-            if (document.visibilityState === 'visible') checkSignalingHealth('interval');
+            if (isAppActive()) checkSignalingHealth('interval');
         }, WS_PING_INTERVAL_MS);
         window.addEventListener('storage', event => {
             if (event.key === 'opengrid-router-auth-token' && event.newValue) {
@@ -215,10 +221,10 @@ window.onload = async () => {
         });
         window.addEventListener('focus', refreshPresenceAndGrid);
         setInterval(() => {
-            if (document.visibilityState === 'visible') fetchPeersFromWorkerGrid();
+            if (isAppActive()) fetchPeersFromWorkerGrid();
         }, 10000);
         setInterval(() => {
-            if (document.visibilityState === 'visible') registerWithWorkerGrid();
+            if (isAppActive()) registerWithWorkerGrid();
         }, 25000);
         // Abgelaufene, unbestaetigte Nachrichten erneut zustellen (delivery.client.js): kurz nach dem Start, dann stuendlich.
         setTimeout(() => resendExpiredCacheMessages().catch(logBackgroundError('resendExpiredCacheMessages')), 30000);

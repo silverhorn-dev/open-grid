@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 336 · 2026-11-11
+## Build 338 · 2026-11-11
+- Vorbereitung Android-App: OpenGrid kann als unsichtbarer Hintergrund-Kern laufen (noch nicht in der App aktiv)
+
+## Build 336 · 2026-11-11 · `abdc135`
 - Android-App 0.2.0: Benachrichtigungen funktionieren jetzt in der App (Android fragt beim ersten Start nach dem Recht)
 - Android-App: bleibt nach dem Schliessen eine einstellbare Zeit aktiv (Standard 1 Stunde, bis "immer"), damit Nachrichten, Abgleich und deine Profilbilder fuer andere weiterlaufen (Einstellungen > Benachrichtigungen)
 

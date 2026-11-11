@@ -160,6 +160,14 @@ test('reports the server time and the media key epoch', async () => {
     assert.equal(parseMediaKeyEpochMinutes('999999'), 10080);
 });
 
+test('core page of the android app: same shell with role "core", the normal app has no role', async () => {
+    const core = await app.inject({ method: 'GET', url: '/core.html' });
+    assert.equal(core.statusCode, 200);
+    assert.match(core.body, /<html data-role="core" lang="de"/);
+    assert.equal(core.headers['content-security-policy'], (await app.inject({ method: 'GET', url: '/' })).headers['content-security-policy']);
+    for (const url of ['/', '/chat', '/index.html']) assert.doesNotMatch((await app.inject({ method: 'GET', url })).body, /data-role=/, url);
+});
+
 test('serves the app offline-ready without external CDNs', async () => {
     const index = await app.inject({ method: 'GET', url: '/' });
     assert.doesNotMatch(index.body, /cdn\.tailwindcss\.com|cdnjs\.cloudflare\.com|placehold\.co/);
@@ -170,6 +178,7 @@ test('serves the app offline-ready without external CDNs', async () => {
     assert.doesNotMatch(worker.body, /__ASSET_VERSION__|__PRECACHE_URLS__/);
     const precache = JSON.parse(worker.body.match(/const PRECACHE_URLS = (\[.*?\]);/)[1]);
     assert.ok(precache.includes('/'));
+    assert.ok(precache.includes('/core.html'), 'core page of the app starts offline too');
     assert.ok(precache.some(url => url.startsWith('/client/tailwind.css?v=')));
     assert.ok(precache.some(url => url.endsWith('.woff2')));
     assert.ok(!precache.some(url => url.endsWith('.ttf')));

@@ -456,6 +456,8 @@ export async function buildApp(options = {}) {
     // Installieren in einen eigenen Cache und prueft jede Antwort.
     const precacheUrls = [
         '/',
+        // Kern-Seite der App (Rolle "core"), damit sie auch offline startet.
+        '/core.html',
         // Abschaltbare Teile nicht: die holt der Service Worker erst, wenn die App sie laedt.
         ...clientAssetFiles.filter(file => !featureOfAsset.has(`/client/${file}`)).map(file => `/client/${file}?v=${assetVersion}`),
         ...translationAssets.map(([path]) => `${path}?v=${assetVersion}`),
@@ -660,8 +662,11 @@ export async function buildApp(options = {}) {
 
     // Wird gesetzt, sobald Nachweise und Nacktbild-Modell eingerichtet sind (weiter unten).
     let enabledFeatures = () => new Set(Object.keys(FEATURE_ASSET_FILES));
-    const serveAppShell = async (_request, reply) => {
-        const html = renderFeatureBlocks(indexTemplate, enabledFeatures())
+    const serveAppShell = async (request, reply) => {
+        // Kern-Seite der Android-App (documentation/ANDROID-APP.md, "Kern im Hintergrund"): dieselbe App-Shell
+        // mit Rolle "core" (client/app/config.js APP_ROLE).
+        const template = request.url.split('?')[0] === '/core.html' ? indexTemplate.replace('<html ', '<html data-role="core" ') : indexTemplate;
+        const html = renderFeatureBlocks(template, enabledFeatures())
             .replaceAll('{{versionTag}}', buildVersion)
             .replaceAll('{{timestamp}}', buildTimestamp)
             .replaceAll('{{assetVersion}}', assetVersion)
@@ -673,7 +678,7 @@ export async function buildApp(options = {}) {
     app.get('/admin', async (_request, reply) => reply.type('text/html; charset=utf-8').header('Cache-Control', 'no-cache').send(adminHtml));
 
     // Client-Routen (client/app/router.js) liefern dieselbe App-Shell.
-    for (const path of ['/', '/index.html', '/grid', '/chat', '/chat/:peerId', '/snap', '/profile', '/transfer', '/settings', '/cloud', '/invite', '/age-callback']) {
+    for (const path of ['/', '/index.html', '/core.html', '/grid', '/chat', '/chat/:peerId', '/snap', '/profile', '/transfer', '/settings', '/cloud', '/invite', '/age-callback']) {
         app.get(path, serveAppShell);
     }
 

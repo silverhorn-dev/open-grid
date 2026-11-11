@@ -11,6 +11,17 @@ function localAvatar(avatar) {
     return typeof avatar === 'string' && avatar.startsWith('data:image/') ? avatar : AVATAR_PLACEHOLDER;
 }
 const CONFIG = { DEBUG_MODE: loadDebugModePreference(), DEFAULT_GEOHASH: 'u10j2k' };
+
+// Rolle der Seite (documentation/ANDROID-APP.md, "Kern im Hintergrund"): 'full' = alles in einer Seite (Browser,
+// wie bisher); 'core' = unsichtbare Kern-Seite der App (/core.html: Verbindungen, Krypto, Abgleich, keine
+// Bedienung); 'ui' = Oberflaeche, deren Verbindungen der Kern haelt (folgt in K2).
+const APP_ROLE = ['core', 'ui'].includes(document.documentElement?.dataset?.role) ? document.documentElement.dataset.role : 'full';
+
+// Laufende Aufgaben (Signaling pruefen, Grid-Anmeldung, Abgleich): im Browser nur bei sichtbarer Seite, der Kern
+// ist nie sichtbar und arbeitet immer.
+function isAppActive() {
+    return APP_ROLE === 'core' || document.visibilityState === 'visible';
+}
 document.documentElement.classList.toggle('debug-on', CONFIG.DEBUG_MODE);
 
 // Schriftgroesse der Chatnachrichten, pro Geraet (wie der Debug-Modus).

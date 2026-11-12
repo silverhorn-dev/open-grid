@@ -126,7 +126,7 @@
 ## T4 Wrapper-App: native API zum Senden/Empfangen (wunsch 2026-10-27, erst planen)
 - plan 2026-11-01: `documentation/ANDROID-APP.md`
   - [x] phase 1 huelle + phase 2 bruecke als code (2026-11-01): `android/` (WebView, rechte nur fuer den router, `opengrid://connect`, teilen, update-hinweis), `client/app/native.js` (`secureScreen` per `data-secure-screen`, `takeShare`), router `/app/opengrid.apk`, `/.well-known/assetlinks.json`, `ANDROID_APP_SIGNERS` live
-  - [ ] erster build (`sh android/build.sh`, ~1,5 GB image; jenkins baut es vorerst nicht) + test auf einem geraet: kamera, WebRTC, SW, `FLAG_SECURE`, teilen
+  - [x] erster build (`sh android/build.sh`, ~1,5 GB image; jenkins baut es vorerst nicht) + test auf einem geraet: kamera, WebRTC, SW, `FLAG_SECURE`, teilen (nutzer 2026-11-11: "es klappt alles", 0.1.1)
   - [ ] projekt-release-schluessel anlegen, fingerabdruck in `PROJECT_APP_SIGNERS`
   - [ ] QR `opengrid://connect?url=...` im admin-panel / auf der info-seite
   - [ ] altersnachweis mit weiterleitung (OIDC/wallet) in der app: rueckweg ohne verifizierten app-link klaeren
@@ -148,7 +148,7 @@
   - [x] R1 router "erreichbar + wecken" (2026-11-11: `REGISTER_INBOX`, `WAKE`, `PEER_WAKING`, festhalten + nachliefern, limits, praesenz `reachable`, client wartet 20 s, vorab wecken; tests `test/server.test.js`, e2e `wake`): praesenz `reachable`, P2P-angebote kurz puffern + `WAKE` an den posteingang, absender warten bei "erreichbar" laenger auf P2P bevor pfad C; vorab wecken beim oeffnen des chats + bei tippen/snap/medien-auswahl (nutzer 2026-11-11), weck-limit je absender/empfaenger, nur zugelassene chats
   - [ ] K5 messen auf geraeten (lokal 2026-11-11: kern ca. 2,7 MB JS, kein verschlanken noetig; offen fuer den nutzer: akku ueber einen tag, weckzeit, hersteller mit aggressivem beenden, benachrichtigungen bei geschlossener app)
   - entschieden (nutzer 2026-11-11): standard "immer", autostart nach neustart, eine datenquelle (gleiche IndexedDB); oberflaeche schreibt eigene nachrichten, kern alles eingehende
-- [ ] die wrapper-app (siehe backlog "real application for android") stellt der PWA eine API bereit, um bilder zu senden und zu empfangen, auch offline bzw. wenn die app im hintergrund ist; grund: dauernd geladene PWA zieht viel akku
+- [x] (2026-11-11 abgeloest durch "kern im hintergrund" K1-K4: der kern sendet/empfaengt im hintergrund mit demselben JS-code) die wrapper-app (siehe backlog "real application for android") stellt der PWA eine API bereit, um bilder zu senden und zu empfangen, auch offline bzw. wenn die app im hintergrund ist; grund: dauernd geladene PWA zieht viel akku
   - idee: PWA erkennt die bruecke (z. B. `window.OpenGridNative` bzw. `postMessage`-kanal der WebView) und gibt ihr ausgehende, schon verschluesselte nachrichten (pfad-C-ciphertext + empfaenger + msgId); die app liefert sie im hintergrund aus (router-cache/push, spaeter P2P) und meldet den status zurueck
   - empfangen: app nimmt web-push/FCM im hintergrund an, holt ciphertext aus `/api/cache`, legt ihn in einen eigenen speicher; beim oeffnen uebernimmt die PWA ihn (wie heute der SW, `MESSAGE_PUT`)
   - ohne bruecke (normaler browser) bleibt alles wie heute

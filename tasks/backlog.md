@@ -100,6 +100,9 @@ Ideen ohne festen Termin. Neue Phasen werden von hier auf `tasks/board.md` gehol
   - ideen: status (version, peers online, queue-groesse, push), router-standards (`CLIENT_DEFAULTS`, `AUDIENCE_MINIMUM`, nacktbild-modell/schwelle), nachweise (alters-anker der EU-liste, eigene zertifikate, sperren), meldungen (leak mit wasserzeichen -> sperre), logs
   - live-konfiguration (nutzer 2026-10-29): einstellungen zur laufzeit aendern, ohne neustart/neues deployment; env bleibt der startwert, aenderungen aus dem panel liegen in der datenbank und gewinnen
   - offen: zugang (eigener admin-schluessel/passkey, nur aus dem LAN/per tunnel?), welche einstellungen live gehen (z. B. CLIENT_DEFAULTS, AUDIENCE_MINIMUM, nacktbild-modell/schwelle, nachweis-pflichten) und welche einen neustart brauchen (ports, datenbank, TURN), getrennte route/seite (CSP wie die app), nie nutzerinhalte (die hat der router ohnehin nicht)
+- [ ] FR (nutzer 2026-11-12): aus dem admin-panel mit teilnehmern kommunizieren koennen, falls noetig (z. B. nach meldungen, bei stoerungen, ankuendigungen); dafuer admins/mods bestimmen
+  - ideen: betreiber-konto als eigener peer ("Betreiber"/"Moderation", kennzeichnung im chat), schreibt E2E wie jeder andere (router sieht weiter nur ciphertext); mods = vom admin benannte peers mit rechten im panel (meldungen ansehen, antworten); rundschreiben an alle evtl. nur als hinweis-banner ohne inhalt in der queue
+  - offen: wie werden mods benannt und geprueft (signierte ernennung durch den admin?), was duerfen sie, abschaltbar fuer nutzer?, missbrauchsschutz (kein massen-spam), kein mitlesen fremder chats
 
 # Security
 

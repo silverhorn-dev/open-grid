@@ -4,6 +4,8 @@
 # Dateien kommen per `docker cp` statt Bind-Mount in die Container: so laeuft das Skript auch gegen einen
 # Docker-Daemon des Hosts aus einem Container heraus (Jenkins-Agent mit eingehaengtem Socket).
 # Nur einzelne Tests: E2E_TESTS="chat-gestures snap-page" sh scripts/e2e.sh (Namen ohne .e2e.cjs).
+# Ergebnisse als JUnit (Jenkins): E2E_RESULTS_DIR=ci-out/e2e sh scripts/e2e.sh -> e2e-desktop.xml usw.
+# Alle Varianten und Dateien laufen durch, auch wenn eine scheitert; der Exit-Code sagt, ob alles gruen war.
 set -eu
 cd "$(dirname "$0")/.."
 NAME="opengrid-e2e-$$"
@@ -22,10 +24,18 @@ until docker exec "$NAME" wget -qO- http://127.0.0.1:3000/health >/dev/null 2>&1
     sleep 2
 done
 
+failed=0
+[ -n "${E2E_RESULTS_DIR:-}" ] && mkdir -p "$E2E_RESULTS_DIR"
 for variant in DESKTOP MOBILE OFFLINE; do
-    docker create --name "$NAME-browser" --network "container:$NAME" -e "$variant=1" -e "E2E_DEBUG=${E2E_DEBUG:-}" -e "E2E_TESTS=${E2E_TESTS:-}" "$PLAYWRIGHT_IMAGE" sh -c \
-        'mkdir -p /run-e2e && cd /run-e2e && npm init -y >/dev/null && npm i playwright@1.48.2 --silent >/dev/null && cp /e2e/*.cjs . && if [ -n "$E2E_TESTS" ]; then set --; for t in $E2E_TESTS; do set -- "$@" "${t%.e2e.cjs}.e2e.cjs"; done; else set -- *.e2e.cjs; fi && for f in "$@"; do node "$f" || exit 1; done' >/dev/null
+    lower=$(echo "$variant" | tr 'A-Z' 'a-z')
+    docker create --name "$NAME-browser" --network "container:$NAME" -e "$variant=1" -e "E2E_DEBUG=${E2E_DEBUG:-}" -e "E2E_TESTS=${E2E_TESTS:-}" -e "E2E_VARIANT=$lower" "$PLAYWRIGHT_IMAGE" sh -c \
+        'mkdir -p /run-e2e && cd /run-e2e && npm init -y >/dev/null && npm i playwright@1.48.2 --silent >/dev/null && cp /e2e/*.cjs . && if [ -n "$E2E_TESTS" ]; then set --; for t in $E2E_TESTS; do set -- "$@" "${t%.e2e.cjs}.e2e.cjs"; done; else set -- *.e2e.cjs; fi && node /e2e-runner.cjs "/run-e2e/junit-$E2E_VARIANT.xml" "$E2E_VARIANT" "$@"' >/dev/null
     docker cp -q e2e "$NAME-browser:/e2e"
-    docker start -a "$NAME-browser"
+    docker cp -q scripts/e2e-runner.cjs "$NAME-browser:/e2e-runner.cjs"
+    docker start -a "$NAME-browser" || failed=1
+    if [ -n "${E2E_RESULTS_DIR:-}" ]; then
+        docker cp "$NAME-browser:/run-e2e/junit-$lower.xml" "$E2E_RESULTS_DIR/e2e-$lower.xml" 2>/dev/null || true
+    fi
     docker rm "$NAME-browser" >/dev/null
 done
+exit "$failed"

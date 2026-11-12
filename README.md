@@ -101,6 +101,11 @@ Einzelne E2E-Tests lokal: `E2E_TESTS="chat-gestures snap-page" sh scripts/e2e.sh
 Version ist `Build <Commit-Anzahl> (<Hash>)`. Andere Branches (Multibranch)
 laufen durch dieselben Tests und bauen das echte Image zur Probe
 (`open-grid-branch-check:<Build>`, danach geloescht), deployen aber nie.
+Testergebnisse zeigt Jenkins pro Build einzeln an (Plugin "JUnit"): Unit-Tests
+als `ci-out/test-results/unit.xml`, E2E je Variante als `ci-out/e2e/e2e-desktop.xml`,
+`e2e-mobile.xml`, `e2e-offline.xml` (`E2E_RESULTS_DIR`, ein Testfall je Datei mit
+der Ausgabe). Die E2E-Laeufe gehen nach einem roten Test weiter, damit alle
+Fehler auf einmal sichtbar sind; rot ist der Build trotzdem.
 
 - Zwei Agents, getrennt per Label, damit Tests den Produktiv-Host nicht
   ausbremsen: `ci` (eigener Rechner) macht Unit-Tests, E2E und Probe-Builds,

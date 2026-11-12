@@ -12,3 +12,7 @@ android/dist/
 android/local.properties
 *.keystore
 *.jks
+
+# CI-Testergebnisse (Jenkinsfile, JUnit)
+ci-out/
+test-results/

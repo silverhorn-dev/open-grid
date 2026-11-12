@@ -771,3 +771,4 @@
 - [x] nutzer 2026-11-11: "tippt ..." ueber den P2P-kanal, ausschaltbar -> `CHAT_TYPING` (text/snap/media/idle), gegenseitig, `CLIENT_DEFAULTS.typingIndicator`; e2e `typing`; UC-83
 - [x] nutzer 2026-11-11: invite-code einfuegen, QR scannen in der einladen-karte, OpenGrid-QRs in der snap-kamera aufloesen -> `qr-scan.js` (BarcodeDetector, sonst jsQR vom router), einladung/umzug/router-link/fremder router; tests `test/qr-scan.test.js`, e2e `qr-invite`; UC-84
 - [x] bug (nutzer 2026-11-11): beim snappen keine bilder aus der galerie -> im browser ok (e2e jetzt ueber den echten galerie-knopf); in der app kam die mehrfachauswahl (ClipData) nicht an -> `pickedUris`, app 0.2.1
+- [x] nutzer 2026-11-12: testergebnisse in der jenkins-pipe wie bei femm -> JUnit fuer unit (`Dockerfile.test`, `unit.exit`) und E2E je variante (`scripts/e2e-runner.cjs`, `E2E_RESULTS_DIR`), `junit` im Jenkinsfile; E2E laeuft nach roten tests weiter

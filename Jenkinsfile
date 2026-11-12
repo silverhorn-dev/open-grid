@@ -10,6 +10,8 @@
 // Jeder Agent laeuft als Container auf seinem Host und nutzt dessen Docker-Daemon ueber
 // den eingehaengten Socket (/var/run/docker.sock). Pfade im Workspace existieren auf dem Host nicht, deshalb gibt es keine
 // Bind-Mounts: Unit-Tests laufen als Image-Build (`Dockerfile.test`), E2E kopiert per `docker cp`.
+// Testergebnisse (Unit + E2E je Variante) kommen als JUnit nach ci-out/ und werden per `junit` angezeigt
+// (Plugin "JUnit").
 //
 // Voraussetzungen in Jenkins:
 // - Labels: Test-Agent `ci`, Agent auf dem Produktiv-Host `deploy` (Nodes -> Agent -> Configure -> Labels)
@@ -67,12 +69,23 @@ pipeline {
             }
         }
 
+        // Ergebnisse als JUnit (wie bei femm): Jenkins zeigt jeden Test einzeln, auch bei roten Builds.
         stage('Unit-Tests') {
             steps {
-                sh '. scripts/ci-env.sh && docker build -f Dockerfile.test -t open-grid-test:${BUILD_NUMBER} .'
+                sh '''
+                    . scripts/ci-env.sh
+                    docker build -f Dockerfile.test -t open-grid-test:${BUILD_NUMBER} .
+                    rm -rf ci-out/test-results && mkdir -p ci-out
+                    cid=$(docker create open-grid-test:${BUILD_NUMBER})
+                    docker cp "$cid:/app/test-results" ci-out/ || true
+                    docker rm "$cid" >/dev/null
+                    code=$(cat ci-out/test-results/unit.exit 2>/dev/null || echo 1)
+                    [ "$code" = 0 ] || { echo "Unit-Tests rot (Exit-Code $code)"; exit 1; }
+                '''
             }
             post {
                 always {
+                    junit allowEmptyResults: true, testResults: 'ci-out/test-results/*.xml'
                     sh '. scripts/ci-env.sh && docker image rm open-grid-test:${BUILD_NUMBER} >/dev/null 2>&1 || true'
                 }
             }
@@ -83,7 +96,12 @@ pipeline {
                 expression { env.E2E_RUN == 'true' }
             }
             steps {
-                sh '. scripts/ci-env.sh && sh scripts/e2e.sh'
+                sh '. scripts/ci-env.sh && rm -rf ci-out/e2e && E2E_RESULTS_DIR=ci-out/e2e sh scripts/e2e.sh'
+            }
+            post {
+                always {
+                    junit allowEmptyResults: true, testResults: 'ci-out/e2e/*.xml'
+                }
             }
         }
 

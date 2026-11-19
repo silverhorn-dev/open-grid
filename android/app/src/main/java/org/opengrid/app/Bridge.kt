@@ -138,6 +138,7 @@ class Bridge(
         .put("notifications", true)
         .put("background", true)
         .put("core", true)
+        .put("rendererGone", CrashLog.last(appContext) ?: JSONObject.NULL)
 
     fun sendEvent(event: String, data: JSONObject? = null) {
         if (event !in EVENT_TYPES) return

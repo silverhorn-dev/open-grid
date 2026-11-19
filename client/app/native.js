@@ -199,6 +199,17 @@ function initNativeBridge() {
         .then(result => {
             nativeBridge.capabilities = result;
             logDebug(`Native app ${result?.versionName || '?'} (protocol ${result?.protocol ?? '?'})`);
+            // Version der App neben der Web-Version (Menue).
+            const version = document.getElementById('native-app-version');
+            if (version && result?.versionName) {
+                version.textContent = ` · ${t('native.appVersion', { version: result.versionName })}`;
+                version.classList.remove('hidden');
+            }
+            // Letzter Ausfall des WebView-Renderers (Absturz/Speicher), zur Fehlersuche ohne Logcat.
+            if (result?.rendererGone) {
+                const gone = result.rendererGone;
+                logDebug(`WebView renderer gone (${gone.where}, ${gone.crashed ? 'crash' : 'killed for memory'}) at ${new Date(gone.at).toISOString()}`);
+            }
             if (typeof updatePushStatus === 'function') updatePushStatus().catch(() => {});
             renderNativeAppSettings().catch(() => {});
             sendNativeInboxCredentials();

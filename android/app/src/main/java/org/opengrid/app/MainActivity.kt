@@ -17,6 +17,7 @@ import android.view.inputmethod.EditorInfo
 import android.webkit.CookieManager
 import android.webkit.GeolocationPermissions
 import android.webkit.PermissionRequest
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -245,6 +246,14 @@ class MainActivity : ComponentActivity(), Bridge.Handler {
                 return true
             }
 
+            // Renderer abgestuerzt oder vom System beendet (Speicher): alle WebViews der App teilen ihn. Nicht die
+            // ganze App mitreissen, sondern die Oberflaeche neu aufbauen (der Kern startet sich selbst neu).
+            override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+                CrashLog.rendererGone(this@MainActivity, "ui", detail.didCrash())
+                if (view == webView) recreateWebApp(routerOrigin)
+                return true
+            }
+
             // Erst wenn der Router selbst geladen ist (nach einer Anmeldung bei Cloudflare Access), nach Updates fragen.
             override fun onPageFinished(view: WebView, url: String?) {
                 if (!RouterAddress.sameOrigin(url, routerOrigin)) return
@@ -306,6 +315,16 @@ class MainActivity : ComponentActivity(), Bridge.Handler {
         webView = null
         if (!isChangingConfigurations) CoreHost.setUiAttached(this, false, origin)
         super.onDestroy()
+    }
+
+    private fun recreateWebApp(routerOrigin: String) {
+        bridge?.handler = null
+        webView?.let {
+            (it.parent as? ViewGroup)?.removeView(it)
+            it.destroy()
+        }
+        webView = null
+        startWebApp(routerOrigin, null)
     }
 
     // Einmal beim ersten Start nach dem Recht fuer Benachrichtigungen fragen (Android 13+).

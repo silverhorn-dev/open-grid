@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 347 · 2026-11-11
+## Build 353 · 2026-11-19
+- Android-App 0.3.1: stuerzt die Webansicht ab (z. B. bei Speichermangel), startet sie neu, statt die ganze App zu beenden
+- Im Menue steht in der App jetzt auch die App-Version neben der Web-Version
+
+## Build 347 · 2026-11-11 · `d0ce5d6`
 - Android-App 0.3.0: im Hintergrund erreichbar ohne dauernd laufende App. Eine kleine Verbindung zum Router weckt OpenGrid, sobald etwas kommt (Nachricht, Profilbild-Anfrage, jemand tippt); danach schlaeft es wieder. Die Oberflaeche wird beim Schliessen ganz beendet
 - Einstellung "Im Hintergrund erreichbar" (Standard an) ersetzt "Nach dem Schliessen aktiv bleiben"
 

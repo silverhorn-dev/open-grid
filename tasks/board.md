@@ -776,10 +776,11 @@
 ## T38 Testrunde App 0.3.0 (nutzer 2026-11-19, aus tasks/backlog.md "bug and features requests")
 - bugs (zuerst):
   - [ ] sprachnachrichten lassen die APK abstuerzen
+    - 2026-11-19 (app 0.3.1): renderer-absturz/-ende reisst nicht mehr die ganze app mit (`onRenderProcessGone` in oberflaeche + kern, neustart); letzter ausfall im debug-log (`CrashLog`); eigentliche ursache offen -> logcat vom nutzer
   - [ ] offline ist die APK buggy, neu laden geht nicht (webapp + APK zeigen offline keine daten)
   - [ ] multi-device: bei chatpartnern erscheint man doppelt
   - [ ] original des profilbilds wird nicht geladen bzw. im viewer nicht gezeigt
   - [ ] kamera zeigt in der APK ~2 s ein graues bild, bevor das bild kommt
   - [ ] einstellung "vorschau" im android-benachrichtigungscenter greift nicht sofort
-  - [ ] neben der web-version auch die APK-version anzeigen
+  - [x] neben der web-version auch die APK-version anzeigen (2026-11-19, menue: "OpenGrid <version> · App 0.3.1")
 - features (danach, siehe backlog): offline-modus ab N nachrichten (standard 20), spracherkennung fuer sprachnachrichten (lokales modell je sprache), modelle erst bei bedarf laden, aus der benachrichtigung antworten, profil-export/-import, PIN-sperre + biometrie (APK), snap-videos, sticker (nicht speicherbar, favoriten, ohne blase, transparenz, FSK-18, ausschneiden)

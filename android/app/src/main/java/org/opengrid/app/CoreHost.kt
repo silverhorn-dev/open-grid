@@ -51,6 +51,16 @@ object CoreHost {
         view.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: android.webkit.WebResourceRequest) =
                 !RouterAddress.sameOrigin(request.url.toString(), routerOrigin)
+
+            // Renderer weg (Absturz oder Speicher): Kern verwerfen und kurz danach neu starten, nie die App beenden.
+            override fun onRenderProcessGone(view: WebView, detail: android.webkit.RenderProcessGoneDetail): Boolean {
+                CrashLog.rendererGone(app, "core", detail.didCrash())
+                if (view == webView) {
+                    stop()
+                    handler.postDelayed({ if (uiAttached || SystemClock.elapsedRealtime() - lastActive < IDLE_MS) wake(app, routerOrigin) }, 2000)
+                }
+                return true
+            }
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) view.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false)
         val coreBridge = Bridge(routerOrigin, app)

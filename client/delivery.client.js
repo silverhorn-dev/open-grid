@@ -239,6 +239,18 @@ async function sendSecurePayload(peerId, payload, onSent = null, options = {}) {
     // Wenn der P2P/TURN-Kanal offen und sicher ist -> Direkt senden
     if (channel?.readyState === 'open' && state.sessionKeys[peerId]) {
         try {
+            // Grosse Nachrichten (z. B. Profilbild in voller Groesse) in verschluesselten Stuecken: ein Kanal nimmt
+            // meist nur ~256 KB je Nachricht, groessere scheiterten bisher still (p2p.client.js setzt sie zusammen).
+            const plain = JSON.stringify(payload);
+            if (payload?.type !== 'PAYLOAD_PART' && plain.length > PAYLOAD_PART_THRESHOLD && plain.length <= PAYLOAD_PART_MAX_TOTAL) {
+                await sendPayloadInParts(peerId, channel, plain);
+                state.lastP2PTrafficAt = Date.now();
+                if (onSent) {
+                    onSent('p2p');
+                    awaitP2PAck(peerId, channel, { payload, onSent, cacheQueued: false });
+                }
+                return true;
+            }
             const encoded = JSON.stringify(await encryptSecurePayload(peerId, payload));
             // Groesser als der Kanal erlaubt: send() wuerde werfen; Chat-Operationen gehen dann ueber Pfad C.
             const limit = state.webrtcConnections?.[peerId]?.sctp?.maxMessageSize;
@@ -270,6 +282,28 @@ async function sendSecurePayload(peerId, payload, onSent = null, options = {}) {
     });
 
     return false;
+}
+
+// ----- Grosse P2P-Nachrichten in Stuecken (PAYLOAD_PART) -----
+// Jedes Stueck ist eine eigene verschluesselte Nachricht; der Empfaenger setzt sie zusammen und prueft das Ganze
+// wie eine normale Nachricht (isValidSecurePayload). Mit Gegendruck auf den Kanal.
+const PAYLOAD_PART_THRESHOLD = 120 * 1024;
+const PAYLOAD_PART_SIZE = 64 * 1024;
+const PAYLOAD_PART_MAX_TOTAL = 64 * PAYLOAD_PART_SIZE;
+const PAYLOAD_PART_BUFFER_LIMIT = 1024 * 1024;
+
+async function sendPayloadInParts(peerId, channel, plain) {
+    const id = window.crypto.randomUUID();
+    const total = Math.ceil(plain.length / PAYLOAD_PART_SIZE);
+    for (let index = 0; index < total; index++) {
+        while (channel.bufferedAmount > PAYLOAD_PART_BUFFER_LIMIT) {
+            if (channel.readyState !== 'open') throw new Error('Channel closed while sending parts');
+            await new Promise(resolve => setTimeout(resolve, 20));
+        }
+        if (channel.readyState !== 'open') throw new Error('Channel closed while sending parts');
+        const part = { type: 'PAYLOAD_PART', id, index, total, data: plain.slice(index * PAYLOAD_PART_SIZE, (index + 1) * PAYLOAD_PART_SIZE) };
+        channel.send(JSON.stringify(await encryptSecurePayload(peerId, part)));
+    }
 }
 
 // Steht der Kanal nach SECURE_QUEUE_FALLBACK_MS noch nicht, geht die Operation ueber Path C.

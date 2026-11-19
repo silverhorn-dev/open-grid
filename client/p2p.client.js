@@ -913,11 +913,46 @@ async function drainEarlyEnvelopes(peerId) {
     }
 }
 
+// Stuecke je Absender und Nachricht; unvollstaendige verfallen nach PAYLOAD_PART_TTL_MS, hoechstens wenige zugleich.
+const PAYLOAD_PART_TTL_MS = 60000;
+const PAYLOAD_PART_MAX_PENDING = 8;
+
+function collectPayloadPart(peerId, part) {
+    const now = Date.now();
+    for (const [key, entry] of Object.entries(state.payloadParts)) if (now - entry.at > PAYLOAD_PART_TTL_MS) delete state.payloadParts[key];
+    const key = `${peerId}:${part.id}`;
+    let entry = state.payloadParts[key];
+    if (!entry) {
+        if (Object.keys(state.payloadParts).filter(id => id.startsWith(`${peerId}:`)).length >= PAYLOAD_PART_MAX_PENDING) return null;
+        entry = state.payloadParts[key] = { at: now, total: part.total, parts: [], received: 0 };
+    }
+    if (entry.total !== part.total || part.index >= part.total) return null;
+    if (entry.parts[part.index] === undefined) entry.received += 1;
+    entry.parts[part.index] = part.data;
+    if (entry.received < entry.total) return null;
+    delete state.payloadParts[key];
+    return entry.parts.join('');
+}
+
 async function handleSecurePayload(peerId, payload, deliveredVia = 'E2EE P2P') {
     if (isPeerBlocked(peerId)) return;
     // Gilt fuer P2P und Pfad C: nur bekannte Typen mit plausiblen Feldern (payload-validation.js).
     if (!isValidSecurePayload(payload)) {
         logDebug(`Rejected invalid ${typeof payload?.type === 'string' ? payload.type.substring(0, 40) : 'unknown'} payload from ${peerId}.`);
+        return;
+    }
+    // Stueck einer grossen Nachricht (delivery.client.js): sammeln, am Ende als Ganzes behandeln (und pruefen).
+    if (payload.type === 'PAYLOAD_PART') {
+        const whole = collectPayloadPart(peerId, payload);
+        if (whole) {
+            let parsed = null;
+            try {
+                parsed = JSON.parse(whole);
+            } catch {
+                logDebug(`Rejected unreadable parted payload from ${peerId}.`);
+            }
+            if (parsed && parsed.type !== 'PAYLOAD_PART') await handleSecurePayload(peerId, parsed, deliveredVia);
+        }
         return;
     }
     // Kern der App (core-link.js, K3): Antworten fuer die Oberflaeche weiterreichen.

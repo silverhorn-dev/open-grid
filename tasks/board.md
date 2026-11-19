@@ -779,7 +779,7 @@
     - 2026-11-19 (app 0.3.1): renderer-absturz/-ende reisst nicht mehr die ganze app mit (`onRenderProcessGone` in oberflaeche + kern, neustart); letzter ausfall im debug-log (`CrashLog`); eigentliche ursache offen -> logcat vom nutzer
   - [ ] offline ist die APK buggy, neu laden geht nicht (webapp + APK zeigen offline keine daten)
   - [x] multi-device: bei chatpartnern erscheint man doppelt (2026-11-19: liste wurde nur vom unterzeichnenden geraet angenommen, nicht weitergereicht -> jedes geraet darf weiterreichen; doppel-chats werden zusammengelegt, auch vom SW angelegte; e2e `devices-merge`)
-  - [ ] original des profilbilds wird nicht geladen bzw. im viewer nicht gezeigt
+  - [x] original des profilbilds wird nicht geladen bzw. im viewer nicht gezeigt (2026-11-19: grosse fassung > eine DataChannel-nachricht, versand scheiterte still -> grosse P2P-nachrichten in stuecken, `PAYLOAD_PART`; e2e `profile-picture` mit realistischem bild)
   - [x] kamera zeigt in der APK ~2 s ein graues bild, bevor das bild kommt (2026-11-19: android-webview zeigt bis zum ersten bild ein graues poster -> leeres `poster` an allen videos)
   - [x] einstellung "vorschau" im android-benachrichtigungscenter greift nicht sofort (2026-11-19: der kern zeigt die benachrichtigungen und hatte den alten wert im speicher -> liest kompakt + arten bei aenderungen neu; e2e `core-ui`)
   - [x] neben der web-version auch die APK-version anzeigen (2026-11-19, menue: "OpenGrid <version> · App 0.3.1")

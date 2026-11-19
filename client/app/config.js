@@ -257,6 +257,8 @@ const state = {
     // Kern der App (core-link.js): Start fertig, letzter P2P-Verkehr (schlaeft sonst wieder ein).
     coreStartupDone: false,
     lastP2PTrafficAt: 0,
+    // Stuecke grosser P2P-Nachrichten, die noch zusammengesetzt werden (p2p.client.js).
+    payloadParts: {},
     snapPageEnabled: null,
     // App-Modus (P8): vom Server erlaubte Modi, gewaehlter Modus und Event-Daten.
     appConfig: { modes: ['discovery', 'chat', 'friends', 'event'], defaultMode: 'discovery' },

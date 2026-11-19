@@ -41,14 +41,22 @@ async function main() {
             canvas.width = 2000;
             canvas.height = 1500;
             const context = canvas.getContext('2d');
-            context.fillStyle = '#336699';
-            context.fillRect(0, 0, 2000, 1500);
-            context.fillStyle = '#ffffff';
-            context.fillRect(900, 600, 200, 300);
+            // Verrauscht wie ein Foto: die grosse Fassung wird dann einige 100 KB gross (groesser als eine
+            // DataChannel-Nachricht, geht in Stuecken).
+            const pixels = context.createImageData(2000, 1500);
+            for (let index = 0; index < pixels.data.length; index += 4) {
+                pixels.data[index] = (index * 7919) % 251;
+                pixels.data[index + 1] = (index * 104729) % 241;
+                pixels.data[index + 2] = (index * 1299709) % 239;
+                pixels.data[index + 3] = 255;
+            }
+            context.putImageData(pixels, 0, 0);
             return canvas.toDataURL('image/png').split(',')[1];
         });
         await alice.setInputFiles('input[data-change="handleAvatarUpload"]', { name: 'me.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') });
         await waitFor(alice, () => Boolean(state.myProfile.avatarFull?.id));
+        const fullSize = await alice.evaluate(async () => (await loadMedia(state.myProfile.avatarFull.id)).data.length);
+        assert.ok(fullSize > 260 * 1024, `full picture larger than one channel message (${fullSize})`);
 
         // Bob oeffnet Alices Profil (oeffentlich), tippt auf das Bild.
         await bob.evaluate(id => openProfileModal(id), aliceId);

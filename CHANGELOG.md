@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 355 · 2026-11-19
+## Build 356 · 2026-11-19
+- Behoben: Profilbilder in voller Groesse (und andere grosse Bilder ueber die direkte Verbindung) kamen nicht an
+
+## Build 355 · 2026-11-19 · `7359c47`
 - Behoben: wer OpenGrid auf mehreren Geraeten nutzt, erschien bei Kontakten doppelt; vorhandene Doppel-Eintraege werden zusammengelegt
 
 ## Build 354 · 2026-11-19 · `f4cef9d`

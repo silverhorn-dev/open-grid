@@ -2619,3 +2619,14 @@ Gilt nur fuer Dating (Entdecken), nicht fuer Chat & Freunde.
   20 s auf den direkten Kanal (Wachhund und Pfad-C-Rueckfall warten), danach
   Pfad C wie bisher. Vorab wecken: Chat oeffnen (baut ohnehin P2P auf) sowie
   Tippen, Snap-Kamera und Medien-/GIF-Auswahl (`wakePeerIfReachable`, je 30 s).
+
+## Grosse P2P-Nachrichten in Stuecken (`PAYLOAD_PART`)
+
+- Ein DataChannel nimmt meist nur ~256 KB je Nachricht (`sctp.maxMessageSize`).
+  Ist der Klartext einer sicheren Nachricht groesser als 120 KB (z. B. Profilbild
+  in voller Groesse, Galeriebild, Chat-Nachricht mit Bild), schickt der Sender
+  ihn als `PAYLOAD_PART { id, index, total, data }` in Stuecken zu 64 KB, jedes
+  einzeln verschluesselt, mit Gegendruck auf den Kanal (hoechstens 64 Stuecke).
+- Der Empfaenger sammelt je Absender und `id` (hoechstens 8 offene, 60 s),
+  setzt zusammen und behandelt das Ganze wie eine normale Nachricht
+  (inklusive `isValidSecurePayload`).

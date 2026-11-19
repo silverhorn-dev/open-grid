@@ -168,6 +168,10 @@ const PAYLOAD_VALIDATORS = {
         && (payload.mirrorOf === undefined || isId(payload.mirrorOf)),
     CHAT_OPERATION_ACK: payload => isId(payload.operationId),
     CHAT_FOCUS: payload => typeof payload.open === 'boolean',
+    // Stueck einer grossen P2P-Nachricht (delivery.client.js); das Ganze wird nach dem Zusammensetzen geprueft.
+    PAYLOAD_PART: payload => isId(payload.id) && Number.isInteger(payload.index) && payload.index >= 0
+        && Number.isInteger(payload.total) && payload.total >= 1 && payload.total <= 64 && payload.index < payload.total
+        && typeof payload.data === 'string' && payload.data.length <= 64 * 1024,
     CHAT_TYPING: payload => ['text', 'snap', 'media', 'idle'].includes(payload.kind),
     CHAT_SYNC_HELLO: payload => isIdList(payload.recentOperationIds || [], 20) && optionalGroup(payload),
     CHAT_SYNC_INVENTORY_REQUEST: payload => (payload.cursor === undefined || isSmallInt(payload.cursor)) && optionalGroup(payload),

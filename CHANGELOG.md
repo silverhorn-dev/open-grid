@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 353 · 2026-11-19
+## Build 354 · 2026-11-19
+- Behoben (App): "Kompakte Meldung" und die Benachrichtigungs-Schalter wirken sofort, nicht erst nach einem Neustart
+- Behoben (App): die Kamera zeigt beim Oeffnen kein graues Bild mehr
+
+## Build 353 · 2026-11-19 · `600c647`
 - Android-App 0.3.1: stuerzt die Webansicht ab (z. B. bei Speichermangel), startet sie neu, statt die ganze App zu beenden
 - Im Menue steht in der App jetzt auch die App-Version neben der Web-Version
 

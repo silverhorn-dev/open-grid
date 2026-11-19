@@ -10,6 +10,8 @@ const AVATAR_PLACEHOLDER = 'data:image/svg+xml;utf8,' + encodeURIComponent(
 function localAvatar(avatar) {
     return typeof avatar === 'string' && avatar.startsWith('data:image/') ? avatar : AVATAR_PLACEHOLDER;
 }
+// Leeres Vorschaubild fuer <video>: die Android-WebView zeigt sonst bis zum ersten Bild einen grauen Platzhalter.
+const EMPTY_VIDEO_POSTER = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 const CONFIG = { DEBUG_MODE: loadDebugModePreference(), DEFAULT_GEOHASH: 'u10j2k' };
 
 // Rolle der Seite (documentation/ANDROID-APP.md, "Kern im Hintergrund"): 'full' = alles in einer Seite (Browser,

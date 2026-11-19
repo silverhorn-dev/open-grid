@@ -780,7 +780,7 @@
   - [ ] offline ist die APK buggy, neu laden geht nicht (webapp + APK zeigen offline keine daten)
   - [ ] multi-device: bei chatpartnern erscheint man doppelt
   - [ ] original des profilbilds wird nicht geladen bzw. im viewer nicht gezeigt
-  - [ ] kamera zeigt in der APK ~2 s ein graues bild, bevor das bild kommt
-  - [ ] einstellung "vorschau" im android-benachrichtigungscenter greift nicht sofort
+  - [x] kamera zeigt in der APK ~2 s ein graues bild, bevor das bild kommt (2026-11-19: android-webview zeigt bis zum ersten bild ein graues poster -> leeres `poster` an allen videos)
+  - [x] einstellung "vorschau" im android-benachrichtigungscenter greift nicht sofort (2026-11-19: der kern zeigt die benachrichtigungen und hatte den alten wert im speicher -> liest kompakt + arten bei aenderungen neu; e2e `core-ui`)
   - [x] neben der web-version auch die APK-version anzeigen (2026-11-19, menue: "OpenGrid <version> · App 0.3.1")
 - features (danach, siehe backlog): offline-modus ab N nachrichten (standard 20), spracherkennung fuer sprachnachrichten (lokales modell je sprache), modelle erst bei bedarf laden, aus der benachrichtigung antworten, profil-export/-import, PIN-sperre + biometrie (APK), snap-videos, sticker (nicht speicherbar, favoriten, ohne blase, transparenz, FSK-18, ausschneiden)

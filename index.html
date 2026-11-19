@@ -1335,7 +1335,7 @@
             </button>
         </div>
         <div id="video-viewer-stage" class="relative flex-1 min-h-0 flex items-center justify-center overflow-hidden" style="padding-bottom: env(safe-area-inset-bottom);">
-            <video id="video-viewer-video" class="max-w-full max-h-full object-contain will-change-transform" playsinline controls controlslist="nodownload noremoteplayback" disablepictureinpicture></video>
+            <video id="video-viewer-video" poster="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class="max-w-full max-h-full object-contain will-change-transform" playsinline controls controlslist="nodownload noremoteplayback" disablepictureinpicture></video>
         </div>
     </div>
 
@@ -1368,7 +1368,7 @@
 
     <!-- Secure-Snap-Viewer -->
     <div data-i18n-attr="aria-label:common.secureSnap" id="secure-snap-viewer" data-secure-screen class="hidden fixed inset-0 z-85 bg-black flex items-center justify-center select-none touch-none overscroll-none" style="-webkit-touch-callout: none;" data-no-context-menu role="dialog" aria-modal="true" aria-label="Secure Snap">
-        <video id="secure-snap-video" class="hidden w-full h-full object-contain pointer-events-none origin-center" playsinline muted disablepictureinpicture></video>
+        <video id="secure-snap-video" poster="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class="hidden w-full h-full object-contain pointer-events-none origin-center" playsinline muted disablepictureinpicture></video>
         <canvas data-i18n-attr="aria-label:common.snap" id="secure-snap-image" role="img" aria-label="Snap" class="secure-image hidden w-full h-full object-contain pointer-events-none origin-center"></canvas>
         <div id="secure-snap-status" class="absolute inset-x-8 top-1/2 -translate-y-1/2 text-center text-sm text-slate-200"></div>
         <div id="secure-snap-queue" class="hidden pointer-events-none absolute bottom-6 inset-x-6 text-center text-xs text-white/80" style="bottom: max(1.5rem, env(safe-area-inset-bottom));"></div>
@@ -1388,7 +1388,7 @@
     <div data-i18n-attr="aria-label:settings.takeSnap" id="snap-capture-modal" class="hidden fixed inset-0 z-70 bg-black select-none" role="dialog" aria-modal="true" aria-label="Snap aufnehmen">
         <!-- Live-Kamera: Vollbild, Gesten (snap-camera.js): runter = schliessen, doppelt tippen = Kamera wechseln, zwei Finger = Zoom -->
         <div id="snap-camera-stage" class="absolute inset-0 overflow-hidden touch-none">
-            <video id="snap-video-preview" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover"></video>
+            <video id="snap-video-preview" poster="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover"></video>
             <!-- OpenGrid-QR im Bild erkannt (qr-scan.js) -->
             <button type="button" id="snap-qr-chip" data-click="openSnapQrCode" class="hidden absolute bottom-36 left-1/2 -translate-x-1/2 z-20 px-4 py-2 rounded-full bg-brand-600 text-white text-sm font-semibold shadow-lg flex items-center gap-2"><i class="fa-solid fa-qrcode"></i> <span data-snap-qr-label></span></button>
             <div id="snap-zoom-label" class="hidden absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 px-3 py-1 rounded-full bg-black/60 text-white text-sm font-semibold"></div>

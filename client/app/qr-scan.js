@@ -146,6 +146,7 @@ async function openQrScanner() {
     box.className = 'space-y-3';
     const video = document.createElement('video');
     video.id = 'qr-scan-video';
+    video.poster = EMPTY_VIDEO_POSTER;
     video.className = 'w-full max-h-[60vh] rounded-xl bg-black object-cover';
     video.setAttribute('playsinline', '');
     video.muted = true;

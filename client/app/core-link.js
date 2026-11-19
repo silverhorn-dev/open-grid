@@ -398,7 +398,9 @@ async function applyCoreReload() {
     try {
         if (pending.own && typeof loadMyLocalProfile === 'function') await loadMyLocalProfile();
         if (pending.keys) {
-            for (const loader of ['loadChatScopes', 'loadFriendState', 'loadGroups', 'loadGroupCards', 'loadDevices', 'loadContactDevices', 'loadChatReads', 'loadMatchState', 'loadInteractions']) {
+            // Benachrichtigungs-Einstellungen (Kompakt, Arten) frisch lesen: die Oberflaeche kann sie geaendert haben.
+            state.compactNotifications = null;
+            for (const loader of ['loadNotificationSettings', 'loadChatScopes', 'loadFriendState', 'loadGroups', 'loadGroupCards', 'loadDevices', 'loadContactDevices', 'loadChatReads', 'loadMatchState', 'loadInteractions']) {
                 if (typeof window[loader] === 'function') await window[loader]().catch(error => logDebug(`${loader} failed: ${error.message}`));
             }
         }
@@ -437,6 +439,7 @@ function coreForwardToUi(peerId, payload, deliveredVia) {
 function relayCoreSnapStream(stream) {
     if (APP_ROLE !== 'core' || !coreUiConnected() || !stream) return false;
     const video = document.createElement('video');
+    video.poster = EMPTY_VIDEO_POSTER;
     video.muted = true;
     video.playsInline = true;
     video.srcObject = stream;

@@ -106,6 +106,11 @@ async function main() {
         await bob.evaluate(async id => { await openChatWithPeer(id); document.getElementById('chat-input').value = 'gruppe zurueck'; await sendChatMessage(); }, groupId);
         await waitFor(ui, id => (state.chats[id] || []).some(message => message.text === 'gruppe zurueck'), groupId, 30000);
 
+        // Einstellung "Kompakte Meldung" in der Oberflaeche: der Kern (zeigt die Benachrichtigungen) liest sie neu.
+        assert.equal(await core.evaluate(() => nativeCompactNotifications()), true);
+        await ui.evaluate(() => setCompactPushNotifications(false));
+        await waitFor(core, () => nativeCompactNotifications().then(compact => compact === false), null, 10000);
+
         // Sperren in der Oberflaeche: der Kern zieht nach und trennt den direkten Kanal.
         await ui.evaluate(id => storeChatControl(id, 'BLOCK'), bobId);
         await waitFor(core, id => isPeerBlocked(id) && !isSecureChannelOpen(id), bobId, 20000);

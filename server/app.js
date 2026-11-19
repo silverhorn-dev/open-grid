@@ -43,6 +43,8 @@ import {
 } from './security.js';
 import { applyAudienceMinimum, parseAudienceMinimum } from './audience.js';
 import { MAX_THRESHOLD, MIN_THRESHOLD, nudityPublicConfig as describeNudityModels, parseNudityConfig, parseNudityThreshold, registerNudityModelRoutes } from './nudity-model.js';
+import { findVerifyModels, loadBadgeKey, parseVerifySettings, registerVerifyRoutes } from './verify.js';
+import { loadFaceModels } from './face-verify.js';
 
 const MAX_GRID_RESULTS = 100;
 // Quoten fuer den Pfad-C-Zwischenspeicher, damit niemand die Queue eines Empfaengers flutet.
@@ -1114,6 +1116,25 @@ export async function buildApp(options = {}) {
     registerGifRoutes(app, { gifs: store.gifs, settings: () => gifSettings, allowRequest, requirePeerAuth, isString, now, log: app.log });
     registerGifProxyRoutes(app, { settings: () => gifSettings, allowRequest, requirePeerAuth, isString, now, log: app.log, lookup: options.gifProxyLookup, fetch: options.gifProxyFetch });
 
+    // Profilbild-Verifizierung (server/verify.js, Board T37): aus per Standard; Modelle bei Bedarf laden.
+    const verifySettings = options.verifySettings || parseVerifySettings();
+    const verifyModelPaths = options.verifyModels ? null : findVerifyModels([options.verifyModelDir, process.env.VERIFY_MODEL_DIR,
+        join(projectDirectory, 'data', 'verify-models'), join(projectDirectory, 'models', 'verify')]);
+    let verifyModelsPromise = null;
+    const getVerifyModels = () => {
+        if (options.verifyModels) return Promise.resolve(options.verifyModels);
+        verifyModelsPromise = verifyModelsPromise || loadFaceModels(verifyModelPaths).catch(error => {
+            verifyModelsPromise = null;
+            throw error;
+        });
+        return verifyModelsPromise;
+    };
+    getVerifyModels.available = () => Boolean(options.verifyModels || verifyModelPaths);
+    const verify = registerVerifyRoutes(app, {
+        store, settings: () => verifySettings, requirePeerAuth, allowRequest, isString, now, log: app.log,
+        getModels: getVerifyModels, badgeKey: loadBadgeKey(store)
+    });
+
     // Meldungen aus der App (server/reports.js), bearbeitet im Admin-Panel.
     registerReportRoutes(app, {
         store, allowRequest, requirePeerAuth, isString, log: app.log,
@@ -1329,7 +1350,7 @@ export async function buildApp(options = {}) {
         return { status: 'moved', peerId, movedTo: verified.movedTo };
     });
 
-    app.get('/api/config', async () => ({ features: [...enabledFeatures()], android: { ...(await apkSource.publicInfo()), signers: effectiveAppSigners(androidAppSigners) }, flames: { ...flameSettings }, gifs: { sources: [...gifSettings.sources], review: gifSettings.review, proxy: gifSettings.proxy && gifSettings.sources.some(kind => kind !== 'provider'), ...(gifSettings.sources.includes('provider') ? { provider: { ...gifSettings.provider } } : {}) }, modes: appModes, defaultMode: defaultAppMode, profileSchemas, lanMode: isLanMode, clientDefaults, infoUrl: infoSiteUrl(infoHost), safety: safety.publicConfig(), nudity: { ...nudityPublicConfig, required: nudityScanRequired },
+    app.get('/api/config', async () => ({ verify: verify.publicConfig(), features: [...enabledFeatures()], android: { ...(await apkSource.publicInfo()), signers: effectiveAppSigners(androidAppSigners) }, flames: { ...flameSettings }, gifs: { sources: [...gifSettings.sources], review: gifSettings.review, proxy: gifSettings.proxy && gifSettings.sources.some(kind => kind !== 'provider'), ...(gifSettings.sources.includes('provider') ? { provider: { ...gifSettings.provider } } : {}) }, modes: appModes, defaultMode: defaultAppMode, profileSchemas, lanMode: isLanMode, clientDefaults, infoUrl: infoSiteUrl(infoHost), safety: safety.publicConfig(), nudity: { ...nudityPublicConfig, required: nudityScanRequired },
         // Fuer die Anzeige in den Einstellungen ("vom Server vorgegeben").
         audienceMinimum: audienceMinimumRule ? (typeof audienceMinimumRule === 'string' ? JSON.parse(audienceMinimumRule) : audienceMinimumRule) : null }));
 
@@ -1352,6 +1373,8 @@ export async function buildApp(options = {}) {
     };
     const toGridPeer = (origin) => ({ peer, km }) => ({
         id: peer.peerId,
+        // Profilbild verifiziert (verify.js): die Karte zeigt den Haken; das Profil traegt den signierten Nachweis.
+        ...(verifySettings.enabled && store.isPeerVerified(peer.peerId, now()) ? { verified: true } : {}),
         avatar: peer.thumbnail,
         name: peer.name,
         version: peer.profileVersion ?? null,

@@ -2630,3 +2630,28 @@ Gilt nur fuer Dating (Entdecken), nicht fuer Chat & Freunde.
 - Der Empfaenger sammelt je Absender und `id` (hoechstens 8 offene, 60 s),
   setzt zusammen und behandelt das Ganze wie eine normale Nachricht
   (inklusive `isValidSecurePayload`).
+
+## Profilbild-Verifizierung (`server/verify.js`, Board T37)
+
+Nur Dating, aus per Standard (`VERIFY=on`). Plan und Phasen: `documentation/VERIFIZIERUNG.md`.
+
+- `GET /api/config` -> `verify: { enabled, key: { x, y }, steps, days }`; `key` ist der oeffentliche
+  P-256-Schluessel des Routers fuer Haken (eigener Schluessel, `server_settings` `verify-badge-key`).
+- `POST /api/verify/start { peerId }` (Bearer) -> `{ sessionId, steps, expiresAt }`; `steps` ist eine
+  zufaellige Reihenfolge aus `straight`, `left`, `right`; 2 Minuten gueltig, je Peer 5 Versuche in 24 h (429),
+  Rate-Limit `verify` 10/min. Aus oder ohne Modelle: 404.
+- `POST /api/verify/finish { peerId, sessionId, frames, profileImage, avatarSha256 }` (Bearer, bis 8 MB):
+  `frames` = je Schritt ein JPEG als Data-URL (in Reihenfolge von `steps`), `profileImage` = das Profilbild in
+  voller Groesse als JPEG-Data-URL, `avatarSha256` = SHA-256 (base64) ueber genau diesen String (wie
+  `avatarFull.sha256`). Die Sitzung gilt fuer einen Versuch.
+  - Pruefung (nur im Arbeitsspeicher): je Bild genau ein Gesicht (YuNet, Mindestseite 60 px); Kopfhaltung
+    `(Nase.x - Augenmitte.x) / Augenabstand`: `straight` |w| <= 0,12, `left` >= 0,22, `right` <= -0,22
+    (Bild nicht gespiegelt); SFace-Kosinus zwischen den Schritten >= 0,3 und Frontalbild vs. Profilbild
+    >= `VERIFY_THRESHOLD`.
+  - Antwort abgelehnt: `{ ok: false, reason, step? }`, `reason` aus `profile-hash`, `profile-image`,
+    `profile-face`, `frame`, `no-face`, `many-faces`, `too-far`, `pose`, `not-same-person`, `mismatch`;
+    abgelaufen 410 `expired`, Modelle nicht ladbar 503 `unavailable`.
+  - Antwort ok: `{ ok: true, badge: { subject, avatarSha256, issuedAt, expiresAt }, sig }`. `sig` = ECDSA P-256
+    SHA-256 ueber das kanonische JSON von `badge` (wie `signOperation`, roh r||s, base64); pruefbar mit
+    `verifyOperationSignature({ ...badge, sig }, key)`.
+- Gespeichert wird nur `verified_peers (peer_id, expires_at)`; `/api/grid` setzt dann `verified: true` an der Karte.

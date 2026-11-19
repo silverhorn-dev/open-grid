@@ -41,6 +41,8 @@ export const DEFAULT_RATE_LIMITS = {
     gifs: { windowMs: 60_000, max: 60 },
     // GIF-Proxy (gif-proxy.js, nur wenn an): je Peer.
     gifProxy: { windowMs: 60_000, max: 120 },
+    // Profilbild-Verifizierung (verify.js): wenige, schwere Anfragen.
+    verify: { windowMs: 60_000, max: 10 },
     websocket: { windowMs: 10_000, max: 300 }
 };
 

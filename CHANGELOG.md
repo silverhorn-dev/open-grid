@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 357 · 2026-11-19
+## Build 359 · 2026-11-19
+- Profilbild-Verifizierung fuer Dating, Teil 1 (Router): mit `VERIFY=on` prueft der Router Live-Selfies (geradeaus, Kopf links/rechts) gegen das Profilbild und stellt einen signierten Haken aus; Bilder werden nur im Arbeitsspeicher geprueft und sofort verworfen. Die App-Seite folgt
+
+## Build 357 · 2026-11-19 · `cac07c8`
 - Behoben: bei schlechtem Netz blieb der Start haengen, bis die Router-Konfiguration kam; jetzt nach 5 s mit der zuletzt bekannten weiter
 - Android-App 0.3.2: ist der Router nicht erreichbar, erscheint statt einer Fehlerseite "Erneut versuchen"; kommt das Netz wieder, laedt die App selbst neu
 

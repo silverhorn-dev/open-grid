@@ -98,6 +98,12 @@ export function createStore(databasePath, { credentialRetentionDays = DEFAULT_CR
             expires_at INTEGER NOT NULL
         );
 
+        -- Profilbild-Verifizierung (server/verify.js): nur "verifiziert bis", keine Bilder, keine Merkmale.
+        CREATE TABLE IF NOT EXISTS verified_peers (
+            peer_id TEXT PRIMARY KEY,
+            expires_at INTEGER NOT NULL
+        );
+
         CREATE TABLE IF NOT EXISTS server_settings (
             key TEXT PRIMARY KEY,
             value TEXT NOT NULL
@@ -531,6 +537,13 @@ export function createStore(databasePath, { credentialRetentionDays = DEFAULT_CR
             return Number(statements.setPeerSilent.run(silent ? 1 : 0, peerId).changes) > 0;
         },
 
+        setPeerVerified(peerId, expiresAt) {
+            database.prepare('INSERT INTO verified_peers (peer_id, expires_at) VALUES (?, ?) ON CONFLICT(peer_id) DO UPDATE SET expires_at = excluded.expires_at')
+                .run(peerId, expiresAt);
+        },
+        isPeerVerified(peerId, now = Date.now()) {
+            return (database.prepare('SELECT expires_at AS expiresAt FROM verified_peers WHERE peer_id = ?').get(peerId)?.expiresAt || 0) > now;
+        },
         getPeerGeohash(peerId) {
             return statements.findPeer.get(peerId)?.geohash || null;
         },

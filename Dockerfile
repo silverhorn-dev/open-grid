@@ -20,6 +20,16 @@ RUN apk add --no-cache unzip \
     && cp nudenet/320n.onnx nudenet-3.4.2.dist-info/LICENSE /out/nudenet/ \
     && rm -rf /tmp/n
 
+# Profilbild-Verifizierung (server/verify.js, documentation/VERIFIZIERUNG.md): YuNet (MIT) und SFace (Apache-2.0)
+# aus dem OpenCV Zoo, feste Pruefsummen. Benutzt nur mit VERIFY=on.
+FROM alpine:3.20 AS verify-models
+RUN mkdir -p /out/verify && cd /out/verify \
+    && wget -q -O face_detection_yunet_2023mar.onnx https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx \
+    && wget -q -O face_recognition_sface_2021dec.onnx https://github.com/opencv/opencv_zoo/raw/main/models/face_recognition_sface/face_recognition_sface_2021dec.onnx \
+    && printf '%s  %s\n%s  %s\n' \
+        8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4 face_detection_yunet_2023mar.onnx \
+        0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79 face_recognition_sface_2021dec.onnx | sha256sum -c -
+
 FROM node:22-bookworm-slim
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
@@ -40,6 +50,7 @@ COPY --chown=opengrid:opengrid info-site ./info-site
 # Optionale Erkennungsmodelle (models/README.md): Bumble aus dem Repository, NudeNet aus der Stufe oben.
 COPY --chown=opengrid:opengrid models ./models
 COPY --from=nudenet --chown=opengrid:opengrid /out/nudenet ./models/nudenet
+COPY --from=verify-models --chown=opengrid:opengrid /out/verify ./models/verify
 # TURN-Pruefung im laufenden Container: `docker compose exec open-grid node scripts/turn-check.mjs`
 COPY --chown=opengrid:opengrid scripts/turn-check.mjs scripts/safety-admin.mjs ./scripts/
 USER opengrid

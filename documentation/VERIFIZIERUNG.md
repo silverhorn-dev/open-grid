@@ -21,13 +21,16 @@ Pruefen live vor der Kamera.
 |---|---|---|---|
 | Gesicht finden + 5 Punkte (Augen, Nase, Mundwinkel) | YuNet (OpenCV Zoo, `face_detection_yunet_2023mar.onnx`) | MIT | ca. 230 KB |
 | Gesichtsvergleich (Merkmalsvektor, Kosinus) | SFace (OpenCV Zoo, `face_recognition_sface_2021dec.onnx`) | Apache-2.0 | ca. 37 MB |
-| Laufzeit | onnxruntime-node | MIT | nativ, optional |
+| Laufzeit | onnxruntime-web (WASM, schon fuer NudeNet im Projekt) + jpeg-js | MIT | - |
 
 - Nicht genommen: InsightFace (ArcFace, SCRFD, buffalo): Code MIT, die
   vortrainierten Modelle aber nur fuer nicht-kommerzielle Forschung.
-- Wie beim Nacktbild-Modell: nicht im Image, sondern vom Betreiber geholt
-  (`scripts/verify-models/fetch.sh`, Volume `data/verify-models`); ohne Modelle
-  oder ohne Laufzeit ist die Funktion aus.
+- Wie NudeNet laedt das Docker-Image beide Modelle beim Bauen mit fester
+  Pruefsumme nach `models/verify` (zusammen ca. 39 MB); eigener Ordner per
+  `VERIFY_MODEL_DIR`. Benutzt nur mit `VERIFY=on`.
+- Gemessen 2026-11-19 (NASA-Portraits, gemeinfrei): dieselbe Person auf zwei
+  Fotos Kosinus 0,87, verschiedene Personen 0,11-0,17; Erkennung ca. 90 ms je
+  Bild (WASM, 640x640).
 
 ## Ablauf
 
@@ -51,7 +54,7 @@ Pruefen live vor der Kamera.
    - danach Bilder und Merkmale verwerfen, nichts protokollieren ausser
      "ok/abgelehnt" (ohne Bilddaten).
 6. Ergebnis: signierter Haken des Routers
-   `{ peerId, avatarSha256, issuedAt, expiresAt (90 Tage) }` (ECDSA P-256,
+   `{ subject, avatarSha256, issuedAt, expiresAt (90 Tage) }` (ECDSA P-256,
    eigener Router-Schluessel, oeffentlicher Teil in `/api/config`). Der Router
    merkt sich nur `peerId -> gueltig bis` (fuer das Grid).
 7. Der Haken reist im Dating-Profil mit (`verified`). Empfaenger pruefen
@@ -69,7 +72,7 @@ Pruefen live vor der Kamera.
 
 | Phase | Inhalt |
 |---|---|
-| V1 | Router: Modul `verify` (aus per Standard, `VERIFY=on` + Modelle), Modelle laden (onnxruntime-node, optional), Sitzungen, Pruefung, Router-Schluessel, signierter Haken, Grenzen; Tests mit ersetzter Modell-Schicht |
+| V1 (fertig) | Router: Modul `verify` (aus per Standard, `VERIFY=on` + Modelle), Modelle laden (onnxruntime-web), Sitzungen, Pruefung, Router-Schluessel, signierter Haken, Grenzen; Tests mit ersetzter Modell-Schicht |
 | V2 | Client: Ablauf mit Frontkamera und Schritten, Zustimmung, Upload, Ergebnis; Haken im eigenen Profil speichern und mitschicken |
 | V3 | Haken pruefen und zeigen (Profil, Grid-Karte, Chat-Kopf), Grid-Filter |
 | V4 | Regel "nur Verifizierte duerfen mir schreiben" |

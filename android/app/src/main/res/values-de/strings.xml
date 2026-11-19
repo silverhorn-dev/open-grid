@@ -17,4 +17,6 @@
     <string name="background_title">OpenGrid ist erreichbar</string>
     <string name="background_text">Nachrichten wecken die App. Tippen zum Öffnen.</string>
     <string name="background_stop">Ausschalten</string>
+    <string name="offline_text">OpenGrid erreicht deinen Router gerade nicht. Prüfe deine Verbindung.</string>
+    <string name="offline_retry">Erneut versuchen</string>
 </resources>

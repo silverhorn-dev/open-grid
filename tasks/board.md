@@ -778,6 +778,7 @@
   - [ ] sprachnachrichten lassen die APK abstuerzen
     - 2026-11-19 (app 0.3.1): renderer-absturz/-ende reisst nicht mehr die ganze app mit (`onRenderProcessGone` in oberflaeche + kern, neustart); letzter ausfall im debug-log (`CrashLog`); eigentliche ursache offen -> logcat vom nutzer
   - [ ] offline ist die APK buggy, neu laden geht nicht (webapp + APK zeigen offline keine daten)
+    - 2026-11-19: browser offline neu laden ok (chats nach 0,5 s); robuster gemacht: router-konfig beim start mit zeitlimit (5 s) + gespeicherte konfig bei ungueltiger antwort; APK 0.3.2: statt der webview-fehlerseite eigene ansicht "erneut versuchen", laedt bei netz selbst neu. offen: was genau der nutzer offline sieht (leer? anmeldeseite? fehlerseite?)
   - [x] multi-device: bei chatpartnern erscheint man doppelt (2026-11-19: liste wurde nur vom unterzeichnenden geraet angenommen, nicht weitergereicht -> jedes geraet darf weiterreichen; doppel-chats werden zusammengelegt, auch vom SW angelegte; e2e `devices-merge`)
   - [x] original des profilbilds wird nicht geladen bzw. im viewer nicht gezeigt (2026-11-19: grosse fassung > eine DataChannel-nachricht, versand scheiterte still -> grosse P2P-nachrichten in stuecken, `PAYLOAD_PART`; e2e `profile-picture` mit realistischem bild)
   - [x] kamera zeigt in der APK ~2 s ein graues bild, bevor das bild kommt (2026-11-19: android-webview zeigt bis zum ersten bild ein graues poster -> leeres `poster` an allen videos)

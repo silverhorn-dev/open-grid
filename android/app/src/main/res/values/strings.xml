@@ -19,4 +19,6 @@
     <string name="background_title">OpenGrid is reachable</string>
     <string name="background_text">Messages wake the app. Tap to open.</string>
     <string name="background_stop">Turn off</string>
+    <string name="offline_text">OpenGrid can\'t reach your router right now. Check your connection.</string>
+    <string name="offline_retry">Try again</string>
 </resources>

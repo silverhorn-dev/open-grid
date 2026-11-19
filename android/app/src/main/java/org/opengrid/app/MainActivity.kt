@@ -18,6 +18,9 @@ import android.webkit.CookieManager
 import android.webkit.GeolocationPermissions
 import android.webkit.PermissionRequest
 import android.webkit.RenderProcessGoneDetail
+import android.webkit.WebResourceError
+import android.net.ConnectivityManager
+import android.net.Network
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -246,6 +249,12 @@ class MainActivity : ComponentActivity(), Bridge.Handler {
                 return true
             }
 
+            // Seite selbst nicht ladbar (offline, Router weg, ohne Offline-Kopie): statt der Fehlerseite der WebView
+            // (ohne Neuladen) eine eigene Ansicht mit "Erneut versuchen"; kommt das Netz wieder, laedt sie selbst.
+            override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+                if (request.isForMainFrame && view == webView) showOffline(routerOrigin)
+            }
+
             // Renderer abgestuerzt oder vom System beendet (Speicher): alle WebViews der App teilen ihn. Nicht die
             // ganze App mitreissen, sondern die Oberflaeche neu aufbauen (der Kern startet sich selbst neu).
             override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
@@ -315,6 +324,49 @@ class MainActivity : ComponentActivity(), Bridge.Handler {
         webView = null
         if (!isChangingConfigurations) CoreHost.setUiAttached(this, false, origin)
         super.onDestroy()
+    }
+
+    private var offlineCallback: ConnectivityManager.NetworkCallback? = null
+
+    private fun showOffline(routerOrigin: String) {
+        val padding = (24 * resources.displayMetrics.density).toInt()
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(padding, padding, padding, padding)
+        }
+        val text = TextView(this).apply {
+            setText(R.string.offline_text)
+            gravity = Gravity.CENTER
+            setPadding(0, 0, 0, padding / 2)
+        }
+        val retry = Button(this).apply { setText(R.string.offline_retry) }
+        retry.setOnClickListener { leaveOffline(routerOrigin) }
+        layout.addView(text)
+        layout.addView(retry)
+        (webView?.parent as? ViewGroup)?.removeView(webView)
+        setContentView(layout)
+        // Netz wieder da: selbst neu laden.
+        val manager = getSystemService(ConnectivityManager::class.java) ?: return
+        if (offlineCallback != null) return
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                runOnUiThread { leaveOffline(routerOrigin) }
+            }
+        }
+        try {
+            manager.registerDefaultNetworkCallback(callback)
+            offlineCallback = callback
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun leaveOffline(routerOrigin: String) {
+        offlineCallback?.let { getSystemService(ConnectivityManager::class.java)?.unregisterNetworkCallback(it) }
+        offlineCallback = null
+        val view = webView ?: return recreateWebApp(routerOrigin)
+        if (view.parent == null) setContentView(view)
+        view.loadUrl(routerOrigin)
     }
 
     private fun recreateWebApp(routerOrigin: String) {

@@ -18,6 +18,7 @@ const MODE_SCOPE_MODES = { discovery: ['discovery', 'event'], social: ['chat', '
 const MODE_SCOPES = ['discovery', 'social', 'all'];
 const APP_MODE_RECORD_ID = 'app-mode';
 const APP_CONFIG_RECORD_ID = 'app-config';
+const APP_CONFIG_TIMEOUT_MS = 5000;
 const EVENT_DURATION_MS = 12 * 60 * 60 * 1000;
 const INVITE_FINGERPRINT_LENGTH = 32;
 
@@ -25,13 +26,15 @@ const INVITE_FINGERPRINT_LENGTH = 32;
 async function loadAppMode() {
     let config = null;
     try {
-        const response = await fetch(`${API_BASE}/api/config`, { cache: 'no-store' });
+        // Mit Zeitlimit: bei schlechtem Netz (Verbindung da, aber keine Antwort) haengt sonst der ganze Start.
+        const response = await fetch(`${API_BASE}/api/config`, { cache: 'no-store', signal: AbortSignal.timeout(APP_CONFIG_TIMEOUT_MS) });
         if (response.ok) config = await response.json();
         if (config) await putDatabaseRecord('keys', { id: APP_CONFIG_RECORD_ID, ...config });
     } catch {
-        // Offline: zuletzt bekannte Konfiguration.
-        config = await databaseRequest('keys', 'readonly', store => store.get(APP_CONFIG_RECORD_ID)).catch(() => null);
+        config = null;
     }
+    // Offline, Zeitlimit oder keine gueltige Antwort (z. B. Anmeldeseite davor): zuletzt bekannte Konfiguration.
+    if (!config) config = await databaseRequest('keys', 'readonly', store => store.get(APP_CONFIG_RECORD_ID)).catch(() => null);
     const modes = (config?.modes || []).filter(mode => APP_MODE_INFO[mode]);
     state.appConfig = {
         // Vom Betreiber erlaubt; `modes` ist davon der Teil im gewaehlten Bereich (applyModeScope).

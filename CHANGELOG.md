@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 356 · 2026-11-19
+## Build 357 · 2026-11-19
+- Behoben: bei schlechtem Netz blieb der Start haengen, bis die Router-Konfiguration kam; jetzt nach 5 s mit der zuletzt bekannten weiter
+- Android-App 0.3.2: ist der Router nicht erreichbar, erscheint statt einer Fehlerseite "Erneut versuchen"; kommt das Netz wieder, laedt die App selbst neu
+
+## Build 356 · 2026-11-19 · `be41fef`
 - Behoben: Profilbilder in voller Groesse (und andere grosse Bilder ueber die direkte Verbindung) kamen nicht an
 
 ## Build 355 · 2026-11-19 · `7359c47`

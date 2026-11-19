@@ -343,6 +343,17 @@ async function loadChatPeerIds() {
 
             .map(control => control.peerId)
     ].filter(Boolean)));
+    // Weiteres Geraet eines Kontakts mit eigenem Eintrag (z. B. vom Service Worker unter der Geraete-ID abgelegt):
+    // nicht doppelt zeigen, sondern in den Chat der Person legen (devices.js).
+    if (typeof contactIdentityOf === 'function') {
+        const strays = state.chatPeerIds.filter(id => contactIdentityOf(id) && contactIdentityOf(id) !== id);
+        if (strays.length) {
+            state.chatPeerIds = state.chatPeerIds.filter(id => !strays.includes(id));
+            const identities = [...new Set(strays.map(contactIdentityOf))];
+            setTimeout(() => identities.forEach(identity => mergeContactDeviceChats(identity, contactDeviceNodes(identity))
+                .catch(logBackgroundError('mergeContactDeviceChats'))), 0);
+        }
+    }
     if (typeof recountAllUnread === 'function') recountAllUnread(activeMessages);
     renderActivePeerList();
 }

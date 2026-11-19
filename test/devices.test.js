@@ -77,6 +77,10 @@ test('contacts: first device list anchored in the pinned identity key, updates o
     const forged = { ...list, version: 3, updatedBy: 'alice-pc', devices: list.devices.map(device => ({ ...device, canAdd: true })) };
     assert.equal(context.judgeContactDeviceList(forged, list, { senderId: 'alice-pc', pinnedRootKey: root }), null, 'pc cannot rewrite the list');
     assert.equal(context.judgeContactDeviceList({ ...list, version: 3 }, list, { senderId: 'alice', pinnedRootKey: root }), 'accept');
+    // Der PC reicht die vom Handy unterschriebene Liste weiter (Handy offline): gilt, auch als erste Liste.
+    assert.equal(context.judgeContactDeviceList(list, null, { senderId: 'alice-pc', pinnedRootKey: root }), 'accept', 'relayed by another device');
+    assert.equal(context.judgeContactDeviceList({ ...list, version: 3 }, list, { senderId: 'alice-pc', pinnedRootKey: root }), 'accept', 'relayed update signed by the root');
+    assert.equal(context.judgeContactDeviceList(list, null, { senderId: 'mallory', pinnedRootKey: root }), null, 'sender must be in the list');
     context.state.contactDevices = { alice: { list } };
     assert.equal(context.identityOf('alice-pc'), 'alice');
     assert.equal(context.identityOf('bob'), 'bob');

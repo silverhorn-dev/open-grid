@@ -1258,6 +1258,14 @@ Chats werden als idempotente Operationen synchronisiert:
   alle ihre Geraete (`sendToContactDevices`, `deviceFanout`); Eingehendes von
   Geraet D gehoert zum Chat der Identitaet (`identityOf`), ebenso Abgleich,
   Sperren (`isPeerBlocked`) und Darstellung (`getPeerPresentation`).
+  Jedes Geraet der Person darf die Liste weiterreichen (z. B. der PC bei
+  offlinem Handy): geprueft wird die Signatur des unterzeichnenden Geraets
+  (`updatedBy`), der Absender muss in der Liste stehen und ein schon gepinnter
+  Absender-Schluessel zur Liste passen. Beim Annehmen werden Chats, die schon
+  unter der ID eines weiteren Geraets entstanden sind (vor der Liste, oder vom
+  Service Worker unter der Geraete-ID abgelegt), in den Chat der Identitaet
+  gelegt (`mergeContactDeviceChats`); die Chatliste zeigt Geraete-IDs bekannter
+  Kontakte nie als eigenen Eintrag.
 - Grid und Verwalten (T36 P4d): kommt ein Geraet in den Vordergrund, meldet es
   `DEVICE_ACTIVE { at }` an die anderen eigenen Geraete (hoechstens alle 30 s).
   Ein Geraet, das nicht das zuletzt aktive ist (`deviceHiddenFromGrid`), meldet

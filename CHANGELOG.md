@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 354 · 2026-11-19
+## Build 355 · 2026-11-19
+- Behoben: wer OpenGrid auf mehreren Geraeten nutzt, erschien bei Kontakten doppelt; vorhandene Doppel-Eintraege werden zusammengelegt
+
+## Build 354 · 2026-11-19 · `f4cef9d`
 - Behoben (App): "Kompakte Meldung" und die Benachrichtigungs-Schalter wirken sofort, nicht erst nach einem Neustart
 - Behoben (App): die Kamera zeigt beim Oeffnen kein graues Bild mehr
 

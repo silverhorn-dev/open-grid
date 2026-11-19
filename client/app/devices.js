@@ -404,12 +404,14 @@ function contactDeviceNodes(identityId) {
 }
 
 // Liste eines Kontakts bewerten: 'accept' oder null (rein, testbar).
+// Jedes Geraet der Person darf die Liste weitergeben (z. B. der PC, waehrend das Handy offline ist): entscheidend ist,
+// wer sie unterschrieben hat (`updatedBy`), nicht wer sie schickt. Der Absender muss selbst darin stehen.
 function judgeContactDeviceList(next, current, { senderId, pinnedRootKey }) {
-    if (!isValidDeviceList(next) || next.updatedBy !== senderId) return null;
+    if (!isValidDeviceList(next)) return null;
     if (!next.devices.some(device => device.nodeId === senderId)) return null;
     if (current) {
         if (next.identityId !== current.identityId || next.version <= current.version) return null;
-        return current.devices.find(device => device.nodeId === senderId)?.canAdd ? 'accept' : null;
+        return current.devices.find(device => device.nodeId === next.updatedBy)?.canAdd ? 'accept' : null;
     }
     const root = next.devices.find(device => device.nodeId === next.identityId);
     if (!pinnedRootKey || !root || root.key.x !== pinnedRootKey.x || root.key.y !== pinnedRootKey.y) return null;
@@ -426,8 +428,12 @@ async function handleContactDeviceList(peerId, payload) {
         logDebug(`Ignored a contact device list from ${peerId}.`);
         return false;
     }
-    const signer = list.devices.find(device => device.nodeId === peerId);
+    // Signatur des unterzeichnenden Geraets; ein schon bekannter Schluessel des Absenders muss zur Liste passen.
+    const signer = list.devices.find(device => device.nodeId === list.updatedBy);
     if (!await verifyOperationSignature({ ...deviceListSignable(list), sig: payload.sig }, { kty: 'EC', crv: 'P-256', x: signer.key.x, y: signer.key.y })) return false;
+    const senderKey = (await getPeerIdentity(peerId).catch(() => null))?.profileSigningKey;
+    const listedSender = list.devices.find(device => device.nodeId === peerId);
+    if (senderKey && (senderKey.x !== listedSender.key.x || senderKey.y !== listedSender.key.y)) return false;
     const signable = deviceListSignable(list);
     const previousNodes = current ? current.devices.map(device => device.nodeId) : [list.identityId];
     state.contactDevices = { ...(state.contactDevices || {}), [list.identityId]: { list: signable, sig: payload.sig } };
@@ -447,7 +453,34 @@ async function handleContactDeviceList(peerId, payload) {
         for (const keyPayload of pending) await handleGroupSenderKey(node, keyPayload).catch(() => {});
     }
     if (newNodes.length && typeof shareSenderKeysWithDevices === 'function') await shareSenderKeysWithDevices(list.identityId, newNodes).catch(() => {});
+    // Schon entstandene Doppel-Chats (ein weiteres Geraet kam vor der Liste) in den Chat der Person legen.
+    await mergeContactDeviceChats(list.identityId, signable.devices.map(device => device.nodeId)).catch(logBackgroundError('mergeContactDeviceChats'));
     if (typeof renderActivePeerList === 'function') renderActivePeerList();
+    return true;
+}
+
+// Nachrichten und Operationen eines weiteren Geraets wandern in den Chat der Identitaet (gleiche IDs, nur `peerId`
+// neu); dessen eigener Eintrag in der Chatliste verschwindet. Absender bleibt das Geraet (zeigt aber die Person).
+async function mergeContactDeviceChats(identityId, nodes) {
+    let merged = false;
+    for (const nodeId of nodes.filter(node => node !== identityId)) {
+        const [messages, operations] = await Promise.all([
+            getDatabaseRecordsByIndex('messages', 'peerId', nodeId).catch(() => []),
+            getChatOperations(nodeId).catch(() => [])
+        ]);
+        if (!messages.length && !operations.length && !state.chatPeerIds?.includes(nodeId)) continue;
+        for (const message of messages) await putDatabaseRecord('messages', { ...message, peerId: identityId });
+        for (const operation of operations) await putDatabaseRecord('chatOperations', { ...operation, peerId: identityId });
+        if (state.chatScopes?.[nodeId] && !state.chatScopes[identityId] && typeof setChatScope === 'function') await setChatScope(identityId, state.chatScopes[nodeId]);
+        delete state.chats[nodeId];
+        if (state.activeChatPeerId === nodeId) state.activeChatPeerId = identityId;
+        merged = true;
+    }
+    if (!merged) return false;
+    if (state.chats[identityId] && typeof loadChatHistory === 'function') await loadChatHistory(identityId);
+    if (typeof loadChatPeerIds === 'function') await loadChatPeerIds();
+    state.chatPeerIds = (state.chatPeerIds || []).filter(id => !nodes.includes(id) || id === identityId);
+    if (state.activeChatPeerId === identityId && typeof renderChatHistory === 'function') renderChatHistory();
     return true;
 }
 

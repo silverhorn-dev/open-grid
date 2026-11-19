@@ -772,3 +772,14 @@
 - [x] nutzer 2026-11-11: invite-code einfuegen, QR scannen in der einladen-karte, OpenGrid-QRs in der snap-kamera aufloesen -> `qr-scan.js` (BarcodeDetector, sonst jsQR vom router), einladung/umzug/router-link/fremder router; tests `test/qr-scan.test.js`, e2e `qr-invite`; UC-84
 - [x] bug (nutzer 2026-11-11): beim snappen keine bilder aus der galerie -> im browser ok (e2e jetzt ueber den echten galerie-knopf); in der app kam die mehrfachauswahl (ClipData) nicht an -> `pickedUris`, app 0.2.1
 - [x] nutzer 2026-11-12: testergebnisse in der jenkins-pipe wie bei femm -> JUnit fuer unit (`Dockerfile.test`, `unit.exit`) und E2E je variante (`scripts/e2e-runner.cjs`, `E2E_RESULTS_DIR`), `junit` im Jenkinsfile; E2E laeuft nach roten tests weiter
+
+## T38 Testrunde App 0.3.0 (nutzer 2026-11-19, aus tasks/backlog.md "bug and features requests")
+- bugs (zuerst):
+  - [ ] sprachnachrichten lassen die APK abstuerzen
+  - [ ] offline ist die APK buggy, neu laden geht nicht (webapp + APK zeigen offline keine daten)
+  - [ ] multi-device: bei chatpartnern erscheint man doppelt
+  - [ ] original des profilbilds wird nicht geladen bzw. im viewer nicht gezeigt
+  - [ ] kamera zeigt in der APK ~2 s ein graues bild, bevor das bild kommt
+  - [ ] einstellung "vorschau" im android-benachrichtigungscenter greift nicht sofort
+  - [ ] neben der web-version auch die APK-version anzeigen
+- features (danach, siehe backlog): offline-modus ab N nachrichten (standard 20), spracherkennung fuer sprachnachrichten (lokales modell je sprache), modelle erst bei bedarf laden, aus der benachrichtigung antworten, profil-export/-import, PIN-sperre + biometrie (APK), snap-videos, sticker (nicht speicherbar, favoriten, ohne blase, transparenz, FSK-18, ausschneiden)

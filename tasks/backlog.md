@@ -120,3 +120,29 @@ Ideen ohne festen Termin. Neue Phasen werden von hier auf `tasks/board.md` gehol
 			- maybe after the deploy, app code should be readable in the repo, but not in the app? (optional)
 - [x] try to listen or catch messages running over the turn server (S11: nur metadaten)
 - [x] try to read the reouter cache of other users (S9: token des empfaengers noetig)
+
+# bug and features requests
+
+- [ ] setting for message preview in android message center doesnt apply instantly
+- [ ] multi-device: bei chatpartnern erscheint man doppelt (je geraet ein eintrag statt einer person; nutzer 2026-11-19)
+- [ ] besides the web client version the apk version should be shown
+- [ ] voice messages crashes the apk
+- [ ] in apk the cam shows a grey image for 2 seconds before actual cam has loaded
+- [ ] profile image doesnt get fetched (the original) or viewed on viewer
+- [ ] on apk if ur offline it gets buggy, u cant reload usw
+	- in the webapp and on apk if offline no data shown up. Well thats actually kinda good and bad yk? we wanna change that if someone has at least one chat witch more than i dont know configurable messages defult is 20? 
+		- when hittet this message count, the client also lives offline
+- [ ] we need a speech to text function for voice messages in chat, also the own ones.(lokal model obv.)
+- [ ] on startup we dont wanna load full app, models just as soon as there gonna be used, ig incoming pic and vids or when transcibing the voice messages. Use a model per configured langueage
+- [ ] in the message center when shown message content we couldnt reply maybe this would be a nice functino
+- [ ] profile ex and import for backups or things.
+- [ ] pin lock
+	- [ ] biometry look for apk
+- [ ] snap videos?
+- [ ] sticker integration?
+	- [ ] stickers shouldnt be saveable
+	- [ ] favorisierbar
+	- [ ] hat keinen message body außen drum
+	- [ ] transparenz unterstützt, sollte autom gehen
+	- [ ] FSK 18 Flag
+	- [ ] ausschneide function (model or manual) just loaded when needed

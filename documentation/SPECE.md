@@ -2655,3 +2655,13 @@ Nur Dating, aus per Standard (`VERIFY=on`). Plan und Phasen: `documentation/VERI
     SHA-256 ueber das kanonische JSON von `badge` (wie `signOperation`, roh r||s, base64); pruefbar mit
     `verifyOperationSignature({ ...badge, sig }, key)`.
 - Gespeichert wird nur `verified_peers (peer_id, expires_at)`; `/api/grid` setzt dann `verified: true` an der Karte.
+- Client (`client/app/verify.js`): Karte `#verify-card` im Profil-Editor (nur Entdecken-Profil, nur mit
+  `verify.enabled`), Zustimmung, Frontkamera (`facingMode: 'user'`, Vorschau gespiegelt, Bilder ungespiegelt,
+  lange Seite 720 px, JPEG 0,85), je Schritt 3 s Countdown. `profileImage` ist die lokal gespeicherte grosse
+  Fassung (`media` `avatarFull.id`), nur wenn ihr SHA-256 zu `avatarFull.sha256` passt.
+- Der Haken liegt verschluesselt im eigenen Profil (`myProfile.verification = { badge, sig }`) und geht als
+  `verified: { badge, sig }` im signierten Profil mit (`signProfileData`), nur im Entdecken-Profil und nur,
+  solange `badge.subject` = eigene ID, `badge.avatarSha256` = `avatarFull.sha256` und `expiresAt` in der Zukunft.
+  Ein neues Profilbild loescht ihn. `payload-validation.js` prueft nur die Form (genau `badge` + `sig`, vier
+  Badge-Felder).
+

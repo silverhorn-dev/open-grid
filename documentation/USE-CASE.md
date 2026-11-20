@@ -1496,3 +1496,24 @@ Akzeptanzkriterien:
 - Andere QR-Codes werden ignoriert; Einladungen eines anderen Routers und
   Umzugs-Codes erklaert die App statt sie zu oeffnen.
 
+## UC-85: Profilbild verifizieren
+
+Als Nutzerin im Dating moechte ich zeigen, dass ich wirklich so aussehe wie auf
+meinem Profilbild, damit andere mir eher vertrauen.
+
+Akzeptanzkriterien:
+
+- Bietet der Router die Pruefung an (`VERIFY=on`), zeigt der Profil-Editor beim
+  Entdecken-Profil die Karte "Profilbild verifizieren"; ohne Profilbild ist der
+  Knopf aus.
+- Vor dem Start erklaert die App, dass die Bilder nur kurz an den Router gehen,
+  im Arbeitsspeicher geprueft und verworfen werden; erst nach Zustimmung startet
+  die Frontkamera.
+- Die App fuehrt durch die Schritte in der Reihenfolge des Routers (geradeaus,
+  Kopf links, Kopf rechts) mit Countdown und nimmt je Schritt ein Bild; danach
+  ist die Kamera aus.
+- Klappt die Pruefung, steht "Verifiziert bis ..." in der Karte und mein
+  Entdecken-Profil traegt den signierten Haken; klappt sie nicht, sagt die App
+  warum (z. B. kein Gesicht, Kopfhaltung, sieht dem Profilbild nicht aehnlich).
+- Ein neues Profilbild nimmt den Haken weg.
+

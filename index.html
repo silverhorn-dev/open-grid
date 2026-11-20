@@ -445,6 +445,15 @@
                     </div>
                 </div>
 
+                <!-- Profilbild verifiziert (verify.js, nur Entdecken-Profil, nur wenn der Router prueft) -->
+                <div id="verify-card" class="hidden verify-card border-b border-slate-800 pb-5 space-y-2">
+                    <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-circle-check text-brand-400"></i> <span data-i18n="verify.cardTitle">Profilbild verifizieren</span>
+                    </h3>
+                    <p id="verify-status" class="setting-desc"></p>
+                    <button type="button" id="verify-start-btn" data-click="openProfileVerification" class="btn-secondary" data-i18n="verify.start">Jetzt verifizieren</button>
+                </div>
+
                 <!-- Dynamic Profile Form Fields -->
                 <div id="dynamic-profile-form" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
 
@@ -1522,6 +1531,7 @@
     <script src="/client/app/conversations.js?v={{assetVersion}}"></script>
     <script src="/client/app/forward-secrecy.js?v={{assetVersion}}"></script>
     <script src="/client/app/qr-scan.js?v={{assetVersion}}"></script>
+    <script src="/client/app/verify.js?v={{assetVersion}}"></script>
     <script src="/client/app/core-link.js?v={{assetVersion}}"></script>
     <script src="/client/app/devices.js?v={{assetVersion}}"></script>
     <script src="/client/app/install-guide.js?v={{assetVersion}}"></script>

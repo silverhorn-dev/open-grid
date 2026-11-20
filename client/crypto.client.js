@@ -49,6 +49,8 @@ async function signProfileData(profileData, privateKey, jwkPublic) {
         avatar: profileData.avatar,
         // Verweis auf die grosse Fassung des Profilbilds (per IMAGE_REQUEST), nur wenn das Bild sichtbar ist.
         avatarFull: profileData.avatarFull || undefined,
+        // Haken "Profilbild verifiziert" vom Router ({ badge, sig }, verify.js), nur im Entdecken-Profil.
+        verified: profileData.verified || undefined,
         gallery: profileData.gallery || [],
         // Mit signiert, damit Dritte Match-Profile nicht als oeffentlich weitergeben koennen.
         audience: profileData.audience || 'public',

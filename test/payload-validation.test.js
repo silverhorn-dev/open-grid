@@ -59,3 +59,14 @@ test('operations from a peer may only carry that peer as actor', () => {
     assert.equal(context.isOperationFromPeer('peer', { ...put, actorId: 'someone-else' }), false);
     assert.equal(context.isOperationFromPeer('peer', null), false);
 });
+
+test('profile check mark (verify.js): shape only, the receiver checks signature and picture', () => {
+    const badge = { subject: 'peer', avatarSha256: 'abc', issuedAt: 1, expiresAt: 2 };
+    const profile = verified => ({ type: 'PROFILE_RESPONSE', signedEnvelope: { payload: { fields: {}, verified }, signature: 'x' } });
+    assert.equal(valid(profile({ badge, sig: 'c2ln' })), true);
+    assert.equal(valid(profile(undefined)), true);
+    assert.equal(valid(profile({ badge })), false, 'needs a signature');
+    assert.equal(valid(profile({ badge: { ...badge, extra: 1 }, sig: 'c2ln' })), false, 'no extra keys in the signed badge');
+    assert.equal(valid(profile({ badge: { ...badge, expiresAt: 'soon' }, sig: 'c2ln' })), false);
+    assert.equal(valid(profile({ badge, sig: 'x'.repeat(201) })), false);
+});

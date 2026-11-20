@@ -115,6 +115,16 @@ function isOperationFromPeer(peerId, operation) {
     return Boolean(operation) && typeof peerId === 'string' && (operation.actorId === undefined || operation.actorId === peerId);
 }
 
+// Haken "Profilbild verifiziert" (server/verify.js): Form pruefen; Signatur, Ablauf und Bild prueft der Empfaenger.
+function isValidVerifiedBadge(verified) {
+    const badge = verified?.badge;
+    if (!badge || typeof badge !== 'object' || Array.isArray(badge) || Object.keys(badge).length !== 4) return false;
+    return typeof verified.sig === 'string' && verified.sig.length <= 200 && Object.keys(verified).length === 2
+        && typeof badge.subject === 'string' && badge.subject.length <= 200
+        && typeof badge.avatarSha256 === 'string' && badge.avatarSha256.length <= 64
+        && Number.isSafeInteger(badge.issuedAt) && Number.isSafeInteger(badge.expiresAt);
+}
+
 function isValidProfileEnvelope(envelope) {
     if (!envelope || typeof envelope !== 'object') return false;
     // Signierter Umschlag oder (alt) direktes Profil.
@@ -131,6 +141,8 @@ function isValidProfileEnvelope(envelope) {
             && profile.gallery.every(item => isId(item?.id) && isOptionalString(item.sha256, 64)));
     const avatarFullOk = profile.avatarFull === undefined || profile.avatarFull === null
         || (isId(profile.avatarFull?.id) && isSmallInt(profile.avatarFull.version) && isOptionalString(profile.avatarFull.sha256, 64));
+    const verifiedOk = profile.verified === undefined || profile.verified === null || isValidVerifiedBadge(profile.verified);
+    if (!verifiedOk) return false;
     const hideOk = profile.gridHideFrom === undefined || profile.gridHideFrom === null || ['off', 'friends', 'contacts'].includes(profile.gridHideFrom);
     if (!hideOk) return false;
     const areaOk = profile.area === undefined || profile.area === null || profile.area === 'discovery' || profile.area === 'social';

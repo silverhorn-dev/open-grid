@@ -51,6 +51,10 @@ async function loadAppMode() {
             ageProvider: typeof config?.safety?.ageProvider === 'string' ? config.safety.ageProvider : null,
             emailCheck: config?.safety?.emailCheck === 'required' ? 'required' : 'off'
         },
+        // Profilbild-Verifizierung (verify.js, Board T37): an/aus, Router-Schluessel fuer Haken, Gueltigkeit.
+        verify: config?.verify?.enabled === true
+            ? { enabled: true, key: config.verify.key && typeof config.verify.key === 'object' ? config.verify.key : null, days: Number(config.verify.days) || 90 }
+            : { enabled: false, key: config?.verify?.key && typeof config.verify.key === 'object' ? config.verify.key : null },
         // Nacktbild-Modell vom Router (Board T3): Modell, Schwelle, Klassen, Pfade (nudity-model.js).
         nudity: config?.nudity && typeof config.nudity === 'object' ? config.nudity : { model: 'off' },
         // Flammen: Sichtdauer und Abstand (matching.js), vom Router.

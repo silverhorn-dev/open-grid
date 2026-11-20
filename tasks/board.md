@@ -760,7 +760,7 @@
   - vorhanden: nacktbild-filter beim empfaenger + warnung beim absender (T3), secure snaps (stream), wasserzeichen, chat-richtlinien (zurueckhalten), melden mit grund + ausblenden, FLAG_SECURE in der android-app
   - plan P1/P2 ausgearbeitet 2026-11-19: `documentation/VERIFIZIERUNG.md` (YuNet MIT + SFace Apache-2.0 auf dem router via onnxruntime-node, schritte geradeaus/links/rechts, signierter haken 90 tage, nichts gespeichert)
     - [x] V1 router: modul `verify`, modelle, sitzungen, pruefung, router-schluessel, signierter haken
-    - [ ] V2 client: ablauf mit frontkamera, zustimmung, upload, haken im profil
+    - [x] V2 client: ablauf mit frontkamera, zustimmung, upload, haken im profil
     - [ ] V3 haken pruefen + zeigen (profil, grid, chat), grid-filter
     - [ ] V4 regel "nur verifizierte duerfen mir schreiben"
     - [ ] V5 app mit attestierung: pruefung auf dem geraet

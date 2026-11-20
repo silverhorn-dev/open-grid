@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 359 · 2026-11-19
+## Build 360 · 2026-11-20
+- Profilbild verifizieren (Dating): im Profil-Editor unter "Profilbild verifizieren" drei kurze Selfies mit der Frontkamera (geradeaus, Kopf links, Kopf rechts); passt alles, traegt dein Entdecken-Profil einen Haken. Nur wenn der Server die Pruefung anbietet; ein neues Profilbild nimmt den Haken wieder weg
+
+## Build 359 · 2026-11-19 · `5ec6422`
 - Profilbild-Verifizierung fuer Dating, Teil 1 (Router): mit `VERIFY=on` prueft der Router Live-Selfies (geradeaus, Kopf links/rechts) gegen das Profilbild und stellt einen signierten Haken aus; Bilder werden nur im Arbeitsspeicher geprueft und sofort verworfen. Die App-Seite folgt
 
 ## Build 357 · 2026-11-19 · `cac07c8`

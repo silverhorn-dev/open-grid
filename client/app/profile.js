@@ -123,11 +123,14 @@ async function handleAvatarUpload(input) {
         const fullId = `avatar_${window.crypto.randomUUID()}`;
         await cacheMedia(fullId, full, 1);
         part.avatarFull = { id: fullId, version: 1, sha256: await sha256Base64(full) };
+        // Der Haken gilt nur fuer das gepruefte Bild (verify.js).
+        if (part === state.myProfile) delete state.myProfile.verification;
         if (previousFull && !profileMediaInUse(previousFull, part)) deleteDatabaseRecord('media', previousFull).catch(() => {});
         part.avatar = base64;
         document.getElementById('edit-avatar-preview').src = base64;
         await saveUserProfile();
         showToast(t('profile.pictureUpdated'), 'success');
+        if (typeof renderVerifyCard === 'function') renderVerifyCard();
     } catch (e) { showToast(t('profile.pictureUploadFailed'), 'error'); }
 }
 
@@ -230,6 +233,7 @@ function renderProfileForm(containerId = 'dynamic-profile-form') {
     const editor = containerId === 'dynamic-profile-form';
     const part = editor ? editingProfilePart() : state.myProfile;
     if (!part.fields) part.fields = {};
+    if (editor && typeof renderVerifyCard === 'function') renderVerifyCard();
     const schema = editor ? editingProfileSchema() : PROFILE_SCHEMA;
 
     if (editor) {

@@ -318,6 +318,12 @@ function avatarFullMeta(part = state.myProfile) {
     return part.avatar && meta?.id ? { id: meta.id, version: meta.version || 1, sha256: meta.sha256 } : undefined;
 }
 
+// Haken "Profilbild verifiziert" (verify.js): nur am Entdecken-Profil und nur, solange er zum Bild passt.
+function verifiedBadgeFor(part) {
+    if (part !== state.myProfile || typeof ownVerification !== 'function') return undefined;
+    return ownVerification() || undefined;
+}
+
 // Baut das Profil, das genau dieser Peer sehen darf. `audience` bindet ein Match-Profil an ihn.
 function buildProfilePayloadFor(peerId) {
     const visibility = getMyVisibility();
@@ -344,6 +350,7 @@ function buildProfilePayloadFor(peerId) {
             fields: activeSchemaFields(peerId),
             avatar: part.avatar,
             avatarFull: avatarFullMeta(part),
+            verified: verifiedBadgeFor(part),
             gallery: part.gallery || [],
             discoveryProfile: discoveryProfileFor(peerId)
         };
@@ -352,7 +359,7 @@ function buildProfilePayloadFor(peerId) {
         const privateFields = new Set(state.myProfile.privateFields || []);
         const fields = Object.fromEntries(Object.entries(activeSchemaFields(peerId))
             .filter(([key]) => !privateFields.has(key)));
-        return { ...base, audience: 'public', fields, avatar: part.avatar, avatarFull: avatarFullMeta(part), gallery: [], restricted: true };
+        return { ...base, audience: 'public', fields, avatar: part.avatar, avatarFull: avatarFullMeta(part), verified: verifiedBadgeFor(part), gallery: [], restricted: true };
     }
     return { ...base, audience: 'public', fields: {}, avatar: null, gallery: [], restricted: true };
 }

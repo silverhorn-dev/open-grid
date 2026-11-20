@@ -7,6 +7,7 @@ function messagePreview(message) {
     if (message.audioData) return t('chat.voiceMessage', { duration: formatVoiceDuration(message.audioDuration) });
     if (message.video) return message.text ? t('chat.video2', { text: message.text }) : t('chat.video');
     if (message.gif) return t('gifs.preview');
+    if (message.sticker) return t('stickers.preview');
     // Ohne snapMode ist es ein normales Bild ("Als Bild senden") oder ein gespeicherter alter Snap.
     if (message.snapData && !message.snapMode) return message.text ? t('chat.image', { text: message.text }) : t('common.image');
     if (message.snapData || message.snapMode) return message.text ? t('chat.snap', { text: message.text }) : t('common.snap');

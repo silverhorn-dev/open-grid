@@ -70,3 +70,16 @@ test('profile check mark (verify.js): shape only, the receiver checks signature 
     assert.equal(valid(profile({ badge: { ...badge, expiresAt: 'soon' }, sig: 'c2ln' })), false);
     assert.equal(valid(profile({ badge, sig: 'x'.repeat(201) })), false);
 });
+
+test('sticker (stickers.js): small PNG/WebP with checksum and size, optional 18+ flag, nothing else', () => {
+    const sticker = { data: 'data:image/webp;base64,UklGRg==', sha256: 'abc', w: 128, h: 96 };
+    const put = value => ({ type: 'CHAT_OPERATION', operation: { ...put0, message: { ...message, sticker: value } } });
+    const put0 = { operationId: 'put:m1', type: 'MESSAGE_PUT', messageId: 'm1', actorId: 'peer', createdAt: 1 };
+    assert.equal(valid(put(sticker)), true);
+    assert.equal(valid(put({ ...sticker, adult: true })), true);
+    assert.equal(valid(put({ ...sticker, data: 'data:image/jpeg;base64,AA' })), false, 'no JPEG (no transparency)');
+    assert.equal(valid(put({ ...sticker, data: `data:image/png;base64,${'A'.repeat(60001)}` })), false, 'too large');
+    assert.equal(valid(put({ ...sticker, w: 5000 })), false);
+    assert.equal(valid(put({ ...sticker, adult: 'yes' })), false);
+    assert.equal(valid(put({ ...sticker, url: 'https://x' })), false, 'no extra keys');
+});

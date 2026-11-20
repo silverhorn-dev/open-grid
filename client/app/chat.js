@@ -526,7 +526,7 @@ function isCoarsePointer() {
 // options.asImage: Bild statt Einmal-Snap (dauerhaft im Chat).
 async function sendChatMessage(snapData = null, caption = '', album = null, secureSnap = null, options = {}) {
     const input = document.getElementById('chat-input');
-    const hasAttachment = Boolean(snapData || album || secureSnap || options.audio || options.gif);
+    const hasAttachment = Boolean(snapData || album || secureSnap || options.audio || options.gif || options.sticker);
     if (state.movedAway) {
         showToast(t('move.readOnly'), 'info');
         return false;
@@ -590,6 +590,8 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
         video: options.video,
         // GIF (gifs.js): nur die URL, jeder Client laedt es selbst.
         gif: options.gif || undefined,
+        // Sticker (stickers.js): kleines Bild mit Transparenz, ohne Sprechblase.
+        sticker: options.sticker || undefined,
         // Wer das Bild bzw. Video speichern/teilen darf (Einstellung des Absenders, media-rights.js).
         // 'none': im Snap-Editor als "nicht speicherbar" markiert (snaps.js).
         downloadable: options.downloadable === 'none' ? 'none'
@@ -842,6 +844,8 @@ function renderChatHistory() {
                 caption.textContent = message.text;
                 bubble.appendChild(caption);
             }
+        } else if (message.sticker) {
+            renderStickerMessage(bubble, message, isMine);
         } else if (message.snapMode === 'replay' && !message.snapSaved) {
             renderReplaySnapMessage(bubble, message, isMine);
         } else if (message.audioData) {

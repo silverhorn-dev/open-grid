@@ -45,9 +45,20 @@ function isValidMessage(message) {
         && (message.video === undefined || (isPlainVideoInfo(message.video) && message.original !== undefined))
         // GIF (gifs.js): nur https-URL, Quelle und Masse.
         && (message.gif === undefined || isPlainGifInfo(message.gif))
+        // Sticker (stickers.js): kleines PNG/WebP mit Transparenz, Pruefsumme, Masse, optional 18+.
+        && (message.sticker === undefined || isPlainStickerInfo(message.sticker))
         && (message.imageSize === undefined || (Number.isInteger(message.imageSize?.w) && Number.isInteger(message.imageSize?.h)
             && message.imageSize.w > 0 && message.imageSize.h > 0 && message.imageSize.w <= 10000 && message.imageSize.h <= 10000))
         && isTimestamp(message.createdAt);
+}
+
+function isPlainStickerInfo(sticker) {
+    const size = value => Number.isInteger(value) && value > 0 && value <= 1024;
+    return Boolean(sticker) && typeof sticker === 'object' && !Array.isArray(sticker)
+        && typeof sticker.data === 'string' && sticker.data.length <= 60000 && /^data:image\/(?:png|webp);base64,/.test(sticker.data.slice(0, 30))
+        && typeof sticker.sha256 === 'string' && sticker.sha256.length <= 64 && size(sticker.w) && size(sticker.h)
+        && (sticker.adult === undefined || sticker.adult === true)
+        && Object.keys(sticker).every(key => ['data', 'sha256', 'w', 'h', 'adult'].includes(key));
 }
 
 function isPlainGifInfo(gif) {

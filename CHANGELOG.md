@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 378 · 2026-11-20
+## Build 379 · 2026-11-20
+- Sticker: im Chat über Medien → Sticker senden; sie stehen ohne Sprechblase im Chat, mit Transparenz und lassen sich nicht speichern, aber antippen und favorisieren. Sticker ab 18 sind unscharf bis zum Antippen, nur in Dating-Chats erlaubt und für unter 18 unsichtbar. Selbst machen und Pakete folgen
+
+## Build 378 · 2026-11-20 · `6485862`
 - Sprachnachrichten als Text: unter jeder Sprachnachricht "Text" antippen, dann schreibt dein Gerät sie mit (Whisper). Das Audio verlässt dein Gerät nicht; die Spracherkennung (ca. 77 MB) kommt beim ersten Mal von deinem Server, nicht von fremden Diensten. Der Text bleibt nur bei dir
 
 ## Build 375 · 2026-11-20 · `4220a33`

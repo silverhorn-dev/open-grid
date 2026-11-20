@@ -144,7 +144,7 @@ Ideen ohne festen Termin. Neue Phasen werden von hier auf `tasks/board.md` gehol
 	- ton: in der app erst stumm (WebView-mikrofon beendet den renderer, siehe T38), im browser mit ton; spaeter nativ (CameraX)
 	- empfaenger: replay-karte "Video-Snap", `openReplaySnap` spielt das original im secure-snap-viewer (`#secure-snap-video`), ohne original kein ansehen (zaehlt nicht); beim verbrauchen auch das original loeschen (`originalMediaId`) und `message.original` entfernen (sonst holt der client es neu), absender loescht seins nach `ownKeepUntil`
 	- nacktbild-warnung ueber das vorschaubild (`confirmNudeSend`)
-- [ ] sticker integration?
+- [ ] sticker integration? (2026-11-20 aufs board: T39)
 	- [ ] stickers shouldnt be saveable
 	- [ ] favorisierbar
 	- [ ] hat keinen message body außen drum

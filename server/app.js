@@ -221,6 +221,7 @@ const clientAssetFiles = [
     'app/verify-worker.js',
     'app/stt-worker.js',
     'app/stt.js',
+    'app/stickers.js',
     'app/media-rights.js',
     'app/albums.js',
     'app/swarm.js',

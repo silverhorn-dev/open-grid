@@ -27,13 +27,15 @@ class Bridge(
         fun requestNotificationPermission(done: (Boolean) -> Unit)
         // Systemdialog "Akku-Optimierung aus" fuer diese App (fuer "immer im Hintergrund").
         fun askBatteryExemption()
+        // Mikrofon fuer Sprachnachrichten (VoiceRecorder); Ergebnis spaeter ueber `done`.
+        fun requestMicrophonePermission(done: (Boolean) -> Unit)
     }
 
     companion object {
         const val PROTOCOL = 1
         const val OBJECT_NAME = "OpenGridNative"
         // Muss zu NATIVE_REQUEST_TYPES / NATIVE_EVENT_TYPES in client/app/native.js passen (test/android-app.test.js).
-        val REQUEST_TYPES = listOf("capabilities", "secureScreen", "takeShare", "notify", "notifications", "background", "inbox", "coreStatus", "replyResult")
+        val REQUEST_TYPES = listOf("capabilities", "secureScreen", "takeShare", "notify", "notifications", "background", "inbox", "coreStatus", "replyResult", "recordAudio")
         val EVENT_TYPES = listOf("shareReady", "openChat", "notificationReply")
 
         fun install(webView: WebView, bridge: Bridge): Boolean {
@@ -130,10 +132,59 @@ class Bridge(
                     android.os.Handler(android.os.Looper.getMainLooper()).post { CoreHost.replyResult(replyId, ok) }
                     reply(true, null)
                 }
+                "recordAudio" -> handleRecordAudio(data?.optString("action").orEmpty(), reply)
                 else -> reply(false, "Unknown type")
             }
         } catch (error: Exception) {
             reply(false, error.message ?: "failed")
+        }
+    }
+
+    // Sprachnachricht nativ aufnehmen (VoiceRecorder): start | split | stop | cancel. Nur das Fenster nimmt auf
+    // (der Kern hat kein Fenster und fragt nie nach dem Mikrofon). Kodieren im Hintergrund, Antwort im Haupt-Thread.
+    private val main = android.os.Handler(android.os.Looper.getMainLooper())
+
+    private fun handleRecordAudio(action: String, reply: (Boolean, Any?) -> Unit) {
+        val activity = handler
+        when (action) {
+            "start" -> {
+                if (activity == null) return reply(false, "No window")
+                val begin = {
+                    try {
+                        VoiceRecorder.start(appContext)
+                        CrashLog.event(appContext, "voice: native recording started")
+                        reply(true, JSONObject().put("mime", VoiceRecorder.mimeType))
+                    } catch (error: Exception) {
+                        CrashLog.event(appContext, "voice: native start failed (${error.javaClass.simpleName})")
+                        reply(false, "start failed")
+                    }
+                }
+                if (appContext.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED) begin()
+                else activity.requestMicrophonePermission { granted -> if (granted) begin() else reply(false, "denied") }
+            }
+            "split", "stop" -> {
+                val finished = try {
+                    VoiceRecorder.finish()
+                } catch (_: Exception) {
+                    null
+                }
+                if (action == "split") {
+                    try {
+                        VoiceRecorder.start(appContext)
+                    } catch (_: Exception) {
+                        return reply(false, "split failed")
+                    }
+                }
+                Thread {
+                    val result = JSONObject().put("data", finished?.first ?: JSONObject.NULL).put("durationMs", finished?.second ?: 0)
+                    main.post { reply(true, result) }
+                }.start()
+            }
+            "cancel" -> {
+                VoiceRecorder.cancel()
+                reply(true, null)
+            }
+            else -> reply(false, "Unknown action")
         }
     }
 
@@ -146,6 +197,8 @@ class Bridge(
         .put("notifications", true)
         .put("background", true)
         .put("core", true)
+        // Sprachnachrichten nimmt die App selbst auf (WebView-Mikrofon beendet den Renderer, VoiceRecorder.kt).
+        .put("audioRecorder", true)
         .put("rendererGone", CrashLog.last(appContext) ?: JSONObject.NULL)
         .put("nativeEvents", CrashLog.events(appContext))
 

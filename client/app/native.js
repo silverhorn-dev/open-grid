@@ -4,7 +4,7 @@
 // Nachrichten sind JSON-Texte: Anfrage { v, id, type, data }, Antwort { v, id, ok, result | error },
 // Ereignis der App { v, event, data }. Die Liste muss zu android/.../Bridge.kt passen (Test prueft das).
 const NATIVE_PROTOCOL_VERSION = 1;
-const NATIVE_REQUEST_TYPES = ['capabilities', 'secureScreen', 'takeShare', 'notify', 'notifications', 'background', 'inbox', 'coreStatus', 'replyResult'];
+const NATIVE_REQUEST_TYPES = ['capabilities', 'secureScreen', 'takeShare', 'notify', 'notifications', 'background', 'inbox', 'coreStatus', 'replyResult', 'recordAudio'];
 const NATIVE_EVENT_TYPES = ['shareReady', 'openChat', 'notificationReply'];
 const NOTIFICATION_REPLY_MAX_LENGTH = 2000;
 const NATIVE_CALL_TIMEOUT_MS = 10000;
@@ -24,7 +24,7 @@ function isNativeApp() {
     return Boolean(nativeBridge.port);
 }
 
-function nativeCall(type, data = null) {
+function nativeCall(type, data = null, timeoutMs = NATIVE_CALL_TIMEOUT_MS) {
     if (!nativeBridge.port) return Promise.reject(new Error('No native app'));
     if (!NATIVE_REQUEST_TYPES.includes(type)) return Promise.reject(new Error(`Unknown native call ${type}`));
     const id = nativeBridge.nextId++;
@@ -32,7 +32,7 @@ function nativeCall(type, data = null) {
         const timer = setTimeout(() => {
             nativeBridge.pending.delete(id);
             reject(new Error(`Native call ${type} timed out`));
-        }, NATIVE_CALL_TIMEOUT_MS);
+        }, timeoutMs);
         nativeBridge.pending.set(id, { resolve, reject, timer });
         nativeBridge.port.postMessage(JSON.stringify({ v: NATIVE_PROTOCOL_VERSION, id, type, data }));
     });

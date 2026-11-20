@@ -26,8 +26,16 @@ function isSafeAudioPart(value) {
     return typeof value === 'string' && /^data:audio\/(?:webm|ogg|mp4|mpeg|aac)(?:;codecs=[a-z0-9.]+)?;base64,/i.test(value.slice(0, 60));
 }
 
+// In der Android-App nimmt die App selbst auf (VoiceRecorder.kt): getUserMedia fuer das Mikrofon beendet dort den
+// WebView-Renderer (T38, 2026-11-20). Teile kommen als fertige Data-URL zurueck.
+const NATIVE_VOICE_START_TIMEOUT_MS = 60000;
+
+function nativeVoiceRecorder() {
+    return typeof isNativeApp === 'function' && isNativeApp() && nativeBridge.capabilities?.audioRecorder === true && APP_ROLE !== 'core';
+}
+
 function isVoiceSupported() {
-    return Boolean(navigator.mediaDevices?.getUserMedia && window.MediaRecorder);
+    return nativeVoiceRecorder() || Boolean(navigator.mediaDevices?.getUserMedia && window.MediaRecorder);
 }
 
 function formatVoiceDuration(seconds) {
@@ -66,6 +74,11 @@ function updateComposeButtons() {
 
 // ----- Aufnahme -----
 function startVoiceSegment(recording) {
+    if (recording.native) {
+        const segment = { native: true, chunks: [], startedAt: Date.now() };
+        recording.segments.push(segment);
+        return segment;
+    }
     const segment = { recorder: new MediaRecorder(recording.stream, { ...(recording.mimeType ? { mimeType: recording.mimeType } : {}), audioBitsPerSecond: VOICE_BITRATE }), chunks: [], startedAt: Date.now() };
     segment.recorder.ondataavailable = event => {
         if (event.data?.size) segment.chunks.push(event.data);
@@ -76,6 +89,10 @@ function startVoiceSegment(recording) {
 }
 
 async function stopVoiceSegment(segment) {
+    if (segment.native) {
+        segment.stoppedAt = segment.stoppedAt || Date.now();
+        return;
+    }
     if (segment.recorder.state !== 'inactive') {
         await new Promise(resolve => {
             segment.recorder.onstop = resolve;
@@ -102,6 +119,7 @@ async function startVoiceRecording() {
         showToast(t('voice.thisBrowserDoesNotSupport'), 'error');
         return;
     }
+    if (nativeVoiceRecorder()) return startNativeVoiceRecording(peerId);
     let stream;
     // Spur: kommt der Renderer-Ausfall genau hier (Mikrofon in der WebView), steht das beim naechsten Start im Log.
     noteBreadcrumb('voice: asking for the microphone (getUserMedia)');
@@ -151,11 +169,56 @@ async function tickVoiceRecording(recording) {
         // Ab hier ein eigener zweiter Teil (geht nur per P2P).
         recording.switching = true;
         const first = recording.segments[0];
-        startVoiceSegment(recording);
-        await stopVoiceSegment(first);
+        if (recording.native) {
+            await takeNativeVoicePart(first, 'split');
+            startVoiceSegment(recording);
+        } else {
+            startVoiceSegment(recording);
+            await stopVoiceSegment(first);
+        }
         recording.switching = false;
     }
     renderVoiceBar();
+}
+
+// Aufnahme ueber die App (siehe nativeVoiceRecorder); gleiche Form wie im Browser, nur ohne Stream und Recorder.
+async function startNativeVoiceRecording(peerId) {
+    noteBreadcrumb('voice: native recorder starting');
+    let started;
+    try {
+        started = await nativeCall('recordAudio', { action: 'start' }, NATIVE_VOICE_START_TIMEOUT_MS);
+    } catch (error) {
+        logDebug(`Native recorder: ${error.message}`);
+        showToast(t('voice.noAccessToMicrophone'), 'error');
+        return;
+    }
+    if (state.voiceRecording) return;
+    const recording = {
+        peerId,
+        native: true,
+        stream: null,
+        mimeType: started?.mime || null,
+        segments: [],
+        startedAt: Date.now(),
+        transcript: '',
+        recognition: null,
+        finished: false
+    };
+    startVoiceSegment(recording);
+    recording.timer = setInterval(() => tickVoiceRecording(recording).catch(logBackgroundError('tickVoiceRecording')), 250);
+    state.voiceRecording = recording;
+    hapticTick();
+    renderVoiceBar();
+}
+
+// Aktuellen Teil bei der App abholen (split: danach laeuft der naechste Teil, stop: Ende).
+async function takeNativeVoicePart(segment, action) {
+    const result = await nativeCall('recordAudio', { action }).catch(error => {
+        logDebug(`Native recorder ${action}: ${error.message}`);
+        return null;
+    });
+    segment.stoppedAt = segment.stoppedAt || Date.now();
+    segment.dataUrl = typeof result?.data === 'string' ? result.data : null;
 }
 
 function voiceElapsedSeconds(recording) {
@@ -167,6 +230,12 @@ async function finishVoiceCapture(recording) {
     recording.finished = true;
     recording.finishedAt = Date.now();
     clearInterval(recording.timer);
+    if (recording.native) {
+        const last = recording.segments[recording.segments.length - 1];
+        if (recording.cancelled) await nativeCall('recordAudio', { action: 'cancel' }).catch(() => {});
+        else if (last && !last.dataUrl) await takeNativeVoicePart(last, 'stop');
+        return;
+    }
     for (const segment of recording.segments) await stopVoiceSegment(segment);
     recording.stream.getTracks().forEach(track => track.stop());
     await finishLocalTranscript(recording);
@@ -176,6 +245,7 @@ async function cancelVoiceRecording() {
     const recording = state.voiceRecording;
     if (!recording) return;
     state.voiceRecording = null;
+    recording.cancelled = true;
     renderVoiceBar();
     await finishVoiceCapture(recording);
 }
@@ -190,11 +260,11 @@ async function sendVoiceRecording() {
     const duration = Math.min(VOICE_LIMITS.maxSeconds, Math.round(voiceElapsedSeconds(recording) * 10) / 10);
     noteBreadcrumb(`voice: capture stopped (${duration} s)`);
     const [first, rest] = recording.segments;
-    if (duration < 1 || !first?.chunks.length) {
+    if (duration < 1 || !(first?.chunks.length || first?.dataUrl)) {
         showToast(t('voice.tooShortNothingSent'), 'info');
         return;
     }
-    const dataUrl = await mediaBlobToDataUrl(voiceSegmentBlob(first));
+    const dataUrl = first.native ? first.dataUrl : await mediaBlobToDataUrl(voiceSegmentBlob(first));
     noteBreadcrumb(`voice: first part encoded (${Math.round(dataUrl.length / 1024)} KB as text)`);
     if (!isSafeInlineAudio(dataUrl)) {
         logDebug(`Sprachnachricht abgelehnt (${dataUrl.length} Zeichen).`);
@@ -203,11 +273,11 @@ async function sendVoiceRecording() {
     }
     let original;
     let splitAt;
-    if (rest?.chunks.length) {
-        const restBlob = voiceSegmentBlob(rest);
-        const restUrl = await mediaBlobToDataUrl(restBlob);
+    if (rest?.chunks.length || rest?.dataUrl) {
+        const restUrl = rest.native ? rest.dataUrl : await mediaBlobToDataUrl(voiceSegmentBlob(rest));
         if (!isSafeAudioPart(restUrl)) throw new Error('Unerwartetes Audioformat.');
-        original = { dataUrl: restUrl, meta: { size: restUrl.length, sha256: await sha256Base64(restUrl), mime: restBlob.type.split(';')[0] } };
+        const restMime = rest.native ? restUrl.slice(5, restUrl.indexOf(';')) : voiceSegmentBlob(rest).type.split(';')[0];
+        original = { dataUrl: restUrl, meta: { size: restUrl.length, sha256: await sha256Base64(restUrl), mime: restMime } };
         splitAt = Math.round(((first.stoppedAt - first.startedAt) / 1000) * 10) / 10;
     }
     if (state.activeChatPeerId !== recording.peerId) return;

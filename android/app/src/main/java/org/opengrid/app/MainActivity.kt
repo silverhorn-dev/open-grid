@@ -63,6 +63,13 @@ class MainActivity : ComponentActivity(), Bridge.Handler {
         if (allowed.isEmpty()) request.deny() else request.grant(allowed.toTypedArray())
     }
 
+    private var microphoneCallback: ((Boolean) -> Unit)? = null
+    private val microphonePermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        CrashLog.event(this, "permission result: RECORD_AUDIO=$granted (native recorder)")
+        microphoneCallback?.invoke(granted)
+        microphoneCallback = null
+    }
+
     private var notificationCallback: ((Boolean) -> Unit)? = null
     private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         val callback = notificationCallback
@@ -339,6 +346,8 @@ class MainActivity : ComponentActivity(), Bridge.Handler {
 
     override fun onDestroy() {
         CrashLog.event(this, "activity destroyed${if (isChangingConfigurations) " (configuration change)" else ""}")
+        // Fenster weg: eine laufende Aufnahme nicht im Hintergrund weiterlaufen lassen.
+        if (!isChangingConfigurations) VoiceRecorder.cancel()
         bridge?.handler = null
         webView?.let {
             (it.parent as? ViewGroup)?.removeView(it)
@@ -488,6 +497,14 @@ class MainActivity : ComponentActivity(), Bridge.Handler {
     }
 
     @SuppressLint("BatteryLife")
+    override fun requestMicrophonePermission(done: (Boolean) -> Unit) {
+        if (hasPermission(Manifest.permission.RECORD_AUDIO)) return done(true)
+        microphoneCallback?.invoke(false)
+        microphoneCallback = done
+        CrashLog.event(this, "permission dialog: RECORD_AUDIO (native recorder)")
+        microphonePermission.launch(Manifest.permission.RECORD_AUDIO)
+    }
+
     override fun askBatteryExemption() {
         if (BackgroundSettings.batteryUnrestricted(this)) return
         try {

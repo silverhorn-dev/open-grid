@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 374 · 2026-11-20
+## Build 375 · 2026-11-20
+- Behoben (Android-App 0.3.5): Sprachnachrichten ließen die App abstürzen; der Mikrofon-Zugriff der eingebauten WebView beendete sie. Jetzt nimmt die App selbst auf, gleiches Format und gleiche Länge wie bisher
+
+## Build 374 · 2026-11-20 · `0bc4631`
 - Fehlersuche Sprachnachrichten: zusätzlicher Schritt im Debug-Log direkt vor dem Zugriff aufs Mikrofon
 
 ## Build 373 · 2026-11-20 · `9d52a96`

@@ -15,8 +15,8 @@ android {
         applicationId = "org.opengrid.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 9
-        versionName = "0.3.4"
+        versionCode = 10
+        versionName = "0.3.5"
         manifestPlaceholders["appLinkHost"] = appLinkHost
     }
 

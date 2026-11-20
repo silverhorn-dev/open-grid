@@ -1613,3 +1613,19 @@ html {
 .verified-badge {
     color: rgb(56 189 248);
 }
+
+/* Fortschritt der Verifizierung: ein Punkt je Schritt. */
+.verify-dot {
+    width: 0.625rem;
+    height: 0.625rem;
+    border-radius: 9999px;
+    background: rgb(51 65 85);
+}
+
+.verify-dot.is-active {
+    background: rgb(251 191 36);
+}
+
+.verify-dot.is-done {
+    background: rgb(52 211 153);
+}

@@ -1,5 +1,5 @@
 // End-to-End: Profilbild verifizieren (verify.js, Board T37 V2). Alice laedt ein Profilbild hoch, stimmt zu,
-// die "Kamera" (Canvas) liefert je Schritt ein Bild; die Router-Antworten (/api/verify/*) sind hier nachgebaut, die
+// die "Kamera" (Canvas) und ein nachgebauter Erkenner fuehren durch die Schritte, je Schritt mehrere Ausschnitte; die Router-Antworten (/api/verify/*) sind hier nachgebaut, die
 // echte Pruefung testet test/verify.test.js. Danach traegt Alices Profil den Haken, Bob bekommt ihn mit dem
 // Profil und sieht ihn (Profil-Popup, Chat-Kopf, Grid-Karte, Filter "nur verifizierte", Board T37 V3); ein neues
 // Profilbild nimmt ihn wieder weg. Der nachgebaute Router signiert wie server/verify.js (P-256, kanonisches JSON).
@@ -46,7 +46,7 @@ async function main() {
         });
         if (verifyRouter) {
             await context.route('**/api/verify/start', route => route.fulfill({
-                json: { sessionId: 'session-1', steps: ['left', 'straight', 'right'], expiresAt: Date.now() + 120000 }
+                json: { sessionId: 'session-1', steps: ['straight', 'left', 'right'], expiresAt: Date.now() + 180000, maxFrames: 48 }
             }));
             await context.route('**/api/verify/finish', route => {
                 const body = route.request().postDataJSON();
@@ -96,7 +96,7 @@ async function main() {
         await alice.evaluate(() => renderVerifyCard());
         assert.equal(await alice.evaluate(() => document.getElementById('verify-start-btn').disabled), false);
 
-        // Kamera = Canvas.
+        // Kamera = Canvas; Gesichtserkenner nachgebaut: ein Gesicht, das der Anleitung folgt (geradeaus/links/rechts).
         await alice.evaluate(() => {
             const canvas = document.createElement('canvas');
             canvas.width = 640;
@@ -113,24 +113,39 @@ async function main() {
                 window.verifyCameraConstraints = constraints;
                 return canvas.captureStream(10);
             };
+            window.verifyDetections = 0;
+            state.verifyDetector = {
+                async detect() {
+                    window.verifyDetections++;
+                    const step = document.getElementById('verify-instruction')?.dataset.step || 'straight';
+                    // Erst ein paar Bilder "noch nicht gedreht", dann in der verlangten Haltung.
+                    const turned = window.verifyDetections % 6 > 1;
+                    const nose = !turned ? 0 : step === 'left' ? 40 : step === 'right' ? -40 : 0;
+                    return [{ score: 0.9, box: [220, 140, 200, 200], landmarks: [[270, 200], [370, 200], [320 + nose, 250], [280, 300], [360, 300]] }];
+                }
+            };
         });
         await alice.click('#verify-start-btn');
         await alice.waitForSelector('#verify-consent-btn', { state: 'visible' });
         await alice.click('#verify-consent-btn');
-        // Schritte in der Reihenfolge des Routers, mit Anweisung.
-        await waitFor(alice, () => document.getElementById('verify-instruction')?.dataset.step === 'left');
+        // Schritte in der Reihenfolge des Routers, mit Anweisung und Live-Hinweis.
+        await waitFor(alice, () => document.getElementById('verify-instruction')?.dataset.step === 'straight');
+        await waitFor(alice, () => document.getElementById('verify-instruction')?.dataset.step === 'left', undefined, 15000);
         assert.match(await alice.textContent('#verify-instruction'), /links/);
-        await waitFor(alice, () => document.getElementById('verify-instruction')?.dataset.step === 'straight', undefined, 6000);
-        await waitFor(alice, () => document.getElementById('verify-instruction')?.dataset.step === 'right', undefined, 6000);
-        await waitFor(alice, () => Boolean(ownVerification()), undefined, 15000);
+        await waitFor(alice, () => /links|halten/.test(document.getElementById('verify-hint').textContent));
+        await waitFor(alice, () => document.getElementById('verify-instruction')?.dataset.step === 'right', undefined, 15000);
+        await waitFor(alice, () => Boolean(ownVerification()), undefined, 20000);
         assert.equal(await alice.evaluate(() => window.verifyCameraConstraints.video.facingMode), 'user', 'front camera');
 
-        // Was an den Router ging: drei Kamerabilder, das Profilbild in voller Groesse und dessen Hash.
+        // Was an den Router ging: Folge von Gesichtsausschnitten je Schritt (in Reihenfolge, mit Zeit), Profilbild + Hash.
         assert.equal(finished.length, 1);
         const sent = finished[0];
         assert.equal(sent.sessionId, 'session-1');
-        assert.equal(sent.frames.length, 3);
-        assert.ok(sent.frames.every(frame => frame.startsWith('data:image/jpeg;base64,')));
+        assert.deepEqual([...new Set(sent.frames.map(frame => frame.step))], ['straight', 'left', 'right']);
+        assert.ok(sent.frames.length >= 12 && sent.frames.length <= 48, `${sent.frames.length} frames`);
+        assert.ok(sent.frames.every((frame, index) => index === 0 || frame.t > sent.frames[index - 1].t), 'time goes forward');
+        assert.ok(sent.frames.every(frame => frame.data.startsWith('data:image/jpeg;base64,')));
+        assert.ok(sent.frames.every(frame => frame.data.length < 60000), 'small face crops, not full frames');
         assert.equal(sent.avatarSha256, createHash('sha256').update(sent.profileImage).digest('base64'));
         assert.equal(sent.avatarSha256, await alice.evaluate(() => state.myProfile.avatarFull.sha256));
         // Kamera wieder aus.

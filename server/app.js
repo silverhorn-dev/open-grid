@@ -43,8 +43,7 @@ import {
 } from './security.js';
 import { applyAudienceMinimum, parseAudienceMinimum } from './audience.js';
 import { MAX_THRESHOLD, MIN_THRESHOLD, nudityPublicConfig as describeNudityModels, parseNudityConfig, parseNudityThreshold, registerNudityModelRoutes } from './nudity-model.js';
-import { findVerifyModels, loadBadgeKey, parseVerifyDays, parseVerifyEnabled, parseVerifySettings, parseVerifyThreshold, registerVerifyRoutes } from './verify.js';
-import { loadFaceModels } from './face-verify.js';
+import { createVerifyRunner, findVerifyModels, inProcessRunner, loadBadgeKey, parseVerifyDays, parseVerifyEnabled, parseVerifySettings, parseVerifyThreshold, registerDetectorAssets, registerVerifyRoutes } from './verify.js';
 
 const MAX_GRID_RESULTS = 100;
 // Quoten fuer den Pfad-C-Zwischenspeicher, damit niemand die Queue eines Empfaengers flutet.
@@ -218,6 +217,7 @@ const clientAssetFiles = [
     'app/nudity.js',
     'app/nudity-model.js',
     'app/nudity-worker.js',
+    'app/verify-worker.js',
     'app/media-rights.js',
     'app/albums.js',
     'app/swarm.js',
@@ -579,7 +579,8 @@ export async function buildApp(options = {}) {
         // Der Nacktbild-Worker darf WebAssembly kompilieren (NudeNet/onnxruntime-web, TF.js); die Seite nicht.
         // GIFs liegen auf fremden https-Servern: Bilder/Videos von dort nur, wenn eine GIF-Quelle an ist.
         reply.headers(securityHeaders(request.headers.host, {
-            wasm: request.url.startsWith('/client/app/nudity-worker.js'),
+            // Ebenso der Erkenner der Profilbild-Verifizierung (verify-worker.js, YuNet).
+            wasm: request.url.startsWith('/client/app/nudity-worker.js') || request.url.startsWith('/client/app/verify-worker.js'),
             externalMedia: gifSettings.sources.length > 0,
             serviceWorker: request.url.split('?')[0] === '/sw.js',
             // Anbieter-Suche laeuft vom Client direkt zum Anbieter (dessen Regeln).
@@ -953,16 +954,10 @@ export async function buildApp(options = {}) {
     const verifySettings = { ...verifyEnv };
     const verifyModelPaths = options.verifyModels ? null : findVerifyModels([options.verifyModelDir, process.env.VERIFY_MODEL_DIR,
         join(projectDirectory, 'data', 'verify-models'), join(projectDirectory, 'models', 'verify')]);
-    let verifyModelsPromise = null;
-    const getVerifyModels = () => {
-        if (options.verifyModels) return Promise.resolve(options.verifyModels);
-        verifyModelsPromise = verifyModelsPromise || loadFaceModels(verifyModelPaths).catch(error => {
-            verifyModelsPromise = null;
-            throw error;
-        });
-        return verifyModelsPromise;
-    };
-    getVerifyModels.available = () => Boolean(options.verifyModels || verifyModelPaths);
+    // Rechnet im eigenen Worker-Thread (verify-worker.js), Modelle nur waehrend Pruefungen im Speicher; Tests: Ersatz-Modelle.
+    const verifyRunner = options.verifyModels ? inProcessRunner(options.verifyModels)
+        : verifyModelPaths ? createVerifyRunner({ ...verifyModelPaths, log: app.log }) : null;
+    app.addHook('onClose', async () => verifyRunner?.close());
 
     const liveConfig = createLiveConfig({
         store, log: app.log, now,
@@ -1071,10 +1066,10 @@ export async function buildApp(options = {}) {
                 env: verifyEnv.enabled ? 'on' : 'off',
                 apply: value => {
                     const enabled = parseVerifyEnabled(value ?? (verifyEnv.enabled ? 'on' : 'off'));
-                    if (enabled && !getVerifyModels.available()) throw new Error('Verification models are not installed');
+                    if (enabled && !Boolean(verifyRunner)) throw new Error('Verification models are not installed');
                     verifySettings.enabled = enabled;
                 },
-                options: () => (getVerifyModels.available() ? ['off', 'on'] : ['off'])
+                options: () => (Boolean(verifyRunner) ? ['off', 'on'] : ['off'])
             },
             VERIFY_THRESHOLD: {
                 env: verifyEnv.threshold,
@@ -1156,7 +1151,9 @@ export async function buildApp(options = {}) {
 
     const verify = registerVerifyRoutes(app, {
         store, settings: () => verifySettings, requirePeerAuth, allowRequest, isString, now, log: app.log,
-        getModels: getVerifyModels, badgeKey: loadBadgeKey(store)
+        runner: () => verifyRunner, badgeKey: loadBadgeKey(store), random: options.verifyRandom,
+        // Live-Anleitung im Browser (YuNet ueber onnxruntime-web), nur mit echten Modellen.
+        detector: verifyModelPaths ? await registerDetectorAssets(app, verifyModelPaths.yunetPath) : null
     });
 
     // Meldungen aus der App (server/reports.js), bearbeitet im Admin-Panel.

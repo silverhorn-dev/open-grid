@@ -32,27 +32,32 @@ Pruefen live vor der Kamera.
   Fotos Kosinus 0,87, verschiedene Personen 0,11-0,17; Erkennung ca. 90 ms je
   Bild (WASM, 640x640).
 
-## Ablauf
+## Ablauf (Stand 2026-11-20: Bildfolge statt drei Einzelbilder)
 
 1. Profil (Dating) hat ein Profilbild. "Profil verifizieren" erklaert vorher,
-   was passiert (Selfie geht kurz an den Router, wird nach der Pruefung
-   verworfen, nichts gespeichert) und fragt nach der Zustimmung.
-2. `POST /api/verify/start` -> `{ sessionId, steps, expiresAt }`: zufaellige
-   Reihenfolge aus "geradeaus", "Kopf nach links", "Kopf nach rechts"
-   (2 Minuten gueltig, je Peer hoechstens 5 Versuche am Tag).
-3. Frontkamera; die App fuehrt durch die Schritte und nimmt je Schritt ein
-   Bild (kurzer Countdown). Kein Upload aus der Galerie.
-4. `POST /api/verify/finish { sessionId, frames: [JPEG...], profileImage }`
-   mit dem Profilbild in voller Groesse (`avatarFull`, dessen SHA-256 steht im
-   signierten Profil).
-5. Router, nur im Arbeitsspeicher:
-   - je Bild genau ein Gesicht (YuNet), Mindestgroesse;
-   - Kopfhaltung aus den 5 Punkten (Nase relativ zur Augenmitte) passt zum
-     jeweiligen Schritt -> live, kein Foto vom Foto (einfacher Schutz);
-   - SFace: alle Schritte dieselbe Person, Frontalbild vs. Profilbild ueber
-     der Schwelle (Kosinus, Standard 0,363 laut SFace);
-   - danach Bilder und Merkmale verwerfen, nichts protokollieren ausser
-     "ok/abgelehnt" (ohne Bilddaten).
+   was passiert, und fragt nach der Zustimmung.
+2. `POST /api/verify/start` -> `{ sessionId, steps, expiresAt, maxFrames }`:
+   erst "geradeaus" (Bezugsbild), dann "links"/"rechts" in zufaelliger
+   Reihenfolge; 3 Minuten gueltig, je Peer 5 Versuche am Tag.
+3. Frontkamera mit **Live-Anleitung im Browser**: YuNet laeuft im Web Worker
+   (`client/app/verify-worker.js`, onnxruntime-web, Modell vom eigenen Router).
+   Die App sagt "naeher ran", "nur eine Person", "weiter nach links" usw. und
+   nimmt automatisch auf, sobald die Haltung passt (strengere Grenzen als der
+   Router). Je Schritt 4 Gesichtsausschnitte (256 px, ca. 20 KB), mit Zeit.
+   Nur Komfort: entschieden wird beim Router.
+4. `POST /api/verify/finish { sessionId, frames: [{ data, step, t }], profileImage, avatarSha256 }`.
+5. Router, so wenig Last wie moeglich:
+   - ohne Modell: Folge plausibel (Reihenfolge der Schritte, 2-48 Bilder, je
+     Schritt mindestens 2, Zeit laeuft vorwaerts, 1,5 s bis 3 min);
+   - **Stichprobe**, vom Router zufaellig gewaehlt: je Schritt ein Bild plus
+     eins dazu. Wer faelschen will, muesste alle Bilder faelschen;
+   - nur fuer die Stichprobe + Profilbild: YuNet + SFace (genau ein Gesicht,
+     Kopfhaltung passt, dieselbe Person, Profilbild ueber der Schwelle);
+   - im **eigenen Worker-Thread** (`server/verify-worker.js`), der Router
+     bleibt ansprechbar (gemessen: hoechstens 6 ms Verzoegerung); Modelle nur
+     waehrend Pruefungen im Speicher, nach 5 Minuten Leerlauf entladen;
+   - gemessen 2026-11-20: ca. 0,8 s je Pruefung (erste 1,6 s mit Laden).
+   - danach Bilder und Merkmale verwerfen, nur "ok/abgelehnt" ins Log.
 6. Ergebnis: signierter Haken des Routers
    `{ subject, avatarSha256, issuedAt, expiresAt (90 Tage) }` (ECDSA P-256,
    eigener Router-Schluessel, oeffentlicher Teil in `/api/config`). Der Router
@@ -60,6 +65,9 @@ Pruefen live vor der Kamera.
 7. Der Haken reist im Dating-Profil mit (`verified`). Empfaenger pruefen
    Signatur, Ablauf und dass `avatarSha256` zum aktuellen `avatarFull` passt.
    Neues Profilbild = Haken weg, neu pruefen.
+
+Grenzen: ein abgespieltes Video einer anderen Person vor der Kamera kommt
+durch (dafuer spaeter ein Anti-Spoofing-Modell oder V5 mit Attestierung).
 
 ## Regeln beim Empfaenger (P2)
 

@@ -56,3 +56,39 @@ test('receiver accepts a router-signed check mark only for this contact, this pi
     const foreign = { ...badge, subject: 'carol' };
     assert.equal(await context.checkPeerVerification('carol', profile({ verified: { badge: foreign, sig: signBadge(foreign, other.privateKey) } })), false);
 });
+
+// Browser-Worker (verify-worker.js) und Router (server/face-verify.js) dekodieren YuNet gleich.
+test('YuNet decoding in the browser worker matches the router', async () => {
+    const { decodeYuNet } = await import('../server/face-verify.js');
+    const context = vm.createContext({ Math, Object, Float32Array });
+    vm.runInContext(readFileSync(new URL('../client/app/verify-worker.js', import.meta.url), 'utf8'), context);
+    const outputs = {};
+    let seed = 7;
+    const random = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    for (const stride of [8, 16, 32]) {
+        const cells = (640 / stride) ** 2;
+        outputs[`cls_${stride}`] = Float32Array.from({ length: cells }, () => random() * 0.9);
+        outputs[`obj_${stride}`] = Float32Array.from({ length: cells }, () => random());
+        outputs[`bbox_${stride}`] = Float32Array.from({ length: cells * 4 }, () => random() * 2 - 0.5);
+        outputs[`kps_${stride}`] = Float32Array.from({ length: cells * 10 }, () => random() * 2 - 0.5);
+    }
+    const server = decodeYuNet(outputs, { scale: 0.75 });
+    const browser = context.decodeYuNet(outputs, { scale: 0.75 });
+    assert.ok(server.length > 0);
+    assert.deepEqual(JSON.parse(JSON.stringify(browser)), JSON.parse(JSON.stringify(server)));
+});
+
+// Live-Anleitung: Hinweise je Lage, strenger als der Router.
+test('live guidance: one face, close enough, pose reached (stricter than the router)', () => {
+    const context = load({ id: 'me' });
+    context.t = key => key;
+    const face = (nose, size = 200) => ({ box: [100, 100, size, size], landmarks: [[150, 150], [250, 150], [200 + nose, 200], [160, 250], [240, 250]] });
+    assert.equal(context.verifyGuidance('straight', [], 640, 480), 'verify.hintNoFace');
+    assert.equal(context.verifyGuidance('straight', [face(0), face(0)], 640, 480), 'verify.hintManyFaces');
+    assert.equal(context.verifyGuidance('straight', [face(0, 40)], 640, 480), 'verify.hintCloser');
+    assert.equal(context.verifyGuidance('straight', [face(0)], 640, 480), null);
+    assert.equal(context.verifyGuidance('straight', [face(10)], 640, 480), 'verify.hintStraight', '0.1 is fine for the router, not for the client');
+    assert.equal(context.verifyGuidance('left', [face(25)], 640, 480), 'verify.hintMoreLeft', 'router would take 0.25, client wants 0.3');
+    assert.equal(context.verifyGuidance('left', [face(35)], 640, 480), null);
+    assert.equal(context.verifyGuidance('right', [face(-35)], 640, 480), null);
+});

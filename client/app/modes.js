@@ -53,7 +53,15 @@ async function loadAppMode() {
         },
         // Profilbild-Verifizierung (verify.js, Board T37): an/aus, Router-Schluessel fuer Haken, Gueltigkeit.
         verify: config?.verify?.enabled === true
-            ? { enabled: true, key: config.verify.key && typeof config.verify.key === 'object' ? config.verify.key : null, days: Number(config.verify.days) || 90 }
+            ? {
+                enabled: true,
+                key: config.verify.key && typeof config.verify.key === 'object' ? config.verify.key : null,
+                days: Number(config.verify.days) || 90,
+                // Gesichtserkenner fuer die Live-Anleitung (verify-worker.js), nur Pfade vom eigenen Router.
+                detector: ['library', 'runtimeUrl', 'modelUrl'].every(key => typeof config.verify.detector?.[key] === 'string' && config.verify.detector[key].startsWith('/'))
+                    ? { library: config.verify.detector.library, runtimeUrl: config.verify.detector.runtimeUrl, modelUrl: config.verify.detector.modelUrl }
+                    : null
+            }
             : { enabled: false, key: config?.verify?.key && typeof config.verify.key === 'object' ? config.verify.key : null },
         // Nacktbild-Modell vom Router (Board T3): Modell, Schwelle, Klassen, Pfade (nudity-model.js).
         nudity: config?.nudity && typeof config.nudity === 'object' ? config.nudity : { model: 'off' },

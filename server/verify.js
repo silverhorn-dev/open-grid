@@ -14,15 +14,23 @@
 //                     (Standard: data/verify-models, sonst models/verify im Image)
 import { createHash, createPrivateKey, createPublicKey, generateKeyPairSync, randomUUID, sign } from 'node:crypto';
 import { existsSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import { join } from 'node:path';
+import { Worker } from 'node:worker_threads';
 import { cosine, decodeJpeg, headYaw, poseMatches } from './face-verify.js';
+import { packageRoot, packageVersion } from './nudity-model.js';
 
 export const VERIFY_STEPS = ['straight', 'left', 'right'];
-export const VERIFY_SESSION_MS = 2 * 60 * 1000;
+export const VERIFY_SESSION_MS = 3 * 60 * 1000;
+export const VERIFY_MAX_FRAMES = 48;
+export const VERIFY_MIN_FRAMES_PER_STEP = 2;
+export const VERIFY_MIN_DURATION_MS = 1500;
+export const VERIFY_IDLE_MS = 5 * 60 * 1000;
 export const VERIFY_ATTEMPTS_PER_DAY = 5;
 export const VERIFY_SAME_PERSON_STEPS = 0.3;
 export const VERIFY_MIN_FACE_PX = 60;
-const MAX_FRAME_LENGTH = 1_500_000;
+const MAX_FRAME_LENGTH = 300_000;
 const MAX_PROFILE_LENGTH = 3_000_000;
 export const YUNET_FILE = 'face_detection_yunet_2023mar.onnx';
 export const SFACE_FILE = 'face_recognition_sface_2021dec.onnx';
@@ -90,15 +98,11 @@ export function signBadge(badge, privateKey) {
 
 const sha256Base64 = text => createHash('sha256').update(text).digest('base64');
 
-function decodeDataUrl(value, maxLength) {
+// JPEG aus einer Data-URL (nur die Bytes; dekodiert wird erst im Worker).
+function jpegBytes(value, maxLength) {
     if (typeof value !== 'string' || value.length > maxLength) return null;
     const match = /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(value);
-    if (!match) return null;
-    try {
-        return decodeJpeg(Buffer.from(match[1], 'base64'));
-    } catch {
-        return null;
-    }
+    return match ? Buffer.from(match[1], 'base64') : null;
 }
 
 function shuffle(list) {
@@ -110,37 +114,180 @@ function shuffle(list) {
     return copy;
 }
 
-// Pruefung einer Sitzung (rein bis auf die Modelle; models = { detect(image), embed(image, face) }).
-// Liefert { ok: true } oder { ok: false, reason }.
-export async function checkVerification({ steps, frames, profileImage, models, threshold }) {
-    const profile = profileImage;
-    if (!profile) return { ok: false, reason: 'profile-image' };
-    const profileFaces = await models.detect(profile);
+// ----- Bildfolge (Board T37, "Video"-Check) -----
+// Der Client nimmt waehrend der Kopfbewegung eine Folge von Gesichtsausschnitten auf (je Bild der Schritt, in dem es
+// entstand, und die Zeit). Der Router prueft ohne Modell, ob die Folge plausibel ist, und rechnet dann nur eine
+// Stichprobe, die er selbst zufaellig waehlt: je Schritt ein Bild plus eins dazu. Wer faelschen will, weiss nicht,
+// welche Bilder geprueft werden, und muesste alle faelschen.
+export function checkSequence(frames, steps) {
+    if (!Array.isArray(frames) || frames.length < steps.length * VERIFY_MIN_FRAMES_PER_STEP || frames.length > VERIFY_MAX_FRAMES) return 'sequence';
+    let stepIndex = 0;
+    const counts = new Map();
+    for (let index = 0; index < frames.length; index++) {
+        const frame = frames[index];
+        const position = steps.indexOf(frame?.step);
+        if (position < 0 || position < stepIndex || !Number.isFinite(frame.t)) return 'sequence';
+        if (index > 0 && !(frame.t > frames[index - 1].t)) return 'sequence';
+        stepIndex = position;
+        counts.set(frame.step, (counts.get(frame.step) || 0) + 1);
+    }
+    if (steps.some(step => (counts.get(step) || 0) < VERIFY_MIN_FRAMES_PER_STEP)) return 'sequence';
+    const duration = frames[frames.length - 1].t - frames[0].t;
+    if (duration < VERIFY_MIN_DURATION_MS || duration > VERIFY_SESSION_MS) return 'sequence';
+    return null;
+}
+
+export function pickFrames(frames, steps, random = Math.random) {
+    const picks = steps.map(step => {
+        const candidates = frames.map((frame, index) => (frame.step === step ? index : -1)).filter(index => index >= 0);
+        return candidates[Math.floor(random() * candidates.length)];
+    });
+    const rest = frames.map((_, index) => index).filter(index => !picks.includes(index));
+    if (rest.length) picks.push(rest[Math.floor(random() * rest.length)]);
+    return picks.sort((a, b) => a - b);
+}
+
+// Pruefung (rein bis auf die Modelle; models = { detect(image), embed(image, face) }). picks = [{ image, step }].
+// Liefert { ok: true } oder { ok: false, reason, step? }.
+export async function checkVerification({ picks, profileImage, models, threshold }) {
+    if (!profileImage) return { ok: false, reason: 'profile-image' };
+    const profileFaces = await models.detect(profileImage);
     if (profileFaces.length !== 1) return { ok: false, reason: 'profile-face' };
     const vectors = [];
-    for (let index = 0; index < steps.length; index++) {
-        const image = frames[index];
+    let straight = null;
+    for (const { image, step } of picks) {
         if (!image) return { ok: false, reason: 'frame' };
         const faces = await models.detect(image);
-        if (faces.length === 0) return { ok: false, reason: 'no-face', step: steps[index] };
-        if (faces.length > 1) return { ok: false, reason: 'many-faces', step: steps[index] };
+        if (faces.length === 0) return { ok: false, reason: 'no-face', step };
+        if (faces.length > 1) return { ok: false, reason: 'many-faces', step };
         const face = faces[0];
-        if (Math.min(face.box[2], face.box[3]) < VERIFY_MIN_FACE_PX) return { ok: false, reason: 'too-far', step: steps[index] };
-        if (!poseMatches(steps[index], headYaw(face.landmarks))) return { ok: false, reason: 'pose', step: steps[index] };
-        vectors.push(await models.embed(image, face));
+        if (Math.min(face.box[2], face.box[3]) < VERIFY_MIN_FACE_PX) return { ok: false, reason: 'too-far', step };
+        if (!poseMatches(step, headYaw(face.landmarks))) return { ok: false, reason: 'pose', step };
+        const vector = await models.embed(image, face);
+        vectors.push(vector);
+        if (step === 'straight' && !straight) straight = vector;
     }
-    const straight = vectors[steps.indexOf('straight')];
+    if (!straight) return { ok: false, reason: 'frame' };
     if (vectors.some(vector => cosine(vector, straight) < VERIFY_SAME_PERSON_STEPS)) return { ok: false, reason: 'not-same-person' };
-    const similarity = cosine(straight, await models.embed(profile, profileFaces[0]));
+    const similarity = cosine(straight, await models.embed(profileImage, profileFaces[0]));
     if (similarity < threshold) return { ok: false, reason: 'mismatch' };
     return { ok: true };
 }
 
-export function registerVerifyRoutes(app, { store, settings, requirePeerAuth, allowRequest, isString, now = Date.now, log, getModels, badgeKey }) {
+// Auftrag mit rohen JPEGs pruefen: im Prozess (Tests, Ersatz-Modelle) oder im Worker (verify-worker.js).
+export async function runCheckJob(job, models) {
+    const decode = bytes => {
+        try {
+            return bytes ? decodeJpeg(Buffer.from(bytes)) : null;
+        } catch {
+            return null;
+        }
+    };
+    return checkVerification({
+        picks: job.picks.map(pick => ({ image: decode(pick.jpeg), step: pick.step })),
+        profileImage: decode(job.profile),
+        models,
+        threshold: job.threshold
+    });
+}
+
+export function inProcessRunner(models) {
+    return { run: job => runCheckJob(job, models), close: async () => {} };
+}
+
+// Eigener Worker-Thread: der Router bleibt waehrend der Rechnung ansprechbar. Ein Auftrag nach dem anderen; nach
+// VERIFY_IDLE_MS ohne Auftrag wird der Worker beendet und gibt Modelle und Speicher frei.
+export function createVerifyRunner({ yunetPath, sfacePath, idleMs = VERIFY_IDLE_MS, log }) {
+    let worker = null;
+    let idleTimer = null;
+    let queue = Promise.resolve();
+    let nextId = 0;
+    const pending = new Map();
+    const stop = () => {
+        clearTimeout(idleTimer);
+        idleTimer = null;
+        const current = worker;
+        worker = null;
+        if (current) current.terminate().catch(() => {});
+    };
+    const ensureWorker = () => {
+        if (worker) return worker;
+        worker = new Worker(new URL('./verify-worker.js', import.meta.url), { workerData: { yunetPath, sfacePath } });
+        worker.on('message', ({ id, result, error }) => {
+            const entry = pending.get(id);
+            pending.delete(id);
+            if (!entry) return;
+            if (error) entry.reject(new Error(error));
+            else entry.resolve(result);
+        });
+        const failAll = error => {
+            for (const entry of pending.values()) entry.reject(error);
+            pending.clear();
+            worker = null;
+        };
+        worker.on('error', error => {
+            log?.warn(`Verification worker failed: ${error.message}`);
+            failAll(error);
+        });
+        worker.on('exit', code => {
+            if (pending.size) failAll(new Error(`Verification worker exited (${code})`));
+        });
+        worker.unref();
+        return worker;
+    };
+    const runNow = job => new Promise((resolve, reject) => {
+        clearTimeout(idleTimer);
+        const id = ++nextId;
+        pending.set(id, { resolve, reject });
+        ensureWorker().postMessage({ id, job });
+    }).finally(() => {
+        clearTimeout(idleTimer);
+        idleTimer = setTimeout(stop, idleMs);
+        idleTimer.unref?.();
+    });
+    return {
+        run(job) {
+            const result = queue.then(() => runNow(job));
+            queue = result.catch(() => {});
+            return result;
+        },
+        close: async () => stop(),
+        get active() {
+            return Boolean(worker);
+        }
+    };
+}
+
+// Gesichtserkennung fuer die Live-Anleitung im Browser: YuNet + onnxruntime-web (WASM) vom eigenen Router.
+// Nur Komfort; entschieden wird beim Router.
+export async function registerDetectorAssets(app, yunetPath) {
+    const require = createRequire(import.meta.url);
+    const ortRoot = packageRoot(require, 'onnxruntime-web');
+    if (!ortRoot || !yunetPath) return null;
+    const base = `/vendor/verify/${await packageVersion(ortRoot)}/`;
+    const files = {
+        'ort.wasm.min.js': 'text/javascript; charset=utf-8',
+        'ort-wasm-simd-threaded.mjs': 'text/javascript; charset=utf-8',
+        'ort-wasm-simd-threaded.wasm': 'application/wasm'
+    };
+    for (const [file, type] of Object.entries(files)) {
+        app.get(`${base}${file}`, async (_request, reply) => {
+            reply.header('cache-control', 'public, max-age=31536000, immutable').type(type);
+            return readFile(join(ortRoot, 'dist', file));
+        });
+    }
+    app.get(`${base}${YUNET_FILE}`, async (_request, reply) => {
+        reply.header('cache-control', 'public, max-age=31536000, immutable').type('application/octet-stream');
+        return readFile(yunetPath);
+    });
+    return { library: `${base}ort.wasm.min.js`, runtimeUrl: base, modelUrl: `${base}${YUNET_FILE}` };
+}
+
+export function registerVerifyRoutes(app, { store, settings, requirePeerAuth, allowRequest, isString, now = Date.now, log, runner, detector = null, badgeKey, random = Math.random }) {
     const sessions = new Map();
     const attempts = new Map();
 
-    const available = () => settings().enabled && Boolean(getModels.available?.());
+    const available = () => settings().enabled && Boolean(runner());
 
     app.post('/api/verify/start', async (request, reply) => {
         const { peerId } = request.body || {};
@@ -153,12 +300,13 @@ export function registerVerifyRoutes(app, { store, settings, requirePeerAuth, al
         if (day.length >= VERIFY_ATTEMPTS_PER_DAY) return reply.code(429).send({ error: 'Too many attempts today' });
         attempts.set(peerId, [...day, at]);
         for (const [id, session] of sessions) if (session.expiresAt < at) sessions.delete(id);
-        const session = { id: randomUUID(), peerId, steps: shuffle(VERIFY_STEPS), expiresAt: at + VERIFY_SESSION_MS };
+        // Geradeaus zuerst (Bezugsbild), danach links/rechts in zufaelliger Reihenfolge.
+        const session = { id: randomUUID(), peerId, steps: ['straight', ...shuffle(['left', 'right'])], expiresAt: at + VERIFY_SESSION_MS };
         sessions.set(session.id, session);
-        return { sessionId: session.id, steps: session.steps, expiresAt: session.expiresAt };
+        return { sessionId: session.id, steps: session.steps, expiresAt: session.expiresAt, maxFrames: VERIFY_MAX_FRAMES };
     });
 
-    app.post('/api/verify/finish', { bodyLimit: 8 * 1024 * 1024 }, async (request, reply) => {
+    app.post('/api/verify/finish', { bodyLimit: 16 * 1024 * 1024 }, async (request, reply) => {
         const { peerId, sessionId, frames, profileImage, avatarSha256 } = request.body || {};
         if (!isString(peerId, 200) || !isString(sessionId, 100) || !Array.isArray(frames) || !isString(avatarSha256, 100)) {
             return reply.code(400).send({ error: 'Invalid request' });
@@ -167,24 +315,24 @@ export function registerVerifyRoutes(app, { store, settings, requirePeerAuth, al
         const session = sessions.get(sessionId);
         sessions.delete(sessionId);
         if (!session || session.peerId !== peerId || session.expiresAt < now()) return reply.code(410).send({ ok: false, reason: 'expired' });
-        if (frames.length !== session.steps.length || typeof profileImage !== 'string') return reply.code(400).send({ error: 'Invalid request' });
+        if (typeof profileImage !== 'string' || profileImage.length > MAX_PROFILE_LENGTH) return reply.code(400).send({ error: 'Invalid request' });
         // Der Haken gehoert genau zu diesem Profilbild (SHA-256 wie avatarFull.sha256 im signierten Profil).
         if (sha256Base64(profileImage) !== avatarSha256) return reply.code(400).send({ ok: false, reason: 'profile-hash' });
+        // Plausibel ohne Modell (Reihenfolge, Anzahl, Zeiten), dann Stichprobe.
+        const sequenceProblem = checkSequence(frames, session.steps);
+        if (sequenceProblem) {
+            log.info(`Profile verification: rejected (${sequenceProblem}).`);
+            return { ok: false, reason: sequenceProblem };
+        }
+        const picks = pickFrames(frames, session.steps, random).map(index => ({ jpeg: jpegBytes(frames[index].data, MAX_FRAME_LENGTH), step: frames[index].step }));
         let result;
         try {
-            const models = await getModels();
-            result = await checkVerification({
-                steps: session.steps,
-                frames: frames.map(frame => decodeDataUrl(frame, MAX_FRAME_LENGTH)),
-                profileImage: decodeDataUrl(profileImage, MAX_PROFILE_LENGTH),
-                models,
-                threshold: settings().threshold
-            });
+            result = await runner().run({ picks, profile: jpegBytes(profileImage, MAX_PROFILE_LENGTH), threshold: settings().threshold });
         } catch (error) {
             log.warn(`Verification failed to run: ${error.message}`);
             return reply.code(503).send({ ok: false, reason: 'unavailable' });
         }
-        // Bilder und Merkmale verlassen die Funktion nicht; protokolliert wird nur das Ergebnis.
+        // Bilder und Merkmale verlassen den Worker nicht; protokolliert wird nur das Ergebnis.
         log.info(`Profile verification: ${result.ok ? 'passed' : `rejected (${result.reason})`}.`);
         if (!result.ok) return { ok: false, reason: result.reason, step: result.step };
         const issuedAt = now();
@@ -193,5 +341,7 @@ export function registerVerifyRoutes(app, { store, settings, requirePeerAuth, al
         return { ok: true, badge, sig: signBadge(badge, badgeKey.privateKey) };
     });
 
-    return { publicConfig: () => ({ enabled: available(), key: badgeKey.publicKey, steps: VERIFY_STEPS, days: settings().days }) };
+    return {
+        publicConfig: () => ({ enabled: available(), key: badgeKey.publicKey, steps: VERIFY_STEPS, days: settings().days, ...(available() && detector ? { detector } : {}) })
+    };
 }

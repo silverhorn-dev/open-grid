@@ -762,6 +762,7 @@
     - [x] V1 router: modul `verify`, modelle, sitzungen, pruefung, router-schluessel, signierter haken
     - [x] V2 client: ablauf mit frontkamera, zustimmung, upload, haken im profil
     - [x] V3 haken pruefen + zeigen (profil, grid, chat), grid-filter
+    - [x] V2b bildfolge statt 3 einzelbilder (nutzer 2026-11-20): live-anleitung im browser (YuNet im worker), router prueft stichprobe im worker-thread, modelle bei leerlauf entladen
     - [x] V4 regel "nur verifizierte duerfen mir schreiben", router-standard `CLIENT_DEFAULTS.chatVerifiedOnly`
     - [ ] V5 app mit attestierung: pruefung auf dem geraet
   - plan P1 "profilbild verifiziert": live-selfie nur per kamera (kein upload) mit zufaelliger aufgabe (kopf drehen, zwinkern, geste), gesicht + vergleich mit dem profilbild auf dem geraet, selfie wird danach verworfen; haken im profil/grid

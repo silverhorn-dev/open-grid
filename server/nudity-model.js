@@ -81,7 +81,7 @@ export function nudityModelClasses(modelId, wanted = []) {
 
 const longCache = reply => reply.header('Cache-Control', 'public, max-age=31536000, immutable');
 
-function packageRoot(require, name) {
+export function packageRoot(require, name) {
     try {
         // Manche Pakete geben package.json nicht frei ("exports"); Wurzel ueber den Einstieg suchen.
         // dist/cjs traegt oft ein eigenes package.json ohne Namen: bis zum package.json mit passendem Namen.
@@ -97,7 +97,7 @@ function packageRoot(require, name) {
     }
 }
 
-async function packageVersion(root) {
+export async function packageVersion(root) {
     return JSON.parse(await readFile(join(root, 'package.json'), 'utf8')).version;
 }
 

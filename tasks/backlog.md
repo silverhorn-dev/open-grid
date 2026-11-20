@@ -146,3 +146,12 @@ Ideen ohne festen Termin. Neue Phasen werden von hier auf `tasks/board.md` gehol
 	- [ ] transparenz unterstützt, sollte autom gehen
 	- [ ] FSK 18 Flag
 	- [ ] ausschneide function (model or manual) just loaded when needed
+
+# anti-cheat / integritaet (nutzer 2026-11-20)
+
+- [ ] erweiterte sicherheit + anti-cheat
+	- [ ] js-integritaet: eigene app prueft hashes ihrer js-dateien (gegen manifest vom router, sehr schnell)
+		- hinweis: ohne attestierung umgehbar (wer js aendert, kann auch die pruefung aendern) -> nur als signal, hart erst mit app-attestierung (ANDROID-APP.md phase 4)
+	- [ ] auffaellige verifizierung (z. b. dauert zu lange, frames passen zeitlich nicht) -> geraet als gefaehrlich einstufen und erst mal sperren (admin sieht es, kann freigeben)
+	- [ ] screenshots erkennen und ggf. melden
+		- hinweis: browser haben dafuer keine api; nur heuristiken (desktop: PrintScreen-taste, fenster verliert fokus). android-app: FLAG_SECURE blockiert ja schon, ab android 14 gibt es zusaetzlich einen screenshot-callback (Activity.ScreenCaptureCallback)

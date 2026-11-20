@@ -1,10 +1,19 @@
 // ================= PROFILBILD-VERIFIZIERUNG (documentation/VERIFIZIERUNG.md, Board T37 V2) =================
-// Nur das Entdecken-Profil (Dating). Ablauf: Zustimmung -> Frontkamera -> je Schritt (Reihenfolge vom Router)
-// Countdown und ein Bild -> Upload mit dem Profilbild in voller Groesse -> signierter Haken des Routers.
+// Nur das Entdecken-Profil (Dating). Ablauf: Zustimmung -> Frontkamera mit Live-Anleitung (YuNet im Web Worker,
+// verify-worker.js) -> waehrend der Kopfbewegung eine Folge von Gesichtsausschnitten je Schritt (Reihenfolge vom Router)
+// -> Upload mit dem Profilbild in voller Groesse -> der Router prueft eine Stichprobe -> signierter Haken.
+// Die Anleitung ist nur Komfort: entschieden wird beim Router (server/verify.js).
 // Der Haken liegt im eigenen Profil (`myProfile.verification`) und reist im signierten Profil als `verified` mit,
 // solange er zum aktuellen Profilbild passt und nicht abgelaufen ist. Neues Profilbild = Haken weg.
-const VERIFY_COUNTDOWN_SECONDS = 3;
-const VERIFY_FRAME_EDGE = 720;
+// Bilder je Schritt, Abstand, Zeitlimit je Schritt; Ausschnitt um das Gesicht (Seitenlaenge x Gesicht, Kante in px).
+const VERIFY_FRAMES_PER_STEP = 4;
+const VERIFY_FRAME_GAP_MS = 150;
+const VERIFY_STEP_TIMEOUT_MS = 25000;
+const VERIFY_CROP_FACTOR = 2.2;
+const VERIFY_CROP_EDGE = 256;
+// Strenger als der Router (server/face-verify.js POSE_LIMITS 0.12 / 0.22), damit aufgenommene Bilder dort sicher passen.
+const VERIFY_CLIENT_POSE = { straight: 0.08, turned: 0.3 };
+const VERIFY_MIN_FACE_SHARE = 0.18;
 const VERIFY_STEP_ICONS = { straight: 'fa-circle-dot', left: 'fa-arrow-left', right: 'fa-arrow-right' };
 // Texte woertlich: scripts/i18n-keys.mjs findet nur feste Schluessel, keine zusammengesetzten.
 const VERIFY_STEP_TEXT = { straight: () => t('verify.step.straight'), left: () => t('verify.step.left'), right: () => t('verify.step.right') };
@@ -82,17 +91,76 @@ async function loadOwnFullAvatar() {
     return (await sha256Base64(data)) === meta.sha256 ? data : null;
 }
 
-// Ein Bild aus der Kamera, ungespiegelt (wie es die Kamera sieht), lange Seite hoechstens VERIFY_FRAME_EDGE.
-function captureVerifyFrame(video) {
-    const width = video.videoWidth;
-    const height = video.videoHeight;
-    if (!width || !height) return null;
-    const scale = Math.min(1, VERIFY_FRAME_EDGE / Math.max(width, height));
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.round(width * scale);
-    canvas.height = Math.round(height * scale);
-    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-    return canvas.toDataURL('image/jpeg', 0.85);
+// ----- Live-Erkennung (nur Anleitung) -----
+// Kopfhaltung wie server/face-verify.js headYaw: (Nase.x - Augenmitte.x) / Augenabstand, Bild ungespiegelt.
+function verifyHeadYaw(landmarks) {
+    const [rightEye, leftEye, nose] = landmarks;
+    const eyeDistance = Math.hypot(leftEye[0] - rightEye[0], leftEye[1] - rightEye[1]) || 1;
+    return (nose[0] - (rightEye[0] + leftEye[0]) / 2) / eyeDistance;
+}
+
+function verifyPoseReached(step, yaw) {
+    if (step === 'straight') return Math.abs(yaw) <= VERIFY_CLIENT_POSE.straight;
+    if (step === 'left') return yaw >= VERIFY_CLIENT_POSE.turned;
+    if (step === 'right') return yaw <= -VERIFY_CLIENT_POSE.turned;
+    return false;
+}
+
+// Was der Nutzer gerade tun soll: null = passt, sonst Hinweis.
+function verifyGuidance(step, faces, frameWidth, frameHeight) {
+    if (!faces.length) return t('verify.hintNoFace');
+    if (faces.length > 1) return t('verify.hintManyFaces');
+    const [face] = faces;
+    if (Math.max(face.box[2], face.box[3]) < VERIFY_MIN_FACE_SHARE * Math.min(frameWidth, frameHeight)) return t('verify.hintCloser');
+    const yaw = verifyHeadYaw(face.landmarks);
+    if (verifyPoseReached(step, yaw)) return null;
+    if (step === 'straight') return t('verify.hintStraight');
+    return step === 'left' ? t('verify.hintMoreLeft') : t('verify.hintMoreRight');
+}
+
+// Quadratischer Ausschnitt um das Gesicht (ungespiegelt), hoechstens VERIFY_CROP_EDGE px, als JPEG.
+function cropVerifyFace(canvas, face) {
+    const side = Math.min(Math.max(face.box[2], face.box[3]) * VERIFY_CROP_FACTOR, canvas.width, canvas.height);
+    const centerX = face.box[0] + face.box[2] / 2;
+    const centerY = face.box[1] + face.box[3] / 2;
+    const x = Math.max(0, Math.min(canvas.width - side, centerX - side / 2));
+    const y = Math.max(0, Math.min(canvas.height - side, centerY - side / 2));
+    const edge = Math.round(Math.min(VERIFY_CROP_EDGE, side));
+    const crop = document.createElement('canvas');
+    crop.width = edge;
+    crop.height = edge;
+    crop.getContext('2d').drawImage(canvas, x, y, side, side, 0, 0, edge, edge);
+    return crop.toDataURL('image/jpeg', 0.85);
+}
+
+// Gesichtserkenner: Web Worker mit YuNet vom eigenen Router; Tests setzen state.verifyDetector.
+let verifyWorker = null;
+let verifyWorkerRequests = 0;
+function verifyDetector() {
+    if (state.verifyDetector) return state.verifyDetector;
+    const config = verifyConfig().detector;
+    if (!config?.library || typeof Worker !== 'function' || typeof createImageBitmap !== 'function') return null;
+    return {
+        async detect(canvas) {
+            if (!verifyWorker) verifyWorker = new Worker(`/client/app/verify-worker.js?v=${encodeURIComponent(config.modelUrl)}`);
+            const bitmap = await createImageBitmap(canvas);
+            const id = ++verifyWorkerRequests;
+            return new Promise((resolve, reject) => {
+                const onMessage = event => {
+                    if (event.data?.id !== id) return;
+                    verifyWorker.removeEventListener('message', onMessage);
+                    if (event.data.error) reject(new Error(event.data.error));
+                    else resolve(event.data.faces);
+                };
+                verifyWorker.addEventListener('message', onMessage);
+                verifyWorker.postMessage({ id, config, bitmap }, [bitmap]);
+            });
+        },
+        close() {
+            verifyWorker?.terminate();
+            verifyWorker = null;
+        }
+    };
 }
 
 const verifyWait = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -150,6 +218,7 @@ async function runProfileVerification() {
         stopped = true;
         stream?.getTracks().forEach(track => track.stop());
         video.srcObject = null;
+        if (!state.verifyDetector) verifyDetector()?.close?.();
     };
     state.mediaModalCleanup = stop;
     const fail = (message, retry = true) => {
@@ -178,29 +247,65 @@ async function runProfileVerification() {
     video.srcObject = stream;
     await video.play().catch(() => {});
 
+    const detector = verifyDetector();
+    if (!detector) return fail(t('verify.unavailable'), false);
     let session;
     try {
         session = await verifyRequest('start', {});
     } catch (error) {
         return fail(error.status === 429 ? t('verify.tooMany') : t('verify.unavailable'), error.status !== 429);
     }
+    const progress = verifyElement('div', 'verify-progress flex gap-2');
+    progress.id = 'verify-progress';
+    const dots = session.steps.map(() => verifyElement('span', 'verify-dot'));
+    progress.append(...dots);
+    box.insertBefore(progress, hint);
+    const canvas = document.createElement('canvas');
     const frames = [];
-    for (const step of session.steps) {
-        if (stopped) return;
+    for (let stepIndex = 0; stepIndex < session.steps.length; stepIndex++) {
+        const step = session.steps[stepIndex];
         instruction.innerHTML = '';
         instruction.append(verifyElement('i', `fa-solid ${VERIFY_STEP_ICONS[step] || 'fa-circle-dot'} text-brand-400`), verifyElement('span', '', (VERIFY_STEP_TEXT[step] || VERIFY_STEP_TEXT.straight)()));
         instruction.dataset.step = step;
-        for (let second = VERIFY_COUNTDOWN_SECONDS; second > 0; second--) {
-            hint.textContent = t('verify.countdown', { seconds: second });
-            await verifyWait(1000);
+        dots[stepIndex].classList.add('is-active');
+        const stepStarted = Date.now();
+        let taken = 0;
+        let lastTaken = 0;
+        while (taken < VERIFY_FRAMES_PER_STEP) {
             if (stopped) return;
+            if (Date.now() - stepStarted > VERIFY_STEP_TIMEOUT_MS) return fail(t('verify.reason.pose'));
+            const width = video.videoWidth;
+            const height = video.videoHeight;
+            if (!width || !height) {
+                await verifyWait(100);
+                continue;
+            }
+            canvas.width = width;
+            canvas.height = height;
+            canvas.getContext('2d').drawImage(video, 0, 0, width, height);
+            let faces;
+            try {
+                faces = await detector.detect(canvas);
+            } catch (error) {
+                logDebug(`Verify detector failed: ${error.message}`);
+                return fail(t('verify.unavailable'));
+            }
+            const guidance = verifyGuidance(step, faces, width, height);
+            hint.className = guidance ? 'text-sm text-amber-300' : 'text-sm text-emerald-300';
+            hint.textContent = guidance || t('verify.hintHold');
+            if (!guidance && Date.now() - lastTaken >= VERIFY_FRAME_GAP_MS) {
+                frames.push({ data: cropVerifyFace(canvas, faces[0]), step, t: Date.now() });
+                taken++;
+                lastTaken = Date.now();
+            }
+            await verifyWait(guidance ? 120 : VERIFY_FRAME_GAP_MS);
         }
-        const frame = captureVerifyFrame(video);
-        if (!frame) return fail(t('scan.noCamera'));
-        frames.push(frame);
+        dots[stepIndex].classList.replace('is-active', 'is-done');
     }
+    detector.close?.();
     stop();
     video.classList.add('hidden');
+    progress.classList.add('hidden');
     instruction.textContent = '';
     delete instruction.dataset.step;
     hint.textContent = t('verify.checking');

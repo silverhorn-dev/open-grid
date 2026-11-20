@@ -7,7 +7,7 @@ import jpeg from 'jpeg-js';
 import { buildApp } from '../server/app.js';
 import { createStore } from '../server/database.js';
 import { ALIGN_TEMPLATE, decodeYuNet, headYaw, poseMatches, similarityTransform } from '../server/face-verify.js';
-import { checkVerification } from '../server/verify.js';
+import { checkSequence, checkVerification, pickFrames } from '../server/verify.js';
 
 test('YuNet output: anchor-free decoding to box + 5 points in image coordinates, with NMS', () => {
     const outputs = {};
@@ -74,17 +74,35 @@ function fakeModels({ person = [1, 0, 0], profilePerson = [1, 0, 0], faces = 1, 
 }
 const image = width => ({ width, height: width });
 
-test('verification check: one face per step, matching pose, same person in all steps and on the profile picture', async () => {
-    const steps = ['left', 'straight', 'right'];
-    const posesByWidth = { 20: 'left', 21: 'straight', 22: 'right' };
-    const frames = [image(20), image(21), image(22)];
-    const run = options => checkVerification({ steps, frames, profileImage: image(40), threshold: 0.363, models: fakeModels({ posesByWidth, ...options }) });
+test('verification check: one face per picked frame, matching pose, same person and the profile picture', async () => {
+    const posesByWidth = { 20: 'straight', 21: 'left', 22: 'right' };
+    const picks = [{ image: image(20), step: 'straight' }, { image: image(21), step: 'left' }, { image: image(22), step: 'right' }];
+    const run = (options, list = picks) => checkVerification({ picks: list, profileImage: image(40), threshold: 0.363, models: fakeModels({ posesByWidth, ...options }) });
     assert.deepEqual(await run({}), { ok: true });
     assert.equal((await run({ profilePerson: [0, 1, 0] })).reason, 'mismatch', 'someone else on the profile picture');
     assert.equal((await run({ faces: 2 })).reason, 'many-faces');
     assert.equal((await run({ faces: 0 })).reason, 'no-face');
     // Foto vom Foto: ueberall geradeaus.
     assert.deepEqual(await run({ posesByWidth: { 20: 'straight', 21: 'straight', 22: 'straight' } }), { ok: false, reason: 'pose', step: 'left' });
+});
+
+test('frame sequence: order of the steps, enough frames, plausible timing; random sample per step plus one', () => {
+    const steps = ['straight', 'left', 'right'];
+    const sequence = (perStep, gap = 200) => steps.flatMap(step => Array.from({ length: perStep }, () => ({ step }))).map((frame, index) => ({ ...frame, t: 1000 + index * gap }));
+    assert.equal(checkSequence(sequence(4), steps), null);
+    assert.equal(checkSequence(sequence(1), steps), 'sequence', 'too few frames per step');
+    assert.equal(checkSequence(sequence(20), steps), 'sequence', 'too many frames');
+    assert.equal(checkSequence(sequence(4, 10), steps), 'sequence', 'too fast to be a real head turn');
+    assert.equal(checkSequence([...sequence(4)].reverse(), steps), 'sequence', 'wrong order / time going back');
+    const swapped = sequence(4);
+    swapped[0] = { ...swapped[0], step: 'right' };
+    assert.equal(checkSequence(swapped, steps), 'sequence', 'steps must follow the session order');
+    // Stichprobe: je Schritt eins, plus ein weiteres.
+    const frames = sequence(4);
+    const picks = pickFrames(frames, steps, () => 0.5);
+    assert.equal(picks.length, 4);
+    for (const step of steps) assert.ok(picks.some(index => frames[index].step === step), step);
+    assert.equal(new Set(picks).size, 4);
 });
 
 // ----- Routen -----
@@ -109,32 +127,43 @@ async function clientVerify(badge, sig, key) {
     return context.verify({ ...badge, sig }, { kty: 'EC', crv: 'P-256', x: key.x, y: key.y });
 }
 
-test('verification routes: steps, check, badge signed by the router (verifiable like profile signatures), grid flag', async () => {
-    const posesByWidth = {};
-    const models = fakeModels({ posesByWidth });
+// Folge wie vom Client: je Schritt einige Ausschnitte (Breite 20/21/22 = geradeaus/links/rechts fuer die Ersatz-Modelle).
+const WIDTH_OF = { straight: 20, left: 21, right: 22 };
+function frameSequence(steps, perStep = 4, wrong = {}) {
+    return steps.flatMap(step => Array.from({ length: perStep }, (_, index) => ({ step, width: wrong[`${step}:${index}`] ?? WIDTH_OF[step] })))
+        .map((frame, index) => ({ step: frame.step, t: 1000 + index * 250, data: tinyJpeg(frame.width) }));
+}
+
+test('verification routes: frame sequence, router-chosen sample, badge signed by the router, grid flag', async () => {
+    const models = fakeModels({ posesByWidth: { 20: 'straight', 21: 'left', 22: 'right' } });
     const store = createStore(':memory:');
-    const app = await buildApp({ store, metrics: false, verifySettings: { enabled: true, threshold: 0.363, days: 90 }, verifyModels: models });
+    let detected = 0;
+    const counting = { detect: image => { detected++; return models.detect(image); }, embed: models.embed };
+    const app = await buildApp({ store, metrics: false, verifySettings: { enabled: true, threshold: 0.363, days: 90 }, verifyModels: counting });
     try {
         const config = (await app.inject({ method: 'GET', url: '/api/config' })).json().verify;
         assert.equal(config.enabled, true);
         assert.ok(config.key.x && config.key.y);
         const headers = await registered(app, 'peer-v');
-        const started = await app.inject({ method: 'POST', url: '/api/verify/start', headers, payload: { peerId: 'peer-v' } });
-        assert.equal(started.statusCode, 200);
-        const { sessionId, steps } = started.json();
-        assert.deepEqual([...steps].sort(), ['left', 'right', 'straight']);
-        // Bild je Schritt (Breite 20 + Index), passende Haltung.
-        steps.forEach((step, index) => { posesByWidth[20 + index] = step; });
-        const frames = steps.map((_, index) => tinyJpeg(20 + index));
+        const start = async () => (await app.inject({ method: 'POST', url: '/api/verify/start', headers, payload: { peerId: 'peer-v' } })).json();
+        const first = await start();
+        assert.equal(first.steps[0], 'straight', 'straight first (reference frame)');
+        assert.deepEqual([...first.steps].sort(), ['left', 'right', 'straight']);
         const profileImage = tinyJpeg(40);
         const avatarSha256 = createHash('sha256').update(profileImage).digest('base64');
-        assert.equal((await app.inject({ method: 'POST', url: '/api/verify/finish', headers, payload: { peerId: 'peer-v', sessionId, frames, profileImage, avatarSha256: 'falsch' } })).json().reason, 'profile-hash');
-        // Sitzung ist nach einem Versuch verbraucht: neue holen.
-        const again = (await app.inject({ method: 'POST', url: '/api/verify/start', headers, payload: { peerId: 'peer-v' } })).json();
-        again.steps.forEach((step, index) => { posesByWidth[20 + index] = step; });
-        const finished = await app.inject({ method: 'POST', url: '/api/verify/finish', headers, payload: { peerId: 'peer-v', sessionId: again.sessionId, frames, profileImage, avatarSha256 } });
-        const result = finished.json();
+        const finish = (sessionId, frames, hash = avatarSha256) => app.inject({ method: 'POST', url: '/api/verify/finish', headers, payload: { peerId: 'peer-v', sessionId, frames, profileImage, avatarSha256: hash } });
+        assert.equal((await finish(first.sessionId, frameSequence(first.steps), 'falsch')).json().reason, 'profile-hash');
+        // Unplausible Folge: ohne Modell abgelehnt.
+        const second = await start();
+        detected = 0;
+        assert.equal((await finish(second.sessionId, frameSequence(second.steps, 1))).json().reason, 'sequence');
+        assert.equal(detected, 0, 'no model work for an implausible sequence');
+        // Echte Folge: nur die Stichprobe (4 Bilder + Profilbild) wird gerechnet.
+        const third = await start();
+        detected = 0;
+        const result = (await finish(third.sessionId, frameSequence(third.steps))).json();
         assert.equal(result.ok, true, JSON.stringify(result));
+        assert.equal(detected, 5, 'only the sample is checked');
         assert.equal(result.badge.subject, 'peer-v');
         assert.equal(result.badge.avatarSha256, avatarSha256);
         assert.ok(result.badge.expiresAt - result.badge.issuedAt === 90 * 24 * 60 * 60 * 1000);
@@ -142,11 +171,26 @@ test('verification routes: steps, check, badge signed by the router (verifiable 
         assert.equal(await clientVerify({ ...result.badge, subject: 'peer-x' }, result.sig, config.key), false, 'bound to the subject');
         const grid = (await app.inject({ method: 'GET', url: '/api/grid?geohash=u10j2k' })).json().peers;
         assert.equal(grid.find(peer => peer.id === 'peer-v')?.verified, true);
-        // Hoechstens 5 Versuche am Tag.
-        for (let attempt = 0; attempt < 3; attempt++) await app.inject({ method: 'POST', url: '/api/verify/start', headers, payload: { peerId: 'peer-v' } });
+        // Hoechstens 5 Versuche am Tag (drei gestartet, zwei noch erlaubt).
+        await start();
+        await start();
         assert.equal((await app.inject({ method: 'POST', url: '/api/verify/start', headers, payload: { peerId: 'peer-v' } })).statusCode, 429);
     } finally {
         await app.close();
+    }
+    // Gefaelschte Folge (alle "links"-Bilder schauen geradeaus): die Stichprobe trifft immer ein "links"-Bild.
+    const cheatStore = createStore(':memory:');
+    const cheat = await buildApp({ store: cheatStore, metrics: false, verifySettings: { enabled: true, threshold: 0.363, days: 90 }, verifyModels: models });
+    try {
+        const headers = await registered(cheat, 'peer-c');
+        const session = (await cheat.inject({ method: 'POST', url: '/api/verify/start', headers, payload: { peerId: 'peer-c' } })).json();
+        const profileImage = tinyJpeg(40);
+        const frames = frameSequence(session.steps, 4, { 'left:0': 20, 'left:1': 20, 'left:2': 20, 'left:3': 20 });
+        const result = (await cheat.inject({ method: 'POST', url: '/api/verify/finish', headers, payload: { peerId: 'peer-c', sessionId: session.sessionId, frames, profileImage, avatarSha256: createHash('sha256').update(profileImage).digest('base64') } })).json();
+        assert.deepEqual([result.ok, result.reason, result.step], [false, 'pose', 'left']);
+        assert.equal(cheatStore.isPeerVerified('peer-c'), false);
+    } finally {
+        await cheat.close();
     }
     // Aus (Standard): keine Route, kein Haken im Grid.
     const off = await buildApp({ store: createStore(':memory:'), metrics: false });

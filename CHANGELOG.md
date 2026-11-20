@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 366 · 2026-11-20
+## Build 367 · 2026-11-20
+- Profilbild verifizieren neu: statt drei Fotos mit Countdown erkennt die App dein Gesicht live und führt dich ("näher ran", "weiter nach links", "gut so, halten"); aufgenommen wird automatisch, sobald die Haltung passt
+- Server: prüft nur noch eine zufällige Stichprobe der Aufnahmen, rechnet in einem eigenen Thread (bleibt währenddessen voll ansprechbar) und gibt den Speicher nach 5 Minuten ohne Prüfung wieder frei
+
+## Build 366 · 2026-11-20 · `7aee861`
 - Betreiber können "Nur verifizierte Profile dürfen mir schreiben" per `CLIENT_DEFAULTS.chatVerifiedOnly` für alle ohne eigene Wahl vorgeben
 
 ## Build 365 · 2026-11-20 · `4900366`

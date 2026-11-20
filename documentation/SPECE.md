@@ -2637,27 +2637,34 @@ Nur Dating, aus per Standard (`VERIFY=on`). Plan und Phasen: `documentation/VERI
 
 - `GET /api/config` -> `verify: { enabled, key: { x, y }, steps, days }`; `key` ist der oeffentliche
   P-256-Schluessel des Routers fuer Haken (eigener Schluessel, `server_settings` `verify-badge-key`).
-- `POST /api/verify/start { peerId }` (Bearer) -> `{ sessionId, steps, expiresAt }`; `steps` ist eine
-  zufaellige Reihenfolge aus `straight`, `left`, `right`; 2 Minuten gueltig, je Peer 5 Versuche in 24 h (429),
-  Rate-Limit `verify` 10/min. Aus oder ohne Modelle: 404.
-- `POST /api/verify/finish { peerId, sessionId, frames, profileImage, avatarSha256 }` (Bearer, bis 8 MB):
-  `frames` = je Schritt ein JPEG als Data-URL (in Reihenfolge von `steps`), `profileImage` = das Profilbild in
-  voller Groesse als JPEG-Data-URL, `avatarSha256` = SHA-256 (base64) ueber genau diesen String (wie
-  `avatarFull.sha256`). Die Sitzung gilt fuer einen Versuch.
-  - Pruefung (nur im Arbeitsspeicher): je Bild genau ein Gesicht (YuNet, Mindestseite 60 px); Kopfhaltung
-    `(Nase.x - Augenmitte.x) / Augenabstand`: `straight` |w| <= 0,12, `left` >= 0,22, `right` <= -0,22
-    (Bild nicht gespiegelt); SFace-Kosinus zwischen den Schritten >= 0,3 und Frontalbild vs. Profilbild
-    >= `VERIFY_THRESHOLD`.
-  - Antwort abgelehnt: `{ ok: false, reason, step? }`, `reason` aus `profile-hash`, `profile-image`,
+- `POST /api/verify/start { peerId }` (Bearer) -> `{ sessionId, steps, expiresAt, maxFrames }`; `steps` beginnt mit
+  `straight`, danach `left`/`right` zufaellig; 3 Minuten gueltig, je Peer 5 Versuche in 24 h (429), Rate-Limit
+  `verify` 10/min. Aus oder ohne Modelle: 404.
+- `POST /api/verify/finish { peerId, sessionId, frames, profileImage, avatarSha256 }` (Bearer, bis 16 MB):
+  `frames` = Folge `{ data, step, t }` (JPEG-Data-URL eines Gesichtsausschnitts, Schritt, Zeit in ms), in der
+  Reihenfolge von `steps`; `profileImage` = Profilbild in voller Groesse als JPEG-Data-URL, `avatarSha256` = SHA-256
+  (base64) ueber genau diesen String (wie `avatarFull.sha256`). Die Sitzung gilt fuer einen Versuch.
+  - Ohne Modell: `checkSequence` (2-48 Bilder, je Schritt >= 2, Schritte in Reihenfolge, `t` steigend, Dauer
+    1,5 s bis 3 min), sonst `reason: 'sequence'`.
+  - Stichprobe `pickFrames`: je Schritt ein zufaelliges Bild plus ein weiteres. Nur diese (+ Profilbild) rechnet ein
+    Worker-Thread (`server/verify-worker.js`, Modelle nach 5 min Leerlauf entladen): je Bild genau ein Gesicht
+    (YuNet, Mindestseite 60 px); Kopfhaltung `(Nase.x - Augenmitte.x) / Augenabstand`: `straight` |w| <= 0,12,
+    `left` >= 0,22, `right` <= -0,22 (Bild nicht gespiegelt); SFace-Kosinus zur `straight`-Probe >= 0,3 und
+    `straight` vs. Profilbild >= `VERIFY_THRESHOLD`.
+  - Antwort abgelehnt: `{ ok: false, reason, step? }`, `reason` aus `profile-hash`, `sequence`, `profile-image`,
     `profile-face`, `frame`, `no-face`, `many-faces`, `too-far`, `pose`, `not-same-person`, `mismatch`;
-    abgelaufen 410 `expired`, Modelle nicht ladbar 503 `unavailable`.
+    abgelaufen 410 `expired`, Pruefung nicht moeglich 503 `unavailable`.
   - Antwort ok: `{ ok: true, badge: { subject, avatarSha256, issuedAt, expiresAt }, sig }`. `sig` = ECDSA P-256
     SHA-256 ueber das kanonische JSON von `badge` (wie `signOperation`, roh r||s, base64); pruefbar mit
     `verifyOperationSignature({ ...badge, sig }, key)`.
+- Live-Anleitung: `/api/config` `verify.detector = { library, runtimeUrl, modelUrl }` (onnxruntime-web + YuNet unter
+  `/vendor/verify/<ort-version>/`), Web Worker `client/app/verify-worker.js` (CSP erlaubt dort WASM). Der Client nimmt
+  nur auf, wenn die Haltung strenger passt als beim Router (`straight` |w| <= 0,08, gedreht >= 0,3), je Schritt 4
+  Ausschnitte (2,2 x Gesicht, 256 px).
 - Gespeichert wird nur `verified_peers (peer_id, expires_at)`; `/api/grid` setzt dann `verified: true` an der Karte.
 - Client (`client/app/verify.js`): Karte `#verify-card` im Profil-Editor (nur Entdecken-Profil, nur mit
-  `verify.enabled`), Zustimmung, Frontkamera (`facingMode: 'user'`, Vorschau gespiegelt, Bilder ungespiegelt,
-  lange Seite 720 px, JPEG 0,85), je Schritt 3 s Countdown. `profileImage` ist die lokal gespeicherte grosse
+  `verify.enabled`), Zustimmung, Frontkamera (`facingMode: 'user'`, Vorschau gespiegelt, Ausschnitte ungespiegelt),
+  Live-Anleitung mit Fortschrittspunkten je Schritt, 25 s je Schritt. `profileImage` ist die lokal gespeicherte grosse
   Fassung (`media` `avatarFull.id`), nur wenn ihr SHA-256 zu `avatarFull.sha256` passt.
 - Der Haken liegt verschluesselt im eigenen Profil (`myProfile.verification = { badge, sig }`) und geht als
   `verified: { badge, sig }` im signierten Profil mit (`signProfileData`), nur im Entdecken-Profil und nur,

@@ -75,7 +75,7 @@ Pruefen live vor der Kamera.
 | V1 (fertig) | Router: Modul `verify` (aus per Standard, `VERIFY=on` + Modelle), Modelle laden (onnxruntime-web), Sitzungen, Pruefung, Router-Schluessel, signierter Haken, Grenzen; Tests mit ersetzter Modell-Schicht |
 | V2 (fertig) | Client: Ablauf mit Frontkamera und Schritten, Zustimmung, Upload, Ergebnis; Haken im eigenen Profil speichern und mitschicken |
 | V3 (fertig) | Haken pruefen und zeigen (Profil, Grid-Karte, Chat-Kopf), Grid-Filter |
-| V4 | Regel "nur Verifizierte duerfen mir schreiben" |
+| V4 (fertig) | Regel "nur Verifizierte duerfen mir schreiben" |
 | V5 | App mit Attestierung: Pruefung auf dem Geraet statt auf dem Router (nach ANDROID-APP.md Phase 4) |
 
 ## Offen

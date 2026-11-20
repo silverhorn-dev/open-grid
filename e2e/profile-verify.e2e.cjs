@@ -162,6 +162,30 @@ async function main() {
         await bob.evaluate(id => openChatWithPeer(id), aliceId);
         await waitFor(bob, () => !document.getElementById('chat-peer-verified').classList.contains('hidden'));
 
+        // V4: Bob laesst im Dating nur Verifizierte schreiben. Alice (verifiziert) kommt durch, Carol nicht.
+        const carol = await user('Carol');
+        const carolId = await carol.evaluate(() => state.myProfile.id);
+        await bob.evaluate(async () => { switchTab('keys'); await updateMatchingSetting('chatVerifiedOnly', true); });
+        assert.equal(await bob.evaluate(() => getMyChatPolicy().verifiedOnly), true);
+        assert.equal(await bob.evaluate(() => !document.getElementById('chat-verified-row').classList.contains('hidden')), true, 'setting shown when the router verifies');
+        assert.equal(await bob.evaluate(id => shouldHoldIncomingMessage(id, { id: 'probe-c', senderId: id, text: 'hi' }), carolId), true, 'unverified sender held');
+        assert.equal(await bob.evaluate(id => shouldHoldIncomingMessage(id, { id: 'probe-a', senderId: id, text: 'hi' }), aliceId), false, 'verified sender passes');
+        // Absender-Sicht: Carol sieht den Grund, sobald sie Bobs Profil kennt; Alice darf schreiben.
+        await carol.evaluate(async () => { await setAppMode('discovery'); });
+        await carol.evaluate(id => openProfileModal(id), bobId);
+        await waitFor(carol, id => state.cachedProfiles[id]?.chatPolicy?.verifiedOnly === true, bobId);
+        const carolAllowance = await carol.evaluate(id => getPeerChatAllowance(id), bobId);
+        assert.equal(carolAllowance.allowed, false);
+        assert.match(carolAllowance.reason, /verifiziert/);
+        await alice.evaluate(async () => { await setAppMode('discovery'); });
+        await alice.evaluate(id => openProfileModal(id), bobId);
+        await waitFor(alice, id => state.cachedProfiles[id]?.chatPolicy?.verifiedOnly === true, bobId);
+        assert.equal(await alice.evaluate(id => getPeerChatAllowance(id).allowed, bobId), true);
+        await alice.evaluate(async id => { await openChatWithPeer(id); document.getElementById('chat-input').value = 'hallo verifiziert'; await sendChatMessage(); }, bobId);
+        await waitFor(bob, id => (state.chats[id] || []).some(message => message.text === 'hallo verifiziert' && !message.held), aliceId);
+        // Chat-Gate fuer den Service Worker: "V".
+        assert.equal(await bob.evaluate(() => databaseRequest('keys', 'readonly', store => store.get('chat-gate')).then(gate => gate.mode)), 'V');
+
         // Neues Profilbild: Haken weg.
         await uploadAvatar(alice, 40);
         assert.equal(await alice.evaluate(() => ownVerification()), null);

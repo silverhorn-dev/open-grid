@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 364 · 2026-11-20
+## Build 365 · 2026-11-20
+- Neue Chat-Regel im Dating: "Nur verifizierte Profile dürfen mir schreiben". Nachrichten von anderen werden zurückgehalten, bis ihr Profilbild verifiziert ist oder ihr ein Match habt; wer nicht verifiziert ist, sieht vorher einen Hinweis
+
+## Build 364 · 2026-11-20 · `b08d206`
 - Haken "Profilbild verifiziert" bei anderen: im Profil, im Chat-Kopf und auf der Grid-Karte (Entdecken); neuer Filter "Nur verifizierte Profile". Der Haken wird mit dem Schlüssel des Servers geprüft und gilt nur für das geprüfte Profilbild
 
 ## Build 363 · 2026-11-20 · `8f12e18`

@@ -21,7 +21,8 @@ function flameCooldownMs() {
 const CHAT_LIMIT_OPTIONS = [1, 3, 5, 10];
 const HIDDEN_PEER_NAME = t('matching.someoneNearby');
 
-const DEFAULT_CHAT_POLICY = { mode: 'A', limit: 5, allowImages: true };
+// verifiedOnly (Board T37 V4): in Entdecken-Chats duerfen nur Profile mit gueltigem Haken schreiben (verify.js).
+const DEFAULT_CHAT_POLICY = { mode: 'A', limit: 5, allowImages: true, verifiedOnly: false };
 
 function getMyVisibility() {
     return [1, 2, 3].includes(state.myProfile.visibility) ? state.myProfile.visibility : 1;
@@ -32,8 +33,14 @@ function getMyChatPolicy() {
     return {
         mode: ['A', 'B', 'C'].includes(policy.mode) ? policy.mode : DEFAULT_CHAT_POLICY.mode,
         limit: CHAT_LIMIT_OPTIONS.includes(policy.limit) ? policy.limit : DEFAULT_CHAT_POLICY.limit,
-        allowImages: policy.allowImages !== false
+        allowImages: policy.allowImages !== false,
+        verifiedOnly: policy.verifiedOnly === true
     };
+}
+
+// Die Regel "nur Verifizierte" gilt nur fuer Entdecken-Chats (Dating), nie fuer Chat & Freunde.
+function verifiedRuleApplies(peerId) {
+    return !(typeof chatScopeOf === 'function' && chatScopeOf(peerId) === 'social');
 }
 
 function sanitizeChatPolicy(policy) {
@@ -41,7 +48,8 @@ function sanitizeChatPolicy(policy) {
     return {
         mode: ['A', 'B', 'C'].includes(policy.mode) ? policy.mode : 'A',
         limit: CHAT_LIMIT_OPTIONS.includes(policy.limit) ? policy.limit : 5,
-        allowImages: policy.allowImages !== false
+        allowImages: policy.allowImages !== false,
+        verifiedOnly: policy.verifiedOnly === true
     };
 }
 
@@ -203,10 +211,14 @@ function messageHasImage(message) {
 async function shouldHoldIncomingMessage(peerId, message) {
     if (message.senderId !== peerId || isConnectedPeer(peerId)) return false;
     const policy = getMyChatPolicy();
-    if (policy.mode === 'A') return false;
+    const verifiedRule = policy.verifiedOnly && verifiedRuleApplies(peerId);
+    if (policy.mode === 'A' && !verifiedRule) return false;
     // Liest aus der Datenbank, der Chat muss dafuer nicht geoeffnet sein.
     const stored = await getDatabaseRecordsByIndex('messages', 'peerId', peerId).catch(() => []);
     if (stored.some(item => (typeof isOwnNode === 'function' ? isOwnNode(item.senderId) : item.senderId === state.myProfile.id) && !item.held)) return false;
+    // Ohne gueltigen Haken zurueckhalten; kommt er spaeter mit dem Profil, gibt recheckVerifiedHolds frei.
+    if (verifiedRule && !(typeof checkPeerVerification === 'function' && await checkPeerVerification(peerId).catch(() => false))) return true;
+    if (policy.mode === 'A') return false;
     if (policy.mode === 'C') return true;
     if (!policy.allowImages && messageHasImage(message)) return true;
     const received = stored.filter(item => item.senderId === peerId && !item.held && item.id !== message.id).length;
@@ -225,6 +237,31 @@ async function releaseHeldMessages(peerId) {
         else state.chats[peerId].push(message);
     }
     if (held.length && state.activeChatPeerId === peerId) renderChatHistory();
+}
+
+// Profil mit Haken angekommen: wegen "nur Verifizierte" zurueckgehaltene Nachrichten erneut pruefen (in Reihenfolge,
+// damit Nachrichten-Grenzen weiter gelten).
+async function recheckVerifiedHolds(peerId) {
+    if (!getMyChatPolicy().verifiedOnly || !verifiedRuleApplies(peerId)) return;
+    if (!(typeof checkPeerVerification === 'function' && await checkPeerVerification(peerId).catch(() => false))) return;
+    const stored = await getDatabaseRecordsByIndex('messages', 'peerId', peerId).catch(() => []);
+    const held = stored.filter(message => message.held && message.senderId === peerId)
+        .sort((left, right) => (left.createdAt || 0) - (right.createdAt || 0));
+    let released = 0;
+    for (const message of held) {
+        delete message.held;
+        if (await shouldHoldIncomingMessage(peerId, message)) {
+            message.held = true;
+            continue;
+        }
+        released++;
+        await persistChatMessage(peerId, message);
+        if (!state.chats[peerId]) state.chats[peerId] = [];
+        const index = state.chats[peerId].findIndex(item => item.id === message.id);
+        if (index >= 0) state.chats[peerId][index] = message;
+        else state.chats[peerId].push(message);
+    }
+    if (released && state.activeChatPeerId === peerId) renderChatHistory();
 }
 
 // Texte je Bereich: Grid/Event sprechen von Match und Flamme, Chat/Freunde von Freundschaft und Adden.
@@ -258,6 +295,11 @@ function getPeerChatAllowance(peerId) {
         return { allowed: false, remaining: 0, images: false, reason: t('matching.waitingForProfile') };
     }
     const policy = sanitizeChatPolicy(state.cachedProfiles[peerId]?.chatPolicy);
+    // "Nur verifizierte Profile" beim anderen (Dating): ohne eigenen gueltigen Haken kein Schreiben.
+    if (policy.verifiedOnly && verifiedRuleApplies(peerId) && !(typeof ownVerification === 'function' && ownVerification())) {
+        const canVerify = typeof verifyConfig === 'function' && verifyConfig().enabled;
+        return { allowed: false, remaining: 0, images: false, reason: canVerify ? t('verify.onlyVerifiedCanWrite') : t('verify.onlyVerifiedNoCheck') };
+    }
     if (policy.mode === 'A') return { allowed: true, remaining: Infinity, images: true };
     const wording = connectionWording();
     if (policy.mode === 'C') {
@@ -420,7 +462,9 @@ async function syncChatGate() {
             .map(message => message.peerId));
         Object.keys(state.matchState).filter(isMatched).forEach(peerId => accepted.add(peerId));
         Object.keys(state.friendState).filter(isFriend).forEach(peerId => accepted.add(peerId));
-        await putDatabaseRecord('keys', { id: 'chat-gate', mode: getMyChatPolicy().mode, acceptedPeerIds: [...accepted] });
+        // "V" = alle schreiben, aber nur Verifizierte (verify.js): der SW merkt solche Nachrichten auch vor.
+        const policy = getMyChatPolicy();
+        await putDatabaseRecord('keys', { id: 'chat-gate', mode: policy.mode === 'A' && policy.verifiedOnly ? 'V' : policy.mode, acceptedPeerIds: [...accepted] });
     } catch (error) {
         logDebug(`Could not sync chat gate: ${error.message}`);
     }
@@ -442,6 +486,7 @@ async function updateMatchingSetting(key, value) {
     else if (key === 'chatMode') state.myProfile.chatPolicy = { ...getMyChatPolicy(), mode: value };
     else if (key === 'chatLimit') state.myProfile.chatPolicy = { ...getMyChatPolicy(), limit: Number(value) };
     else if (key === 'chatImages') state.myProfile.chatPolicy = { ...getMyChatPolicy(), allowImages: Boolean(value) };
+    else if (key === 'chatVerifiedOnly') state.myProfile.chatPolicy = { ...getMyChatPolicy(), verifiedOnly: Boolean(value) };
     else if (key === 'matchFriends') {
         // Steht im Profil (nicht als Feld sichtbar): Matches bekommen dann keinen "Adden"-Knopf.
         state.myProfile.allowMatchFriends = Boolean(value);
@@ -473,6 +518,11 @@ function renderMatchingSettings() {
     const images = document.getElementById('chat-images-toggle');
     if (images) images.checked = policy.allowImages;
     document.getElementById('chat-limit-options')?.classList.toggle('hidden', policy.mode !== 'B');
+    // Nur, wenn der Router verifiziert (oder die Regel schon an ist, damit man sie abschalten kann).
+    const verifiedOnly = document.getElementById('chat-verified-toggle');
+    if (verifiedOnly) verifiedOnly.checked = policy.verifiedOnly;
+    document.getElementById('chat-verified-row')?.classList.toggle('hidden', policy.mode === 'C'
+        || !(policy.verifiedOnly || (typeof verifyConfig === 'function' && verifyConfig().enabled)));
     const matchFriends = document.getElementById('match-friends-toggle');
     if (matchFriends) matchFriends.checked = state.myProfile.allowMatchFriends !== false;
     const gridHide = document.getElementById('grid-hide-from-select');

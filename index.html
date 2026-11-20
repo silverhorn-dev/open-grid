@@ -643,6 +643,10 @@
                             <input type="checkbox" role="switch" id="chat-images-toggle" data-change="updateMatchingSetting" data-args='["chatImages", "$checked"]' class="switch">
                         </label>
                     </div>
+                    <label id="chat-verified-row" class="hidden setting-row">
+                        <span class="setting-text"><span data-i18n="verify.settingOnlyVerified" class="setting-title">Nur verifizierte Profile dürfen mir schreiben</span><span data-i18n="verify.settingOnlyVerifiedDesc" class="setting-desc">Gilt nur im Dating. Nachrichten von anderen werden zurückgehalten, bis ihr Profilbild verifiziert ist oder ihr ein Match habt.</span></span>
+                        <input type="checkbox" role="switch" id="chat-verified-toggle" data-change="updateMatchingSetting" data-args='["chatVerifiedOnly", "$checked"]' class="switch">
+                    </label>
                     <label class="setting-row" data-scope="all">
                         <span class="setting-text"><span data-i18n="settings.matchesCanAddMe" class="setting-title">Matches können mich adden</span><span data-i18n="settings.chatThenMovesToChat" class="setting-desc">Der Chat wandert dann nach "Chat &amp; Freunde". Aus: deine Matches sehen keinen "Adden"-Knopf.</span></span>
                         <input type="checkbox" role="switch" id="match-friends-toggle" checked data-change="updateMatchingSetting" data-args='["matchFriends", "$checked"]' class="switch">

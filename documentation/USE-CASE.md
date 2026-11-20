@@ -1533,3 +1533,19 @@ Akzeptanzkriterien:
 - Im Grid-Filter gibt es "Nur verifizierte Profile", wenn der Router die
   Pruefung anbietet.
 
+## UC-87: Nur verifizierte Profile duerfen mir schreiben
+
+Als Nutzerin im Dating moechte ich nur von Menschen mit verifiziertem
+Profilbild angeschrieben werden.
+
+Akzeptanzkriterien:
+
+- In den Chat-Einstellungen gibt es "Nur verifizierte Profile duerfen mir
+  schreiben", wenn der Router verifiziert (und solange die Regel an ist).
+- Nachrichten von Profilen ohne gueltigen Haken werden zurueckgehalten; kommt
+  der Haken spaeter mit dem Profil, werden sie freigegeben (Nachrichten-Grenzen
+  gelten weiter). Ein Match oder eine eigene Nachricht hebt die Regel auf.
+- Wer nicht verifiziert ist, sieht beim Schreiben einen Hinweis statt die
+  Nachricht ins Leere zu schicken.
+- Die Regel gilt nicht fuer Chat & Freunde.
+

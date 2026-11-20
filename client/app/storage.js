@@ -276,6 +276,8 @@ async function cachePeerProfile(peerId, profile) {
         });
     }
     state.cachedProfiles[peerId] = profile;
+    // Haken angekommen: wegen "nur Verifizierte" zurueckgehaltene Nachrichten freigeben (matching.js).
+    if (profile?.verified && typeof recheckVerifiedHolds === 'function') recheckVerifiedHolds(peerId).catch(() => {});
     // Grid-Filter: neu angekommenes Profil kann die Sortierung aendern (grid-filter.js).
     if (typeof scheduleGridRefilter === 'function') scheduleGridRefilter();
     return profile;

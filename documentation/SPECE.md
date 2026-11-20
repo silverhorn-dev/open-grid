@@ -2671,4 +2671,9 @@ Nur Dating, aus per Standard (`VERIFY=on`). Plan und Phasen: `documentation/VERI
   Anzeige: `#modal-profile-verified`, `#chat-peer-verified`; Grid-Karten nutzen `verified` aus `/api/grid`
   (nur im Modus Entdecken). Grid-Filter `verified` ("Nur verifizierte Profile", nur mit `verify.enabled`):
   Grid-Markierung oder ein schon geprueftes Profil.
+- Regel `chatPolicy.verifiedOnly` (V4, im signierten Profil): gilt nur, wenn der Chat nicht in "Chat & Freunde"
+  liegt. Empfaenger: `shouldHoldIncomingMessage` haelt Nachrichten ohne gueltigen Haken zurueck (vor den Regeln
+  A/B/C; Match oder eigene Nachricht heben sie auf); `recheckVerifiedHolds` gibt beim Eintreffen eines Profils mit
+  Haken frei. Chat-Gate fuer den Service Worker: `mode: 'V'` (= A + verifiedOnly), der SW merkt dann wie bei B/C vor.
+  Absender: `getPeerChatAllowance` sperrt ohne eigenen gueltigen Haken mit Hinweis.
 

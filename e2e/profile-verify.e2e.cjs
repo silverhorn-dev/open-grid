@@ -1,12 +1,18 @@
 // End-to-End: Profilbild verifizieren (verify.js, Board T37 V2). Alice laedt ein Profilbild hoch, stimmt zu,
 // die "Kamera" (Canvas) liefert je Schritt ein Bild; die Router-Antworten (/api/verify/*) sind hier nachgebaut, die
 // echte Pruefung testet test/verify.test.js. Danach traegt Alices Profil den Haken, Bob bekommt ihn mit dem
-// Profil; ein neues Profilbild nimmt ihn wieder weg.
+// Profil und sieht ihn (Profil-Popup, Chat-Kopf, Grid-Karte, Filter "nur verifizierte", Board T37 V3); ein neues
+// Profilbild nimmt ihn wieder weg. Der nachgebaute Router signiert wie server/verify.js (P-256, kanonisches JSON).
 const assert = require('node:assert/strict');
-const { createHash } = require('node:crypto');
+const { createHash, generateKeyPairSync, sign } = require('node:crypto');
 const { chromium } = require('playwright');
 
 const BASE_URL = process.env.BASE_URL || 'http://127.0.0.1:3000';
+const ROUTER_KEY = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+const ROUTER_JWK = ROUTER_KEY.publicKey.export({ format: 'jwk' });
+const canonical = value => (value === null || typeof value !== 'object' ? JSON.stringify(value)
+    : `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonical(value[key])}`).join(',')}}`);
+const signBadge = badge => sign('sha256', Buffer.from(canonical(badge)), { key: ROUTER_KEY.privateKey, dsaEncoding: 'ieee-p1363' }).toString('base64');
 
 async function waitFor(page, predicate, arg, timeout = 30000) {
     const startedAt = Date.now();
@@ -22,15 +28,23 @@ async function main() {
     const browser = await chromium.launch();
     const pageErrors = [];
     const finished = [];
+    const verifiedIds = new Set();
     async function user(name, verifyRouter = false) {
         const context = await browser.newContext({ locale: 'de-DE' });
+        await context.route('**/api/config', async route => {
+            const response = await route.fetch();
+            const config = await response.json();
+            config.verify = { enabled: true, key: { x: ROUTER_JWK.x, y: ROUTER_JWK.y }, steps: ['straight', 'left', 'right'], days: 90 };
+            await route.fulfill({ response, json: config });
+        });
+        // Grid-Markierung des Routers fuer Verifizierte.
+        await context.route(/\/api\/grid(\?|$)/, async route => {
+            const response = await route.fetch();
+            const grid = await response.json();
+            (grid.peers || []).forEach(peer => { if (verifiedIds.has(peer.id)) peer.verified = true; });
+            await route.fulfill({ response, json: grid });
+        });
         if (verifyRouter) {
-            await context.route('**/api/config', async route => {
-                const response = await route.fetch();
-                const config = await response.json();
-                config.verify = { enabled: true, key: { x: 'x', y: 'y' }, steps: ['straight', 'left', 'right'], days: 90 };
-                await route.fulfill({ response, json: config });
-            });
             await context.route('**/api/verify/start', route => route.fulfill({
                 json: { sessionId: 'session-1', steps: ['left', 'straight', 'right'], expiresAt: Date.now() + 120000 }
             }));
@@ -38,7 +52,9 @@ async function main() {
                 const body = route.request().postDataJSON();
                 finished.push(body);
                 const now = Date.now();
-                return route.fulfill({ json: { ok: true, badge: { subject: body.peerId, avatarSha256: body.avatarSha256, issuedAt: now, expiresAt: now + 90 * 86400000 }, sig: 'c2lnbmF0dXJl' } });
+                const badge = { subject: body.peerId, avatarSha256: body.avatarSha256, issuedAt: now, expiresAt: now + 90 * 86400000 };
+                verifiedIds.add(body.peerId);
+                return route.fulfill({ json: { ok: true, badge, sig: signBadge(badge) } });
             });
         }
         const page = await context.newPage();
@@ -124,8 +140,27 @@ async function main() {
         await alice.evaluate(() => renderVerifyCard());
         assert.ok(await alice.evaluate(() => document.getElementById('verify-card').classList.contains('is-verified')));
         assert.equal(await alice.evaluate(id => buildProfilePayloadFor(id).verified?.badge.subject, bobId), aliceId);
+        await bob.evaluate(async () => { await setAppMode('discovery'); switchTab('grid'); });
         await bob.evaluate(id => openProfileModal(id), aliceId);
         await waitFor(bob, id => state.cachedProfiles[id]?.verified?.badge?.subject === id, aliceId);
+        // V3: Bob prueft den Haken mit dem Router-Schluessel und sieht ihn im Profil.
+        await waitFor(bob, () => !document.getElementById('modal-profile-verified').classList.contains('hidden'));
+        assert.equal(await bob.evaluate(id => checkPeerVerification(id), aliceId), true);
+        // Gefaelscht (anderes Bild im Haken): nicht anerkannt.
+        assert.equal(await bob.evaluate(id => checkPeerVerification(id, { ...state.cachedProfiles[id], verified: { ...state.cachedProfiles[id].verified, badge: { ...state.cachedProfiles[id].verified.badge, avatarSha256: 'x' } }, avatarFull: { ...state.cachedProfiles[id].avatarFull, sha256: 'x' } }), aliceId), false);
+        await bob.evaluate(() => closeProfileModal());
+        // Grid-Karte mit Haken; Filter "nur verifizierte" laesst Alice drin.
+        await bob.evaluate(() => refreshGrid?.());
+        await waitFor(bob, id => state.peers.some(peer => peer.id === id && peer.verified), aliceId);
+        await bob.evaluate(() => renderDiscoveryGrid());
+        await waitFor(bob, () => document.querySelectorAll('span.verified-badge.absolute').length > 0);
+        await bob.evaluate(() => updateGridFilter({ verified: true }));
+        assert.equal(await bob.evaluate(id => gridFilterVerdict(id, state.peers.find(peer => peer.id === id)), aliceId), 'match');
+        assert.equal(await bob.evaluate(() => gridFilterVerdict('someone-else', { id: 'someone-else' })), 'no');
+        await bob.evaluate(() => updateGridFilter({ verified: false }));
+        // Chat-Kopf.
+        await bob.evaluate(id => openChatWithPeer(id), aliceId);
+        await waitFor(bob, () => !document.getElementById('chat-peer-verified').classList.contains('hidden'));
 
         // Neues Profilbild: Haken weg.
         await uploadAvatar(alice, 40);

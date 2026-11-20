@@ -53,6 +53,7 @@ function openProfileModal(peerId) {
     pushModalEntry('profile', hideProfileModal);
     document.getElementById('modal-profile-name').textContent = peer.name || HIDDEN_PEER_NAME;
     document.getElementById('modal-profile-id').textContent = peer.id;
+    if (typeof renderModalVerifiedBadge === 'function') renderModalVerifiedBadge(peerId);
     document.getElementById('modal-profile-img').src = localAvatar(peer.avatar);
     renderProfileMatchActions(peerId);
 
@@ -140,6 +141,7 @@ function renderProfileModalData(profile) {
     });
     profile = profileModalView(profile);
     document.getElementById('modal-profile-name').textContent = profile.fields?.displayName || HIDDEN_PEER_NAME;
+    if (typeof renderModalVerifiedBadge === 'function') renderModalVerifiedBadge(state.activeModalPeerId);
     if (isSafeInlineImage(profile.avatar)) document.getElementById('modal-profile-img').src = profile.avatar;
     const container = document.getElementById('modal-rendered-fields');
     container.innerHTML = '';
@@ -342,6 +344,7 @@ function showChatLoadingPlaceholder() {
     document.getElementById('view-chat')?.classList.add('chat-open');
     const name = document.getElementById('chat-peer-name');
     if (name) name.textContent = CHAT_LOADING_TEXT;
+    document.getElementById('chat-peer-verified')?.classList.add('hidden');
     const messages = document.getElementById('chat-messages');
     if (messages) showEmptyState(messages, { icon: 'fa-spinner', spin: true, text: t('chat.loadingChat'), compact: true });
 }

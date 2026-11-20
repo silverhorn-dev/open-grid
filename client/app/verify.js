@@ -220,3 +220,73 @@ async function runProfileVerification() {
     hint.textContent = t('verify.success');
     showToast(t('verify.success'), 'success');
 }
+
+// ================= HAKEN BEI ANDEREN (Board T37 V3) =================
+// Profil-Popup und Chat-Kopf: der signierte Haken aus dem Profil (`verified`), geprueft mit dem Schluessel des eigenen
+// Routers (/api/config verify.key): Signatur, Ablauf, gehoert zu diesem Kontakt (auch ein anderes Geraet derselben
+// Person, devices.js) und passt zum aktuellen Profilbild. Grid-Karten zeigen die Markierung des Routers (`verified`).
+const peerVerificationCache = new Map();
+
+function verifyBadgeKeyJwk() {
+    const key = verifyConfig().key;
+    return typeof key?.x === 'string' && typeof key?.y === 'string' ? { kty: 'EC', crv: 'P-256', x: key.x, y: key.y } : null;
+}
+
+function badgeSubjectFits(peerId, subject) {
+    if (subject === peerId) return true;
+    if (typeof identityOf !== 'function' || typeof contactDeviceNodes !== 'function') return false;
+    return contactDeviceNodes(identityOf(peerId)).includes(subject);
+}
+
+async function checkPeerVerification(peerId, profile = state.cachedProfiles?.[peerId], now = Date.now()) {
+    const record = profile?.verified;
+    const badge = record?.badge;
+    const jwk = verifyBadgeKeyJwk();
+    if (!badge || typeof record.sig !== 'string' || !jwk) return false;
+    if (!(badge.expiresAt > now) || !badgeSubjectFits(peerId, badge.subject)) return false;
+    if (!profile.avatar || !profile.avatarFull?.sha256 || badge.avatarSha256 !== profile.avatarFull.sha256) return false;
+    // Schluessel ueber den ganzen Haken: ein veraenderter Haken mit alter Signatur darf nie das alte Ergebnis bekommen.
+    const cacheKey = `${canonicalJson(badge)}|${record.sig}|${jwk.x}|${jwk.y}`;
+    const cached = peerVerificationCache.get(peerId);
+    if (cached?.key === cacheKey) return cached.ok;
+    const ok = await verifyOperationSignature({ ...badge, sig: record.sig }, jwk);
+    peerVerificationCache.set(peerId, { key: cacheKey, ok });
+    return ok;
+}
+
+// Ergebnis der letzten Pruefung (synchron, fuer Filter); Ablauf zaehlt erneut.
+function peerVerifiedCached(peerId, now = Date.now()) {
+    const profile = state.cachedProfiles?.[peerId];
+    const badge = profile?.verified?.badge;
+    return peerVerificationCache.get(peerId)?.ok === true && badge?.expiresAt > now && badge.avatarSha256 === profile.avatarFull?.sha256;
+}
+
+// Haken-Element (Profil-Popup, Chat-Kopf) passend schalten; `stillCurrent` verhindert Treffer fuer einen alten Peer.
+function showPeerVerifiedBadge(elementId, peerId, stillCurrent) {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+    element.classList.add('hidden');
+    if (!peerId) return;
+    checkPeerVerification(peerId).then(ok => {
+        if (stillCurrent()) element.classList.toggle('hidden', !ok);
+    }).catch(() => {});
+}
+
+function renderModalVerifiedBadge(peerId) {
+    showPeerVerifiedBadge('modal-profile-verified', peerId, () => state.activeModalPeerId === peerId);
+}
+
+function renderChatVerifiedBadge(peerId) {
+    showPeerVerifiedBadge('chat-peer-verified', peerId, () => state.activeChatPeerId === peerId);
+}
+
+// Kleiner Haken fuer die Grid-Karte (nur Entdecken, Markierung des Routers).
+function gridVerifiedBadge(peer) {
+    if (!peer?.verified || state.appMode !== 'discovery') return null;
+    const badge = document.createElement('span');
+    badge.className = 'verified-badge absolute top-2 left-2 h-7 w-7 rounded-full bg-black/60 flex items-center justify-center text-sm';
+    badge.title = t('verify.badgeTitle');
+    badge.setAttribute('aria-label', t('verify.badgeTitle'));
+    badge.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
+    return badge;
+}

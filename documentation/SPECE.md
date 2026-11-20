@@ -2664,4 +2664,11 @@ Nur Dating, aus per Standard (`VERIFY=on`). Plan und Phasen: `documentation/VERI
   solange `badge.subject` = eigene ID, `badge.avatarSha256` = `avatarFull.sha256` und `expiresAt` in der Zukunft.
   Ein neues Profilbild loescht ihn. `payload-validation.js` prueft nur die Form (genau `badge` + `sig`, vier
   Badge-Felder).
+- Empfaenger (`checkPeerVerification`, V3): Haken gilt, wenn `verifyOperationSignature({ ...badge, sig }, key)` mit
+  dem `verify.key` des eigenen Routers stimmt, `expiresAt` in der Zukunft liegt, `subject` der Peer selbst oder ein
+  Geraet derselben Person ist (`contactDeviceNodes(identityOf(peerId))`) und `avatarSha256` = `avatarFull.sha256`
+  des empfangenen Profils. Ergebnis je Peer zwischengespeichert, Schluessel = ganzer Haken + Signatur.
+  Anzeige: `#modal-profile-verified`, `#chat-peer-verified`; Grid-Karten nutzen `verified` aus `/api/grid`
+  (nur im Modus Entdecken). Grid-Filter `verified` ("Nur verifizierte Profile", nur mit `verify.enabled`):
+  Grid-Markierung oder ein schon geprueftes Profil.
 

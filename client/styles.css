@@ -1608,3 +1608,8 @@ html {
 .verify-card.is-verified #verify-status {
     color: rgb(110 231 183);
 }
+
+/* Haken "Profilbild verifiziert" (verify.js): Grid-Karte, Profil-Popup, Chat-Kopf. */
+.verified-badge {
+    color: rgb(56 189 248);
+}

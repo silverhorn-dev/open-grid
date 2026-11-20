@@ -645,6 +645,7 @@ function isSecureChannelOpen(peerId) {
 function renderChatPeerHeader(peerId) {
     const peer = getPeerPresentation(peerId);
     document.getElementById('chat-peer-name').textContent = peer.name || HIDDEN_PEER_NAME;
+    if (typeof renderChatVerifiedBadge === 'function') renderChatVerifiedBadge(peerId);
     const avatar = document.getElementById('chat-peer-avatar');
     avatar.innerHTML = '';
     const image = document.createElement('img');

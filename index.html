@@ -255,7 +255,10 @@
                                 <span data-i18n-attr="title:common.online" id="chat-peer-online-dot" class="hidden absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-slate-900" title="Online"></span>
                             </div>
                             <div class="min-w-0">
-                                <div data-i18n="chat.noChatSelected" id="chat-peer-name" translate="no" class="font-bold text-sm text-slate-200 truncate">Kein Chat ausgewählt</div>
+                                <div class="flex items-center gap-1 min-w-0">
+                                    <div data-i18n="chat.noChatSelected" id="chat-peer-name" translate="no" class="font-bold text-sm text-slate-200 truncate">Kein Chat ausgewählt</div>
+                                    <i id="chat-peer-verified" class="hidden verified-badge fa-solid fa-circle-check text-xs shrink-0" data-i18n-attr="title:verify.badgeTitle;aria-label:verify.badgeTitle" title="Profilbild verifiziert" aria-label="Profilbild verifiziert" role="img"></i>
+                                </div>
                                 <div id="chat-peer-status" class="debug-off-only text-xs text-slate-400 truncate" aria-live="polite"></div>
                                 <div data-i18n="chat.chooseSomeoneInGrid" id="chat-connection-type" class="debug-only text-xs font-mono text-slate-400 truncate">Wähle jemanden im Grid aus</div>
                             </div>
@@ -1249,7 +1252,10 @@
                     <button type="button" role="tab" data-profile-tab="dating" data-click="setProfileModalTab" data-args='["dating"]'><i class="fa-solid fa-fire"></i> <span data-i18n="profileModal.tabDating">Dating</span></button>
                     <button type="button" role="tab" data-profile-tab="friends" data-click="setProfileModalTab" data-args='["friends"]'><i class="fa-solid fa-user-group"></i> <span data-i18n="profileModal.tabFriends">Freunde</span></button>
                 </div>
-                <h2 data-i18n="app.loading" id="modal-profile-name" translate="no" class="text-xl font-bold text-slate-100">Wird geladen...</h2>
+                <div class="flex items-center gap-2 min-w-0">
+                    <h2 data-i18n="app.loading" id="modal-profile-name" translate="no" class="text-xl font-bold text-slate-100">Wird geladen...</h2>
+                    <span id="modal-profile-verified" class="hidden verified-badge text-sm font-semibold flex items-center gap-1 shrink-0"><i class="fa-solid fa-circle-check"></i> <span data-i18n="verify.badgeTitle">Profilbild verifiziert</span></span>
+                </div>
                 <p id="modal-profile-id" class="debug-only text-xs font-mono text-slate-500 break-all"></p>
                 
                 <div id="modal-gallery-container" class="hidden flex gap-2 overflow-x-auto pb-2 scrollbar-hide">

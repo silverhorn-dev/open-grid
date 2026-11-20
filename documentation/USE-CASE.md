@@ -1517,3 +1517,19 @@ Akzeptanzkriterien:
   warum (z. B. kein Gesicht, Kopfhaltung, sieht dem Profilbild nicht aehnlich).
 - Ein neues Profilbild nimmt den Haken weg.
 
+## UC-86: Verifizierte Profile erkennen
+
+Als Nutzer im Dating moechte ich sehen, wer sein Profilbild verifiziert hat, und
+auf Wunsch nur diese Profile sehen.
+
+Akzeptanzkriterien:
+
+- Verifizierte Profile tragen einen Haken auf der Grid-Karte (Entdecken), im
+  Profil und im Chat-Kopf.
+- Der Haken im Profil und Chat-Kopf erscheint nur, wenn die Signatur zum
+  Schluessel meines Routers passt, er nicht abgelaufen ist, zu diesem Kontakt
+  (oder einem anderen Geraet derselben Person) gehoert und zum aktuellen
+  Profilbild passt.
+- Im Grid-Filter gibt es "Nur verifizierte Profile", wenn der Router die
+  Pruefung anbietet.
+

@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 363 · 2026-11-20
+## Build 364 · 2026-11-20
+- Haken "Profilbild verifiziert" bei anderen: im Profil, im Chat-Kopf und auf der Grid-Karte (Entdecken); neuer Filter "Nur verifizierte Profile". Der Haken wird mit dem Schlüssel des Servers geprüft und gilt nur für das geprüfte Profilbild
+
+## Build 363 · 2026-11-20 · `8f12e18`
 - Android-App 0.3.3: neue App-Versionen landen nach dem Bauen automatisch auf dem Server, die App zeigt das Update dann selbst an (einmalig neu installieren, weil sich der Signaturschluessel geaendert hat)
 
 ## Build 362 · 2026-11-20 · `d88963d`

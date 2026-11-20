@@ -11,7 +11,7 @@ const GRID_PREFETCH_COUNT = 10;
 const DISTANCE_ORDER = ['lt1', '1-5', '5-20', '20-100', '100-300', '300-500', 'gt500'];
 
 function emptyGridFilter() {
-    return { maxDistance: null, photo: false, unknown: true, ranges: {}, options: {} };
+    return { maxDistance: null, photo: false, verified: false, unknown: true, ranges: {}, options: {} };
 }
 
 async function loadGridFilter() {
@@ -20,6 +20,7 @@ async function loadGridFilter() {
     if (stored) {
         filter.maxDistance = DISTANCE_ORDER.includes(stored.maxDistance) ? stored.maxDistance : null;
         filter.photo = stored.photo === true;
+        filter.verified = stored.verified === true;
         filter.unknown = stored.unknown !== false;
         filter.ranges = stored.ranges && typeof stored.ranges === 'object' ? stored.ranges : {};
         filter.options = stored.options && typeof stored.options === 'object' ? stored.options : {};
@@ -44,7 +45,12 @@ function profileFilterActive(filter = state.gridFilter) {
 }
 
 function gridFilterActive(filter = state.gridFilter) {
-    return Boolean(filter.maxDistance) || filter.photo || profileFilterActive(filter);
+    return Boolean(filter.maxDistance) || filter.photo || verifiedFilterActive(filter) || profileFilterActive(filter);
+}
+
+// "Nur verifizierte" (verify.js) zaehlt nur, solange der Router die Pruefung anbietet.
+function verifiedFilterActive(filter = state.gridFilter) {
+    return filter.verified === true && typeof verifyConfig === 'function' && verifyConfig().enabled === true;
 }
 
 // 'match' | 'unknown' | 'no' fuer einen Peer (Grid-Karte optional fuer Entfernung/Foto).
@@ -53,6 +59,8 @@ function gridFilterVerdict(peerId, card = null, filter = state.gridFilter) {
         && DISTANCE_ORDER.indexOf(card.distanceBucket) > DISTANCE_ORDER.indexOf(filter.maxDistance)) return 'no';
     const profile = state.cachedProfiles[peerId];
     if (filter.photo && !(card?.avatar || profile?.avatar)) return 'no';
+    // Router-Markierung der Grid-Karte, sonst ein schon geprueftes Profil (Interaktionen, Matches).
+    if (verifiedFilterActive(filter) && !(card?.verified || (typeof peerVerifiedCached === 'function' && peerVerifiedCached(peerId)))) return 'no';
     if (!profileFilterActive(filter)) return 'match';
     if (!profile?.fields) return 'unknown';
     for (const field of filterableFields()) {
@@ -203,6 +211,9 @@ function renderGridFilterPanel() {
     distance.onchange = () => updateGridFilter({ maxDistance: distance.value || null });
     panel.appendChild(row(t('grid.filterMaxDistance'), distance));
     panel.appendChild(row(t('grid.filterWithPhoto'), toggle(filter.photo, photo => updateGridFilter({ photo }))));
+    if (typeof verifyConfig === 'function' && verifyConfig().enabled) {
+        panel.appendChild(row(t('grid.filterVerifiedOnly'), toggle(filter.verified === true, verified => updateGridFilter({ verified }))));
+    }
 
     filterableFields().forEach(field => {
         if (field.type === 'number') {

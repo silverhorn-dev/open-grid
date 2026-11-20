@@ -106,6 +106,9 @@ function renderDiscoveryGrid() {
         // Match oder sichtbare Flammen (gestapelt: Doppelflamme, sonst Zahl), matching.js.
         const flame = flameIndicator(peer.id, `absolute top-2 right-2 h-7 min-w-7 px-1.5 rounded-full flex items-center justify-center text-sm ${isMatched(peer.id) ? 'bg-orange-500 text-white' : 'bg-black/60 text-orange-300'}`);
         if (flame) imageWrapper.appendChild(flame);
+        // Profilbild verifiziert (verify.js, Markierung des Routers).
+        const verified = typeof gridVerifiedBadge === 'function' ? gridVerifiedBadge(peer) : null;
+        if (verified) imageWrapper.appendChild(verified);
 
         const footer = document.createElement('div');
         footer.className = 'p-3 flex items-center justify-between gap-2';

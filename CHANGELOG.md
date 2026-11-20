@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 368 · 2026-11-20
+## Build 369 · 2026-11-20
+- Profilbilder scharf: hast du das Profilbild von jemandem einmal groß angesehen, zeigen Grid-Karte und Profil danach diese Fassung statt des kleinen, verpixelten Vorschaubilds
+
+## Build 368 · 2026-11-20 · `fd750ad`
 - Behoben: Build 367 lief wegen eines fehlenden Eintrags im App-Zustand nicht durch die Tests (kein Einfluss auf die App)
 
 ## Build 367 · 2026-11-20 · `2b2768d`

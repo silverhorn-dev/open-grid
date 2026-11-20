@@ -102,6 +102,8 @@ function renderDiscoveryGrid() {
             image.alt = t('grid.profilePictureOf', { name: peer.name || HIDDEN_PEER_NAME });
             image.className = 'w-full h-full object-cover group-hover:scale-105 transition duration-500';
             imageWrapper.appendChild(image);
+            // Schon geladene grosse Fassung statt des kleinen, stark komprimierten Vorschaubilds.
+            upgradeToFullAvatar(image, peer.id, GRID_AVATAR_EDGE);
         }
         // Match oder sichtbare Flammen (gestapelt: Doppelflamme, sonst Zahl), matching.js.
         const flame = flameIndicator(peer.id, `absolute top-2 right-2 h-7 min-w-7 px-1.5 rounded-full flex items-center justify-center text-sm ${isMatched(peer.id) ? 'bg-orange-500 text-white' : 'bg-black/60 text-orange-300'}`);
@@ -129,6 +131,55 @@ function renderDiscoveryGrid() {
         card.append(imageWrapper, footer);
         container.appendChild(card);
     });
+}
+
+// ----- Scharfe Profilbilder -----
+// Das Grid traegt nur das kleine Profilbild (200 px, stark komprimiert). Hat man die grosse Fassung schon einmal
+// geladen (Bildbetrachter, IMAGE_REQUEST; Pruefsumme beim Empfang geprueft), zeigen Karte und Profil-Popup sie,
+// verkleinert und im Speicher gemerkt (je Bild-ID, Version und Groesse).
+const GRID_AVATAR_EDGE = 480;
+const PROFILE_AVATAR_EDGE = 900;
+const FULL_AVATAR_CACHE_LIMIT = 80;
+const fullAvatarCache = new Map();
+
+function shrinkDataUrl(dataUrl, edge) {
+    return new Promise(resolve => {
+        const image = new Image();
+        image.onload = () => {
+            const scale = Math.min(1, edge / Math.max(image.naturalWidth, image.naturalHeight));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+            canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+            canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL('image/jpeg', 0.88));
+        };
+        image.onerror = () => resolve(null);
+        image.src = dataUrl;
+    });
+}
+
+async function fullAvatarFor(peerId, edge) {
+    const profile = state.cachedProfiles[peerId];
+    const meta = profile?.avatarFull;
+    if (!meta?.id || !profile.avatar) return null;
+    const key = `${meta.id}:${meta.version || 1}:${edge}`;
+    if (fullAvatarCache.has(key)) return fullAvatarCache.get(key);
+    const media = await loadMedia(meta.id).catch(() => null);
+    if (!media || media.version !== (meta.version || 1) || !isSafeInlineImage(media.data)) return null;
+    const shrunk = await shrinkDataUrl(media.data, edge);
+    if (!shrunk) return null;
+    if (fullAvatarCache.size >= FULL_AVATAR_CACHE_LIMIT) fullAvatarCache.delete(fullAvatarCache.keys().next().value);
+    fullAvatarCache.set(key, shrunk);
+    return shrunk;
+}
+
+// Nur tauschen, wenn das Element noch das kleine Profilbild genau dieses Profils zeigt (nicht ein anderes Bild).
+function upgradeToFullAvatar(image, peerId, edge) {
+    const small = state.cachedProfiles[peerId]?.avatar;
+    if (!image || !small || image.src !== small) return;
+    fullAvatarFor(peerId, edge).then(url => {
+        if (url && image.src === small) image.src = url;
+    }).catch(() => {});
 }
 
 // Heute: Uhrzeit (immer 24 h), gestern: "Gestern", sonst Datum.

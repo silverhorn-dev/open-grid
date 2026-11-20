@@ -73,8 +73,17 @@ async function main() {
         await bob.click('#modal-profile-img');
         await waitFor(bob, () => isImageViewerOpen() && document.getElementById('image-viewer-image').width >= 1280, undefined, 5000);
 
+        // Danach scharf: Profil-Popup und Grid-Karte nehmen die schon geladene grosse Fassung (verkleinert).
+        await bob.evaluate(() => closeImageViewer());
+        await bob.evaluate(() => closeProfileModal());
+        await bob.evaluate(id => openProfileModal(id), aliceId);
+        await waitFor(bob, () => document.getElementById('modal-profile-img').naturalWidth > 200, undefined, 10000);
+        await bob.evaluate(() => closeProfileModal());
+        await bob.evaluate(async () => { switchTab('grid'); await refreshGrid(); renderDiscoveryGrid(); });
+        await waitFor(bob, name => [...document.querySelectorAll('#view-grid img, img')].some(image => image.alt.includes(name) && image.naturalWidth > 200), 'Alice', 15000);
+
         assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
-        console.log('E2E OK (profile picture full size)');
+        console.log('E2E OK (profile picture full size, sharp in grid and profile)');
     } finally {
         await browser.close();
     }

@@ -142,7 +142,13 @@ function renderProfileModalData(profile) {
     profile = profileModalView(profile);
     document.getElementById('modal-profile-name').textContent = profile.fields?.displayName || HIDDEN_PEER_NAME;
     if (typeof renderModalVerifiedBadge === 'function') renderModalVerifiedBadge(state.activeModalPeerId);
-    if (isSafeInlineImage(profile.avatar)) document.getElementById('modal-profile-img').src = profile.avatar;
+    if (isSafeInlineImage(profile.avatar)) {
+        const modalImage = document.getElementById('modal-profile-img');
+        modalImage.src = profile.avatar;
+        if (typeof upgradeToFullAvatar === 'function' && profile.avatar === state.cachedProfiles[state.activeModalPeerId]?.avatar) {
+            upgradeToFullAvatar(modalImage, state.activeModalPeerId, PROFILE_AVATAR_EDGE);
+        }
+    }
     const container = document.getElementById('modal-rendered-fields');
     container.innerHTML = '';
     renderProfileMatchActions(state.activeModalPeerId);

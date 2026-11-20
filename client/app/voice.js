@@ -121,6 +121,7 @@ async function startVoiceRecording() {
         finished: false
     };
     startVoiceSegment(recording);
+    noteBreadcrumb(`voice: recording started (${recording.mimeType || 'default type'}, ${navigator.deviceMemory ? `${navigator.deviceMemory} GB device` : 'memory unknown'})`);
     recording.timer = setInterval(() => tickVoiceRecording(recording).catch(logBackgroundError('tickVoiceRecording')), 250);
     state.voiceRecording = recording;
     startLocalTranscript(recording).catch(logBackgroundError('startLocalTranscript'));
@@ -131,6 +132,13 @@ async function startVoiceRecording() {
 async function tickVoiceRecording(recording) {
     if (state.voiceRecording !== recording || recording.finished || recording.switching) return;
     const elapsed = voiceElapsedSeconds(recording);
+    // Alle 10 s: Laenge, Teile und Speicher (Spur fuer Abstuerze).
+    const tens = Math.floor(elapsed / 10);
+    if (tens > (recording.lastCrumb || 0)) {
+        recording.lastCrumb = tens;
+        const bytes = recording.segments.reduce((sum, segment) => sum + segment.chunks.reduce((total, chunk) => total + chunk.size, 0), 0);
+        noteBreadcrumb(`voice: recording ${Math.round(elapsed)} s, ${recording.segments.length} part(s), ${Math.round(bytes / 1024)} KB, transcript ${recording.recognition ? 'on' : 'off'}`);
+    }
     if (elapsed >= VOICE_LIMITS.maxSeconds) {
         // Maximum: nur anhalten, senden entscheidet der Nutzer.
         await finishVoiceCapture(recording);
@@ -174,14 +182,17 @@ async function sendVoiceRecording() {
     if (!recording) return;
     state.voiceRecording = null;
     renderVoiceBar();
+    noteBreadcrumb('voice: send pressed, stopping capture');
     await finishVoiceCapture(recording);
     const duration = Math.min(VOICE_LIMITS.maxSeconds, Math.round(voiceElapsedSeconds(recording) * 10) / 10);
+    noteBreadcrumb(`voice: capture stopped (${duration} s)`);
     const [first, rest] = recording.segments;
     if (duration < 1 || !first?.chunks.length) {
         showToast(t('voice.tooShortNothingSent'), 'info');
         return;
     }
     const dataUrl = await mediaBlobToDataUrl(voiceSegmentBlob(first));
+    noteBreadcrumb(`voice: first part encoded (${Math.round(dataUrl.length / 1024)} KB as text)`);
     if (!isSafeInlineAudio(dataUrl)) {
         logDebug(`Sprachnachricht abgelehnt (${dataUrl.length} Zeichen).`);
         showToast(t('voice.messageTooLargeOr'), 'error');
@@ -197,10 +208,12 @@ async function sendVoiceRecording() {
         splitAt = Math.round(((first.stoppedAt - first.startedAt) / 1000) * 10) / 10;
     }
     if (state.activeChatPeerId !== recording.peerId) return;
+    noteBreadcrumb(`voice: sending${original ? ` (+ ${Math.round(original.meta.size / 1024)} KB rest)` : ''}`);
     await sendChatMessage(null, '', null, null, {
         audio: { data: dataUrl, duration, splitAt, transcript: recording.transcript.slice(0, TRANSCRIPT_MAX_LENGTH) || undefined },
         original
     });
+    noteBreadcrumb('voice: sent');
 }
 
 // Aufnahmeleiste ersetzt waehrend der Aufnahme die Eingabezeile.
@@ -240,7 +253,8 @@ async function startLocalTranscript(recording) {
     recognition.continuous = true;
     recognition.interimResults = false;
     recognition.onresult = event => {
-        recording.transcript = [...event.results]
+        noteBreadcrumb('voice: local transcript result');
+    recording.transcript = [...event.results]
             .filter(result => result.isFinal)
             .map(result => result[0]?.transcript || '')
             .join(' ')
@@ -249,6 +263,7 @@ async function startLocalTranscript(recording) {
     };
     recognition.onerror = event => logDebug(`Lokale Verschriftlichung: ${event.error}`);
     recording.recognition = recognition;
+    noteBreadcrumb(`voice: local transcript starting (${lang})`);
     try {
         recognition.start();
     } catch {
@@ -462,7 +477,9 @@ function playVoicePart(playback, dataUrl, part, startAt = 0, { paused = false } 
     playback.part = part;
     playback.waiting = false;
     playback.url = URL.createObjectURL(mediaDataUrlToBlob(dataUrl));
+    noteBreadcrumb(`voice: playing part ${part} (${Math.round(dataUrl.length / 1024)} KB as text)`);
     const audio = new Audio(playback.url);
+    audio.addEventListener('playing', () => noteBreadcrumb(`voice: part ${part} is playing`), { once: true });
     playback.audio = audio;
     audio.playbackRate = voiceRate();
     if (startAt > 0) {
@@ -473,7 +490,10 @@ function playVoicePart(playback, dataUrl, part, startAt = 0, { paused = false } 
     }
     audio.ontimeupdate = () => updateVoicePlayer(playback.messageId);
     audio.onpause = () => updateVoicePlayer(playback.messageId);
-    audio.onended = () => continueVoicePlayback(playback).catch(logBackgroundError('continueVoicePlayback'));
+    audio.onended = () => {
+        noteBreadcrumb(`voice: part ${part} ended`);
+        continueVoicePlayback(playback).catch(logBackgroundError('continueVoicePlayback'));
+    };
     if (paused) {
         updateVoicePlayer(playback.messageId);
         return;

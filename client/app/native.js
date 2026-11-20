@@ -209,6 +209,9 @@ function initNativeBridge() {
             if (result?.rendererGone) {
                 const gone = result.rendererGone;
                 logDebug(`WebView renderer gone (${gone.where}, ${gone.crashed ? 'crash' : 'killed for memory'}) at ${new Date(gone.at).toISOString()}`);
+                // Was davor passierte (Spur aus config.js, ueberlebt den Neustart).
+                const before = typeof takeBreadcrumbsBefore === 'function' ? takeBreadcrumbsBefore(gone.at) : [];
+                logDebug(before.length ? `Before the renderer was gone:\n  ${before.join('\n  ')}` : 'Before the renderer was gone: no steps recorded.');
             }
             if (typeof updatePushStatus === 'function') updatePushStatus().catch(() => {});
             renderNativeAppSettings().catch(() => {});

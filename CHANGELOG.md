@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 370 · 2026-11-20
+## Build 371 · 2026-11-20
+- Fehlersuche Sprachnachrichten in der App: beendet Android die App wegen Speicher, steht beim nächsten Start im Debug-Log, was davor passierte (Aufnehmen, Senden, Abspielen, Speicherverbrauch; keine Inhalte)
+
+## Build 370 · 2026-11-20 · `c9b53b1`
 - Die ersten Karten im Grid laden ihr Profilbild gleich in groß nach und sind dadurch von Anfang an scharf (nicht im Datensparmodus)
 
 ## Build 369 · 2026-11-20 · `5f6254d`

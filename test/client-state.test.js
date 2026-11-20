@@ -27,3 +27,25 @@ test('every state field used by the client is declared in config.js', () => {
     const missing = [...used].filter(field => !declared.has(field));
     assert.deepEqual(missing, []);
 });
+
+// Spur fuer die Fehlersuche (config.js): ueberlebt den Neustart in localStorage, kommt bei einem Renderer-Ausfall
+// ins Debug-Log und wird danach geleert.
+test('breadcrumbs are kept in localStorage and handed out once, only those before the failure', async () => {
+    const { readFileSync } = await import('node:fs');
+    const vm = (await import('node:vm')).default;
+    const storage = new Map();
+    const localStorage = { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, String(value)), removeItem: key => storage.delete(key) };
+    const source = readFileSync(new URL('../client/app/config.js', import.meta.url), 'utf8');
+    const start = source.indexOf('const BREADCRUMB_KEY');
+    const end = source.indexOf('// Leeres Vorschaubild');
+    const context = vm.createContext({ localStorage, performance: { memory: { usedJSHeapSize: 52e6 } }, APP_ROLE: 'ui', Date, JSON, String, Math });
+    vm.runInContext(source.slice(start, end), context);
+    for (let index = 0; index < 45; index++) context.noteBreadcrumb(`step ${index}`);
+    const kept = JSON.parse(storage.get('opengrid-breadcrumbs'));
+    assert.equal(kept.length, 40, 'only the last 40 steps');
+    assert.equal(kept[0].text, 'step 5');
+    const lines = context.takeBreadcrumbsBefore(Date.now() + 1);
+    assert.equal(lines.length, 40);
+    assert.match(lines[39], /\[ui\] step 44 \(heap 52 MB\)$/);
+    assert.deepEqual(context.takeBreadcrumbsBefore(Date.now() + 1), [], 'handed out once');
+});

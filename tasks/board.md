@@ -784,6 +784,7 @@
 - bugs (zuerst):
   - [ ] sprachnachrichten lassen die APK abstuerzen
     - 2026-11-19 (app 0.3.1): renderer-absturz/-ende reisst nicht mehr die ganze app mit (`onRenderProcessGone` in oberflaeche + kern, neustart); letzter ausfall im debug-log (`CrashLog`); eigentliche ursache offen -> logcat vom nutzer
+    - 2026-11-20 log vom nutzer (app 0.3.2): `WebView renderer gone (core, killed for memory)`, oberflaeche startete im selben moment neu -> kein absturz im code, android beendet den gemeinsamen renderer-prozess (alle WebViews einer app teilen ihn) wegen speicher. was davor lief, war weg (debug-log nur im speicher) -> spur in localStorage (`noteBreadcrumb`, schritte bei aufnahme/senden/abspielen + js-heap), kommt beim naechsten start ins debug-log. naechster schritt: nutzer schickt log nach erneutem ausfall
   - [ ] offline ist die APK buggy, neu laden geht nicht (webapp + APK zeigen offline keine daten)
     - 2026-11-19: browser offline neu laden ok (chats nach 0,5 s); robuster gemacht: router-konfig beim start mit zeitlimit (5 s) + gespeicherte konfig bei ungueltiger antwort; APK 0.3.2: statt der webview-fehlerseite eigene ansicht "erneut versuchen", laedt bei netz selbst neu. offen: was genau der nutzer offline sieht (leer? anmeldeseite? fehlerseite?)
   - [x] multi-device: bei chatpartnern erscheint man doppelt (2026-11-19: liste wurde nur vom unterzeichnenden geraet angenommen, nicht weitergereicht -> jedes geraet darf weiterreichen; doppel-chats werden zusammengelegt, auch vom SW angelegte; e2e `devices-merge`)

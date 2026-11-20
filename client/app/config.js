@@ -10,6 +10,35 @@ const AVATAR_PLACEHOLDER = 'data:image/svg+xml;utf8,' + encodeURIComponent(
 function localAvatar(avatar) {
     return typeof avatar === 'string' && avatar.startsWith('data:image/') ? avatar : AVATAR_PLACEHOLDER;
 }
+// Spur fuer die Fehlersuche (T38 "Sprachnachrichten lassen die APK abstuerzen"): das Debug-Log liegt nur im Speicher
+// und ist weg, wenn Android den WebView-Renderer beendet. Diese Schritte liegen in localStorage (ueberleben den
+// Neustart) und kommen ins Debug-Log, wenn die App einen Renderer-Ausfall meldet (native.js). Keine Inhalte.
+const BREADCRUMB_KEY = 'opengrid-breadcrumbs';
+const BREADCRUMB_LIMIT = 40;
+
+function noteBreadcrumb(text) {
+    try {
+        const heap = performance?.memory?.usedJSHeapSize;
+        const entry = { at: Date.now(), role: typeof APP_ROLE === 'string' ? APP_ROLE : '?', text: String(text).slice(0, 200), ...(heap ? { heapMb: Math.round(heap / 1e6) } : {}) };
+        const list = JSON.parse(localStorage.getItem(BREADCRUMB_KEY) || '[]');
+        list.push(entry);
+        localStorage.setItem(BREADCRUMB_KEY, JSON.stringify(list.slice(-BREADCRUMB_LIMIT)));
+    } catch {
+        // Ohne localStorage keine Spur.
+    }
+}
+
+// Schritte vor einem Zeitpunkt (z. B. dem Renderer-Ausfall) als Textzeilen, danach geleert.
+function takeBreadcrumbsBefore(time) {
+    try {
+        const list = JSON.parse(localStorage.getItem(BREADCRUMB_KEY) || '[]');
+        localStorage.removeItem(BREADCRUMB_KEY);
+        return list.filter(entry => entry.at <= time).map(entry => `${new Date(entry.at).toISOString()} [${entry.role}] ${entry.text}${entry.heapMb ? ` (heap ${entry.heapMb} MB)` : ''}`);
+    } catch {
+        return [];
+    }
+}
+
 // Leeres Vorschaubild fuer <video>: die Android-WebView zeigt sonst bis zum ersten Bild einen grauen Platzhalter.
 const EMPTY_VIDEO_POSTER = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 const CONFIG = { DEBUG_MODE: loadDebugModePreference(), DEFAULT_GEOHASH: 'u10j2k' };

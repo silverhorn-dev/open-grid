@@ -272,6 +272,8 @@ Repository verschieben. Jenkins baut das APK vorerst nicht (zu schwach).
 - Jenkins: Stage `Android-APK` bei Aenderungen unter `android/` oder mit Parameter `BUILD_APK`, Artefakte
   `android/dist/*` (`opengrid.apk`, `opengrid-<version>-build<n>.apk`, `.json`); Release-Signatur, wenn die
   Credentials `open-grid-android-keystore` (Secret file) und `open-grid-android-keystore-password` hinterlegt sind
+- Deploy (main): ein in diesem Build gebautes APK kommt per `stash` auf den Deploy-Host und per `docker compose cp`
+  nach `/app/data/opengrid.apk` (+ `.json`); der Router liefert es ohne Neustart aus
   (`android/Dockerfile`: JDK 17, Gradle, Android-SDK 34; Gradle-Cache im
   Volume `opengrid-android-gradle`). Ergebnis: `android/dist/opengrid.apk`
   und `opengrid.apk.json` (Version), zum Ausliefern nach `ANDROID_APK_PATH`

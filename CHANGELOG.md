@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 362 · 2026-11-20
+## Build 363 · 2026-11-20
+- Android-App 0.3.3: neue App-Versionen landen nach dem Bauen automatisch auf dem Server, die App zeigt das Update dann selbst an (einmalig neu installieren, weil sich der Signaturschluessel geaendert hat)
+
+## Build 362 · 2026-11-20 · `d88963d`
 - Admin-Panel: Profilbild-Verifizierung live ein- und ausschalten, dazu Mindest-Ähnlichkeit und Gültigkeit des Hakens; "on" nur, wenn die Modelle installiert sind
 
 ## Build 361 · 2026-11-20 · `db72b45`

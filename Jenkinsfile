@@ -30,6 +30,7 @@
 //   als Artefakt ab. Optional Release-Signatur: Credentials "open-grid-android-keystore" (Secret file, .jks) und
 //   "open-grid-android-keystore-password" (Secret text); Alias per Folder Property OPENGRID_KEY_ALIAS (Standard
 //   "opengrid"). Fehlen sie, entsteht ein Debug-APK mit dem festen Debug-Schluessel des CI-Hosts (Volume).
+//   Bei einem Deploy kopiert die Stage "Deploy" das neue APK nach /app/data/opengrid.apk (ANDROID_APK_PATH).
 pipeline {
     // Schwere Arbeit (Tests, E2E, Image-Probe) nie auf dem Produktiv-Host.
     agent { label 'ci' }
@@ -129,6 +130,9 @@ pipeline {
                     def count = sh(script: 'git rev-list --count HEAD', returnStdout: true).trim()
                     sh "cp android/dist/opengrid.apk android/dist/opengrid-${version}-build${count}.apk"
                     currentBuild.description = "APK ${version}${signed ? '' : ' (debug)'}"
+                    // Fuer den Deploy (anderer Agent): der Router liefert das APK aus data/ aus.
+                    stash name: 'android-apk', includes: 'android/dist/opengrid.apk,android/dist/opengrid.apk.json'
+                    env.APK_STASHED = 'true'
                 }
             }
             post {
@@ -227,6 +231,21 @@ pipeline {
                     done
                     echo "open-grid healthy: $BUILD_VERSION"
                 '''
+                // Neues APK aus der Stage "Android-APK" (nur wenn gebaut): in das Daten-Volume, der Router liefert es
+                // unter /app/opengrid.apk aus und die App zeigt das Update an. Erst die Versionsdatei, dann das APK
+                // unter anderem Namen und umbenennen, damit nie ein halbes APK ausgeliefert wird.
+                script {
+                    if (env.APK_STASHED == 'true') {
+                        unstash 'android-apk'
+                        sh '''
+                            . scripts/ci-env.sh
+                            docker compose cp android/dist/opengrid.apk.json open-grid:/app/data/opengrid.apk.json
+                            docker compose cp android/dist/opengrid.apk open-grid:/app/data/opengrid.apk.new
+                            docker compose exec -T open-grid mv /app/data/opengrid.apk.new /app/data/opengrid.apk
+                            echo "APK im Router: $(cat android/dist/opengrid.apk.json)"
+                        '''
+                    }
+                }
             }
             post {
                 success {

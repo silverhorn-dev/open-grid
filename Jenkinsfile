@@ -26,6 +26,10 @@
 //     VAPID-Schluessel sind optional (fehlen sie, erzeugt der Server sie einmalig und speichert sie im Volume).
 //   * Uebergang: gibt es noch das Credential "open-grid-env" (Secret file, die alte .env), wird es genutzt.
 // - GitHub-Webhook auf <jenkins>/github-webhook/ (GitHub-Plugin), sonst greift die Abfrage alle 5 Minuten
+// - Android-APK (Stage "Android-APK"): baut bei Aenderungen unter android/ (oder mit BUILD_APK) und legt das APK
+//   als Artefakt ab. Optional Release-Signatur: Credentials "open-grid-android-keystore" (Secret file, .jks) und
+//   "open-grid-android-keystore-password" (Secret text); Alias per Folder Property OPENGRID_KEY_ALIAS (Standard
+//   "opengrid"). Fehlen sie, entsteht ein Debug-APK mit dem festen Debug-Schluessel des CI-Hosts (Volume).
 pipeline {
     // Schwere Arbeit (Tests, E2E, Image-Probe) nie auf dem Produktiv-Host.
     agent { label 'ci' }
@@ -45,6 +49,7 @@ pipeline {
 
     parameters {
         booleanParam(name: 'E2E_ONLY', defaultValue: false, description: 'Nur Unit- und E2E-Tests ausfuehren, nichts deployen')
+        booleanParam(name: 'BUILD_APK', defaultValue: false, description: 'Android-APK bauen und als Artefakt ablegen, auch ohne Aenderung unter android/')
     }
 
     environment {
@@ -87,6 +92,48 @@ pipeline {
                 always {
                     junit allowEmptyResults: true, testResults: 'ci-out/test-results/*.xml'
                     sh '. scripts/ci-env.sh && docker image rm open-grid-test:${BUILD_NUMBER} >/dev/null 2>&1 || true'
+                }
+            }
+        }
+
+        // Android-App (android/build.sh, Docker ohne Bind-Mounts). Die App ist nur eine Huelle um die Web-App,
+        // deshalb nur bei Aenderungen unter android/ oder auf Wunsch. Ergebnis: Artefakte unter android/dist/.
+        stage('Android-APK') {
+            when {
+                expression { env.E2E_RUN != 'true' || params.BUILD_APK == true }
+                anyOf {
+                    changeset 'android/**'
+                    expression { params.BUILD_APK == true }
+                }
+            }
+            steps {
+                script {
+                    boolean signed = false
+                    try {
+                        withCredentials([
+                            file(credentialsId: 'open-grid-android-keystore', variable: 'OPENGRID_KEYSTORE'),
+                            string(credentialsId: 'open-grid-android-keystore-password', variable: 'OPENGRID_KEYSTORE_PASSWORD')
+                        ]) {
+                            signed = true
+                            echo 'Android: Release-Build, signiert mit open-grid-android-keystore'
+                            withFolderProperties {
+                                sh '. scripts/ci-env.sh && rm -rf android/dist && sh android/build.sh release'
+                            }
+                        }
+                    } catch (error) {
+                        if (signed) throw error
+                        echo 'Android: kein Release-Keystore hinterlegt, Debug-Build'
+                        sh '. scripts/ci-env.sh && rm -rf android/dist && sh android/build.sh debug'
+                    }
+                    def version = sh(script: "sed -n 's/.*\"versionName\":\"\\([^\"]*\\)\".*/\\1/p' android/dist/opengrid.apk.json", returnStdout: true).trim()
+                    def count = sh(script: 'git rev-list --count HEAD', returnStdout: true).trim()
+                    sh "cp android/dist/opengrid.apk android/dist/opengrid-${version}-build${count}.apk"
+                    currentBuild.description = "APK ${version}${signed ? '' : ' (debug)'}"
+                }
+            }
+            post {
+                success {
+                    archiveArtifacts artifacts: 'android/dist/*', fingerprint: true
                 }
             }
         }

@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 360 · 2026-11-20
+## Build 361 · 2026-11-20
+- Android-App: Jenkins baut das APK bei Aenderungen an der App (oder auf Wunsch) und legt es als Download am Build ab; der Debug-Schluessel bleibt jetzt gleich, neue APKs lassen sich ueber alte installieren
+
+## Build 360 · 2026-11-20 · `f450e23`
 - Profilbild verifizieren (Dating): im Profil-Editor unter "Profilbild verifizieren" drei kurze Selfies mit der Frontkamera (geradeaus, Kopf links, Kopf rechts); passt alles, traegt dein Entdecken-Profil einen Haken. Nur wenn der Server die Pruefung anbietet; ein neues Profilbild nimmt den Haken wieder weg
 
 ## Build 359 · 2026-11-19 · `5ec6422`

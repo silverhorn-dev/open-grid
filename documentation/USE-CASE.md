@@ -1564,3 +1564,19 @@ Akzeptanzkriterien:
   Nummer gegen Kummer, TelefonSeelsorge).
 - Links oeffnen erst auf Tippen in einem neuen Tab; die App sendet dabei nichts.
 
+## UC-89: Aus der Benachrichtigung antworten (Android-App)
+
+Als Nutzer der App moechte ich auf eine Nachricht direkt in der Benachrichtigung
+antworten, ohne die App zu oeffnen.
+
+Akzeptanzkriterien:
+
+- Benachrichtigungen mit Vorschau (nicht "Kompakte Meldung", nicht in Gruppen)
+  haben die Aktion "Antworten" mit Eingabefeld.
+- Die Antwort geht wie eine normale Nachricht raus (Ende-zu-Ende verschluesselt,
+  gleiche Chat-Regeln) und steht danach im Chat.
+- Danach verschwindet die Benachrichtigung; klappt es nicht innerhalb einer
+  Minute, zeigt sie "Antwort nicht gesendet", Tippen oeffnet den Chat.
+- Eine Antwort wird nie doppelt gesendet, auch wenn der Hintergrund-Kern
+  dazwischen neu startet.
+

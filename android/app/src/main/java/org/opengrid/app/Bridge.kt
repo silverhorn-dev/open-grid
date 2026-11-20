@@ -33,8 +33,8 @@ class Bridge(
         const val PROTOCOL = 1
         const val OBJECT_NAME = "OpenGridNative"
         // Muss zu NATIVE_REQUEST_TYPES / NATIVE_EVENT_TYPES in client/app/native.js passen (test/android-app.test.js).
-        val REQUEST_TYPES = listOf("capabilities", "secureScreen", "takeShare", "notify", "notifications", "background", "inbox", "coreStatus")
-        val EVENT_TYPES = listOf("shareReady", "openChat")
+        val REQUEST_TYPES = listOf("capabilities", "secureScreen", "takeShare", "notify", "notifications", "background", "inbox", "coreStatus", "replyResult")
+        val EVENT_TYPES = listOf("shareReady", "openChat", "notificationReply")
 
         fun install(webView: WebView, bridge: Bridge): Boolean {
             if (!WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) return false
@@ -84,7 +84,8 @@ class Bridge(
                     data?.optString("title").orEmpty().ifBlank { "OpenGrid" },
                     data?.optString("body").orEmpty(),
                     data?.optString("tag").orEmpty().ifBlank { "opengrid" },
-                    data?.optString("peerId")?.takeIf { it.isNotBlank() && it != "null" }
+                    data?.optString("peerId")?.takeIf { it.isNotBlank() && it != "null" },
+                    data?.optBoolean("reply", false) ?: false
                 )))
                 "notifications" -> {
                     val current = Notifications.allowed(appContext)
@@ -122,6 +123,13 @@ class Bridge(
                     android.os.Handler(android.os.Looper.getMainLooper()).post { CoreHost.report(active, ready) }
                     reply(true, null)
                 }
+                "replyResult" -> {
+                    // Kern hat die Antwort aus der Benachrichtigung gesendet (oder nicht).
+                    val replyId = data?.optString("replyId").orEmpty()
+                    val ok = data?.optBoolean("ok", false) ?: false
+                    android.os.Handler(android.os.Looper.getMainLooper()).post { CoreHost.replyResult(replyId, ok) }
+                    reply(true, null)
+                }
                 else -> reply(false, "Unknown type")
             }
         } catch (error: Exception) {
@@ -139,6 +147,7 @@ class Bridge(
         .put("background", true)
         .put("core", true)
         .put("rendererGone", CrashLog.last(appContext) ?: JSONObject.NULL)
+        .put("nativeEvents", CrashLog.events(appContext))
 
     fun sendEvent(event: String, data: JSONObject? = null) {
         if (event !in EVENT_TYPES) return

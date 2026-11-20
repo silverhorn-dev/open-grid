@@ -26,6 +26,34 @@ object CoreHost {
     private var ready = false
     private val check = Runnable { stopIfIdle() }
 
+    // Antworten aus Benachrichtigungen (ReplyService): warten, bis der Kern bereit ist, dann als Ereignis an ihn.
+    private class PendingReply(val peerId: String, val text: String, val done: (Boolean) -> Unit) {
+        var sent = false
+    }
+    private val replies = LinkedHashMap<String, PendingReply>()
+
+    fun queueReply(context: Context, routerOrigin: String, peerId: String, text: String, done: (Boolean) -> Unit) {
+        val id = java.util.UUID.randomUUID().toString()
+        replies[id] = PendingReply(peerId, text, done)
+        wake(context, routerOrigin)
+        flushReplies()
+    }
+
+    fun replyResult(replyId: String, ok: Boolean) {
+        replies.remove(replyId)?.done?.invoke(ok)
+        lastActive = SystemClock.elapsedRealtime()
+    }
+
+    private fun flushReplies() {
+        if (!ready) return
+        val target = bridge ?: return
+        for ((id, reply) in replies) {
+            if (reply.sent) continue
+            reply.sent = true
+            target.sendEvent("notificationReply", org.json.JSONObject().put("replyId", id).put("peerId", reply.peerId).put("text", reply.text))
+        }
+    }
+
     fun isRunning() = webView != null
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -54,7 +82,7 @@ object CoreHost {
 
             // Renderer weg (Absturz oder Speicher): Kern verwerfen und kurz danach neu starten, nie die App beenden.
             override fun onRenderProcessGone(view: WebView, detail: android.webkit.RenderProcessGoneDetail): Boolean {
-                CrashLog.rendererGone(app, "core", detail.didCrash())
+                CrashLog.rendererGone(app, "core", detail.didCrash(), detail.rendererPriorityAtExit())
                 if (view == webView) {
                     stop()
                     handler.postDelayed({ if (uiAttached || SystemClock.elapsedRealtime() - lastActive < IDLE_MS) wake(app, routerOrigin) }, 2000)
@@ -77,6 +105,7 @@ object CoreHost {
     fun report(active: Boolean, isReady: Boolean) {
         if (active) lastActive = SystemClock.elapsedRealtime()
         ready = isReady
+        flushReplies()
     }
 
     fun setUiAttached(context: Context, attached: Boolean, routerOrigin: String?) {
@@ -102,6 +131,9 @@ object CoreHost {
 
     fun stop() {
         handler.removeCallbacks(check)
+        // Schon an den alten Kern gegebene Antworten noch einmal an den neuen: die PWA merkt sich erledigte
+        // Antwort-IDs (localStorage) und bestaetigt eine Wiederholung nur, statt doppelt zu senden.
+        replies.values.forEach { it.sent = false }
         webView?.let {
             it.stopLoading()
             it.destroy()

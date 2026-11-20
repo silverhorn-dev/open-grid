@@ -10,6 +10,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.app.RemoteInput
 
 // Benachrichtigungen (documentation/ANDROID-APP.md, "Hintergrund und Benachrichtigungen"): die WebView kennt
 // weder Web Push noch die Notification-API, darum zeigt die App sie nativ an. Inhalt (Titel/Text) kommt von der
@@ -48,10 +49,28 @@ object Notifications {
         return PendingIntent.getActivity(context, requestCode, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     }
 
-    fun show(context: Context, title: String, body: String, tag: String, peerId: String?): Boolean {
+    // "Antworten" mit Eingabefeld (ReplyService); nur fuer Chats mit Vorschau (die PWA setzt `reply`).
+    private fun replyAction(context: Context, tag: String, peerId: String): NotificationCompat.Action {
+        val intent = Intent(context, ReplyService::class.java)
+            .putExtra(ReplyService.EXTRA_PEER, peerId)
+            .putExtra(ReplyService.EXTRA_TAG, tag)
+        // Das Eingabefeld schreibt in den Intent: veraenderbar noetig (Android 12+).
+        val flags = PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0)
+        val pending = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) PendingIntent.getForegroundService(context, tag.hashCode(), intent, flags)
+            else PendingIntent.getService(context, tag.hashCode(), intent, flags)
+        val input = RemoteInput.Builder(ReplyService.KEY_TEXT).setLabel(context.getString(R.string.reply_label)).build()
+        return NotificationCompat.Action.Builder(R.drawable.ic_notification, context.getString(R.string.reply_action), pending)
+            .addRemoteInput(input)
+            .setAllowGeneratedReplies(false)
+            .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_REPLY)
+            .setShowsUserInterface(false)
+            .build()
+    }
+
+    fun show(context: Context, title: String, body: String, tag: String, peerId: String?, reply: Boolean = false): Boolean {
         if (!allowed(context)) return false
         ensureChannels(context)
-        val notification = NotificationCompat.Builder(context, CHANNEL_MESSAGES)
+        val builder = NotificationCompat.Builder(context, CHANNEL_MESSAGES)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title.take(120))
             .setContentText(body.take(300))
@@ -60,13 +79,36 @@ object Notifications {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setContentIntent(openAppIntent(context, peerId, tag.hashCode()))
-            .build()
+        if (reply && !peerId.isNullOrBlank()) builder.addAction(replyAction(context, tag, peerId))
+        val notification = builder.build()
         try {
             NotificationManagerCompat.from(context).notify(tag.take(100), 0, notification)
         } catch (_: SecurityException) {
             return false
         }
         return true
+    }
+
+    fun cancel(context: Context, tag: String) {
+        if (tag.isNotBlank()) NotificationManagerCompat.from(context).cancel(tag.take(100), 0)
+    }
+
+    // Antwort ging nicht raus: dieselbe Benachrichtigung mit Hinweis, Tippen oeffnet den Chat.
+    fun showReplyFailed(context: Context, tag: String, peerId: String) {
+        if (!allowed(context)) return
+        val notification = NotificationCompat.Builder(context, CHANNEL_MESSAGES)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(context.getString(R.string.reply_failed_title))
+            .setContentText(context.getString(R.string.reply_failed_text))
+            .setCategory(NotificationCompat.CATEGORY_ERROR)
+            .setOnlyAlertOnce(true)
+            .setAutoCancel(true)
+            .setContentIntent(openAppIntent(context, peerId.ifBlank { null }, tag.hashCode()))
+            .build()
+        try {
+            NotificationManagerCompat.from(context).notify(tag.take(100), 0, notification)
+        } catch (_: SecurityException) {
+        }
     }
 
     fun clear(context: Context) {

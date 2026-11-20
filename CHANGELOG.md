@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 372 · 2026-11-20
+## Build 373 · 2026-11-20
+- Android-App 0.3.4: auf Nachrichten direkt aus der Benachrichtigung antworten ("Antworten"), ohne die App zu öffnen; geht etwas schief, zeigt die Benachrichtigung "Antwort nicht gesendet"
+- Android-App 0.3.4, Fehlersuche: nach einem Ausfall stehen im Debug-Log auch die Schritte der App (Rechte-Abfrage, Pausieren, Speicherstand)
+
+## Build 372 · 2026-11-20 · `3fa69f6`
 - Hilfe bei Erpressung mit Nacktbildern: wer mit diesem Grund meldet, sieht danach, was jetzt hilft (nicht zahlen, Beweise sichern, Anzeige), wie sich Bilder entfernen lassen (StopNCII, Take It Down) und wo es Beratung gibt
 
 ## Build 371 · 2026-11-20 · `7238d93`

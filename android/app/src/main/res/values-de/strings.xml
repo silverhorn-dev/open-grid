@@ -19,4 +19,9 @@
     <string name="background_stop">Ausschalten</string>
     <string name="offline_text">OpenGrid erreicht deinen Router gerade nicht. Prüfe deine Verbindung.</string>
     <string name="offline_retry">Erneut versuchen</string>
+    <string name="reply_action">Antworten</string>
+    <string name="reply_label">Antwort</string>
+    <string name="reply_sending">Antwort wird gesendet …</string>
+    <string name="reply_failed_title">Antwort nicht gesendet</string>
+    <string name="reply_failed_text">Tippe, um den Chat zu öffnen und es nochmal zu versuchen.</string>
 </resources>

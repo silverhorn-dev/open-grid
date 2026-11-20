@@ -54,6 +54,7 @@ class MainActivity : ComponentActivity(), Bridge.Handler {
     private var fileCallback: ValueCallback<Array<Uri>>? = null
 
     private val mediaPermissions = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { granted ->
+        CrashLog.event(this, "permission result: ${granted.entries.joinToString { "${it.key.substringAfterLast('.')}=${it.value}" }}")
         val request = pendingPermission ?: return@registerForActivityResult
         pendingPermission = null
         val allowed = request.resources.filter { resource ->
@@ -258,7 +259,7 @@ class MainActivity : ComponentActivity(), Bridge.Handler {
             // Renderer abgestuerzt oder vom System beendet (Speicher): alle WebViews der App teilen ihn. Nicht die
             // ganze App mitreissen, sondern die Oberflaeche neu aufbauen (der Kern startet sich selbst neu).
             override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
-                CrashLog.rendererGone(this@MainActivity, "ui", detail.didCrash())
+                CrashLog.rendererGone(this@MainActivity, "ui", detail.didCrash(), detail.rendererPriorityAtExit())
                 if (view == webView) recreateWebApp(routerOrigin)
                 return true
             }
@@ -315,7 +316,29 @@ class MainActivity : ComponentActivity(), Bridge.Handler {
 
     // Fenster zu: die Oberflaeche wird entladen; der Kern bleibt nur, solange etwas passiert (CoreHost),
     // der Posteingang (InboxService) weckt ihn bei Bedarf wieder.
+    // Lebenszyklus fuer die Fehlersuche (CrashLog-Spur, im Debug-Log nach einem Renderer-Ausfall).
+    override fun onPause() {
+        CrashLog.event(this, "activity paused")
+        super.onPause()
+    }
+
+    override fun onStop() {
+        CrashLog.event(this, "activity stopped")
+        super.onStop()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        CrashLog.event(this, "activity resumed")
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        CrashLog.event(this, "trim memory level $level")
+    }
+
     override fun onDestroy() {
+        CrashLog.event(this, "activity destroyed${if (isChangingConfigurations) " (configuration change)" else ""}")
         bridge?.handler = null
         webView?.let {
             (it.parent as? ViewGroup)?.removeView(it)
@@ -419,6 +442,7 @@ class MainActivity : ComponentActivity(), Bridge.Handler {
         }
         pendingPermission?.deny()
         pendingPermission = request
+        CrashLog.event(this, "permission dialog: ${missing.joinToString { it.substringAfterLast('.') }}")
         mediaPermissions.launch(missing.toTypedArray())
     }
 

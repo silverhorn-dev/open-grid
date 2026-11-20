@@ -531,8 +531,10 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
         showToast(t('move.readOnly'), 'info');
         return false;
     }
-    // options.peerId: Anhang an einen Chat, der nicht offen ist (Snap-Seite, snap-studio.js).
-    const peerId = (hasAttachment && options.peerId) || state.activeChatPeerId;
+    // options.peerId: Anhang an einen Chat, der nicht offen ist (Snap-Seite, snap-studio.js), oder options.text:
+    // Text ohne Eingabefeld (Antwort aus der Benachrichtigung der App, native.js).
+    const quickText = typeof options.text === 'string' ? options.text : null;
+    const peerId = ((hasAttachment || quickText !== null) && options.peerId) || state.activeChatPeerId;
     const isOpenChat = peerId === state.activeChatPeerId;
     // Chat-Berechtigungen des anderen (nur Anzeige; der Empfaenger setzt sie selbst durch).
     const allowance = peerId ? getPeerChatAllowance(peerId) : null;
@@ -540,15 +542,15 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
         showToast(allowance.reason || t('chat.imagesAreOnlyAllowedAfter'), 'info');
         return false;
     }
-    const text = hasAttachment ? String(caption || '').trim() : input.value.trim();
+    const text = hasAttachment ? String(caption || '').trim() : quickText !== null ? quickText.trim() : input.value.trim();
     // Bearbeiten einer eigenen Nachricht (chat-tools.js): Senden speichert die Aenderung.
-    if (!hasAttachment && state.editingMessageId && typeof finishEditMessage === 'function') {
+    if (!hasAttachment && quickText === null && state.editingMessageId && typeof finishEditMessage === 'function') {
         await finishEditMessage(text);
         return;
     }
     if ((!text && !hasAttachment) || !peerId || isPeerBlocked(peerId)) return false;
     // Nur ein GIF-Link eingefuegt (gifs.js): als GIF senden statt als Text.
-    if (!hasAttachment && typeof gifFromTypedText === 'function') {
+    if (!hasAttachment && quickText === null && typeof gifFromTypedText === 'function') {
         const gif = await gifFromTypedText(text).catch(() => null);
         if (gif) {
             input.value = '';
@@ -577,7 +579,7 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
         snapExpiry: snapData && !options.asImage ? state.snapSettings.expiry : undefined,
         album: album || undefined,
         secureSnap: secureSnap || undefined,
-        replyTo: isOpenChat ? buildReplyReference(peerId, state.replyToMessageId) : undefined,
+        replyTo: isOpenChat && quickText === null ? buildReplyReference(peerId, state.replyToMessageId) : undefined,
         original: options.original?.meta,
         imageSize: snapData ? await measureImage(snapData) : undefined,
         // Sprachnachricht (voice.js) bzw. Video-Infos (video.js, das Video selbst kommt als Original).
@@ -611,7 +613,7 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
     const operation = createPutOperation(peerId, message);
     await persistChatOperation(operation);
     syncChatGate();
-    if (!hasAttachment) {
+    if (!hasAttachment && quickText === null) {
         input.value = '';
         fitChatInput(input);
         updateComposeButtons();
@@ -619,8 +621,10 @@ async function sendChatMessage(snapData = null, caption = '', album = null, secu
     // Gesendet: kein "tippt" mehr; die naechste Eingabe meldet sich gleich wieder.
     if (state.typingSent?.[peerId]) state.typingSent[peerId] = { kind: 'idle', at: Date.now() };
     if (isOpenChat) {
-        state.replyToMessageId = null;
-        renderReplyBar();
+        if (quickText === null) {
+            state.replyToMessageId = null;
+            renderReplyBar();
+        }
         renderChatHistory();
     }
 

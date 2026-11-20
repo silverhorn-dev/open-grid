@@ -192,7 +192,7 @@ test('notifications go to the app only while the page is hidden, compact by defa
     bridge.context.document.visibilityState = 'hidden';
     bridge.context.api.notifyNativeMessage('alice', { senderId: 'alice', text: 'hi', createdAt: Date.now() });
     await new Promise(resolve => setImmediate(resolve));
-    assert.deepEqual({ ...notifies()[0] }, { title: 'Alice', body: 'hi', tag: 'chat-alice', peerId: 'alice' }, 'compact off: name and preview');
+    assert.deepEqual({ ...notifies()[0] }, { title: 'Alice', body: 'hi', tag: 'chat-alice', peerId: 'alice', reply: true }, 'compact off: name, preview and reply action');
     bridge.context.api.notifyNativeMessage('alice', { senderId: 'alice', text: 'old', createdAt: Date.now() - 2 * 24 * 60 * 60 * 1000 });
     bridge.context.api.notifyNativeMessage('alice', { senderId: 'alice', text: 'held', held: true, createdAt: Date.now() });
     await bridge.context.api.notifyNative('profileView', { title: 'x', body: 'y' });
@@ -221,4 +221,47 @@ test('marked secure views exist in the markup', () => {
     }
     const friends = readFileSync(new URL('../client/app/friends.js', import.meta.url), 'utf8');
     assert.ok(friends.includes("toggleAttribute('data-secure-screen', flirting)"), 'flirt chats are secure');
+});
+
+// Antwort aus der Benachrichtigung (ReplyService -> CoreHost -> Kern): senden, Ergebnis melden, Wiederholung
+// nach einem Kern-Neustart nicht doppelt senden; keine Gruppen, nicht in der Oberflaeche.
+test('notification reply: sent once like a normal message, result reported, no groups, not in the UI role', async () => {
+    const storage = new Map();
+    const sent = [];
+    const results = [];
+    const context = vm.createContext({
+        localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, String(value)), removeItem: key => storage.delete(key) },
+        APP_ROLE: 'core',
+        logDebug: () => {},
+        isGroupId: id => id.startsWith('group_'),
+        sendChatMessage: async (snap, caption, album, secureSnap, options) => { sent.push(options); return true; }
+    });
+    vm.runInContext(nativeSource, context);
+    context.nativeCall = async (type, data) => { results.push({ type, ...data }); return null; };
+    assert.equal(await context.handleNotificationReply({ replyId: 'r1', peerId: 'bob', text: '  bin gleich da  ' }), true);
+    assert.deepEqual(JSON.parse(JSON.stringify(sent)), [{ peerId: 'bob', text: 'bin gleich da' }]);
+    assert.deepEqual(results.at(-1), { type: 'replyResult', replyId: 'r1', ok: true });
+    // Derselbe Auftrag noch einmal (Kern neu gestartet): bestaetigt, nicht erneut gesendet.
+    assert.equal(await context.handleNotificationReply({ replyId: 'r1', peerId: 'bob', text: 'bin gleich da' }), true);
+    assert.equal(sent.length, 1);
+    // Gruppe, leerer Text: nicht gesendet, Ergebnis "nein".
+    assert.equal(await context.handleNotificationReply({ replyId: 'r2', peerId: 'group_abcdefgh', text: 'hi' }), false);
+    assert.equal(await context.handleNotificationReply({ replyId: 'r3', peerId: 'bob', text: '   ' }), false);
+    assert.equal(sent.length, 1);
+    assert.deepEqual(results.at(-1), { type: 'replyResult', replyId: 'r3', ok: false });
+    // Oberflaeche sendet nie selbst (das macht der Kern).
+    context.APP_ROLE = 'ui';
+    assert.equal(await context.handleNotificationReply({ replyId: 'r4', peerId: 'bob', text: 'hi' }), false);
+    assert.equal(sent.length, 1);
+});
+
+test('reply action only with preview, in Kotlin wired to ReplyService and the manifest', () => {
+    const notifications = readFileSync(new URL('../android/app/src/main/java/org/opengrid/app/Notifications.kt', import.meta.url), 'utf8');
+    const manifest = readFileSync(new URL('../android/app/src/main/AndroidManifest.xml', import.meta.url), 'utf8');
+    assert.match(notifications, /if \(reply && !peerId\.isNullOrBlank\(\)\) builder\.addAction\(replyAction/);
+    assert.match(notifications, /FLAG_MUTABLE/, 'RemoteInput needs a mutable PendingIntent');
+    assert.match(manifest, /android:name="\.ReplyService"[\s\S]*?android:exported="false"[\s\S]*?foregroundServiceType="specialUse"/);
+    assert.match(nativeSource, /reply: Boolean\(peerId\) && !\(typeof isGroupId === 'function' && isGroupId\(peerId\)\)/);
+    // Kompakte Meldung ("Neue Nachrichten") verraet nicht, wem man antwortet: dort keine Antwort.
+    assert.match(nativeSource, /compact\s*\n?\s*\? \{ title: t\('sw\.newMessages'\), body: t\('sw\.tapToOpen'\), tag: 'opengrid-messages', peerId \}/);
 });

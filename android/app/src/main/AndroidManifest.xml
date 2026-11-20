@@ -78,6 +78,15 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Keeps a minimal connection to the user's own self-hosted chat router so incoming end-to-end encrypted peer-to-peer messages can wake the app" />
         </service>
+        <!-- Antwort aus einer Benachrichtigung: kurz im Vordergrund, bis der Kern sie gesendet hat -->
+        <service
+            android:name=".ReplyService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Sends a reply the user typed into a message notification through the user's own self-hosted chat router, end-to-end encrypted" />
+        </service>
         <!-- Nach einem Neustart: Posteingang wieder starten -->
         <receiver android:name=".BootReceiver" android:exported="false">
             <intent-filter>

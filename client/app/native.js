@@ -4,8 +4,9 @@
 // Nachrichten sind JSON-Texte: Anfrage { v, id, type, data }, Antwort { v, id, ok, result | error },
 // Ereignis der App { v, event, data }. Die Liste muss zu android/.../Bridge.kt passen (Test prueft das).
 const NATIVE_PROTOCOL_VERSION = 1;
-const NATIVE_REQUEST_TYPES = ['capabilities', 'secureScreen', 'takeShare', 'notify', 'notifications', 'background', 'inbox', 'coreStatus'];
-const NATIVE_EVENT_TYPES = ['shareReady', 'openChat'];
+const NATIVE_REQUEST_TYPES = ['capabilities', 'secureScreen', 'takeShare', 'notify', 'notifications', 'background', 'inbox', 'coreStatus', 'replyResult'];
+const NATIVE_EVENT_TYPES = ['shareReady', 'openChat', 'notificationReply'];
+const NOTIFICATION_REPLY_MAX_LENGTH = 2000;
 const NATIVE_CALL_TIMEOUT_MS = 10000;
 // Ansichten ohne Bildschirmfotos: markierte Bereiche (Medien, Profile, Flirt-Chat) und sichere Bilder.
 const SECURE_SCREEN_SELECTOR = '[data-secure-screen], canvas.secure-image';
@@ -56,6 +57,10 @@ function handleNativeMessage(raw) {
     if (message.event === 'shareReady') {
         handleNativeShare().catch(error => logDebug(`Native share failed: ${error.message}`));
     }
+    // Antwort direkt aus der Benachrichtigung (nur der Kern bekommt sie): senden und Ergebnis melden.
+    if (message.event === 'notificationReply') {
+        handleNotificationReply(message.data).catch(error => logDebug(`Notification reply failed: ${error.message}`));
+    }
     // Benachrichtigung angetippt: den Chat oeffnen.
     if (message.event === 'openChat') {
         const peerId = message.data?.peerId;
@@ -64,6 +69,50 @@ function handleNativeMessage(raw) {
             Promise.resolve(openChatWithPeer(peerId)).catch(error => logDebug(`Open chat from notification failed: ${error.message}`));
         }
     }
+}
+
+const NOTIFICATION_REPLY_IDS_KEY = 'opengrid-notification-replies';
+
+function notificationReplyDone(replyId) {
+    try {
+        return JSON.parse(localStorage.getItem(NOTIFICATION_REPLY_IDS_KEY) || '[]').includes(replyId);
+    } catch {
+        return false;
+    }
+}
+
+function rememberNotificationReply(replyId) {
+    try {
+        const ids = JSON.parse(localStorage.getItem(NOTIFICATION_REPLY_IDS_KEY) || '[]').filter(id => id !== replyId);
+        localStorage.setItem(NOTIFICATION_REPLY_IDS_KEY, JSON.stringify([...ids, replyId].slice(-20)));
+    } catch {
+        // Ohne localStorage: im schlimmsten Fall doppelt nach einem Neustart des Kerns.
+    }
+}
+
+// Antwort aus der Benachrichtigung (Android, ReplyService -> CoreHost -> Kern): wie eine normale Textnachricht
+// senden (gleiche Regeln: Chat-Berechtigungen, Sperren), danach `replyResult` an die App, die die
+// Benachrichtigung entfernt bzw. "nicht gesendet" zeigt.
+async function handleNotificationReply(data) {
+    const replyId = typeof data?.replyId === 'string' ? data.replyId.slice(0, 100) : '';
+    const peerId = typeof data?.peerId === 'string' && data.peerId.length <= 200 ? data.peerId : '';
+    const text = typeof data?.text === 'string' ? data.text.trim().slice(0, NOTIFICATION_REPLY_MAX_LENGTH) : '';
+    let ok = false;
+    // Wiederholung nach einem Neustart des Kerns (CoreHost): schon gesendet, nur bestaetigen.
+    if (replyId && notificationReplyDone(replyId)) {
+        await nativeCall('replyResult', { replyId, ok: true }).catch(() => {});
+        return true;
+    }
+    if (replyId && peerId && text && APP_ROLE !== 'ui' && !(typeof isGroupId === 'function' && isGroupId(peerId))) {
+        rememberNotificationReply(replyId);
+        if (typeof noteBreadcrumb === 'function') noteBreadcrumb('notification reply: sending');
+        ok = (await sendChatMessage(null, '', null, null, { peerId, text }).catch(error => {
+            logDebug(`Notification reply could not be sent: ${error.message}`);
+            return false;
+        })) !== false;
+    }
+    if (replyId) await nativeCall('replyResult', { replyId, ok }).catch(() => {});
+    return ok;
 }
 
 // Sichtbar = gerendert und nicht in einem ausgeblendeten Elternteil (auch fuer position: fixed).
@@ -138,7 +187,11 @@ async function notifyNative(kind, { title, body, peerId = null }) {
     const compact = await nativeCompactNotifications();
     const data = compact
         ? { title: t('sw.newMessages'), body: t('sw.tapToOpen'), tag: 'opengrid-messages', peerId }
-        : { title: String(title || 'OpenGrid'), body: String(body || ''), tag: peerId ? `chat-${peerId}` : `opengrid-${kind}`, peerId };
+        : {
+            title: String(title || 'OpenGrid'), body: String(body || ''), tag: peerId ? `chat-${peerId}` : `opengrid-${kind}`, peerId,
+            // "Antworten" direkt in der Benachrichtigung: nur mit Vorschau (man sieht, wem man antwortet), nicht in Gruppen.
+            reply: Boolean(peerId) && !(typeof isGroupId === 'function' && isGroupId(peerId))
+        };
     await nativeCall('notify', data).catch(error => logDebug(`Native notification failed: ${error.message}`));
 }
 
@@ -212,6 +265,10 @@ function initNativeBridge() {
                 // Was davor passierte (Spur aus config.js, ueberlebt den Neustart).
                 const before = typeof takeBreadcrumbsBefore === 'function' ? takeBreadcrumbsBefore(gone.at) : [];
                 logDebug(before.length ? `Before the renderer was gone:\n  ${before.join('\n  ')}` : 'Before the renderer was gone: no steps recorded.');
+                if (gone.availMb !== undefined) logDebug(`Device memory at that time: ${gone.availMb} of ${gone.totalMb} MB free${gone.lowMemory ? ' (low memory)' : ''}, renderer priority ${gone.priority}`);
+                // Native Spur der App (Lebenszyklus, Rechte-Dialoge, Antworten aus Benachrichtigungen).
+                const events = Array.isArray(result.nativeEvents) ? result.nativeEvents : [];
+                if (events.length) logDebug(`App events:\n  ${events.map(entry => `${new Date(entry.at).toISOString()} ${String(entry.text).slice(0, 200)}`).join('\n  ')}`);
             }
             if (typeof updatePushStatus === 'function') updatePushStatus().catch(() => {});
             renderNativeAppSettings().catch(() => {});

@@ -459,11 +459,15 @@ function renderVoiceMessage(bubble, message, isMine) {
         bubble.appendChild(badge);
         renderOriginalProgress(message.id);
     }
-    if (message.transcript) {
+    // Text: vom Absender mitgeschickt (`transcript`) oder hier lokal verschriftlicht (`localTranscript`, stt.js).
+    const transcriptText = message.transcript || message.localTranscript;
+    if (transcriptText) {
         const transcript = document.createElement('div');
-        transcript.className = 'text-xs opacity-80 mt-1 italic';
-        transcript.textContent = message.transcript;
+        transcript.className = 'voice-transcript text-xs opacity-80 mt-1 italic';
+        transcript.textContent = transcriptText;
         bubble.appendChild(transcript);
+    } else if (typeof renderTranscribeControl === 'function') {
+        renderTranscribeControl(bubble, message);
     }
     // Laufende Wiedergabe direkt am neuen Element zeigen (es haengt noch nicht im DOM; vorher
     // stand bis zum naechsten Zeit-Update "Play" und eine leere Leiste da: das Flackern).

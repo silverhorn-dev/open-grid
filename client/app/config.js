@@ -273,6 +273,8 @@ const state = {
     verifyDetector: null,
     // Scharfe Profilbilder im Grid (grid.client.js): gebuendeltes Neuzeichnen nach angekommenen grossen Fassungen.
     gridAvatarRefreshTimer: null,
+    // Verschriftlichung (stt.js): laufende Auftraege je Nachricht ('loading' | 'working').
+    sttStatus: {},
     // QR-Codes (qr-scan.js): Erkenner, jsQR-Laden, Zeichenflaeche, Snap-Kamera-Pruefung.
     qrDetector: undefined,
     jsQrLoading: null,

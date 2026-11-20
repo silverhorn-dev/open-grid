@@ -1580,3 +1580,18 @@ Akzeptanzkriterien:
 - Eine Antwort wird nie doppelt gesendet, auch wenn der Hintergrund-Kern
   dazwischen neu startet.
 
+## UC-90: Sprachnachricht als Text lesen
+
+Als Nutzerin moechte ich eine Sprachnachricht lesen statt hoeren, ohne dass das
+Audio an einen fremden Dienst geht.
+
+Akzeptanzkriterien:
+
+- Unter jeder Sprachnachricht ohne Text steht "Text", wenn der Router die
+  Spracherkennung anbietet (`STT_MODEL`).
+- Nach dem Antippen zeigt die Nachricht den Fortschritt (beim ersten Mal "Lade
+  Spracherkennung", danach "Wird verschriftlicht") und dann den Text; er bleibt
+  nach dem Neuladen und geht nicht an andere.
+- Audio und Text verlassen das Geraet nicht; Bibliothek und Modell kommen nur
+  vom eigenen Router.
+

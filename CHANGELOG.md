@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 375 · 2026-11-20
+## Build 378 · 2026-11-20
+- Sprachnachrichten als Text: unter jeder Sprachnachricht "Text" antippen, dann schreibt dein Gerät sie mit (Whisper). Das Audio verlässt dein Gerät nicht; die Spracherkennung (ca. 77 MB) kommt beim ersten Mal von deinem Server, nicht von fremden Diensten. Der Text bleibt nur bei dir
+
+## Build 375 · 2026-11-20 · `4220a33`
 - Behoben (Android-App 0.3.5): Sprachnachrichten ließen die App abstürzen; der Mikrofon-Zugriff der eingebauten WebView beendete sie. Jetzt nimmt die App selbst auf, gleiches Format und gleiche Länge wie bisher
 
 ## Build 374 · 2026-11-20 · `0bc4631`

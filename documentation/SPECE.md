@@ -2684,3 +2684,17 @@ Nur Dating, aus per Standard (`VERIFY=on`). Plan und Phasen: `documentation/VERI
   Haken frei. Chat-Gate fuer den Service Worker: `mode: 'V'` (= A + verifiedOnly), der SW merkt dann wie bei B/C vor.
   Absender: `getPeerChatAllowance` sperrt ohne eigenen gueltigen Haken mit Hinweis.
 
+## Sprachnachrichten verschriftlichen (`client/app/stt.js`, `server/stt-model.js`)
+
+- Nur auf Antippen ("Text" unter einer Sprachnachricht ohne Text), eigene und fremde. Ergebnis nur lokal an der
+  Nachricht (`localTranscript`, wird nicht gesendet); ein vom Absender mitgeschickter `transcript` hat Vorrang.
+- Ablauf: Audio (erster Teil, dazu der zweite per P2P, wenn schon da) per `OfflineAudioContext` auf 16 kHz mono,
+  hoechstens 15 min -> Modul-Worker `stt-worker.js` -> transformers.js `automatic-speech-recognition` mit
+  `chunk_length_s: 30`, `stride_length_s: 5`, Sprache als Hinweis aus der App-Sprache (de/en).
+- Alles vom eigenen Router: `/api/config` `stt = { model, sizeMb, library, wasmPaths, modelBase }` (sonst
+  `{ model: 'off' }`); `env.allowRemoteModels = false`, `wasmPaths`/`localModelPath` auf `/vendor/whisper/<version>/`,
+  WASM ein Thread, Browser-Cache fuer das Modell. CSP erlaubt WebAssembly nur im Worker.
+- Dateien (Docker-Stufe `whisper`, feste Pruefsummen): transformers.js 4.3.2 (`transformers.min.js`, Apache-2.0),
+  onnxruntime-web 1.31.0-dev.20260914 (`ort-wasm-simd-threaded.asyncify.mjs/.wasm`, MIT), onnx-community/whisper-base
+  @27a07b4 (`encoder_model_quantized.onnx`, `decoder_model_merged_quantized.onnx`, Konfiguration + Tokenizer, Apache-2.0).
+

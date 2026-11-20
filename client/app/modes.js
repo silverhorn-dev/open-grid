@@ -63,6 +63,10 @@ async function loadAppMode() {
                     : null
             }
             : { enabled: false, key: config?.verify?.key && typeof config.verify.key === 'object' ? config.verify.key : null },
+        // Verschriftlichung von Sprachnachrichten (stt.js): Whisper vom eigenen Router, nur Pfade dort.
+        stt: config?.stt?.model && config.stt.model !== 'off' && ['library', 'wasmPaths', 'modelBase'].every(key => typeof config.stt[key] === 'string' && config.stt[key].startsWith('/'))
+            ? { model: String(config.stt.model), sizeMb: Number(config.stt.sizeMb) || null, library: config.stt.library, wasmPaths: config.stt.wasmPaths, modelBase: config.stt.modelBase }
+            : null,
         // Nacktbild-Modell vom Router (Board T3): Modell, Schwelle, Klassen, Pfade (nudity-model.js).
         nudity: config?.nudity && typeof config.nudity === 'object' ? config.nudity : { model: 'off' },
         // Flammen: Sichtdauer und Abstand (matching.js), vom Router.

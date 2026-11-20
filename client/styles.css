@@ -1741,3 +1741,14 @@ html {
     border: 1px dashed rgb(71 85 105);
 }
 
+/* Sticker-Editor (sticker-editor.js): Arbeitsflaeche auf Karomuster, aktives Werkzeug hervorgehoben. */
+.sticker-editor-canvas {
+    aspect-ratio: auto;
+    max-height: 55vh;
+    object-fit: contain;
+}
+
+#sticker-editor [aria-pressed="true"] {
+    outline: 2px solid rgb(129 140 248);
+}
+

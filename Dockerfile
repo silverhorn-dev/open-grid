@@ -59,6 +59,12 @@ RUN mkdir -p /out/whisper/whisper-base/onnx /tmp/w && cd /tmp/w \
     && printf '{"transformers":"4.3.2","ort":"1.31.0-dev.20260914-8d85527a0","model":"onnx-community/whisper-base","commit":"27a07b4b52b3a4c5886134bb4320e93e1a4bbc7c"}\n' > VERSION.json \
     && rm -rf /tmp/w
 
+# Sticker ausschneiden (server/stickers.js): U^2-Net-p (Apache-2.0), ONNX aus rembg (MIT), feste Pruefsumme.
+FROM alpine:3.20 AS sticker-models
+RUN mkdir -p /out/stickers && cd /out/stickers \
+    && wget -q -O u2netp.onnx https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2netp.onnx \
+    && echo '309c8469258dda742793dce0ebea8e6dd393174f89934733ecc8b14c76f4ddd8  u2netp.onnx' | sha256sum -c -
+
 FROM node:22-bookworm-slim
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
@@ -81,6 +87,7 @@ COPY --chown=opengrid:opengrid models ./models
 COPY --from=nudenet --chown=opengrid:opengrid /out/nudenet ./models/nudenet
 COPY --from=verify-models --chown=opengrid:opengrid /out/verify ./models/verify
 COPY --from=whisper --chown=opengrid:opengrid /out/whisper ./models/whisper
+COPY --from=sticker-models --chown=opengrid:opengrid /out/stickers ./models/stickers
 # TURN-Pruefung im laufenden Container: `docker compose exec open-grid node scripts/turn-check.mjs`
 COPY --chown=opengrid:opengrid scripts/turn-check.mjs scripts/safety-admin.mjs ./scripts/
 USER opengrid

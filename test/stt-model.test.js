@@ -52,3 +52,24 @@ test('router serves the transcription runtime and model only from its own paths,
         await off.close();
     }
 });
+
+test('sticker cut-out (stickers.js): model and runtime only from the own router, worker may compile WebAssembly', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'sticker-'));
+    writeFileSync(join(directory, 'u2netp.onnx'), 'onnx');
+    const app = await buildApp({ store: createStore(':memory:'), metrics: false, stickerModelDir: directory, sttModel: 'off' });
+    try {
+        const cutout = (await app.inject({ method: 'GET', url: '/api/config' })).json().stickers.cutout;
+        assert.match(cutout.modelUrl, /^\/vendor\/stickers\/[\d.]+\/u2netp\.onnx$/);
+        assert.equal((await app.inject({ method: 'GET', url: cutout.modelUrl })).statusCode, 200);
+        assert.equal((await app.inject({ method: 'GET', url: cutout.library })).statusCode, 200);
+        assert.match((await app.inject({ method: 'GET', url: '/client/app/sticker-worker.js' })).headers['content-security-policy'], /wasm-unsafe-eval/);
+    } finally {
+        await app.close();
+    }
+    const none = await buildApp({ store: createStore(':memory:'), metrics: false, stickerCutout: false, sttModel: 'off' });
+    try {
+        assert.equal((await none.inject({ method: 'GET', url: '/api/config' })).json().stickers.cutout, null);
+    } finally {
+        await none.close();
+    }
+});

@@ -43,6 +43,7 @@ import {
 } from './security.js';
 import { applyAudienceMinimum, parseAudienceMinimum } from './audience.js';
 import { MAX_THRESHOLD, MIN_THRESHOLD, nudityPublicConfig as describeNudityModels, parseNudityConfig, parseNudityThreshold, registerNudityModelRoutes } from './nudity-model.js';
+import { findCutoutModel, registerCutoutAssets } from './stickers.js';
 import { parseSttModel, registerSttRoutes } from './stt-model.js';
 import { createVerifyRunner, findVerifyModels, inProcessRunner, loadBadgeKey, parseVerifyDays, parseVerifyEnabled, parseVerifySettings, parseVerifyThreshold, registerDetectorAssets, registerVerifyRoutes } from './verify.js';
 
@@ -222,6 +223,8 @@ const clientAssetFiles = [
     'app/stt-worker.js',
     'app/stt.js',
     'app/stickers.js',
+    'app/sticker-editor.js',
+    'app/sticker-worker.js',
     'app/media-rights.js',
     'app/albums.js',
     'app/swarm.js',
@@ -585,7 +588,7 @@ export async function buildApp(options = {}) {
         reply.headers(securityHeaders(request.headers.host, {
             // Ebenso der Erkenner der Profilbild-Verifizierung (verify-worker.js, YuNet).
             wasm: request.url.startsWith('/client/app/nudity-worker.js') || request.url.startsWith('/client/app/verify-worker.js')
-                || request.url.startsWith('/client/app/stt-worker.js'),
+                || request.url.startsWith('/client/app/stt-worker.js') || request.url.startsWith('/client/app/sticker-worker.js'),
             externalMedia: gifSettings.sources.length > 0,
             serviceWorker: request.url.split('?')[0] === '/sw.js',
             // Anbieter-Suche laeuft vom Client direkt zum Anbieter (dessen Regeln).
@@ -652,6 +655,10 @@ export async function buildApp(options = {}) {
         modelDirectories: [nudityModelDirectory, ...(options.nudityBuiltInModels === false ? [] : [join(projectDirectory, 'models')])]
     });
     let nudityPublicConfig = describeNudityModels(nudityConfig, nudityAssets);
+    // Sticker ausschneiden (server/stickers.js, Board T39 S2): U^2-Net-p rechnet im Browser, der Router liefert nur aus.
+    const stickerCutout = options.stickerCutout === false ? null : await registerCutoutAssets(app, findCutoutModel([
+        options.stickerModelDir ?? process.env.STICKER_MODEL_DIR, join(projectDirectory, 'data', 'sticker-models'), join(projectDirectory, 'models', 'stickers')
+    ]));
     // Sprachnachrichten verschriftlichen (server/stt-model.js): Whisper rechnet im Browser, der Router liefert nur aus.
     const sttModel = parseSttModel(options.sttModel ?? process.env.STT_MODEL) || 'whisper-base';
     const sttAssets = await registerSttRoutes(app, {
@@ -1149,7 +1156,7 @@ export async function buildApp(options = {}) {
     // Nur mit Neustart aenderbar: im Panel zur Ansicht, Geheimnisse nur als "gesetzt".
     const RESTART_ONLY = ['APP_MODES', 'DEFAULT_APP_MODE', 'LAN_MODE', 'APP_URL', 'INFO_HOST', 'TURN_SERVER', 'TURN_PORT', 'STUN_SERVER',
         'DATABASE_PATH', 'CREDENTIAL_RETENTION_DAYS', 'MEDIA_KEY_EPOCH_MINUTES', 'TRUST_PROXY', 'RATE_LIMIT_SCALE', 'VAPID_SUBJECT',
-        'AGE_TRUST_CERTS', 'AGE_TRUSTED_LIST_URL', 'AGE_EUDI_DOCTYPES', 'AGE_EUDI_TEST', 'EMAIL_TRANSPORT', 'SMTP_FROM', 'NUDITY_MODEL_DIR', 'VERIFY_MODEL_DIR', 'STT_MODEL', 'STT_MODEL_DIR'];
+        'AGE_TRUST_CERTS', 'AGE_TRUSTED_LIST_URL', 'AGE_EUDI_DOCTYPES', 'AGE_EUDI_TEST', 'EMAIL_TRANSPORT', 'SMTP_FROM', 'NUDITY_MODEL_DIR', 'VERIFY_MODEL_DIR', 'STT_MODEL', 'STT_MODEL_DIR', 'STICKER_MODEL_DIR'];
     const RESTART_ONLY_SECRETS = ['TURN_SECRET', 'SAFETY_KEY', 'SMTP_URL', 'VAPID_PRIVATE_KEY', 'ADMIN_SETUP_TOKEN'];
     const restartOnly = () => [
         ...RESTART_ONLY.map(key => ({ key, value: process.env[key] ?? null })),
@@ -1382,7 +1389,7 @@ export async function buildApp(options = {}) {
         return { status: 'moved', peerId, movedTo: verified.movedTo };
     });
 
-    app.get('/api/config', async () => ({ verify: verify.publicConfig(), features: [...enabledFeatures()], android: { ...(await apkSource.publicInfo()), signers: effectiveAppSigners(androidAppSigners) }, flames: { ...flameSettings }, gifs: { sources: [...gifSettings.sources], review: gifSettings.review, proxy: gifSettings.proxy && gifSettings.sources.some(kind => kind !== 'provider'), ...(gifSettings.sources.includes('provider') ? { provider: { ...gifSettings.provider } } : {}) }, modes: appModes, defaultMode: defaultAppMode, profileSchemas, lanMode: isLanMode, clientDefaults, infoUrl: infoSiteUrl(infoHost), safety: safety.publicConfig(), stt: sttAssets || { model: 'off' }, nudity: { ...nudityPublicConfig, required: nudityScanRequired },
+    app.get('/api/config', async () => ({ verify: verify.publicConfig(), features: [...enabledFeatures()], android: { ...(await apkSource.publicInfo()), signers: effectiveAppSigners(androidAppSigners) }, flames: { ...flameSettings }, gifs: { sources: [...gifSettings.sources], review: gifSettings.review, proxy: gifSettings.proxy && gifSettings.sources.some(kind => kind !== 'provider'), ...(gifSettings.sources.includes('provider') ? { provider: { ...gifSettings.provider } } : {}) }, modes: appModes, defaultMode: defaultAppMode, profileSchemas, lanMode: isLanMode, clientDefaults, infoUrl: infoSiteUrl(infoHost), safety: safety.publicConfig(), stt: sttAssets || { model: 'off' }, stickers: { cutout: stickerCutout }, nudity: { ...nudityPublicConfig, required: nudityScanRequired },
         // Fuer die Anzeige in den Einstellungen ("vom Server vorgegeben").
         audienceMinimum: audienceMinimumRule ? (typeof audienceMinimumRule === 'string' ? JSON.parse(audienceMinimumRule) : audienceMinimumRule) : null }));
 

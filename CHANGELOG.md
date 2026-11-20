@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 379 · 2026-11-20
+## Build 380 · 2026-11-20
+- Sticker selbst machen: unter Sticker → Eigene → „Neu“ ein Bild wählen; das Motiv wird automatisch freigestellt (auf deinem Gerät), mit dem Finger radierst oder holst du Teile zurück; auf Wunsch als Sticker ab 18
+
+## Build 379 · 2026-11-20 · `a66c985`
 - Sticker: im Chat über Medien → Sticker senden; sie stehen ohne Sprechblase im Chat, mit Transparenz und lassen sich nicht speichern, aber antippen und favorisieren. Sticker ab 18 sind unscharf bis zum Antippen, nur in Dating-Chats erlaubt und für unter 18 unsichtbar. Selbst machen und Pakete folgen
 
 ## Build 378 · 2026-11-20 · `6485862`

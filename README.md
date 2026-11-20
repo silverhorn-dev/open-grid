@@ -168,6 +168,7 @@ Fehler auf einmal sichtbar sind; rot ist der Build trotzdem.
 | `VERIFY_DAYS` | `90` | Wie lange ein Haken gilt (1 bis 365 Tage) |
 | `STT_MODEL` | `whisper-base` | Sprachnachrichten verschriftlichen (auf Antippen, rechnet nur im Browser): `whisper-base` (onnx-community/whisper-base quantisiert, Apache-2.0, ca. 77 MB, im Docker-Image mit transformers.js und onnxruntime-web) oder `off`. Der Router liefert Bibliothek, Laufzeit und Modell nur aus; das Audio verlaesst das Geraet nie |
 | `STT_MODEL_DIR` | - | Eigener Ordner mit `transformers.min.js`, `ort-wasm-simd-threaded.asyncify.mjs`/`.wasm` und `whisper-base/` (sonst `data/stt-models`, dann `models/whisper` im Image) |
+| `STICKER_MODEL_DIR` | - | Eigener Ordner mit `u2netp.onnx` (Sticker automatisch freistellen, rechnet im Browser; sonst `data/sticker-models`, dann `models/stickers` im Image). Ohne Modell geht Freistellen nur von Hand |
 | `VERIFY_MODEL_DIR` | - | Eigener Ordner mit `face_detection_yunet_2023mar.onnx` und `face_recognition_sface_2021dec.onnx` (sonst `data/verify-models`, dann `models/verify` im Image) |
 | `AUDIENCE_MINIMUM` | - | Mindestwerte fuer "Wer mich im Grid sieht", die der Router in jede Karte in "Entdecken"/"Event" mischt (JSON wie eine Regel, z. B. `{"ranges":{"age":{"min":18}}}`). Wer den Wert nicht angibt, sieht dann niemanden. |
 | `RATE_LIMIT_SCALE` | `1` | Faktor fuer alle Rate-Limits (1 bis 100), nur fuer Tests mit vielen Clients hinter einer IP (die E2E-Tests nutzen 20) |

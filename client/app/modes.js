@@ -67,6 +67,13 @@ async function loadAppMode() {
         stt: config?.stt?.model && config.stt.model !== 'off' && ['library', 'wasmPaths', 'modelBase'].every(key => typeof config.stt[key] === 'string' && config.stt[key].startsWith('/'))
             ? { model: String(config.stt.model), sizeMb: Number(config.stt.sizeMb) || null, library: config.stt.library, wasmPaths: config.stt.wasmPaths, modelBase: config.stt.modelBase }
             : null,
+        // Sticker (stickers.js, sticker-editor.js): Ausschneide-Modell vom eigenen Router, nur Pfade dort.
+        stickers: {
+            cutout: ['library', 'runtimeUrl', 'modelUrl'].every(key => typeof config?.stickers?.cutout?.[key] === 'string' && config.stickers.cutout[key].startsWith('/'))
+                ? { library: config.stickers.cutout.library, runtimeUrl: config.stickers.cutout.runtimeUrl, modelUrl: config.stickers.cutout.modelUrl, sizeMb: Number(config.stickers.cutout.sizeMb) || null }
+                : null,
+            packs: config?.stickers?.packs === true
+        },
         // Nacktbild-Modell vom Router (Board T3): Modell, Schwelle, Klassen, Pfade (nudity-model.js).
         nudity: config?.nudity && typeof config.nudity === 'object' ? config.nudity : { model: 'off' },
         // Flammen: Sichtdauer und Abstand (matching.js), vom Router.

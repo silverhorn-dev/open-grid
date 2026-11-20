@@ -101,6 +101,62 @@ async function main() {
         assert.equal(await bob.evaluate(() => Boolean(document.querySelector('[data-sticker="adult-1"]'))), false);
         assert.match(await bob.textContent('.sticker-hidden'), /ab 18 ausgeblendet/);
 
+        // S2: Sticker selbst machen: Bild waehlen, von Hand radieren (Modell hier ersetzt), speichern -> "Eigene".
+        await bob.evaluate(() => { state.ageGroup = null; });
+        const png = await bob.evaluate(() => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 400;
+            canvas.height = 300;
+            const context = canvas.getContext('2d');
+            context.fillStyle = '#334155';
+            context.fillRect(0, 0, 400, 300);
+            context.fillStyle = '#facc15';
+            context.fillRect(120, 80, 160, 140);
+            return canvas.toDataURL('image/png').split(',')[1];
+        });
+        // Automatisches Freistellen nachgebaut: Maske = gelbes Rechteck.
+        await bob.evaluate(() => {
+            state.appConfig.stickers = { cutout: { library: '/x.js', runtimeUrl: '/x/', modelUrl: '/x.onnx', sizeMb: 4.6 }, packs: false };
+            window.runStickerWorker = async canvas => {
+                const size = 320;
+                const mask = new Float32Array(size * size);
+                for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+                    mask[y * size + x] = x >= 96 && x < 224 && y >= 85 && y < 235 ? 1 : 0;
+                }
+                return { mask, size };
+            };
+        });
+        const ownBefore = await bob.evaluate(() => stickerState.own.length);
+        const chooser = bob.waitForEvent('filechooser');
+        await bob.evaluate(() => openStickerPicker());
+        await bob.click('[data-sticker-tab="own"]');
+        await bob.click('#sticker-create-btn');
+        await (await chooser).setFiles({ name: 'me.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') });
+        await bob.waitForSelector('#sticker-editor-canvas');
+        await waitFor(bob, () => /Freigestellt/.test(document.getElementById('sticker-editor-status').textContent));
+        // Von Hand: oben links radieren (dort ist nach dem Freistellen schon nichts mehr), dann speichern.
+        const box = await bob.locator('#sticker-editor-canvas').boundingBox();
+        await bob.mouse.move(box.x + 5, box.y + 5);
+        await bob.mouse.down();
+        await bob.mouse.move(box.x + 40, box.y + 30);
+        await bob.mouse.up();
+        await bob.click('#sticker-save-btn');
+        await waitFor(bob, before => stickerState.own.length === before + 1, ownBefore);
+        const made = await bob.evaluate(async () => loadStickerData(stickerState.own[0]));
+        // Zugeschnitten auf das Motiv (160 x 140 + Rand), Ecken durchsichtig.
+        assert.ok(made.w < 200 && made.h < 180, `cropped to the subject (${made.w} x ${made.h})`);
+        assert.equal(await bob.evaluate(async data => {
+            const image = new Image();
+            image.src = data;
+            await image.decode();
+            const canvas = document.createElement('canvas');
+            canvas.width = image.width;
+            canvas.height = image.height;
+            const context = canvas.getContext('2d');
+            context.drawImage(image, 0, 0);
+            return context.getImageData(0, 0, 1, 1).data[3];
+        }, made.data), 0, 'transparent corner');
+
         assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log('E2E OK (stickers)');
     } finally {

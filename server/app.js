@@ -43,7 +43,7 @@ import {
 } from './security.js';
 import { applyAudienceMinimum, parseAudienceMinimum } from './audience.js';
 import { MAX_THRESHOLD, MIN_THRESHOLD, nudityPublicConfig as describeNudityModels, parseNudityConfig, parseNudityThreshold, registerNudityModelRoutes } from './nudity-model.js';
-import { findVerifyModels, loadBadgeKey, parseVerifySettings, registerVerifyRoutes } from './verify.js';
+import { findVerifyModels, loadBadgeKey, parseVerifyDays, parseVerifyEnabled, parseVerifySettings, parseVerifyThreshold, registerVerifyRoutes } from './verify.js';
 import { loadFaceModels } from './face-verify.js';
 
 const MAX_GRID_RESULTS = 100;
@@ -945,6 +945,23 @@ export async function buildApp(options = {}) {
     } catch (error) {
         app.log.warn(`${error.message}; using 3.`);
     }
+    // Profilbild-Verifizierung (server/verify.js, Board T37): aus per Standard; Modelle bei Bedarf laden.
+    // Live im Admin-Panel (VERIFY, VERIFY_THRESHOLD, VERIFY_DAYS); das Objekt bleibt, die Werte wechseln.
+    const verifyEnv = options.verifySettings || parseVerifySettings();
+    const verifySettings = { ...verifyEnv };
+    const verifyModelPaths = options.verifyModels ? null : findVerifyModels([options.verifyModelDir, process.env.VERIFY_MODEL_DIR,
+        join(projectDirectory, 'data', 'verify-models'), join(projectDirectory, 'models', 'verify')]);
+    let verifyModelsPromise = null;
+    const getVerifyModels = () => {
+        if (options.verifyModels) return Promise.resolve(options.verifyModels);
+        verifyModelsPromise = verifyModelsPromise || loadFaceModels(verifyModelPaths).catch(error => {
+            verifyModelsPromise = null;
+            throw error;
+        });
+        return verifyModelsPromise;
+    };
+    getVerifyModels.available = () => Boolean(options.verifyModels || verifyModelPaths);
+
     const liveConfig = createLiveConfig({
         store, log: app.log, now,
         entries: {
@@ -1047,6 +1064,24 @@ export async function buildApp(options = {}) {
                 apply: value => refreshNudity({ ...nudityConfig, classes: (Array.isArray(value) ? value : String(value ?? '').split(',')).map(entry => String(entry).trim()).filter(Boolean) }),
                 options: () => nudityAssets?.models?.[nudityPublicConfig.model]?.classes || []
             },
+            // Profilbild-Verifizierung (verify.js): "on" nur mit installierten Modellen.
+            VERIFY: {
+                env: verifyEnv.enabled ? 'on' : 'off',
+                apply: value => {
+                    const enabled = parseVerifyEnabled(value ?? (verifyEnv.enabled ? 'on' : 'off'));
+                    if (enabled && !getVerifyModels.available()) throw new Error('Verification models are not installed');
+                    verifySettings.enabled = enabled;
+                },
+                options: () => (getVerifyModels.available() ? ['off', 'on'] : ['off'])
+            },
+            VERIFY_THRESHOLD: {
+                env: verifyEnv.threshold,
+                apply: value => { verifySettings.threshold = parseVerifyThreshold(value ?? verifyEnv.threshold); }
+            },
+            VERIFY_DAYS: {
+                env: verifyEnv.days,
+                apply: value => { verifySettings.days = parseVerifyDays(value ?? verifyEnv.days); }
+            },
             NUDITY_SCAN_REQUIRED: {
                 env: nudityScanRequired,
                 apply: value => {
@@ -1106,7 +1141,7 @@ export async function buildApp(options = {}) {
     // Nur mit Neustart aenderbar: im Panel zur Ansicht, Geheimnisse nur als "gesetzt".
     const RESTART_ONLY = ['APP_MODES', 'DEFAULT_APP_MODE', 'LAN_MODE', 'APP_URL', 'INFO_HOST', 'TURN_SERVER', 'TURN_PORT', 'STUN_SERVER',
         'DATABASE_PATH', 'CREDENTIAL_RETENTION_DAYS', 'MEDIA_KEY_EPOCH_MINUTES', 'TRUST_PROXY', 'RATE_LIMIT_SCALE', 'VAPID_SUBJECT',
-        'AGE_TRUST_CERTS', 'AGE_TRUSTED_LIST_URL', 'AGE_EUDI_DOCTYPES', 'AGE_EUDI_TEST', 'EMAIL_TRANSPORT', 'SMTP_FROM', 'NUDITY_MODEL_DIR'];
+        'AGE_TRUST_CERTS', 'AGE_TRUSTED_LIST_URL', 'AGE_EUDI_DOCTYPES', 'AGE_EUDI_TEST', 'EMAIL_TRANSPORT', 'SMTP_FROM', 'NUDITY_MODEL_DIR', 'VERIFY_MODEL_DIR'];
     const RESTART_ONLY_SECRETS = ['TURN_SECRET', 'SAFETY_KEY', 'SMTP_URL', 'VAPID_PRIVATE_KEY', 'ADMIN_SETUP_TOKEN'];
     const restartOnly = () => [
         ...RESTART_ONLY.map(key => ({ key, value: process.env[key] ?? null })),
@@ -1117,20 +1152,6 @@ export async function buildApp(options = {}) {
     registerGifRoutes(app, { gifs: store.gifs, settings: () => gifSettings, allowRequest, requirePeerAuth, isString, now, log: app.log });
     registerGifProxyRoutes(app, { settings: () => gifSettings, allowRequest, requirePeerAuth, isString, now, log: app.log, lookup: options.gifProxyLookup, fetch: options.gifProxyFetch });
 
-    // Profilbild-Verifizierung (server/verify.js, Board T37): aus per Standard; Modelle bei Bedarf laden.
-    const verifySettings = options.verifySettings || parseVerifySettings();
-    const verifyModelPaths = options.verifyModels ? null : findVerifyModels([options.verifyModelDir, process.env.VERIFY_MODEL_DIR,
-        join(projectDirectory, 'data', 'verify-models'), join(projectDirectory, 'models', 'verify')]);
-    let verifyModelsPromise = null;
-    const getVerifyModels = () => {
-        if (options.verifyModels) return Promise.resolve(options.verifyModels);
-        verifyModelsPromise = verifyModelsPromise || loadFaceModels(verifyModelPaths).catch(error => {
-            verifyModelsPromise = null;
-            throw error;
-        });
-        return verifyModelsPromise;
-    };
-    getVerifyModels.available = () => Boolean(options.verifyModels || verifyModelPaths);
     const verify = registerVerifyRoutes(app, {
         store, settings: () => verifySettings, requirePeerAuth, allowRequest, isString, now, log: app.log,
         getModels: getVerifyModels, badgeKey: loadBadgeKey(store)

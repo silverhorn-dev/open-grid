@@ -450,3 +450,31 @@ test('android app signers are live editable and feed assetlinks.json', async () 
     assert.equal((await app.inject({ method: 'DELETE', url: '/api/admin/config/ANDROID_APP_SIGNERS', headers: H(cookie) })).statusCode, 200);
     assert.deepEqual((await appConfig(app)).android.signers, []);
 });
+
+test('admin live config: profile verification on/off, threshold and days; "on" only with installed models', async () => {
+    const models = { detect: async () => [], embed: async () => [] };
+    const store = createStore(':memory:');
+    const app = await buildApp({ store, buildVersion: 'test', buildTimestamp: 'x', appUrl: ORIGIN, adminSetupToken: SETUP, verifyModels: models });
+    cleanup.push(async () => { await app.close(); store.close(); });
+    const cookie = await setupPasskey(app, authenticator());
+    const live = async () => (await app.inject({ method: 'GET', url: '/api/admin/config', headers: { cookie } })).json().live;
+    assert.deepEqual((await live()).VERIFY.options, ['off', 'on']);
+    assert.equal((await appConfig(app)).verify.enabled, false, 'off by default');
+    assert.equal((await put(app, 'VERIFY', 'on', cookie)).statusCode, 200);
+    assert.equal((await appConfig(app)).verify.enabled, true, 'effective without restart');
+    assert.equal((await put(app, 'VERIFY', 'maybe', cookie)).statusCode, 400);
+    assert.equal((await put(app, 'VERIFY_DAYS', 30, cookie)).statusCode, 200);
+    assert.equal((await appConfig(app)).verify.days, 30);
+    assert.equal((await put(app, 'VERIFY_DAYS', 0, cookie)).statusCode, 400);
+    assert.equal((await put(app, 'VERIFY_THRESHOLD', 0.5, cookie)).statusCode, 200);
+    assert.equal((await live()).VERIFY_THRESHOLD.value, 0.5);
+    assert.equal((await put(app, 'VERIFY_THRESHOLD', 1.5, cookie)).statusCode, 400);
+
+    // Ohne Modelle: nur "off".
+    const bareStore = createStore(':memory:');
+    const bare = await buildApp({ store: bareStore, buildVersion: 'test', buildTimestamp: 'x', appUrl: ORIGIN, adminSetupToken: SETUP });
+    cleanup.push(async () => { await bare.close(); bareStore.close(); });
+    const bareCookie = await setupPasskey(bare, authenticator());
+    assert.deepEqual((await bare.inject({ method: 'GET', url: '/api/admin/config', headers: { cookie: bareCookie } })).json().live.VERIFY.options, ['off']);
+    assert.equal((await put(bare, 'VERIFY', 'on', bareCookie)).statusCode, 400);
+});

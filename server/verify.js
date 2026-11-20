@@ -27,6 +27,25 @@ const MAX_PROFILE_LENGTH = 3_000_000;
 export const YUNET_FILE = 'face_detection_yunet_2023mar.onnx';
 export const SFACE_FILE = 'face_recognition_sface_2021dec.onnx';
 
+// Einzelwerte fuer das Admin-Panel (live-config.js): werfen bei ungueltigen Werten.
+export function parseVerifyEnabled(value) {
+    const text = String(value ?? 'off').trim().toLowerCase();
+    if (!['on', 'off'].includes(text)) throw new Error('VERIFY must be on or off');
+    return text === 'on';
+}
+
+export function parseVerifyThreshold(value) {
+    const number = Number(value ?? 0.363);
+    if (!Number.isFinite(number) || number <= 0 || number >= 1) throw new Error('VERIFY_THRESHOLD must be between 0 and 1');
+    return number;
+}
+
+export function parseVerifyDays(value) {
+    const number = Number(value ?? 90);
+    if (!Number.isInteger(number) || number < 1 || number > 365) throw new Error('VERIFY_DAYS must be 1-365');
+    return number;
+}
+
 export function parseVerifySettings(env = process.env) {
     const threshold = Number(env.VERIFY_THRESHOLD ?? 0.363);
     const days = Number(env.VERIFY_DAYS ?? 90);

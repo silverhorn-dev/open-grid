@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 361 · 2026-11-20
+## Build 362 · 2026-11-20
+- Admin-Panel: Profilbild-Verifizierung live ein- und ausschalten, dazu Mindest-Ähnlichkeit und Gültigkeit des Hakens; "on" nur, wenn die Modelle installiert sind
+
+## Build 361 · 2026-11-20 · `db72b45`
 - Android-App: Jenkins baut das APK bei Aenderungen an der App (oder auf Wunsch) und legt es als Download am Build ab; der Debug-Schluessel bleibt jetzt gleich, neue APKs lassen sich ueber alte installieren
 
 ## Build 360 · 2026-11-20 · `f450e23`

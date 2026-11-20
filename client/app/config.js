@@ -240,6 +240,8 @@ const state = {
     groupSealLocks: {},
     // "Kompakte Meldung" fuer Benachrichtigungen der Android-App (native.js), null = noch nicht gelesen.
     compactNotifications: null,
+    // Profilbild-Verifizierung (verify.js): eigener Gesichtserkenner statt des Web Workers (nur Tests), sonst null.
+    verifyDetector: null,
     // QR-Codes (qr-scan.js): Erkenner, jsQR-Laden, Zeichenflaeche, Snap-Kamera-Pruefung.
     qrDetector: undefined,
     jsQrLoading: null,

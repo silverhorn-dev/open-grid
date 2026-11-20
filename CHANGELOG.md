@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 367 · 2026-11-20
+## Build 368 · 2026-11-20
+- Behoben: Build 367 lief wegen eines fehlenden Eintrags im App-Zustand nicht durch die Tests (kein Einfluss auf die App)
+
+## Build 367 · 2026-11-20 · `2b2768d`
 - Profilbild verifizieren neu: statt drei Fotos mit Countdown erkennt die App dein Gesicht live und führt dich ("näher ran", "weiter nach links", "gut so, halten"); aufgenommen wird automatisch, sobald die Haltung passt
 - Server: prüft nur noch eine zufällige Stichprobe der Aufnahmen, rechnet in einem eigenen Thread (bleibt währenddessen voll ansprechbar) und gibt den Speicher nach 5 Minuten ohne Prüfung wieder frei
 

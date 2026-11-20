@@ -103,8 +103,11 @@ async function startVoiceRecording() {
         return;
     }
     let stream;
+    // Spur: kommt der Renderer-Ausfall genau hier (Mikrofon in der WebView), steht das beim naechsten Start im Log.
+    noteBreadcrumb('voice: asking for the microphone (getUserMedia)');
     try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+        noteBreadcrumb('voice: microphone granted');
     } catch (error) {
         logDebug(`Mikrofon nicht verfuegbar: ${error.message}`);
         showToast(t('voice.noAccessToMicrophone'), 'error');

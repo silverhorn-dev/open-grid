@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 373 · 2026-11-20
+## Build 374 · 2026-11-20
+- Fehlersuche Sprachnachrichten: zusätzlicher Schritt im Debug-Log direkt vor dem Zugriff aufs Mikrofon
+
+## Build 373 · 2026-11-20 · `9d52a96`
 - Android-App 0.3.4: auf Nachrichten direkt aus der Benachrichtigung antworten ("Antworten"), ohne die App zu öffnen; geht etwas schief, zeigt die Benachrichtigung "Antwort nicht gesendet"
 - Android-App 0.3.4, Fehlersuche: nach einem Ausfall stehen im Debug-Log auch die Schritte der App (Rechte-Abfrage, Pausieren, Speicherstand)
 

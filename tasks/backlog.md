@@ -138,7 +138,12 @@ Ideen ohne festen Termin. Neue Phasen werden von hier auf `tasks/board.md` gehol
 - [ ] profile ex and import for backups or things.
 - [ ] pin lock
 	- [ ] biometry look for apk
-- [ ] snap videos?
+- [ ] snap videos? (nutzer 2026-11-20: spaeter; reihenfolge jetzt B offline-modus, dann C sprach-verschriftlichung)
+	- plan (2026-11-20): ausloeser gedrueckt halten = video (max 30 s, kurz tippen bleibt foto), nur ziel "chat"; MediaRecorder auf dem kamera-stream, webm (blob-typ auf `video/webm` normieren, sonst passt `isSafeInlineVideo` nicht)
+	- versand wie videos im chat (video.js): vorschaubild als `snapData`, video als `original` (nur P2P, sha256), modus snap = einmal-snap (`snapMode: 'replay'`), modus bild = dauerhaft
+	- ton: in der app erst stumm (WebView-mikrofon beendet den renderer, siehe T38), im browser mit ton; spaeter nativ (CameraX)
+	- empfaenger: replay-karte "Video-Snap", `openReplaySnap` spielt das original im secure-snap-viewer (`#secure-snap-video`), ohne original kein ansehen (zaehlt nicht); beim verbrauchen auch das original loeschen (`originalMediaId`) und `message.original` entfernen (sonst holt der client es neu), absender loescht seins nach `ownKeepUntil`
+	- nacktbild-warnung ueber das vorschaubild (`confirmNudeSend`)
 - [ ] sticker integration?
 	- [ ] stickers shouldnt be saveable
 	- [ ] favorisierbar

@@ -478,3 +478,30 @@ test('admin live config: profile verification on/off, threshold and days; "on" o
     assert.deepEqual((await bare.inject({ method: 'GET', url: '/api/admin/config', headers: { cookie: bareCookie } })).json().live.VERIFY.options, ['off']);
     assert.equal((await put(bare, 'VERIFY', 'on', bareCookie)).statusCode, 400);
 });
+
+test('admin sticker packs: upload checked stickers, app lists and loads them, 18+ marked, removable', async () => {
+    const store = createStore(':memory:');
+    const app = await buildApp({ store, buildVersion: 'test', buildTimestamp: 'x', appUrl: ORIGIN, adminSetupToken: SETUP });
+    cleanup.push(async () => { await app.close(); store.close(); });
+    const cookie = await setupPasskey(app, authenticator());
+    const sticker = { data: 'data:image/webp;base64,UklGRiQAAABXRUJQ', w: 64, h: 48 };
+    assert.equal((await appConfig(app)).stickers.packs, false, 'no packs yet');
+    const post = (body, headers = H(cookie)) => app.inject({ method: 'POST', url: '/api/admin/stickers', payload: body, headers });
+    assert.equal((await post({ name: 'Katzen', items: [sticker] }, { cookie })).statusCode, 403, 'admin header required');
+    assert.equal((await post({ name: '', items: [sticker] })).statusCode, 400);
+    assert.equal((await post({ name: 'X', items: [{ ...sticker, data: 'data:image/jpeg;base64,AA' }] })).statusCode, 400, 'no JPEG');
+    assert.equal((await post({ name: 'X', items: [{ ...sticker, w: 4000 }] })).statusCode, 400);
+    const created = (await post({ name: 'Katzen', adult: true, items: [sticker, sticker] })).json();
+    assert.equal(created.ok, true);
+    assert.equal((await appConfig(app)).stickers.packs, true);
+    const list = (await app.inject({ method: 'GET', url: '/api/stickers' })).json().packs;
+    assert.deepEqual(list, [{ id: created.id, name: 'Katzen', adult: true, count: 1 }], 'same sticker twice counts once');
+    const pack = (await app.inject({ method: 'GET', url: `/api/stickers/${created.id}` })).json();
+    assert.equal(pack.stickers.length, 1);
+    assert.equal(pack.stickers[0].data, sticker.data);
+    assert.equal(pack.stickers[0].adult, true, '18+ pack marks every sticker');
+    assert.match(pack.stickers[0].sha256, /^[A-Za-z0-9+/=]{44}$/);
+    assert.equal((await app.inject({ method: 'GET', url: '/api/stickers/pack_nope' })).statusCode, 404);
+    assert.equal((await app.inject({ method: 'DELETE', url: `/api/admin/stickers/${created.id}`, headers: H(cookie) })).json().ok, true);
+    assert.deepEqual((await app.inject({ method: 'GET', url: '/api/stickers' })).json().packs, []);
+});

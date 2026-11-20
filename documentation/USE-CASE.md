@@ -1595,3 +1595,29 @@ Akzeptanzkriterien:
 - Audio und Text verlassen das Geraet nicht; Bibliothek und Modell kommen nur
   vom eigenen Router.
 
+## UC-91: Sticker senden und favorisieren
+
+Als Nutzer moechte ich Sticker senden, die wie Sticker aussehen (ohne Sprechblase,
+mit Transparenz), und gute Sticker anderer behalten.
+
+Akzeptanzkriterien:
+
+- Medien -> Sticker oeffnet die Auswahl (Favoriten, Eigene, Pakete); Antippen sendet.
+- Sticker stehen ohne Sprechblase im Chat und lassen sich nicht speichern;
+  Antippen zeigt sie gross mit "Zu Favoriten".
+- Unter "Eigene" macht "Neu" aus einem Bild einen Sticker: automatisch
+  freistellen (auf dem Geraet), mit dem Finger radieren oder zurueckholen.
+- Sticker ab 18 gehen nur in Dating-Chats an Erwachsene, sind beim Empfaenger
+  unscharf bis zum Antippen und fuer unter 18 unsichtbar.
+
+## UC-92: Sticker-Pakete bereitstellen (Betreiber)
+
+Als Betreiber moechte ich meinen Nutzern Sticker-Pakete anbieten.
+
+Akzeptanzkriterien:
+
+- Im Admin-Panel unter "Sticker" lege ich ein Paket mit Name und Bildern an
+  (optional "ab 18"); das Panel verkleinert die Bilder.
+- Pakete erscheinen in der App unter Sticker -> Pakete; 18+-Pakete nicht fuer
+  unter 18. Entfernen nimmt sie aus der Auswahl, gesendete Sticker bleiben.
+

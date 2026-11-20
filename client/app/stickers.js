@@ -322,3 +322,61 @@ async function renderStickerGrid(body, kind) {
     }
     body.appendChild(grid);
 }
+
+// ----- S3: Pakete vom Router -----
+function stickerPacksAvailable() {
+    return state.appConfig?.stickers?.packs === true;
+}
+
+async function fetchStickerJson(path) {
+    const response = await fetch(`${API_BASE}${path}`, { cache: 'no-store' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json();
+}
+
+async function renderStickerPacksTab(body) {
+    const minor = iAmMinor();
+    const { packs } = await fetchStickerJson('/api/stickers').catch(() => ({ packs: [] }));
+    const visible = (packs || []).filter(pack => typeof pack?.id === 'string' && !(pack.adult && minor));
+    if (!visible.length) {
+        const empty = document.createElement('p');
+        empty.className = 'text-sm text-slate-400';
+        empty.textContent = t('stickers.packsEmpty');
+        body.appendChild(empty);
+        return;
+    }
+    const chips = document.createElement('div');
+    chips.className = 'flex gap-2 overflow-x-auto pb-1';
+    const grid = document.createElement('div');
+    grid.className = 'sticker-grid';
+    const showPack = async pack => {
+        chips.querySelectorAll('button').forEach(button => button.classList.toggle('is-active', button.dataset.stickerPack === pack.id));
+        grid.replaceChildren();
+        try {
+            const full = await fetchStickerJson(`/api/stickers/${encodeURIComponent(pack.id)}`);
+            for (const item of full.stickers || []) {
+                if (!isSafeStickerData(item?.data)) continue;
+                const adult = pack.adult || item.adult === true;
+                if (adult && minor) continue;
+                grid.appendChild(stickerTile({ id: stickerIdFor(item.sha256), data: item.data, sha256: item.sha256, w: item.w, h: item.h, ...(adult ? { adult: true } : {}) }));
+            }
+        } catch {
+            const failed = document.createElement('p');
+            failed.className = 'text-sm text-rose-300';
+            failed.textContent = t('stickers.packLoadFailed');
+            grid.appendChild(failed);
+        }
+    };
+    visible.forEach(pack => {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.dataset.stickerPack = pack.id;
+        chip.className = 'grid-filter-chip shrink-0';
+        chip.textContent = pack.adult ? `${pack.name} · 18+` : pack.name;
+        chip.onclick = () => showPack(pack).catch(logBackgroundError('showStickerPack'));
+        chips.appendChild(chip);
+    });
+    body.append(chips, grid);
+    await showPack(visible[0]);
+}
+

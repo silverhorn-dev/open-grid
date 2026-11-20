@@ -1,3 +1,4 @@
+import { registerStickerAdminRoutes } from './stickers.js';
 import { createHash, randomBytes } from 'node:crypto';
 import { analyzeQueue } from './queue-analysis.js';
 import { registerGifAdminRoutes } from './gifs.js';
@@ -291,6 +292,8 @@ export function registerAdminRoutes(app, {
 
     // ----- GIF-Bibliothek (server/gifs.js): Vorschlaege freigeben, Eintraege entfernen -----
     if (store.gifs) registerGifAdminRoutes(app, { gifs: store.gifs, requireAdmin, now, log });
+    // ----- Sticker-Pakete (server/stickers.js) -----
+    if (store.stickers) registerStickerAdminRoutes(app, { stickers: store.stickers, requireAdmin, now, log });
 
     // ----- Sperren (wie scripts/safety-admin.mjs) -----
     // Peer-IDs im Klartext; E-Mail und Wallet nur als HMAC (gekuerzt angezeigt).

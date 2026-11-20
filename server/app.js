@@ -43,7 +43,7 @@ import {
 } from './security.js';
 import { applyAudienceMinimum, parseAudienceMinimum } from './audience.js';
 import { MAX_THRESHOLD, MIN_THRESHOLD, nudityPublicConfig as describeNudityModels, parseNudityConfig, parseNudityThreshold, registerNudityModelRoutes } from './nudity-model.js';
-import { findCutoutModel, registerCutoutAssets } from './stickers.js';
+import { findCutoutModel, registerCutoutAssets, registerStickerRoutes } from './stickers.js';
 import { parseSttModel, registerSttRoutes } from './stt-model.js';
 import { createVerifyRunner, findVerifyModels, inProcessRunner, loadBadgeKey, parseVerifyDays, parseVerifyEnabled, parseVerifySettings, parseVerifyThreshold, registerDetectorAssets, registerVerifyRoutes } from './verify.js';
 
@@ -1164,6 +1164,7 @@ export async function buildApp(options = {}) {
     ];
 
     // GIF-Bibliothek (server/gifs.js): nur URLs, keine Dateien.
+    if (store.stickers) registerStickerRoutes(app, { stickers: store.stickers, allowRequest });
     registerGifRoutes(app, { gifs: store.gifs, settings: () => gifSettings, allowRequest, requirePeerAuth, isString, now, log: app.log });
     registerGifProxyRoutes(app, { settings: () => gifSettings, allowRequest, requirePeerAuth, isString, now, log: app.log, lookup: options.gifProxyLookup, fetch: options.gifProxyFetch });
 
@@ -1389,7 +1390,7 @@ export async function buildApp(options = {}) {
         return { status: 'moved', peerId, movedTo: verified.movedTo };
     });
 
-    app.get('/api/config', async () => ({ verify: verify.publicConfig(), features: [...enabledFeatures()], android: { ...(await apkSource.publicInfo()), signers: effectiveAppSigners(androidAppSigners) }, flames: { ...flameSettings }, gifs: { sources: [...gifSettings.sources], review: gifSettings.review, proxy: gifSettings.proxy && gifSettings.sources.some(kind => kind !== 'provider'), ...(gifSettings.sources.includes('provider') ? { provider: { ...gifSettings.provider } } : {}) }, modes: appModes, defaultMode: defaultAppMode, profileSchemas, lanMode: isLanMode, clientDefaults, infoUrl: infoSiteUrl(infoHost), safety: safety.publicConfig(), stt: sttAssets || { model: 'off' }, stickers: { cutout: stickerCutout }, nudity: { ...nudityPublicConfig, required: nudityScanRequired },
+    app.get('/api/config', async () => ({ verify: verify.publicConfig(), features: [...enabledFeatures()], android: { ...(await apkSource.publicInfo()), signers: effectiveAppSigners(androidAppSigners) }, flames: { ...flameSettings }, gifs: { sources: [...gifSettings.sources], review: gifSettings.review, proxy: gifSettings.proxy && gifSettings.sources.some(kind => kind !== 'provider'), ...(gifSettings.sources.includes('provider') ? { provider: { ...gifSettings.provider } } : {}) }, modes: appModes, defaultMode: defaultAppMode, profileSchemas, lanMode: isLanMode, clientDefaults, infoUrl: infoSiteUrl(infoHost), safety: safety.publicConfig(), stt: sttAssets || { model: 'off' }, stickers: { cutout: stickerCutout, packs: Boolean(store.stickers?.count()) }, nudity: { ...nudityPublicConfig, required: nudityScanRequired },
         // Fuer die Anzeige in den Einstellungen ("vom Server vorgegeben").
         audienceMinimum: audienceMinimumRule ? (typeof audienceMinimumRule === 'string' ? JSON.parse(audienceMinimumRule) : audienceMinimumRule) : null }));
 

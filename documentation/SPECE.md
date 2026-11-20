@@ -2698,3 +2698,23 @@ Nur Dating, aus per Standard (`VERIFY=on`). Plan und Phasen: `documentation/VERI
   onnxruntime-web 1.31.0-dev.20260914 (`ort-wasm-simd-threaded.asyncify.mjs/.wasm`, MIT), onnx-community/whisper-base
   @27a07b4 (`encoder_model_quantized.onnx`, `decoder_model_merged_quantized.onnx`, Konfiguration + Tokenizer, Apache-2.0).
 
+## Sticker (`client/app/stickers.js`, `sticker-editor.js`, `server/stickers.js`, Board T39)
+
+- Nachricht: `sticker = { data, sha256, w, h, adult? }`; `data` PNG/WebP-Data-URL (Transparenz) mit hoechstens
+  60.000 Zeichen, `w`/`h` bis 1024 (erzeugt hoechstens 512 px), `adult: true` = ab 18. Geht wie jede Nachricht (P2P oder
+  Zwischenspeicher). Angezeigt ohne Sprechblase auf Canvas (kein Speichern, kein Betrachter); Antippen zeigt ihn gross
+  mit "Zu Favoriten". Vorschau/Antworten: "Sticker".
+- Lokal: eigene und favorisierte Sticker verschluesselt im Store `media` als `sticker_<id>` (`id = stk_` + 24 Zeichen
+  aus dem SHA-256), Listen in `keys` `stickers-own` / `stickers-favorites` (`items: [{ id, adult? }]`, je hoechstens 200).
+- 18+: nur senden, wenn der Chat ein Dating-Chat ist (`isDatingChat`), man selbst nicht unter 18 ist und das Profil des
+  anderen kein Alter unter 18 angibt. Empfaenger: unscharf bis zum Antippen; wer unter 18 ist (Altersnachweis
+  `ageGroup = 'minor'` oder eigenes Profil-Alter), sieht ihn nicht und hat keine 18+-Sticker in der Auswahl.
+- Selbst machen: Bild (hoechstens 1024 px) + Maske; automatisch freistellen mit U^2-Net-p im Worker
+  (`sticker-worker.js`, 320 x 320, ImageNet-Normierung, Ausgabe auf 0..1 gestreckt, weich ab 0,25 bis 0,6), Radieren /
+  Zurueckholen mit dem Finger, Zuschnitt auf das Motiv. Modell und Laufzeit vom Router: `/api/config`
+  `stickers.cutout = { library, runtimeUrl, modelUrl, sizeMb }` (`/vendor/stickers/<ort-version>/`), sonst `null`.
+- Pakete: `GET /api/stickers` -> `{ packs: [{ id, name, adult, count }] }`, `GET /api/stickers/:packId` ->
+  `{ id, name, adult, stickers: [{ id, data, sha256, w, h, adult? }] }` (Rate-Limit `gifs`); Admin:
+  `GET/POST /api/admin/stickers` (`{ name, adult, items: [{ data, w, h }] }`, hoechstens 120 je Paket, 50 Pakete),
+  `DELETE /api/admin/stickers/:packId`. SQLite `sticker_packs`, `sticker_items`. `/api/config stickers.packs` = es gibt Pakete.
+

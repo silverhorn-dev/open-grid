@@ -157,6 +157,33 @@ async function main() {
             return context.getImageData(0, 0, 1, 1).data[3];
         }, made.data), 0, 'transparent corner');
 
+        // S3: Pakete vom Router (Antworten hier nachgebaut, die Routen testet test/admin.test.js). Alice ist erwachsen
+        // (kein Altersnachweis), sieht beide Pakete; als unter 18 nur das normale.
+        const packSticker = await bob.evaluate(async () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 120;
+            canvas.height = 120;
+            const context = canvas.getContext('2d');
+            context.fillStyle = '#38bdf8';
+            context.fillRect(20, 20, 80, 80);
+            return encodeSticker(canvas);
+        });
+        await alice.route('**/api/stickers', route => route.fulfill({ json: { packs: [{ id: 'pack_a', name: 'Formen', adult: false, count: 1 }, { id: 'pack_b', name: 'Nachts', adult: true, count: 1 }] } }));
+        await alice.route('**/api/stickers/pack_*', route => route.fulfill({ json: { id: 'pack_a', name: 'Formen', adult: route.request().url().endsWith('pack_b'), stickers: [{ id: packSticker.id, data: packSticker.data, sha256: packSticker.sha256, w: packSticker.w, h: packSticker.h }] } }));
+        await alice.evaluate(() => { state.appConfig.stickers = { ...(state.appConfig.stickers || {}), packs: true }; });
+        await alice.evaluate(() => openStickerPicker());
+        await alice.click('[data-sticker-tab="packs"]');
+        await alice.waitForSelector('[data-sticker-pack="pack_a"]');
+        assert.equal(await alice.evaluate(() => document.querySelectorAll('[data-sticker-pack]').length), 2);
+        await alice.waitForSelector(`[data-sticker-id="${packSticker.id}"]`);
+        await alice.click(`[data-sticker-id="${packSticker.id}"]`);
+        await waitFor(bob, sha => (state.chats[state.activeChatPeerId] || []).some(message => message.sticker?.sha256 === sha), packSticker.sha256);
+        await alice.evaluate(() => { state.ageGroup = 'minor'; openStickerPicker(); });
+        await alice.click('[data-sticker-tab="packs"]');
+        await alice.waitForSelector('[data-sticker-pack="pack_a"]');
+        assert.equal(await alice.evaluate(() => document.querySelectorAll('[data-sticker-pack]').length), 1, '18+ pack hidden for minors');
+        await alice.evaluate(() => { state.ageGroup = null; closeMediaModal(); });
+
         assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log('E2E OK (stickers)');
     } finally {

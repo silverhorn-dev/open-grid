@@ -163,6 +163,7 @@ async function refreshTab() {
     if (adminState.tab === 'bans') return refreshBans();
     if (adminState.tab === 'reports') return refreshReports();
     if (adminState.tab === 'gifs') return refreshGifs();
+    if (adminState.tab === 'stickers') return refreshStickers();
     if (adminState.tab === 'queue') return refreshQueue();
 }
 
@@ -913,6 +914,99 @@ async function removePasskey(id) {
     await refreshPasskeys();
 }
 
+// ----- Sticker-Pakete (server/stickers.js) -----
+const ADMIN_STICKER_EDGE = 512;
+const ADMIN_STICKER_MAX_LENGTH = 60000;
+
+async function refreshStickers() {
+    const { packs } = await adminApi('stickers');
+    const list = document.getElementById('admin-sticker-list');
+    if (!list) return;
+    if (!packs.length) {
+        const empty = document.createElement('li');
+        empty.className = 'admin-list-item text-slate-500';
+        empty.textContent = t('admin.stickersEmpty');
+        list.replaceChildren(empty);
+        return;
+    }
+    list.replaceChildren(...packs.map(pack => {
+        const item = document.createElement('li');
+        item.className = 'admin-list-item flex items-center gap-3';
+        item.dataset.packId = pack.id;
+        const text = document.createElement('div');
+        text.className = 'min-w-0 flex-1';
+        const title = document.createElement('p');
+        title.className = 'font-semibold break-words';
+        title.textContent = pack.adult ? `${pack.name} · 18+` : pack.name;
+        const meta = document.createElement('p');
+        meta.className = 'setting-desc';
+        meta.textContent = [t('admin.stickersCount', { count: pack.count }), new Date(pack.createdAt).toLocaleString(i18nLocale())].join(' · ');
+        text.append(title, meta);
+        const remove = document.createElement('button');
+        remove.className = 'btn-secondary';
+        remove.dataset.adminAction = 'remove-sticker-pack';
+        remove.dataset.packId = pack.id;
+        remove.textContent = t('admin.stickersRemove');
+        item.append(text, remove);
+        return item;
+    }));
+}
+
+// Bild -> WebP (Transparenz bleibt), hoechstens 512 px und klein genug fuer eine Nachricht.
+async function encodeAdminSticker(file) {
+    const bitmap = await createImageBitmap(file);
+    let scale = Math.min(1, ADMIN_STICKER_EDGE / Math.max(bitmap.width, bitmap.height));
+    let quality = 0.9;
+    const canvas = document.createElement('canvas');
+    for (let attempt = 0; attempt < 14; attempt++) {
+        canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+        canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+        const context = canvas.getContext('2d');
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+        const data = canvas.toDataURL('image/webp', quality);
+        if (data.length <= ADMIN_STICKER_MAX_LENGTH && /^data:image\/(png|webp);/.test(data)) {
+            bitmap.close?.();
+            return { data, w: canvas.width, h: canvas.height };
+        }
+        if (data.startsWith('data:image/webp') && quality > 0.5) quality -= 0.1;
+        else scale *= 0.85;
+    }
+    bitmap.close?.();
+    return null;
+}
+
+async function addStickerPack() {
+    const name = document.getElementById('admin-sticker-name').value.trim();
+    const files = [...(document.getElementById('admin-sticker-files').files || [])];
+    const status = document.getElementById('admin-sticker-status');
+    if (!name || !files.length) {
+        status.textContent = t('admin.stickersMissing');
+        return;
+    }
+    status.textContent = t('admin.stickersPreparing', { count: files.length });
+    const items = [];
+    for (const file of files.slice(0, 120)) {
+        const item = await encodeAdminSticker(file).catch(() => null);
+        if (item) items.push(item);
+    }
+    if (!items.length) {
+        status.textContent = t('admin.stickersNoneUsable');
+        return;
+    }
+    await adminApi('stickers', { method: 'POST', body: { name, adult: document.getElementById('admin-sticker-adult').checked, items } });
+    status.textContent = t('admin.stickersAdded', { count: items.length });
+    document.getElementById('admin-sticker-name').value = '';
+    document.getElementById('admin-sticker-files').value = '';
+    await refreshStickers();
+}
+
+async function removeStickerPack(id) {
+    if (!window.confirm(t('admin.stickersConfirmRemove'))) return;
+    await adminApi(`stickers/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    await refreshStickers();
+}
+
 // ----- Ereignisse (keine Inline-Handler, CSP) -----
 document.addEventListener('click', event => {
     const target = event.target.closest('[data-admin-action], [data-admin-tab], [data-admin-range], [data-admin-report-status], [data-admin-gif-status]');
@@ -945,6 +1039,8 @@ document.addEventListener('click', event => {
     else if (action === 'resolve-report') resolveReport(target.dataset.reportId, target.dataset.reportAction);
     else if (action === 'lift-ban') liftBan(target.dataset.banKind, target.dataset.banValue);
     else if (action === 'gif') updateGif(target.dataset.gifId, target.dataset.gifAction);
+    else if (action === 'add-sticker-pack') addStickerPack().catch(error => window.alert(error.message));
+    else if (action === 'remove-sticker-pack') removeStickerPack(target.dataset.packId).catch(error => window.alert(error.message));
 });
 window.addEventListener('resize', () => adminState.tab === 'load' && renderLoad());
 document.addEventListener('DOMContentLoaded', adminStart);

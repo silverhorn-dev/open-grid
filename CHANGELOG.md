@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 380 · 2026-11-20
+## Build 381 · 2026-11-20
+- Sticker-Pakete vom Server: Betreiber laden im Admin-Panel unter „Sticker“ Pakete hoch (auch als „ab 18“), in der App stehen sie unter Sticker → Pakete
+
+## Build 380 · 2026-11-20 · `a1f1668`
 - Sticker selbst machen: unter Sticker → Eigene → „Neu“ ein Bild wählen; das Motiv wird automatisch freigestellt (auf deinem Gerät), mit dem Finger radierst oder holst du Teile zurück; auf Wunsch als Sticker ab 18
 
 ## Build 379 · 2026-11-20 · `a66c985`

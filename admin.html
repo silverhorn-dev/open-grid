@@ -44,6 +44,7 @@
             <button data-admin-tab="settings" role="tab" class="admin-tab" data-i18n="admin.tabSettings">Einstellungen</button>
             <button data-admin-tab="reports" role="tab" class="admin-tab"><span data-i18n="admin.tabReports">Meldungen</span> <span id="admin-report-badge" class="admin-badge hidden"></span></button>
             <button data-admin-tab="gifs" role="tab" class="admin-tab"><span data-i18n="admin.tabGifs">GIFs</span> <span id="admin-gif-badge" class="admin-badge hidden"></span></button>
+            <button data-admin-tab="stickers" role="tab" class="admin-tab" data-i18n="admin.tabStickers">Sticker</button>
             <button data-admin-tab="bans" role="tab" class="admin-tab" data-i18n="admin.tabBans">Sperren</button>
             <button data-admin-tab="passkeys" role="tab" class="admin-tab" data-i18n="admin.tabPasskeys">Passkeys</button>
         </nav>
@@ -128,6 +129,24 @@
                     <button data-admin-gif-status="hidden" class="admin-range-btn" data-i18n="admin.gifsHidden">Ausgeblendet</button>
                 </div>
                 <ul id="admin-gif-list" class="admin-list"></ul>
+            </section>
+        </section>
+
+        <section data-admin-view="stickers" class="admin-view hidden">
+            <section class="settings-card">
+                <h2 data-i18n="admin.stickersTitle" class="settings-card-title">Sticker-Pakete</h2>
+                <p data-i18n="admin.stickersText" class="setting-desc px-4 pb-2">Pakete stehen allen in der App unter Sticker → Pakete. Bilder mit Transparenz (PNG/WebP) werden hier auf höchstens 512 px verkleinert. 18+-Pakete sehen nur Erwachsene, und sie gehen nur in Dating-Chats.</p>
+                <div class="setting-block admin-sticker-form space-y-2">
+                    <input id="admin-sticker-name" type="text" maxlength="60" class="setting-input w-full" data-i18n-attr="placeholder:admin.stickersName;aria-label:admin.stickersName" placeholder="Name des Pakets" aria-label="Name des Pakets">
+                    <input id="admin-sticker-files" type="file" accept="image/png,image/webp" multiple class="setting-input w-full" data-i18n-attr="aria-label:admin.stickersFiles" aria-label="Bilder">
+                    <label class="setting-row">
+                        <span class="setting-text"><span data-i18n="admin.stickersAdult" class="setting-title">Paket ab 18</span></span>
+                        <input type="checkbox" role="switch" id="admin-sticker-adult" class="switch">
+                    </label>
+                    <button data-admin-action="add-sticker-pack" class="btn-primary" data-i18n="admin.stickersUpload">Paket hochladen</button>
+                    <p id="admin-sticker-status" class="setting-desc"></p>
+                </div>
+                <ul id="admin-sticker-list" class="admin-list"></ul>
             </section>
         </section>
 

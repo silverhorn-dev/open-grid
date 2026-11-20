@@ -129,7 +129,7 @@ Ideen ohne festen Termin. Neue Phasen werden von hier auf `tasks/board.md` gehol
 - [ ] voice messages crashes the apk
 - [ ] in apk the cam shows a grey image for 2 seconds before actual cam has loaded
 - [ ] profile image doesnt get fetched (the original) or viewed on viewer
-- [ ] on apk if ur offline it gets buggy, u cant reload usw
+- [x] on apk if ur offline it gets buggy, u cant reload usw (2026-11-20 nutzer: mit app 0.3.5 ist offline alles da; offline-modus ab N nachrichten verworfen -> tasks/rejected.md)
 	- in the webapp and on apk if offline no data shown up. Well thats actually kinda good and bad yk? we wanna change that if someone has at least one chat witch more than i dont know configurable messages defult is 20? 
 		- when hittet this message count, the client also lives offline
 - [ ] we need a speech to text function for voice messages in chat, also the own ones.(lokal model obv.)

@@ -24,4 +24,4 @@ Aufgaben, die nicht (mehr) umgesetzt werden, mit Grund.
 ## Code-Hashing / Verschleierung der PWA (verworfen 2026-11-10)
 - idee (backlog security hackathon): app-code hashen, sonderzeichen an bestimmten stellen, js unlesbar machen, damit veraenderte clients auffallen
 - grund: in einer PWA kontrolliert der nutzer seinen browser ganz; jede pruefung im client laesst sich entfernen, verschleierung macht die app nur schwerer pruefbar. schutz entsteht durch pruefungen beim empfaenger und auf dem router (S1, S2) und E2E; echte attestierung nur in der android-app (`documentation/SECURITY-HACKATHON.md` S12)
-
+- offline-modus ab N nachrichten (backlog "bug and features requests", T38): verworfen 2026-11-20 (nutzer): mit app 0.3.5 ist offline alles da (chats aus IndexedDB, shell aus dem service worker); eine schwelle braucht es nicht

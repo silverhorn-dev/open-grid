@@ -158,3 +158,9 @@ test('verification routes: steps, check, badge signed by the router (verifiable 
         await off.close();
     }
 });
+
+test('CLIENT_DEFAULTS.chatVerifiedOnly is accepted as a boolean', async () => {
+    const { parseClientDefaults } = await import('../server/app.js');
+    assert.deepEqual(parseClientDefaults('{"chatVerifiedOnly":true}'), { chatVerifiedOnly: true });
+    assert.deepEqual(parseClientDefaults('{"chatVerifiedOnly":"yes"}'), {});
+});

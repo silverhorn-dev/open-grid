@@ -762,7 +762,7 @@
     - [x] V1 router: modul `verify`, modelle, sitzungen, pruefung, router-schluessel, signierter haken
     - [x] V2 client: ablauf mit frontkamera, zustimmung, upload, haken im profil
     - [x] V3 haken pruefen + zeigen (profil, grid, chat), grid-filter
-    - [x] V4 regel "nur verifizierte duerfen mir schreiben" (CLIENT_DEFAULTS-standard noch offen)
+    - [x] V4 regel "nur verifizierte duerfen mir schreiben", router-standard `CLIENT_DEFAULTS.chatVerifiedOnly`
     - [ ] V5 app mit attestierung: pruefung auf dem geraet
   - plan P1 "profilbild verifiziert": live-selfie nur per kamera (kein upload) mit zufaelliger aufgabe (kopf drehen, zwinkern, geste), gesicht + vergleich mit dem profilbild auf dem geraet, selfie wird danach verworfen; haken im profil/grid
     - offen: wer bestaetigt? browser = selbstauskunft (gepfuschter client kann luegen); android-app mit attestierung (ANDROID-APP.md phase 4) = belastbar; router prueft kurz selbst = bricht "server sieht nur chiffrat" (nutzer-entscheidung)

@@ -34,7 +34,9 @@ function getMyChatPolicy() {
         mode: ['A', 'B', 'C'].includes(policy.mode) ? policy.mode : DEFAULT_CHAT_POLICY.mode,
         limit: CHAT_LIMIT_OPTIONS.includes(policy.limit) ? policy.limit : DEFAULT_CHAT_POLICY.limit,
         allowImages: policy.allowImages !== false,
-        verifiedOnly: policy.verifiedOnly === true
+        // Ohne eigene Wahl gilt der Standard des Routers (CLIENT_DEFAULTS.chatVerifiedOnly, sonst aus).
+        verifiedOnly: typeof policy.verifiedOnly === 'boolean' ? policy.verifiedOnly
+            : typeof clientDefault === 'function' && clientDefault('chatVerifiedOnly', false) === true
     };
 }
 

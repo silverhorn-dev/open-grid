@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 365 · 2026-11-20
+## Build 366 · 2026-11-20
+- Betreiber können "Nur verifizierte Profile dürfen mir schreiben" per `CLIENT_DEFAULTS.chatVerifiedOnly` für alle ohne eigene Wahl vorgeben
+
+## Build 365 · 2026-11-20 · `4900366`
 - Neue Chat-Regel im Dating: "Nur verifizierte Profile dürfen mir schreiben". Nachrichten von anderen werden zurückgehalten, bis ihr Profilbild verifiziert ist oder ihr ein Match habt; wer nicht verifiziert ist, sieht vorher einen Hinweis
 
 ## Build 364 · 2026-11-20 · `b08d206`

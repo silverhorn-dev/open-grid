@@ -83,6 +83,8 @@ const CLIENT_DEFAULT_RULES = {
     pullUpAction: ['reload', 'next', 'switcher', 'snap', 'album'],
     inputSwipeClosesChat: 'boolean',
     typingIndicator: 'boolean',
+    // "Nur verifizierte Profile duerfen mir schreiben" (Dating, verify.js), Standard aus.
+    chatVerifiedOnly: 'boolean',
     chatPagesByDay: 'boolean',
     reloadMode: ['full', 'app'],
     notifyMatch: 'boolean',

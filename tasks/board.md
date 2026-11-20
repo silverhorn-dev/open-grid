@@ -774,6 +774,7 @@
   - plan P3 absender-schutz: erkanntes nacktbild an neue/unverifizierte kontakte oder browser-empfaenger -> deutlichere warnung, standard nur als secure snap (stream, nicht speicherbar, wasserzeichen); hinweis "empfaenger nutzt browser, screenshots moeglich"
   - [x] P4 (2026-11-11): `NEW_ACCOUNT_HOURS`/`NEW_ACCOUNT_DISCOVERY_CONTACTS` (pfad C, art discovery), meldegrund `sextortion` blendet ab der haelfte aus; tests `test/server.test.js`
   - plan P4 router-signale ohne inhalt: viele erstkontakte junger konten drosseln; meldegrund "verlangt nacktbilder / erpressung" mit schnellerem ausblenden
+  - [x] P5 (2026-11-20): nach melden mit grund `sextortion` hilfeseite (`openSextortionHelp`, report.js): nicht zahlen/antworten, beweise, anzeige (onlinewache, 110), StopNCII (ab 18) / Take It Down (unter 18), HateAid, Nummer gegen Kummer, TelefonSeelsorge; e2e `report-user`
   - plan P5 hilfe bei erpressung (sextortion): kurze hilfeseite mit anlaufstellen, aus melden heraus erreichbar
 - [x] nutzer 2026-11-11: "tippt ..." ueber den P2P-kanal, ausschaltbar -> `CHAT_TYPING` (text/snap/media/idle), gegenseitig, `CLIENT_DEFAULTS.typingIndicator`; e2e `typing`; UC-83
 - [x] nutzer 2026-11-11: invite-code einfuegen, QR scannen in der einladen-karte, OpenGrid-QRs in der snap-kamera aufloesen -> `qr-scan.js` (BarcodeDetector, sonst jsQR vom router), einladung/umzug/router-link/fremder router; tests `test/qr-scan.test.js`, e2e `qr-invite`; UC-84

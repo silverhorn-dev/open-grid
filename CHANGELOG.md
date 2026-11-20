@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 371 · 2026-11-20
+## Build 372 · 2026-11-20
+- Hilfe bei Erpressung mit Nacktbildern: wer mit diesem Grund meldet, sieht danach, was jetzt hilft (nicht zahlen, Beweise sichern, Anzeige), wie sich Bilder entfernen lassen (StopNCII, Take It Down) und wo es Beratung gibt
+
+## Build 371 · 2026-11-20 · `7238d93`
 - Fehlersuche Sprachnachrichten in der App: beendet Android die App wegen Speicher, steht beim nächsten Start im Debug-Log, was davor passierte (Aufnehmen, Senden, Abspielen, Speicherverbrauch; keine Inhalte)
 
 ## Build 370 · 2026-11-20 · `c9b53b1`

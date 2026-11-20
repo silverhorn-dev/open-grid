@@ -1549,3 +1549,18 @@ Akzeptanzkriterien:
   Nachricht ins Leere zu schicken.
 - Die Regel gilt nicht fuer Chat & Freunde.
 
+## UC-88: Hilfe bei Erpressung mit Nacktbildern
+
+Als Nutzerin, die mit Nacktbildern erpresst oder bedraengt wird, moechte ich
+sofort wissen, was ich tun kann und wo ich Hilfe bekomme.
+
+Akzeptanzkriterien:
+
+- Melde ich jemanden mit dem Grund "Verlangt Nacktbilder oder erpresst damit",
+  zeigt die App danach eine Hilfeseite (auch wenn das Melden scheiterte).
+- Sie nennt: nicht zahlen und nicht antworten, Beweise sichern, Anzeige bei der
+  Polizei (Onlinewache, 110 bei akuter Gefahr), Bilder entfernen lassen
+  (StopNCII ab 18, Take It Down fuer Aufnahmen unter 18) und Beratung (HateAid,
+  Nummer gegen Kummer, TelefonSeelsorge).
+- Links oeffnen erst auf Tippen in einem neuen Tab; die App sendet dabei nichts.
+

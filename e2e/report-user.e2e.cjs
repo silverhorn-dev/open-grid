@@ -76,6 +76,19 @@ async function main() {
             await refreshGrid();
             return !state.peers.some(peer => peer.id === id);
         }, badId, 30000);
+        // Erpressung mit Nacktbildern: nach dem Melden Hilfe mit Anlaufstellen (Board T37 P5).
+        const sina = await user('Sina');
+        await report(sina, badId, 'sextortion');
+        await sina.waitForSelector('#sextortion-help', { timeout: 5000 });
+        const help = await sina.textContent('#sextortion-help');
+        assert.match(help, /Nicht zahlen/);
+        assert.match(help, /110/);
+        const links = await sina.evaluate(() => [...document.querySelectorAll('#sextortion-help a')].map(link => ({ href: link.href, rel: link.rel, target: link.target })));
+        assert.ok(links.some(link => link.href === 'https://stopncii.org/') && links.some(link => link.href === 'https://takeitdown.ncmec.org/'));
+        assert.ok(links.every(link => link.rel.includes('noopener') && link.target === '_blank'));
+        // Andere Gruende: keine Hilfeseite.
+        assert.equal(await reporters[1].evaluate(() => Boolean(document.getElementById('sextortion-help'))), false);
+
         assert.ok(dialogs.filter(entry => /blockieren/i.test(entry)).length >= 3, 'blocking is offered after reporting');
         assert.equal(await reporters[0].evaluate(id => isPeerBlocked(id), badId), false, 'declined, not blocked');
         assert.deepEqual(pageErrors, []);

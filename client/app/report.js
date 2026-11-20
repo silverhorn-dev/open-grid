@@ -98,7 +98,68 @@ async function reportPeer(peerId) {
     showToast(ok ? t('report.sent') : t('report.failed'), ok ? 'success' : 'error');
     // Wer meldet, will meist auch nichts mehr bekommen: Blockieren anbieten (der normale Ablauf fragt selbst nach).
     if (ok && !isPeerBlocked(peerId) && state.activeChatPeerId === peerId) await toggleActivePeerBlock();
+    // Erpressung mit Nacktbildern (Board T37 P5): danach Hilfe und Anlaufstellen zeigen, auch wenn das Melden scheiterte.
+    if (choice.reason === 'sextortion') openSextortionHelp();
     return ok;
+}
+
+// ----- Hilfe bei Erpressung mit Nacktbildern (Sextortion, Board T37 P5) -----
+// Nur Text und Links; nichts wird gesendet. Links oeffnen erst auf Tippen (fremde Seiten, eigener Tab/Browser).
+const SEXTORTION_HELP_LINKS = [
+    { url: 'https://stopncii.org/', label: () => t('help.sextortion.linkStopNcii') },
+    { url: 'https://takeitdown.ncmec.org/', label: () => t('help.sextortion.linkTakeItDown') },
+    { url: 'https://hateaid.org/', label: () => t('help.sextortion.linkHateAid') },
+    { url: 'https://www.nummergegenkummer.de/', label: () => t('help.sextortion.linkKummer') },
+    { url: 'https://www.telefonseelsorge.de/', label: () => t('help.sextortion.linkSeelsorge') }
+];
+
+function openSextortionHelp() {
+    const content = openMediaModal(t('help.sextortion.title'));
+    const box = document.createElement('div');
+    box.id = 'sextortion-help';
+    box.className = 'space-y-3 text-sm text-slate-300';
+    const paragraph = (text, className = '') => {
+        const element = document.createElement('p');
+        if (className) element.className = className;
+        element.textContent = text;
+        return element;
+    };
+    const heading = text => paragraph(text, 'font-semibold text-slate-100 pt-1');
+    const list = items => {
+        const element = document.createElement('ul');
+        element.className = 'list-disc pl-5 space-y-1';
+        items.forEach(text => {
+            const item = document.createElement('li');
+            item.textContent = text;
+            element.appendChild(item);
+        });
+        return element;
+    };
+    const links = document.createElement('div');
+    links.className = 'flex flex-col gap-2';
+    SEXTORTION_HELP_LINKS.forEach(({ url, label }) => {
+        const link = document.createElement('a');
+        link.href = url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.className = 'btn-secondary text-left';
+        link.textContent = label();
+        links.appendChild(link);
+    });
+    box.append(
+        paragraph(t('help.sextortion.intro'), 'text-slate-200'),
+        heading(t('help.sextortion.nowTitle')),
+        list([t('help.sextortion.nowPay'), t('help.sextortion.nowStop'), t('help.sextortion.nowEvidence'), t('help.sextortion.nowBlock')]),
+        heading(t('help.sextortion.policeTitle')),
+        paragraph(t('help.sextortion.police')),
+        heading(t('help.sextortion.removeTitle')),
+        paragraph(t('help.sextortion.remove')),
+        heading(t('help.sextortion.talkTitle')),
+        paragraph(t('help.sextortion.talk')),
+        links,
+        paragraph(t('help.sextortion.notAlone'), 'text-slate-200 pt-1')
+    );
+    content.appendChild(box);
 }
 
 function chatMenuReport() {

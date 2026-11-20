@@ -242,6 +242,8 @@ const state = {
     compactNotifications: null,
     // Profilbild-Verifizierung (verify.js): eigener Gesichtserkenner statt des Web Workers (nur Tests), sonst null.
     verifyDetector: null,
+    // Scharfe Profilbilder im Grid (grid.client.js): gebuendeltes Neuzeichnen nach angekommenen grossen Fassungen.
+    gridAvatarRefreshTimer: null,
     // QR-Codes (qr-scan.js): Erkenner, jsQR-Laden, Zeichenflaeche, Snap-Kamera-Pruefung.
     qrDetector: undefined,
     jsQrLoading: null,

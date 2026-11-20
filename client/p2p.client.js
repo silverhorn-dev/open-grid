@@ -857,7 +857,7 @@ async function handleIncomingImageResponse(peerId, imageId, version, data) {
         await cacheMedia(imageId, data, version);
         if (typeof showFullProfilePicture === 'function') showFullProfilePicture(peerId, data);
         // Grid-Karte und Profil-Popup zeigen ab jetzt die scharfe Fassung (grid.client.js).
-        if (typeof renderDiscoveryGrid === 'function') renderDiscoveryGrid();
+        if (typeof scheduleGridAvatarRefresh === 'function') scheduleGridAvatarRefresh();
         if (state.activeModalPeerId === peerId && typeof upgradeToFullAvatar === 'function') {
             upgradeToFullAvatar(document.getElementById('modal-profile-img'), peerId, PROFILE_AVATAR_EDGE);
         }

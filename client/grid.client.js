@@ -173,6 +173,15 @@ async function fullAvatarFor(peerId, edge) {
     return shrunk;
 }
 
+// Angekommene grosse Fassungen gebuendelt einzeichnen (mehrere kurz hintereinander = einmal neu zeichnen).
+function scheduleGridAvatarRefresh() {
+    if (state.gridAvatarRefreshTimer) return;
+    state.gridAvatarRefreshTimer = setTimeout(() => {
+        state.gridAvatarRefreshTimer = null;
+        if (!document.getElementById('view-grid')?.classList.contains('hidden')) renderDiscoveryGrid();
+    }, 300);
+}
+
 // Nur tauschen, wenn das Element noch das kleine Profilbild genau dieses Profils zeigt (nicht ein anderes Bild).
 function upgradeToFullAvatar(image, peerId, edge) {
     const small = state.cachedProfiles[peerId]?.avatar;

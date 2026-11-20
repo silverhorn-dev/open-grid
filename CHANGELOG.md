@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 369 · 2026-11-20
+## Build 370 · 2026-11-20
+- Die ersten Karten im Grid laden ihr Profilbild gleich in groß nach und sind dadurch von Anfang an scharf (nicht im Datensparmodus)
+
+## Build 369 · 2026-11-20 · `5f6254d`
 - Profilbilder scharf: hast du das Profilbild von jemandem einmal groß angesehen, zeigen Grid-Karte und Profil danach diese Fassung statt des kleinen, verpixelten Vorschaubilds
 
 ## Build 368 · 2026-11-20 · `fd750ad`

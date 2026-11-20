@@ -82,6 +82,14 @@ async function main() {
         await bob.evaluate(async () => { switchTab('grid'); await refreshGrid(); renderDiscoveryGrid(); });
         await waitFor(bob, name => [...document.querySelectorAll('#view-grid img, img')].some(image => image.alt.includes(name) && image.naturalWidth > 200), 'Alice', 15000);
 
+        // Vorladen: Carol oeffnet nichts, die Grid-Karte wird trotzdem scharf (erste Karten holen die grosse Fassung).
+        const carol = await user('Carol');
+        await carol.evaluate(async () => { switchTab('grid'); await refreshGrid(); renderDiscoveryGrid(); });
+        await waitFor(carol, id => Boolean(state.cachedProfiles[id]?.avatarFull?.id), aliceId, 20000);
+        await waitFor(carol, id => loadMedia(state.cachedProfiles[id].avatarFull.id).then(media => Boolean(media)), aliceId, 20000);
+        await waitFor(carol, name => [...document.querySelectorAll('img')].some(image => image.alt.includes(name) && image.naturalWidth > 200), 'Alice', 15000);
+        assert.equal(await carol.evaluate(() => isImageViewerOpen()), false, 'without opening the viewer');
+
         assert.deepEqual(pageErrors, [], `no uncaught page errors: ${pageErrors.join(' | ')}`);
         console.log('E2E OK (profile picture full size, sharp in grid and profile)');
     } finally {

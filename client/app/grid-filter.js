@@ -116,7 +116,34 @@ function prefetchGridProfiles(cards) {
     state.gridPrefetchTimer = setTimeout(() => {
         state.gridPrefetchTimer = null;
         runGridPrefetch(state.gridPrefetchPeerIds || []);
+        prefetchGridFullAvatars(state.gridPrefetchPeerIds || []);
+        // Profile aus dem Vorladen kommen erst danach: zweiter Durchgang fuer deren Profilbilder.
+        setTimeout(() => prefetchGridFullAvatars(state.gridPrefetchPeerIds || []), GRID_AVATAR_SECOND_PASS_MS);
     }, GRID_PREFETCH_DELAY_MS);
+}
+
+// Scharfe Profilbilder (grid.client.js upgradeToFullAvatar): fuer die ersten Karten die grosse Fassung per
+// IMAGE_REQUEST holen, wenn sie noch nicht lokal liegt. Nicht im Datensparmodus, je Person hoechstens einmal pro
+// Minute; der Besitzer entscheidet wie immer, ob er sie herausgibt (Sichtbarkeit).
+const GRID_AVATAR_PREFETCH_COUNT = 6;
+const GRID_AVATAR_SECOND_PASS_MS = 5000;
+const gridAvatarRequests = {};
+
+async function prefetchGridFullAvatars(cards) {
+    if (navigator.connection?.saveData) return;
+    const now = Date.now();
+    for (const card of cards.slice(0, GRID_AVATAR_PREFETCH_COUNT)) {
+        if (isPeerBlocked(card.id) || now - (gridAvatarRequests[card.id] || 0) < GRID_PREFETCH_INTERVAL_MS) continue;
+        const meta = state.cachedProfiles[card.id]?.avatarFull;
+        if (!meta?.id) continue;
+        const key = `${card.id}:${meta.id}`;
+        if (state.pendingImageRequests[key] === meta.version) continue;
+        const media = await loadMedia(meta.id).catch(() => null);
+        if (media?.version === meta.version) continue;
+        gridAvatarRequests[card.id] = now;
+        state.pendingImageRequests[key] = meta.version;
+        sendSecurePayload(card.id, { type: 'IMAGE_REQUEST', imageId: meta.id, version: meta.version }).catch(logBackgroundError('prefetchGridFullAvatars'));
+    }
 }
 
 function runGridPrefetch(cards) {

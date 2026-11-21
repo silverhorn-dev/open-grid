@@ -52,13 +52,20 @@ function isValidMessage(message) {
         && isTimestamp(message.createdAt);
 }
 
+// Sticker (stickers.js): Verweis (`ref`, Aussteller-Hash + Nummer bzw. Paket) + SHA-256 + Masse, optional 18+ und
+// Paket; das Bild holt der Empfaenger einmal. Aeltere Nachrichten tragen das Bild selbst (`data`).
 function isPlainStickerInfo(sticker) {
     const size = value => Number.isInteger(value) && value > 0 && value <= 1024;
-    return Boolean(sticker) && typeof sticker === 'object' && !Array.isArray(sticker)
-        && typeof sticker.data === 'string' && sticker.data.length <= 60000 && /^data:image\/(?:png|webp);base64,/.test(sticker.data.slice(0, 30))
-        && typeof sticker.sha256 === 'string' && sticker.sha256.length <= 64 && size(sticker.w) && size(sticker.h)
-        && (sticker.adult === undefined || sticker.adult === true)
-        && Object.keys(sticker).every(key => ['data', 'sha256', 'w', 'h', 'adult'].includes(key));
+    if (!sticker || typeof sticker !== 'object' || Array.isArray(sticker)) return false;
+    const common = typeof sticker.sha256 === 'string' && sticker.sha256.length <= 64 && size(sticker.w) && size(sticker.h)
+        && (sticker.adult === undefined || sticker.adult === true);
+    if (sticker.data !== undefined) {
+        return common && typeof sticker.data === 'string' && sticker.data.length <= 60000 && /^data:image\/(?:png|webp);base64,/.test(sticker.data.slice(0, 30))
+            && Object.keys(sticker).every(key => ['data', 'sha256', 'w', 'h', 'adult'].includes(key));
+    }
+    return common && typeof sticker.ref === 'string' && /^[ru][A-Za-z0-9_-]{6,16}-[A-Za-z0-9_.-]{1,80}$/.test(sticker.ref)
+        && (sticker.pack === undefined || (typeof sticker.pack === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(sticker.pack)))
+        && Object.keys(sticker).every(key => ['ref', 'sha256', 'w', 'h', 'adult', 'pack'].includes(key));
 }
 
 function isPlainGifInfo(gif) {
@@ -262,6 +269,12 @@ const PAYLOAD_VALIDATORS = {
     ORIGINAL_CHUNK: payload => isId(payload.messageId) && isSmallInt(payload.index) && isSmallInt(payload.total)
         && payload.total <= 400 && typeof payload.data === 'string' && payload.data.length <= 64 * 1024,
     IMAGE_REQUEST: payload => isId(payload.imageId) && (payload.version === undefined || isSmallInt(payload.version)),
+    // Sticker nachladen (stickers.js): nach Pruefsumme fragen, Bild (PNG/WebP) mit Massen zurueck.
+    STICKER_REQUEST: payload => typeof payload.sha256 === 'string' && payload.sha256.length <= 64,
+    STICKER_MISSING: payload => typeof payload.sha256 === 'string' && payload.sha256.length <= 64,
+    STICKER_RESPONSE: payload => typeof payload.sha256 === 'string' && payload.sha256.length <= 64 && typeof payload.data === 'string'
+        && payload.data.length <= 60000 && /^data:image\/(?:png|webp);base64,/.test(payload.data.slice(0, 30))
+        && Number.isInteger(payload.w) && payload.w > 0 && payload.w <= 1024 && Number.isInteger(payload.h) && payload.h > 0 && payload.h <= 1024,
     IMAGE_RESPONSE: payload => isId(payload.imageId) && isSmallInt(payload.version)
         && (payload.encrypted ? isEncryptedImage(payload.encrypted) : isOptionalString(payload.data, MAX_INLINE_IMAGE_LENGTH))
 };

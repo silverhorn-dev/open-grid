@@ -83,3 +83,18 @@ test('sticker (stickers.js): small PNG/WebP with checksum and size, optional 18+
     assert.equal(valid(put({ ...sticker, adult: 'yes' })), false);
     assert.equal(valid(put({ ...sticker, url: 'https://x' })), false, 'no extra keys');
 });
+
+test('sticker reference (2026-11-21): ref + checksum instead of the picture; fetched once via STICKER_REQUEST', () => {
+    const put0 = { operationId: 'put:m1', type: 'MESSAGE_PUT', messageId: 'm1', actorId: 'peer', createdAt: 1 };
+    const put = value => ({ type: 'CHAT_OPERATION', operation: { ...put0, message: { ...message, sticker: value } } });
+    const reference = { ref: 'uAbCdEf123-7', sha256: 'abc', w: 128, h: 96 };
+    assert.equal(valid(put(reference)), true);
+    assert.equal(valid(put({ ...reference, ref: 'rXyZ12345_-pack_ab12cd.3', pack: 'pack_ab12cd', adult: true })), true, 'router pack sticker');
+    assert.equal(valid(put({ ...reference, ref: 'x123456-1' })), false, 'issuer must be u (person) or r (router)');
+    assert.equal(valid(put({ ...reference, ref: 'uAbCdEf123-7', data: 'data:image/png;base64,AA' })), false, 'either reference or picture');
+    assert.equal(valid(put({ ...reference, pack: '../x' })), false);
+    assert.equal(valid({ type: 'STICKER_REQUEST', sha256: 'abc' }), true);
+    assert.equal(valid({ type: 'STICKER_RESPONSE', sha256: 'abc', data: 'data:image/webp;base64,UklGRg==', w: 10, h: 10 }), true);
+    assert.equal(valid({ type: 'STICKER_RESPONSE', sha256: 'abc', data: 'data:image/jpeg;base64,AA', w: 10, h: 10 }), false);
+    assert.equal(valid({ type: 'STICKER_MISSING', sha256: 'abc' }), true);
+});

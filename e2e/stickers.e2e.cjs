@@ -62,10 +62,16 @@ async function main() {
         await alice.waitForSelector(`[data-sticker-id="${sticker.id}"]`);
         await alice.click(`[data-sticker-id="${sticker.id}"]`);
         await waitFor(bob, id => (state.chats[id] || []).some(message => message.sticker?.sha256), aliceId);
+        // Nur ein Verweis in der Nachricht, kein Bild; Bob holt es einmal bei Alice und behaelt es.
+        const sent = await bob.evaluate(id => state.chats[id].find(message => message.sticker).sticker, aliceId);
+        assert.equal(sent.data, undefined, 'no picture in the message');
+        assert.match(sent.ref, /^u[A-Za-z0-9_-]{10}-\d+$/);
+        assert.equal(sent.sha256, sticker.sha256);
 
         // Bob: ohne Sprechblase, Canvas statt Bild-Element.
         await bob.evaluate(id => openChatWithPeer(id), aliceId);
         await bob.waitForSelector('.chat-bubble-sticker canvas.sticker-image');
+        assert.equal(await bob.evaluate(sha => loadStickerData({ id: stickerIdFor(sha) }).then(stored => stored?.sha256), sticker.sha256), sticker.sha256, 'kept on the device');
         const look = await bob.evaluate(() => {
             const bubble = document.querySelector('.chat-bubble-sticker');
             const style = getComputedStyle(bubble);

@@ -2,7 +2,10 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 381 · 2026-11-20
+## Build 382 · 2026-11-21
+- Sticker schneller: die Nachricht trägt nur noch einen Verweis; das Bild holt dein Gerät beim ersten Mal einmal (vom Absender bzw. Paket-Sticker vom Server) und behält es, danach ist derselbe Sticker sofort da
+
+## Build 381 · 2026-11-20 · `1f93bef`
 - Sticker-Pakete vom Server: Betreiber laden im Admin-Panel unter „Sticker“ Pakete hoch (auch als „ab 18“), in der App stehen sie unter Sticker → Pakete
 
 ## Build 380 · 2026-11-20 · `a1f1668`

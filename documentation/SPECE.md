@@ -2700,9 +2700,15 @@ Nur Dating, aus per Standard (`VERIFY=on`). Plan und Phasen: `documentation/VERI
 
 ## Sticker (`client/app/stickers.js`, `sticker-editor.js`, `server/stickers.js`, Board T39)
 
-- Nachricht: `sticker = { data, sha256, w, h, adult? }`; `data` PNG/WebP-Data-URL (Transparenz) mit hoechstens
-  60.000 Zeichen, `w`/`h` bis 1024 (erzeugt hoechstens 512 px), `adult: true` = ab 18. Geht wie jede Nachricht (P2P oder
-  Zwischenspeicher). Angezeigt ohne Sprechblase auf Canvas (kein Speichern, kein Betrachter); Antippen zeigt ihn gross
+- Nachricht (seit 2026-11-21): `sticker = { ref, sha256, w, h, adult?, pack? }`, ohne Bild. `ref` = `u` + 10 Zeichen
+  SHA-256 (base64url) der eigenen Kennung + `-` + hochzaehlende Nummer (`keys` `sticker-counter`), bzw. fuer Paket-Sticker
+  `r` + Hash der Router-Adresse + `-` + `paket.stelle` (mit `pack`). Das Bild (PNG/WebP-Data-URL, Transparenz, hoechstens
+  60.000 Zeichen, erzeugt hoechstens 512 px) holt der Empfaenger einmal: aus dem eigenen Speicher, sonst Paket-Sticker per
+  `GET /api/stickers/:pack`, sonst beim Absender per P2P `STICKER_REQUEST { sha256 }` -> `STICKER_RESPONSE { sha256, data,
+  w, h }` bzw. `STICKER_MISSING { sha256 }` (nur ueber einen offenen Kanal; sonst Verbindung anstossen, erneut nach 30 s).
+  Angenommen nur, wenn angefragt und SHA-256 passt; gespeichert in `media` `sticker_<id>`, Liste `keys` `stickers-seen`
+  (hoechstens 500, aelteste fallen weg, ausser eigene/Favoriten). Aeltere Nachrichten tragen `data` selbst (weiter gueltig).
+  `adult: true` = ab 18. Im Kern reichen `STICKER_RESPONSE`/`STICKER_MISSING` an die Oberflaeche weiter. Angezeigt ohne Sprechblase auf Canvas (kein Speichern, kein Betrachter); Antippen zeigt ihn gross
   mit "Zu Favoriten". Vorschau/Antworten: "Sticker".
 - Lokal: eigene und favorisierte Sticker verschluesselt im Store `media` als `sticker_<id>` (`id = stk_` + 24 Zeichen
   aus dem SHA-256), Listen in `keys` `stickers-own` / `stickers-favorites` (`items: [{ id, adult? }]`, je hoechstens 200).

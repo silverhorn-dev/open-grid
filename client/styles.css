@@ -1752,3 +1752,16 @@ html {
     outline: 2px solid rgb(129 140 248);
 }
 
+/* Sticker wird noch geholt (stickers.js): ruhiger Platzhalter in der richtigen Groesse. */
+.sticker-pending {
+    border-radius: 1rem;
+    background: rgb(51 65 85 / 0.35);
+    animation: sticker-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes sticker-pulse {
+    50% {
+        opacity: 0.5;
+    }
+}
+

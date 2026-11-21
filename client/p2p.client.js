@@ -1151,6 +1151,12 @@ async function handleSecurePayload(peerId, payload, deliveredVia = 'E2EE P2P') {
         await forgetReceivedAlbum(peerId, payload.albumId);
     } else if (payload.type === 'IMAGE_REQUEST') {
         await handleIncomingImageRequest(peerId, payload.imageId);
+    } else if (payload.type === 'STICKER_REQUEST') {
+        if (typeof handleStickerRequest === 'function') await handleStickerRequest(peerId, payload);
+    } else if (payload.type === 'STICKER_RESPONSE') {
+        if (typeof handleStickerResponse === 'function') await handleStickerResponse(peerId, payload);
+    } else if (payload.type === 'STICKER_MISSING') {
+        if (typeof handleStickerMissing === 'function') handleStickerMissing(peerId, payload);
     } else if (payload.type === 'ORIGINAL_REQUEST') {
         await handleOriginalRequest(peerId, payload);
     } else if (payload.type === 'ORIGINAL_CHUNK') {

@@ -1,6 +1,9 @@
 // ================= STICKER (Board T39, Nutzer 2026-11-20) =================
-// Ein Sticker ist ein kleines Bild mit Transparenz (WebP/PNG, hoechstens STICKER_EDGE px, passt in eine Nachricht,
-// also auch ueber den Zwischenspeicher). Er steht ohne Sprechblase im Chat, ist nicht speicherbar (kein Speichern,
+// Ein Sticker ist ein kleines Bild mit Transparenz (WebP/PNG, hoechstens STICKER_EDGE px). Die Nachricht traegt nur
+// einen Verweis (Nutzer 2026-11-21): `ref` = Hash des Ausstellers (Person bzw. Router) + hochzaehlende Nummer bzw.
+// Paket und Stelle, dazu `sha256` des Bilds. Der Empfaenger holt das Bild einmal (vom Absender per P2P,
+// STICKER_REQUEST/STICKER_RESPONSE, bzw. Paket-Sticker vom Router), prueft die Pruefsumme und behaelt es auf dem
+// Geraet; danach kostet derselbe Sticker nichts mehr. Er steht ohne Sprechblase im Chat, ist nicht speicherbar (kein Speichern,
 // kein Bildbetrachter, gezeichnet auf Canvas) und laesst sich favorisieren. Quellen: eigene (aus einem Bild
 // ausgeschnitten, sticker-editor.js), Favoriten (auch empfangene) und Pakete vom Router (S3).
 // FSK 18 (`adult`): nur in Dating-Chats sendbar und nicht an Kontakte unter 18 (laut Profil); beim Empfaenger unscharf
@@ -11,7 +14,15 @@ const STICKER_MAX_LENGTH = 60000;
 const STICKER_LIST_MAX = 200;
 const STICKER_OWN_RECORD_ID = 'stickers-own';
 const STICKER_FAVORITES_RECORD_ID = 'stickers-favorites';
-const stickerState = { loaded: false, own: [], favorites: [], revealed: new Set() };
+const STICKER_SEEN_RECORD_ID = 'stickers-seen';
+const STICKER_SEEN_MAX = 500;
+const STICKER_COUNTER_RECORD_ID = 'sticker-counter';
+const STICKER_REQUEST_RETRY_MS = 30000;
+const STICKER_REF_PATTERN = /^[ru][A-Za-z0-9_-]{6,16}-[A-Za-z0-9_.-]{1,80}$/;
+const stickerState = { loaded: false, own: [], favorites: [], seen: [], revealed: new Set() };
+// Bilddaten der Sitzung (Kennung -> Data-URL) und offene Anfragen (Kennung -> Zeit).
+const stickerDataCache = new Map();
+const stickerRequests = new Map();
 
 function isSafeStickerData(value) {
     return typeof value === 'string' && value.length <= STICKER_MAX_LENGTH && /^data:image\/(?:png|webp);base64,[a-z0-9+/=]+$/i.test(value);
@@ -30,21 +41,71 @@ async function loadStickerState() {
     };
     stickerState.own = await read(STICKER_OWN_RECORD_ID);
     stickerState.favorites = await read(STICKER_FAVORITES_RECORD_ID);
+    stickerState.seen = await read(STICKER_SEEN_RECORD_ID);
     stickerState.loaded = true;
 }
 
 async function saveStickerList(kind) {
-    const id = kind === 'own' ? STICKER_OWN_RECORD_ID : STICKER_FAVORITES_RECORD_ID;
+    const id = { own: STICKER_OWN_RECORD_ID, favorites: STICKER_FAVORITES_RECORD_ID, seen: STICKER_SEEN_RECORD_ID }[kind];
     await putDatabaseRecord('keys', { id, items: stickerState[kind] }).catch(error => logDebug(`Could not store stickers: ${error.message}`));
 }
 
 async function storeStickerData(sticker) {
-    await cacheMediaPayload(`sticker_${sticker.id}`, { data: sticker.data, sha256: sticker.sha256, w: sticker.w, h: sticker.h, adult: sticker.adult === true });
+    await cacheMediaPayload(`sticker_${sticker.id}`, {
+        data: sticker.data, sha256: sticker.sha256, w: sticker.w, h: sticker.h, adult: sticker.adult === true,
+        ...(sticker.ref ? { ref: sticker.ref } : {}), ...(sticker.pack ? { pack: sticker.pack } : {})
+    });
+    stickerDataCache.set(sticker.id, sticker.data);
+}
+
+// Empfangene Sticker merken (zuletzt benutzt zuerst); ueber STICKER_SEEN_MAX fallen die aeltesten weg,
+// ausser sie sind eigene oder Favoriten.
+async function rememberSeenSticker(id) {
+    await loadStickerState();
+    stickerState.seen = [{ id, at: Date.now() }, ...stickerState.seen.filter(entry => entry.id !== id)];
+    const dropped = stickerState.seen.slice(STICKER_SEEN_MAX);
+    stickerState.seen = stickerState.seen.slice(0, STICKER_SEEN_MAX);
+    for (const entry of dropped) {
+        const kept = stickerState.own.some(item => item.id === entry.id) || stickerState.favorites.some(item => item.id === entry.id);
+        if (!kept) await deleteDatabaseRecord('media', `sticker_${entry.id}`).catch(() => {});
+    }
+    await saveStickerList('seen');
+}
+
+// ----- Verweise: Aussteller-Hash + Nummer -----
+async function stickerIssuerHash(text) {
+    return (await sha256Base64(String(text))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '').slice(0, 10);
+}
+
+// Eigene: "u" + Hash der eigenen Kennung (alle Geraete einer Person gleich) + hochzaehlende Nummer.
+async function nextOwnStickerRef() {
+    const record = await databaseRequest('keys', 'readonly', store => store.get(STICKER_COUNTER_RECORD_ID)).catch(() => null);
+    const next = (Number(record?.n) || 0) + 1;
+    await putDatabaseRecord('keys', { id: STICKER_COUNTER_RECORD_ID, n: next });
+    const identity = typeof myIdentityId === 'function' ? myIdentityId() : state.myProfile.id;
+    return `u${await stickerIssuerHash(identity)}-${next}`;
+}
+
+// Pakete: "r" + Hash des Routers + Paket + Stelle.
+async function routerStickerRef(packId, index) {
+    return `r${await stickerIssuerHash(API_BASE || window.location.origin)}-${packId}.${index}`;
+}
+
+function isStickerRef(value) {
+    return typeof value === 'string' && STICKER_REF_PATTERN.test(value);
+}
+
+// Bild eines Stickers aus der Nachricht (alte Nachrichten tragen es noch selbst) oder aus dem Speicher der Sitzung.
+function stickerDataFor(sticker) {
+    if (isSafeStickerData(sticker?.data)) return sticker.data;
+    return sticker?.sha256 ? stickerDataCache.get(stickerIdFor(sticker.sha256)) || null : null;
 }
 
 async function loadStickerData(entry) {
     const media = await loadMedia(`sticker_${entry.id}`).catch(() => null);
-    return media && isSafeStickerData(media.data) ? { ...entry, ...media } : null;
+    if (!media || !isSafeStickerData(media.data)) return null;
+    stickerDataCache.set(entry.id, media.data);
+    return { ...entry, ...media };
 }
 
 // Bild (Canvas/Bitmap mit Transparenz) zu einem Sticker: hoechstens STICKER_EDGE, WebP (sonst PNG), klein genug.
@@ -95,23 +156,95 @@ function adultStickerAllowedTo(peerId) {
 // ----- Senden -----
 async function sendSticker(sticker) {
     const peerId = state.activeChatPeerId;
-    if (!peerId || !sticker || !isSafeStickerData(sticker.data)) return false;
+    if (!peerId || !sticker || !isSafeStickerData(sticker.data) || !sticker.sha256) return false;
     if (sticker.adult && !adultStickerAllowedTo(peerId)) {
         showToast(t('stickers.adultNotHere'), 'warning');
         return false;
     }
+    // Aeltere eigene/Favoriten ohne Verweis: jetzt einen geben (gilt dann als eigener Sticker dieses Geraets).
+    const ref = isStickerRef(sticker.ref) ? sticker.ref : await nextOwnStickerRef();
+    const id = sticker.id || stickerIdFor(sticker.sha256);
+    // Bei mir liegen lassen: der Empfaenger fragt es (einmal) bei mir an.
+    await storeStickerData({ ...sticker, id, ref });
     closeMediaModal();
     return sendChatMessage(null, '', null, null, {
         peerId,
-        sticker: { data: sticker.data, sha256: sticker.sha256, w: sticker.w, h: sticker.h, ...(sticker.adult ? { adult: true } : {}) }
+        sticker: { ref, sha256: sticker.sha256, w: sticker.w, h: sticker.h, ...(sticker.adult ? { adult: true } : {}), ...(sticker.pack ? { pack: sticker.pack } : {}) }
     });
+}
+
+// ----- Nachladen: einmal holen, pruefen, behalten -----
+// Fehlt das Bild: aus dem Speicher; sonst Paket-Sticker vom Router; sonst beim Absender anfragen (nur ueber einen
+// offenen Kanal, sonst Verbindung anstossen und spaeter erneut). Danach neu zeichnen.
+async function ensureStickerLoaded(sticker, senderId) {
+    if (!sticker?.sha256) return;
+    const id = stickerIdFor(sticker.sha256);
+    if (stickerDataCache.has(id)) return;
+    const asked = stickerRequests.get(id);
+    if (asked && Date.now() - asked < STICKER_REQUEST_RETRY_MS) return;
+    stickerRequests.set(id, Date.now());
+    const stored = await loadStickerData({ id });
+    if (stored) {
+        stickerRequests.delete(id);
+        redrawStickerChat();
+        return;
+    }
+    if (sticker.pack && await loadPackSticker(sticker).catch(() => false)) return;
+    if (!senderId || (typeof isOwnNode === 'function' ? isOwnNode(senderId) : senderId === state.myProfile.id)) return;
+    if (typeof isSecureChannelOpen === 'function' && !isSecureChannelOpen(senderId)) {
+        if (typeof initiateP2PConnection === 'function') initiateP2PConnection(senderId).catch(() => {});
+        return;
+    }
+    await sendSecurePayload(senderId, { type: 'STICKER_REQUEST', sha256: sticker.sha256 }).catch(logBackgroundError('ensureStickerLoaded'));
+}
+
+async function loadPackSticker(sticker) {
+    const pack = await fetchStickerJson(`/api/stickers/${encodeURIComponent(sticker.pack)}`);
+    const item = (pack.stickers || []).find(entry => entry?.sha256 === sticker.sha256);
+    if (!item || !await acceptStickerData(sticker.sha256, item.data, { w: item.w, h: item.h, ref: sticker.ref, pack: sticker.pack })) return false;
+    return true;
+}
+
+// Pruefsumme muss passen, sonst wird nichts gespeichert.
+async function acceptStickerData(sha256, data, details = {}) {
+    if (!isSafeStickerData(data) || (await sha256Base64(data)) !== sha256) return false;
+    const id = stickerIdFor(sha256);
+    await storeStickerData({ id, data, sha256, w: details.w, h: details.h, ...(details.ref ? { ref: details.ref } : {}), ...(details.pack ? { pack: details.pack } : {}) });
+    await rememberSeenSticker(id);
+    stickerRequests.delete(id);
+    redrawStickerChat();
+    return true;
+}
+
+function redrawStickerChat() {
+    if (state.activeChatPeerId && typeof renderChatHistory === 'function') renderChatHistory();
+}
+
+// P2P (p2p.client.js): Anfrage beantworten, wenn ich den Sticker habe; Antwort nur, wenn ich gefragt habe.
+async function handleStickerRequest(peerId, payload) {
+    const id = stickerIdFor(payload.sha256);
+    const stored = await loadStickerData({ id });
+    if (!stored || stored.sha256 !== payload.sha256) {
+        await sendSecurePayload(peerId, { type: 'STICKER_MISSING', sha256: payload.sha256 }).catch(() => {});
+        return;
+    }
+    await sendSecurePayload(peerId, { type: 'STICKER_RESPONSE', sha256: stored.sha256, data: stored.data, w: stored.w, h: stored.h }).catch(logBackgroundError('handleStickerRequest'));
+}
+
+async function handleStickerResponse(peerId, payload) {
+    if (!stickerRequests.has(stickerIdFor(payload.sha256))) return;
+    if (!await acceptStickerData(payload.sha256, payload.data, { w: payload.w, h: payload.h })) logDebug(`Rejected sticker from ${peerId}: checksum mismatch.`);
+}
+
+function handleStickerMissing(peerId, payload) {
+    logDebug(`Sticker ${stickerIdFor(payload.sha256)} not available at ${peerId}.`);
 }
 
 // ----- Anzeige im Chat (ohne Sprechblase, chat.js) -----
 function renderStickerMessage(bubble, message, isMine) {
     const sticker = message.sticker;
     bubble.classList.add('chat-bubble-sticker');
-    if (!sticker || !isSafeStickerData(sticker.data)) {
+    if (!sticker?.sha256 && !isSafeStickerData(sticker?.data)) {
         bubble.textContent = t('stickers.unavailable');
         return;
     }
@@ -122,10 +255,24 @@ function renderStickerMessage(bubble, message, isMine) {
         bubble.appendChild(hidden);
         return;
     }
+    const data = stickerDataFor(sticker);
+    if (!data) {
+        // Noch nicht da: Platzhalter in der richtigen Groesse, Bild einmal holen.
+        const pending = document.createElement('div');
+        pending.className = 'sticker-pending';
+        pending.dataset.stickerPending = message.id;
+        const ratio = sticker.w && sticker.h ? sticker.h / sticker.w : 1;
+        pending.style.width = '8rem';
+        pending.style.height = `${Math.min(10, 8 * ratio)}rem`;
+        pending.setAttribute('aria-label', t('stickers.loading'));
+        bubble.appendChild(pending);
+        ensureStickerLoaded(sticker, message.senderId).catch(logBackgroundError('ensureStickerLoaded'));
+        return;
+    }
     const frame = document.createElement('div');
     frame.className = 'sticker-frame relative';
     frame.dataset.sticker = message.id;
-    const image = createSecureImage(sticker.data, 'sticker-image', { w: sticker.w, h: sticker.h }, { own: isMine, reuseKey: `sticker:${message.id}` });
+    const image = createSecureImage(data, 'sticker-image', { w: sticker.w, h: sticker.h }, { own: isMine, reuseKey: `sticker:${message.id}` });
     image.setAttribute('role', 'img');
     image.setAttribute('aria-label', t('stickers.sticker'));
     frame.appendChild(image);
@@ -145,7 +292,7 @@ function renderStickerMessage(bubble, message, isMine) {
             frame.querySelector('.sticker-adult-badge')?.remove();
             return;
         }
-        openStickerDetails(sticker).catch(logBackgroundError('openStickerDetails'));
+        openStickerDetails({ ...sticker, data }).catch(logBackgroundError('openStickerDetails'));
     };
     bubble.appendChild(frame);
 }
@@ -184,7 +331,7 @@ async function toggleStickerFavorite(sticker) {
         if (!stickerState.own.some(entry => entry.id === sticker.id)) await deleteDatabaseRecord('media', `sticker_${sticker.id}`).catch(() => {});
     } else {
         await storeStickerData(sticker);
-        stickerState.favorites = [{ id: sticker.id, ...(sticker.adult ? { adult: true } : {}) }, ...stickerState.favorites].slice(0, STICKER_LIST_MAX);
+        stickerState.favorites = [{ id: sticker.id, ...(sticker.adult ? { adult: true } : {}) }, ...stickerState.favorites.filter(entry => entry.id !== sticker.id)].slice(0, STICKER_LIST_MAX);
     }
     await saveStickerList('favorites');
     showToast(on ? t('stickers.favoriteRemoved') : t('stickers.favoriteAdded'), 'info');
@@ -193,6 +340,7 @@ async function toggleStickerFavorite(sticker) {
 
 async function addOwnSticker(sticker) {
     await loadStickerState();
+    if (!isStickerRef(sticker.ref)) sticker.ref = await nextOwnStickerRef();
     await storeStickerData(sticker);
     stickerState.own = [{ id: sticker.id, ...(sticker.adult ? { adult: true } : {}) }, ...stickerState.own.filter(entry => entry.id !== sticker.id)].slice(0, STICKER_LIST_MAX);
     await saveStickerList('own');
@@ -354,11 +502,12 @@ async function renderStickerPacksTab(body) {
         grid.replaceChildren();
         try {
             const full = await fetchStickerJson(`/api/stickers/${encodeURIComponent(pack.id)}`);
-            for (const item of full.stickers || []) {
+            for (const [index, item] of (full.stickers || []).entries()) {
                 if (!isSafeStickerData(item?.data)) continue;
                 const adult = pack.adult || item.adult === true;
                 if (adult && minor) continue;
-                grid.appendChild(stickerTile({ id: stickerIdFor(item.sha256), data: item.data, sha256: item.sha256, w: item.w, h: item.h, ...(adult ? { adult: true } : {}) }));
+                const ref = await routerStickerRef(pack.id, index);
+                grid.appendChild(stickerTile({ id: stickerIdFor(item.sha256), data: item.data, sha256: item.sha256, w: item.w, h: item.h, ref, pack: pack.id, ...(adult ? { adult: true } : {}) }));
             }
         } catch {
             const failed = document.createElement('p');

@@ -79,12 +79,24 @@ window.onload = async () => {
         // laeuft nichts. Alles andere ist ein optionaler Schritt mit Fallback (runStartupStep),
         // damit ein einzelner Fehler nicht die ganze App stoppt.
         await initDatabase();
+        if (!db) state.storageProblem = 'database-unavailable';
+        // Node-ID auch in IndexedDB (localStorage allein kann verloren gehen): neu erzeugt, aber die alte ist noch da ->
+        // wiederherstellen und neu starten, statt mit einer neuen Identitaet weiterzumachen.
+        if (db && await restoreNodeIdFromDatabase()) return;
         await initializeStorageEncryption();
         // Umgezogene alte Kopie: gesperrt, bevor irgendetwas verbindet (move.js).
         await runStartupStep('Umzug', loadMovedAway);
         await runStartupStep('App-Modus', loadAppMode);
         await runStartupStep('Module', loadEnabledFeatures);
         const hasLocalProfile = await loadMyLocalProfile();
+        await noteStorageHealth(hasLocalProfile);
+        // Daten da, aber gerade nicht lesbar: nichts einrichten oder ueberschreiben, nur neu laden anbieten.
+        if (state.storageProblem) {
+            logDebug(`Storage problem at startup: ${state.storageProblem}`);
+            state.coreStartupDone = true;
+            if (APP_ROLE !== 'core') showStorageProblem();
+            return;
+        }
         if (!hasLocalProfile && APP_ROLE === 'core') {
             // Kern ohne Profil: nichts verbinden; die Oberflaeche richtet das Profil ein (K2 startet den Kern dann neu).
             logDebug('Core page without a local profile: idle until the profile exists.');

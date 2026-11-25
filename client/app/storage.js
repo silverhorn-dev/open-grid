@@ -120,6 +120,14 @@ async function initializeStorageEncryption() {
             state.storageKey = stored.key;
             return;
         }
+        // Schluessel fehlt, aber es gibt schon ein verschluesseltes Profil: nie einen neuen erzeugen (die Daten waeren
+        // damit fuer immer unlesbar). main.js zeigt dann "Daten konnten nicht geladen werden" statt der Einrichtung.
+        const existingProfile = await databaseRequest('localProfile', 'readonly', store => store.get('current')).catch(() => null);
+        if (existingProfile?.ciphertext) {
+            state.storageKey = null;
+            state.storageProblem = 'key-missing';
+            return;
+        }
         const generatedKey = await window.crypto.subtle.generateKey(
             { name: 'AES-GCM', length: 256 },
             false,
@@ -205,6 +213,8 @@ async function loadMyLocalProfile() {
         migratedLegacyProfile = Boolean(record);
     }
     const cached = record ? await decryptStoredProfile(record).catch(() => null) : null;
+    // Profil da, aber nicht lesbar: nicht als "neu" behandeln (die Einrichtung wuerde es ueberschreiben).
+    if (record?.ciphertext && !cached?.isMe) state.storageProblem = state.storageProblem || 'profile-unreadable';
     if (cached?.isMe) state.myProfile = cached;
     state.myProfile.id = state.nodeId;
     // Zwei Profile (profile.js): bestehende Profile bekommen beim ersten Laden ihr Social-Profil als Kopie.
@@ -1005,5 +1015,57 @@ async function cleanupUnusedMedia() {
     } finally {
         if (button) button.disabled = false;
     }
+}
+
+// ================= SPEICHER-GESUNDHEIT (T38, Datenverlust in der App) =================
+const NODE_ID_RECORD_ID = 'node-id';
+
+// true = Seite wird neu geladen (alte Node-ID aus IndexedDB wiederhergestellt).
+async function restoreNodeIdFromDatabase() {
+    const stored = await databaseRequest('keys', 'readonly', store => store.get(NODE_ID_RECORD_ID)).catch(() => null);
+    const storedId = typeof stored?.value === 'string' && stored.value.startsWith('node_') ? stored.value : null;
+    if (storedId && storedId !== state.nodeId && nodeIdCreatedThisStart) {
+        logDebug('Node ID was missing in localStorage; restored from IndexedDB.');
+        if (typeof noteBreadcrumb === 'function') noteBreadcrumb('storage: node id restored from IndexedDB');
+        window.localStorage.setItem('opengrid-node-id', storedId);
+        window.sessionStorage.setItem('opengrid-node-id', storedId);
+        window.location.reload();
+        return true;
+    }
+    if (!storedId) await putDatabaseRecord('keys', { id: NODE_ID_RECORD_ID, value: state.nodeId }).catch(() => {});
+    return false;
+}
+
+// Bei jedem Start eine kurze Notiz an die App (ueberlebt einen Verlust der WebView-Daten): Hash der Node-ID, Profil,
+// Anzahl Nachrichten, dauerhafter Speicher, Problem. Keine Inhalte.
+async function noteStorageHealth(hasLocalProfile) {
+    if (APP_ROLE === 'core' || typeof isNativeApp !== 'function' || !isNativeApp()) return;
+    try {
+        const messages = db ? await databaseRequest('messages', 'readonly', store => store.count()).catch(() => -1) : -1;
+        const persisted = await navigator.storage?.persisted?.().catch(() => null);
+        const node = (await sha256Base64(state.nodeId)).slice(0, 8);
+        const text = `start: node ${node}${nodeIdCreatedThisStart ? ' (new)' : ''}, profile ${hasLocalProfile ? 'yes' : 'no'}, ${messages} messages, persisted ${persisted}${state.storageProblem ? `, problem ${state.storageProblem}` : ''}`;
+        await nativeCall('note', { text }).catch(() => {});
+    } catch {
+        // Nur Diagnose.
+    }
+}
+
+// Daten koennen gerade nicht gelesen werden: nichts einrichten (wuerde ueberschreiben), nur neu laden anbieten.
+function showStorageProblem() {
+    const content = openMediaModal(t('storage.problemTitle'));
+    const box = document.createElement('div');
+    box.id = 'storage-problem';
+    box.className = 'space-y-3';
+    const text = document.createElement('p');
+    text.className = 'text-sm text-slate-300';
+    text.textContent = t('storage.problemText');
+    const reload = document.createElement('button');
+    reload.type = 'button';
+    reload.className = 'btn-primary w-full';
+    reload.textContent = t('storage.problemReload');
+    reload.onclick = () => window.location.reload();
+    box.append(text, reload);
+    content.appendChild(box);
 }
 

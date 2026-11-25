@@ -2724,3 +2724,14 @@ Nur Dating, aus per Standard (`VERIFY=on`). Plan und Phasen: `documentation/VERI
   `GET/POST /api/admin/stickers` (`{ name, adult, items: [{ data, w, h }] }`, hoechstens 120 je Paket, 50 Pakete),
   `DELETE /api/admin/stickers/:packId`. SQLite `sticker_packs`, `sticker_items`. `/api/config stickers.packs` = es gibt Pakete.
 
+## Speicher beim Start (`storage.js`, Board T38)
+
+- Node-ID in `localStorage` (`opengrid-node-id`) und gespiegelt in `keys` `node-id`. Fehlt sie nur in `localStorage`
+  (beim Start neu erzeugt), aber IndexedDB kennt die alte: wiederherstellen und neu laden.
+- Kein neuer Speicherschluessel (`keys` `profile-cache`), wenn schon ein verschluesseltes Profil (`localProfile`
+  `current`) da ist. `state.storageProblem` (`database-unavailable` | `key-missing` | `profile-unreadable`) -> statt der
+  Einrichtung "Daten nicht geladen" mit "Neu laden"; nichts wird geschrieben. Der Kern bleibt dann untaetig.
+- App (Bruecke `note { text }`, `CrashLog`): bei jedem Start Hash der Node-ID (8 Zeichen), "(new)" wenn neu erzeugt,
+  Profil ja/nein, Anzahl Nachrichten, `navigator.storage.persisted()`, ggf. Problem. Die PWA zeigt die App-Ereignisse
+  bei jedem Start im Debug-Log.
+

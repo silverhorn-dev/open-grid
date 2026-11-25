@@ -7,6 +7,10 @@ const AVATAR_PLACEHOLDER = 'data:image/svg+xml;utf8,' + encodeURIComponent(
 );
 
 // Alte Profile koennen noch eine externe Platzhalter-URL als Avatar haben.
+// Wurde die Node-ID bei diesem Start neu erzeugt (localStorage leer)? Dann prueft main.js, ob IndexedDB noch die alte
+// kennt, und stellt sie wieder her, statt mit einer neuen Identitaet weiterzumachen. Steht vor `state` (das sie setzt).
+let nodeIdCreatedThisStart = false;
+
 function localAvatar(avatar) {
     return typeof avatar === 'string' && avatar.startsWith('data:image/') ? avatar : AVATAR_PLACEHOLDER;
 }
@@ -275,6 +279,8 @@ const state = {
     gridAvatarRefreshTimer: null,
     // Verschriftlichung (stt.js): laufende Auftraege je Nachricht ('loading' | 'working').
     sttStatus: {},
+    // Speicher beim Start nicht lesbar (storage.js): 'database-unavailable' | 'key-missing' | 'profile-unreadable'.
+    storageProblem: null,
     // QR-Codes (qr-scan.js): Erkenner, jsQR-Laden, Zeichenflaeche, Snap-Kamera-Pruefung.
     qrDetector: undefined,
     jsQrLoading: null,
@@ -479,6 +485,7 @@ function getOrCreateNodeId() {
     }
 
     const nodeId = `node_${window.crypto.randomUUID()}`;
+    nodeIdCreatedThisStart = true;
     window.sessionStorage.setItem(storageKey, nodeId);
     window.localStorage.setItem(storageKey, nodeId);
     return nodeId;

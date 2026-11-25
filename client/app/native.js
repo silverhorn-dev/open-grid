@@ -4,7 +4,7 @@
 // Nachrichten sind JSON-Texte: Anfrage { v, id, type, data }, Antwort { v, id, ok, result | error },
 // Ereignis der App { v, event, data }. Die Liste muss zu android/.../Bridge.kt passen (Test prueft das).
 const NATIVE_PROTOCOL_VERSION = 1;
-const NATIVE_REQUEST_TYPES = ['capabilities', 'secureScreen', 'takeShare', 'notify', 'notifications', 'background', 'inbox', 'coreStatus', 'replyResult', 'recordAudio'];
+const NATIVE_REQUEST_TYPES = ['capabilities', 'secureScreen', 'takeShare', 'notify', 'notifications', 'background', 'inbox', 'coreStatus', 'replyResult', 'recordAudio', 'note'];
 const NATIVE_EVENT_TYPES = ['shareReady', 'openChat', 'notificationReply'];
 const NOTIFICATION_REPLY_MAX_LENGTH = 2000;
 const NATIVE_CALL_TIMEOUT_MS = 10000;
@@ -266,10 +266,11 @@ function initNativeBridge() {
                 const before = typeof takeBreadcrumbsBefore === 'function' ? takeBreadcrumbsBefore(gone.at) : [];
                 logDebug(before.length ? `Before the renderer was gone:\n  ${before.join('\n  ')}` : 'Before the renderer was gone: no steps recorded.');
                 if (gone.availMb !== undefined) logDebug(`Device memory at that time: ${gone.availMb} of ${gone.totalMb} MB free${gone.lowMemory ? ' (low memory)' : ''}, renderer priority ${gone.priority}`);
-                // Native Spur der App (Lebenszyklus, Rechte-Dialoge, Antworten aus Benachrichtigungen).
-                const events = Array.isArray(result.nativeEvents) ? result.nativeEvents : [];
-                if (events.length) logDebug(`App events:\n  ${events.map(entry => `${new Date(entry.at).toISOString()} ${String(entry.text).slice(0, 200)}`).join('\n  ')}`);
+
             }
+            // Native Spur der App (Lebenszyklus, Rechte-Dialoge, Starts mit Speicherstand) immer im Debug-Log.
+            const events = Array.isArray(result?.nativeEvents) ? result.nativeEvents : [];
+            if (events.length) logDebug(`App events:\n  ${events.map(entry => `${new Date(entry.at).toISOString()} ${String(entry.text).slice(0, 200)}`).join('\n  ')}`);
             if (typeof updatePushStatus === 'function') updatePushStatus().catch(() => {});
             renderNativeAppSettings().catch(() => {});
             sendNativeInboxCredentials();

@@ -2,7 +2,11 @@
 
 Pro Build (= Commit) die Aenderungen, neueste oben. Im Debug-Modus im Menue unter "Changelog" sichtbar.
 
-## Build 382 · 2026-11-21
+## Build 383 · 2026-11-25
+- Schutz vor Datenverlust: kann die App deine Daten beim Start gerade nicht lesen, richtet sie sich nicht mehr neu ein (das hätte überschrieben), sondern bietet „Neu laden“ an; die Geräte-ID ist doppelt gesichert und wird wiederhergestellt, wenn sie fehlt
+- Android-App 0.3.6: merkt sich bei jedem Start den Speicherstand (ohne Inhalte), damit sich ein Datenverlust im Debug-Log nachvollziehen lässt
+
+## Build 382 · 2026-11-21 · `298294e`
 - Sticker schneller: die Nachricht trägt nur noch einen Verweis; das Bild holt dein Gerät beim ersten Mal einmal (vom Absender bzw. Paket-Sticker vom Server) und behält es, danach ist derselbe Sticker sofort da
 
 ## Build 381 · 2026-11-20 · `1f93bef`

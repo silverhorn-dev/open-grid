@@ -35,7 +35,7 @@ class Bridge(
         const val PROTOCOL = 1
         const val OBJECT_NAME = "OpenGridNative"
         // Muss zu NATIVE_REQUEST_TYPES / NATIVE_EVENT_TYPES in client/app/native.js passen (test/android-app.test.js).
-        val REQUEST_TYPES = listOf("capabilities", "secureScreen", "takeShare", "notify", "notifications", "background", "inbox", "coreStatus", "replyResult", "recordAudio")
+        val REQUEST_TYPES = listOf("capabilities", "secureScreen", "takeShare", "notify", "notifications", "background", "inbox", "coreStatus", "replyResult", "recordAudio", "note")
         val EVENT_TYPES = listOf("shareReady", "openChat", "notificationReply")
 
         fun install(webView: WebView, bridge: Bridge): Boolean {
@@ -133,6 +133,11 @@ class Bridge(
                     reply(true, null)
                 }
                 "recordAudio" -> handleRecordAudio(data?.optString("action").orEmpty(), reply)
+                // Kurze Diagnose-Notiz der PWA (Start mit Speicherstand), ueberlebt einen Verlust der WebView-Daten.
+                "note" -> {
+                    CrashLog.event(appContext, data?.optString("text").orEmpty().take(200))
+                    reply(true, null)
+                }
                 else -> reply(false, "Unknown type")
             }
         } catch (error: Exception) {
